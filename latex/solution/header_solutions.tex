@@ -1,0 +1,81 @@
+%-------------------------------------------------------------------------------
+% The following are required for the overall layout:
+%-------------------------------------------------------------------------------
+\documentclass[rgb,dvipsnames]{beamer}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+
+%-------------------------------------------------------------------------------
+% The following are required for most problems:
+%-------------------------------------------------------------------------------
+\usepackage{amsmath,amssymb}
+\usepackage{pgf,tikz}
+\usepackage{mathrsfs}
+\usetikzlibrary{arrows}
+\usepackage{pgfplots}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{listings}
+%\usepackage{subcaption}
+
+
+%-------------------------------------------------------------------------------
+% Add packages that are required for your problem:
+%-------------------------------------------------------------------------------
+\usetikzlibrary{arrows}
+\usepackage{ifthen}
+\usepackage{tcolorbox}
+\usepackage[makeroom]{cancel}
+\usepackage{listings}
+
+%-------------------------------------------------------------------------------
+% General layout settings:
+% 
+% These are very similar to the setting from the BAPC 2015 presentation, except
+% that the colours have been replaced by the TU Delft colours.
+%-------------------------------------------------------------------------------
+\usetheme{default}
+\useinnertheme{rectangles}
+\useoutertheme{infolines}
+\setbeamertemplate{navigation symbols}{} % remove navigation symbols
+\setbeamertemplate{frametitle}[default][center]
+\setbeamersize{text margin left=1cm} 
+\setbeamersize{text margin right=1cm} 
+
+\definecolor{tudCyan}{RGB}{61,152,222} % TU Delft colour
+\definecolor{uva}{RGB}{64,83,163} % Bapc 2017 UvA colour
+\definecolor{beamer@blendedblue}{RGB}{64,83,163}
+\setbeamercolor{footlinecolor}{fg=white,bg=uva}
+\setbeamercolor{frametitle}{fg=uva}
+\setbeamercolor{title}{fg=uva}
+
+\setbeamertemplate{footline}{%
+	\begin{beamercolorbox}[sep=1em,wd=\paperwidth,leftskip=0.5cm,rightskip=0.5cm]{footlinecolor}
+		\insertshorttitle\ --- \insertdate \hfill\hfill\insertframenumber \ /  \inserttotalframenumber
+	\end{beamercolorbox}%
+}
+
+%-------------------------------------------------------------------------------
+% BAPC logo in the top right corner:
+%-------------------------------------------------------------------------------
+\addtobeamertemplate{headline}{
+	\begin{figure}[!ht]
+		\vspace{-0.004\textwidth}
+		\hfill 
+		\includegraphics[width=0.09\textwidth]{images/logo-2017.pdf}
+		\vspace{-0.02\textwidth}
+		\hspace{0.03\textwidth}
+	\end{figure}
+	\vspace{-0.13\textwidth} 
+}
+
+%-------------------------------------------------------------------------------
+% Center title for each problem
+%-------------------------------------------------------------------------------
+\newcommand{\centertitle}[1] {%
+	\begin{center}%
+		\usebeamerfont*{frametitle}%
+		\usebeamercolor[fg]{frametitle}%
+		#1%
+	\end{center}%
+}

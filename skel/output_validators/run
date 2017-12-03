@@ -1,0 +1,56 @@
+#!/bin/bash
+
+# There is usually no need to modify this script!
+
+# This script calls all validators in the `output_validators` directory.
+# Typically, there is one validator for the grammar
+# and one validator for the correctness of the answer,
+# but this is not a requirement. They could also be merged.
+
+# The grammar.ctd file is only used for checking the .ans files in the data directories.
+# It is not possible to verify program output using the checktestdata tool,
+# because it is not always installed (and it is non-trivial to do so).
+
+# This should return 42 or 43 for AC and WA respectively.
+# Anything else will indicate the output validator has crashed.
+# Furthermore, DOMJudge will get in an infinite loop when this program returns
+# anything different from 42 and 43, so please don't do that!
+
+# called as:
+# .../run in ans feedback_dir [additional arguments] < out [> interactive_input]
+input=$1
+answer=$2
+feedbackdir=$3
+
+# relevant files in feedback_dir:
+judgemessage=${feedbackdir}judgemessage.txt
+scriptdir=${0%/*}
+
+# return value:
+AC=42
+WA=43
+
+# copy stdin to tempfile, so that we can reuse it
+output=$(mktemp -p /tmp "BAPC-test-XXXXXX.out")
+cat > $output
+
+for validator in ${scriptdir}/*.cpp ; do
+	# Now check the validity of the output
+	${validator%.cpp} $input $answer $feedbackdir < $output >> $judgemessage
+	retcode=$?
+	if [ "$retcode" = "43" ] ; then
+		echo "Validator $validator rejected the team output!" >> $judgemessage
+		rm $output
+		exit $WA
+	fi
+
+	if [ "$retcode" != "42" ] ; then
+		echo "Validator $validator crashed and gave unexpected result $retcode!" >> $judgemessage
+		echo "PLEASE INVESTIGATE THIS" >> $judgemessage
+		rm $output
+		exit $WA
+	fi
+done
+
+rm $output
+exit $AC

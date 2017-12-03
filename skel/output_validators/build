@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Build the required validators.
+# Modify to your likings.
+
+for validator in *.cpp ; do
+	g++ -std=c++11 -Wall -Wextra -pedantic -O2 $validator -o ${validator%.cpp}
+done
