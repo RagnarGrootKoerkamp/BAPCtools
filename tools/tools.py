@@ -37,7 +37,7 @@ rtv_ac = 42
 rtv_wa = 43
 
 build_extensions = ['.c', '.cc', '.cpp', '.java', '.py', '.py2', '.py3', '.ctd']
-problem_outcomes = ['accepted', 'wrong_answer', 'time_limit_exceeded','run_time_error']
+problem_outcomes = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED','RUN_TIME_ERROR']
 tmpdir = tempfile.mkdtemp(prefix='bapctools_') + '/'
 
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
@@ -48,7 +48,7 @@ TABLE_THRESHOLD = 4
 # When it is `latex/build/`, we will use the latex/build directory inside the BAPCtools repository.
 LATEX_BUILDDIR = ''
 
-SCRIPT_DIR = ''
+TOOLS_ROOT = ''
 
 # this is lifted for convenience
 verbose = 0
@@ -193,7 +193,7 @@ def build(path):
         run_command = [ 'python3', path ]
     elif ext == '.ctd':
         compile_command = None
-        run_command = [ '../tools/checktestdata', path ]
+        run_command = [ TOOLS_ROOT + '/checktestdata/checktestdata', path ]
     else:
         print(path,'has unknown extension',ext)
         exit()
@@ -366,10 +366,10 @@ def get_submissions(problem):
     commands = {}
     for d in dirs:
         dirname = os.path.basename(os.path.normpath(d))
-        if not dirname in problem_outcomes:
+        if not dirname.upper() in problem_outcomes:
             continue
         # include directory in submission name
-        commands[dirname] = build_directory(d, False, True)
+        commands[dirname.upper()] = build_directory(d, False, True)
     return commands
 
 # return: (success, remark)
@@ -704,7 +704,7 @@ def generate_output(problem, settings):
 # Build a pdf for the problem. Explanation in latex/README.md
 def build_pdf(problem):
     # Set up the build directory if it does not yet exist.
-    builddir = os.path.normpath(SCRIPT_DIR+'/../latex/build')
+    builddir = os.path.normpath(TOOLS_ROOT+'/latex/build')
     if not os.path.isdir(builddir):
         if os.path.islink(builddir):
             os.unlink(builddir)
@@ -776,8 +776,8 @@ def print_sorted(problems, args):
         print(prefix + problem[0])
 
 def main():
-    global SCRIPT_DIR
-    SCRIPT_DIR = os.path.dirname(os.readlink(__file__))
+    global TOOLS_ROOT
+    TOOLS_ROOT = os.path.normpath(os.path.dirname(os.readlink(__file__))+'/../')
 
     parser = argparse.ArgumentParser(description=
 '''
