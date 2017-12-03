@@ -1,0 +1,4 @@
+[submodule "checktestdata"]
+	path = checktestdata
+	url = ../checktestdata.git
+	branch = BAPCtools
