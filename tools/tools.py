@@ -794,8 +794,13 @@ Run this from one of:
     subparsers = parser.add_subparsers(title='actions', dest='action')
     subparsers.required = True
 
+    # New problem
+    runparser = subparsers.add_parser('new-problem', aliases=['create-problem', 'add-problem'],
+            help='Add a new problem to the current directory.')
+    runparser.add_argument('problemname', nargs='?', help='The shortname of the problem, [a-z0-9]+.')
+
     # Latex
-    subparsers.add_parser('pdf', aliases=['build', 'statement', 'problem'],
+    subparsers.add_parser('pdf', aliases=['build', 'statement'],
             help='Build the problem statement pdf.')
 
     # Validation
@@ -831,6 +836,11 @@ Run this from one of:
     verbose = args.verbose if args.verbose else 0
     action = args.action
 
+    if action in ['new-problem', 'create-problem', 'add-problem']:
+        shutil.copytree(TOOLS_ROOT+'/skel', args.problemname)
+        exit();
+
+
     # Get problems and cd to contest
     problems, level = get_problems(args.contest)
 
@@ -862,7 +872,7 @@ Run this from one of:
         for key in problemsettings:
             vars(settings)[key] = problemsettings[key]
 
-        if action in ['pdf', 'build', 'statement', 'problem']:
+        if action in ['pdf', 'build', 'statement']:
             success &= build_pdf(problem)
         if action in ['validate', 'grammar', 'input', 'in', 'all']:
             success &= validate(problem, 'input', settings)
