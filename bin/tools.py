@@ -854,12 +854,12 @@ Run this from one of:
     subparsers.required = True
 
     # New contest
-    runparser = subparsers.add_parser('new-contest', aliases=['create-contest', 'add-contest'],
+    runparser = subparsers.add_parser('contest', aliases=['new-contest', 'create-contest', 'add-contest'],
             help='Add a new contest to the current directory.')
     runparser.add_argument('contestname', help='The name of the contest, [a-z0-9]+.')
 
     # New problem
-    runparser = subparsers.add_parser('new-problem', aliases=['create-problem', 'add-problem'],
+    runparser = subparsers.add_parser('problem', aliases=['new-problem', 'create-problem', 'add-problem'],
             help='Add a new problem to the current directory.')
     runparser.add_argument('problemname', help='The name of the problem, [a-z0-9]+.')
 
@@ -900,11 +900,11 @@ Run this from one of:
     verbose = args.verbose if args.verbose else 0
     action = args.action
 
-    if action in ['new-contest', 'create-contest', 'add-contest']:
+    if action in ['contest', 'new-contest', 'create-contest', 'add-contest']:
         shutil.copytree(TOOLS_ROOT+'/skel/contest', args.contestname)
         exit();
 
-    if action in ['new-problem', 'create-problem', 'add-problem']:
+    if action in ['problem', 'new-problem', 'create-problem', 'add-problem']:
         shutil.copytree(TOOLS_ROOT+'/skel/problem', args.problemname)
         exit();
 
