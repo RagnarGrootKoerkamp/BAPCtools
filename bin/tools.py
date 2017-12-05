@@ -84,13 +84,13 @@ def get_problems(contest):
     elif os.path.isdir('../../.git'):
         problems = [os.path.basename(os.getcwd())+'/']
         os.chdir('..')
-        return (problems, 'problem')
+        return (problems, 'problem', os.path.basename(os.getcwd()))
     else:
         print("ERROR: Can't determine git root directory; run this from problem, contest, or root")
         exit()
 
     # return list of problems in contest directory
-    return (glob('*/'), 'contest')
+    return (glob('*/'), 'contest', os.path.basename(os.getcwd()))
 
 # read problem settings from config files
 def read_configs(problem):
@@ -702,7 +702,7 @@ def generate_output(problem, settings):
     print('%d testcases failed' % nfail)
 
 # Build a pdf for the problem. Explanation in latex/README.md
-def build_pdf(problem):
+def build_problem_pdf(problem, make_pdf = True):
     # Set up the build directory if it does not yet exist.
     builddir = os.path.normpath(TOOLS_ROOT+'/latex/build')
     if not os.path.isdir(builddir):
@@ -750,15 +750,74 @@ def build_pdf(problem):
             # We must include a \\ in latex at the end of the table row.
             samples_file.write('\\\\\n\\end{Sample}\n')
 
+    if not make_pdf:
+        return True
+
     # run pdflatex
     pwd = os.getcwd()
-    os.chdir(os.path.normpath(builddir+'/..'))
+    os.chdir(TOOLS_ROOT+'/latex')
     subprocess.call(['pdflatex', '-output-directory', './build/problem', 'problem.tex'])
     os.chdir(pwd)
 
     # link the output pdf
     if not os.path.exists(problem+'/problem.pdf'):
-        os.symlink(builddir+'problem/problem.pdf', problem+'/problem.pdf')
+        os.symlink(builddir+problem+'/problem.pdf', problem+'/problem.pdf')
+
+    return True
+
+# Build a pdf for an entire problemset. Explanation in latex/README.md
+def build_contest_pdf(contest, problems):
+    # Set up the build directory if it does not yet exist.
+    builddir = os.path.normpath(TOOLS_ROOT+'/latex/build')
+    if not os.path.isdir(builddir):
+        if os.path.islink(builddir):
+            os.unlink(builddir)
+        # Make the build dir on tmpfs if it doesn't exist
+        if LATEX_BUILDDIR == '':
+            tmpdir = tempfile.mkdtemp(prefix='bapctools_latex') + '/'
+            os.symlink(tmpdir, builddir)
+        else:
+            os.makedirs(builddir, exist_ok = True)
+    builddir += '/'
+
+    # Make the build/<contest> directory
+    os.makedirs(builddir+contest, exist_ok = True)
+    # build/contest -> build/<contest>
+    if os.path.exists(builddir+'contest'):
+        os.unlink(builddir + 'contest')
+    os.symlink(contest, builddir+'contest')
+    # link contest.tex
+    config_target = builddir+'contest/contest.tex'
+    if not os.path.exists(config_target):
+        if os.path.islink(config_target):
+            os.unlink(config_target)
+        os.symlink(os.path.abspath('contest.tex'), config_target)
+
+    # Create the contest/problems.tex file.
+    problems_path = builddir+'contest/problems.tex'
+    with open(problems_path, 'wt') as problems_file:
+        for problem in problems:
+            problems_file.write('\\input{./build/'+problem+'/problem_statement/problem.tex}\n')
+            problems_file.write('\\input{./build/'+problem+'/samples.tex}\n')
+
+    # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
+    if not os.path.exists(builddir+'contest/logo.pdf'):
+        if os.path.exists('../logo.pdf'):
+            os.symlink(os.path.abspath('../logo.pdf'), builddir+'contest/logo.pdf')
+        else:
+            os.symlink(os.path.abspath(TOOLS_ROOT+'/latex/images/logo-not-found.pdf'), builddir+'contest/logo.pdf')
+
+    # run pdflatex
+    pwd = os.getcwd()
+    os.chdir(TOOLS_ROOT+'/latex')
+    # The absolute path is needed, because otherwise the `contest.tex` file
+    # in the output directory will get priority.
+    subprocess.call(['pdflatex', '-output-directory', './build/contest', os.path.abspath('contest.tex')])
+    os.chdir(pwd)
+
+    # link the output pdf
+    if not os.path.exists('contest.pdf'):
+        os.symlink(builddir+contest+'/contest.pdf', 'contest.pdf')
 
     return True
 
@@ -851,7 +910,7 @@ Run this from one of:
 
 
     # Get problems and cd to contest
-    problems, level = get_problems(args.contest)
+    problems, level, contest = get_problems(args.contest)
 
     if action in ['generate', 'gen']:
         if level != 'problem':
@@ -862,8 +921,7 @@ Run this from one of:
         if level != 'problem':
             print('Running a given submission only works from a problem directory.')
             exit()
-
-
+    
     if action == 'stats':
         stats(problems)
         return
@@ -882,7 +940,9 @@ Run this from one of:
             vars(settings)[key] = problemsettings[key]
 
         if action in ['pdf', 'build', 'statement']:
-            success &= build_pdf(problem)
+            # only build the pdf on the problem level
+            success &= build_problem_pdf(problem, level == 'problem')
+
         if action in ['validate', 'grammar', 'input', 'in', 'all']:
             success &= validate(problem, 'input', settings)
         if action in ['generate', 'gen', 'all']:
@@ -892,6 +952,11 @@ Run this from one of:
         if action in ['run', 'all']:
             success &= run_submissions(problem, settings)
         print()
+
+    # build pdf for the entire contest
+    if action in ['pdf', 'build', 'statement'] and level == 'contest':
+        build_contest_pdf(contest, problems)
+
     if not success:
         exit()
 
