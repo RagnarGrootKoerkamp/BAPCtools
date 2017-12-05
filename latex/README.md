@@ -5,6 +5,11 @@ complete contests.
 
 All temporary/build files go to `latex/build`.
 
+## Manual compilation
+If you want to compile a latex file by yourself, the easiest way to do that
+is to copy over the `bapc.cls` file and to create a new latex file with documentclass `bapc`
+which includes the latex file containing the problem statement.
+
 ## Compiling a single problem
 - Create the directory `build/<problem>`.
 - Link `build/problem` to `build/<problem>`.
@@ -26,5 +31,10 @@ The reason we use the `build/problem` symlink is twofold:
 - By making it a symlink, we don't have to fiddle with the latex code; just running `pdflatex` is enough.
 
 ## Compiling a contest
-TODO(ragnar)
+- Create `build/<contest>`.
+- Link `build/contest` to `build/<contest>`.
+- Link `build/contest/contest.tex` to `<contest dir>/contest.tex`.
+- Link `build/contest/logo.png` to either the contest logo or placeholder logo.
+- Create `build/contest/problems.tex`, containing includes for all problems and samples.
+- Run `pdflatex` on `contest.tex`.
 
