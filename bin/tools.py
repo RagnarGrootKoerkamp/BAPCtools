@@ -208,8 +208,9 @@ def build(path):
 
 # build all files in a directory; return a list of tuples (file, command)
 # When 'build' is found, we execute it, and return 'run' as the executable
-def build_directory(directory, process_ctd=True, include_dirname=False):
+def build_directory(directory, include_dirname=False):
     commands = []
+
     if is_executable(directory+'build'):
         cur_path = os.getcwd()
         os.chdir(directory)
@@ -221,6 +222,10 @@ def build_directory(directory, process_ctd=True, include_dirname=False):
             print('after running',path,',', directory+'run','must be a valid executable!')
             exit()
         return [('run',[directory+'run'])]
+
+    if is_executable(directory+'run'):
+        return [('run',[directory+'run'])]
+
 
     files = glob(directory+'*')
     files.sort()
@@ -235,7 +240,7 @@ def build_directory(directory, process_ctd=True, include_dirname=False):
             commands.append((name, [path]))
         else:
             ext = os.path.splitext(name)[1]
-            if ext in build_extensions and not (ext == '.ctd' and process_ctd == False):
+            if ext in build_extensions:
                 # None on compiler failure
                 run_command = build(path)
                 if run_command:
@@ -263,20 +268,32 @@ def print_testcase(path):
     dirname = os.path.basename(os.path.dirname(path))
     return dirname+'/'+name
 
-def get_validators(problem, validator_type, process_ctd=True):
-    return build_directory(problem+ validator_type+'_validators/', process_ctd)
+def get_validators(problem, validator_type):
+    return build_directory(problem + validator_type+'_validators/')
 
+# Validate the .in and .ans files for a problem.
+# For input:
+# - build+run or all files in input_validators
+#
+# For output:
+# - 'default' validation:
+#   build+run or all files in output_validators
+# - 'custom'  validation:
+#   none, .ans file not needed.
+# 
+# We always pass both the case_sensitive and space_change_sensitive flags.
 def validate(problem, validator_type, settings):
     if not validator_type in ['input', 'output']:
         print('Validator type must be `input` or `output`!')
         exit()
 
+    if validator_type == 'output' and settings.validation == 'custom':
+        return True
+
     if verbose:
         print(_c.bold,' Validating', validator_type,_c.reset)
 
-    validators = get_validators(problem, validator_type,
-            # skip ctd grammars on custom output validation
-            not (validator_type=='output' and settings.validation == 'custom') )
+    validators = get_validators(problem, validator_type)
     # validate testcases without answer files
     testcases = get_testcases(problem, True)
     ext = '.in' if validator_type == 'input' else '.ans'
@@ -286,6 +303,8 @@ def validate(problem, validator_type, settings):
 
     success = True
 
+    flags = ['case_sensitive', 'space_change_sensitive']
+
     # validate the testcases
     for testcase in testcases:
         if verbose:
@@ -294,11 +313,11 @@ def validate(problem, validator_type, settings):
         for validator in validators:
             # simple `program < test.in` for input validation and ctd output validation
             if validator_type == 'input' or os.path.splitext(validator[0])[1] == '.ctd':
-                ret = exec_command(validator[1],
+                ret = exec_command(validator[1] + flags,
                         stdin=open(testcase+ext,'r'))
             else:
                 # more general `program test.in test.ans feedbackdir < test.out` output validation otherwise
-                ret = exec_command(validator[1] + [testcase+'.in', testcase+'.ans', tmpdir],
+                ret = exec_command(validator[1] + [testcase+'.in', testcase+'.ans', tmpdir] + flags,
                         stdin=open(testcase+ext,'r'))
             if ret == 0 or ret == rtv_ac:
                 pass
@@ -369,7 +388,7 @@ def get_submissions(problem):
         if not dirname.upper() in problem_outcomes:
             continue
         # include directory in submission name
-        commands[dirname.upper()] = build_directory(d, False, True)
+        commands[dirname.upper()] = build_directory(d, True)
     return commands
 
 # return: (success, remark)
@@ -441,10 +460,16 @@ def default_output_validator(ansfile, outfile, settings):
 
 # call output validators as ./validator in ans feedbackdir additional_arguments < out
 # return (success, remark)
-def custom_output_validator(testcase, outfile, output_validators):
+def custom_output_validator(testcase, outfile, settings, output_validators):
+    flags = []
+    if settings.space_change_sensitive:
+        flags += ['space_change_sensitive']
+    if settings.case_sensitive:
+        flags += ['case_sensitive']
+
     for output_validator in output_validators:
         with open(outfile, 'rb') as outf:
-            ret = exec_command(output_validator[1] + [testcase+'.in', testcase+'.ans', tmpdir], stdin=outf)
+            ret = exec_command(output_validator[1] + [testcase+'.in', testcase+'.ans', tmpdir] + flags, stdin=outf)
         if ret == rtv_ac:
             continue
         if ret == rtv_wa:
@@ -492,7 +517,7 @@ def process_testcase(run_command, testcase, outfile, settings, output_validators
         if settings.validation == 'default':
             ret = default_output_validator(testcase+'.ans', outfile, settings)
         elif settings.validation == 'custom':
-            ret = custom_output_validator(testcase, outfile, output_validators)
+            ret = custom_output_validator(testcase, outfile, settings, output_validators)
         else:
             print('Validation type must be one of `default` or `custom`')
             exit()
@@ -575,9 +600,7 @@ def run_submission(submission, testcases, settings, output_validators, expected=
 def run_submissions(problem, settings):
     # Require both in and ans files
     testcases = get_testcases(problem, True)
-    output_validators = get_validators(problem, 'output',
-            # skip ctd grammars on custom output validation
-            not settings.validation == 'custom' )
+    output_validators = get_validators(problem, 'output')
 
     if settings.submissions:
         submissions = {'ACCEPTED':[(os.path.basename(submission), build(problem+submission))
