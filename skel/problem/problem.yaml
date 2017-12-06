@@ -4,4 +4,12 @@ source: BAPC 2018
 source_url: https://2018.bapc.eu/
 license: cc by-sa
 rights_owner: author
-validation: custom
+validation: default # or 'custom' when using a custom validator
+
+# One or more of:
+# case_sensitive
+# space_change_sensitive
+# float_absolute_tolerance eps
+# float_relative_tolerance eps
+# float_tolerance eps
+validator_flags:
