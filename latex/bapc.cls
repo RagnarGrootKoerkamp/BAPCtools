@@ -41,6 +41,7 @@
 \RequirePackage{navigator}
 \newcommand{\href}[2]{\urllink{#1}{#2}}
 
+\newcommand{\todo}[1]{{\color{red}[#1]}}
 
 %-------------------------------------------------------------------------------
 % ThisIsNotABlankPage: clears to an odd page. If a blank page is created, then
