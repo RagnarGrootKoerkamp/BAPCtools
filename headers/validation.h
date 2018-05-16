@@ -13,7 +13,7 @@
 using namespace std;
 
 const string case_sensitive_flag         = "case_sensitive";
-const string space_chante_sensitive_flag = "space_change_sensitive";
+const string space_change_sensitive_flag = "space_change_sensitive";
 
 class Validator {
 	const int ret_AC = 42, ret_WA = 43;
@@ -24,7 +24,7 @@ class Validator {
 	Validator(int argc, char **argv) {
 		for(int i = 0; i < argc; ++i) {
 			if(argv[i] == case_sensitive_flag) case_sensitive = true;
-			if(argv[i] == space_chante_sensitive_flag) ws = true;
+			if(argv[i] == space_change_sensitive_flag) ws = true;
 		}
 		if(ws) cin >> noskipws;
 	}
