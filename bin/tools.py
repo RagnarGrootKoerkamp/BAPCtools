@@ -291,7 +291,7 @@ def validate(problem, validator_type, settings):
         return True
 
     if verbose:
-        print(_c.bold,' Validating', validator_type,_c.reset)
+        print(_c.bold, ' Validating', validator_type, _c.reset)
 
     validators = get_validators(problem, validator_type)
     # validate testcases without answer files
@@ -316,7 +316,7 @@ def validate(problem, validator_type, settings):
                 ret = exec_command(validator[1] + flags,
                         stdin=open(testcase+ext,'r'))
             else:
-                # more general `program test.in test.ans feedbackdir < test.out` output validation otherwise
+                # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
                 ret = exec_command(validator[1] + [testcase+'.in', testcase+'.ans', tmpdir] + flags,
                         stdin=open(testcase+ext,'r'))
             if ret == 0 or ret == rtv_ac:
