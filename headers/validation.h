@@ -9,6 +9,7 @@
 // passed. When validating team output, the flags in problem.yaml should be used.
 
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 using namespace std;
 
@@ -21,12 +22,12 @@ class Validator {
 	bool ws;
 
   public:
-	Validator(int argc, char **argv) {
+	Validator(int argc, char **argv, istream &in = std::cin) : in(in) {
 		for(int i = 0; i < argc; ++i) {
 			if(argv[i] == case_sensitive_flag) case_sensitive = true;
 			if(argv[i] == space_change_sensitive_flag) ws = true;
 		}
-		if(ws) cin >> noskipws;
+		if(ws) in >> noskipws;
 	}
 
 	// At the end of the scope, check whether the EOF has been reached.
@@ -39,8 +40,8 @@ class Validator {
 	void space() {
 		if(ws) {
 			char c;
-			cin >> c;
-			if(c != ' ') WA("space", string("\"") + c + "\"");
+			in >> c;
+			if(c != ' ') expected("space", string("\"") + c + "\"");
 		}
 		cerr << "read space!\n";
 	}
@@ -48,35 +49,37 @@ class Validator {
 	void newline() {
 		if(ws) {
 			char c;
-			cin >> c;
-			if(c != '\n') WA("newline", string("\"") + c + "\"");
+			in >> c;
+			if(c != '\n') expected("newline", string("\"") + c + "\"");
 		}
 		cerr << "read newline!\n";
 	}
 
 	// Read an arbitrary string.
-	string read_string(string expected = "string") {
+	// Argument is only used for error reporting.
+	// Use text_string to read fixed string.
+	string read_string(string wanted = "string") {
 		if(ws) {
-			char next = cin.peek();
-			if(isspace(next)) WA(expected, "whitespace");
+			char next = in.peek();
+			if(isspace(next)) expected(wanted, "whitespace");
 		}
 		string s;
-		if(cin >> s) return s;
-		WA(expected, "nothing");
+		if(in >> s) return s;
+		expected(wanted, "nothing");
 	}
 
 	// Read an arbitrary string of a given length.
 	string read_string(size_t min, size_t max) {
 		string s = read_string();
 		if(s.size() < min || s.size() > max)
-			WA("String of length between " + to_string(min) + " and " + to_string(max), s);
+			expected("String of length between " + to_string(min) + " and " + to_string(max), s);
 		return s;
 	}
 
 	// Read the string t.
 	void test_string(string t) {
 		string s = read_string();
-		if(lowercase(s) != lowercase(t)) WA(t, s);
+		if(lowercase(s) != lowercase(t)) expected(t, s);
 	}
 
 	// Check whether a string is an integer.
@@ -84,10 +87,10 @@ class Validator {
 		auto it = s.begin();
 		// [0-9-]
 		if(!(*it == '-' || ('0' <= *it && *it <= '9')))
-			WA("integer with leading digit or minus sign", s);
+			expected("integer with leading digit or minus sign", s);
 		++it;
 		for(; it != s.end(); ++it)
-			if(!('0' <= *it && *it <= '9')) WA("integer", s);
+			if(!('0' <= *it && *it <= '9')) expected("integer", s);
 	}
 
 	// Read a long long.
@@ -107,18 +110,18 @@ class Validator {
 	long long read_long_long(long long low, long long high) {
 		auto v = read_long_long();
 		if(low <= v && v <= high) return v;
-		WA("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
+		expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
 		return v;
 	}
 
 	// Check the next character.
 	bool peek(char c) {
-		if(!ws) cin >> ::ws;
-		return cin.peek() == char_traits<char>::to_int_type(c);
+		if(!ws) in >> ::ws;
+		return in.peek() == char_traits<char>::to_int_type(c);
 	}
 
 	// Return WRONG ANSWER verdict.
-	[[noreturn]] void WA(string exp = "", string s = "") {
+	[[noreturn]] void expected(string exp = "", string s = "") {
 		if(s.size())
 			cout << "Expected " << exp << ", found " << s << endl;
 		else if(exp.size())
@@ -126,17 +129,23 @@ class Validator {
 		exit(ret_WA);
 	}
 
-  private:
-	// Return ACCEPTED verdict.
-	[[noreturn]] void AC() { exit(ret_AC); }
+	template <typename... T>
+	[[noreturn]] void WA(T... t) {
+		(cout << ... << t) << endl;
+		exit(ret_WA);
+	}
 
-	void eof() {
-		if(cin.eof()) return;
+	private :
+	    // Return ACCEPTED verdict.
+	    [[noreturn]] void AC() { exit(ret_AC); }
+
+	    void eof() {
+		if(in.eof()) return;
 		// Sometimes EOF hasn't been triggered yet.
-		if(!ws) cin >> ::ws;
-		char c = cin.get();
+		if(!ws) in >> ::ws;
+		char c = in.get();
 		if(c == char_traits<char>::eof()) return;
-		WA("EOF", string("\"") + char(c) + "\"");
+		expected("EOF", string("\"") + char(c) + "\"");
 	}
 
 	// Convert a string to lowercase is matching is not case sensitive.
@@ -145,4 +154,6 @@ class Validator {
 		transform(s.begin(), s.end(), s.begin(), ::tolower);
 		return s;
 	}
+
+	istream &in;
 };
