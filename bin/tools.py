@@ -859,7 +859,10 @@ def print_sorted(problems, args):
 
 def main():
     global TOOLS_ROOT
-    TOOLS_ROOT = os.path.normpath(os.path.dirname(os.readlink(__file__))+'/../')
+    executable = __file__
+    if os.islink(__file__):
+        executable = os.readlink(__file__)
+    TOOLS_ROOT = os.path.normpath(os.path.dirname(executable)+'/../')
 
     parser = argparse.ArgumentParser(description=
 '''
