@@ -860,7 +860,7 @@ def print_sorted(problems, args):
 def main():
     global TOOLS_ROOT
     executable = __file__
-    if os.islink(__file__):
+    if os.path.islink(__file__):
         executable = os.readlink(__file__)
     TOOLS_ROOT = os.path.normpath(os.path.dirname(executable)+'/../')
 
