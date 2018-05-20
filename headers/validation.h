@@ -136,10 +136,16 @@ class Validator {
 		exit(ret_WA);
 	}
 
-	template <typename... T>
-	[[noreturn]] void WA(T... t) {
-		(cout << ... << t) << endl;
+	template <typename T>
+	[[noreturn]] void WA(T t) {
+		cout << t << endl;
 		exit(ret_WA);
+	}
+
+	template <typename T, typename... Ts>
+	[[noreturn]] void WA(T t, Ts... ts) {
+		cout << t;
+		WA(ts...);
 	}
 
 	private :
