@@ -43,11 +43,6 @@ tmpdir = tempfile.mkdtemp(prefix='bapctools_') + '/'
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD = 4
 
-# The build directory for latex files, relative to the root of this repository.
-# When it is empty, we will create a symlink to a temporary directory.
-# When it is `latex/build/`, we will use the latex/build directory inside the BAPCtools repository.
-LATEX_BUILDDIR = ''
-
 TOOLS_ROOT = ''
 
 # this is lifted for convenience
@@ -731,12 +726,8 @@ def build_problem_pdf(problem, make_pdf = True):
     if not os.path.isdir(builddir):
         if os.path.islink(builddir):
             os.unlink(builddir)
-        # Make the build dir on tmpfs if it doesn't exist
-        if LATEX_BUILDDIR == '':
-            tmpdir = tempfile.mkdtemp(prefix='bapctools_latex') + '/'
-            os.symlink(tmpdir, builddir)
-        else:
-            os.makedirs(builddir, exist_ok = True)
+        tmpdir = tempfile.mkdtemp(prefix='bapctools_latex') + '/'
+        os.symlink(tmpdir, builddir)
     builddir += '/'
 
     # Make the build/<problem> directory
@@ -796,11 +787,8 @@ def build_contest_pdf(contest, problems):
         if os.path.islink(builddir):
             os.unlink(builddir)
         # Make the build dir on tmpfs if it doesn't exist
-        if LATEX_BUILDDIR == '':
-            tmpdir = tempfile.mkdtemp(prefix='bapctools_latex') + '/'
-            os.symlink(tmpdir, builddir)
-        else:
-            os.makedirs(builddir, exist_ok = True)
+        tmpdir = tempfile.mkdtemp(prefix='bapctools_latex') + '/'
+        os.symlink(tmpdir, builddir)
     builddir += '/'
 
     # Make the build/<contest> directory
@@ -862,7 +850,7 @@ def main():
     executable = __file__
     if os.path.islink(__file__):
         executable = os.readlink(__file__)
-    TOOLS_ROOT = os.path.normpath(os.path.dirname(executable)+'/../')
+    TOOLS_ROOT = os.path.realpath(os.path.normpath(os.path.dirname(executable)+'/../'))
 
     parser = argparse.ArgumentParser(description=
 '''
