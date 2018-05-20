@@ -64,7 +64,10 @@ class Validator {
 			if(isspace(next)) expected(wanted, "whitespace");
 		}
 		string s;
-		if(in >> s) return s;
+		if(in >> s) {
+			if(!case_sensitive) s = lowercase(s);
+			return s;
+		}
 		expected(wanted, "nothing");
 	}
 
@@ -79,7 +82,11 @@ class Validator {
 	// Read the string t.
 	void test_string(string t) {
 		string s = read_string();
-		if(lowercase(s) != lowercase(t)) expected(t, s);
+		if(case_sensitive) {
+			if(s != t) expected(t, s);
+		} else {
+			if(lowercase(s) != lowercase(t)) expected(t, s);
+		}
 	}
 
 	// Check whether a string is an integer.
