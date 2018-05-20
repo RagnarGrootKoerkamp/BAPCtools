@@ -30,6 +30,10 @@ class Validator {
 		if(ws) in >> noskipws;
 	}
 
+	// No copying, no moving.
+	Validator(const Validator &) = delete;
+	Validator(Validator &&)      = delete;
+
 	// At the end of the scope, check whether the EOF has been reached.
 	// If so, return AC. Otherwise, return WA.
 	~Validator() {
