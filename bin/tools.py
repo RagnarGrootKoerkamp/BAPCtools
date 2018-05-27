@@ -225,12 +225,15 @@ def build_directory(directory, include_dirname=False):
     files = glob(directory+'*')
     files.sort()
     for path in files:
+        basename = os.path.basename(path)
+        if basename == 'a.out':
+            continue
+
         if include_dirname:
-            basename = os.path.basename(path)
             dirname = os.path.basename(os.path.dirname(path))
             name = dirname+'/'+basename
         else:
-            name = os.path.basename(path)
+            name = basename
         if is_executable(path):
             commands.append((name, [path]))
         else:

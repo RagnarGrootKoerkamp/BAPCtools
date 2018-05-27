@@ -47,7 +47,7 @@ class Validator {
 			in >> c;
 			if(c != ' ') expected("space", string("\"") + c + "\"");
 		}
-		cerr << "read space!\n";
+		// cerr << "read space!\n";
 	}
 
 	void newline() {
@@ -56,7 +56,7 @@ class Validator {
 			in >> c;
 			if(c != '\n') expected("newline", string("\"") + c + "\"");
 		}
-		cerr << "read newline!\n";
+		// cerr << "read newline!\n";
 	}
 
 	// Read an arbitrary string.
