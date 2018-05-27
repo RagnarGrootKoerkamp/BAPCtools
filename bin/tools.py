@@ -887,7 +887,7 @@ Run this from one of:
     subparsers.add_parser('output', aliases=['out'], help='validate output grammar')
 
     # Stats
-    subparsers.add_parser('stats', help='show statistics for contest/problem')
+    subparsers.add_parser('stats', aliases=['stat', 'status'], help='show statistics for contest/problem')
 
     # Generate
     genparser = subparsers.add_parser('generate', aliases=['gen'], help='generate answers testcases')
@@ -935,8 +935,8 @@ Run this from one of:
         if level != 'problem':
             print('Running a given submission only works from a problem directory.')
             exit()
-    
-    if action == 'stats':
+
+    if action in ['stats', 'status', 'stat']:
         stats(problems)
         return
     if action == 'sort':
