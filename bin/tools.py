@@ -355,8 +355,11 @@ def stats(problems):
     format_string = ''
     for header in headers:
         if header == 'problem':
-            header_string += '{:<25}'
-            format_string += '{:<25}'
+            width = len(header)
+            for problem in problems:
+                width = max(width, len(problem))
+            header_string += '{:<'+str(width)+'}'
+            format_string += '{:<'+str(width)+'}'
         else:
             width = len(header)
             header_string += ' {:>'+str(width)+'}'
