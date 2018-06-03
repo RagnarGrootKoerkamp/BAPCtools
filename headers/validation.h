@@ -59,21 +59,7 @@ class Validator {
 		// cerr << "read newline!\n";
 	}
 
-	// Read an arbitrary string.
-	// Argument is only used for error reporting.
-	// Use text_string to read fixed string.
-	string read_string(string wanted = "string") {
-		if(ws) {
-			char next = in.peek();
-			if(isspace(next)) expected(wanted, "whitespace");
-		}
-		string s;
-		if(in >> s) {
-			if(!case_sensitive) s = lowercase(s);
-			return s;
-		}
-		expected(wanted, "nothing");
-	}
+	string read_string(string expected) { return read_string_impl(expected); }
 
 	// Read an arbitrary string of a given length.
 	string read_string(size_t min, size_t max) {
@@ -93,24 +79,15 @@ class Validator {
 		}
 	}
 
-	// Check whether a string is an integer.
-	void is_int(const string &s) {
-		auto it = s.begin();
-		// [0-9-]
-		if(!(*it == '-' || ('0' <= *it && *it <= '9')))
-			expected("integer with leading digit or minus sign", s);
-		++it;
-		for(; it != s.end(); ++it)
-			if(!('0' <= *it && *it <= '9')) expected("integer", s);
-	}
-
 	// Read a long long.
 	long long read_long_long() {
-		string s = read_string("integer");
-		is_int(s);
+		string s = read_string_impl("", "integer");
 		long long v;
 		try {
-			v = stoll(s);
+			size_t chars_processed = 0;
+			v                      = stoll(s, &chars_processed);
+			if(chars_processed != s.size())
+				WA("Parsing " + s + " as long long failed! Did not process all characters");
 		} catch(const out_of_range &e) {
 			WA("Number " + s + " does not fit in a long long!");
 		} catch(const invalid_argument &e) { WA("Parsing " + s + " as long long failed!"); }
@@ -122,6 +99,21 @@ class Validator {
 		auto v = read_long_long();
 		if(low <= v && v <= high) return v;
 		expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
+		return v;
+	}
+
+	// Read a long double.
+	long double read_long_double() {
+		string s = read_string_impl("", "integer");
+		long double v;
+		try {
+			size_t chars_processed;
+			v = stold(s, &chars_processed);
+			if(chars_processed != s.size())
+				WA("Parsing ", s, " as long double failed! Did not process all characters.");
+		} catch(const out_of_range &e) {
+			WA("Number " + s + " does not fit in a long long!");
+		} catch(const invalid_argument &e) { WA("Parsing " + s + " as long long failed!"); }
 		return v;
 	}
 
@@ -153,10 +145,31 @@ class Validator {
 	}
 
 	private :
-	    // Return ACCEPTED verdict.
-	    [[noreturn]] void AC() { exit(ret_AC); }
+	    // Read an arbitrary string.
+	    // expected: if not "", string must equal this.
+	    // wanted: on failure, print "expected <wanted>, got ..."
+	    string read_string_impl(string expected_string, string wanted = "string") {
+		if(ws) {
+			char next = in.peek();
+			if(isspace(next)) expected(wanted, "whitespace");
+		}
+		string s;
+		if(in >> s) {
+			if(!case_sensitive) {
+				s               = lowercase(s);
+				expected_string = lowercase(expected_string);
+			}
+			if(!expected_string.empty() && s != expected)
+				WA("Expected string \"expected\", but found ", s);
+			return s;
+		}
+		expected(wanted, "nothing");
+	}
 
-	    void eof() {
+	// Return ACCEPTED verdict.
+	[[noreturn]] void AC() { exit(ret_AC); }
+
+	void eof() {
 		if(in.eof()) return;
 		// Sometimes EOF hasn't been triggered yet.
 		if(!ws) in >> ::ws;
