@@ -59,6 +59,10 @@ class Validator {
 		// cerr << "read newline!\n";
 	}
 
+	// Just read a string.
+	string read_string() { return read_string_impl(); }
+
+	// Read a string and make sure it equals `expected`.
 	string read_string(string expected) { return read_string_impl(expected); }
 
 	// Read an arbitrary string of a given length.
@@ -148,7 +152,7 @@ class Validator {
 	    // Read an arbitrary string.
 	    // expected: if not "", string must equal this.
 	    // wanted: on failure, print "expected <wanted>, got ..."
-	    string read_string_impl(string expected_string, string wanted = "string") {
+	    string read_string_impl(string expected_string = "", string wanted = "string") {
 		if(ws) {
 			char next = in.peek();
 			if(isspace(next)) expected(wanted, "whitespace");
@@ -159,7 +163,7 @@ class Validator {
 				s               = lowercase(s);
 				expected_string = lowercase(expected_string);
 			}
-			if(!expected_string.empty() && s != expected)
+			if(!expected_string.empty() && s != expected_string)
 				WA("Expected string \"expected\", but found ", s);
 			return s;
 		}
