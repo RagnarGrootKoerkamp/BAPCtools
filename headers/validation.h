@@ -116,8 +116,8 @@ class Validator {
 			if(chars_processed != s.size())
 				WA("Parsing ", s, " as long double failed! Did not process all characters.");
 		} catch(const out_of_range &e) {
-			WA("Number " + s + " does not fit in a long long!");
-		} catch(const invalid_argument &e) { WA("Parsing " + s + " as long long failed!"); }
+			WA("Number " + s + " does not fit in a long double!");
+		} catch(const invalid_argument &e) { WA("Parsing " + s + " as long double failed!"); }
 		return v;
 	}
 
