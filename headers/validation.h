@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <fstream>
 #include <iostream>
+#include <limits>
 using namespace std;
 
 const string case_sensitive_flag         = "case_sensitive";
@@ -103,7 +104,16 @@ class Validator {
 		auto v = read_long_long();
 		if(low <= v && v <= high) return v;
 		expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
-		return v;
+	}
+
+	int read_int() {
+		return read_long_long(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+	}
+
+	int read_int(int low, int high) {
+		int v = read_long_long(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+		if(low <= v && v <= high) return v;
+		expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
 	}
 
 	// Read a long double.
