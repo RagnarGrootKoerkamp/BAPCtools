@@ -758,6 +758,9 @@ def build_problem_pdf(problem, make_pdf = True):
 
             with open(sample+'.in', 'rt') as in_file:
                 for line in in_file:
+                    # Escape \ and _ in \texttt mode.
+                    line = line.replace('\\', '\\char`\\\\')
+                    line = line.replace('_', '\\char`_')
                     samples_file.write(line + '\\newline\n')
 
             # Separate the left and the right column.
@@ -781,7 +784,7 @@ def build_problem_pdf(problem, make_pdf = True):
 
     # link the output pdf
     if not os.path.exists(problem+'/problem.pdf'):
-        os.symlink(builddir+problem+'/problem.pdf', problem+'/problem.pdf')
+        os.symlink(builddir+problem+'/problem.pdf', problem+'problem.pdf')
 
     return True
 
@@ -814,8 +817,10 @@ def build_contest_pdf(contest, problems):
     problems_path = builddir+'contest/problems.tex'
     with open(problems_path, 'wt') as problems_file:
         for problem in problems:
-            problems_file.write('\\input{./build/'+problem+'/problem_statement/problem.tex}\n')
-            problems_file.write('\\input{./build/'+problem+'/samples.tex}\n')
+            problems_file.write('\\begingroup\\graphicspath{{./build/'+problem+'problem_statement/}}\n')
+            problems_file.write('\\input{./build/'+problem+'problem_statement/problem.tex}\n')
+            problems_file.write('\\input{./build/'+problem+'samples.tex}\n')
+            problems_file.write('\\endgroup')
 
     # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
     if not os.path.exists(builddir+'contest/logo.pdf'):
