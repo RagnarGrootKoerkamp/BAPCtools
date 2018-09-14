@@ -815,8 +815,10 @@ def build_contest_pdf(contest, problems):
 
     # Create the contest/problems.tex file.
     problems_path = builddir+'contest/problems.tex'
+    problems_with_ids = sort_problems(problems)
     with open(problems_path, 'wt') as problems_file:
-        for problem in problems:
+        for problem_with_id in problems_with_ids:
+            problem = problem_with_id[0]
             problems_file.write('\\begingroup\\graphicspath{{./build/'+problem+'problem_statement/}}\n')
             problems_file.write('\\input{./build/'+problem+'problem_statement/problem.tex}\n')
             problems_file.write('\\input{./build/'+problem+'samples.tex}\n')
