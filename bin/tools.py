@@ -725,6 +725,29 @@ def generate_output(problem, settings):
     print('%d testcases unchanged' % nsame)
     print('%d testcases failed' % nfail)
 
+# https://stackoverflow.com/questions/16259923/how-can-i-escape-latex-special-characters-inside-django-templates
+def tex_escape(text):
+    """
+        :param text: a plain text message
+        :return: the message escaped to appear correctly in LaTeX
+    """
+    conv = {
+        '&': r'\&',
+        '%': r'\%',
+        '$': r'\$',
+        '#': r'\#',
+        '_': r'\_',
+        '{': r'\{',
+        '}': r'\}',
+        '~': r'\textasciitilde{}',
+        '^': r'\^{}',
+        '\\': r'\textbackslash{}',
+        '<': r'\textless{}',
+        '>': r'\textgreater{}',
+    }
+    regex = re.compile('|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key = lambda item: - len(item))))
+    return regex.sub(lambda match: conv[match.group()], text)
+
 # Build a pdf for the problem. Explanation in latex/README.md
 def build_problem_pdf(problem, make_pdf = True):
     # Set up the build directory if it does not yet exist.
@@ -758,10 +781,7 @@ def build_problem_pdf(problem, make_pdf = True):
 
             with open(sample+'.in', 'rt') as in_file:
                 for line in in_file:
-                    # Escape \ and _ in \texttt mode.
-                    line = line.replace('\\', '\\char`\\\\')
-                    line = line.replace('_', '\\char`_')
-                    samples_file.write(line + '\\newline\n')
+                    samples_file.write(tex_escape(line) + '\\newline\n')
 
             # Separate the left and the right column.
             samples_file.write('&\n')
