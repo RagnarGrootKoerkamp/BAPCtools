@@ -736,12 +736,16 @@ def tex_escape(text):
         '%': r'\%',
         '$': r'\$',
         '#': r'\#',
-        '_': r'\_',
+#        '_': r'\_',
+# For monospaced purpose, use instead:
+        '_': r'\char`_',
         '{': r'\{',
         '}': r'\}',
         '~': r'\textasciitilde{}',
         '^': r'\^{}',
-        '\\': r'\textbackslash{}',
+#        '\\': r'\textbackslash{}',
+# For monospaced purpose, use instead:
+        '\\': r'\char`\\',
         '<': r'\textless{}',
         '>': r'\textgreater{}',
     }
