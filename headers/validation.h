@@ -158,11 +158,16 @@ class Validator {
 		WA(ts...);
 	}
 
-	private :
-	    // Read an arbitrary string.
-	    // expected: if not "", string must equal this.
-	    // wanted: on failure, print "expected <wanted>, got ..."
-	    string read_string_impl(string expected_string = "", string wanted = "string") {
+	template <typename... Ts>
+	void assert(bool b, Ts... ts) {
+		if(!b) WA(ts...);
+	}
+
+  private:
+	// Read an arbitrary string.
+	// expected: if not "", string must equal this.
+	// wanted: on failure, print "expected <wanted>, got ..."
+	string read_string_impl(string expected_string = "", string wanted = "string") {
 		if(ws) {
 			char next = in.peek();
 			if(isspace(next)) expected(wanted, "whitespace");
