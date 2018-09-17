@@ -178,7 +178,7 @@ def build(path):
         run_command = [ exefile ]
     elif ext == '.java':
         compile_command = [ 'javac', '-d', tmpdir, path ]
-        run_command = [ 'java', '-enableassertions', '-Xss1532M',
+        run_command = [ 'java', '-enableassertions', '-Xss512M',
                         '-cp', tmpdir, base ]
     elif ext in ('.py', '.py2'):
         compile_command = None
@@ -860,7 +860,10 @@ def build_contest_pdf(contest, problems):
     os.chdir(TOOLS_ROOT+'/latex')
     # The absolute path is needed, because otherwise the `contest.tex` file
     # in the output directory will get priority.
-    subprocess.call(['pdflatex', '-output-directory', './build/contest', os.path.abspath('contest.tex')])
+    if subprocess.call(['pdflatex', '-output-directory', './build/contest', os.path.abspath('contest.tex')]) != 0:
+        # Non-zero exit code marks a failure.
+        print(_c.red, "An error occured while compiling latex!", _c.reset)
+        return False
     os.chdir(pwd)
 
     # link the output pdf
@@ -1006,7 +1009,7 @@ Run this from one of:
 
     # build pdf for the entire contest
     if action in ['pdf', 'build', 'statement'] and level == 'contest':
-        build_contest_pdf(contest, problems)
+        success &= build_contest_pdf(contest, problems)
 
     if not success:
         exit()
