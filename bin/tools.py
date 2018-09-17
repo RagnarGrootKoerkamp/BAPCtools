@@ -750,7 +750,11 @@ def tex_escape(text):
         '>': r'\textgreater{}',
     }
     regex = re.compile('|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key = lambda item: - len(item))))
-    return regex.sub(lambda match: conv[match.group()], text)
+    text = regex.sub(lambda match: conv[match.group()], text)
+# Escape leading spaces separately
+    regex = re.compile('^ ')
+    text = regex.sub('\\\\phantom{.}', text)
+    return text
 
 # Build a pdf for the problem. Explanation in latex/README.md
 def build_problem_pdf(problem, make_pdf = True):
