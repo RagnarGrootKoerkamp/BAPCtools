@@ -574,7 +574,7 @@ def run_submission(submission, testcases, settings, output_validators, expected=
         if not silent and verdict != 'ACCEPTED':
             need_newline = False
 
-        if settings.lazy and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
+        if hasattr(settings, 'lazy') and settings.lazy and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
             break;
 
     # default in case of 0 testcases
@@ -603,7 +603,7 @@ def run_submissions(problem, settings):
     testcases = get_testcases(problem, True)
     output_validators = get_validators(problem, 'output')
 
-    if settings.submissions:
+    if hasattr(settings, 'submissions') and settings.submissions:
         submissions = {'ACCEPTED':[(os.path.basename(submission), build(problem+submission))
             for submission in settings.submissions]}
     else:
@@ -621,7 +621,7 @@ def run_submissions(problem, settings):
                 success &= run_submission(submission, testcases, settings,
                         output_validators, verdict, table_dict=verdict_table[-1])
 
-    if settings.table:
+    if hasattr(settings, 'table') and settings.table:
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=TABLE_THRESHOLD).
         single_verdict = lambda row, testcase: str(int(row[testcase])) if testcase in row else '-'
         make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, testcase), verdict_table))
@@ -648,7 +648,7 @@ def run_submissions(problem, settings):
     return success
 
 def generate_output(problem, settings):
-    if settings.submission:
+    if hasattr(settings, 'submission') and settings.submission:
         submission = problem+settings.submission
     else:
         # only get one accepted submission
@@ -700,7 +700,7 @@ def generate_output(problem, settings):
                     if verbose:
                         print()
                 else:
-                    if settings.force:
+                    if hasattr(settings, 'force') and settings.force:
                         shutil.move(outfile, testcase+'.ans')
                         nchange += 1
                         if not verbose:
