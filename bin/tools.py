@@ -589,7 +589,7 @@ def run_submission(submission, testcases, settings, output_validators, expected=
     if verbose and not need_newline:
         print('{:<50}'.format('-> '+submission[0]), end = '')
     if verbose or verdict != expected:
-        print('m/+ {:6.3f}s {:6.3f}s'.format(time_max, time_total),
+        print(' m/+ {:6.3f}s {:6.3f}s'.format(time_max, time_total),
                 _c.red if verdict != expected else '',
                 '{:19}'.format(verdict),
                 _c.reset if verdict != expected else '',
@@ -638,7 +638,7 @@ def run_submissions(problem, settings):
 
         print('\nVerdict analysis table. Submissions are ordered as above.')
         for testcase in testcases:
-            print('{:<60}'.format(testcase), end='')
+            print('{:<60}'.format(testcase), end=' ')
             resultant = make_verdict(testcase)
             print(resultant, end='  ')
             if resultant in resultant_id:
