@@ -85,7 +85,7 @@ def get_problems(contest):
         exit()
 
     # return list of problems in contest directory
-    return (glob('*/'), 'contest', os.path.basename(os.getcwd()))
+    return ([p[0] for p in sort_problems(glob('*/'))], 'contest', os.path.basename(os.getcwd()))
 
 # read problem settings from config files
 def read_configs(problem):
