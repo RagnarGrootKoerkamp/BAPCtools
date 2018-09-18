@@ -788,15 +788,19 @@ def build_problem_pdf(problem, make_pdf = True):
             samples_file.write('\\begin{Sample}\n')
 
             with open(sample+'.in', 'rt') as in_file:
+                lines = []
                 for line in in_file:
-                    samples_file.write(tex_escape(line) + '\\newline\n')
+                    lines.append(tex_escape(line))
+                samples_file.write('\\newline\n'.join(lines))
 
             # Separate the left and the right column.
             samples_file.write('&\n')
 
             with open(sample+'.ans', 'rt') as ans_file:
+                lines = []
                 for line in ans_file:
-                    samples_file.write(line + '\\newline\n')
+                    lines.append(tex_escape(line))
+                samples_file.write('\\newline\n'.join(lines))
 
             # We must include a \\ in latex at the end of the table row.
             samples_file.write('\\\\\n\\end{Sample}\n')
