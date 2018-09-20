@@ -137,7 +137,7 @@ def read_configs(problem):
             for line in f.readlines():
                 key, var = line.strip().split('=')
                 var = var[1:-1]
-                settings[key] = int(var) if key  == 'timelimit' else var
+                settings[key] = float(var) if key  == 'timelimit' else var
 
     return settings
 
@@ -779,6 +779,12 @@ def build_problem_pdf(problem, make_pdf = True):
         if os.path.islink(statement_target):
             os.unlink(statement_target)
         os.symlink(os.path.abspath(problem+'problem_statement'), statement_target)
+
+    # create the problemid.tex file which sets the section counter
+    problemid_file_path = builddir+'problem/problemid.tex'
+    with open(problemid_file_path, 'wt') as problemid_file:
+        problemid = ord(read_configs(problem)['probid']) - ord('A')
+        problemid_file.write('\\setcounter{section}{' + str(problemid) + '}')
 
     # create the samples.tex file
     samples = get_testcases(problem, needans = True, only_sample = True)
