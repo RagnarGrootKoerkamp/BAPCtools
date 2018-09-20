@@ -932,8 +932,9 @@ Run this from one of:
     runparser.add_argument('problemname', help='The name of the problem, [a-z0-9]+.')
 
     # Latex
-    subparsers.add_parser('pdf', aliases=['build', 'statement'],
+    pdfparser = subparsers.add_parser('pdf', aliases=['build', 'statement'],
             help='Build the problem statement pdf.')
+    pdfparser.add_argument('-a', '--all', action='store_true', help='Create problem statements for individual problems as well.')
 
     # Validation
     subparsers.add_parser('validate', aliases=['grammar'], help='validate all grammar')
@@ -1009,7 +1010,7 @@ Run this from one of:
 
         if action in ['pdf', 'build', 'statement']:
             # only build the pdf on the problem level
-            success &= build_problem_pdf(problem, level == 'problem')
+            success &= build_problem_pdf(problem, args.all or level == 'problem')
 
         if action in ['validate', 'grammar', 'input', 'in', 'all']:
             success &= validate(problem, 'input', settings)
