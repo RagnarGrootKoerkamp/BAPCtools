@@ -141,8 +141,10 @@ def make_domjudge_zip(probdir, output):
             copyfiles.append(os.path.join(prefix, fname))
 
     # Find solutions.
-    submit_types = [ 'ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED',
-                     'RUN_TIME_ERROR' ]
+    submit_types = [
+            'ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR',
+            'accepted', 'wrong_answer', 'time_limit_exceeded', 'run_time_error'
+            ]
     try:
         for d in os.listdir(os.path.join(probdir, 'submissions')):
             if d not in submit_types:
@@ -174,9 +176,12 @@ def make_domjudge_zip(probdir, output):
                       (d, fname),
                       file=sys.stderr)
                 return False
-            copyfiles.append(os.path.join('submissions', d, fname))
+            copyfiles.append(
+                    (os.path.join('submissions', d, fname),
+                    os.path.join('submissions', d.upper(), fname))
+                    )
             nsubmit += 1
-            if d == 'ACCEPTED':
+            if d.upper() == 'ACCEPTED':
                 naccept += 1
 
     print("found %d submissions, of which %d accepted" % (nsubmit, naccept))
@@ -222,8 +227,17 @@ def make_domjudge_zip(probdir, output):
                          allowZip64=False)
 
     for fname in copyfiles:
-        zf.write(os.path.join(probdir, fname),
-                 fname,
+        source = ""
+        target = ""
+        if isinstance(fname, tuple):
+            source = fname[0]
+            target = fname[1]
+        else:
+            source = fname
+            target = fname
+
+        zf.write(os.path.join(probdir, source),
+                 target,
                  compress_type=zipfile.ZIP_DEFLATED)
 
     # Done.

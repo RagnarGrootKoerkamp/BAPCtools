@@ -173,7 +173,7 @@ def build(path):
                             '-o', exefile, path, '-lm' ]
         run_command = [ exefile ]
     elif ext in ('.cc', '.cpp'):
-        compile_command = [ 'g++', '-std=c++1y', '-Wall', '-O2',
+        compile_command = [ 'g++', '-std=c++11', '-Wall', '-O2',
                             '-o', exefile, path ]
         run_command = [ exefile ]
     elif ext == '.java':
