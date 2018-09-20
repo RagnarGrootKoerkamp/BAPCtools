@@ -142,7 +142,6 @@ def make_domjudge_zip(probdir, output):
 
     # Find solutions.
     submit_types = [
-            'ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR',
             'accepted', 'wrong_answer', 'time_limit_exceeded', 'run_time_error'
             ]
     try:
@@ -176,12 +175,9 @@ def make_domjudge_zip(probdir, output):
                       (d, fname),
                       file=sys.stderr)
                 return False
-            copyfiles.append(
-                    (os.path.join('submissions', d, fname),
-                    os.path.join('submissions', d.upper(), fname))
-                    )
+            copyfiles.append(os.path.join('submissions', d, fname))
             nsubmit += 1
-            if d.upper() == 'ACCEPTED':
+            if d == 'accepted':
                 naccept += 1
 
     print("found %d submissions, of which %d accepted" % (nsubmit, naccept))
@@ -227,17 +223,8 @@ def make_domjudge_zip(probdir, output):
                          allowZip64=False)
 
     for fname in copyfiles:
-        source = ""
-        target = ""
-        if isinstance(fname, tuple):
-            source = fname[0]
-            target = fname[1]
-        else:
-            source = fname
-            target = fname
-
-        zf.write(os.path.join(probdir, source),
-                 target,
+        zf.write(os.path.join(probdir, fname),
+                 fname,
                  compress_type=zipfile.ZIP_DEFLATED)
 
     # Done.
