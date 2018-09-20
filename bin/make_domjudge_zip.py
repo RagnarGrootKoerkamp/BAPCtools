@@ -92,6 +92,9 @@ def make_domjudge_zip(probdir, output):
         print("WARNING: Can not find problem.yaml file",
               file=sys.stderr)
 
+    if os.path.isfile(os.path.join(probdir, 'problem.pdf')):
+        copyfiles.append('problem.pdf')
+
     # Find input/output files.
     for (prefix, typ) in (('data/sample', 'sample'),
                           ('data/secret', 'secret')):
