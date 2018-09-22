@@ -9,6 +9,7 @@
 // passed. When validating team output, the flags in problem.yaml should be used.
 
 #include <algorithm>
+#include <stdexcept>
 #include <fstream>
 #include <iostream>
 #include <limits>
