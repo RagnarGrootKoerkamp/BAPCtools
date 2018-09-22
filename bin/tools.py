@@ -945,8 +945,9 @@ Run this from one of:
     pdfparser.add_argument('-a', '--all', action='store_true', help='Create problem statements for individual problems as well.')
 
     # Solution slides
-    pdfparser = subparsers.add_parser('solutions', aliases=['sol', 'slides'],
+    solparser = subparsers.add_parser('solutions', aliases=['sol', 'slides'],
             help='Build the solution slides pdf.')
+    solparser.add_argument('-a', '--all', action='store_true', help='Create problem statements for individual problems as well.')
 
     # Validation
     subparsers.add_parser('validate', aliases=['grammar'], help='validate all grammar')
@@ -1020,7 +1021,7 @@ Run this from one of:
         for key in problemsettings:
             vars(settings)[key] = problemsettings[key]
 
-        if action in ['pdf', 'build', 'statement']:
+        if action in ['pdf', 'build', 'statement', 'sol', 'slides', 'solutions']:
             # only build the pdf on the problem level
             success &= build_problem_pdf(problem, args.all or level == 'problem')
 
