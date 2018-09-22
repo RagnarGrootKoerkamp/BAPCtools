@@ -377,7 +377,7 @@ def stats(problems):
             get_stat(problem+'data/sample/*.in', 2),
             get_stat(problem+'data/secret/*.in', 15),
             get_stat(problem+'domjudge-problem.ini'),
-            get_stat(problem+'statement/solution.tex')
+            get_stat(problem+'problem_statement/solution.tex')
             ))
 
 # returns a map {answer type -> [(name, command)]}
@@ -827,7 +827,9 @@ def build_problem_pdf(problem, make_pdf = True):
     return True
 
 # Build a pdf for an entire problemset. Explanation in latex/README.md
-def build_contest_pdf(contest, problems):
+def build_contest_pdf(contest, problems, solutions=False):
+    statement = not solutions
+
     # Set up the build directory if it does not yet exist.
     builddir = os.path.normpath(TOOLS_ROOT+'/latex/build')
     if not os.path.isdir(builddir):
@@ -852,15 +854,20 @@ def build_contest_pdf(contest, problems):
         os.symlink(os.path.abspath('contest.tex'), config_target)
 
     # Create the contest/problems.tex file.
-    problems_path = builddir+'contest/problems.tex'
+    t = 'solution' if solutions else 'problem'
+    problems_path = builddir+'contest/'+t+'s.tex'
     problems_with_ids = sort_problems(problems)
     with open(problems_path, 'wt') as problems_file:
         for problem_with_id in problems_with_ids:
             problem = problem_with_id[0]
-            problems_file.write('\\begingroup\\graphicspath{{./build/'+problem+'problem_statement/}}\n')
-            problems_file.write('\\input{./build/'+problem+'problem_statement/problem.tex}\n')
-            problems_file.write('\\input{./build/'+problem+'samples.tex}\n')
-            problems_file.write('\\endgroup')
+            includedir  = './build/'+problem+'problem_statement/'
+            includepath = includedir + t + '.tex'
+            if os.path.exists(TOOLS_ROOT+'/latex/' + includepath):
+                problems_file.write('\\begingroup\\graphicspath{{'+includedir+'}}\n')
+                problems_file.write('\\input{'+includepath+'}\n')
+                if statement:
+                    problems_file.write('\\input{./build/'+problem+'samples.tex}\n')
+                problems_file.write('\\endgroup\n')
 
     # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
     if not os.path.exists(builddir+'contest/logo.pdf'):
@@ -869,20 +876,21 @@ def build_contest_pdf(contest, problems):
         else:
             os.symlink(os.path.abspath(TOOLS_ROOT+'/latex/images/logo-not-found.pdf'), builddir+'contest/logo.pdf')
 
-    # run pdflatex
+    # Run pdflatex for problems
     pwd = os.getcwd()
     os.chdir(TOOLS_ROOT+'/latex')
+    f = 'solutions' if solutions else 'contest'
     # The absolute path is needed, because otherwise the `contest.tex` file
     # in the output directory will get priority.
-    if subprocess.call(['pdflatex', '-output-directory', './build/contest', os.path.abspath('contest.tex')]) != 0:
+    if subprocess.call(['pdflatex', '-output-directory', './build/contest', os.path.abspath(f+'.tex')]) != 0:
         # Non-zero exit code marks a failure.
         print(_c.red, "An error occured while compiling latex!", _c.reset)
         return False
     os.chdir(pwd)
 
     # link the output pdf
-    if not os.path.exists('contest.pdf'):
-        os.symlink(builddir+contest+'/contest.pdf', 'contest.pdf')
+    if not os.path.exists(f+'.pdf'):
+        os.symlink(builddir+contest+'/'+f+'.pdf', f+'.pdf')
 
     return True
 
@@ -931,10 +939,14 @@ Run this from one of:
             help='Add a new problem to the current directory.')
     runparser.add_argument('problemname', help='The name of the problem, [a-z0-9]+.')
 
-    # Latex
+    # Problem statements
     pdfparser = subparsers.add_parser('pdf', aliases=['build', 'statement'],
             help='Build the problem statement pdf.')
     pdfparser.add_argument('-a', '--all', action='store_true', help='Create problem statements for individual problems as well.')
+
+    # Solution slides
+    pdfparser = subparsers.add_parser('solutions', aliases=['sol', 'slides'],
+            help='Build the solution slides pdf.')
 
     # Validation
     subparsers.add_parser('validate', aliases=['grammar'], help='validate all grammar')
@@ -1025,6 +1037,9 @@ Run this from one of:
     # build pdf for the entire contest
     if action in ['pdf', 'build', 'statement'] and level == 'contest':
         success &= build_contest_pdf(contest, problems)
+
+    if action in ['sol', 'solutions', 'slides'] and level == 'contest':
+        success &= build_contest_pdf(contest, problems, solutions=True)
 
     if not success:
         exit()
