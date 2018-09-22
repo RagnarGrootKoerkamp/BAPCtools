@@ -336,14 +336,14 @@ def validate(problem, validator_type, settings):
 
 # stats
 # print(stats_format.format('problem', 'AC', 'WA', 'TLE', 'sample', 'secret', 'ini', 'sol'))
-def get_stat(path, threshold = True):
+def get_stat(path, threshold = True, upper_bound = 1e10):
     count = len(glob(path))
     if threshold is True:
         if count >= 1:
             return _c.white + 'Y' +  _c.reset
         else:
             return _c.red + 'N' +  _c.reset
-    return (_c.white if count >= threshold else _c.red) + str(count) + _c.reset
+    return (_c.white if threshold <= count <= upper_bound else _c.red) + str(count) + _c.reset
 
 def stats(problems):
     # stats include:
@@ -375,7 +375,7 @@ def stats(problems):
             get_stat(problem+'submissions/time_limit_exceeded/*', 1),
             get_stat(problem+'submissions/accepted/*.java'),
             get_stat(problem+'data/sample/*.in', 2),
-            get_stat(problem+'data/secret/*.in', 15),
+            get_stat(problem+'data/secret/*.in', 15, 50),
             get_stat(problem+'domjudge-problem.ini'),
             get_stat(problem+'statement/solution.tex')
             ))
