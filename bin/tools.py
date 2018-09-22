@@ -85,7 +85,7 @@ def get_problems(contest):
         exit()
 
     # return list of problems in contest directory
-    return (glob('*/'), 'contest', os.path.basename(os.getcwd()))
+    return ([p[0] for p in sort_problems(glob('*/'))], 'contest', os.path.basename(os.getcwd()))
 
 # read problem settings from config files
 def read_configs(problem):
@@ -137,7 +137,7 @@ def read_configs(problem):
             for line in f.readlines():
                 key, var = line.strip().split('=')
                 var = var[1:-1]
-                settings[key] = int(var) if key  == 'timelimit' else var
+                settings[key] = float(var) if key  == 'timelimit' else var
 
     return settings
 
@@ -173,7 +173,7 @@ def build(path):
                             '-o', exefile, path, '-lm' ]
         run_command = [ exefile ]
     elif ext in ('.cc', '.cpp'):
-        compile_command = [ 'g++', '-std=c++1y', '-Wall', '-O2',
+        compile_command = [ 'g++', '-std=c++11', '-Wall', '-O2',
                             '-o', exefile, path ]
         run_command = [ exefile ]
     elif ext == '.java':
@@ -377,7 +377,7 @@ def stats(problems):
             get_stat(problem+'data/sample/*.in', 2),
             get_stat(problem+'data/secret/*.in', 15, 50),
             get_stat(problem+'domjudge-problem.ini'),
-            get_stat(problem+'statement/solution.tex')
+            get_stat(problem+'problem_statement/solution.tex')
             ))
 
 # returns a map {answer type -> [(name, command)]}
@@ -574,7 +574,7 @@ def run_submission(submission, testcases, settings, output_validators, expected=
         if not silent and verdict != 'ACCEPTED':
             need_newline = False
 
-        if settings.lazy and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
+        if hasattr(settings, 'lazy') and settings.lazy and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
             break;
 
     # default in case of 0 testcases
@@ -589,7 +589,7 @@ def run_submission(submission, testcases, settings, output_validators, expected=
     if verbose and not need_newline:
         print('{:<50}'.format('-> '+submission[0]), end = '')
     if verbose or verdict != expected:
-        print('m/+ {:6.3f}s {:6.3f}s'.format(time_max, time_total),
+        print(' m/+ {:6.3f}s {:6.3f}s'.format(time_max, time_total),
                 _c.red if verdict != expected else '',
                 '{:19}'.format(verdict),
                 _c.reset if verdict != expected else '',
@@ -603,7 +603,7 @@ def run_submissions(problem, settings):
     testcases = get_testcases(problem, True)
     output_validators = get_validators(problem, 'output')
 
-    if settings.submissions:
+    if hasattr(settings, 'submissions') and settings.submissions:
         submissions = {'ACCEPTED':[(os.path.basename(submission), build(problem+submission))
             for submission in settings.submissions]}
     else:
@@ -621,7 +621,7 @@ def run_submissions(problem, settings):
                 success &= run_submission(submission, testcases, settings,
                         output_validators, verdict, table_dict=verdict_table[-1])
 
-    if settings.table:
+    if hasattr(settings, 'table') and settings.table:
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=TABLE_THRESHOLD).
         single_verdict = lambda row, testcase: str(int(row[testcase])) if testcase in row else '-'
         make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, testcase), verdict_table))
@@ -638,7 +638,7 @@ def run_submissions(problem, settings):
 
         print('\nVerdict analysis table. Submissions are ordered as above.')
         for testcase in testcases:
-            print('{:<60}'.format(testcase), end='')
+            print('{:<60}'.format(testcase), end=' ')
             resultant = make_verdict(testcase)
             print(resultant, end='  ')
             if resultant in resultant_id:
@@ -648,7 +648,7 @@ def run_submissions(problem, settings):
     return success
 
 def generate_output(problem, settings):
-    if settings.submission:
+    if hasattr(settings, 'submission') and settings.submission:
         submission = problem+settings.submission
     else:
         # only get one accepted submission
@@ -700,7 +700,7 @@ def generate_output(problem, settings):
                     if verbose:
                         print()
                 else:
-                    if settings.force:
+                    if hasattr(settings, 'force') and settings.force:
                         shutil.move(outfile, testcase+'.ans')
                         nchange += 1
                         if not verbose:
@@ -750,7 +750,11 @@ def tex_escape(text):
         '>': r'\textgreater{}',
     }
     regex = re.compile('|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key = lambda item: - len(item))))
-    return regex.sub(lambda match: conv[match.group()], text)
+    text = regex.sub(lambda match: conv[match.group()], text)
+# Escape leading spaces separately
+    regex = re.compile('^ ')
+    text = regex.sub('\\\\phantom{.}', text)
+    return text
 
 # Build a pdf for the problem. Explanation in latex/README.md
 def build_problem_pdf(problem, make_pdf = True):
@@ -776,6 +780,12 @@ def build_problem_pdf(problem, make_pdf = True):
             os.unlink(statement_target)
         os.symlink(os.path.abspath(problem+'problem_statement'), statement_target)
 
+    # create the problemid.tex file which sets the section counter
+    problemid_file_path = builddir+'problem/problemid.tex'
+    with open(problemid_file_path, 'wt') as problemid_file:
+        problemid = ord(read_configs(problem)['probid']) - ord('A')
+        problemid_file.write('\\setcounter{section}{' + str(problemid) + '}')
+
     # create the samples.tex file
     samples = get_testcases(problem, needans = True, only_sample = True)
     samples_file_path = builddir+'problem/samples.tex'
@@ -784,15 +794,19 @@ def build_problem_pdf(problem, make_pdf = True):
             samples_file.write('\\begin{Sample}\n')
 
             with open(sample+'.in', 'rt') as in_file:
+                lines = []
                 for line in in_file:
-                    samples_file.write(tex_escape(line) + '\\newline\n')
+                    lines.append(tex_escape(line))
+                samples_file.write('\\newline\n'.join(lines))
 
             # Separate the left and the right column.
             samples_file.write('&\n')
 
             with open(sample+'.ans', 'rt') as ans_file:
+                lines = []
                 for line in ans_file:
-                    samples_file.write(line + '\\newline\n')
+                    lines.append(tex_escape(line))
+                samples_file.write('\\newline\n'.join(lines))
 
             # We must include a \\ in latex at the end of the table row.
             samples_file.write('\\\\\n\\end{Sample}\n')
@@ -813,7 +827,9 @@ def build_problem_pdf(problem, make_pdf = True):
     return True
 
 # Build a pdf for an entire problemset. Explanation in latex/README.md
-def build_contest_pdf(contest, problems):
+def build_contest_pdf(contest, problems, solutions=False):
+    statement = not solutions
+
     # Set up the build directory if it does not yet exist.
     builddir = os.path.normpath(TOOLS_ROOT+'/latex/build')
     if not os.path.isdir(builddir):
@@ -838,15 +854,20 @@ def build_contest_pdf(contest, problems):
         os.symlink(os.path.abspath('contest.tex'), config_target)
 
     # Create the contest/problems.tex file.
-    problems_path = builddir+'contest/problems.tex'
+    t = 'solution' if solutions else 'problem'
+    problems_path = builddir+'contest/'+t+'s.tex'
     problems_with_ids = sort_problems(problems)
     with open(problems_path, 'wt') as problems_file:
         for problem_with_id in problems_with_ids:
             problem = problem_with_id[0]
-            problems_file.write('\\begingroup\\graphicspath{{./build/'+problem+'problem_statement/}}\n')
-            problems_file.write('\\input{./build/'+problem+'problem_statement/problem.tex}\n')
-            problems_file.write('\\input{./build/'+problem+'samples.tex}\n')
-            problems_file.write('\\endgroup')
+            includedir  = './build/'+problem+'problem_statement/'
+            includepath = includedir + t + '.tex'
+            if os.path.exists(TOOLS_ROOT+'/latex/' + includepath):
+                problems_file.write('\\begingroup\\graphicspath{{'+includedir+'}}\n')
+                problems_file.write('\\input{'+includepath+'}\n')
+                if statement:
+                    problems_file.write('\\input{./build/'+problem+'samples.tex}\n')
+                problems_file.write('\\endgroup\n')
 
     # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
     if not os.path.exists(builddir+'contest/logo.pdf'):
@@ -855,17 +876,21 @@ def build_contest_pdf(contest, problems):
         else:
             os.symlink(os.path.abspath(TOOLS_ROOT+'/latex/images/logo-not-found.pdf'), builddir+'contest/logo.pdf')
 
-    # run pdflatex
+    # Run pdflatex for problems
     pwd = os.getcwd()
     os.chdir(TOOLS_ROOT+'/latex')
+    f = 'solutions' if solutions else 'contest'
     # The absolute path is needed, because otherwise the `contest.tex` file
     # in the output directory will get priority.
-    subprocess.call(['pdflatex', '-output-directory', './build/contest', os.path.abspath('contest.tex')])
+    if subprocess.call(['pdflatex', '-output-directory', './build/contest', os.path.abspath(f+'.tex')]) != 0:
+        # Non-zero exit code marks a failure.
+        print(_c.red, "An error occured while compiling latex!", _c.reset)
+        return False
     os.chdir(pwd)
 
     # link the output pdf
-    if not os.path.exists('contest.pdf'):
-        os.symlink(builddir+contest+'/contest.pdf', 'contest.pdf')
+    if not os.path.exists(f+'.pdf'):
+        os.symlink(builddir+contest+'/'+f+'.pdf', f+'.pdf')
 
     return True
 
@@ -914,9 +939,15 @@ Run this from one of:
             help='Add a new problem to the current directory.')
     runparser.add_argument('problemname', help='The name of the problem, [a-z0-9]+.')
 
-    # Latex
-    subparsers.add_parser('pdf', aliases=['build', 'statement'],
+    # Problem statements
+    pdfparser = subparsers.add_parser('pdf', aliases=['build', 'statement'],
             help='Build the problem statement pdf.')
+    pdfparser.add_argument('-a', '--all', action='store_true', help='Create problem statements for individual problems as well.')
+
+    # Solution slides
+    solparser = subparsers.add_parser('solutions', aliases=['sol', 'slides'],
+            help='Build the solution slides pdf.')
+    solparser.add_argument('-a', '--all', action='store_true', help='Create problem statements for individual problems as well.')
 
     # Validation
     subparsers.add_parser('validate', aliases=['grammar'], help='validate all grammar')
@@ -990,9 +1021,9 @@ Run this from one of:
         for key in problemsettings:
             vars(settings)[key] = problemsettings[key]
 
-        if action in ['pdf', 'build', 'statement']:
+        if action in ['pdf', 'build', 'statement', 'sol', 'slides', 'solutions']:
             # only build the pdf on the problem level
-            success &= build_problem_pdf(problem, level == 'problem')
+            success &= build_problem_pdf(problem, args.all or level == 'problem')
 
         if action in ['validate', 'grammar', 'input', 'in', 'all']:
             success &= validate(problem, 'input', settings)
@@ -1006,7 +1037,10 @@ Run this from one of:
 
     # build pdf for the entire contest
     if action in ['pdf', 'build', 'statement'] and level == 'contest':
-        build_contest_pdf(contest, problems)
+        success &= build_contest_pdf(contest, problems)
+
+    if action in ['sol', 'solutions', 'slides'] and level == 'contest':
+        success &= build_contest_pdf(contest, problems, solutions=True)
 
     if not success:
         exit()

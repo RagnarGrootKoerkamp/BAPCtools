@@ -92,6 +92,9 @@ def make_domjudge_zip(probdir, output):
         print("WARNING: Can not find problem.yaml file",
               file=sys.stderr)
 
+    if os.path.isfile(os.path.join(probdir, 'problem.pdf')):
+        copyfiles.append('problem.pdf')
+
     # Find input/output files.
     for (prefix, typ) in (('data/sample', 'sample'),
                           ('data/secret', 'secret')):
@@ -141,8 +144,9 @@ def make_domjudge_zip(probdir, output):
             copyfiles.append(os.path.join(prefix, fname))
 
     # Find solutions.
-    submit_types = [ 'ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED',
-                     'RUN_TIME_ERROR' ]
+    submit_types = [
+            'accepted', 'wrong_answer', 'time_limit_exceeded', 'run_time_error'
+            ]
     try:
         for d in os.listdir(os.path.join(probdir, 'submissions')):
             if d not in submit_types:
@@ -176,7 +180,7 @@ def make_domjudge_zip(probdir, output):
                 return False
             copyfiles.append(os.path.join('submissions', d, fname))
             nsubmit += 1
-            if d == 'ACCEPTED':
+            if d == 'accepted':
                 naccept += 1
 
     print("found %d submissions, of which %d accepted" % (nsubmit, naccept))
