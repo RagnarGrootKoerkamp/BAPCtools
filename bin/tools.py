@@ -907,6 +907,54 @@ def print_sorted(problems, args):
     for problem in sort_problems(problems):
         print(prefix + problem[0])
 
+def check_constraints(problem, settings):
+    vinput = problem + 'input_validators/input_validator.cpp'
+    voutput = problem + 'output_validators/output_validator.cpp'
+
+    cpp_statement = re.compile('^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);$');
+
+    defs = []
+    for validator in [vinput, voutput]:
+        with open(validator) as file:
+            for line in file:
+                mo = cpp_statement.search(line)
+                if mo is not None:
+                    defs.append(mo)
+
+    defs_validators = [ (mo.group(3), mo.group(4)) for mo in defs ]
+
+    statement = problem + 'problem_statement/problem.tex';
+    latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$');
+    latex_define = re.compile('{\\\\(\w+)}{(.*)}');
+
+    defs.clear()
+    with open(statement) as file:
+        for line in file:
+            mo = latex_define.search(line)
+            if mo is not None:
+                defs.append(mo)
+
+    defs_statement = [ (mo.group(1), mo.group(2)) for mo in defs ]
+
+    # print all the definitions.
+    nl = len(defs_validators)
+    nr = len(defs_statement)
+
+    print('{:^30}|{:^30}'.format('  VALIDATORS', '      PROBLEM STATEMENTS'),sep='')
+    for i in range(0, max(nl, nr)):
+        if i < nl:
+            print('{:>15}  {:<13}'.format(defs_validators[i][1], defs_validators[i][0]),sep='',end='')
+        else:
+            print('{:^30}'.format(''),sep='',end='')
+        print('|',end='')
+        if i < nr:
+            print('{:>15}  {:<13}'.format(defs_statement[i][1], defs_statement[i][0]),sep='',end='')
+        else:
+            print('{:^30}'.format(''),sep='',end='')
+        print()
+
+    return True
+
 def main():
     global TOOLS_ROOT
     executable = __file__
@@ -953,6 +1001,7 @@ Run this from one of:
     subparsers.add_parser('validate', aliases=['grammar'], help='validate all grammar')
     subparsers.add_parser('input', aliases=['in'], help='validate input grammar')
     subparsers.add_parser('output', aliases=['out'], help='validate output grammar')
+    subparsers.add_parser('constraints', aliases=['con', 'bounds'], help='prints all the constraints found in problemset and validators')
 
     # Stats
     subparsers.add_parser('stats', aliases=['stat', 'status'], help='show statistics for contest/problem')
@@ -1033,6 +1082,8 @@ Run this from one of:
             success &= validate(problem, 'output', settings)
         if action in ['run', 'all']:
             success &= run_submissions(problem, settings)
+        if action in ['constraints']:
+            success &= check_constraints(problem, settings)
         print()
 
     # build pdf for the entire contest
