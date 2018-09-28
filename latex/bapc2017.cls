@@ -69,6 +69,7 @@
 \newlistof{listofproblems}{lop}{Problems}
 \newcounter{SampleCount}
 \renewcommand{\printloptitle}[1]{
+	\outline{1}{#1}
 	\Large
 	\eqmakebox[letter][c]{}
 	\quad
@@ -79,8 +80,10 @@
 \renewcommand{\afterloptitle}{\thispagestyle{empty}\afterchaptertitle}
 \newcommand{\problemname}[1]{
 	\ThisIsNotABlankPage
+	\outline{1}{#1}
 	\section{#1}
 	\rmfamily
+
 	% Formatting the list of problems on the title page:
 	\cftaddtitleline{lop}{sec}{
 		\vspace{.4pt}
