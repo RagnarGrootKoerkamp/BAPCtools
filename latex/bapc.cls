@@ -1,5 +1,5 @@
 %-------------------------------------------------------------------------------
-% This is the file bapc2017.cls.
+% This is the file bapc.cls.
 % 
 % It is a copy of the file bapc2016.cls, with only the file name changed and
 % this line added.
@@ -11,10 +11,10 @@
 % The entire class is based on the memoir class. Every option is immediately
 % passed to memoir. The BAPC class doesn't provide any additional options.
 % 
-% Authors: Josse van Dobben de Bruyn, Joris van Rantwijk
+% Authors: Josse van Dobben de Bruyn, Joris van Rantwijk, Ragnar Groot Koerkamp
 %-------------------------------------------------------------------------------
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{bapc2017}[2016/09/20, BAPC2016 class v0.7]
+\ProvidesClass{bapc}
 
 %-------------------------------------------------------------------------------
 % ThisIsNotABlankPage: clears to an odd page. If a blank page is created, then
