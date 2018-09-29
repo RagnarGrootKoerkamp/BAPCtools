@@ -16,6 +16,25 @@
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{bapc2017}[2016/09/20, BAPC2016 class v0.7]
 
+%-------------------------------------------------------------------------------
+% ThisIsNotABlankPage: clears to an odd page. If a blank page is created, then
+% it is decorated with the text "This is not a blank page".
+%-------------------------------------------------------------------------------
+\newcommand{\ThisIsNotABlankPage}{
+	\cleartooddpage[
+		\thispagestyle{empty}
+		\vfill
+		\begin{center}
+			\sffamily\huge This is not a blank page.
+		\end{center}
+		\vspace*{10.55cm} % slightly above vertical centre.
+		\vfill
+	]
+}
+\DeclareOption{web}{
+	\renewcommand{\ThisIsNotABlankPage}{\clearpage}
+}
+
 % Passes any class options to the underlying memoir class.
 \DeclareOption*{\PassOptionsToClass{\CurrentOption}{memoir}}
 \ProcessOptions
@@ -42,22 +61,6 @@
 \newcommand{\href}[2]{\urllink{#1}{#2}}
 
 \newcommand{\todo}[1]{{\color{red}[#1]}}
-
-%-------------------------------------------------------------------------------
-% ThisIsNotABlankPage: clears to an odd page. If a blank page is created, then
-% it is decorated with the text "This is not a blank page".
-%-------------------------------------------------------------------------------
-\newcommand{\ThisIsNotABlankPage}{
-	\cleartooddpage[
-		\thispagestyle{empty}
-		\vfill
-		\begin{center}
-			\sffamily\huge This is not a blank page.
-		\end{center}
-		\vspace*{10.55cm} % slightly above vertical centre.
-		\vfill
-	]
-}
 
 %-------------------------------------------------------------------------------
 % Sectioning commands and list of problems.
@@ -173,6 +176,7 @@
 \usepackage{amsmath,amssymb}
 \usepackage{wrapfig}
 \usepackage{tikz}
+\usetikzlibrary{shapes}
 \usepackage{enumitem}	% [noitemsep] for smaller lists
 
 %-------------------------------------------------------------------------------

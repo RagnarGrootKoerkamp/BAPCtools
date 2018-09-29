@@ -1,0 +1,73 @@
+\documentclass[web]{bapc}
+
+% Use \testsession for test sessions.
+\makeatletter
+\newcommand\testsession{\renewcommand\@testsession{1}}
+\newcommand\@testsession{0}
+
+% Use \title to set the title.
+% Use \subtitle for subtitle.
+\newcommand\subtitle[1]{\renewcommand\@subtitle{#1}}
+\newcommand\@subtitle{}
+
+% Use \author for name in licence, and \year for the year.
+\renewcommand\year[1]{\renewcommand\@year{#1}}
+\newcommand\@year{}
+
+%-------------------------------------------------------------------------------
+% Actual document starts here.
+%-------------------------------------------------------------------------------
+\begin{document}
+\makeatother
+\input{./build/contest/contest.tex}
+\makeatletter
+
+% TITLEPAGE
+
+\sffamily
+\begin{center}
+	{\fontsize{12mm}{1em}\selectfont \@title}
+	
+	\vspace{2.8mm}
+	{\LARGE\fontfamily{ppl}\selectfont\emph{\@subtitle}}
+	
+	\vfill
+	\includegraphics[height=7.4cm]{build/contest/logo}
+	\vfill
+	
+	\listofproblems
+	\vfill
+\end{center}
+
+% 2ND PAGE WITH CC-BY-SA LICENCE
+\newpage
+\thispagestyle{empty}
+\vspace*{\fill}
+\begin{tabular}{ll}
+\includegraphics{images/cc-by-sa.pdf}
+&
+\begin{minipage}[b][3em][t]{.8\textwidth}
+\footnotesize
+\vspace*{-4mm}
+Copyright \copyright\ \@year\ by \@author.
+This work is licensed under the
+\\
+Creative Commons Attribution-ShareAlike 4.0 International License.
+\\
+\texttt{\href{http://creativecommons.org/licenses/by-sa/4.0/}
+             {http://creativecommons.org/licenses/by-sa/4.0/}}
+\end{minipage}\\
+\end{tabular}
+
+% Start numbering at X for test sessions.
+\if\@testsession1
+	\setcounter{section}{23}
+\fi
+
+
+% Include the problems.
+\makeatother
+\input{./build/contest/problems.tex}
+\makeatletter
+
+\end{document}

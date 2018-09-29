@@ -1,16 +1,5 @@
 #!/usr/bin/python3
 
-"""
-Make a DOMjudge ZIP file for the specified problem.
-
-Usage: make_domjudge_zip.py <options>
-
-  --probdir         Path to problem directory in repository
-  --output X.zip    Output file name for ZIP file
-
-This tool only works under Linux.
-"""
-
 import sys
 import argparse
 import os
@@ -19,42 +8,7 @@ import re
 import zipfile
 
 
-def checkInOutFile(probdir, fname):
-    """Check format of input/output file."""
-
-    with open(os.path.join(probdir, fname), "rb") as f:
-        s = f.read()
-
-    ok = True
-
-    for c in s:
-        if c != ord('\n') and (c < ord(' ') or c > ord('~')):
-            print("%s: WARNING, strange character chr(%d)" % (fname, c))
-            ok = False
-            break
-
-    if s.startswith(b' ') or s.find(b'\n ') >= 0:
-        print("%s: WARNING, found leading space" % fname)
-        ok = False
-
-    if s.find(b' \n') >= 0 or s.endswith(b' '):
-        print("%s: WARNING, found trailing space" % fname)
-        ok = False
-
-    if s.find(b'  ') >= 0:
-        print("%s: WARNING, found double space" % fname)
-        ok = False
-
-    if s.startswith(b'\n') or s.find(b'\n\n') >= 0:
-        print("%s: WARNING, found empty line" % fname)
-        ok = False
-
-    if not s.endswith(b'\n'):
-        print("%s: WARNING, last line not terminated" % fname)
-        ok = False
-
-
-def make_domjudge_zip(probdir, output):
+def build_problem_zip(probdir, output, args):
     """Make DOMjudge ZIP file for specified problem."""
 
     print("Preparing to make ZIP file for problem dir %s" % probdir)
@@ -86,7 +40,7 @@ def make_domjudge_zip(probdir, output):
         # Scan problem.yaml file to decide if a custom validator is used.
         with open(os.path.join(probdir, 'problem.yaml')) as f:
             for s in f:
-                if 'validation' in s and 'custom' in s:
+                if 'validation' in s and 'custom' in s and 'default' not in s:
                     custom_validator = True
     else:
         print("WARNING: Can not find problem.yaml file",
@@ -94,6 +48,19 @@ def make_domjudge_zip(probdir, output):
 
     if os.path.isfile(os.path.join(probdir, 'problem.pdf')):
         copyfiles.append('problem.pdf')
+    else:
+        print("WARNING: Can not find problem.pdf file",
+              file=sys.stderr)
+
+    if os.path.isfile(os.path.join(probdir, 'problem_statement/problem.tex')):
+        copyfiles.append('problem_statement/problem.tex')
+    else:
+        print("WARNING: Can not find problem.tex file", file=sys.stderr)
+
+
+    for f in os.listdir(os.path.join(probdir, 'problem_statement')):
+        if os.path.splitext(f)[1] in ['.jpg', '.svg', '.png', '.pdf']:
+            copyfiles.append('problem_statement/'+f)
 
     # Find input/output files.
     for (prefix, typ) in (('data/sample', 'sample'),
@@ -133,11 +100,6 @@ def make_domjudge_zip(probdir, output):
             print("ERROR: No %s input/output files found" % typ,
                   file=sys.stderr)
             return False
-
-        # Check format of input/output files.
-        for tc in testcases:
-            checkInOutFile(probdir, os.path.join(prefix, tc + '.in'))
-            checkInOutFile(probdir, os.path.join(prefix, tc + '.ans'))
 
         # Add input/output files to list of files to copy to ZIP.
         for fname in inoutfiles:
@@ -189,33 +151,30 @@ def make_domjudge_zip(probdir, output):
         return False
 
     # Find output validator.
-    have_validator = False
-    if os.path.isdir(os.path.join(probdir, 'output_validators')):
-        have_validator = True
-        try:
-            validator_files = os.listdir(os.path.join(probdir,
-                                                      'output_validators'))
-        except OSError as e:
-            print("ERROR: Can not list output_validator files",
-                  file=sys.stderr)
-            print(e, file=sys.stderr)
-            return False
-        for fname in validator_files:
-            if not os.path.isfile(os.path.join(probdir,
-                                               'output_validators', fname)):
-                print("ERROR: Unexpected non-file output_validators/%s" %
-                      fname,
+    if custom_validator:
+        have_validator = False
+        if os.path.isdir(os.path.join(probdir, 'output_validators')):
+            have_validator = True
+            try:
+                validator_files = os.listdir(os.path.join(probdir,
+                                                          'output_validators'))
+            except OSError as e:
+                print("ERROR: Can not list output_validator files",
                       file=sys.stderr)
+                print(e, file=sys.stderr)
                 return False
-            copyfiles.append(os.path.join('output_validators', fname))
+            for fname in validator_files:
+                if not os.path.isfile(os.path.join(probdir,
+                                                   'output_validators', fname)):
+                    print("ERROR: Unexpected non-file output_validators/%s" %
+                          fname,
+                          file=sys.stderr)
+                    return False
+                copyfiles.append(os.path.join('output_validators', fname))
 
-    if custom_validator and not have_validator:
-        print("WARNING: Missing output_validators directory",
-              file=sys.stderr)
-
-    if have_validator and not custom_validator:
-        print("WARNING: Found unused output_validators directory",
-              file=sys.stderr)
+        if not have_validator:
+            print("ERROR: Missing output_validator", file=sys.stderr)
+            return False
 
     # Build .ZIP file.
     print("writing ZIP file %s" % output)
@@ -237,21 +196,25 @@ def make_domjudge_zip(probdir, output):
 
     return True
 
+# Assumes the current working directory has: the zipfiles and
+# contest.pdf
+# contest-web.pdf
+# solutions.pdf
+# Output is <outfile>
+def build_contest_zip(zipfiles, outfile):
+    print("writing ZIP file %s" % outfile)
 
-def main():
+    zf = zipfile.ZipFile(outfile,
+                         mode="w",
+                         compression=zipfile.ZIP_DEFLATED,
+                         allowZip64=False)
 
-    parser = argparse.ArgumentParser()
-    parser.format_help  = lambda: __doc__
-    parser.format_usage = lambda: __doc__
-    parser.add_argument('--probdir', action='store', type=str, required=True)
-    parser.add_argument('--output', action='store', type=str, required=True)
+    for fname in zipfiles + ['contest.pdf', 'contest-web.pdf', 'solutions.pdf']:
+        zf.write(fname,
+                 fname,
+                 compress_type=zipfile.ZIP_DEFLATED)
 
-    args = parser.parse_args()
+    print("done")
+    print()
 
-    if not make_domjudge_zip(args.probdir, args.output):
-        sys.exit(1)
-
-
-if __name__ == '__main__':
-    main()
-
+    zf.close()

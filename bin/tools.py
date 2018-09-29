@@ -28,6 +28,8 @@ import glob
 import yaml
 import configparser
 import io
+import zipfile
+from build_zip import build_problem_zip, build_contest_zip
 
 # some aliases
 from glob import glob
@@ -296,7 +298,7 @@ def validate(problem, validator_type, settings):
     testcases = get_testcases(problem, True)
     ext = '.in' if validator_type == 'input' else '.ans'
 
-    if len(validators) == 0: return True
+    if len(validators) == 0: return False
     if len(testcases) == 0: return True
 
     success = True
@@ -827,7 +829,7 @@ def build_problem_pdf(problem, make_pdf = True):
     return True
 
 # Build a pdf for an entire problemset. Explanation in latex/README.md
-def build_contest_pdf(contest, problems, solutions=False):
+def build_contest_pdf(contest, problems, solutions=False, web=False):
     statement = not solutions
 
     # Set up the build directory if it does not yet exist.
@@ -879,12 +881,12 @@ def build_contest_pdf(contest, problems, solutions=False):
     # Run pdflatex for problems
     pwd = os.getcwd()
     os.chdir(TOOLS_ROOT+'/latex')
-    f = 'solutions' if solutions else 'contest'
+    f = 'solutions' if solutions else ('contest-web' if web else 'contest')
     # The absolute path is needed, because otherwise the `contest.tex` file
     # in the output directory will get priority.
     if subprocess.call(['pdflatex', '-output-directory', './build/contest', os.path.abspath(f+'.tex')]) != 0:
         # Non-zero exit code marks a failure.
-        print(_c.red, "An error occured while compiling latex!", _c.reset)
+        print(_c.red, "An error occurred while compiling latex!", _c.reset)
         return False
     os.chdir(pwd)
 
@@ -1024,6 +1026,14 @@ Run this from one of:
     # All
     subparsers.add_parser('all', help='validate input, validate output, and run programs')
 
+    # Build DomJudge zip
+    zipparser = subparsers.add_parser('zip', help='Create zip file that can be imported into omJudge')
+    zipparser.add_argument('-c', '--contest', action='store_true', help='Also create a contest zip containing problem zips, problems statements, and solution slides.')
+    zipparser.add_argument('-s', '--skip', action='store_true', help='Skip recreation of problem zips.')
+    zipparser.add_argument('-f', '--force', action='store_true', help='Skip validation of input and output files.')
+    zipparser.add_argument('--tex', action='store_true', help='Store all relevant files in the problem statement directory.')
+
+
 
     # Process arguments
     args = parser.parse_args()
@@ -1060,6 +1070,8 @@ Run this from one of:
         print_sorted(problems, args)
         return
 
+    problem_zips = []
+
     success = True
     for problem in problems:
         print(_c.bold,'PROBLEM', problem,_c.reset)
@@ -1084,14 +1096,36 @@ Run this from one of:
             success &= run_submissions(problem, settings)
         if action in ['constraints']:
             success &= check_constraints(problem, settings)
+        if action in ['zip']:
+            if not args.skip:
+                success &= build_problem_pdf(problem, True)
+                if not args.force:
+                    success &= validate(problem, 'input', settings)
+                    success &= validate(problem, 'output', settings)
+                success &= build_problem_zip(problem, settings.probid+'.zip', settings)
+            problem_zips.append(settings.probid + '.zip')
+        print()
         print()
 
     # build pdf for the entire contest
     if action in ['pdf', 'build', 'statement'] and level == 'contest':
+        # Run 3 times, to fix the TOC.
+        success &= build_contest_pdf(contest, problems)
+        success &= build_contest_pdf(contest, problems)
         success &= build_contest_pdf(contest, problems)
 
     if action in ['sol', 'solutions', 'slides'] and level == 'contest':
         success &= build_contest_pdf(contest, problems, solutions=True)
+
+    if action in ['zip'] and args.contest:
+        success &= build_contest_pdf(contest, problems)
+        success &= build_contest_pdf(contest, problems)
+        success &= build_contest_pdf(contest, problems)
+        success &= build_contest_pdf(contest, problems, web=True)
+        success &= build_contest_pdf(contest, problems, solutions=True)
+
+        build_contest_zip(problem_zips, contest+'.zip')
+
 
     if not success:
         exit()
