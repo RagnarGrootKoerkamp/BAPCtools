@@ -1094,7 +1094,7 @@ Run this from one of:
             success &= validate(problem, 'output', settings)
         if action in ['run', 'all']:
             success &= run_submissions(problem, settings)
-        if action in ['constraints']:
+        if action in ['constraints', 'bounds', 'con']:
             success &= check_constraints(problem, settings)
         if action in ['zip']:
             if not args.skip:
