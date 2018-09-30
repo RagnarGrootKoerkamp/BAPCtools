@@ -5,8 +5,8 @@
 // E.g., check that a graph is connected.
 // TODO: Remove these comments, and summarize your input validator.
 
-int main(int argc, char **argv) {
-	Validator v(argc, argv);
+int main() {
+	InputValidator v;
 	int n = v.read_long_long(0, 100000);
 	v.newline();
 
