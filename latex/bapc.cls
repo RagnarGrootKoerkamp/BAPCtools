@@ -72,28 +72,33 @@
 \newlistof{listofproblems}{lop}{Problems}
 \newcounter{SampleCount}
 \renewcommand{\printloptitle}[1]{
-	\outline{1}{#1}
+	\outline{1}[problems]{#1}
+	\protect\jumplink{problems}{
 	\Large
 	\eqmakebox[letter][c]{}
 	\quad
 	\eqmakebox[titel][l]{\huge\textbf{#1}}
+	}
 	\par
 	\vspace*{-1cm}
 }
 \renewcommand{\afterloptitle}{\thispagestyle{empty}\afterchaptertitle}
 \newcommand{\problemname}[1]{
 	\ThisIsNotABlankPage
-	\outline{1}{#1}
 	\section{#1}
+	\outline[]{1}[\thesection]{#1}
+
 	\rmfamily
 
 	% Formatting the list of problems on the title page:
 	\cftaddtitleline{lop}{sec}{
 		\vspace{.4pt}
+		\protect\jumplink{\thesection}{
 		\Large
 		\eqmakebox[letter][c]{\thesection}
 		\quad
 		\eqmakebox[titel][l]{#1}
+		}
 		\par
 	}{}
 	\setcounter{SampleCount}{0}
