@@ -64,7 +64,7 @@ class Colorcodes(object):
 _c = Colorcodes()
 
 def clearline():
-    sys.stdout.write("\033[K")
+    print("\033[K", end='', flush=True)
 
 def print_action(action, state=None, end='\r'):
     clearline()
@@ -185,8 +185,13 @@ def is_executable(path):
 def exec_command(command, expect=0, **kwargs):
     if 'stdout' not in kwargs:
         kwargs['stdout'] = open(os.devnull, 'w')
+
+    timeout = None
+    if 'timeout' in kwargs:
+        timeout = kwargs['timeout']
+        kwargs.pop('timeout')
     process = subprocess.Popen(command, stderr=subprocess.PIPE, **kwargs)
-    (stdout, stderr) = process.communicate()
+    (stdout, stderr) = process.communicate(timeout=timeout)
     if process.returncode == expect:
         return True
     stderr = stderr.decode('utf-8')
@@ -205,7 +210,8 @@ def exec_command(command, expect=0, **kwargs):
 # returns a command to execute
 def build(path, action=None):
     if action is not None:
-        print_action(action, path)
+        print_action(action, print_name(path))
+    time.sleep(2)
 
     # mirror directory structure on tmpfs
     basename = os.path.basename(path)
@@ -243,7 +249,7 @@ def build(path, action=None):
         ret = exec_command(compile_command)
         if ret is not True:
             print_action(action if action is not None else 'Building',
-                    path+' '+_c.red+'FAILED', end='\n',flush=True)
+                    print_name(path)+' '+_c.red+'FAILED', end='\n')
             if ret[1] is not None:
                 print(_c.reset,ret[1],sep='',end='',flush=True)
             return None
@@ -269,7 +275,7 @@ def build_directory(directory, include_dirname=False, action=None):
             exit()
         os.chdir(cur_path)
         if not is_executable(runfile):
-            print('after running',path,',', funfile,'must be a valid executable!')
+            print('after running',path,',', runfile,'must be a valid executable!')
             exit()
         return [('run',[runfile])]
 
@@ -300,11 +306,12 @@ def build_directory(directory, include_dirname=False, action=None):
                     commands.append((name, run_command))
     return commands
 
-# drop a/b/c from a/b/c/{sample,secret}/test
-def print_testcase(path):
-    name = os.path.basename(path)
-    dirname = os.path.basename(os.path.dirname(path))
-    return os.path.join(dirname,name)
+# Drops the first two path components <problem>/<type>/
+def print_name(path):
+    return os.path.join(*(path.split(os.path.sep)[2:]))
+    #name = os.path.basename(path)
+    #dirname = os.path.basename(os.path.dirname(path))
+    #return os.path.join(dirname,name)
 
 # testcases; returns list of basenames
 def get_testcases(problem, needans = True, only_sample = False):
@@ -322,6 +329,7 @@ def get_testcases(problem, needans = True, only_sample = False):
         testcases.append(name)
     testcases.sort()
     clearline()
+
     return testcases
 
 def get_validators(problem, validator_type):
@@ -365,13 +373,14 @@ def validate(problem, validator_type, settings):
     if validator_type == 'output':
         flags = ['case_sensitive', 'space_change_sensitive']
 
-    max_testcase_len=max([len(print_testcase(testcase)+ext) for testcase in testcases])
+    max_testcase_len=max([len(print_name(testcase)+ext) for testcase in testcases])
 
     # validate the testcases
     i = 0
     total = len(testcases)
     for testcase in testcases:
-        print_action_bar(action, i, total, ('{:<'+str(max_testcase_len)+'}').format(print_testcase(testcase)+ext))
+        print_action_bar(action, i, total,
+                ('{:<'+str(max_testcase_len)+'}').format(print_name(testcase)+ext))
         i += 1
         for validator in validators:
             # simple `program < test.in` for input validation and ctd output validation
@@ -389,7 +398,7 @@ def validate(problem, validator_type, settings):
 
                 clearline()
                 print_action(action,
-                        ('{:<'+str(max_testcase_len)+'}').format(print_testcase(testcase)+ext),
+                        ('{:<'+str(max_testcase_len)+'}').format(print_name(testcase)+ext),
                         end='')
                 print(_c.red, 'FAILED', validator[0], end='')
 
@@ -462,7 +471,7 @@ def get_submissions(problem):
         if not dirname.upper() in problem_outcomes:
             continue
         # include directory in submission name
-        commands[dirname.upper()] = build_directory(d, True)
+        commands[dirname.upper()] = build_directory(d, True, 'Build submission')
     return commands
 
 # return: (success, remark)
@@ -563,12 +572,13 @@ def run_testcase(run_command, testcase, outfile, tle=None):
             try:
                 # Double the tle to check for solutions close to the required bound
                 ret = exec_command(run_command,
+                        expect=0,
                         stdin=inf,
                         stdout=outf,
                         timeout=2*tle)
             except subprocess.TimeoutExpired:
                 timeout = True
-                ret = 0
+                ret = True
             tend = time.monotonic()
 
     duration = tend - tstart
@@ -582,7 +592,7 @@ def run_testcase(run_command, testcase, outfile, tle=None):
 def process_testcase(run_command, testcase, outfile, settings, output_validators, silent = False, printnewline = False):
 
     if not silent and verbose == 2:
-        print('{:<50}'.format(print_testcase(testcase)), end='', flush=True)
+        print('{:<50}'.format(print_name(testcase)), end='', flush=True)
 
     ret, timeout, duration = run_testcase(run_command, testcase, outfile, settings.timelimit)
 
@@ -590,8 +600,11 @@ def process_testcase(run_command, testcase, outfile, settings, output_validators
     remark = ''
     if timeout:
         verdict = 'TIME_LIMIT_EXCEEDED'
-    elif ret:
+    elif ret is not True:
         verdict = 'RUN_TIME_ERROR'
+        # TODO: print testcase runtime error
+        #print('\n',_c.orange, ret[1], _c.reset, sep='', end='', flush=True)
+
     # now check validity of outfile
     else:
         if settings.validation == 'default':
@@ -609,7 +622,7 @@ def process_testcase(run_command, testcase, outfile, settings, output_validators
     if verbose != 2 and verdict != 'ACCEPTED':
         if printnewline:
             print()
-        print('{:<50}'.format(print_testcase(testcase)), end='')
+        print('{:<50}'.format(print_name(testcase)), end='')
 
     if verbose == 2 or verdict != 'ACCEPTED':
         print('{:6.3f}s'.format(duration),
@@ -653,7 +666,7 @@ def run_submission(submission, testcases, settings, output_validators, expected=
         if not silent and verdict != 'ACCEPTED':
             need_newline = False
 
-        if hasattr(settings, 'lazy') and settings.lazy and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
+        if args.lazy and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
             break
 
     # default in case of 0 testcases
@@ -688,15 +701,12 @@ def run_submissions(problem, settings):
     if hasattr(settings, 'submissions') and settings.submissions:
         commands = []
         for submission in settings.submissions:
-            run_command = build(os.path.join(problem, submission))
+            run_command = build(os.path.join(problem, submission), action='Build submission')
             if run_command:
                 commands.append((os.path.basename(submission), run_command))
         submissions = {'ACCEPTED': commands}
     else:
         submissions = get_submissions(problem)
-
-    if verbose < 2:
-        settings.lazy = True
 
     success = True
     verdict_table = []
@@ -744,7 +754,7 @@ def generate_output(problem, settings):
             exit()
         submissions.sort()
         submission = submissions[0]
-        print('Using',print_testcase(submission))
+        print('Using',print_name(submission))
 
     # build submission
     run_command = build(submission)
@@ -769,7 +779,7 @@ def generate_output(problem, settings):
         ret, timeout, duration = run_testcase(run_command, testcase, outfile, settings.timelimit)
         if ret:
             if not verbose:
-                print('{:<50}'.format(print_testcase(testcase)), end=' ')
+                print('{:<50}'.format(print_name(testcase)), end=' ')
             print('Failure on testcase ', testcase)
             nfail += 1
         else:
@@ -790,18 +800,18 @@ def generate_output(problem, settings):
                         shutil.move(outfile, testcase+'.ans')
                         nchange += 1
                         if not verbose:
-                            print('{:<50}'.format(print_testcase(testcase)), end=' ')
+                            print('{:<50}'.format(print_name(testcase)), end=' ')
                         print('CHANGED')
                     else:
                         nskip += 1
                         if not verbose:
-                            print('{:<50}'.format(print_testcase(testcase)), end=' ')
+                            print('{:<50}'.format(print_name(testcase)), end=' ')
                         print(_c.red+'SKIPPED'+_c.reset+'; supply -f to overwrite',flush=True)
             else:
                 shutil.move(outfile, testcase+'.ans')
                 nnew += 1
                 if not verbose:
-                    print('{:<50}'.format(print_testcase(testcase)), end=' ')
+                    print('{:<50}'.format(print_name(testcase)), end=' ')
                 print('NEW')
 
     print('Done:')
