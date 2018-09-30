@@ -303,7 +303,11 @@ def validate(problem, validator_type, settings):
 
     success = True
 
-    flags = ['case_sensitive', 'space_change_sensitive']
+    # Flags are only needed for output validators; input validators are
+    # sensitive by default.
+    flags = []
+    if validator_type == 'output':
+        flags = ['case_sensitive', 'space_change_sensitive']
 
     # validate the testcases
     for testcase in testcases:
@@ -442,24 +446,25 @@ def default_output_validator(ansfile, outfile, settings):
     if settings.floatabs is None and settings.floatrel is None:
         return (False, 'wrong')
 
+    if len(words1) != len(words2):
+        return (False, 'wrong')
 
-    if len(words1) == len(words2):
-        peakerr = 0
-        for (w1, w2) in zip(words1, words2):
-            if w1 != w2:
-                try:
-                    f1  = float(w1)
-                    f2  = float(w2)
-                    err = abs(f1 - f2)
-                    peakerr = max(peakerr, err)
-                    if ( (settings.floatabs is None or err > settings.floatabs) and
-                         (settings.floatrel is None or err > settings.floatrel * f1) ):
-                        return (False, 'wrong')
-                except ValueError:
+    peakerr = 0
+    for (w1, w2) in zip(words1, words2):
+        if w1 != w2:
+            try:
+                f1  = float(w1)
+                f2  = float(w2)
+                err = abs(f1 - f2)
+                peakerr = max(peakerr, err)
+                if ( (settings.floatabs is None or err > settings.floatabs) and
+                     (settings.floatrel is None or err > settings.floatrel * f1) ):
                     return (False, 'wrong')
-        return (True, 'float: ' + str(peakerr))
+            except ValueError:
+                return (False, 'wrong')
 
-    return (False, 'wrong')
+    return (True, 'float: ' + str(peakerr))
+
 
 # call output validators as ./validator in ans feedbackdir additional_arguments < out
 # return (success, remark)
@@ -603,7 +608,10 @@ def run_submission(submission, testcases, settings, output_validators, expected=
 def run_submissions(problem, settings):
     # Require both in and ans files
     testcases = get_testcases(problem, True)
-    output_validators = get_validators(problem, 'output')
+
+    output_validators = None
+    if settings.validation == 'custom':
+        output_validators = get_validators(problem, 'output')
 
     if hasattr(settings, 'submissions') and settings.submissions:
         submissions = {'ACCEPTED':[(os.path.basename(submission), build(problem+submission))
@@ -1032,6 +1040,7 @@ Run this from one of:
     zipparser.add_argument('-s', '--skip', action='store_true', help='Skip recreation of problem zips.')
     zipparser.add_argument('-f', '--force', action='store_true', help='Skip validation of input and output files.')
     zipparser.add_argument('--tex', action='store_true', help='Store all relevant files in the problem statement directory.')
+    zipparser.add_argument('--kattis', action='store_true', help='Small modifications to the kattis problemarchive.com format.')
 
 
 
@@ -1097,13 +1106,18 @@ Run this from one of:
         if action in ['constraints', 'bounds', 'con']:
             success &= check_constraints(problem, settings)
         if action in ['zip']:
+            output = re.sub(r'[^a-z0-9]', '', os.path.basename(os.path.normpath(problem)).lower()) + '.zip'
+            print('OUTPUT: ', output)
+            problem_zips.append(output)
             if not args.skip:
                 success &= build_problem_pdf(problem, True)
                 if not args.force:
                     success &= validate(problem, 'input', settings)
                     success &= validate(problem, 'output', settings)
-                success &= build_problem_zip(problem, settings.probid+'.zip', settings)
-            problem_zips.append(settings.probid + '.zip')
+
+                # Write to problemname.zip, where we strip all non-alphanumeric from the
+                # problem directory name.
+                success &= build_problem_zip(problem, output, settings)
         print()
         print()
 
@@ -1124,7 +1138,7 @@ Run this from one of:
         success &= build_contest_pdf(contest, problems, web=True)
         success &= build_contest_pdf(contest, problems, solutions=True)
 
-        build_contest_zip(problem_zips, contest+'.zip')
+        build_contest_zip(problem_zips, contest+'.zip', args)
 
 
     if not success:

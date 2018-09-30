@@ -14,7 +14,7 @@ def build_problem_zip(probdir, output, args):
     print("Preparing to make ZIP file for problem dir %s" % probdir)
 
     # Build list of files to store in ZIP file.
-    copyfiles = [ ]
+    copyfiles = []
 
     custom_validator = False
 
@@ -150,11 +150,45 @@ def build_problem_zip(probdir, output, args):
         print("ERROR: No ACCEPTED solutions found", file=sys.stderr)
         return False
 
+    # Find input validator.
+    # With the Kattis flag, This adds an extra directory layer so that included
+    # headers are found.
+    have_validator = False
+    if os.path.isdir(os.path.join(probdir, 'input_validators')):
+        try:
+            validator_files = os.listdir(os.path.join(probdir,
+                                                      'input_validators'))
+        except OSError as e:
+            print("ERROR: Can not list input_validator files",
+                  file=sys.stderr)
+            print(e, file=sys.stderr)
+            return False
+        for fname in validator_files:
+            have_validator = True
+            if not os.path.isfile(os.path.join(probdir,
+                                               'input_validators', fname)):
+                print("ERROR: Unexpected non-file input_validators/%s" %
+                      fname,
+                      file=sys.stderr)
+                return False
+            source = os.path.join('input_validators', fname)
+            if args.kattis:
+                target = os.path.join('input_format_validators', 'input_validator', fname)
+                copyfiles.append((source, target))
+            else:
+                copyfiles.append(source)
+
+    if not have_validator:
+        print("ERROR: Missing input_validator", file=sys.stderr)
+        return False
+
+
     # Find output validator.
+    # With the Kattis flag, This adds an extra directory layer so that included
+    # headers are found.
     if custom_validator:
         have_validator = False
         if os.path.isdir(os.path.join(probdir, 'output_validators')):
-            have_validator = True
             try:
                 validator_files = os.listdir(os.path.join(probdir,
                                                           'output_validators'))
@@ -164,13 +198,19 @@ def build_problem_zip(probdir, output, args):
                 print(e, file=sys.stderr)
                 return False
             for fname in validator_files:
+                have_validator = True
                 if not os.path.isfile(os.path.join(probdir,
                                                    'output_validators', fname)):
                     print("ERROR: Unexpected non-file output_validators/%s" %
                           fname,
                           file=sys.stderr)
                     return False
-                copyfiles.append(os.path.join('output_validators', fname))
+                source = os.path.join('output_validators', fname)
+                if args.kattis:
+                    target = os.path.join('output_validators', 'output_validator', fname)
+                    copyfiles.append((source, target))
+                else:
+                    copyfiles.append(source)
 
         if not have_validator:
             print("ERROR: Missing output_validator", file=sys.stderr)
@@ -184,9 +224,19 @@ def build_problem_zip(probdir, output, args):
                          compression=zipfile.ZIP_DEFLATED,
                          allowZip64=False)
 
+    # For kattis, write to problemname/<file> instead of just <file>.
+    root = ''
+    if args.kattis:
+        root = os.path.basename(os.path.normpath(probdir))
+        root = re.sub(r'[^a-z0-9]', '', root.lower())
     for fname in copyfiles:
-        zf.write(os.path.join(probdir, fname),
-                 fname,
+        source = fname
+        target = fname
+        if isinstance(fname, tuple):
+            source = fname[0]
+            target = fname[1]
+        zf.write(os.path.join(probdir, source),
+                 os.path.join(root, target),
                  compress_type=zipfile.ZIP_DEFLATED)
 
     # Done.
@@ -201,7 +251,7 @@ def build_problem_zip(probdir, output, args):
 # contest-web.pdf
 # solutions.pdf
 # Output is <outfile>
-def build_contest_zip(zipfiles, outfile):
+def build_contest_zip(zipfiles, outfile, args):
     print("writing ZIP file %s" % outfile)
 
     zf = zipfile.ZipFile(outfile,
@@ -209,10 +259,17 @@ def build_contest_zip(zipfiles, outfile):
                          compression=zipfile.ZIP_DEFLATED,
                          allowZip64=False)
 
-    for fname in zipfiles + ['contest.pdf', 'contest-web.pdf', 'solutions.pdf']:
+
+    for fname in zipfiles:
         zf.write(fname,
                  fname,
                  compress_type=zipfile.ZIP_DEFLATED)
+
+    if not args.kattis:
+        for fname in ['contest.pdf', 'contest-web.pdf', 'solutions.pdf']:
+            zf.write(fname,
+                    fname,
+                    compress_type=zipfile.ZIP_DEFLATED)
 
     print("done")
     print()
