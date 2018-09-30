@@ -40,7 +40,7 @@ rtv_wa = 43
 
 build_extensions = ['.c', '.cc', '.cpp', '.java', '.py', '.py2', '.py3', '.ctd']
 problem_outcomes = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED','RUN_TIME_ERROR']
-tmpdir = tempfile.mkdtemp(prefix='bapctools_') + '/'
+tmpdir = tempfile.mkdtemp(prefix='bapctools_')
 
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD = 4
@@ -48,6 +48,7 @@ TABLE_THRESHOLD = 4
 TOOLS_ROOT = ''
 
 # this is lifted for convenience
+args = None
 verbose = 0
 
 # color printing
@@ -65,7 +66,7 @@ _c = Colorcodes()
 def exit(clean = True):
     if clean:
         shutil.rmtree(tmpdir)
-    sys.exit(1);
+    sys.exit(1)
 
 # get the list of relevant problems,
 # and cd to a directory at contest level
@@ -79,7 +80,7 @@ def get_problems(contest):
     elif os.path.isdir('../.git'):
         pass
     elif os.path.isdir('../../.git'):
-        problems = [os.path.basename(os.getcwd())+'/']
+        problems = [os.path.basename(os.getcwd())]
         os.chdir('..')
         return (problems, 'problem', os.path.basename(os.getcwd()))
     else:
@@ -87,7 +88,7 @@ def get_problems(contest):
         exit()
 
     # return list of problems in contest directory
-    return ([p[0] for p in sort_problems(glob('*/'))], 'contest', os.path.basename(os.getcwd()))
+    return ([os.path.normpath(p[0]) for p in sort_problems(glob('*/'))], 'contest', os.path.basename(os.getcwd()))
 
 # read problem settings from config files
 def read_configs(problem):
@@ -104,7 +105,7 @@ def read_configs(problem):
     }
 
     # parse problem.yaml
-    yamlpath = problem+'problem.yaml'
+    yamlpath = os.path.join(problem,'problem.yaml')
     if os.path.isfile(yamlpath):
         with open(yamlpath) as yamlfile:
             try:
@@ -134,8 +135,8 @@ def read_configs(problem):
             i += 1
 
     # parse domjudge-problem.ini
-    if os.path.isfile(problem+'/domjudge-problem.ini'):
-        with open(problem+'/domjudge-problem.ini') as f:
+    if os.path.isfile(os.path.join(problem,'domjudge-problem.ini')):
+        with open(os.path.join(problem,'domjudge-problem.ini')) as f:
             for line in f.readlines():
                 key, var = line.strip().split('=')
                 var = var[1:-1]
@@ -168,7 +169,7 @@ def build(path):
     # mirror directory structure on tmpfs
     basename = os.path.basename(path)
     (base, ext) = os.path.splitext(basename)
-    exefile = tmpdir+os.path.dirname(path)+'/'+base
+    exefile = os.path.join(tmpdir,os.path.dirname(path),base)
     os.makedirs(os.path.dirname(exefile), exist_ok=True)
     if ext == '.c':
         compile_command = [ 'gcc', '-std=c11', '-Wall', '-O2',
@@ -190,7 +191,7 @@ def build(path):
         run_command = [ 'python3', path ]
     elif ext == '.ctd':
         compile_command = None
-        run_command = [ TOOLS_ROOT + '/checktestdata/checktestdata', path ]
+        run_command = [ os.path.join(TOOLS_ROOT, 'checktestdata', 'checktestdata'), path ]
     else:
         print(path,'has unknown extension',ext)
         exit()
@@ -208,23 +209,26 @@ def build(path):
 def build_directory(directory, include_dirname=False):
     commands = []
 
-    if is_executable(directory+'build'):
+    buildfile = os.path.join(directory,'build')
+    runfile = os.path.join(directory,'run')
+
+    if is_executable(buildfile):
         cur_path = os.getcwd()
         os.chdir(directory)
         if exec_command(['./build']):
             print(path, 'failed!')
             exit()
         os.chdir(cur_path)
-        if not is_executable(directory+'run'):
-            print('after running',path,',', directory+'run','must be a valid executable!')
+        if not is_executable(runfile):
+            print('after running',path,',', funfile,'must be a valid executable!')
             exit()
-        return [('run',[directory+'run'])]
+        return [('run',[runfile])]
 
-    if is_executable(directory+'run'):
-        return [('run',[directory+'run'])]
+    if is_executable(runfile):
+        return [('run',[runfile])]
 
 
-    files = glob(directory+'*')
+    files = glob(os.path.join(directory,'*'))
     files.sort()
     for path in files:
         basename = os.path.basename(path)
@@ -233,9 +237,10 @@ def build_directory(directory, include_dirname=False):
 
         if include_dirname:
             dirname = os.path.basename(os.path.dirname(path))
-            name = dirname+'/'+basename
+            name = os.path.join(dirname,basename)
         else:
             name = basename
+
         if is_executable(path):
             commands.append((name, [path]))
         else:
@@ -243,15 +248,15 @@ def build_directory(directory, include_dirname=False):
             if ext in build_extensions:
                 # None on compiler failure
                 run_command = build(path)
-                if run_command:
+                if run_command != None:
                     commands.append((name, run_command))
     return commands
 
 # testcases; returns list of basenames
 def get_testcases(problem, needans = True, only_sample = False):
-    infiles = glob(problem+'data/sample/*.in')
+    infiles = glob(os.path.join(problem,'data/sample/*.in'))
     if not only_sample:
-        infiles += glob(problem+'data/secret/*.in')
+        infiles += glob(os.path.join(problem,'data/secret/*.in'))
 
     testcases = []
     for f in infiles:
@@ -266,10 +271,10 @@ def get_testcases(problem, needans = True, only_sample = False):
 def print_testcase(path):
     name = os.path.basename(path)
     dirname = os.path.basename(os.path.dirname(path))
-    return dirname+'/'+name
+    return os.path.join(dirname,name)
 
 def get_validators(problem, validator_type):
-    return build_directory(problem + validator_type+'_validators/')
+    return build_directory(os.path.join(problem, validator_type+'_validators/'))
 
 # Validate the .in and .ans files for a problem.
 # For input:
@@ -376,19 +381,19 @@ def stats(problems):
 
     for problem in problems:
         print(format_string.format(problem,
-            get_stat(problem+'submissions/accepted/*', 3),
-            get_stat(problem+'submissions/wrong_answer/*', 2),
-            get_stat(problem+'submissions/time_limit_exceeded/*', 1),
-            get_stat(problem+'submissions/accepted/*.java'),
-            get_stat(problem+'data/sample/*.in', 2),
-            get_stat(problem+'data/secret/*.in', 15, 50),
-            get_stat(problem+'domjudge-problem.ini'),
-            get_stat(problem+'problem_statement/solution.tex')
+            get_stat(os.path.join(problem,'submissions/accepted/*', 3)),
+            get_stat(os.path.join(problem,'submissions/wrong_answer/*', 2)),
+            get_stat(os.path.join(problem,'submissions/time_limit_exceeded/*', 1)),
+            get_stat(os.path.join(problem,'submissions/accepted/*.java')),
+            get_stat(os.path.join(problem,'data/sample/*.in', 2)),
+            get_stat(os.path.join(problem,'data/secret/*.in', 15, 50)),
+            get_stat(os.path.join(problem,'domjudge-problem.ini')),
+            get_stat(os.path.join(problem,'problem_statement/solution.tex'))
             ))
 
 # returns a map {answer type -> [(name, command)]}
 def get_submissions(problem):
-    dirs = glob(problem+'submissions/*/')
+    dirs = glob(os.path.join(problem,'submissions/*/'))
     commands = {}
     for d in dirs:
         dirname = os.path.basename(os.path.normpath(d))
@@ -582,14 +587,14 @@ def run_submission(submission, testcases, settings, output_validators, expected=
             need_newline = False
 
         if hasattr(settings, 'lazy') and settings.lazy and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
-            break;
+            break
 
     # default in case of 0 testcases
     verdict = 'ACCEPTED'
     for v in reversed(problem_outcomes):
         if verdict_count[v] > 0:
             verdict = v
-            break;
+            break
 
     if not verbose and verdict != expected:
         print('{:<50}'.format(submission[0]), end = '')
@@ -614,8 +619,12 @@ def run_submissions(problem, settings):
         output_validators = get_validators(problem, 'output')
 
     if hasattr(settings, 'submissions') and settings.submissions:
-        submissions = {'ACCEPTED':[(os.path.basename(submission), build(problem+submission))
-            for submission in settings.submissions]}
+        commands = []
+        for submission in settings.submissions:
+            run_command = build(os.path.join(problem, submission))
+            if run_command:
+                commands.append((os.path.basename(submission), run_command))
+        submissions = {'ACCEPTED': commands}
     else:
         submissions = get_submissions(problem)
 
@@ -659,10 +668,10 @@ def run_submissions(problem, settings):
 
 def generate_output(problem, settings):
     if hasattr(settings, 'submission') and settings.submission:
-        submission = problem+settings.submission
+        submission = os.path.join(problem,settings.submission)
     else:
         # only get one accepted submission
-        submissions = glob(problem+'submissions/accepted/*')
+        submissions = glob(os.path.join(problem,'submissions/accepted/*'))
         if len(submissions) == 0:
             print('No submission found for this problem!')
             exit()
@@ -766,39 +775,46 @@ def tex_escape(text):
     text = regex.sub('\\\\phantom{.}', text)
     return text
 
-# Build a pdf for the problem. Explanation in latex/README.md
-def build_problem_pdf(problem, make_pdf = True):
+def require_latex_build_dir():
     # Set up the build directory if it does not yet exist.
-    builddir = os.path.normpath(TOOLS_ROOT+'/latex/build')
+    builddir = os.path.normpath(os.path.join(TOOLS_ROOT,'latex/build'))
     if not os.path.isdir(builddir):
         if os.path.islink(builddir):
             os.unlink(builddir)
-        tmpdir = tempfile.mkdtemp(prefix='bapctools_latex') + '/'
+        tmpdir = tempfile.mkdtemp(prefix='bapctools_latex')
         os.symlink(tmpdir, builddir)
-    builddir += '/'
+    return builddir
+
+
+# Build a pdf for the problem. Explanation in latex/README.md
+def build_problem_pdf(problem, make_pdf = True):
+    builddir = require_latex_build_dir()
 
     # Make the build/<problem> directory
-    os.makedirs(builddir+problem, exist_ok = True)
+    os.makedirs(os.path.join(builddir,problem), exist_ok = True)
     # build/problem -> build/<problem>
-    if os.path.exists(builddir+'problem'):
-        os.unlink(builddir + 'problem')
-    os.symlink(problem, builddir+'problem')
+    problemdir = os.path.join(builddir,'problem')
+    if os.path.exists(problemdir):
+        os.unlink(problemdir)
+    os.symlink(problem, problemdir)
     # link problem_statement dir
-    statement_target = builddir+'problem/problem_statement'
+    statement_target = os.path.join(builddir,'problem/problem_statement')
     if not os.path.exists(statement_target):
         if os.path.islink(statement_target):
             os.unlink(statement_target)
-        os.symlink(os.path.abspath(problem+'problem_statement'), statement_target)
+        os.symlink(os.path.abspath(os.path.join(problem,'problem_statement')), statement_target)
 
     # create the problemid.tex file which sets the section counter
-    problemid_file_path = builddir+'problem/problemid.tex'
+    problemid_file_path = os.path.join(builddir,'problem/problemid.tex')
     with open(problemid_file_path, 'wt') as problemid_file:
-        problemid = ord(read_configs(problem)['probid']) - ord('A')
+        config = read_configs(problem)
+        print(config)
+        problemid = ord(config['probid']) - ord('A')
         problemid_file.write('\\setcounter{section}{' + str(problemid) + '}')
 
     # create the samples.tex file
     samples = get_testcases(problem, needans = True, only_sample = True)
-    samples_file_path = builddir+'problem/samples.tex'
+    samples_file_path = os.path.join(builddir,'problem/samples.tex')
     with open(samples_file_path, 'wt') as samples_file:
         for sample in samples:
             samples_file.write('\\begin{Sample}\n')
@@ -826,38 +842,32 @@ def build_problem_pdf(problem, make_pdf = True):
 
     # run pdflatex
     pwd = os.getcwd()
-    os.chdir(TOOLS_ROOT+'/latex')
+    os.chdir(os.path.join(TOOLS_ROOT,'latex'))
     subprocess.call(['pdflatex', '-output-directory', './build/problem', 'problem.tex'])
     os.chdir(pwd)
 
     # link the output pdf
-    if not os.path.exists(problem+'/problem.pdf'):
-        os.symlink(builddir+problem+'/problem.pdf', problem+'problem.pdf')
+    pdf_path = os.path.join(problem, 'problem.pdf')
+    if not os.path.exists(pdf_path):
+        os.symlink(os.path.join(builddir,pdf_path), pdf_path)
 
     return True
 
 # Build a pdf for an entire problemset. Explanation in latex/README.md
 def build_contest_pdf(contest, problems, solutions=False, web=False):
+    builddir = require_latex_build_dir()
+
     statement = not solutions
 
-    # Set up the build directory if it does not yet exist.
-    builddir = os.path.normpath(TOOLS_ROOT+'/latex/build')
-    if not os.path.isdir(builddir):
-        if os.path.islink(builddir):
-            os.unlink(builddir)
-        # Make the build dir on tmpfs if it doesn't exist
-        tmpdir = tempfile.mkdtemp(prefix='bapctools_latex') + '/'
-        os.symlink(tmpdir, builddir)
-    builddir += '/'
-
     # Make the build/<contest> directory
-    os.makedirs(builddir+contest, exist_ok = True)
+    os.makedirs(os.path.join(builddir,contest), exist_ok = True)
     # build/contest -> build/<contest>
-    if os.path.exists(builddir+'contest'):
-        os.unlink(builddir + 'contest')
-    os.symlink(contest, builddir+'contest')
+    contest_dir = os.path.join(builddir, 'contest')
+    if os.path.exists(contest_dir):
+        os.unlink(contest_dir)
+    os.symlink(contest, contest_dir)
     # link contest.tex
-    config_target = builddir+'contest/contest.tex'
+    config_target = os.path.join(builddir,'contest/contest.tex')
     if not os.path.exists(config_target):
         if os.path.islink(config_target):
             os.unlink(config_target)
@@ -865,7 +875,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
 
     # Create the contest/problems.tex file.
     t = 'solution' if solutions else 'problem'
-    problems_path = builddir+'contest/'+t+'s.tex'
+    problems_path = os.path.join(builddir,'contest',t+'s.tex')
     problems_with_ids = sort_problems(problems)
     with open(problems_path, 'wt') as problems_file:
         for problem_with_id in problems_with_ids:
@@ -880,15 +890,16 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
                 problems_file.write('\\endgroup\n')
 
     # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
-    if not os.path.exists(builddir+'contest/logo.pdf'):
+    logo_path = os.path.join(builddir, 'contest/logo.pdf')
+    if not os.path.exists(logo_path):
         if os.path.exists('../logo.pdf'):
-            os.symlink(os.path.abspath('../logo.pdf'), builddir+'contest/logo.pdf')
+            os.symlink(os.path.abspath('../logo.pdf'), logo_path)
         else:
-            os.symlink(os.path.abspath(TOOLS_ROOT+'/latex/images/logo-not-found.pdf'), builddir+'contest/logo.pdf')
+            os.symlink(os.path.abspath(os.path.join(TOOLS_ROOT,'latex/images/logo-not-found.pdf')), logo_path)
 
     # Run pdflatex for problems
     pwd = os.getcwd()
-    os.chdir(TOOLS_ROOT+'/latex')
+    os.chdir(os.path.join(TOOLS_ROOT,'latex'))
     f = 'solutions' if solutions else ('contest-web' if web else 'contest')
     # The absolute path is needed, because otherwise the `contest.tex` file
     # in the output directory will get priority.
@@ -918,10 +929,10 @@ def print_sorted(problems, args):
         print(prefix + problem[0])
 
 def check_constraints(problem, settings):
-    vinput = problem + 'input_validators/input_validator.cpp'
-    voutput = problem + 'output_validators/output_validator.cpp'
+    vinput = os.path.join(problem, 'input_validators/input_validator.cpp')
+    voutput = os.path.join(problem, 'output_validators/output_validator.cpp')
 
-    cpp_statement = re.compile('^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);$');
+    cpp_statement = re.compile('^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);$')
 
     defs = []
     for validator in [vinput, voutput]:
@@ -933,9 +944,9 @@ def check_constraints(problem, settings):
 
     defs_validators = [ (mo.group(3), mo.group(4)) for mo in defs ]
 
-    statement = problem + 'problem_statement/problem.tex';
-    latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$');
-    latex_define = re.compile('{\\\\(\w+)}{(.*)}');
+    statement = os.path.join(problem, 'problem_statement/problem.tex')
+    latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$')
+    latex_define = re.compile('{\\\\(\w+)}{(.*)}')
 
     defs.clear()
     with open(statement) as file:
@@ -970,7 +981,7 @@ def main():
     executable = __file__
     if os.path.islink(executable):
         executable = os.path.realpath(executable)
-    TOOLS_ROOT = os.path.realpath(os.path.normpath(os.path.dirname(executable)+'/../'))
+    TOOLS_ROOT = os.path.realpath(os.path.normpath(os.path.join(os.path.dirname(executable),'..')))
 
     parser = argparse.ArgumentParser(description=
 '''
@@ -1045,18 +1056,19 @@ Run this from one of:
 
 
     # Process arguments
+    global args
     args = parser.parse_args()
     global verbose
     verbose = args.verbose if args.verbose else 0
     action = args.action
 
     if action in ['contest', 'new-contest', 'create-contest', 'add-contest']:
-        shutil.copytree(TOOLS_ROOT+'/skel/contest', args.contestname)
-        exit();
+        shutil.copytree(os.path.join(TOOLS_ROOT,'skel/contest'), args.contestname)
+        exit()
 
     if action in ['problem', 'new-problem', 'create-problem', 'add-problem']:
-        shutil.copytree(TOOLS_ROOT+'/skel/problem', args.problemname)
-        exit();
+        shutil.copytree(os.path.join(TOOLS_ROOT,'/skel/problem'), args.problemname)
+        exit()
 
 
     # Get problems and cd to contest
