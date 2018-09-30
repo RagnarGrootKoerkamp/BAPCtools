@@ -54,14 +54,20 @@ verbose = 0
 # color printing
 class Colorcodes(object):
     def __init__(self):
-        self.bold = '\033[;1m'
-        self.reset = '\033[0;0m'
-        self.blue = '\033[;34m'
-        self.green = '\033[;32m'
+        self.bold   = '\033[;1m'
+        self.reset  = '\033[0;0m'
+        self.blue   = '\033[;34m'
+        self.green  = '\033[;32m'
         self.orange = '\033[;33m'
-        self.red = '\033[;31m'
-        self.white = '\033[;39m'
+        self.red    = '\033[;31m'
+        self.white  = '\033[;39m'
 _c = Colorcodes()
+
+def clearline():
+    sys.stdout.write("\033[K")
+
+def print_action(action, overwrite=False):
+    print(_c.blue, action, _c.reset, sep='', end='\r' if overwrite else '\n')
 
 def exit(clean = True):
     if clean:
@@ -148,20 +154,25 @@ def read_configs(problem):
 def is_executable(path):
     return os.path.exists(path) and (os.stat(path).st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
-# run a command with the required verbosity
-def exec_command(command, **kwargs):
-    if verbose == 3:
-        print()
-        if 'stdin' in kwargs:
-            print(command, '<', kwargs.get('stdin').name)
-        else:
-            print(command)
-        return subprocess.call(command, **kwargs)
-    else:
-        if 'stdout' in kwargs:
-            return subprocess.call(command, stderr=open(os.devnull, 'w'), **kwargs)
-        else:
-            return subprocess.call(command, stdout=open(os.devnull, 'w'), stderr=subprocess.STDOUT, **kwargs)
+# Run `command`, returning stderr if the return code is unexpected.
+def exec_command(command, expect=0, **kwargs):
+    if 'stdout' not in kwargs:
+        kwargs['stdout'] = open(os.devnull, 'w')
+    process = subprocess.Popen(command, stderr=subprocess.PIPE, **kwargs)
+    (stdout, stderr) = process.communicate()
+    if process.returncode == expect:
+        return True
+    stderr = stderr.decode('utf-8')
+    if args.noerror: return (process.returncode, None)
+    if args.error: return (process.returncode, stderr)
+    lines = stderr.split('\n')
+    numlines = len(lines)
+    if numlines > 10:
+        stderr = '\n'.join(lines[:8])
+        stderr += '\n'
+        stderr += _c.orange + str(numlines - 8) + ' lines skipped; use -e to show them or -E to hide all output.' + _c.reset
+    return (process.returncode, stderr)
+
 
 # a function to convert c++ or java to something executable
 # returns a command to execute
@@ -177,6 +188,7 @@ def build(path):
         run_command = [ exefile ]
     elif ext in ('.cc', '.cpp'):
         compile_command = [ 'g++', '-std=c++11', '-Wall', '-O2',
+                            '-fdiagnostics-color=always', # Enable color output
                             '-o', exefile, path ]
         run_command = [ exefile ]
     elif ext == '.java':
@@ -199,8 +211,14 @@ def build(path):
     # prevent building something twice
     if compile_command is not None and not os.path.isfile(exefile):
         ret = exec_command(compile_command)
-        if ret:
-            print(_c.red,'Failed to build ',compile_command, ': Exited with code ', ret, _c.reset,flush=True)
+        if ret is not True:
+            print()
+            print(_c.orange, 'Building ', _c.red, basename, _c.orange,
+                    ' failed with return code ',
+                    ret[0], _c.reset, sep='')
+            if ret[1] is not None:
+                print(ret[1])
+            print(flush=True)
             return None
     return run_command
 
@@ -295,8 +313,7 @@ def validate(problem, validator_type, settings):
     if validator_type == 'output' and settings.validation == 'custom':
         return True
 
-    if verbose:
-        print(_c.bold, ' Validating', validator_type, _c.reset)
+    print_action('Validating ' + validator_type)
 
     validators = get_validators(problem, validator_type)
     # validate testcases without answer files
@@ -316,24 +333,21 @@ def validate(problem, validator_type, settings):
 
     # validate the testcases
     for testcase in testcases:
-        if verbose:
-            print('{:<50}'.format(print_testcase(testcase)+ext),end='')
+        print('{:<50}'.format(print_testcase(testcase)+ext),end='')
         failcount = 0
         for validator in validators:
             # simple `program < test.in` for input validation and ctd output validation
             if validator_type == 'input' or os.path.splitext(validator[0])[1] == '.ctd':
                 ret = exec_command(validator[1] + flags,
+                        expect=rtv_ac,
                         stdin=open(testcase+ext,'r'))
             else:
                 # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
                 ret = exec_command(validator[1] + [testcase+'.in', testcase+'.ans', tmpdir] + flags,
+                        expect=rtv_ac,
                         stdin=open(testcase+ext,'r'))
-            if ret == rtv_ac:
-                pass
-            else:
+            if ret is not True:
                 success = False
-                if not verbose and failcount == 0:
-                    print('{:<50}'.format(print_testcase(testcase)+ext),end='')
                 if failcount == 0:
                     print(_c.bold, end='')
                     print(_c.red, end='')
@@ -341,8 +355,18 @@ def validate(problem, validator_type, settings):
                 else:
                     print(',', validator[0], end='',flush=True)
                 failcount += 1
-        if verbose or failcount>0:
-            print(_c.reset)
+
+                # Print error message?
+                if ret[1] is not None:
+                    print(_c.orange)
+                    print(ret[1], end='')  # Error already ends with a newline.
+
+        if failcount>0:
+            print(_c.reset, end='\r', flush=True)
+        else:
+            print(end='\r', flush=True)
+    clearline()
+
     return success
 
 # stats
@@ -482,7 +506,9 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
 
     for output_validator in output_validators:
         with open(outfile, 'rb') as outf:
-            ret = exec_command(output_validator[1] + [testcase+'.in', testcase+'.ans', tmpdir] + flags, stdin=outf)
+            ret = exec_command(output_validator[1] + [testcase+'.in', testcase+'.ans', tmpdir] + flags,
+                    expect=42,
+                    stdin=outf)
         if ret == rtv_ac:
             continue
         if ret == rtv_wa:
@@ -498,7 +524,10 @@ def run_testcase(run_command, testcase, outfile, tle=None):
             tstart = time.monotonic()
             try:
                 # Double the tle to check for solutions close to the required bound
-                ret = exec_command(run_command, stdin=inf, stdout=outf, timeout=2*tle)
+                ret = exec_command(run_command,
+                        stdin=inf,
+                        stdout=outf,
+                        timeout=2*tle)
             except subprocess.TimeoutExpired:
                 timeout = True
                 ret = 0
@@ -991,63 +1020,92 @@ Run this from one of:
     - a contest directory
     - a problem directory
 ''', formatter_class = argparse.RawTextHelpFormatter)
-    parser.add_argument('-v','--verbose', action='count',
+
+
+    # Global options
+    global_parser = argparse.ArgumentParser(add_help=False)
+    global_parser.add_argument('-v','--verbose', action='count',
             help='Verbose output; once for what\'s going on, twice for all intermediate output.')
-    parser.add_argument('-c', '--contest', help='The contest to use, when running from repository root.')
+    global_parser.add_argument('-c', '--contest', help='The contest to use, when running from repository root.')
+    global_parser.add_argument('-e', '--error', action='store_true', help='Print full output of failing commands')
+    global_parser.add_argument('-E', '--noerror', action='store_true', help='Hide output of failing commands')
 
     subparsers = parser.add_subparsers(title='actions', dest='action')
     subparsers.required = True
 
     # New contest
-    runparser = subparsers.add_parser('contest', aliases=['new-contest', 'create-contest', 'add-contest'],
+    runparser = subparsers.add_parser('contest', aliases=['new-contest', 'create-contest', 'add-contest'], 
+            parents=[global_parser],
             help='Add a new contest to the current directory.')
     runparser.add_argument('contestname', help='The name of the contest, [a-z0-9]+.')
 
     # New problem
     runparser = subparsers.add_parser('problem', aliases=['new-problem', 'create-problem', 'add-problem'],
+            parents=[global_parser],
             help='Add a new problem to the current directory.')
     runparser.add_argument('problemname', help='The name of the problem, [a-z0-9]+.')
 
     # Problem statements
     pdfparser = subparsers.add_parser('pdf', aliases=['build', 'statement'],
+            parents=[global_parser],
             help='Build the problem statement pdf.')
     pdfparser.add_argument('-a', '--all', action='store_true', help='Create problem statements for individual problems as well.')
 
     # Solution slides
     solparser = subparsers.add_parser('solutions', aliases=['sol', 'slides'],
+            parents=[global_parser],
             help='Build the solution slides pdf.')
     solparser.add_argument('-a', '--all', action='store_true', help='Create problem statements for individual problems as well.')
 
     # Validation
-    subparsers.add_parser('validate', aliases=['grammar'], help='validate all grammar')
-    subparsers.add_parser('input', aliases=['in'], help='validate input grammar')
-    subparsers.add_parser('output', aliases=['out'], help='validate output grammar')
-    subparsers.add_parser('constraints', aliases=['con', 'bounds'], help='prints all the constraints found in problemset and validators')
+    subparsers.add_parser('validate', aliases=['grammar'],
+            parents=[global_parser],
+            help='validate all grammar')
+    subparsers.add_parser('input', aliases=['in'],
+            parents=[global_parser],
+            help='validate input grammar')
+    subparsers.add_parser('output', aliases=['out'],
+            parents=[global_parser],
+            help='validate output grammar')
+    subparsers.add_parser('constraints', aliases=['con', 'bounds'],
+            parents=[global_parser],
+            help='prints all the constraints found in problemset and validators')
 
     # Stats
-    subparsers.add_parser('stats', aliases=['stat', 'status'], help='show statistics for contest/problem')
+    subparsers.add_parser('stats', aliases=['stat', 'status'],
+            parents=[global_parser],
+            help='show statistics for contest/problem')
 
     # Generate
-    genparser = subparsers.add_parser('generate', aliases=['gen'], help='generate answers testcases')
+    genparser = subparsers.add_parser('generate', aliases=['gen'],
+            parents=[global_parser],
+            help='generate answers testcases')
     genparser.add_argument('-f', '--force', action='store_true', help='Overwrite answers that have changed.')
     genparser.add_argument('submission',  nargs='?',
                     help='The program to generate answers. Defaults to first found.')
 
     # Run
-    runparser = subparsers.add_parser('run', help='run programs and check answers')
+    runparser = subparsers.add_parser('run',
+            parents=[global_parser],
+            help='run programs and check answers')
     runparser.add_argument('-l', '--lazy', action='store_true', help='stop on first TLE or RTE')
     runparser.add_argument('-t', '--table', action='store_true', help='Print a submissions x testcases table for analysis.')
     runparser.add_argument('submissions', nargs='*', help='optionally supply a single program to run')
 
     # Sort
-    subparsers.add_parser('sort', help='sort the problems for a contest by name')
+    subparsers.add_parser('sort',
+            parents=[global_parser],
+            help='sort the problems for a contest by name')
 
     # All
-    subparsers.add_parser('all', help='validate input, validate output, and run programs')
+    subparsers.add_parser('all',
+            parents=[global_parser],
+            help='validate input, validate output, and run programs')
 
     # Build DomJudge zip
-    zipparser = subparsers.add_parser('zip', help='Create zip file that can be imported into omJudge')
-    zipparser.add_argument('-c', '--contest', action='store_true', help='Also create a contest zip containing problem zips, problems statements, and solution slides.')
+    zipparser = subparsers.add_parser('zip',
+            parents=[global_parser],
+            help='Create zip file that can be imported into DomJudge')
     zipparser.add_argument('-s', '--skip', action='store_true', help='Skip recreation of problem zips.')
     zipparser.add_argument('-f', '--force', action='store_true', help='Skip validation of input and output files.')
     zipparser.add_argument('--tex', action='store_true', help='Store all relevant files in the problem statement directory.')
@@ -1095,7 +1153,7 @@ Run this from one of:
 
     success = True
     for problem in problems:
-        print(_c.bold,'PROBLEM', problem,_c.reset)
+        print(_c.bold,'PROBLEM ', problem,_c.reset, sep='')
 
         # merge problem settings with arguments into one namespace
         problemsettings = read_configs(problem)
@@ -1130,8 +1188,9 @@ Run this from one of:
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
                 success &= build_problem_zip(problem, output, settings)
-        print()
-        print()
+
+        if len(problems) > 1:
+            print()
 
     # build pdf for the entire contest
     if action in ['pdf', 'build', 'statement'] and level == 'contest':
