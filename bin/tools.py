@@ -67,6 +67,7 @@ def clearline():
     sys.stdout.write("\033[K")
 
 def print_action(action, state=None, end='\r'):
+    clearline()
     print(_c.blue, action, _c.reset, sep='', end='')
     if state is None:
         print(end=end)
@@ -78,6 +79,7 @@ def get_bar(i, total, length):
     return '[' + '#'*fill + '-'*(length-2-fill)+']'
 
 def print_action_bar(action, i, total, state=None, max_state_len=None):
+    clearline()
     width = shutil.get_terminal_size().columns
     print(_c.blue, action, _c.reset, sep='', end='')
     if state is None:
@@ -249,13 +251,16 @@ def build(path):
 
 # build all files in a directory; return a list of tuples (file, command)
 # When 'build' is found, we execute it, and return 'run' as the executable
-def build_directory(directory, include_dirname=False):
+def build_directory(directory, include_dirname=False, action=None):
     commands = []
 
     buildfile = os.path.join(directory,'build')
     runfile = os.path.join(directory,'run')
 
     if is_executable(buildfile):
+        if action is not None:
+            print_action(action, buildfile)
+
         cur_path = os.getcwd()
         os.chdir(directory)
         if exec_command(['./build']):
@@ -274,6 +279,11 @@ def build_directory(directory, include_dirname=False):
     files = glob(os.path.join(directory,'*'))
     files.sort()
     for path in files:
+        if action is not None:
+            print_action(action, path)
+
+        time.sleep(1)
+
         basename = os.path.basename(path)
         if basename == 'a.out':
             continue
@@ -320,7 +330,8 @@ def get_testcases(problem, needans = True, only_sample = False):
     return testcases
 
 def get_validators(problem, validator_type):
-    return build_directory(os.path.join(problem, validator_type+'_validators/'))
+    return build_directory(os.path.join(problem, validator_type+'_validators/'),
+            action = 'Building validator')
 
 # Validate the .in and .ans files for a problem.
 # For input:
@@ -365,7 +376,6 @@ def validate(problem, validator_type, settings):
     i = 0
     total = len(testcases)
     for testcase in testcases:
-        clearline()
         print_action_bar(action, i, total, ('{:<'+str(max_testcase_len)+'}').format(print_testcase(testcase)+ext))
         i += 1
         for validator in validators:
