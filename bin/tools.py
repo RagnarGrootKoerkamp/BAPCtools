@@ -66,8 +66,33 @@ _c = Colorcodes()
 def clearline():
     sys.stdout.write("\033[K")
 
-def print_action(action, overwrite=False):
-    print(_c.blue, action, _c.reset, sep='', end='\r' if overwrite else '\n')
+def print_action(action, state=None, end='\r'):
+    print(_c.blue, action, _c.reset, sep='', end='')
+    if state is None:
+        print(end=end)
+    else:
+        print(': ', state, sep='', end=end)
+
+def get_bar(i, total, length):
+    fill = i*(length-2)//total
+    return '[' + '#'*fill + '-'*(length-2-fill)+']'
+
+def print_action_bar(action, i, total, state=None, max_state_len=None):
+    width = shutil.get_terminal_size().columns
+    print(_c.blue, action, _c.reset, sep='', end='')
+    if state is None:
+        print(end=' ')
+        width -= len(action)+1
+    else:
+        print(': ', state, sep='', end=' ')
+        if max_state_len is None:
+            width -= len(action)+len(state)+3
+        else:
+            x = max(len(state), max_state_len)
+            width -= len(action)+x+3
+            print(' '*(x-len(state)), end='')
+    print(get_bar(i, total, width), end='\r', flush=True)
+
 
 def exit(clean = True):
     if clean:
@@ -270,11 +295,19 @@ def build_directory(directory, include_dirname=False):
                     commands.append((name, run_command))
     return commands
 
+# drop a/b/c from a/b/c/{sample,secret}/test
+def print_testcase(path):
+    name = os.path.basename(path)
+    dirname = os.path.basename(os.path.dirname(path))
+    return os.path.join(dirname,name)
+
 # testcases; returns list of basenames
 def get_testcases(problem, needans = True, only_sample = False):
     infiles = glob(os.path.join(problem,'data/sample/*.in'))
     if not only_sample:
         infiles += glob(os.path.join(problem,'data/secret/*.in'))
+
+    print_action("Reading testcases")
 
     testcases = []
     for f in infiles:
@@ -283,13 +316,8 @@ def get_testcases(problem, needans = True, only_sample = False):
             continue
         testcases.append(name)
     testcases.sort()
+    clearline()
     return testcases
-
-# drop a/b/c from a/b/c/{sample,secret}/test
-def print_testcase(path):
-    name = os.path.basename(path)
-    dirname = os.path.basename(os.path.dirname(path))
-    return os.path.join(dirname,name)
 
 def get_validators(problem, validator_type):
     return build_directory(os.path.join(problem, validator_type+'_validators/'))
@@ -313,8 +341,6 @@ def validate(problem, validator_type, settings):
     if validator_type == 'output' and settings.validation == 'custom':
         return True
 
-    print_action('Validating ' + validator_type)
-
     validators = get_validators(problem, validator_type)
     # validate testcases without answer files
     testcases = get_testcases(problem, True)
@@ -325,16 +351,23 @@ def validate(problem, validator_type, settings):
 
     success = True
 
+    action = 'Validating ' + validator_type
+
     # Flags are only needed for output validators; input validators are
     # sensitive by default.
     flags = []
     if validator_type == 'output':
         flags = ['case_sensitive', 'space_change_sensitive']
 
+    max_testcase_len=max([len(print_testcase(testcase)+ext) for testcase in testcases])
+
     # validate the testcases
+    i = 0
+    total = len(testcases)
     for testcase in testcases:
-        print('{:<50}'.format(print_testcase(testcase)+ext),end='')
-        failcount = 0
+        clearline()
+        print_action_bar(action, i, total, ('{:<'+str(max_testcase_len)+'}').format(print_testcase(testcase)+ext))
+        i += 1
         for validator in validators:
             # simple `program < test.in` for input validation and ctd output validation
             if validator_type == 'input' or os.path.splitext(validator[0])[1] == '.ctd':
@@ -348,25 +381,22 @@ def validate(problem, validator_type, settings):
                         stdin=open(testcase+ext,'r'))
             if ret is not True:
                 success = False
-                if failcount == 0:
-                    print(_c.bold, end='')
-                    print(_c.red, end='')
-                    print('FAILED', validator[0], end='',flush=True)
-                else:
-                    print(',', validator[0], end='',flush=True)
-                failcount += 1
+
+                clearline()
+                print_action(action,
+                        ('{:<'+str(max_testcase_len)+'}').format(print_testcase(testcase)+ext),
+                        end='')
+                print(_c.red, 'FAILED', validator[0], end='')
 
                 # Print error message?
                 if ret[1] is not None:
-                    print(_c.orange)
-                    print(ret[1], end='')  # Error already ends with a newline.
+                    # Print the error on a new line, in orange.
+                    print('\n',_c.orange, ret[1], sep='', end='', flush=True)
+                else:
+                    print(flush=True)
 
-        if failcount>0:
-            print(_c.reset, end='\r', flush=True)
-        else:
-            print(end='\r', flush=True)
     clearline()
-
+    print_action(action, _c.green+'Done', end='\n')
     return success
 
 # stats
