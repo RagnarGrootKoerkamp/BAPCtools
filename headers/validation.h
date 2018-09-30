@@ -16,22 +16,16 @@
 using namespace std;
 
 const string case_sensitive_flag         = "case_sensitive";
-const string space_change_sensitive_flag = "space_change_sensitive";
+const string ws_sensitive_flag = "space_change_sensitive";
 
 class Validator {
-	const int ret_AC = 42, ret_WA = 43;
-	bool case_sensitive;
-	bool ws;
-
-  public:
-	Validator(int argc, char **argv, istream &in = std::cin) : in(in) {
-		for(int i = 0; i < argc; ++i) {
-			if(argv[i] == case_sensitive_flag) case_sensitive = true;
-			if(argv[i] == space_change_sensitive_flag) ws = true;
-		}
+  protected:
+	Validator(bool ws, bool case_ , istream &in) : in(in), ws(ws), case_sensitive(case_) {
 		if(ws) in >> noskipws;
+		else in >> skipws;
 	}
 
+  public:
 	// No copying, no moving.
 	Validator(const Validator &) = delete;
 	Validator(Validator &&)      = delete;
@@ -88,6 +82,9 @@ class Validator {
 	// Read a long long.
 	long long read_long_long() {
 		string s = read_string_impl("", "integer");
+		if(s.empty()){
+			WA("Want integer, found nothing");
+		}
 		long long v;
 		try {
 			size_t chars_processed = 0;
@@ -97,6 +94,21 @@ class Validator {
 		} catch(const out_of_range &e) {
 			WA("Number " + s + " does not fit in a long long!");
 		} catch(const invalid_argument &e) { WA("Parsing " + s + " as long long failed!"); }
+		// Check for leading zero.
+		if(v == 0){
+			if(s.size() != 1)
+				WA("Parsed 0, but has leading 0 or minus sign: " , s);
+		}
+		if(v > 0){
+			if(s[0] == '0')
+				WA("Parsed ",v,", but has leading 0: " , s);
+		}
+		if(v < 0){
+			if(s.size() <= 1)
+				WA("Parsed ",v,", but string is: " , s);
+			if(s[1] == '0')
+				WA("Parsed ",v,", but has leading 0: " , s);
+		}
 		return v;
 	}
 
@@ -206,4 +218,36 @@ class Validator {
 	}
 
 	istream &in;
+	const int ret_AC = 42, ret_WA = 43;
+	bool case_sensitive;
+	bool ws;
+
+};
+
+class InputValidator : public Validator {
+  public:
+	// An InputValidator is always both whitespace and case sensitive.
+	InputValidator() : Validator(true, true, std::cin) {}
+};
+
+class OutputValidator : public Validator {
+  public:
+	// An OutputValidator can be run in different modes.
+	OutputValidator(int argc, char **argv, istream &in = std::cin) :
+		Validator(is_ws_sensitive(argc, argv), is_case_sensitive(argc, argv), in) {
+	}
+
+  private:
+	static bool is_ws_sensitive(int argc, char **argv){
+		for(int i = 0; i < argc; ++i) {
+			if(argv[i] == ws_sensitive_flag) return true;
+		}
+		return false;
+	}
+	static bool is_case_sensitive(int argc, char **argv){
+		for(int i = 0; i < argc; ++i) {
+			if(argv[i] == case_sensitive_flag) return true;
+		}
+		return false;
+	}
 };
