@@ -203,7 +203,10 @@ def exec_command(command, expect=0, **kwargs):
 
 # a function to convert c++ or java to something executable
 # returns a command to execute
-def build(path):
+def build(path, action=None):
+    if action is not None:
+        print_action(action, path)
+
     # mirror directory structure on tmpfs
     basename = os.path.basename(path)
     (base, ext) = os.path.splitext(basename)
@@ -239,14 +242,12 @@ def build(path):
     if compile_command is not None and not os.path.isfile(exefile):
         ret = exec_command(compile_command)
         if ret is not True:
-            print()
-            print(_c.orange, 'Building ', _c.red, basename, _c.orange,
-                    ' failed with return code ',
-                    ret[0], _c.reset, sep='')
+            print_action(action if action is not None else 'Building',
+                    path+' '+_c.red+'FAILED', end='\n',flush=True)
             if ret[1] is not None:
-                print(ret[1])
-            print(flush=True)
+                print(_c.reset,ret[1],sep='',end='',flush=True)
             return None
+
     return run_command
 
 # build all files in a directory; return a list of tuples (file, command)
@@ -279,11 +280,6 @@ def build_directory(directory, include_dirname=False, action=None):
     files = glob(os.path.join(directory,'*'))
     files.sort()
     for path in files:
-        if action is not None:
-            print_action(action, path)
-
-        time.sleep(1)
-
         basename = os.path.basename(path)
         if basename == 'a.out':
             continue
@@ -299,8 +295,7 @@ def build_directory(directory, include_dirname=False, action=None):
         else:
             ext = os.path.splitext(name)[1]
             if ext in build_extensions:
-                # None on compiler failure
-                run_command = build(path)
+                run_command = build(path, action=action)
                 if run_command != None:
                     commands.append((name, run_command))
     return commands
@@ -406,7 +401,10 @@ def validate(problem, validator_type, settings):
                     print(flush=True)
 
     clearline()
-    print_action(action, _c.green+'Done', end='\n')
+    if success:
+        print_action(action, _c.green+'Done', end='\n')
+    else:
+        print()
     return success
 
 # stats
@@ -1126,7 +1124,7 @@ Run this from one of:
 
     # Run
     runparser = subparsers.add_parser('run',
-            parents=[global_parser],
+              parents=[global_parser],
             help='run programs and check answers')
     runparser.add_argument('-l', '--lazy', action='store_true', help='stop on first TLE or RTE')
     runparser.add_argument('-t', '--table', action='store_true', help='Print a submissions x testcases table for analysis.')
