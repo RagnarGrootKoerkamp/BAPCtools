@@ -43,7 +43,6 @@ class Validator {
 			in >> c;
 			if(c != ' ') expected("space", string("\"") + c + "\"");
 		}
-		// cerr << "read space!\n";
 	}
 
 	void newline() {
@@ -52,7 +51,6 @@ class Validator {
 			in >> c;
 			if(c != '\n') expected("newline", string("\"") + c + "\"");
 		}
-		// cerr << "read newline!\n";
 	}
 
 	// Just read a string.
@@ -153,22 +151,30 @@ class Validator {
 	// Return WRONG ANSWER verdict.
 	[[noreturn]] void expected(string exp = "", string s = "") {
 		if(s.size())
-			cout << "Expected " << exp << ", found " << s << endl;
-		else if(exp.size())
-			cout << exp << endl;
-		exit(ret_WA);
+			WA("Expected ", exp, ", found ", s);
+		else
+			WA(exp);
 	}
 
+  private:
 	template <typename T>
-	[[noreturn]] void WA(T t) {
-		cout << t << endl;
+	[[noreturn]] void WA_impl(T t) {
+		cerr << t << endl;
 		exit(ret_WA);
 	}
 
 	template <typename T, typename... Ts>
-	[[noreturn]] void WA(T t, Ts... ts) {
-		cout << t;
-		WA(ts...);
+	[[noreturn]] void WA_impl(T t, Ts... ts) {
+		cerr << t;
+		WA_impl(ts...);
+	}
+
+  public:
+	template <typename... Ts>
+	[[noreturn]] void WA(Ts... ts) {
+		auto pos = get_file_pos();
+		cerr << pos.first << ":" << pos.second << ": ";
+		WA_impl(ts...);
 	}
 
 	template <typename... Ts>
@@ -217,10 +223,26 @@ class Validator {
 		return s;
 	}
 
-	istream &in;
+	std::pair<int,int> get_file_pos() {
+		int line = 1, col = 0;
+		in.clear();
+		auto originalPos = in.tellg();
+		if (originalPos < 0) 
+			return {-1, -1};
+		in.seekg(0);
+		char c;
+		while ((in.tellg() < originalPos) && in.get(c))
+		{
+			if (c == '\n') ++line, col=0;
+			else ++col;
+		}
+		return {line, col};
+	}
+
 	const int ret_AC = 42, ret_WA = 43;
-	bool case_sensitive;
+	istream &in;
 	bool ws;
+	bool case_sensitive;
 
 };
 
