@@ -211,7 +211,6 @@ def exec_command(command, expect=0, **kwargs):
 def build(path, action=None):
     if action is not None:
         print_action(action, print_name(path))
-    time.sleep(2)
 
     # mirror directory structure on tmpfs
     basename = os.path.basename(path)
@@ -304,6 +303,7 @@ def build_directory(directory, include_dirname=False, action=None):
                 run_command = build(path, action=action)
                 if run_command != None:
                     commands.append((name, run_command))
+    clearline()
     return commands
 
 # Drops the first two path components <problem>/<type>/
