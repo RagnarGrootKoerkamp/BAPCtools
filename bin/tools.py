@@ -411,7 +411,7 @@ def validate(problem, validator_type, settings):
 
     clearline()
     if success:
-        print_action(action, _c.green+'Done', end='\n')
+        print_action(action, _c.green+'Done'+_c.reset, end='\n')
     else:
         print()
     return success
