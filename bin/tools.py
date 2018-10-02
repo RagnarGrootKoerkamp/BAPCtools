@@ -452,12 +452,12 @@ def stats(problems):
 
     for problem in problems:
         print(format_string.format(problem,
-            get_stat(os.path.join(problem,'submissions/accepted/*', 3)),
-            get_stat(os.path.join(problem,'submissions/wrong_answer/*', 2)),
-            get_stat(os.path.join(problem,'submissions/time_limit_exceeded/*', 1)),
+            get_stat(os.path.join(problem,'submissions/accepted/*'), 3),
+            get_stat(os.path.join(problem,'submissions/wrong_answer/*'), 2),
+            get_stat(os.path.join(problem,'submissions/time_limit_exceeded/*'), 1),
             get_stat(os.path.join(problem,'submissions/accepted/*.java')),
-            get_stat(os.path.join(problem,'data/sample/*.in', 2)),
-            get_stat(os.path.join(problem,'data/secret/*.in', 15, 50)),
+            get_stat(os.path.join(problem,'data/sample/*.in'), 2),
+            get_stat(os.path.join(problem,'data/secret/*.in'), 15, 50),
             get_stat(os.path.join(problem,'domjudge-problem.ini')),
             get_stat(os.path.join(problem,'problem_statement/solution.tex'))
             ))
