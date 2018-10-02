@@ -959,13 +959,13 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     with open(problems_path, 'wt') as problems_file:
         for problem_with_id in problems_with_ids:
             problem = problem_with_id[0]
-            includedir  = './build/'+problem+'problem_statement/'
-            includepath = includedir + t + '.tex'
-            if os.path.exists(TOOLS_ROOT+'/latex/' + includepath):
+            includedir  = os.path.join('.','build',problem,'problem_statement')
+            includepath = os.path.join(includedir, t + '.tex')
+            if os.path.exists(os.path.join(TOOLS_ROOT,'latex', includepath)):
                 problems_file.write('\\begingroup\\graphicspath{{'+includedir+'}}\n')
                 problems_file.write('\\input{'+includepath+'}\n')
                 if statement:
-                    problems_file.write('\\input{./build/'+problem+'samples.tex}\n')
+                    problems_file.write('\\input{'+os.path.join('.','build',problem,'samples.tex')+'}\n')
                 problems_file.write('\\endgroup\n')
 
     # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
@@ -990,7 +990,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
 
     # link the output pdf
     if not os.path.exists(f+'.pdf'):
-        os.symlink(builddir+contest+'/'+f+'.pdf', f+'.pdf')
+        os.symlink(os.path.join(builddir,contest,f+'.pdf'), f+'.pdf')
 
     return True
 
