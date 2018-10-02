@@ -564,6 +564,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
         exit(False)
     return (True, '')
 
+# Return (ret, timeout (True/False), duration)
 def run_testcase(run_command, testcase, outfile, tle=None):
     timeout = False
     with open(testcase+'.in', 'rb') as inf:
@@ -571,6 +572,7 @@ def run_testcase(run_command, testcase, outfile, tle=None):
             tstart = time.monotonic()
             try:
                 # Double the tle to check for solutions close to the required bound
+                # ret = True or ret = (code, error)
                 ret = exec_command(run_command,
                         expect=0,
                         stdin=inf,
@@ -777,7 +779,7 @@ def generate_output(problem, settings):
         except OSError:
             pass
         ret, timeout, duration = run_testcase(run_command, testcase, outfile, settings.timelimit)
-        if ret:
+        if ret is not True or timeout is True:
             if not verbose:
                 print('{:<50}'.format(print_name(testcase)), end=' ')
             print('Failure on testcase ', testcase)
