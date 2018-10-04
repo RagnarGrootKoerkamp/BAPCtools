@@ -694,13 +694,16 @@ def run_submission(submission, testcases, settings, output_validators, expected=
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
     # Require both in and ans files
-    testcases = get_testcases(problem, True)
+    if settings.testcases:
+        testcases = [os.path.join(problem, t) for t in settings.testcases]
+    else:
+        testcases = get_testcases(problem, True)
 
     output_validators = None
     if settings.validation == 'custom':
         output_validators = get_validators(problem, 'output')
 
-    if hasattr(settings, 'submissions') and settings.submissions:
+    if settings.submissions:
         commands = []
         for submission in settings.submissions:
             run_command = build(os.path.join(problem, submission), action='Build submission')
@@ -1055,6 +1058,23 @@ def check_constraints(problem, settings):
 
     return True
 
+def split_submissions(s):
+    # Everything containing data/, .in, or .ans goes into testcases.
+    submissions = []
+    testcases = []
+    for p in s:
+        if 'data/' in p or '.in' in p or '.ans' in p:
+            # Strip potential .ans and .in
+            (base, ext) = os.path.splitext(p)
+            if ext in ['.ans', '.in']:
+                testcases.append(base)
+            else:
+                testcases.append(p)
+        else:
+            submissions.append(p)
+    return (submissions, testcases)
+        
+
 def main():
     global TOOLS_ROOT
     executable = __file__
@@ -1084,16 +1104,16 @@ Run this from one of:
     subparsers.required = True
 
     # New contest
-    runparser = subparsers.add_parser('contest', aliases=['new-contest', 'create-contest', 'add-contest'], 
+    contestparser = subparsers.add_parser('contest', aliases=['new-contest', 'create-contest', 'add-contest'], 
             parents=[global_parser],
             help='Add a new contest to the current directory.')
-    runparser.add_argument('contestname', help='The name of the contest, [a-z0-9]+.')
+    contestparser.add_argument('contestname', help='The name of the contest, [a-z0-9]+.')
 
     # New problem
-    runparser = subparsers.add_parser('problem', aliases=['new-problem', 'create-problem', 'add-problem'],
+    problemparser = subparsers.add_parser('problem', aliases=['new-problem', 'create-problem', 'add-problem'],
             parents=[global_parser],
             help='Add a new problem to the current directory.')
-    runparser.add_argument('problemname', help='The name of the problem, [a-z0-9]+.')
+    problemparser.add_argument('problemname', help='The name of the problem, [a-z0-9]+.')
 
     # Problem statements
     pdfparser = subparsers.add_parser('pdf', aliases=['build', 'statement'],
@@ -1140,7 +1160,7 @@ Run this from one of:
             help='run programs and check answers')
     runparser.add_argument('-l', '--lazy', action='store_true', help='stop on first TLE or RTE')
     runparser.add_argument('-t', '--table', action='store_true', help='Print a submissions x testcases table for analysis.')
-    runparser.add_argument('submissions', nargs='*', help='optionally supply a single program to run')
+    runparser.add_argument('submissions', nargs='*', help='optionally supply a list of programs and testcases to run')
 
     # Sort
     subparsers.add_parser('sort',
@@ -1191,6 +1211,7 @@ Run this from one of:
         if level != 'problem':
             print('Running a given submission only works from a problem directory.')
             exit()
+        (args.submissions, args.testcases) = split_submissions(args.submissions)
 
     if action in ['stats', 'status', 'stat']:
         stats(problems)
