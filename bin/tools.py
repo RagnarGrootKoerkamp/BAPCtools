@@ -901,11 +901,11 @@ def generate_output(problem, settings):
     submission = None
     for s in submissions:
       if os.path.splitext(s)[1] == '.cpp':
-        submissiom = s
+        submission = s
         break
       else:
         if submission is None:
-          submissiom = s
+          submission = s
 
   print('Using', print_name(submission))
 
