@@ -213,7 +213,7 @@ class Validator {
 		if(!ws) in >> ::ws;
 		char c = in.get();
 		if(c == char_traits<char>::eof()) return;
-		string got = string('"') + char(c) + '"';
+		string got = string("\"") + char(c) + '"';
 		if(c=='\n') got="newline";
 		expected("EOF", got);
 	}

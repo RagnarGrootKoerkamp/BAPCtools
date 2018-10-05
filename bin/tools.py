@@ -51,7 +51,7 @@ TOOLS_ROOT = ''
 
 # this is lifted for convenience
 args = None
-verbose = 0
+verbose = False
 
 
 # color printing
@@ -65,6 +65,11 @@ class Colorcodes(object):
     self.orange = '\033[;33m'
     self.red = '\033[;31m'
     self.white = '\033[;39m'
+
+    self.boldblue = '\033[1;34m'
+    self.boldgreen = '\033[1;32m'
+    self.boldorange = '\033[1;33m'
+    self.boldred = '\033[1;31m'
 
 
 _c = Colorcodes()
@@ -90,7 +95,7 @@ def get_bar(i, total, length):
 
 def print_action_bar(action, i, total, state=None, max_state_len=None):
   if verbose:
-    print_action(action, state, end='\n')
+    print_action(action, state, end='\r')
     return
 
   clearline()
@@ -108,6 +113,11 @@ def print_action_bar(action, i, total, state=None, max_state_len=None):
       width -= len(action) + x + 3
       print(' ' * (x - len(state)), end='')
   print(get_bar(i, total, width), end='\r', flush=True)
+
+
+def add_newline(s):
+    if s.endswith('\n'): return s
+    else: return s+'\n'
 
 
 def exit(clean=True):
@@ -349,9 +359,6 @@ def build_directory(directory, include_dirname=False, action=None):
 # Drops the first two path components <problem>/<type>/
 def print_name(path):
   return os.path.join(*(path.split(os.path.sep)[2:]))
-  #name = os.path.basename(path)
-  #dirname = os.path.basename(os.path.dirname(path))
-  #return os.path.join(dirname,name)
 
 
 # testcases; returns list of basenames
@@ -426,6 +433,7 @@ def validate(problem, validator_type, settings):
   i = 0
   total = len(testcases)
   for testcase in testcases:
+    time.sleep(0.1)
     print_action_bar(action, i, total, (
         '{:<' + str(max_testcase_len) + '}').format(print_name(testcase) + ext))
     i += 1
@@ -451,16 +459,19 @@ def validate(problem, validator_type, settings):
             action, ('{:<' + str(max_testcase_len) +
                      '}').format(print_name(testcase) + ext),
             end='')
-        print(_c.red, 'FAILED', validator[0], end='')
+        print(_c.red, 'FAILED ', validator[0], sep='', end='')
 
         # Print error message?
         if ret[1] is not None:
           # Print the error on a new line, in orange.
-          print('\n', _c.orange, ret[1], sep='', end='', flush=True)
+          print('  ', _c.orange, ret[1], sep='', end='', flush=True)
         else:
           print(flush=True)
+      else:
+        if verbose:
+          print()
 
-  if success:
+  if not verbose and success:
     print_action(action, _c.green + 'Done' + _c.reset, end='\n')
   else:
     clearline()
@@ -544,7 +555,7 @@ def default_output_validator(ansfile, outfile, settings):
     data2 = f.read()
 
   if data1 == data2:
-    return (True, 'exact')
+    return (True, '')
 
   if not settings.case_sensitive:
     # convert to lowercase...
@@ -555,7 +566,7 @@ def default_output_validator(ansfile, outfile, settings):
       return (True, 'case')
 
   if settings.space_change_sensitive and settings.floatabs == None and settings.floatrel == None:
-    return (False, 'wrong')
+    return (False, '')
 
   if settings.space_change_sensitive:
     words1 = re.split(rb'\b(\S+)\b', data1)
@@ -582,10 +593,10 @@ def default_output_validator(ansfile, outfile, settings):
       exit()
 
   if settings.floatabs is None and settings.floatrel is None:
-    return (False, 'wrong')
+    return (False, '')
 
   if len(words1) != len(words2):
-    return (False, 'wrong')
+    return (False, '')
 
   peakerr = 0
   for (w1, w2) in zip(words1, words2):
@@ -597,9 +608,9 @@ def default_output_validator(ansfile, outfile, settings):
         peakerr = max(peakerr, err)
         if ((settings.floatabs is None or err > settings.floatabs) and
             (settings.floatrel is None or err > settings.floatrel * f1)):
-          return (False, 'wrong')
+          return (False, '')
       except ValueError:
-        return (False, 'wrong')
+        return (False, '')
 
   return (True, 'float: ' + str(peakerr))
 
@@ -614,18 +625,19 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     flags += ['case_sensitive']
 
   for output_validator in output_validators:
+    ret = None
     with open(outfile, 'rb') as outf:
       ret = exec_command(
           output_validator[1] + [testcase + '.in', testcase + '.ans', tmpdir] +
           flags,
           expect=42,
           stdin=outf)
-    if ret == rtv_ac:
+    if ret is True:
       continue
-    if ret == rtv_wa:
-      return (False, output_validator)
-    print('  ERROR in output validator ', output_validator[0], ' exit code ',
-          ret)
+    if ret[0] == rtv_wa:
+      return (False, ret[1])
+    print('ERROR in output validator ', output_validator[0], ' exit code ',
+          ret[0], ': ', ret[1])
     exit(False)
   return (True, '')
 
@@ -653,8 +665,6 @@ def run_testcase(run_command, testcase, outfile, tle=None):
 
 
 # return (verdict, time, remark)
-# -v: print failed cases
-# -vv: print all cases + timing
 def process_testcase(run_command,
                      testcase,
                      outfile,
@@ -663,22 +673,15 @@ def process_testcase(run_command,
                      silent=False,
                      printnewline=False):
 
-  if not silent and verbose == 2:
-    print('{:<50}'.format(print_name(testcase)), end='', flush=True)
-
   ret, timeout, duration = run_testcase(run_command, testcase, outfile,
                                         settings.timelimit)
-
   verdict = None
   remark = ''
   if timeout:
     verdict = 'TIME_LIMIT_EXCEEDED'
   elif ret is not True:
     verdict = 'RUN_TIME_ERROR'
-    # TODO: print testcase runtime error
-    #print('\n',_c.orange, ret[1], _c.reset, sep='', end='', flush=True)
-
-  # now check validity of outfile
+    remark = 'Exited with code ' + ret[0] + ': ' + ret[1]
   else:
     if settings.validation == 'default':
       ret = default_output_validator(testcase + '.ans', outfile, settings)
@@ -691,24 +694,8 @@ def process_testcase(run_command,
     verdict = 'ACCEPTED' if ret[0] else 'WRONG_ANSWER'
     remark = ret[1]
 
-  if not verbose or silent:
-    return (verdict, duration)
+  return (verdict, duration, remark)
 
-  if verbose != 2 and verdict != 'ACCEPTED':
-    if printnewline:
-      print()
-    print('{:<50}'.format(print_name(testcase)), end='')
-
-  if verbose == 2 or verdict != 'ACCEPTED':
-    print(
-        '{:6.3f}s'.format(duration),
-        _c.red if verdict != 'ACCEPTED' else '',
-        verdict,
-        _c.reset if verdict != 'ACCEPTED' else '',
-        remark,
-        flush=True)
-
-  return (verdict, duration)
 
 
 # program is of the form (name, command)
@@ -719,13 +706,10 @@ def run_submission(submission,
                    testcases,
                    settings,
                    output_validators,
+                   max_submission_len,
                    expected='ACCEPTED',
                    table_dict=None):
 
-  if verbose:
-    print('{:<50}'.format(submission[0]), end='', flush=True)
-  if verbose == 2:
-    print()
   need_newline = verbose == 1
 
   verdict_count = {}
@@ -733,48 +717,93 @@ def run_submission(submission,
     verdict_count[outcome] = 0
   time_total = 0
   time_max = 0
+
+  action = 'Running ' + submission[0]
+  max_testcase_len = max(
+      [len(print_name(testcase)) for testcase in testcases])
+  i = 0
+  total = len(testcases)
+
+  printed_error = False
+
   for testcase in testcases:
+    print_action_bar(action, i, total, (
+        '{:<' + str(max_testcase_len + max_submission_len - len(submission[0])) + '}').format(print_name(testcase)))
+    i += 1
+
     outfile = os.path.join(tmpdir, 'test.out')
     #silent = expected != 'ACCEPTED'
     silent = False
-    verdict, time = \
+    time.sleep(0.1)
+    verdict, runtime, remark = \
         process_testcase(submission[1], testcase, outfile, settings, output_validators,
                 silent, need_newline)
     verdict_count[verdict] += 1
-    time_total += time
-    time_max = max(time_max, time)
+    time_total += runtime
+    time_max = max(time_max, runtime)
 
     if table_dict is not None:
       table_dict[testcase] = verdict == 'ACCEPTED'
 
-    if not silent and verdict != 'ACCEPTED':
-      need_newline = False
+    got_expected = verdict == 'ACCEPTED' or verdict == expected
+    if verbose or not got_expected:
+        printed_error = True
+        print_action(
+            action, ('{:<' + str(max_testcase_len) +
+                '}').format(print_name(testcase)),
+            end='')
+        color=_c.green if got_expected else _c.red
+        print(' '*(1+max_submission_len - len(submission[0])),
+                '{:6.3f}s'.format(runtime),
+                ' ',
+                color,
+                verdict,
+                _c.reset,
+                sep='', end='')
 
-    if args.lazy and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
+        # Print error message?
+        if remark:
+          # Print the error on a new line, in orange.
+          print('  ', _c.orange, add_newline(remark), _c.reset, sep='', end='', flush=True)
+        else:
+          print(flush=True)
+
+    if not verbose and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
       break
 
-  # default in case of 0 testcases
   verdict = 'ACCEPTED'
   for v in reversed(problem_outcomes):
     if verdict_count[v] > 0:
       verdict = v
       break
 
-  if not verbose and verdict != expected:
-    print('{:<50}'.format(submission[0]), end='')
-  if verbose and not need_newline:
-    print('{:<50}'.format('-> ' + submission[0]), end='')
-  if verbose or verdict != expected:
-    print(
-        ' m/+ {:6.3f}s {:6.3f}s'.format(time_max, time_total),
-        _c.red if verdict != expected else '',
-        '{:19}'.format(verdict),
-        _c.reset if verdict != expected else '',
-        '(expected',
-        expected + ')',
-        flush=True)
+
+  if printed_error:
+    color =_c.boldgreen if verdict == expected else _c.boldred
+  else:
+    color =_c.green if verdict == expected else _c.red
+
+  clearline()
+  print_action(_c.white + action + _c.reset, ' '*
+          (max_submission_len-len(submission[0])+max_testcase_len - 15)
+              +  (_c.bold if printed_error else '')
+              + 'max/sum {:6.3f}s {:6.3f}s '.format(time_max, time_total)
+              + color + verdict +_c.reset , end='\n')
+
+  if verbose or printed_error:
+      print()
+  
+
 
   return verdict == expected
+
+
+def get_submission_type(s):
+    ls = s.lower()
+    if 'wrong_answer' in ls: return 'WRONG_ANSWER'
+    if 'time_limit_exceeded' in ls: return 'TIME_LIMIT_EXCEEDED'
+    if 'run_time_error' in ls: return 'RUN_TIME_ERROR'
+    return 'ACCEPTED'
 
 
 # return true if all submissions for this problem pass the tests
@@ -790,15 +819,17 @@ def run_submissions(problem, settings):
     output_validators = get_validators(problem, 'output')
 
   if settings.submissions:
-    commands = []
+    submissions = { 'ACCEPTED': [], 'WRONG_ANSWER': [],
+              'TIME_LIMIT_EXCEEDED': [], 'RUN_TIME_ERROR': [] }
     for submission in settings.submissions:
-      run_command = build(
-          os.path.join(problem, submission), action='Build submission')
+      path = os.path.join(problem, submission)
+      run_command = build(path, action='Build submission')
       if run_command:
-        commands.append((os.path.basename(submission), run_command))
-    submissions = {'ACCEPTED': commands}
+        submissions[get_submission_type(path)].append((print_name(path), run_command))
   else:
     submissions = get_submissions(problem)
+
+  max_submission_len=max([len(x[0]) for cat in submissions for x in submissions[cat]])
 
   success = True
   verdict_table = []
@@ -811,6 +842,7 @@ def run_submissions(problem, settings):
             testcases,
             settings,
             output_validators,
+            max_submission_len,
             verdict,
             table_dict=verdict_table[-1])
 
@@ -1353,8 +1385,6 @@ Run this from one of:
   # Run
   runparser = subparsers.add_parser(
       'run', parents=[global_parser], help='run programs and check answers')
-  runparser.add_argument(
-      '-l', '--lazy', action='store_true', help='stop on first TLE or RTE')
   runparser.add_argument(
       '-t',
       '--table',
