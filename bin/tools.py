@@ -907,7 +907,7 @@ def generate_output(problem, settings):
         if submission is None:
           submissiom = s
 
-    print('Using', print_name(submission))
+  print('Using', print_name(submission))
 
   # build submission
   run_command = build(submission)
@@ -921,13 +921,13 @@ def generate_output(problem, settings):
   nnew = 0
   nfail = 0
 
-  max_testcase_len=max([len(print_name(testcase)+ext) for testcase in testcases])
+  max_testcase_len=max([len(print_name(testcase)) for testcase in testcases])
   i = 0
   total = len(testcases)
 
   for testcase in testcases:
     print_action_bar('Generate', i, total,
-            ('{:<'+str(max_testcase_len)+'}').format(print_name(testcase)+ext))
+            ('{:<'+str(max_testcase_len)+'}').format(print_name(testcase)))
     i += 1
 
 
@@ -938,10 +938,11 @@ def generate_output(problem, settings):
       pass
     ret, timeout, duration = run_testcase(run_command, testcase, outfile,
                                           settings.timelimit)
+    message = ''
+    force = False
     if ret is not True or timeout is True:
-      if not verbose:
-        print('{:<50}'.format(print_name(testcase)), end=' ')
-      print('Failure on testcase ', testcase)
+      message = 'FAILED'
+      force=True
       nfail += 1
     else:
       if os.access(testcase + '.ans', os.R_OK):
@@ -955,29 +956,29 @@ def generate_output(problem, settings):
         if default_output_validator(testcase + '.ans', outfile,
                                     compare_settings)[0]:
           nsame += 1
-          if verbose:
-            print()
         else:
           if hasattr(settings, 'force') and settings.force:
             shutil.move(outfile, testcase + '.ans')
             nchange += 1
-            if not verbose:
-              print('{:<50}'.format(print_name(testcase)), end=' ')
-            print('CHANGED')
+            message = 'CHANGED'
+            force=True
           else:
             nskip += 1
-            if not verbose:
-              print('{:<50}'.format(print_name(testcase)), end=' ')
-            print(
-                _c.red + 'SKIPPED' + _c.reset + '; supply -f to overwrite',
-                flush=True)
+            message = _c.red + 'SKIPPED' + _c.reset + '; supply -f to overwrite'
+            force=True
       else:
         shutil.move(outfile, testcase + '.ans')
         nnew += 1
-        if not verbose:
-          print('{:<50}'.format(print_name(testcase)), end=' ')
-        print('NEW')
+        message='NEW'
+        force=True
 
+    if verbose or force:
+      print_action('Generate',
+        ('{:<'+str(max_testcase_len)+'}').format(print_name(testcase))+'  '+message,
+        end='\n')
+
+  clearline()
+  print()
   print('Done:')
   print('%d testcases new' % nnew)
   print('%d testcases changed' % nchange)
