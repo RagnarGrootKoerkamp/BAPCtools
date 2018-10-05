@@ -120,6 +120,11 @@ def add_newline(s):
     else: return s+'\n'
 
 
+def strip_newline(s):
+    if s.endswith('\n'): return s[:-1]
+    else: return s
+
+
 def exit(clean=True):
   if clean:
     shutil.rmtree(tmpdir)
@@ -545,28 +550,37 @@ def get_submissions(problem):
   return commands
 
 
+def quick_diff(ans, out):
+    ans = ans.decode()
+    out = out.decode()
+    if ans.count('\n') <= 1 and out.count('\n') <= 1:
+        return 'Got ' + strip_newline(out) + ' wanted ' + strip_newline(ans)
+    else:
+        return ''
+
+
 # return: (success, remark)
 def default_output_validator(ansfile, outfile, settings):
   # settings: floatabs, floatrel, case_sensitive, space_change_sensitive
   with open(ansfile, 'rb') as f:
-    data1 = f.read()
+    indata1 = f.read()
 
   with open(outfile, 'rb') as f:
-    data2 = f.read()
+    indata2 = f.read()
 
-  if data1 == data2:
+  if indata1 == indata2:
     return (True, '')
 
   if not settings.case_sensitive:
     # convert to lowercase...
-    data1 = data1.lower()
-    data2 = data2.lower()
+    data1 = indata1.lower()
+    data2 = indata2.lower()
 
     if data1 == data2:
       return (True, 'case')
 
   if settings.space_change_sensitive and settings.floatabs == None and settings.floatrel == None:
-    return (False, '')
+    return (False, quick_diff(data1, data2))
 
   if settings.space_change_sensitive:
     words1 = re.split(rb'\b(\S+)\b', data1)
@@ -593,10 +607,10 @@ def default_output_validator(ansfile, outfile, settings):
       exit()
 
   if settings.floatabs is None and settings.floatrel is None:
-    return (False, '')
+    return (False, quick_diff(data1, data2))
 
   if len(words1) != len(words2):
-    return (False, '')
+    return (False, quick_diff(data1, data2))
 
   peakerr = 0
   for (w1, w2) in zip(words1, words2):
@@ -608,9 +622,9 @@ def default_output_validator(ansfile, outfile, settings):
         peakerr = max(peakerr, err)
         if ((settings.floatabs is None or err > settings.floatabs) and
             (settings.floatrel is None or err > settings.floatrel * f1)):
-          return (False, '')
+          return (False, quick_diff(data1, data2))
       except ValueError:
-        return (False, '')
+        return (False, quick_diff(data1, data2))
 
   return (True, 'float: ' + str(peakerr))
 
