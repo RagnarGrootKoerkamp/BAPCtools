@@ -1439,8 +1439,6 @@ Run this from one of:
     for key in problemsettings:
       vars(settings)[key] = problemsettings[key]
 
-    print(settings.testcases)
-
     if action in ['pdf', 'build', 'statement', 'sol', 'slides', 'solutions']:
       # only build the pdf on the problem level
       success &= build_problem_pdf(problem, args.all or level == 'problem')
