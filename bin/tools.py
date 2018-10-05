@@ -89,6 +89,10 @@ def get_bar(i, total, length):
 
 
 def print_action_bar(action, i, total, state=None, max_state_len=None):
+  if verbose:
+    print_action(action, state, end='\n')
+    return
+
   clearline()
   width = shutil.get_terminal_size().columns
   print(_c.blue, action, _c.reset, sep='', end='')
@@ -285,7 +289,7 @@ def build(path, action=None):
           print_name(path) + ' ' + _c.red + 'FAILED',
           end='\n')
       if ret[1] is not None:
-        print(_c.reset, ret[1], sep='', end='', flush=True)
+        print(_c.reset, ret[1], sep='', end='\n', flush=True)
       return None
 
   return run_command
@@ -443,7 +447,6 @@ def validate(problem, validator_type, settings):
       if ret is not True:
         success = False
 
-        clearline()
         print_action(
             action, ('{:<' + str(max_testcase_len) +
                      '}').format(print_name(testcase) + ext),
@@ -457,10 +460,10 @@ def validate(problem, validator_type, settings):
         else:
           print(flush=True)
 
-  clearline()
   if success:
     print_action(action, _c.green + 'Done' + _c.reset, end='\n')
   else:
+    clearline()
     print()
   return success
 
@@ -848,7 +851,16 @@ def generate_output(problem, settings):
       print('No submission found for this problem!')
       exit()
     submissions.sort()
-    submission = submissions[0]
+    # Look fora c++ solution if available.
+    submission = None
+    for s in submissions:
+      if os.path.splitext(s)[1] == '.cpp':
+        submissiom = s
+        break
+      else:
+        if submission is None:
+          submissiom = s
+
     print('Using', print_name(submission))
 
   # build submission
@@ -863,9 +875,16 @@ def generate_output(problem, settings):
   nnew = 0
   nfail = 0
 
+  max_testcase_len=max([len(print_name(testcase)+ext) for testcase in testcases])
+  i = 0
+  total = len(testcases)
+
   for testcase in testcases:
-    if verbose:
-      print('{:<50}'.format(testcase), end=' ')
+    print_action_bar('Generate', i, total,
+            ('{:<'+str(max_testcase_len)+'}').format(print_name(testcase)+ext))
+    i += 1
+
+
     outfile = os.path.join(tmpdir, 'test.out')
     try:
       os.unlink(outfile)

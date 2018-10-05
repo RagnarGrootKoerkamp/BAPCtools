@@ -198,7 +198,7 @@ class Validator {
 				expected_string = lowercase(expected_string);
 			}
 			if(!expected_string.empty() && s != expected_string)
-				WA("Expected string \"expected\", but found ", s);
+				WA("Expected string \"", expected_string, "\", but found ", s);
 			return s;
 		}
 		expected(wanted, "nothing");
@@ -213,7 +213,9 @@ class Validator {
 		if(!ws) in >> ::ws;
 		char c = in.get();
 		if(c == char_traits<char>::eof()) return;
-		expected("EOF", string("\"") + char(c) + "\"");
+		string got = string('"') + char(c) + '"';
+		if(c=='\n') got="newline";
+		expected("EOF", got);
 	}
 
 	// Convert a string to lowercase is matching is not case sensitive.
