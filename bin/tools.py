@@ -438,7 +438,6 @@ def validate(problem, validator_type, settings):
   i = 0
   total = len(testcases)
   for testcase in testcases:
-    time.sleep(0.1)
     print_action_bar(action, i, total, (
         '{:<' + str(max_testcase_len) + '}').format(print_name(testcase) + ext))
     i += 1
@@ -695,7 +694,7 @@ def process_testcase(run_command,
     verdict = 'TIME_LIMIT_EXCEEDED'
   elif ret is not True:
     verdict = 'RUN_TIME_ERROR'
-    remark = 'Exited with code ' + ret[0] + ': ' + ret[1]
+    remark = 'Exited with code ' + str(ret[0]) + ':\n' + ret[1]
   else:
     if settings.validation == 'default':
       ret = default_output_validator(testcase + '.ans', outfile, settings)
@@ -748,7 +747,6 @@ def run_submission(submission,
     outfile = os.path.join(tmpdir, 'test.out')
     #silent = expected != 'ACCEPTED'
     silent = False
-    time.sleep(0.1)
     verdict, runtime, remark = \
         process_testcase(submission[1], testcase, outfile, settings, output_validators,
                 silent, need_newline)
