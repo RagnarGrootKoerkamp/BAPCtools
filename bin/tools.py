@@ -1390,11 +1390,17 @@ Run this from one of:
   action = args.action
 
   if action in ['contest', 'new-contest', 'create-contest', 'add-contest']:
-    shutil.copytree(os.path.join(TOOLS_ROOT, 'skel/contest'), args.contestname)
+    shutil.copytree(
+        os.path.join(TOOLS_ROOT, 'skel/contest'),
+        args.contestname,
+        symlinks=True)
     exit()
 
   if action in ['problem', 'new-problem', 'create-problem', 'add-problem']:
-    shutil.copytree(os.path.join(TOOLS_ROOT, '/skel/problem'), args.problemname)
+    shutil.copytree(
+        os.path.join(TOOLS_ROOT, 'skel/problem'),
+        args.problemname,
+        symlinks=True)
     exit()
 
   # Get problems and cd to contest
