@@ -665,7 +665,8 @@ def run_testcase(run_command, testcase, outfile, tle=None):
         # Double the tle to check for solutions close to the required bound
         # ret = True or ret = (code, error)
         ret = exec_command(
-            run_command, expect=0, stdin=inf, stdout=outf, timeout=2 * tle)
+            run_command, expect=0, stdin=inf, stdout=outf,
+            timeout=float(args.timeout) if args.timeout else 2 * tle )
       except subprocess.TimeoutExpired:
         timeout = True
         ret = True
@@ -1399,7 +1400,6 @@ Run this from one of:
   runparser = subparsers.add_parser(
       'run', parents=[global_parser], help='run programs and check answers')
   runparser.add_argument(
-      '-t',
       '--table',
       action='store_true',
       help='Print a submissions x testcases table for analysis.')
@@ -1407,6 +1407,10 @@ Run this from one of:
       'submissions',
       nargs='*',
       help='optionally supply a list of programs and testcases to run')
+  runparser.add_argument(
+      '-t',
+      '--timeout',
+      help='Override the default timeout.')
 
   # Sort
   subparsers.add_parser(
