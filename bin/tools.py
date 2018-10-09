@@ -678,7 +678,7 @@ def run_testcase(run_command, testcase, outfile, tle=None):
             expect=0,
             stdin=inf,
             stdout=outf,
-            timeout=float(args.timeout) if args.timeout else 2 * tle)
+            timeout=float(args.timeout) if hasattr(args, 'timeout') and args.timeout else 2 * tle)
       except subprocess.TimeoutExpired:
         timeout = True
         ret = True
