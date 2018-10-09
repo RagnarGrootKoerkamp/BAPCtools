@@ -221,6 +221,31 @@ def is_executable(path):
   return os.path.exists(path) and (os.stat(path).st_mode &
                                    (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
+def crop_output(output):
+  if args.noerror: return None
+  if args.error:   return output
+
+  lines = output.split('\n')
+  numlines = len(lines)
+  cropped = False
+  # Cap number of lines
+  if numlines > 10:
+    output = '\n'.join(lines[:8])
+    output += '\n'
+    cropped = True
+
+  # Cap line length.
+  if len(output) > 1000:
+    output = output[:1000]
+    output += ' ...\n' + _c.orange + 'Use -e to show full output or -E to hide it.' + _c.reset
+    return output
+
+  if cropped:
+    output += _c.orange + str(
+        numlines - 8
+    ) + ' lines skipped; use -e to show them or -E to hide all output.' + _c.reset
+  return output
+
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, **kwargs):
@@ -238,22 +263,8 @@ def exec_command(command, expect=0, **kwargs):
     process.kill()
     (stdout, stderr) = process.communicate()
 
-  if process.returncode == expect:
-    return True
-  stderr = stderr.decode('utf-8')
-  if args.noerror:
-    return (process.returncode, None)
-  if args.error:
-    return (process.returncode, stderr)
-  lines = stderr.split('\n')
-  numlines = len(lines)
-  if numlines > 10:
-    stderr = '\n'.join(lines[:8])
-    stderr += '\n'
-    stderr += _c.orange + str(
-        numlines - 8
-    ) + ' lines skipped; use -e to show them or -E to hide all output.' + _c.reset
-  return (process.returncode, stderr)
+  return (True if process.returncode == expect else process.returncode,
+          crop_output(stderr.decode('utf-8')))
 
 
 # a function to convert c++ or java to something executable
@@ -307,7 +318,7 @@ def build(path, action=None):
   # prevent building something twice
   if compile_command is not None and not os.path.isfile(exefile):
     ret = exec_command(compile_command)
-    if ret is not True:
+    if ret[0] is not True:
       print_action(
           action if action is not None else 'Building',
           print_name(path) + ' ' + _c.red + 'FAILED',
@@ -333,7 +344,7 @@ def build_directory(directory, include_dirname=False, action=None):
 
     cur_path = os.getcwd()
     os.chdir(directory)
-    if exec_command(['./build']):
+    if exec_command(['./build'])[0] is not True:
       print(path, 'failed!')
       exit()
     os.chdir(cur_path)
@@ -422,7 +433,7 @@ def validate(problem, validator_type, settings):
 
   validators = get_validators(problem, validator_type)
   # validate testcases without answer files
-  testcases = get_testcases(problem, True)
+  testcases = get_testcases(problem, validator_type == 'output')
   ext = '.in' if validator_type == 'input' else '.ans'
 
   if len(validators) == 0:
@@ -448,7 +459,7 @@ def validate(problem, validator_type, settings):
   total = len(testcases)
   for testcase in testcases:
     print_action_bar(action, i, total, (
-        '{:<' + str(max_testcase_len) + '}').format(print_name(testcase) + ext))
+        '{:<' + str(max_testcase_len+1) + '}').format(print_name(testcase) + ext))
     i += 1
     for validator in validators:
       # simple `program < test.in` for input validation and ctd output validation
@@ -465,11 +476,11 @@ def validate(problem, validator_type, settings):
             flags,
             expect=rtv_ac,
             stdin=open(testcase + ext, 'r'))
-      if ret is not True:
+      if ret[0] is not True:
         success = False
 
         print_action(
-            action, ('{:<' + str(max_testcase_len) +
+            action, ('{:<' + str(max_testcase_len+1) +
                      '}').format(print_name(testcase) + ext),
             end='')
         print(_c.red, 'FAILED ', validator[0], sep='', end='')
@@ -652,9 +663,9 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
       ret = exec_command(
           output_validator[1] + [testcase + '.in', testcase + '.ans', tmpdir] +
           flags,
-          expect=42,
+          expect=rtv_ac,
           stdin=outf)
-    if ret is True:
+    if ret[0] is True:
       continue
     if ret[0] == rtv_wa:
       return (False, ret[1])
@@ -681,7 +692,7 @@ def run_testcase(run_command, testcase, outfile, tle=None):
             timeout=float(args.timeout) if hasattr(args, 'timeout') and args.timeout else 2 * tle)
       except subprocess.TimeoutExpired:
         timeout = True
-        ret = True
+        ret = (True, None)
       tend = time.monotonic()
 
   duration = tend - tstart
@@ -699,26 +710,30 @@ def process_testcase(run_command,
                      silent=False,
                      printnewline=False):
 
-  ret, timeout, duration = run_testcase(run_command, testcase, outfile,
+  run_ret, timeout, duration = run_testcase(run_command, testcase, outfile,
                                         settings.timelimit)
   verdict = None
   remark = ''
   if timeout:
     verdict = 'TIME_LIMIT_EXCEEDED'
-  elif ret is not True:
+  elif run_ret[0] is not True:
     verdict = 'RUN_TIME_ERROR'
-    remark = 'Exited with code ' + str(ret[0]) + ':\n' + ret[1]
+    remark = 'Exited with code ' + str(run_ret[0]) + ':\n' + run_ret[1]
   else:
     if settings.validation == 'default':
-      ret = default_output_validator(testcase + '.ans', outfile, settings)
+      val_ret = default_output_validator(testcase + '.ans', outfile, settings)
     elif settings.validation == 'custom':
-      ret = custom_output_validator(testcase, outfile, settings,
+      val_ret = custom_output_validator(testcase, outfile, settings,
                                     output_validators)
     else:
-      print('Validation type must be one of `default` or `custom`')
+      print(_c.red + 'Validation type must be one of `default` or `custom`' +
+              _c.reset)
       exit()
-    verdict = 'ACCEPTED' if ret[0] else 'WRONG_ANSWER'
-    remark = ret[1]
+    verdict = 'ACCEPTED' if val_ret[0] else 'WRONG_ANSWER'
+    remark = val_ret[1]
+
+    if verdict == 'WRONG_ANSWER' and args.output and run_ret[1] is not None:
+        remark += '\n' + crop_output(run_ret[1]) + '\n'
 
   return (verdict, duration, remark)
 
@@ -967,7 +982,7 @@ def generate_output(problem, settings):
                                           settings.timelimit)
     message = ''
     force = False
-    if ret is not True or timeout is True:
+    if ret[0] is not True or timeout is True:
       message = 'FAILED'
       force = True
       nfail += 1
@@ -1438,6 +1453,8 @@ Run this from one of:
       help='optionally supply a list of programs and testcases to run')
   runparser.add_argument(
       '-t', '--timeout', help='Override the default timeout.')
+  runparser.add_argument(
+      '-o', '--output', action='store_true', help='Print output of WA submissions.')
 
   # Sort
   subparsers.add_parser(
