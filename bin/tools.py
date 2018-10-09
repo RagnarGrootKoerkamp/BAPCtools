@@ -116,13 +116,17 @@ def print_action_bar(action, i, total, state=None, max_state_len=None):
 
 
 def add_newline(s):
-    if s.endswith('\n'): return s
-    else: return s+'\n'
+  if s.endswith('\n'):
+    return s
+  else:
+    return s + '\n'
 
 
 def strip_newline(s):
-    if s.endswith('\n'): return s[:-1]
-    else: return s
+  if s.endswith('\n'):
+    return s[:-1]
+  else:
+    return s
 
 
 def exit(clean=True):
@@ -228,7 +232,12 @@ def exec_command(command, expect=0, **kwargs):
     timeout = kwargs['timeout']
     kwargs.pop('timeout')
   process = subprocess.Popen(command, stderr=subprocess.PIPE, **kwargs)
-  (stdout, stderr) = process.communicate(timeout=timeout)
+  try:
+    (stdout, stderr) = process.communicate(timeout=timeout)
+  except subprocess.TimeoutExpired:
+    process.kill()
+    (stdout, stderr) = process.communicate()
+
   if process.returncode == expect:
     return True
   stderr = stderr.decode('utf-8')
@@ -550,12 +559,12 @@ def get_submissions(problem):
 
 
 def quick_diff(ans, out):
-    ans = ans.decode()
-    out = out.decode()
-    if ans.count('\n') <= 1 and out.count('\n') <= 1:
-        return 'Got ' + strip_newline(out) + ' wanted ' + strip_newline(ans)
-    else:
-        return ''
+  ans = ans.decode()
+  out = out.decode()
+  if ans.count('\n') <= 1 and out.count('\n') <= 1:
+    return 'Got ' + strip_newline(out) + ' wanted ' + strip_newline(ans)
+  else:
+    return ''
 
 
 # return: (success, remark)
@@ -665,8 +674,11 @@ def run_testcase(run_command, testcase, outfile, tle=None):
         # Double the tle to check for solutions close to the required bound
         # ret = True or ret = (code, error)
         ret = exec_command(
-            run_command, expect=0, stdin=inf, stdout=outf,
-            timeout=float(args.timeout) if args.timeout else 2 * tle )
+            run_command,
+            expect=0,
+            stdin=inf,
+            stdout=outf,
+            timeout=float(args.timeout) if args.timeout else 2 * tle)
       except subprocess.TimeoutExpired:
         timeout = True
         ret = True
@@ -711,7 +723,6 @@ def process_testcase(run_command,
   return (verdict, duration, remark)
 
 
-
 # program is of the form (name, command)
 # return outcome
 # always: failed submissions
@@ -733,16 +744,17 @@ def run_submission(submission,
   time_max = 0
 
   action = 'Running ' + submission[0]
-  max_testcase_len = max(
-      [len(print_name(testcase)) for testcase in testcases])
+  max_testcase_len = max([len(print_name(testcase)) for testcase in testcases])
   i = 0
   total = len(testcases)
 
   printed_error = False
 
   for testcase in testcases:
-    print_action_bar(action, i, total, (
-        '{:<' + str(max_testcase_len + max_submission_len - len(submission[0])) + '}').format(print_name(testcase)))
+    print_action_bar(
+        action, i, total,
+        ('{:<' + str(max_testcase_len + max_submission_len - len(submission[0]))
+         + '}').format(print_name(testcase)))
     i += 1
 
     outfile = os.path.join(tmpdir, 'test.out')
@@ -760,26 +772,35 @@ def run_submission(submission,
 
     got_expected = verdict == 'ACCEPTED' or verdict == expected
     if verbose or not got_expected:
-        printed_error = True
-        print_action(
-            action, ('{:<' + str(max_testcase_len) +
-                '}').format(print_name(testcase)),
-            end='')
-        color=_c.green if got_expected else _c.red
-        print(' '*(1+max_submission_len - len(submission[0])),
-                '{:6.3f}s'.format(runtime),
-                ' ',
-                color,
-                verdict,
-                _c.reset,
-                sep='', end='')
+      printed_error = True
+      print_action(
+          action, ('{:<' + str(max_testcase_len) + '}').format(
+              print_name(testcase)),
+          end='')
+      color = _c.green if got_expected else _c.red
+      print(
+          ' ' * (1 + max_submission_len - len(submission[0])),
+          '{:6.3f}s'.format(runtime),
+          ' ',
+          color,
+          verdict,
+          _c.reset,
+          sep='',
+          end='')
 
-        # Print error message?
-        if remark:
-          # Print the error on a new line, in orange.
-          print('  ', _c.orange, add_newline(remark), _c.reset, sep='', end='', flush=True)
-        else:
-          print(flush=True)
+      # Print error message?
+      if remark:
+        # Print the error on a new line, in orange.
+        print(
+            '  ',
+            _c.orange,
+            add_newline(remark),
+            _c.reset,
+            sep='',
+            end='',
+            flush=True)
+      else:
+        print(flush=True)
 
     if not verbose and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
       break
@@ -790,33 +811,34 @@ def run_submission(submission,
       verdict = v
       break
 
-
   if printed_error:
-    color =_c.boldgreen if verdict == expected else _c.boldred
+    color = _c.boldgreen if verdict == expected else _c.boldred
   else:
-    color =_c.green if verdict == expected else _c.red
+    color = _c.green if verdict == expected else _c.red
 
   clearline()
-  print_action(_c.white + action + _c.reset, ' '*
-          (max_submission_len-len(submission[0])+max_testcase_len - 15)
-              +  (_c.bold if printed_error else '')
-              + 'max/sum {:6.3f}s {:6.3f}s '.format(time_max, time_total)
-              + color + verdict +_c.reset , end='\n')
+  print_action(
+      _c.white + action + _c.reset,
+      ' ' * (max_submission_len - len(submission[0]) + max_testcase_len - 15) +
+      (_c.bold if printed_error else '') + 'max/sum {:6.3f}s {:6.3f}s '.format(
+          time_max, time_total) + color + verdict + _c.reset,
+      end='\n')
 
   if verbose or printed_error:
-      print()
-  
-
+    print()
 
   return verdict == expected
 
 
 def get_submission_type(s):
-    ls = s.lower()
-    if 'wrong_answer' in ls: return 'WRONG_ANSWER'
-    if 'time_limit_exceeded' in ls: return 'TIME_LIMIT_EXCEEDED'
-    if 'run_time_error' in ls: return 'RUN_TIME_ERROR'
-    return 'ACCEPTED'
+  ls = s.lower()
+  if 'wrong_answer' in ls:
+    return 'WRONG_ANSWER'
+  if 'time_limit_exceeded' in ls:
+    return 'TIME_LIMIT_EXCEEDED'
+  if 'run_time_error' in ls:
+    return 'RUN_TIME_ERROR'
+  return 'ACCEPTED'
 
 
 # return true if all submissions for this problem pass the tests
@@ -832,17 +854,23 @@ def run_submissions(problem, settings):
     output_validators = get_validators(problem, 'output')
 
   if settings.submissions:
-    submissions = { 'ACCEPTED': [], 'WRONG_ANSWER': [],
-              'TIME_LIMIT_EXCEEDED': [], 'RUN_TIME_ERROR': [] }
+    submissions = {
+        'ACCEPTED': [],
+        'WRONG_ANSWER': [],
+        'TIME_LIMIT_EXCEEDED': [],
+        'RUN_TIME_ERROR': []
+    }
     for submission in settings.submissions:
       path = os.path.join(problem, submission)
       run_command = build(path, action='Build submission')
       if run_command:
-        submissions[get_submission_type(path)].append((print_name(path), run_command))
+        submissions[get_submission_type(path)].append((print_name(path),
+                                                       run_command))
   else:
     submissions = get_submissions(problem)
 
-  max_submission_len=max([len(x[0]) for cat in submissions for x in submissions[cat]])
+  max_submission_len = max(
+      [len(x[0]) for cat in submissions for x in submissions[cat]])
 
   success = True
   verdict_table = []
@@ -920,15 +948,15 @@ def generate_output(problem, settings):
   nnew = 0
   nfail = 0
 
-  max_testcase_len=max([len(print_name(testcase)) for testcase in testcases])
+  max_testcase_len = max([len(print_name(testcase)) for testcase in testcases])
   i = 0
   total = len(testcases)
 
   for testcase in testcases:
     print_action_bar('Generate', i, total,
-            ('{:<'+str(max_testcase_len)+'}').format(print_name(testcase)))
+                     ('{:<' + str(max_testcase_len) + '}').format(
+                         print_name(testcase)))
     i += 1
-
 
     outfile = os.path.join(tmpdir, 'test.out')
     try:
@@ -941,7 +969,7 @@ def generate_output(problem, settings):
     force = False
     if ret is not True or timeout is True:
       message = 'FAILED'
-      force=True
+      force = True
       nfail += 1
     else:
       if os.access(testcase + '.ans', os.R_OK):
@@ -960,21 +988,22 @@ def generate_output(problem, settings):
             shutil.move(outfile, testcase + '.ans')
             nchange += 1
             message = 'CHANGED'
-            force=True
+            force = True
           else:
             nskip += 1
             message = _c.red + 'SKIPPED' + _c.reset + '; supply -f to overwrite'
-            force=True
+            force = True
       else:
         shutil.move(outfile, testcase + '.ans')
         nnew += 1
-        message='NEW'
-        force=True
+        message = 'NEW'
+        force = True
 
     if verbose or force:
-      print_action('Generate',
-        ('{:<'+str(max_testcase_len)+'}').format(print_name(testcase))+'  '+message,
-        end='\n')
+      print_action(
+          'Generate', ('{:<' + str(max_testcase_len) + '}').format(
+              print_name(testcase)) + '  ' + message,
+          end='\n')
 
   clearline()
   print()
@@ -1408,9 +1437,7 @@ Run this from one of:
       nargs='*',
       help='optionally supply a list of programs and testcases to run')
   runparser.add_argument(
-      '-t',
-      '--timeout',
-      help='Override the default timeout.')
+      '-t', '--timeout', help='Override the default timeout.')
 
   # Sort
   subparsers.add_parser(
