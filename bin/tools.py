@@ -60,7 +60,7 @@ class Colorcodes(object):
   def __init__(self):
     self.bold = '\033[;1m'
     self.reset = '\033[0;0m'
-    self.blue = '\033[;34m'
+    self.blue = '\033[;96m'
     self.green = '\033[;32m'
     self.orange = '\033[;33m'
     self.red = '\033[;31m'
@@ -321,14 +321,13 @@ def build(path, action=None):
     if ret[0] is not True:
       print_action(
           action if action is not None else 'Building',
-          print_name(path) + ' ' + _c.red + 'FAILED',
+          print_name(path) + ' ' + _c.red + 'FAILED' + _c.reset,
           end='\n')
       if ret[1] is not None:
         print(_c.reset, ret[1], sep='', end='\n', flush=True)
       return None
 
   return run_command
-
 
 # build all files in a directory; return a list of tuples (file, command)
 # When 'build' is found, we execute it, and return 'run' as the executable
@@ -483,12 +482,12 @@ def validate(problem, validator_type, settings):
             action, ('{:<' + str(max_testcase_len+1) +
                      '}').format(print_name(testcase) + ext),
             end='')
-        print(_c.red, 'FAILED ', validator[0], sep='', end='')
+        print(_c.red, 'FAILED ', validator[0], _c.reset, sep='', end='')
 
         # Print error message?
         if ret[1] is not None:
           # Print the error on a new line, in orange.
-          print('  ', _c.orange, ret[1], sep='', end='', flush=True)
+          print('  ', _c.orange, ret[1], _c.reset, sep='', end='', flush=True)
         else:
           print(flush=True)
       else:
