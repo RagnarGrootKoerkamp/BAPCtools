@@ -1175,7 +1175,8 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
       includedir = os.path.join('.', 'build', problem, 'problem_statement')
       includepath = os.path.join(includedir, t + '.tex')
       if os.path.exists(os.path.join(TOOLS_ROOT, 'latex', includepath)):
-        problems_file.write('\\begingroup\\graphicspath{{' + includedir +
+        problems_file.write('\\begingroup\\graphicspath{{' +
+                            os.path.join(includedir,'') +
                             '}}\n')
         problems_file.write('\\input{' + includepath + '}\n')
         if statement:
