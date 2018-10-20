@@ -1490,7 +1490,7 @@ Run this from one of:
   zipparser.add_argument(
       '--kattis',
       action='store_true',
-      help='Small modifications to the kattis problemarchive.com format.')
+      help='Make a zip more following the kattis problemarchive.com format.')
 
   # Process arguments
   global args

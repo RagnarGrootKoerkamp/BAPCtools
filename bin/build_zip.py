@@ -127,6 +127,8 @@ def build_problem_zip(probdir, output, args):
         except OSError as e:
             pass
         for fname in subs:
+            if fname[0] == '.':
+                continue
             if not os.path.isfile(os.path.join(probdir,
                                                'submissions', d, fname)):
                 print("ERROR: Unexpected non-file submissions/%s/%s" %
