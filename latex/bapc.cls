@@ -89,7 +89,7 @@
 	\section{#1}
 	\vspace{-2.3em}
 	\hfill
-	{\color{darkgray}\fontfamily{qcr}Timelimit: \timelimit{}s}
+	{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}
 	\outline[]{1}[\thesection]{#1}
 
 	\rmfamily
