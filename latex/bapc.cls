@@ -87,7 +87,9 @@
 \newcommand{\problemname}[1]{
 	\ThisIsNotABlankPage
 	\section{#1}
-	\subsection{Timelimit: \timelimit{}s}
+	\vspace{-2.3em}
+	\hfill
+	{\color{darkgray}\fontfamily{qcr}Timelimit: \timelimit{}s}
 	\outline[]{1}[\thesection]{#1}
 
 	\rmfamily
