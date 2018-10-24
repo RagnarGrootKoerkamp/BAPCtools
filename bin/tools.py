@@ -1178,6 +1178,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
         problems_file.write('\\begingroup\\graphicspath{{' +
                             os.path.join(includedir,'') +
                             '}}\n')
+        problems_file.write('\\input{' + os.path.join('.','build',problem, 'problemid.tex') + '}\n')
         problems_file.write('\\input{' + includepath + '}\n')
         if statement:
           problems_file.write('\\input{' + os.path.join('.', 'build', problem,
