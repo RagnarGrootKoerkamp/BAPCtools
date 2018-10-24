@@ -1101,6 +1101,12 @@ def build_problem_pdf(problem, make_pdf=True):
     print(config)
     problemid = ord(config['probid']) - ord('A')
     problemid_file.write('\\setcounter{section}{' + str(problemid) + '}')
+    # Also renew the timelimit command. Use an integral timelimit if
+    # possible
+    tl = config['timelimit']
+    tl = int(tl) if abs(tl - int(tl)) < 0.25 else tl
+    renewcom = '\\renewcommand{\\timelimit}{' + str(tl) + '}'
+    problemid_file.write(renewcom)
 
   # create the samples.tex file
   samples = get_testcases(problem, needans=True, only_sample=True)

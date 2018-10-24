@@ -83,9 +83,11 @@
 	\vspace*{-1cm}
 }
 \renewcommand{\afterloptitle}{\thispagestyle{empty}\afterchaptertitle}
+\newcommand{\timelimit}{TIMELIMIT MISSING}
 \newcommand{\problemname}[1]{
 	\ThisIsNotABlankPage
 	\section{#1}
+	\subsection{Timelimit: \timelimit{}s}
 	\outline[]{1}[\thesection]{#1}
 
 	\rmfamily
