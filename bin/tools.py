@@ -1055,6 +1055,7 @@ def tex_escape(text):
       '\\': r'\char`\\',
       '<': r'\textless{}',
       '>': r'\textgreater{}',
+      '\'': r'\textquotesingle{}',
   }
   regex = re.compile('|'.join(
       re.escape(str(key))
