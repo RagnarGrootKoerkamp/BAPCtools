@@ -596,6 +596,9 @@ def default_output_validator(ansfile, outfile, settings):
 
     if data1 == data2:
       return (True, 'case')
+  else:
+      data1 = indata1
+      data2 = indata2
 
   if settings.space_change_sensitive and settings.floatabs == None and settings.floatrel == None:
     return (False, quick_diff(data1, data2))
