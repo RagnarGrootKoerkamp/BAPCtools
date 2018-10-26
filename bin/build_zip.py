@@ -80,7 +80,10 @@ def build_problem_zip(probdir, output, args):
                                for fname in inoutfiles ]))
 
         # Check pair of .in and .ans exists for every testcase.
+        filtered = []
         for tc in testcases:
+            if tc[0] == '.':
+                continue
             if '.' in tc:
                 print("ERROR: Bad testcase name %s/%s" % (prefix, tc),
                       file=sys.stderr)
@@ -93,6 +96,8 @@ def build_problem_zip(probdir, output, args):
                 print("ERROR: Missing file %s/%s" % (prefix, tc + '.ans'),
                       file=sys.stderr)
                 return False
+            filtered.append(tc)
+        testcases = filtered
 
         print("found %d %s test cases" % (len(testcases), typ))
 
