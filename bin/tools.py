@@ -504,8 +504,7 @@ def validate(problem, validator_type, settings):
 
 # stats
 # print(stats_format.format('problem', 'AC', 'WA', 'TLE', 'sample', 'secret', 'ini', 'sol'))
-def get_stat(path, threshold=True, upper_bound=1e10):
-  count = len(glob(path))
+def get_stat(count, threshold=True, upper_bound=1e10):
   if threshold is True:
     if count >= 1:
       return _c.white + 'Y' + _c.reset
@@ -523,6 +522,20 @@ def stats(problems):
   headers = [
       'problem', 'AC', 'WA', 'TLE', 'java', 'sample', 'secret', 'ini', 'sol'
   ]
+  paths = [
+      'submissions/accepted/*',
+      'submissions/wrong_answer/*',
+      'submissions/time_limit_exceeded/*',
+      'submissions/accepted/*.java',
+      'data/sample/*.in',
+      'data/secret/*.in',
+      'domjudge-problem.ini',
+      'problem_statement/solution.tex'
+  ]
+
+  cumulative = [0] * len(paths)
+  print(cumulative)
+
   header_string = ''
   format_string = ''
   for header in headers:
@@ -541,19 +554,34 @@ def stats(problems):
   print(header_string.format(*headers))
 
   for problem in problems:
+    counts = [len(glob(os.path.join(problem, x))) for x in paths]
+    for i in range(0, len(paths)):
+      cumulative[i] = cumulative[i] + counts[i]
     print(
         format_string.format(
-            problem, get_stat(
-                os.path.join(problem, 'submissions/accepted/*'), 3),
-            get_stat(os.path.join(problem, 'submissions/wrong_answer/*'), 2),
-            get_stat(
-                os.path.join(problem, 'submissions/time_limit_exceeded/*'), 1),
-            get_stat(os.path.join(problem, 'submissions/accepted/*.java')),
-            get_stat(os.path.join(problem, 'data/sample/*.in'), 2),
-            get_stat(os.path.join(problem, 'data/secret/*.in'), 15, 50),
-            get_stat(os.path.join(problem, 'domjudge-problem.ini')),
-            get_stat(os.path.join(problem, 'problem_statement/solution.tex'))))
+            problem,
+            get_stat(counts[0], 3),
+            get_stat(counts[1], 2),
+            get_stat(counts[2], 1),
+            get_stat(counts[3]),
+            get_stat(counts[4], 2),
+            get_stat(counts[5], 15, 50),
+            get_stat(counts[6]),
+            get_stat(counts[7])))
 
+  # print the cumulative count
+  print('-' * 80)
+  print(
+      format_string.format(
+          'TOTAL',
+          get_stat(cumulative[0], 0),
+          get_stat(cumulative[1], 0),
+          get_stat(cumulative[2], 0),
+          get_stat(cumulative[3], 0),
+          get_stat(cumulative[4], 0),
+          get_stat(cumulative[5], 0),
+          get_stat(cumulative[6], 0),
+          get_stat(cumulative[7], 0)))
 
 # returns a map {answer type -> [(name, command)]}
 def get_submissions(problem):
