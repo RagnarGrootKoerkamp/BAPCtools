@@ -1175,6 +1175,15 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
       os.unlink(config_target)
     os.symlink(os.path.abspath('contest.tex'), config_target)
 
+  # link solution_stats
+  stats = os.path.abspath('solution_stats.tex')
+  if solutions and os.path.exists(stats):
+    stats_target = os.path.join(builddir, 'contest/solution_stats.tex')
+    if not os.path.exists(stats_target):
+      if os.path.islink(stats_target):
+        os.unlink(stats_target)
+      os.symlink(stats, stats_target)
+
   # Create the contest/problems.tex file.
   t = 'solution' if solutions else 'problem'
   problems_path = os.path.join(builddir, 'contest', t + 's.tex')
@@ -1194,6 +1203,10 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
           problems_file.write('\\input{' + os.path.join('.', 'build', problem,
                                                         'samples.tex') + '}\n')
         problems_file.write('\\endgroup\n')
+
+    # include a statistics slide in the solutions PDF
+    if solutions:
+        problems_file.write('\\input{' + os.path.join('.', 'build', 'contest', 'solution_stats.tex') + '}\n')
 
   # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
   logo_path = os.path.join(builddir, 'contest/logo.pdf')
