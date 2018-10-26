@@ -16,6 +16,8 @@
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{bapc}
 
+\RequirePackage{frcursive}
+
 %-------------------------------------------------------------------------------
 % ThisIsNotABlankPage: clears to an odd page. If a blank page is created, then
 % it is decorated with the text "This is not a blank page".
@@ -25,9 +27,10 @@
 		\thispagestyle{empty}
 		\vfill
 		\begin{center}
-			\sffamily\huge This is not a blank page.
+			%\huge\cursive\emph{Ceci n'est pas une page blanche.}
+			\includegraphics{images/blank-page-fr.png}
 		\end{center}
-		\vspace*{10.55cm} % slightly above vertical centre.
+		\vspace*{5.55cm} % slightly above vertical centre.
 		\vfill
 	]
 }
