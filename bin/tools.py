@@ -1434,6 +1434,10 @@ Run this from one of:
       '--all',
       action='store_true',
       help='Create problem statements for individual problems as well.')
+  pdfparser.add_argument(
+      '--web',
+      action='store_true',
+      help='Create a web version of the pdf.')
 
   # Solution slides
   solparser = subparsers.add_parser(
@@ -1637,9 +1641,9 @@ Run this from one of:
   # build pdf for the entire contest
   if action in ['pdf', 'build', 'statement'] and level == 'contest':
     # Run 3 times, to fix the TOC.
-    success &= build_contest_pdf(contest, problems)
-    success &= build_contest_pdf(contest, problems)
-    success &= build_contest_pdf(contest, problems)
+    success &= build_contest_pdf(contest, problems, web=args.web)
+    success &= build_contest_pdf(contest, problems, web=args.web)
+    success &= build_contest_pdf(contest, problems, web=args.web)
 
   if action in ['sol', 'solutions', 'slides'] and level == 'contest':
     success &= build_contest_pdf(contest, problems, solutions=True)
