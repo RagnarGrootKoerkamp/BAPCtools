@@ -1233,7 +1233,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
         problems_file.write('\\endgroup\n')
 
     # include a statistics slide in the solutions PDF
-    if solutions:
+    if solutions and os.path.exists(stats):
         problems_file.write('\\input{' + os.path.join('.', 'build', 'contest', 'solution_stats.tex') + '}\n')
 
   # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
