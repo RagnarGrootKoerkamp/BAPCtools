@@ -298,7 +298,7 @@ def build(path, action=None):
   elif ext == '.java':
     compile_command = ['javac', '-d', tmpdir, path]
     run_command = [
-        'java', '-enableassertions', '-Xss1532M', '-cp', tmpdir, base
+        'java', '-enableassertions', '-Xss1024M', '-cp', tmpdir, base
     ]
   elif ext in ('.py', '.py2'):
     compile_command = None
