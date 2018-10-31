@@ -1338,6 +1338,97 @@ def check_constraints(problem, settings):
   return True
 
 
+# Returns the alphanumeric version of a string, removing all characters that are not a-zA-Z0-9
+def alpha_num(string):
+  return re.sub(r'[^a-z0-9]', '', string.lower())
+
+
+# Creates a symlink if it not exists, else it does nothing
+# the symlink will be created at link_name, pointing to target
+def symlink_quiet(target, link_name):
+  if os.path.islink(link_name):
+    os.unlink(link_name)
+  if not os.path.exists(link_name):
+    os.symlink(target, link_name)
+  # if it existed and is not a symlink, do nothing
+
+
+# preparing a kattis directory involves creating lots of symlinks to files which
+# are the same. If it gets changed for the format, we copy the file and modify
+# it accordingly.
+def prepare_kattis_directory():
+  if not os.path.exists('kattis'):
+    os.mkdir('kattis')
+
+
+def prepare_kattis_problem(problem, settings):
+  shortname = alpha_num(os.path.basename(os.path.normpath(problem)))
+  path = os.path.join('kattis', shortname)
+  orig_path = os.path.join('../../', problem)
+
+  if not os.path.exists(path):
+    os.mkdir(path)
+
+  for same in [ 'data', 'generators', 'problem.yaml', 'submissions' ]:
+    symlink_quiet(os.path.join(orig_path, same), os.path.join(path, same))
+
+  # make an input validator
+  vinput = os.path.join(path, 'input_format_validators')
+  if not os.path.exists(vinput):
+    os.mkdir(vinput)
+
+  symlink_quiet(
+      os.path.join('../', orig_path, 'input_validators'),
+      os.path.join(vinput, shortname + '_validator'))
+
+  # After this we only look inside directories.
+  orig_path = os.path.join('../', orig_path)
+
+  # make a output_validators directory with in it "$shortname-validator"
+  if settings.validation == 'custom':
+    voutput = os.path.join(path, 'output_validators')
+    if not os.path.exists(voutput):
+      os.mkdir(voutput)
+    symlink_quiet(
+        os.path.join(orig_path, 'output_validators'),
+        os.path.join(voutput, shortname + '_validator'))
+
+  # make a problem statement with problem.en.tex -> problem.tex,
+  # but all other files intact.
+  pst = 'problem_statement'
+  st = os.path.join(path, pst)
+  if not os.path.exists(st):
+    os.mkdir(st)
+
+  # determine the files in the 'problem statement' directory
+  wd = os.getcwd()
+  os.chdir(os.path.join(problem, pst))
+  files = glob('*')
+  os.chdir(wd)
+
+  assert "problem.tex" in files
+
+  # remember: current wd is st
+  for f in files:
+    if f != "problem.tex":
+      symlink_quiet(os.path.join(orig_path, pst, f), os.path.join(st, f))
+
+  source = os.path.join(problem, pst, 'problem.tex')
+  target = os.path.join(st, 'problem.en.tex')
+  if os.path.islink(target) or os.path.exists(target):
+    os.unlink(target)
+  with open(source, 'r') as f, open(target, 'w') as g:
+    for line in f:
+      if line == "\\begin{Input}\n":
+        g.write("\section*{Input}\n")
+      elif line == "\\begin{Output}\n":
+        g.write("\section*{Output}\n")
+      elif line in [ "\\end{Input}\n", "\\end{Output}\n" ]:
+        g.write("\n")
+      else:
+        g.write(line)
+
+
 def split_submissions(s):
   # Everything containing data/, .in, or .ans goes into testcases.
   submissions = []
@@ -1543,6 +1634,12 @@ Run this from one of:
       action='store_true',
       help='Make a zip more following the kattis problemarchive.com format.')
 
+  # Build a directory for verification with the kattis format
+  subparsers.add_parser(
+      'kattis',
+      parents=[global_parser],
+      help='Build a directory for verification with the kattis format')
+
   # Process arguments
   global args
   args = parser.parse_args()
@@ -1588,6 +1685,12 @@ Run this from one of:
     print_sorted(problems, args)
     return
 
+  if action == 'kattis':
+    if level != "contest":
+      print("Only contest level is currently supported...")
+      exit()
+    prepare_kattis_directory()
+
   problem_zips = []
 
   success = True
@@ -1615,9 +1718,7 @@ Run this from one of:
     if action in ['constraints', 'bounds', 'con']:
       success &= check_constraints(problem, settings)
     if action in ['zip']:
-      output = re.sub(r'[^a-z0-9]', '',
-                      os.path.basename(
-                          os.path.normpath(problem)).lower()) + '.zip'
+      output = alpha_num(os.path.basename(os.path.normpath(problem))) + '.zip'
       problem_zips.append(output)
       if not args.skip:
         success &= build_problem_pdf(problem, True)
@@ -1628,6 +1729,8 @@ Run this from one of:
         # Write to problemname.zip, where we strip all non-alphanumeric from the
         # problem directory name.
         success &= build_problem_zip(problem, output, settings)
+    if action == 'kattis':
+      prepare_kattis_problem(problem, settings)
 
     if len(problems) > 1:
       print()

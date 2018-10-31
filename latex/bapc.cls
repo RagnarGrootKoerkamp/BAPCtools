@@ -182,6 +182,9 @@
 \usepackage{lmodern}
 \usepackage{graphicx}
 \usepackage{courier}
+\usepackage[T1]{fontenc} % Standard
+\usepackage[utf8]{inputenc} % UTF-8 support
+
 %-------------------------------------------------------------------------------
 % The following are required for most problems:
 %-------------------------------------------------------------------------------
