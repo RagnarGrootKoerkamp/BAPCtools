@@ -1130,7 +1130,6 @@ def build_problem_pdf(problem, make_pdf=True):
   problemid_file_path = os.path.join(builddir, 'problem/problemid.tex')
   with open(problemid_file_path, 'wt') as problemid_file:
     config = read_configs(problem)
-    print(config)
     problemid = ord(config['probid']) - ord('A')
     problemid_file.write('\\setcounter{section}{' + str(problemid) + '}')
     # Also renew the timelimit command. Use an integral timelimit if
@@ -1272,8 +1271,8 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
 # sort problems by the id in domjudge-problem.ini
 # return [(problem, id)]
 def sort_problems(problems):
-  problems = [(problem, read_configs(problem)['probid']) for problem in problems
-             ]
+  configs = [ (problem, read_configs(problem)) for problem in problems ]
+  problems = [(pair[0], pair[1]['probid']) for pair in configs if 'probid' in pair[1] ]
   problems.sort(key=lambda x: x[1])
   return problems
 
