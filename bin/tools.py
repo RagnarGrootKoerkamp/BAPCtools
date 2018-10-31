@@ -502,8 +502,8 @@ def validate(problem, validator_type, settings):
   return success
 
 
-# stats
-# print(stats_format.format('problem', 'AC', 'WA', 'TLE', 'sample', 'secret', 'ini', 'sol'))
+# This prints the number belonging to the count.
+# This can be a red/white colored number, or Y/N
 def get_stat(count, threshold=True, upper_bound=1e10):
   if threshold is True:
     if count >= 1:
@@ -534,7 +534,6 @@ def stats(problems):
   ]
 
   cumulative = [0] * len(paths)
-  print(cumulative)
 
   header_string = ''
   format_string = ''
@@ -571,17 +570,9 @@ def stats(problems):
 
   # print the cumulative count
   print('-' * 80)
-  print(
-      format_string.format(
-          'TOTAL',
-          get_stat(cumulative[0], 0),
-          get_stat(cumulative[1], 0),
-          get_stat(cumulative[2], 0),
-          get_stat(cumulative[3], 0),
-          get_stat(cumulative[4], 0),
-          get_stat(cumulative[5], 0),
-          get_stat(cumulative[6], 0),
-          get_stat(cumulative[7], 0)))
+  print(format_string.format(*(
+      ['TOTAL'] + list(map(lambda x: get_stat(x, False), cumulative)))))
+
 
 # returns a map {answer type -> [(name, command)]}
 def get_submissions(problem):
@@ -1627,7 +1618,6 @@ Run this from one of:
       output = re.sub(r'[^a-z0-9]', '',
                       os.path.basename(
                           os.path.normpath(problem)).lower()) + '.zip'
-      print('OUTPUT: ', output)
       problem_zips.append(output)
       if not args.skip:
         success &= build_problem_pdf(problem, True)
