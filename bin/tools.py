@@ -1660,7 +1660,8 @@ Run this from one of:
   if not success:
     exit()
 
-
 if __name__ == '__main__':
   main()
 shutil.rmtree(tmpdir)
+
+# vim: et ts=2 sts=2 sw=2:

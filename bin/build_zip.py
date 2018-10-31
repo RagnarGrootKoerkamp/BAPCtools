@@ -282,3 +282,5 @@ def build_contest_zip(zipfiles, outfile, args):
     print()
 
     zf.close()
+
+# vim: et ts=4 sts=4 sw=4:
