@@ -1282,7 +1282,12 @@ def print_sorted(problems, args):
   for problem in sort_problems(problems):
     print(prefix + problem[0])
 
-
+"""
+DISCLAIMER:
+  This tool was only made to check constraints faster.
+  However it is not guaranteed it will find all constraints.
+  Checking constraints by yourself is probably the best way.
+"""
 def check_constraints(problem, settings):
   vinput = os.path.join(problem, 'input_validators/input_validator.cpp')
   voutput = os.path.join(problem, 'output_validators/output_validator.cpp')
@@ -1319,7 +1324,7 @@ def check_constraints(problem, settings):
   nr = len(defs_statement)
 
   print(
-      '{:^30}|{:^30}'.format('  VALIDATORS', '      PROBLEM STATEMENTS'),
+      '{:^30}|{:^30}'.format('  VALIDATORS', '      PROBLEM STATEMENT'),
       sep='')
   for i in range(0, max(nl, nr)):
     if i < nl:
