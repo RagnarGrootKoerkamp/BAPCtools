@@ -13,3 +13,10 @@ validation: default # or 'custom' when using a custom validator
 # float_relative_tolerance eps
 # float_tolerance eps
 #validator_flags:
+
+# To change the time limit factors for Kattis, use:
+# limits:
+# Time limit is 2*slowest accepted submission:
+#     time_multiplier: 2 
+# Warning for submissions within 1 second of limit:
+#     time_safety_margin: 1

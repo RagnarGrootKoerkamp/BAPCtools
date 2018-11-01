@@ -905,7 +905,7 @@ def run_submissions(problem, settings):
   else:
     submissions = get_submissions(problem)
 
-  max_submission_len = max(
+  max_submission_len = max([0] + 
       [len(x[0]) for cat in submissions for x in submissions[cat]])
 
   success = True
