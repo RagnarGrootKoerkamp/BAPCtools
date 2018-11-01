@@ -753,8 +753,9 @@ def process_testcase(run_command,
     verdict = 'ACCEPTED' if val_ret[0] else 'WRONG_ANSWER'
     remark = val_ret[1]
 
-    if verdict == 'WRONG_ANSWER' and args.output and run_ret[1] is not None:
-        remark += '\n' + crop_output(run_ret[1]) + '\n'
+    if run_ret[1] is not None and args.output:
+      if verdict == 'WRONG_ANSWER' or args.error:
+          remark += '\n' + crop_output(run_ret[1]) + '\n'
 
   return (verdict, duration, remark)
 
