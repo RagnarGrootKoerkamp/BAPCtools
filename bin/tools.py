@@ -331,6 +331,7 @@ def build(path, action=None):
 
 # build all files in a directory; return a list of tuples (file, command)
 # When 'build' is found, we execute it, and return 'run' as the executable
+# This recursively calls itself for subdirectories.
 def build_directory(directory, include_dirname=False, action=None):
   commands = []
 
@@ -368,7 +369,10 @@ def build_directory(directory, include_dirname=False, action=None):
     else:
       name = basename
 
-    if is_executable(path):
+    if os.path.isdir(path):
+      r =  build_directory(path, include_dirname=True, action=action)
+      commands += r
+    elif is_executable(path):
       commands.append((name, [path]))
     else:
       ext = os.path.splitext(name)[1]
