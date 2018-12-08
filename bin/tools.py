@@ -1432,6 +1432,25 @@ def prepare_kattis_problem(problem, settings):
         g.write(line)
 
 
+def build_sample_zip(problems, args):
+  zf = zipfile.ZipFile('samples.zip',
+                       mode="w",
+                       compression=zipfile.ZIP_DEFLATED,
+                       allowZip64=False)
+
+  for problem in sort_problems(problems):
+    letter = problem[1]
+    problem = problem[0]
+    samples = get_testcases(problem, needans=True, only_sample=True)
+    for i in range(0, len(samples)):
+      sample = samples[i]
+      zf.write(sample+'.in',  os.path.join(letter, str(i))+'.in')
+      zf.write(sample+'.ans', os.path.join(letter, str(i))+'.ans')
+
+  zf.close()
+  print("Wrote zip to samples.zip")
+
+
 def split_submissions(s):
   # Everything containing data/, .in, or .ans goes into testcases.
   submissions = []
@@ -1637,6 +1656,12 @@ Run this from one of:
       action='store_true',
       help='Make a zip more following the kattis problemarchive.com format.')
 
+  # Build a zip with all samples.
+  subparsers.add_parser(
+      'samplezip',
+      parents=[global_parser],
+      help='Create zip file of all samples.')
+
   # Build a directory for verification with the kattis format
   subparsers.add_parser(
       'kattis',
@@ -1684,9 +1709,15 @@ Run this from one of:
   if action in ['stats', 'status', 'stat']:
     stats(problems)
     return
+
   if action == 'sort':
     print_sorted(problems, args)
     return
+
+  if action in ['samplezip']:
+    build_sample_zip(problems, args)
+    return
+    
 
   if action == 'kattis':
     if level != "contest":
