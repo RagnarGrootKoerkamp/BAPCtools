@@ -688,14 +688,22 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
           flags,
           expect=rtv_ac,
           stdin=outf)
+    # Read judgemessage if present
+    judgemessagepath = os.path.join(tmpdir, 'judgemessage.txt')
+    judgemessage = ''
+    if os.path.isfile(judgemessagepath):
+      with open(judgemessagepath) as judgemessagefile:
+        judgemessage = judgemessagefile.read()
+      os.unlink(judgemessagepath)
+    
     if ret[0] is True:
       continue
     if ret[0] == rtv_wa:
-      return (False, ret[1])
+      return (False, ret[1] + judgemessage)
     print('ERROR in output validator ', output_validator[0], ' exit code ',
           ret[0], ': ', ret[1])
     exit(False)
-  return (True, '')
+  return (True, judgemessage)
 
 
 # Return (ret, timeout (True/False), duration)
