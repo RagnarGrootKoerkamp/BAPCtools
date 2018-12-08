@@ -134,32 +134,29 @@ def exit(clean=True):
     shutil.rmtree(tmpdir)
   sys.exit(1)
 
+def is_problem_directory(path):
+  return os.path.isfile(os.path.join(path, 'problem.yaml'))
 
-# get the list of relevant problems,
-# and cd to a directory at contest level
-# the list returned has unspecified order
-def get_problems(contest):
-  if os.path.isdir('.git'):
-    if contest is None:
-      print('A contest must be supplied when running from the repository root!')
-      exit()
+# Get the list of relevant problems.
+# Either use the provided contest, or check the existence of problem.yaml.
+def get_problems(contest = None):
+  if contest is not None:
     os.chdir(contest)
-  elif os.path.isdir('../.git'):
-    pass
-  elif os.path.isdir('../../.git'):
+  level = None
+  problems = []
+  if is_problem_directory('.'):
+    level = 'problem'
     problems = [os.path.basename(os.getcwd())]
-    os.chdir('..')
-    return (problems, 'problem', os.path.basename(os.getcwd()))
+    os.chdir('..') # cd to contest dir.
   else:
-    print(
-        "ERROR: Can't determine git root directory; run this from problem, contest, or root"
-    )
-    exit()
-
-  # return list of problems in contest directory
-  return ([os.path.normpath(p[0]) for p in sort_problems(glob('*/'))],
-          'contest', os.path.basename(os.getcwd()))
-
+    level = 'contest'
+    dis = [os.path.normpath(p[0]) for p in sort_problems(glob('*/'))]
+    for problem in problems:
+      if is_problem_directory(problem):
+        problems.append(problem)
+    
+  contest = os.path.basename(os.getcwd())
+  return (problems, level, contest)
 
 # read problem settings from config files
 def read_configs(problem):
