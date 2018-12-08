@@ -139,6 +139,7 @@ def is_problem_directory(path):
 
 # Get the list of relevant problems.
 # Either use the provided contest, or check the existence of problem.yaml.
+# Returns problems in sorted order by probid in domjudge.ini.
 def get_problems(contest = None):
   if contest is not None:
     os.chdir(contest)
@@ -150,8 +151,8 @@ def get_problems(contest = None):
     os.chdir('..') # cd to contest dir.
   else:
     level = 'contest'
-    dis = [os.path.normpath(p[0]) for p in sort_problems(glob('*/'))]
-    for problem in problems:
+    dirs = [os.path.normpath(p[0]) for p in sort_problems(glob('*/'))]
+    for problem in dirs:
       if is_problem_directory(problem):
         problems.append(problem)
     
