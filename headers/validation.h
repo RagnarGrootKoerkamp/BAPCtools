@@ -1,5 +1,6 @@
 // A header library to safely parse team input.
 // It does not support floating points or big integers.
+// Author: Ragnar Groot Koerkamp
 
 // The easiest way to use this is to symlink it from a validator directory,
 // so that it will be picked up when creating a contest zip.
@@ -15,7 +16,7 @@
 #include <limits>
 using namespace std;
 
-const string case_sensitive_flag         = "case_sensitive";
+const string case_sensitive_flag = "case_sensitive";
 const string ws_sensitive_flag = "space_change_sensitive";
 
 class Validator {
