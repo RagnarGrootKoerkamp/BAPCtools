@@ -9,11 +9,11 @@ int main() {
 	InputValidator v;
 	int n = v.read_long_long(0, 100000);
 	v.newline();
+	return 0;
 
 	// Other useful commands:
 	v.space();
 	v.newline();
-	string s = v.read_string();
 	string s = v.read_string();
 	v.read_string("ACCEPTED"); // only succeeds when it reads the given string.
 	v.read_string(4, 5);     // only succeeds when it reads a string with length in inclusive range.
