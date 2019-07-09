@@ -130,7 +130,7 @@ class Validator {
 
 	// Read a long double.
 	long double read_long_double() {
-		string s = read_string_impl("", "integer");
+		string s = read_string_impl("", "long double");
 		long double v;
 		try {
 			size_t chars_processed;

@@ -522,13 +522,15 @@ def stats(problems):
   # domjudge-problem.ini?, solution.tex?
 
   headers = [
-      'problem', 'AC', 'WA', 'TLE', 'java', 'sample', 'secret', 'ini', 'sol'
+      'problem', 'AC', 'WA', 'TLE', 'java', 'py2', 'py3', 'sample', 'secret', 'ini', 'sol'
   ]
   paths = [
       'submissions/accepted/*',
       'submissions/wrong_answer/*',
       'submissions/time_limit_exceeded/*',
       'submissions/accepted/*.java',
+      ['submissions/accepted/*.py', 'submissions/accepted/*.py2'],
+      'submissions/accepted/*.py3',
       'data/sample/*.in',
       'data/secret/*.in',
       'domjudge-problem.ini',
@@ -555,7 +557,11 @@ def stats(problems):
   print(header_string.format(*headers))
 
   for problem in problems:
-    counts = [len(glob(os.path.join(problem, x))) for x in paths]
+    def count(path):
+      if type(path) is list:
+        return sum(count(p) for p in path)
+      return len(glob(os.path.join(problem, path)))
+    counts = [count(p) for p in paths]
     for i in range(0, len(paths)):
       cumulative[i] = cumulative[i] + counts[i]
     print(
@@ -565,10 +571,12 @@ def stats(problems):
             get_stat(counts[1], 2),
             get_stat(counts[2], 1),
             get_stat(counts[3]),
-            get_stat(counts[4], 2),
-            get_stat(counts[5], 15, 50),
-            get_stat(counts[6]),
-            get_stat(counts[7])))
+            get_stat(counts[4]),
+            get_stat(counts[5]),
+            get_stat(counts[6], 2),
+            get_stat(counts[7], 15, 50),
+            get_stat(counts[8]),
+            get_stat(counts[9])))
 
   # print the cumulative count
   print('-' * 80)
@@ -1271,7 +1279,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
   return True
 
 
-# sort problems by the id in domjudge-problem.ini
+# sort problems by the id in domjudge-problem.ini, and secondary by name
 # return [(problem, id)]
 def sort_problems(problems):
   configs = [ (problem, read_configs(problem)) for problem in problems ]
@@ -1692,10 +1700,20 @@ Run this from one of:
     exit()
 
   if action in ['problem', 'new-problem', 'create-problem', 'add-problem']:
+    # TODO: Make this an interactive command that also asks for the author name,
+    # source contest/url (which could be extracted form the contest.tex file)
+    # and (custom/default) validation type.
+    dirname = args.problemname
+    dirname = dirname.lower()
+    dirname = dirname.replace(' ', '-')
     shutil.copytree(
         os.path.join(TOOLS_ROOT, 'skel/problem'),
-        args.problemname,
+        dirname,
         symlinks=True)
+    # Replace '<problem name>' by the given name.
+    exec_command(['sed', '-i', 's@<problem name>@'+args.problemname+'@', dirname+'/problem.yaml'])
+    exec_command(['sed', '-i', 's@<problem name>@'+args.problemname+'@', dirname+'/domjudge-problem.ini'])
+    exec_command(['sed', '-i', 's@<problem name>@'+args.problemname+'@', dirname+'/problem_statement/problem.tex'])
     exit()
 
   # Get problems and cd to contest
