@@ -905,6 +905,11 @@ def run_submissions(problem, settings):
   else:
     testcases = get_testcases(problem, True)
 
+  if len(testcases) == 0:
+    print(_c.red + 'No testcases found!' + _c.reset)
+    return False
+
+
   output_validators = None
   if settings.validation == 'custom':
     output_validators = get_validators(problem, 'output')
