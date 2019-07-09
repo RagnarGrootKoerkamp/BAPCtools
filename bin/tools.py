@@ -720,7 +720,8 @@ def run_testcase(run_command, testcase, outfile, tle=None):
             expect=0,
             stdin=inf,
             stdout=outf,
-            timeout=float(args.timeout) if hasattr(args, 'timeout') and args.timeout else 2 * tle)
+            timeout=float(args.timeout) if hasattr(args, 'timeout') and
+            args.timeout else (2 * tle if tle is not None else None))
       except subprocess.TimeoutExpired:
         timeout = True
         ret = (True, None)
@@ -1103,7 +1104,7 @@ def require_latex_build_dir():
   if not os.path.isdir(builddir):
     if os.path.islink(builddir):
       os.unlink(builddir)
-    tmpdir = tempfile.mkdtemp(prefix='bapctools_latex')
+    tmpdir = tempfile.mkdtemp(prefix='bapctools_latex_')
     os.symlink(tmpdir, builddir)
   return builddir
 
@@ -1133,12 +1134,12 @@ def build_problem_pdf(problem, make_pdf=True):
   with open(problemid_file_path, 'wt') as problemid_file:
     config = read_configs(problem)
     problemid = ord(config['probid']) - ord('A')
-    problemid_file.write('\\setcounter{section}{' + str(problemid) + '}')
+    problemid_file.write('\\setcounter{section}{' + str(problemid) + '}\n')
     # Also renew the timelimit command. Use an integral timelimit if
     # possible
     tl = config['timelimit']
     tl = int(tl) if abs(tl - int(tl)) < 0.25 else tl
-    renewcom = '\\renewcommand{\\timelimit}{' + str(tl) + '}'
+    renewcom = '\\renewcommand{\\timelimit}{' + str(tl) + '}\n'
     problemid_file.write(renewcom)
 
   # create the samples.tex file
