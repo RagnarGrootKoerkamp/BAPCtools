@@ -3,6 +3,10 @@
 BAPCtools is a tool for creating and developing problems following the
 [DomJudge/Kattis problem format](https://www.problemarchive.org/wiki/index.php/Problem_Format).
 
+The aim of this tool is to run all necessary compilation, validation, and
+testing commands while working on an ICPC-style problem. Ideally I should never
+have to manually run any compilation or testing command myself.
+
 ## Installation
 
 For now the only way to use this is to clone the repository and install the
