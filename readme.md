@@ -56,12 +56,14 @@ What follows is a quick walk-through of some of the most important commands.
 
 This creates a new directory `example_contest` with a `contest.tex` file
 containing metadata to put on the front page of the generated pdf.
+
 ![new contest](images/00_contest.png)
 
 ### Create a new problem
 `tools.py problem example_problem`
 
 This create a new problem directory following the DomJudge/Kattis format.
+
 ![new problem](images/01_problem.png)
 
 The stub files contain the problem to read and print a single integer.
@@ -71,6 +73,7 @@ From inside either a problem or contest directory: `tools.py run [-v] [-v] [subm
 
 This runs all submissions in the problem/contest on all testdata for the
 problem. Use `-v` to make it print testcases where submissions fail.
+
 ![run](images/02_run.gif)
 
 You can also run one (or multiple) given submissions and see the status with
@@ -79,6 +82,7 @@ is expected to get wrong answer. Unexpected outcomes are always printed, even
 without `-v`. If the given and expected answer are a single
 line only, the diff is given inline. Otherwise a small snippet is printed on
 the lines below.
+
 ![run single submission](images/03_run_submission.gif)
 
 ### Generating output files
