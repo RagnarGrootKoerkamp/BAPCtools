@@ -1109,7 +1109,7 @@ def require_latex_build_dir():
   return builddir
 
 
-# Build a pdf for the problem. Explanation in latex/README.md
+# Build a pdf for the problem. Explanation in latex/readme.md
 def build_problem_pdf(problem, make_pdf=True):
   builddir = require_latex_build_dir()
 
@@ -1185,7 +1185,7 @@ def build_problem_pdf(problem, make_pdf=True):
   return True
 
 
-# Build a pdf for an entire problemset. Explanation in latex/README.md
+# Build a pdf for an entire problemset. Explanation in latex/readme.md
 def build_contest_pdf(contest, problems, solutions=False, web=False):
   builddir = require_latex_build_dir()
 

@@ -161,7 +161,7 @@ The tool *does not* call `pdflatex` multiple times so it is recommended to run
 images.
 
 ### Build structure
-[latex/README.md](latex/README.md) has more detailed information on the steps
+[latex/readme.md](latex/readme.md) has more detailed information on the steps
 taken to compile a problem/contest pdf. A quick overview:
 
 - [latex/problem.tex](latex/problem.tex) is the root latex file that will be
