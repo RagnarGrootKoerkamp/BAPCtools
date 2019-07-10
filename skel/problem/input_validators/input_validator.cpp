@@ -3,7 +3,7 @@
 // Check the grammar of the input files.
 // You should also check properties of the input.
 // E.g., check that a graph is connected.
-// TODO: Remove these comments, and summarize your input validator.
+// TODO: Remove this comments, and summarize your input validator.
 
 int main() {
 	InputValidator v;
