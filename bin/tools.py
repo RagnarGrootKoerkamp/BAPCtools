@@ -1523,6 +1523,7 @@ def substitute_file_variables(path, variables):
     data = infile.read()
 
   for key in variables:
+    if variables[key] == None: continue
     data = data.replace('{%'+key+'%}', variables[key])
 
   with open(path, 'w') as outfile:
@@ -1554,7 +1555,7 @@ def new_contest(name):
 
 def new_problem(args):
     problemname = args.problemname if args.problemname else ask_variable('problem name')
-    dirname = alpha_num(problemname, True)
+    dirname = ask_variable('dirname', alpha_num(problemname, True))
     author = args.author if args.author else ask_variable('author', args.author)
 
     if args.custom_validation:
@@ -1562,7 +1563,7 @@ def new_problem(args):
     elif args.default_validation:
       validation = 'default'
     else:
-      validation = ask_variable('validation', 'custom')
+      validation = ask_variable('validation', 'default')
 
     # Read settings from the contest-level yaml file.
     variables = {'problemname': problemname, 'dirname': dirname, 'author':
