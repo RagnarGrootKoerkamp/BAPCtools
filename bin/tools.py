@@ -662,21 +662,24 @@ def default_output_validator(ansfile, outfile, settings):
   if len(words1) != len(words2):
     return (False, quick_diff(data1, data2))
 
-  peakerr = 0
+  peakabserr = 0
+  peakrelerr = 0
   for (w1, w2) in zip(words1, words2):
     if w1 != w2:
       try:
         f1 = float(w1)
         f2 = float(w2)
-        err = abs(f1 - f2)
-        peakerr = max(peakerr, err)
-        if ((settings.floatabs is None or err > settings.floatabs) and
-            (settings.floatrel is None or err > settings.floatrel * f1)):
+        abserr = abs(f1 - f2)
+        relerr = abs(f1 - f2) / f1
+        peakabserr = max(peakabserr, abserr)
+        peakrelerr = max(peakrelerr, relerr)
+        if ((settings.floatabs is None or abserr > settings.floatabs) and
+            (settings.floatrel is None or relerr > settings.floatrel)):
           return (False, quick_diff(data1, data2))
       except ValueError:
         return (False, quick_diff(data1, data2))
 
-  return (True, 'float: ' + str(peakerr))
+  return (True, 'float: abs {0:.2g} rel {1:.2g}'.format(peakabserr, peakrelerr))
 
 
 # call output validators as ./validator in ans feedbackdir additional_arguments < out
