@@ -1524,6 +1524,11 @@ def substitute_file_variables(path, variables):
   with open(path, 'w') as outfile:
     outfile.write(data)
 
+def substitute_dir_variables(dirname, variables):
+  for path in glob(os.path.join(dirname, '**', '*'), recursive=True):
+    if os.path.isfile(path):
+      substitute_file_variables(path, variables)
+
 def new_contest(name):
   # Ask for all required infos.
   title = ask_variable('name', name)
@@ -1540,9 +1545,39 @@ def new_contest(name):
 
   shutil.copytree(os.path.join(TOOLS_ROOT, 'skel/contest'), dirname, symlinks=True)
 
-  for path in glob(os.path.join(dirname, '**', '*'), recursive=True):
-    if os.path.isfile(path):
-      substitute_file_variables(path, locals())
+  substitute_dir_variables(dirname, locals())
+
+
+def new_problem(args):
+    problemname = args.problemname if args.problemname else ask_variable('problem name')
+    dirname = alpha_num(problemname, True)
+    author = args.author if args.author else ask_variable('author', args.author)
+
+    if args.custom_validation:
+      validation = 'custom'
+    elif args.default_validation:
+      validation = 'default'
+    else:
+      validation = ask_variable('validation', 'custom')
+
+    # Read settings from the contest-level yaml file.
+    variables = {'problemname': problemname, 'dirname': dirname, 'author':
+        author, 'validation': validation}
+    if os.path.isfile('contest.yaml'):
+      with open('contest.yaml') as yamlfile:
+        try:
+          contest_vars = yaml.load(yamlfile)
+          for key in contest_vars:
+            variables[key] = '' if contest_vars[key] is None else contest_vars[key]
+        except:
+          pass
+
+    for key in variables:
+      print(key, ' -> ', variables[key])
+
+    shutil.copytree(os.path.join(TOOLS_ROOT, 'skel/problem'), dirname, symlinks=True)
+
+    substitute_dir_variables(dirname, variables)
 
 
 def main():
@@ -1596,7 +1631,7 @@ Run this from one of:
       aliases=['new-contest'],
       parents=[global_parser],
       help='Add a new contest to the current directory.')
-  contestparser.add_argument('contestname', help='The name of the contest')
+  contestparser.add_argument('contestname', nargs='?', help='The name of the contest')
 
   # New problem
   problemparser = subparsers.add_parser(
@@ -1604,8 +1639,10 @@ Run this from one of:
       aliases=['new-problem'],
       parents=[global_parser],
       help='Add a new problem to the current directory.')
-  problemparser.add_argument(
-      'problemname', help='The name of the problem, [a-z0-9]+.')
+  problemparser.add_argument('problemname', nargs='?', help='The name of the problem,')
+  problemparser.add_argument('--author', help='The author of the problem,')
+  problemparser.add_argument('--custom_validation', action='store_true', help='Use custom validation for this problem.')
+  problemparser.add_argument('--default_validation', action='store_true', help='Use default validation for this problem.')
 
   # Problem statements
   pdfparser = subparsers.add_parser(
@@ -1756,20 +1793,7 @@ Run this from one of:
     exit()
 
   if action in ['problem', 'new-problem']:
-    # TODO: Make this an interactive command that also asks for the author name,
-    # source contest/url (which could be extracted form the contest.tex file)
-    # and (custom/default) validation type.
-    dirname = args.problemname
-    dirname = dirname.lower()
-    dirname = dirname.replace(' ', '-')
-    shutil.copytree(
-        os.path.join(TOOLS_ROOT, 'skel/problem'),
-        dirname,
-        symlinks=True)
-    # Replace '<problem name>' by the given name.
-    exec_command(['sed', '-i', 's@<problem name>@'+args.problemname+'@', dirname+'/problem.yaml'])
-    exec_command(['sed', '-i', 's@<problem name>@'+args.problemname+'@', dirname+'/domjudge-problem.ini'])
-    exec_command(['sed', '-i', 's@<problem name>@'+args.problemname+'@', dirname+'/problem_statement/problem.tex'])
+    new_problem(args)
     exit()
 
   # Get problems and cd to contest

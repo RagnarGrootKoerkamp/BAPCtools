@@ -1,10 +1,13 @@
-name: <problem name>
-author: <author name>
-source: BAPC 2018
-source_url: https://2018.bapc.eu/
-license: cc by-sa
-rights_owner: author
-validation: default # or 'custom' when using a custom validator
+name: {%problemname%}
+author: {%author%}
+source: {%source%}
+source_url: {%source_url%}
+# 'cc by-sa' by default
+license: {%license%}
+# 'author' by default
+rights_owner: {%rights_owner%}
+# 'default' or 'custom'
+validation: {%validation%}
 
 # One or more of:
 # case_sensitive
