@@ -513,30 +513,30 @@ def get_stat(count, threshold=True, upper_bound=None):
       return _c.white + 'Y' + _c.reset
     else:
       return _c.red + 'N' + _c.reset
-  return (_c.white if threshold <= count and 
-          (True if upper_bound is None else count <= upper_bound) else _c.red) + str(count) + _c.reset
+  color = _c.white
+  if upper_bound != None and count > upper_bound:
+    color = _c.orange
+  if count < threshold:
+    color = _c.red
+  return color + str(count) + _c.reset
 
 
 def stats(problems):
-  # stats include:
-  # #AC, #WA, #TLE, java?, #samples, #secret,
-  # domjudge-problem.ini?, solution.tex?
-
   stats = [
       # Roughly in order of importance
       ('ini', 'domjudge-problem.ini'),
       ('tex', 'problem_statement/problem.tex'),
-      ('Ival', ['input_validators/*.ctd', 'input_validators/*.cpp']),
+      ('sol', 'problem_statement/solution.tex'),
+      ('   Ival', ['input_validators/*.ctd', 'input_validators/*.cpp']),
       ('Oval', ['output_validators/*.ctd', 'output_validators/*.cpp']),
-      ('sample', 'data/sample/*.in', 2),
+      ('   sample', 'data/sample/*.in', 2),
       ('secret', 'data/secret/*.in', 15, 50),
-      ('AC', 'submissions/accepted/*', 3),
-      ('WA', 'submissions/wrong_answer/*', 2),
+      ('    AC', 'submissions/accepted/*', 3),
+      (' WA', 'submissions/wrong_answer/*', 2),
       ('TLE', 'submissions/time_limit_exceeded/*', 1),
-      ('java', 'submissions/accepted/*.java'),
+      ('    java', 'submissions/accepted/*.java'),
       ('py2', ['submissions/accepted/*.py', 'submissions/accepted/*.py2']),
       ('py3', 'submissions/accepted/*.py3'),
-      ('sol', 'problem_statement/solution.tex'),
   ]
 
   headers = ['problem'] + [h[0] for h in stats]
@@ -555,9 +555,9 @@ def stats(problems):
       width = len(header)
       header_string += ' {:>' + str(width) + '}'
       format_string += ' {:>' + str(width + len(_c.white) + len(_c.reset)) + '}'
-  header_string = _c.bold + header_string + _c.reset
 
-  print(header_string.format(*headers))
+  header = header_string.format(*headers)
+  print(_c.bold + header + _c.reset)
 
   for problem in problems:
     def count(path):
@@ -584,7 +584,7 @@ def stats(problems):
               for i in range(len(stats))]))
 
   # print the cumulative count
-  print('-' * 80)
+  print('-' * len(header))
   print(format_string.format(*(
       ['TOTAL'] + list(map(lambda x: get_stat(x, False), cumulative)))))
 
