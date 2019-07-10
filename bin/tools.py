@@ -507,14 +507,14 @@ def validate(problem, validator_type, settings):
 
 # This prints the number belonging to the count.
 # This can be a red/white colored number, or Y/N
-def get_stat(count, threshold=True, upper_bound=1e10):
+def get_stat(count, threshold=True, upper_bound=None):
   if threshold is True:
     if count >= 1:
       return _c.white + 'Y' + _c.reset
     else:
       return _c.red + 'N' + _c.reset
-  return (_c.white if threshold <= count <= upper_bound else
-          _c.red) + str(count) + _c.reset
+  return (_c.white if threshold <= count and 
+          (True if upper_bound is None else count <= upper_bound) else _c.red) + str(count) + _c.reset
 
 
 def stats(problems):
@@ -522,23 +522,25 @@ def stats(problems):
   # #AC, #WA, #TLE, java?, #samples, #secret,
   # domjudge-problem.ini?, solution.tex?
 
-  headers = [
-      'problem', 'AC', 'WA', 'TLE', 'java', 'py2', 'py3', 'sample', 'secret', 'ini', 'sol'
-  ]
-  paths = [
-      'submissions/accepted/*',
-      'submissions/wrong_answer/*',
-      'submissions/time_limit_exceeded/*',
-      'submissions/accepted/*.java',
-      ['submissions/accepted/*.py', 'submissions/accepted/*.py2'],
-      'submissions/accepted/*.py3',
-      'data/sample/*.in',
-      'data/secret/*.in',
-      'domjudge-problem.ini',
-      'problem_statement/solution.tex'
+  stats = [
+      # Roughly in order of importance
+      ('ini', 'domjudge-problem.ini'),
+      ('tex', 'problem_statement/problem.tex'),
+      ('Ival', ['input_validators/*.ctd', 'input_validators/*.cpp']),
+      ('Oval', ['output_validators/*.ctd', 'output_validators/*.cpp']),
+      ('sample', 'data/sample/*.in', 2),
+      ('secret', 'data/secret/*.in', 15, 50),
+      ('AC', 'submissions/accepted/*', 3),
+      ('WA', 'submissions/wrong_answer/*', 2),
+      ('TLE', 'submissions/time_limit_exceeded/*', 1),
+      ('java', 'submissions/accepted/*.java'),
+      ('py2', ['submissions/accepted/*.py', 'submissions/accepted/*.py2']),
+      ('py3', 'submissions/accepted/*.py3'),
+      ('sol', 'problem_statement/solution.tex'),
   ]
 
-  cumulative = [0] * len(paths)
+  headers = ['problem'] + [h[0] for h in stats]
+  cumulative = [0] * len(stats)
 
   header_string = ''
   format_string = ''
@@ -561,23 +563,25 @@ def stats(problems):
     def count(path):
       if type(path) is list:
         return sum(count(p) for p in path)
-      return len(glob(os.path.join(problem, path)))
-    counts = [count(p) for p in paths]
-    for i in range(0, len(paths)):
+      cnt = 0
+      for p in glob(os.path.join(problem, path)):
+        # Exclude files containing 'TODO: Remove'.
+        if os.path.isfile(p):
+          with open(p) as file:
+            data = file.read()
+            if data.find('TODO: Remove') == -1:
+              cnt += 1
+      return cnt
+
+    counts = [count(s[1]) for s in stats]
+    for i in range(0, len(stats)):
       cumulative[i] = cumulative[i] + counts[i]
-    print(
-        format_string.format(
+    print(format_string.format(
             problem,
-            get_stat(counts[0], 3),
-            get_stat(counts[1], 2),
-            get_stat(counts[2], 1),
-            get_stat(counts[3]),
-            get_stat(counts[4]),
-            get_stat(counts[5]),
-            get_stat(counts[6], 2),
-            get_stat(counts[7], 15, 50),
-            get_stat(counts[8]),
-            get_stat(counts[9])))
+            *[get_stat(counts[i],
+                True if len(stats[i]) <= 2 else stats[i][2],
+                None if len(stats[i]) <= 3 else stats[i][3])
+              for i in range(len(stats))]))
 
   # print the cumulative count
   print('-' * 80)
