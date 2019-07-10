@@ -1,0 +1,4 @@
+source: {%source%}
+source_url: {%source_url%}
+license: {%license%}
+rights_owner: {%rights_owner%}

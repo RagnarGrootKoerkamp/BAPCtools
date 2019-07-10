@@ -19,6 +19,7 @@ import sys
 import stat
 import argparse
 import os
+import datetime
 import re
 import shutil
 import subprocess
@@ -1367,8 +1368,11 @@ def check_constraints(problem, settings):
 
 
 # Returns the alphanumeric version of a string, removing all characters that are not a-zA-Z0-9
-def alpha_num(string):
-  return re.sub(r'[^a-z0-9]', '', string.lower())
+def alpha_num(string, allow_dash = False):
+  if allow_dash:
+    return re.sub(r'[^a-z0-9_-]', '', string.lower().replace(' ', '-'))
+  else:
+    return re.sub(r'[^a-z0-9]', '', string.lower())
 
 
 # Creates a symlink if it not exists, else it does nothing
@@ -1493,6 +1497,54 @@ def split_submissions(s):
   return (submissions, testcases)
 
 
+def ask_variable(name, default=None):
+  if default == None:
+    val = ''
+    while True:
+      print(f"{name}: ", end='')
+      val = input()
+      if val == '':
+        print(f"{name} must not be empty!")
+      else:
+        break
+    return val
+  else:
+    print(f"{name} [{default}]: ", end='')
+    val = input()
+    return default if val == '' else val
+
+
+def substitute_file_variables(path, variables):
+  with open(path, 'r') as infile:
+    data = infile.read()
+
+  for key in variables:
+    data = data.replace('{%'+key+'%}', variables[key])
+
+  with open(path, 'w') as outfile:
+    outfile.write(data)
+
+def new_contest(name):
+  # Ask for all required infos.
+  title = ask_variable('name', name)
+  subtitle = ask_variable('subtitle', '')
+  dirname = ask_variable('dirname', alpha_num(title, allow_dash = True))
+  author = ask_variable('author', f'The {title} jury')
+  testsession = ('% ' if ask_variable('testsession?', 'n (y/n)')[0] == 'n' else
+                 '') +  '\\testsession'
+  year = ask_variable('year', str(datetime.datetime.now().year))
+  source = ask_variable('source', title)
+  source_url = ask_variable('source url', '')
+  license = ask_variable('license', 'cc by-sa')
+  rights_owner = ask_variable('rights owner', 'author')
+
+  shutil.copytree(os.path.join(TOOLS_ROOT, 'skel/contest'), dirname, symlinks=True)
+
+  for path in glob(os.path.join(dirname, '**', '*'), recursive=True):
+    if os.path.isfile(path):
+      substitute_file_variables(path, locals())
+
+
 def main():
   global TOOLS_ROOT
   executable = __file__
@@ -1541,16 +1593,15 @@ Run this from one of:
   # New contest
   contestparser = subparsers.add_parser(
       'contest',
-      aliases=['new-contest', 'create-contest', 'add-contest'],
+      aliases=['new-contest'],
       parents=[global_parser],
       help='Add a new contest to the current directory.')
-  contestparser.add_argument(
-      'contestname', help='The name of the contest, [a-z0-9]+.')
+  contestparser.add_argument('contestname', help='The name of the contest')
 
   # New problem
   problemparser = subparsers.add_parser(
       'problem',
-      aliases=['new-problem', 'create-problem', 'add-problem'],
+      aliases=['new-problem'],
       parents=[global_parser],
       help='Add a new problem to the current directory.')
   problemparser.add_argument(
@@ -1700,14 +1751,11 @@ Run this from one of:
   verbose = args.verbose if args.verbose else 0
   action = args.action
 
-  if action in ['contest', 'new-contest', 'create-contest', 'add-contest']:
-    shutil.copytree(
-        os.path.join(TOOLS_ROOT, 'skel/contest'),
-        args.contestname,
-        symlinks=True)
+  if action in ['contest', 'new-contest']:
+    new_contest(args.contestname)
     exit()
 
-  if action in ['problem', 'new-problem', 'create-problem', 'add-problem']:
+  if action in ['problem', 'new-problem']:
     # TODO: Make this an interactive command that also asks for the author name,
     # source contest/url (which could be extracted form the contest.tex file)
     # and (custom/default) validation type.
