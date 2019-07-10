@@ -1628,7 +1628,6 @@ Run this from one of:
   # New contest
   contestparser = subparsers.add_parser(
       'contest',
-      aliases=['new-contest'],
       parents=[global_parser],
       help='Add a new contest to the current directory.')
   contestparser.add_argument('contestname', nargs='?', help='The name of the contest')
@@ -1636,7 +1635,6 @@ Run this from one of:
   # New problem
   problemparser = subparsers.add_parser(
       'problem',
-      aliases=['new-problem'],
       parents=[global_parser],
       help='Add a new problem to the current directory.')
   problemparser.add_argument('problemname', nargs='?', help='The name of the problem,')
@@ -1647,7 +1645,6 @@ Run this from one of:
   # Problem statements
   pdfparser = subparsers.add_parser(
       'pdf',
-      aliases=['build', 'statement'],
       parents=[global_parser],
       help='Build the problem statement pdf.')
   pdfparser.add_argument(
@@ -1663,7 +1660,6 @@ Run this from one of:
   # Solution slides
   solparser = subparsers.add_parser(
       'solutions',
-      aliases=['sol', 'slides'],
       parents=[global_parser],
       help='Build the solution slides pdf.')
   solparser.add_argument(
@@ -1675,36 +1671,30 @@ Run this from one of:
   # Validation
   subparsers.add_parser(
       'validate',
-      aliases=['grammar'],
       parents=[global_parser],
       help='validate all grammar')
   subparsers.add_parser(
       'input',
-      aliases=['in'],
       parents=[global_parser],
       help='validate input grammar')
   subparsers.add_parser(
       'output',
-      aliases=['out'],
       parents=[global_parser],
       help='validate output grammar')
   subparsers.add_parser(
       'constraints',
-      aliases=['con', 'bounds'],
       parents=[global_parser],
       help='prints all the constraints found in problemset and validators')
 
   # Stats
   subparsers.add_parser(
       'stats',
-      aliases=['stat', 'status'],
       parents=[global_parser],
       help='show statistics for contest/problem')
 
   # Generate
   genparser = subparsers.add_parser(
       'generate',
-      aliases=['gen'],
       parents=[global_parser],
       help='generate answers testcases')
   genparser.add_argument(
@@ -1788,18 +1778,18 @@ Run this from one of:
   verbose = args.verbose if args.verbose else 0
   action = args.action
 
-  if action in ['contest', 'new-contest']:
+  if action in ['contest']:
     new_contest(args.contestname)
     exit()
 
-  if action in ['problem', 'new-problem']:
+  if action in ['problem']:
     new_problem(args)
     exit()
 
   # Get problems and cd to contest
   problems, level, contest = get_problems(args.contest)
 
-  if action in ['generate', 'gen']:
+  if action in ['generate']:
     if level != 'problem':
       print('Generating output files only works for a single problem.')
       exit()
@@ -1813,7 +1803,7 @@ Run this from one of:
     else:
       args.testcases = []
 
-  if action in ['stats', 'status', 'stat']:
+  if action in ['stats']:
     stats(problems)
     return
 
@@ -1844,19 +1834,19 @@ Run this from one of:
     for key in problemsettings:
       vars(settings)[key] = problemsettings[key]
 
-    if action in ['pdf', 'build', 'statement', 'sol', 'slides', 'solutions']:
+    if action in ['pdf', 'solutions']:
       # only build the pdf on the problem level
       success &= build_problem_pdf(problem, args.all or level == 'problem')
 
-    if action in ['validate', 'grammar', 'input', 'in', 'all']:
+    if action in ['validate', 'in', 'all']:
       success &= validate(problem, 'input', settings)
-    if action in ['generate', 'gen', 'all']:
+    if action in ['generate', 'all']:
       generate_output(problem, settings)
-    if action in ['validate', 'grammar', 'output', 'out', 'all']:
+    if action in ['validate', 'output', 'all']:
       success &= validate(problem, 'output', settings)
     if action in ['run', 'all']:
       success &= run_submissions(problem, settings)
-    if action in ['constraints', 'bounds', 'con']:
+    if action in ['constraints']:
       success &= check_constraints(problem, settings)
     if action in ['zip']:
       output = alpha_num(os.path.basename(os.path.normpath(problem))) + '.zip'
@@ -1877,13 +1867,13 @@ Run this from one of:
       print()
 
   # build pdf for the entire contest
-  if action in ['pdf', 'build', 'statement'] and level == 'contest':
+  if action in ['pdf'] and level == 'contest':
     # Run 3 times, to fix the TOC.
     success &= build_contest_pdf(contest, problems, web=args.web)
     success &= build_contest_pdf(contest, problems, web=args.web)
     success &= build_contest_pdf(contest, problems, web=args.web)
 
-  if action in ['sol', 'solutions', 'slides'] and level == 'contest':
+  if action in ['solutions'] and level == 'contest':
     success &= build_contest_pdf(contest, problems, solutions=True)
 
   if action in ['zip'] and args.contest:
