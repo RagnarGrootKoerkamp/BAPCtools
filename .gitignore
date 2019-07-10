@@ -1,3 +1,5 @@
 latex/build
+latex/problem.pdf
+latex/contest.pdf
 __pycache__
 *.swp

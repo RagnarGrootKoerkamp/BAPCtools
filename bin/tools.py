@@ -1280,6 +1280,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
       'pdflatex', '-output-directory', './build/contest',
       os.path.abspath(f + '.tex')
   ]) != 0:
+    os.chdir(pwd)
     # Non-zero exit code marks a failure.
     print(_c.red, 'An error occurred while compiling latex!', _c.reset)
     return False
