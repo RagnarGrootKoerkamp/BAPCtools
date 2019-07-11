@@ -996,6 +996,10 @@ def generate_output(problem, settings):
     # Look fora c++ solution if available.
     submission = None
     for s in submissions:
+      # Skip files containing 'NO_GENERATE'.
+      with open(s) as submission_file:
+        if submission_file.read().find('NO_GENERATE') != -1:
+          continue
       if os.path.splitext(s)[1] == '.cpp':
         submission = s
         break
