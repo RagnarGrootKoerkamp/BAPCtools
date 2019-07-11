@@ -641,15 +641,15 @@ def default_output_validator(ansfile, outfile, settings):
     words1 = re.split(rb'\b(\S+)\b', data1)
     words2 = re.split(rb'\b(\S+)\b', data2)
   else:
-    words1 = re.split(rb' +', data1)
-    words2 = re.split(rb' +', data2)
-    if words1[-1] == '':
+    words1 = re.split(rb'[ \n]+', data1)
+    words2 = re.split(rb'[ \n]+', data2)
+    if words1[-1] == b'':
       words1.pop()
-    if words2[-1] == '':
+    if words2[-1] == b'':
       words2.pop()
-    if words1[0] == '':
+    if words1[0] == b'':
       words1.pop(0)
-    if words2[0] == '':
+    if words2[0] == b'':
       words2.pop(0)
 
   if words1 == words2:
