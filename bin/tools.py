@@ -780,7 +780,7 @@ def process_testcase(run_command,
     verdict = 'ACCEPTED' if val_ret[0] else 'WRONG_ANSWER'
     remark = val_ret[1]
 
-    if run_ret[1] is not None and args.output:
+    if run_ret[1] is not None and (hasattr(args, 'output') and args.output):
       if verdict == 'WRONG_ANSWER' or args.error:
           remark += '\n' + crop_output(run_ret[1]) + '\n'
 
@@ -908,7 +908,7 @@ def get_submission_type(s):
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
   # Require both in and ans files
-  if settings.testcases:
+  if hasattr(settings, 'testcases') and settings.testcases:
     testcases = [os.path.join(problem, t) for t in settings.testcases]
   else:
     testcases = get_testcases(problem, True)
@@ -922,7 +922,7 @@ def run_submissions(problem, settings):
   if settings.validation == 'custom':
     output_validators = get_validators(problem, 'output')
 
-  if settings.submissions:
+  if hasattr(settings, 'submissions') and settings.submissions:
     submissions = {
         'ACCEPTED': [],
         'WRONG_ANSWER': [],
