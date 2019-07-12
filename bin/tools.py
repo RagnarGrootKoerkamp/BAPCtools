@@ -643,14 +643,10 @@ def default_output_validator(ansfile, outfile, settings):
   else:
     words1 = re.split(rb'[ \n]+', data1)
     words2 = re.split(rb'[ \n]+', data2)
-    if words1[-1] == b'':
-      words1.pop()
-    if words2[-1] == b'':
-      words2.pop()
-    if words1[0] == b'':
-      words1.pop(0)
-    if words2[0] == b'':
-      words2.pop(0)
+    if len(words1)>0 and words1[-1] == b'': words1.pop()
+    if len(words2)>0 and words2[-1] == b'': words2.pop()
+    if len(words1)>0 and words1[0] == b'': words1.pop(0)
+    if len(words2)>0 and words2[0] == b'': words2.pop(0)
 
   if words1 == words2:
     if not settings.space_change_sensitive:
@@ -1302,7 +1298,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
 def sort_problems(problems):
   configs = [ (problem, read_configs(problem)) for problem in problems ]
   problems = [(pair[0], pair[1]['probid']) for pair in configs if 'probid' in pair[1] ]
-  problems.sort(key=lambda x: x[1])
+  problems.sort(key=lambda x: (x[1], x[0]))
   return problems
 
 
