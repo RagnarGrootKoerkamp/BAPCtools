@@ -1,4 +1,0 @@
-#!/bin/sh
-
-# A script (shell of python) to build the generators
-# You may assume that this script is called from the `generators` directory.
