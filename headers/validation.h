@@ -190,7 +190,7 @@ class Validator {
 	string read_string_impl(string expected_string = "", string wanted = "string") {
 		if(ws) {
 			char next = in.peek();
-			if(isspace(next)) expected(wanted, "whitespace");
+			if(isspace(next)) expected(wanted, next=='\n' ? "newline" : "whitespace");
 		}
 		string s;
 		if(in >> s) {
