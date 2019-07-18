@@ -265,6 +265,12 @@ def exec_command(command, expect=0, **kwargs):
   return (True if process.returncode == expect else process.returncode,
           crop_output(stderr.decode('utf-8')))
 
+def python_interpreter(version):
+  if args.pypy:
+    if version is 2: return 'pypy'
+    print("\n" + _c.red + "Pypy only works for python2!" + _c.reset)
+    return None
+  else: return 'python' + str(version)
 
 # a function to convert c++ or java to something executable
 # returns a command to execute
@@ -301,15 +307,20 @@ def build(path, action=None):
     ]
   elif ext in ('.py', '.py2'):
     compile_command = None
-    run_command = ['python2', path]
+    p = python_interpreter(2)
+    if p is None: return None
+    run_command = [p, path]
   elif ext == '.py3':
     compile_command = None
-    run_command = ['python3', path]
+    p = python_interpreter(3)
+    if p is None: return None
+    run_command = [p, path]
   elif ext == '.ctd':
     compile_command = None
-    run_command = [
-        os.path.join(TOOLS_ROOT, 'checktestdata', 'checktestdata'), path
-    ]
+    ctd_path = os.path.join(TOOLS_ROOT, 'checktestdata', 'checktestdata')
+    if not os.path.isfile(ctd_path):
+      return None
+    run_command = [ ctd_path, path ]
   else:
     print(path, 'has unknown extension', ext)
     exit()
@@ -1728,6 +1739,8 @@ Run this from one of:
       '-t', '--timeout', help='Override the default timeout.')
   runparser.add_argument(
       '-o', '--output', action='store_true', help='Print output of WA submissions.')
+  runparser.add_argument(
+      '--pypy', action='store_true', help='Use pypy instead of cpython.')
 
   # Sort
   subparsers.add_parser(
