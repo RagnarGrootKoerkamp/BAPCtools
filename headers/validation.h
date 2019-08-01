@@ -21,7 +21,7 @@ const string ws_sensitive_flag = "space_change_sensitive";
 
 class Validator {
   protected:
-	Validator(bool ws, bool case_ , istream &in) : in(in), ws(ws), case_sensitive(case_) {
+	Validator(bool ws_, bool case_ , istream &in_) : in(in_), ws(ws_), case_sensitive(case_) {
 		if(ws) in >> noskipws;
 		else in >> skipws;
 	}
@@ -258,8 +258,8 @@ class InputValidator : public Validator {
 class OutputValidator : public Validator {
   public:
 	// An OutputValidator can be run in different modes.
-	OutputValidator(int argc, char **argv, istream &in = std::cin) :
-		Validator(is_ws_sensitive(argc, argv), is_case_sensitive(argc, argv), in) {
+	OutputValidator(int argc, char **argv, istream &in_ = std::cin) :
+		Validator(is_ws_sensitive(argc, argv), is_case_sensitive(argc, argv), in_) {
 	}
 
   private:

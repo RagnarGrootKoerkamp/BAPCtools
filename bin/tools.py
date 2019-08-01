@@ -287,12 +287,21 @@ def build(path, action=None):
   os.makedirs(os.path.dirname(exefile), exist_ok=True)
   if ext == '.c':
     compile_command = [
-        'gcc', '-std=c11', '-Wall', '-O2', '-o', exefile, path, '-lm'
+        'gcc',
+        '-I', os.path.join(TOOLS_ROOT, 'headers'),
+        '-std=c11',
+        '-Wall',
+        '-O2',
+        '-o',
+        exefile,
+        path,
+        '-lm'
     ]
     run_command = [exefile]
   elif ext in ('.cc', '.cpp'):
     compile_command = [
-        'g++',
+        '/usr/bin/g++',
+        '-I', os.path.join(TOOLS_ROOT, 'headers'),
         '-std=c++11',
         '-Wall',
         '-O2',
@@ -1868,7 +1877,7 @@ def main():
       # only build the pdf on the problem level
       success &= build_problem_pdf(problem, args.all or level == 'problem')
 
-    if action in ['validate', 'in', 'all']:
+    if action in ['validate', 'input', 'all']:
       success &= validate(problem, 'input', settings)
     if action in ['generate', 'all']:
       generate_output(problem, settings)
