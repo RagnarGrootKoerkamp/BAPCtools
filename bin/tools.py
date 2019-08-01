@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+# PYTHON_ARGCOMPLETE_OK
 """Can be run on multiple levels:
 
     - from the root of the git repository
@@ -18,6 +19,7 @@ Parts of this are copied from/based on run_program.py, written by Raymond.
 import sys
 import stat
 import argparse
+import argcomplete # For automatic shell completions
 import os
 import datetime
 import re
@@ -1597,14 +1599,7 @@ def new_problem(args):
     substitute_dir_variables(dirname, variables)
 
 
-def main():
-  global TOOLS_ROOT
-  executable = __file__
-  if os.path.islink(executable):
-    executable = os.path.realpath(executable)
-  TOOLS_ROOT = os.path.realpath(
-      os.path.normpath(os.path.join(os.path.dirname(executable), '..')))
-
+def build_parser():
   parser = argparse.ArgumentParser(
       description="""
 Tools for ICPC style problem sets.
@@ -1789,6 +1784,22 @@ Run this from one of:
       'kattis',
       parents=[global_parser],
       help='Build a directory for verification with the kattis format')
+
+  argcomplete.autocomplete(parser)
+
+  return parser
+
+
+def main():
+  global TOOLS_ROOT
+  executable = __file__
+  if os.path.islink(executable):
+    executable = os.path.realpath(executable)
+  TOOLS_ROOT = os.path.realpath(
+      os.path.normpath(os.path.join(os.path.dirname(executable), '..')))
+
+  # Build Parser
+  parser = build_parser()
 
   # Process arguments
   global args
