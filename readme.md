@@ -13,6 +13,7 @@ For now the only way to use this is to clone the repository and install the
 required dependencies manually:
 
 - Python 3 with the `yaml` [library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install pyyaml` or the `python-yaml` Arch Linux package.
+- The `python[3]-argcomplete` package for command-line argument completion.
 - The `pdflatex` command, provided by `texlive-bin` on Arch Linux.
 - Potentially some specific LaTeX packages (like tikz) provided by `texlive-extra`.
 
