@@ -160,6 +160,7 @@ def build_problem_zip(probdir, output, args):
     # Find input validator.
     # With the Kattis flag, This adds an extra directory layer so that included
     # headers are found.
+    # TODO(ragnar): copy included headers as well, but only when needed.
     have_validator = False
     if os.path.isdir(os.path.join(probdir, 'input_validators')):
         try:

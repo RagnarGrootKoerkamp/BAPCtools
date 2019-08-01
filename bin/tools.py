@@ -11,9 +11,9 @@ everything inside it
 Needs work to make is work on Windows.
 In particular regarding os.path.join instead of joining strings with /
 
-- Ragnar
+- Ragnar Groot Koerkamp
 
-Parts of this are copied from/based on run_program.py, written by Raymond.
+Parts of this are copied from/based on run_program.py, written by Raymond van Bommel.
 """
 
 import sys
@@ -21,7 +21,9 @@ import stat
 import argparse
 import argcomplete # For automatic shell completions
 import os
+import pathlib
 import datetime
+import time
 import re
 import shutil
 import subprocess
@@ -78,58 +80,74 @@ class Colorcodes(object):
 _c = Colorcodes()
 
 
-def clearline():
-  print('\033[K', end='', flush=True)
-
-
-def print_action(action, state=None, end='\r'):
-  clearline()
-  print(_c.blue, action, _c.reset, sep='', end='')
-  if state is None:
-    print(end=end)
-  else:
-    print(': ', state, sep='', end=end)
-
-
-def get_bar(i, total, length):
-  fill = i * (length - 2) // total
-  return '[' + '#' * fill + '-' * (length - 2 - fill) + ']'
-
-
-def print_action_bar(action, i, total, state=None, max_state_len=None):
-  if verbose:
-    print_action(action, state, end='\r')
-    return
-
-  clearline()
-  width = shutil.get_terminal_size().columns
-  print(_c.blue, action, _c.reset, sep='', end='')
-  if state is None:
-    print(end=' ')
-    width -= len(action) + 1
-  else:
-    print(': ', state, sep='', end=' ')
-    if max_state_len is None:
-      width -= len(action) + len(state) + 3
-    else:
-      x = max(len(state), max_state_len)
-      width -= len(action) + x + 3
-      print(' ' * (x - len(state)), end='')
-  print(get_bar(i, total, width), end='\r', flush=True)
-
-
-def add_newline(s):
-  if s.endswith('\n'):
-    return s
-  else:
-    return s + '\n'
-
-
 def strip_newline(s):
   if s.endswith('\n'):
     return s[:-1]
   else:
     return s
+
+
+# A class that draws a progressbar.
+# Construct with a constant prefix, the max length of the items to process, and
+# the number of items to process.
+# When count is None, the bar itself isn't shown.
+# Start each loop with bar.start(current_item), end it with bar.done(message).
+# Optionally, multiple errors can be logged using bar.log(error). If so, the
+# final message on bar.done() will be ignored.
+class ProgressBar:
+  def __init__(self, prefix, max_len = None, count = None):
+    self.prefix = prefix         # The prefix to always print
+    self.item_width = max_len    # The max length of the items we're processing
+    self.count = count           # The number of items we're processing
+    self.i = 0
+    self.total_width = shutil.get_terminal_size().columns # The terminal width
+    if self.item_width is not None:
+      self.bar_width = self.total_width - len(self.prefix) - 2 - self.item_width - 1
+
+  def update(self, count, max_len):
+    self.count += count
+    self.item_width = max(self.item_width, max_len) if self.item_width else max_len
+    if self.item_width is not None:
+      self.bar_width = self.total_width - len(self.prefix) - 2 - self.item_width - 1
+
+  def clearline():
+    print('\033[K', end='', flush=True)
+
+  def action(prefix, item, width=None):
+    if width is None: width = 0
+    return f'{_c.blue}{prefix}{_c.reset}: {item:<{width}}'
+
+  def get_prefix(self):
+    return ProgressBar.action(self.prefix, self.item, self.item_width)
+
+  def get_bar(self):
+    if self.count is None: return ''
+    fill = (self.i-1) * (self.bar_width - 2) // self.count
+    return '[' + '#' * fill + '-' * (self.bar_width - 2 - fill) + ']'
+
+  def start(self, item = ''):
+    self.i += 1
+    assert self.count is None or self.i <= self.count
+
+    self.item = item
+    self.logged = False
+    print(self.get_prefix(), self.get_bar(), end='\r', flush=True)
+
+  # Done can be called multiple times to make multiple persistent lines.
+  # Make sure that the message does not end in a newline.
+  def log(self, message = ''):
+    ProgressBar.clearline()
+    self.logged = True
+    print(self.get_prefix(), message, flush=True)
+
+  # Return True when something was printed
+  def done(self, success = True, message = ''):
+    ProgressBar.clearline()
+    if self.logged: return False
+    if verbose or not success:
+      self.log(message)
+      return True
+    return False
 
 
 def exit(clean=True):
@@ -275,16 +293,17 @@ def python_interpreter(version):
   else: return 'python' + str(version)
 
 # a function to convert c++ or java to something executable
-# returns a command to execute
-def build(path, action=None):
-  if action is not None:
-    print_action(action, print_name(path))
-
+# returns a command to execute and an optional error message
+def build(path):
   # mirror directory structure on tmpfs
   basename = os.path.basename(path)
   (base, ext) = os.path.splitext(basename)
-  exefile = os.path.join(tmpdir, os.path.dirname(path), base)
-  os.makedirs(os.path.dirname(exefile), exist_ok=True)
+  outfile = os.path.join(tmpdir, os.path.dirname(path), base)
+  os.makedirs(os.path.dirname(outfile), exist_ok=True)
+
+  compile_command = None
+  run_command = None
+
   if ext == '.c':
     compile_command = [
         'gcc',
@@ -293,11 +312,11 @@ def build(path, action=None):
         '-Wall',
         '-O2',
         '-o',
-        exefile,
+        outfile,
         path,
         '-lm'
     ]
-    run_command = [exefile]
+    run_command = [outfile]
   elif ext in ('.cc', '.cpp'):
     compile_command = [
         '/usr/bin/g++',
@@ -307,71 +326,66 @@ def build(path, action=None):
         '-O2',
         '-fdiagnostics-color=always',  # Enable color output
         '-o',
-        exefile,
+        outfile,
         path
     ]
-    run_command = [exefile]
+    run_command = [outfile]
   elif ext == '.java':
     compile_command = ['javac', '-d', tmpdir, path]
     run_command = [
         'java', '-enableassertions', '-Xss1024M', '-cp', tmpdir, base
     ]
   elif ext in ('.py', '.py2'):
-    compile_command = None
     p = python_interpreter(2)
-    if p is None: return None
-    run_command = [p, path]
+    if p is not None: run_command = [p, path]
   elif ext == '.py3':
-    compile_command = None
     p = python_interpreter(3)
-    if p is None: return None
-    run_command = [p, path]
+    if p is not None: run_command = [p, path]
   elif ext == '.ctd':
-    compile_command = None
     ctd_path = os.path.join(TOOLS_ROOT, 'checktestdata', 'checktestdata')
-    if not os.path.isfile(ctd_path):
-      return None
-    run_command = [ ctd_path, path ]
+    if os.path.isfile(ctd_path):
+      run_command = [ ctd_path, path ]
   else:
-    print(path, 'has unknown extension', ext)
-    exit()
+    return (None, 'Unknown extension ' + ext)
 
-  # prevent building something twice
-  if compile_command is not None and not os.path.isfile(exefile):
+  # Prevent building something twice in one invocation of tools.py.
+  message = ''
+  if compile_command is not None and not os.path.isfile(outfile):
     ret = exec_command(compile_command)
     if ret[0] is not True:
-      print_action(
-          action if action is not None else 'Building',
-          print_name(path) + ' ' + _c.red + 'FAILED' + _c.reset,
-          end='\n')
+      message = f'{_c.red}FAILED{_c.reset}'
       if ret[1] is not None:
-        print(_c.reset, ret[1], sep='', end='\n', flush=True)
-      return None
+        message += '\n' + strip_newline(ret[1])
+      run_command = None
 
-  return run_command
+  if run_command is None and message is '':
+    message = f'{_c.red}FAILED{_c.reset}'
+  return (run_command, message)
 
 # build all files in a directory; return a list of tuples (file, command)
 # When 'build' is found, we execute it, and return 'run' as the executable
 # This recursively calls itself for subdirectories.
-def build_directory(directory, include_dirname=False, action=None):
+def build_directory(directory, include_dirname=False, bar=None):
   commands = []
 
   buildfile = os.path.join(directory, 'build')
   runfile = os.path.join(directory, 'run')
 
   if is_executable(buildfile):
-    if action is not None:
-      print_action(action, buildfile)
+    if bar is None: bar = ProgressBar('Running')
+    else: bar.update(1, len(buildfile))
+    bar.start(buildfile)
 
     cur_path = os.getcwd()
     os.chdir(directory)
     if exec_command(['./build'])[0] is not True:
-      print(path, 'failed!')
-      exit()
+      bar.done(False, f'{_c.red}FAILED{_c.reset}')
+      return []
     os.chdir(cur_path)
     if not is_executable(runfile):
-      print('after running', path, ',', runfile, 'must be a valid executable!')
-      exit()
+      bar.done(False, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
+      return []
+    bar.done()
     return [('run', [runfile])]
 
   if is_executable(runfile):
@@ -379,9 +393,19 @@ def build_directory(directory, include_dirname=False, action=None):
 
   files = glob(os.path.join(directory, '*'))
   files.sort()
+
+  if len(files) == 0: return commands
+
+  max_file_len = max(len(path) for path in files)
+  if bar is None: bar = ProgressBar('Building', max_file_len, len(files))
+  else: bar.update(len(files), max_file_len)
+
   for path in files:
+    bar.start(print_name(path))
+
     basename = os.path.basename(path)
     if basename == 'a.out':
+      bar.done()
       continue
 
     if include_dirname:
@@ -391,17 +415,23 @@ def build_directory(directory, include_dirname=False, action=None):
       name = basename
 
     if os.path.isdir(path):
-      r =  build_directory(path, include_dirname=True, action=action)
+      bar.done()
+      r = build_directory(path, include_dirname=True, bar=bar)
       commands += r
+      continue
     elif is_executable(path):
       commands.append((name, [path]))
     else:
       ext = os.path.splitext(name)[1]
       if ext in build_extensions:
-        run_command = build(path, action=action)
+        run_command, message = build(path)
         if run_command != None:
           commands.append((name, run_command))
-  clearline()
+        else:
+          bar.log(message)
+
+    bar.done()
+
   return commands
 
 
@@ -416,8 +446,6 @@ def get_testcases(problem, needans=True, only_sample=False):
   if not only_sample:
     infiles += glob(os.path.join(problem, 'data/secret/*.in'))
 
-  print_action('Reading testcases')
-
   testcases = []
   for f in infiles:
     name = os.path.splitext(f)[0]
@@ -425,15 +453,13 @@ def get_testcases(problem, needans=True, only_sample=False):
       continue
     testcases.append(name)
   testcases.sort()
-  clearline()
 
   return testcases
 
 
 def get_validators(problem, validator_type):
   return build_directory(
-      os.path.join(problem, validator_type + '_validators/'),
-      action='Building validator')
+      os.path.join(problem, validator_type + '_validators/'))
 
 
 # Validate the .in and .ans files for a problem.
@@ -479,12 +505,9 @@ def validate(problem, validator_type, settings):
       [len(print_name(testcase) + ext) for testcase in testcases])
 
   # validate the testcases
-  i = 0
-  total = len(testcases)
+  bar = ProgressBar(action, max_testcase_len, len(testcases))
   for testcase in testcases:
-    print_action_bar(action, i, total, (
-        '{:<' + str(max_testcase_len+1) + '}').format(print_name(testcase) + ext))
-    i += 1
+    bar.start(print_name(testcase)+ext)
     for validator in validators:
       # simple `program < test.in` for input validation and ctd output validation
       if validator_type == 'input' or os.path.splitext(
@@ -500,30 +523,24 @@ def validate(problem, validator_type, settings):
             flags,
             expect=rtv_ac,
             stdin=open(testcase + ext, 'r'))
+
+      # Failure?
       if ret[0] is not True:
         success = False
-
-        print_action(
-            action, ('{:<' + str(max_testcase_len+1) +
-                     '}').format(print_name(testcase) + ext),
-            end='')
-        print(_c.red, 'FAILED ', validator[0], _c.reset, sep='', end='')
+        message = _c.red + 'FAILED ' + validator[0] + _c.reset
 
         # Print error message?
         if ret[1] is not None:
-          # Print the error on a new line, in orange.
-          print('  ', _c.orange, ret[1], _c.reset, sep='', end='', flush=True)
-        else:
-          print(flush=True)
-      else:
-        if verbose:
-          print()
+          message += '  ' + _c.orange + strip_newline(ret[1]) + _c.reset
+
+        bar.log(message)
+    bar.done()
 
   if not verbose and success:
-    print_action(action, _c.green + 'Done' + _c.reset, end='\n')
+    print(ProgressBar.action(action, f'{_c.green}Done{_c.reset}'))
   else:
-    clearline()
     print()
+
   return success
 
 
@@ -615,12 +632,22 @@ def stats(problems):
 def get_submissions(problem):
   dirs = glob(os.path.join(problem, 'submissions/*/'))
   commands = {}
+
+  max_dir_len = max(len(os.path.basename(os.path.normpath(d))) for d in dirs)
+
+  bar = ProgressBar('Building', max_dir_len, len(dirs))
+
   for d in dirs:
     dirname = os.path.basename(os.path.normpath(d))
+    bar.start(dirname)
+    bar.done()
     if not dirname.upper() in problem_outcomes:
       continue
     # include directory in submission name
-    commands[dirname.upper()] = build_directory(d, True, 'Build submission')
+    commands[dirname.upper()] = build_directory(d, True, bar=bar)
+
+  if verbose: print()
+
   return commands
 
 
@@ -826,19 +853,14 @@ def run_submission(submission,
   time_max = 0
 
   action = 'Running ' + submission[0]
-  max_testcase_len = max([len(print_name(testcase)) for testcase in testcases])
-  i = 0
-  total = len(testcases)
+  max_total_length = max(max([len(print_name(testcase)) for testcase in testcases]), 15) + max_submission_len
+  max_testcase_len = max_total_length - len(submission[0])
 
-  printed_error = False
+  printed = False
+  bar = ProgressBar(action, max_testcase_len, len(testcases))
 
   for testcase in testcases:
-    print_action_bar(
-        action, i, total,
-        ('{:<' + str(max_testcase_len + max_submission_len - len(submission[0]))
-         + '}').format(print_name(testcase)))
-    i += 1
-
+    bar.start(print_name(testcase))
     outfile = os.path.join(tmpdir, 'test.out')
     #silent = expected != 'ACCEPTED'
     silent = False
@@ -846,6 +868,7 @@ def run_submission(submission,
         process_testcase(submission[1], testcase, outfile, settings, output_validators,
                 silent, need_newline)
     verdict_count[verdict] += 1
+
     time_total += runtime
     time_max = max(time_max, runtime)
 
@@ -853,36 +876,12 @@ def run_submission(submission,
       table_dict[testcase] = verdict == 'ACCEPTED'
 
     got_expected = verdict == 'ACCEPTED' or verdict == expected
-    if verbose or not got_expected:
-      printed_error = True
-      print_action(
-          action, ('{:<' + str(max_testcase_len) + '}').format(
-              print_name(testcase)),
-          end='')
-      color = _c.green if got_expected else _c.red
-      print(
-          ' ' * (1 + max_submission_len - len(submission[0])),
-          '{:6.3f}s'.format(runtime),
-          ' ',
-          color,
-          verdict,
-          _c.reset,
-          sep='',
-          end='')
+    color = _c.green if got_expected else _c.red
+    message = '{:6.3f}s '.format(runtime) + color + verdict + _c.reset
+    if remark:
+        message += '  ' + _c.orange + strip_newline(remark) + _c.reset
 
-      # Print error message?
-      if remark:
-        # Print the error on a new line, in orange.
-        print(
-            '  ',
-            _c.orange,
-            add_newline(remark),
-            _c.reset,
-            sep='',
-            end='',
-            flush=True)
-      else:
-        print(flush=True)
+    printed |= bar.done(got_expected, message)
 
     if not verbose and verdict in ['TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']:
       break
@@ -893,21 +892,19 @@ def run_submission(submission,
       verdict = v
       break
 
-  if printed_error:
+  # Use a bold summary line if things were printed before.
+  if printed:
     color = _c.boldgreen if verdict == expected else _c.boldred
   else:
     color = _c.green if verdict == expected else _c.red
 
-  clearline()
-  print_action(
-      _c.white + action + _c.reset,
-      ' ' * (max_submission_len - len(submission[0]) + max_testcase_len - 15) +
-      (_c.bold if printed_error else '') + 'max/sum {:6.3f}s {:6.3f}s '.format(
-          time_max, time_total) + color + verdict + _c.reset,
-      end='\n')
+  time_avg = time_total / len(testcases)
 
-  if verbose or printed_error:
-    print()
+  # Print summary line
+  boldcolor = _c.bold if printed else ''
+  print(f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{verdict}')
+
+  if printed: print()
 
   return verdict == expected
 
@@ -947,12 +944,30 @@ def run_submissions(problem, settings):
         'TIME_LIMIT_EXCEEDED': [],
         'RUN_TIME_ERROR': []
     }
+    max_submission_len = max(len(print_name(os.path.join(problem, s))) for s in settings.submissions)
+    bar = ProgressBar('Building', max_submission_len, len(settings.submissions)) 
+
     for submission in settings.submissions:
       path = os.path.join(problem, submission)
-      run_command = build(path, action='Build submission')
-      if run_command:
-        submissions[get_submission_type(path)].append((print_name(path),
-                                                       run_command))
+      bar.start(print_name(path))
+
+      if os.path.isdir(path):
+        bar.done()
+        commands = build_directory(path, True, bar)
+        for c in commands:
+          submissions[get_submission_type(c[0])].append(c)
+        continue
+
+      if os.path.isfile(path):
+        run_command, message = build(path)
+        bar.done(run_command is not None, message)
+        if run_command:
+          submissions[get_submission_type(path)].append((print_name(path), run_command))
+        continue
+
+      bar.done(False, f'{_c.red}FAILED{_c.reset} {path} is not a file or directory.')
+
+    if verbose: print()
   else:
     submissions = get_submissions(problem)
 
@@ -1025,10 +1040,12 @@ def generate_output(problem, settings):
         if submission is None:
           submission = s
 
-  print('Using', print_name(submission))
-
   # build submission
-  run_command = build(submission)
+  bar = ProgressBar('Building')
+  bar.start(print_name(submission))
+  run_command, message = build(submission)
+  bar.done(False, message)
+  if verbose: print()
 
   # get all testcases with .in files
   testcases = get_testcases(problem, False)
@@ -1040,14 +1057,11 @@ def generate_output(problem, settings):
   nfail = 0
 
   max_testcase_len = max([len(print_name(testcase)) for testcase in testcases])
-  i = 0
-  total = len(testcases)
+
+  bar = ProgressBar('Generate', max_testcase_len, len(testcases))
 
   for testcase in testcases:
-    print_action_bar('Generate', i, total,
-                     ('{:<' + str(max_testcase_len) + '}').format(
-                         print_name(testcase)))
-    i += 1
+    bar.start(print_name(testcase))
 
     outfile = os.path.join(tmpdir, 'test.out')
     try:
@@ -1057,46 +1071,38 @@ def generate_output(problem, settings):
     ret, timeout, duration = run_testcase(run_command, testcase, outfile,
                                           settings.timelimit)
     message = ''
-    force = False
+    same = False
     if ret[0] is not True or timeout is True:
       message = 'FAILED'
-      force = True
       nfail += 1
     else:
       if os.access(testcase + '.ans', os.R_OK):
         compare_settings = argparse.Namespace()
         compare_settings.__dict__.update({
-            'case_sensitive': False,
-            'space_change_sensitive': False,
+            'case_sensitive': True,
+            'space_change_sensitive': True,
             'floatabs': None,
             'floatrel': None
         })
         if default_output_validator(testcase + '.ans', outfile,
                                     compare_settings)[0]:
+          same = True
           nsame += 1
         else:
           if hasattr(settings, 'force') and settings.force:
             shutil.move(outfile, testcase + '.ans')
             nchange += 1
             message = 'CHANGED'
-            force = True
           else:
             nskip += 1
             message = _c.red + 'SKIPPED' + _c.reset + '; supply -f to overwrite'
-            force = True
       else:
         shutil.move(outfile, testcase + '.ans')
         nnew += 1
         message = 'NEW'
-        force = True
 
-    if verbose or force:
-      print_action(
-          'Generate', ('{:<' + str(max_testcase_len) + '}').format(
-              print_name(testcase)) + '  ' + message,
-          end='\n')
+    bar.done(same, message)
 
-  clearline()
   print()
   print('Done:')
   print('%d testcases new' % nnew)
