@@ -8,6 +8,7 @@ import re
 import zipfile
 
 
+
 def build_problem_zip(probdir, output, args):
     """Make DOMjudge ZIP file for specified problem."""
 
@@ -284,4 +285,102 @@ def build_contest_zip(zipfiles, outfile, args):
 
     zf.close()
 
-# vim: et ts=4 sts=4 sw=4:
+
+# preparing a kattis directory involves creating lots of symlinks to files which
+# are the same. If it gets changed for the format, we copy the file and modify
+# it accordingly.
+def prepare_kattis_directory():
+  p = Path('kattis')
+  p.mkdir(parents=True,exist_ok=True)
+
+
+def prepare_kattis_problem(problem, settings):
+  shortname = alpha_num(os.path.basename(os.path.normpath(problem)))
+  path = os.path.join('kattis', shortname)
+  orig_path = os.path.join('../../', problem)
+
+  if not os.path.exists(path):
+    os.mkdir(path)
+
+  for same in [ 'data', 'generators', 'problem.yaml', 'submissions' ]:
+    symlink_quiet(os.path.join(orig_path, same), os.path.join(path, same))
+
+  # make an input validator
+  vinput = os.path.join(path, 'input_format_validators')
+  if not os.path.exists(vinput):
+    os.mkdir(vinput)
+
+  symlink_quiet(
+      os.path.join('../', orig_path, 'input_validators'),
+      os.path.join(vinput, shortname + '_validator'))
+
+  # After this we only look inside directories.
+  orig_path = os.path.join('../', orig_path)
+
+  # make a output_validators directory with in it "$shortname-validator"
+  if settings.validation == 'custom':
+    voutput = os.path.join(path, 'output_validators')
+    if not os.path.exists(voutput):
+      os.mkdir(voutput)
+    symlink_quiet(
+        os.path.join(orig_path, 'output_validators'),
+        os.path.join(voutput, shortname + '_validator'))
+
+  # make a problem statement with problem.en.tex -> problem.tex,
+  # but all other files intact.
+  pst = 'problem_statement'
+  st = os.path.join(path, pst)
+  if not os.path.exists(st):
+    os.mkdir(st)
+
+  # determine the files in the 'problem statement' directory
+  wd = os.getcwd()
+  os.chdir(os.path.join(problem, pst))
+  files = glob('*')
+  os.chdir(wd)
+
+  assert "problem.tex" in files
+
+  # remember: current wd is st
+  for f in files:
+    if f != "problem.tex":
+      symlink_quiet(os.path.join(orig_path, pst, f), os.path.join(st, f))
+
+  source = os.path.join(problem, pst, 'problem.tex')
+  target = os.path.join(st, 'problem.en.tex')
+  if os.path.islink(target) or os.path.exists(target):
+    os.unlink(target)
+  with open(source, 'r') as f, open(target, 'w') as g:
+    for line in f:
+      if line == "\\begin{Input}\n":
+        g.write("\section*{Input}\n")
+      elif line == "\\begin{Output}\n":
+        g.write("\section*{Output}\n")
+      elif line in [ "\\end{Input}\n", "\\end{Output}\n" ]:
+        g.write("\n")
+      else:
+        g.write(line)
+
+
+def build_sample_zip(problems):
+  zf = zipfile.ZipFile('samples.zip',
+                       mode="w",
+                       compression=zipfile.ZIP_DEFLATED,
+                       allowZip64=False)
+
+  for problem in util.sort_problems(problems):
+    letter = problem[1]
+    problem = problem[0]
+    samples = util.get_testcases(problem, needans=True, only_sample=True)
+    for i in range(0, len(samples)):
+      sample = samples[i]
+      zf.write(sample+'.in',  os.path.join(letter, str(i))+'.in')
+      zf.write(sample+'.ans', os.path.join(letter, str(i))+'.ans')
+
+  zf.close()
+  print("Wrote zip to samples.zip")
+
+
+
+
+# vim: et ts=2 sts=2 sw=2:
