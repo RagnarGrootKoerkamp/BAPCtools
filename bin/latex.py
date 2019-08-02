@@ -4,9 +4,21 @@ import os
 import util
 import re
 import subprocess
+import tempfile
 from pathlib import Path
 
 import config
+
+# Creates a symlink if it not exists, else it does nothing
+# the symlink will be created at link_name, pointing to target
+def symlink_quiet(target, link_name):
+    if link_name.is_symlink():
+        link_name.unlink()
+    if not link_name.exists():
+        link_name.symlink_to(target)
+    # if it existed and is not a symlink, do nothing
+
+
 
 
 def require_latex_build_dir():
@@ -76,16 +88,15 @@ def build_problem_pdf(problem, make_pdf=True):
 
     # create the problemid.tex file which sets the section counter
     problemid_file_path = builddir / 'problem/problemid.tex'
-    with open(problemid_file_path, 'wt') as problemid_file:
+    with problemid_file_path.open('wt') as problemid_file:
         problem_config = util.read_configs(problem)
         problemid = ord(problem_config['probid']) - ord('A')
-        problemid_file.write('\\setcounter{section}{' + str(problemid) + '}\n')
+        problemid_file.write(f'\\setcounter{{section}}{{{problemid}}}\n')
         # Also renew the timelimit command. Use an integral timelimit if
         # possible
         tl = problem_config['timelimit']
         tl = int(tl) if abs(tl - int(tl)) < 0.25 else tl
-        renewcom = '\\renewcommand{\\timelimit}{' + str(tl) + '}\n'
-        problemid_file.write(renewcom)
+        problemid_file.write(f'\\renewcommand{{\\timelimit}}{{{tl}}}\n')
 
     # create the samples.tex file
     samples = util.get_testcases(problem, needans=True, only_sample=True)
@@ -170,20 +181,19 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
             includedir = Path('.') / 'build' / problem / 'problem_statement'
             includepath = includedir / (t + '.tex')
             if (config.tools_root / 'latex' / includepath).exists():
-                problems_file.write('\\begingroup\\graphicspath{{' + str(includedir) + os.sep +
-                                    '}}\n')
-                problems_file.write('\\input{' +
-                                    str(Path('.') / 'build' / problem / 'problemid.tex') + '}\n')
-                problems_file.write('\\input{' + str(includepath) + '}\n')
+                problems_file.write('\\begingroup\\graphicspath{{{{{includedir}{os.sep}}}}}\n')
+                problemidpath = Path('.') / 'build' / problem / 'problemid.tex'
+                problems_file.write('\\input{{{problemidpath}}}\n')
+                problems_file.write('\\input{{{includepath}}}\n')
                 if statement:
-                    problems_file.write('\\input{' +
-                                        str(Path('.') / 'build' / problem / 'samples.tex') + '}\n')
+                    samplespath = Path('.') / 'build' / problem / 'samples.tex'
+                    problems_file.write('\\input{{{samplespath}}}\n')
                 problems_file.write('\\endgroup\n')
 
         # include a statistics slide in the solutions PDF
         if solutions and stats.exists():
-            problems_file.write(
-                '\\input{' + str(Path('.') / 'build' / 'contest' / 'solution_stats.tex') + '}\n')
+            statspath = Path('.') / 'build' / 'contest' / 'solution_stats.tex'
+            problems_file.write('\\input{{{statspath}}}\n')
 
     # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
     logo_path = builddir / 'contest/logo.pdf'

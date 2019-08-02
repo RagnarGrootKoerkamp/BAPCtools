@@ -897,16 +897,6 @@ def alpha_num(string, allow_dash=False):
         return re.sub(r'[^a-z0-9]', '', string.lower())
 
 
-# Creates a symlink if it not exists, else it does nothing
-# the symlink will be created at link_name, pointing to target
-def symlink_quiet(target, link_name):
-    if link_name.is_symlink():
-        link_name.unline()
-    if not link_name.exists():
-        link_name.symlink_to(target)
-    # if it existed and is not a symlink, do nothing
-
-
 def split_submissions(s):
     # Everything containing data/, .in, or .ans goes into testcases.
     submissions = []
