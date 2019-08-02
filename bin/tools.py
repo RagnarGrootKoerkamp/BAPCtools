@@ -8,9 +8,6 @@
 the tool will know where it is (by looking for the .git directory) and run on
 everything inside it
 
-Needs work to make is work on Windows.
-In particular regarding os.path.join instead of joining strings with /
-
 - Ragnar Groot Koerkamp
 
 Parts of this are copied from/based on run_program.py, written by Raymond van Bommel.
@@ -21,7 +18,7 @@ import stat
 import argparse
 import argcomplete # For automatic shell completions
 import os
-import pathlib
+from pathlib import Path
 import datetime
 import time
 import re
@@ -47,7 +44,7 @@ build_extensions = ['.c', '.cc', '.cpp', '.java', '.py', '.py2', '.py3', '.ctd']
 problem_outcomes = [
     'ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR'
 ]
-tmpdir = tempfile.mkdtemp(prefix='bapctools_')
+tmpdir = Path(tempfile.mkdtemp(prefix='bapctools_'))
 
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD = 4
@@ -155,29 +152,29 @@ def exit(clean=True):
     shutil.rmtree(tmpdir)
   sys.exit(1)
 
-def is_problem_directory(path):
-  return os.path.isfile(os.path.join(path, 'problem.yaml'))
-
 # Get the list of relevant problems.
 # Either use the provided contest, or check the existence of problem.yaml.
 # Returns problems in sorted order by probid in domjudge.ini.
 def get_problems(contest = None):
+  def is_problem_directory(path):
+    return (path / 'problem.yaml').is_file()
+
   if contest is not None:
     os.chdir(contest)
   level = None
   problems = []
-  if is_problem_directory('.'):
+  if is_problem_directory(Path('.')):
     level = 'problem'
-    problems = [os.path.basename(os.getcwd())]
+    problems = [Path(Path().cwd().name)]
     os.chdir('..') # cd to contest dir.
   else:
     level = 'contest'
-    dirs = [os.path.normpath(p[0]) for p in sort_problems(glob('*/'))]
+    dirs = [p[0] for p in sort_problems(Path('.').glob('*/'))]
     for problem in dirs:
       if is_problem_directory(problem):
         problems.append(problem)
     
-  contest = os.path.basename(os.getcwd())
+  contest = Path('.').name
   return (problems, level, contest)
 
 # read problem settings from config files
@@ -195,9 +192,9 @@ def read_configs(problem):
   }
 
   # parse problem.yaml
-  yamlpath = os.path.join(problem, 'problem.yaml')
-  if os.path.isfile(yamlpath):
-    with open(yamlpath) as yamlfile:
+  yamlpath = problem / 'problem.yaml'
+  if yamlpath.is_file():
+    with yamlpath.open() as yamlfile:
       try:
         config = yaml.load(yamlfile)
         for key, value in config.items():
@@ -225,8 +222,9 @@ def read_configs(problem):
       i += 1
 
   # parse domjudge-problem.ini
-  if os.path.isfile(os.path.join(problem, 'domjudge-problem.ini')):
-    with open(os.path.join(problem, 'domjudge-problem.ini')) as f:
+  domjudge_path = problem / 'domjudge-problem.ini'
+  if domjudge_path.is_file():
+    with domjudge_path.open() as f:
       for line in f.readlines():
         key, var = line.strip().split('=')
         var = var[1:-1]
@@ -237,8 +235,7 @@ def read_configs(problem):
 
 # is file at path executable
 def is_executable(path):
-  return os.path.exists(path) and (os.stat(path).st_mode &
-                                   (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
+  return path.is_file() and (path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
 def crop_output(output):
   if args.noerror: return None
@@ -286,7 +283,7 @@ def exec_command(command, expect=0, **kwargs):
           crop_output(stderr.decode('utf-8')))
 
 def python_interpreter(version):
-  if args.pypy:
+  if hasattr(args, 'pypy') and args.pypy:
     if version is 2: return 'pypy'
     print("\n" + _c.red + "Pypy only works for python2!" + _c.reset)
     return None
@@ -296,10 +293,10 @@ def python_interpreter(version):
 # returns a command to execute and an optional error message
 def build(path):
   # mirror directory structure on tmpfs
-  basename = os.path.basename(path)
-  (base, ext) = os.path.splitext(basename)
-  outfile = os.path.join(tmpdir, os.path.dirname(path), base)
-  os.makedirs(os.path.dirname(outfile), exist_ok=True)
+  basename = path.name
+  ext = path.suffix
+  outfile = tmpdir / path.with_suffix('')
+  outfile.parent.mkdir(parents=True, exist_ok=True)
 
   compile_command = None
   run_command = None
@@ -307,7 +304,7 @@ def build(path):
   if ext == '.c':
     compile_command = [
         'gcc',
-        '-I', os.path.join(TOOLS_ROOT, 'headers'),
+        '-I', TOOLS_ROOT / 'headers',
         '-std=c11',
         '-Wall',
         '-O2',
@@ -320,7 +317,7 @@ def build(path):
   elif ext in ('.cc', '.cpp'):
     compile_command = [
         '/usr/bin/g++',
-        '-I', os.path.join(TOOLS_ROOT, 'headers'),
+        '-I', TOOLS_ROOT / 'headers',
         '-std=c++11',
         '-Wall',
         '-O2',
@@ -342,15 +339,15 @@ def build(path):
     p = python_interpreter(3)
     if p is not None: run_command = [p, path]
   elif ext == '.ctd':
-    ctd_path = os.path.join(TOOLS_ROOT, 'checktestdata', 'checktestdata')
-    if os.path.isfile(ctd_path):
+    ctd_path = TOOLS_ROOT / 'checktestdata' / 'checktestdata'
+    if ctd_path.is_file():
       run_command = [ ctd_path, path ]
   else:
-    return (None, 'Unknown extension ' + ext)
+    return (None, f'{_c.red}Unknown extension \'{ext}\' at file {path}{_c.reset}')
 
   # Prevent building something twice in one invocation of tools.py.
   message = ''
-  if compile_command is not None and not os.path.isfile(outfile):
+  if compile_command is not None and not outfile.is_file():
     ret = exec_command(compile_command)
     if ret[0] is not True:
       message = f'{_c.red}FAILED{_c.reset}'
@@ -368,8 +365,8 @@ def build(path):
 def build_directory(directory, include_dirname=False, bar=None):
   commands = []
 
-  buildfile = os.path.join(directory, 'build')
-  runfile = os.path.join(directory, 'run')
+  buildfile = directory / 'build'
+  runfile = directory / 'run'
 
   if is_executable(buildfile):
     if bar is None: bar = ProgressBar('Running')
@@ -391,30 +388,30 @@ def build_directory(directory, include_dirname=False, bar=None):
   if is_executable(runfile):
     return [('run', [runfile])]
 
-  files = glob(os.path.join(directory, '*'))
+  files = [x for x in directory.glob('*') if x.name[0] is not '.']
   files.sort()
 
   if len(files) == 0: return commands
 
-  max_file_len = max(len(path) for path in files)
+  max_file_len = max(len(print_name(path)) for path in files)
   if bar is None: bar = ProgressBar('Building', max_file_len, len(files))
   else: bar.update(len(files), max_file_len)
 
   for path in files:
     bar.start(print_name(path))
 
-    basename = os.path.basename(path)
+    basename = path.name
     if basename == 'a.out':
       bar.done()
       continue
 
     if include_dirname:
-      dirname = os.path.basename(os.path.dirname(path))
-      name = os.path.join(dirname, basename)
+      dirname = path.parent.name
+      name = Path(dirname) / basename
     else:
       name = basename
 
-    if os.path.isdir(path):
+    if path.is_dir():
       bar.done()
       r = build_directory(path, include_dirname=True, bar=bar)
       commands += r
@@ -422,13 +419,15 @@ def build_directory(directory, include_dirname=False, bar=None):
     elif is_executable(path):
       commands.append((name, [path]))
     else:
-      ext = os.path.splitext(name)[1]
+      ext = path.suffix
       if ext in build_extensions:
         run_command, message = build(path)
         if run_command != None:
           commands.append((name, run_command))
         else:
           bar.log(message)
+      else:
+        bar.log(f'{_c.red}Extension \'{ext}\' is not supported for file {path}{_c.reset}')
 
     bar.done()
 
@@ -437,29 +436,27 @@ def build_directory(directory, include_dirname=False, bar=None):
 
 # Drops the first two path components <problem>/<type>/
 def print_name(path):
-  return os.path.join(*(path.split(os.path.sep)[2:]))
+  return str(Path(*path.parts[2:]))
 
 
 # testcases; returns list of basenames
 def get_testcases(problem, needans=True, only_sample=False):
-  infiles = glob(os.path.join(problem, 'data/sample/*.in'))
+  infiles = list(problem.glob('data/sample/*.in'))
   if not only_sample:
-    infiles += glob(os.path.join(problem, 'data/secret/*.in'))
+    infiles += list(problem.glob('data/secret/*.in'))
 
   testcases = []
   for f in infiles:
-    name = os.path.splitext(f)[0]
-    if needans and not os.path.isfile(name + '.ans'):
+    if needans and not f.with_suffix('.ans').is_file():
       continue
-    testcases.append(name)
+    testcases.append(f.with_suffix(''))
   testcases.sort()
 
   return testcases
 
 
 def get_validators(problem, validator_type):
-  return build_directory(
-      os.path.join(problem, validator_type + '_validators/'))
+  return build_directory(problem / (validator_type + '_validators'))
 
 
 # Validate the .in and .ans files for a problem.
@@ -510,19 +507,19 @@ def validate(problem, validator_type, settings):
     bar.start(print_name(testcase)+ext)
     for validator in validators:
       # simple `program < test.in` for input validation and ctd output validation
-      if validator_type == 'input' or os.path.splitext(
-          validator[0])[1] == '.ctd':
+      if validator_type == 'input' or Path(validator[0]).suffix == '.ctd':
         ret = exec_command(
             validator[1] + flags,
             expect=rtv_ac,
-            stdin=open(testcase + ext, 'r'))
+            stdin=testcase.with_suffix(ext).open())
       else:
         # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
         ret = exec_command(
-            validator[1] + [testcase + '.in', testcase + '.ans', tmpdir] +
+            validator[1] + [testcase.with_suffix('.in'),
+              testcase.with_suffix('.ans'), tmpdir] +
             flags,
             expect=rtv_ac,
-            stdin=open(testcase + ext, 'r'))
+            stdin=testcase.with_suffix(ext).open())
 
       # Failure?
       if ret[0] is not True:
@@ -587,7 +584,7 @@ def stats(problems):
     if header == 'problem':
       width = len(header)
       for problem in problems:
-        width = max(width, len(problem))
+        width = max(width, len(problem.name))
       header_string += '{:<' + str(width) + '}'
       format_string += '{:<' + str(width) + '}'
     else:
@@ -603,10 +600,15 @@ def stats(problems):
       if type(path) is list:
         return sum(count(p) for p in path)
       cnt = 0
-      for p in glob(os.path.join(problem, path)):
+      for p in problem.glob(path):
+        hidden = False
+        for d in p.parts:
+          if d[0] == '.':
+            hidden = True
+        if hidden: continue
         # Exclude files containing 'TODO: Remove'.
-        if os.path.isfile(p):
-          with open(p) as file:
+        if p.is_file():
+          with p.open() as file:
             data = file.read()
             if data.find('TODO: Remove') == -1:
               cnt += 1
@@ -616,7 +618,7 @@ def stats(problems):
     for i in range(0, len(stats)):
       cumulative[i] = cumulative[i] + counts[i]
     print(format_string.format(
-            problem,
+            problem.name,
             *[get_stat(counts[i],
                 True if len(stats[i]) <= 2 else stats[i][2],
                 None if len(stats[i]) <= 3 else stats[i][3])
@@ -630,15 +632,15 @@ def stats(problems):
 
 # returns a map {answer type -> [(name, command)]}
 def get_submissions(problem):
-  dirs = glob(os.path.join(problem, 'submissions/*/'))
+  dirs = list(problem.glob('submissions/*/'))
   commands = {}
 
-  max_dir_len = max(len(os.path.basename(os.path.normpath(d))) for d in dirs)
+  max_dir_len = max(len(d.name) for d in dirs)
 
   bar = ProgressBar('Building', max_dir_len, len(dirs))
 
   for d in dirs:
-    dirname = os.path.basename(os.path.normpath(d))
+    dirname = d.name
     bar.start(dirname)
     bar.done()
     if not dirname.upper() in problem_outcomes:
@@ -745,15 +747,16 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     ret = None
     with open(outfile, 'rb') as outf:
       ret = exec_command(
-          output_validator[1] + [testcase + '.in', testcase + '.ans', tmpdir] +
+          output_validator[1] + [testcase.with_suffix('.in'),
+            testcase.with_suffix('.ans'), tmpdir] +
           flags,
           expect=rtv_ac,
           stdin=outf)
     # Read judgemessage if present
-    judgemessagepath = os.path.join(tmpdir, 'judgemessage.txt')
+    judgemessagepath = tmpdir / 'judgemessage.txt'
     judgemessage = ''
-    if os.path.isfile(judgemessagepath):
-      with open(judgemessagepath) as judgemessagefile:
+    if judgemessagepath.is_file():
+      with judgemessagepath.open() as judgemessagefile:
         judgemessage = judgemessagefile.read()
       os.unlink(judgemessagepath)
     
@@ -770,7 +773,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
 # Return (ret, timeout (True/False), duration)
 def run_testcase(run_command, testcase, outfile, tle=None):
   timeout = False
-  with open(testcase + '.in', 'rb') as inf:
+  with testcase.with_suffix('.in').open('rb') as inf:
     with open(outfile, 'wb') as outf:
       tstart = time.monotonic()
       try:
@@ -814,7 +817,7 @@ def process_testcase(run_command,
     remark = 'Exited with code ' + str(run_ret[0]) + ':\n' + run_ret[1]
   else:
     if settings.validation == 'default':
-      val_ret = default_output_validator(testcase + '.ans', outfile, settings)
+      val_ret = default_output_validator(testcase.with_suffix('.ans'), outfile, settings)
     elif settings.validation == 'custom':
       val_ret = custom_output_validator(testcase, outfile, settings,
                                     output_validators)
@@ -852,16 +855,16 @@ def run_submission(submission,
   time_total = 0
   time_max = 0
 
-  action = 'Running ' + submission[0]
+  action = 'Running ' + str(submission[0])
   max_total_length = max(max([len(print_name(testcase)) for testcase in testcases]), 15) + max_submission_len
-  max_testcase_len = max_total_length - len(submission[0])
+  max_testcase_len = max_total_length - len(str(submission[0]))
 
   printed = False
   bar = ProgressBar(action, max_testcase_len, len(testcases))
 
   for testcase in testcases:
     bar.start(print_name(testcase))
-    outfile = os.path.join(tmpdir, 'test.out')
+    outfile = tmpdir / 'test.out'
     #silent = expected != 'ACCEPTED'
     silent = False
     verdict, runtime, remark = \
@@ -910,7 +913,7 @@ def run_submission(submission,
 
 
 def get_submission_type(s):
-  ls = s.lower()
+  ls = str(s).lower()
   if 'wrong_answer' in ls:
     return 'WRONG_ANSWER'
   if 'time_limit_exceeded' in ls:
@@ -924,7 +927,7 @@ def get_submission_type(s):
 def run_submissions(problem, settings):
   # Require both in and ans files
   if hasattr(settings, 'testcases') and settings.testcases:
-    testcases = [os.path.join(problem, t) for t in settings.testcases]
+    testcases = [problem/t for t in settings.testcases]
   else:
     testcases = get_testcases(problem, True)
 
@@ -944,21 +947,21 @@ def run_submissions(problem, settings):
         'TIME_LIMIT_EXCEEDED': [],
         'RUN_TIME_ERROR': []
     }
-    max_submission_len = max(len(print_name(os.path.join(problem, s))) for s in settings.submissions)
+    max_submission_len = max(len(print_name(problem / s)) for s in settings.submissions)
     bar = ProgressBar('Building', max_submission_len, len(settings.submissions)) 
 
     for submission in settings.submissions:
-      path = os.path.join(problem, submission)
+      path = problem / submission
       bar.start(print_name(path))
 
-      if os.path.isdir(path):
+      if path.is_dir():
         bar.done()
         commands = build_directory(path, True, bar)
         for c in commands:
           submissions[get_submission_type(c[0])].append(c)
         continue
 
-      if os.path.isfile(path):
+      if path.is_file():
         run_command, message = build(path)
         bar.done(run_command is not None, message)
         if run_command:
@@ -972,7 +975,7 @@ def run_submissions(problem, settings):
     submissions = get_submissions(problem)
 
   max_submission_len = max([0] + 
-      [len(x[0]) for cat in submissions for x in submissions[cat]])
+      [len(str(x[0])) for cat in submissions for x in submissions[cat]])
 
   success = True
   verdict_table = []
@@ -1018,10 +1021,10 @@ def run_submissions(problem, settings):
 
 def generate_output(problem, settings):
   if hasattr(settings, 'submission') and settings.submission:
-    submission = os.path.join(problem, settings.submission)
+    submission = problem / settings.submission
   else:
     # only get one accepted submission
-    submissions = glob(os.path.join(problem, 'submissions/accepted/*'))
+    submissions = list(problem.glob('submissions/accepted/*'))
     if len(submissions) == 0:
       print('No submission found for this problem!')
       exit()
@@ -1033,7 +1036,7 @@ def generate_output(problem, settings):
       with open(s) as submission_file:
         if submission_file.read().find('NO_GENERATE') != -1:
           continue
-      if os.path.splitext(s)[1] == '.cpp':
+      if s.suffix == '.cpp':
         submission = s
         break
       else:
@@ -1063,7 +1066,7 @@ def generate_output(problem, settings):
   for testcase in testcases:
     bar.start(print_name(testcase))
 
-    outfile = os.path.join(tmpdir, 'test.out')
+    outfile = tmpdir / 'test.out'
     try:
       os.unlink(outfile)
     except OSError:
@@ -1076,7 +1079,7 @@ def generate_output(problem, settings):
       message = 'FAILED'
       nfail += 1
     else:
-      if os.access(testcase + '.ans', os.R_OK):
+      if os.access(testcase.with_suffix('.ans'), os.R_OK):
         compare_settings = argparse.Namespace()
         compare_settings.__dict__.update({
             'case_sensitive': True,
@@ -1084,20 +1087,20 @@ def generate_output(problem, settings):
             'floatabs': None,
             'floatrel': None
         })
-        if default_output_validator(testcase + '.ans', outfile,
+        if default_output_validator(testcase.with_suffix('.ans'), outfile,
                                     compare_settings)[0]:
           same = True
           nsame += 1
         else:
           if hasattr(settings, 'force') and settings.force:
-            shutil.move(outfile, testcase + '.ans')
+            shutil.move(outfile, testcase.with_suffix('.ans'))
             nchange += 1
             message = 'CHANGED'
           else:
             nskip += 1
             message = _c.red + 'SKIPPED' + _c.reset + '; supply -f to overwrite'
       else:
-        shutil.move(outfile, testcase + '.ans')
+        shutil.move(outfile, testcase.with_suffix('.ans'))
         nnew += 1
         message = 'NEW'
 
@@ -1149,12 +1152,12 @@ def tex_escape(text):
 
 def require_latex_build_dir():
   # Set up the build directory if it does not yet exist.
-  builddir = os.path.normpath(os.path.join(TOOLS_ROOT, 'latex/build'))
-  if not os.path.isdir(builddir):
-    if os.path.islink(builddir):
-      os.unlink(builddir)
-    tmpdir = tempfile.mkdtemp(prefix='bapctools_latex_')
-    os.symlink(tmpdir, builddir)
+  builddir = TOOLS_ROOT / 'latex/build'
+  if not builddir.is_dir():
+    if builddir.is_symlink():
+      builddir.unlink()
+    tmpdir = Path(tempfile.mkdtemp(prefix='bapctools_latex_'))
+    builddir.symlink_to(tmpdir)
   return builddir
 
 
@@ -1207,7 +1210,7 @@ def build_problem_pdf(problem, make_pdf=True):
       # Separate the left and the right column.
       samples_file.write('&\n')
 
-      with open(sample + '.ans', 'rt') as ans_file:
+      with sample.with_suffix('.ans').open('rt') as ans_file:
         lines = []
         for line in ans_file:
           lines.append(tex_escape(line))
@@ -1342,8 +1345,8 @@ DISCLAIMER:
   Checking constraints by yourself is probably the best way.
 """
 def check_constraints(problem, settings):
-  vinput = os.path.join(problem, 'input_validators/input_validator.cpp')
-  voutput = os.path.join(problem, 'output_validators/output_validator.cpp')
+  vinput = problem / 'input_validators/input_validator.cpp'
+  voutput = problem / 'output_validators/output_validator.cpp'
 
   cpp_statement = re.compile(
       '^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);$'
@@ -1359,7 +1362,7 @@ def check_constraints(problem, settings):
 
   defs_validators = [(mo.group(3), mo.group(4)) for mo in defs]
 
-  statement = os.path.join(problem, 'problem_statement/problem.tex')
+  statement = problem / 'problem_statement/problem.tex'
   latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$')
   latex_define = re.compile('{\\\\(\w+)}{(.*)}')
 
@@ -1411,10 +1414,10 @@ def alpha_num(string, allow_dash = False):
 # Creates a symlink if it not exists, else it does nothing
 # the symlink will be created at link_name, pointing to target
 def symlink_quiet(target, link_name):
-  if os.path.islink(link_name):
-    os.unlink(link_name)
-  if not os.path.exists(link_name):
-    os.symlink(target, link_name)
+  if link_name.is_symlink():
+    link_name.unline()
+  if not link_name.exists():
+    link_name.symlink_to(target)
   # if it existed and is not a symlink, do nothing
 
 
@@ -1422,8 +1425,9 @@ def symlink_quiet(target, link_name):
 # are the same. If it gets changed for the format, we copy the file and modify
 # it accordingly.
 def prepare_kattis_directory():
-  if not os.path.exists('kattis'):
-    os.mkdir('kattis')
+  p = Path('kattis')
+  if not p.exists():
+    p.mkdir()
 
 
 def prepare_kattis_problem(problem, settings):
@@ -1548,19 +1552,19 @@ def ask_variable(name, default=None):
 
 
 def substitute_file_variables(path, variables):
-  with open(path, 'r') as infile:
+  with path.open() as infile:
     data = infile.read()
 
   for key in variables:
     if variables[key] == None: continue
     data = data.replace('{%'+key+'%}', variables[key])
 
-  with open(path, 'w') as outfile:
+  with path.open('w') as outfile:
     outfile.write(data)
 
 def substitute_dir_variables(dirname, variables):
-  for path in glob(os.path.join(dirname, '**', '*'), recursive=True):
-    if os.path.isfile(path):
+  for path in dirname.rglob('*'):
+    if path.is_file():
       substitute_file_variables(path, variables)
 
 def new_contest(name):
@@ -1577,7 +1581,7 @@ def new_contest(name):
   license = ask_variable('license', 'cc by-sa')
   rights_owner = ask_variable('rights owner', 'author')
 
-  shutil.copytree(os.path.join(TOOLS_ROOT, 'skel/contest'), dirname, symlinks=True)
+  shutil.copytree(TOOLS_ROOT / 'skel/contest', dirname, symlinks=True)
 
   substitute_dir_variables(dirname, locals())
 
@@ -1597,8 +1601,9 @@ def new_problem(args):
     # Read settings from the contest-level yaml file.
     variables = {'problemname': problemname, 'dirname': dirname, 'author':
         author, 'validation': validation}
-    if os.path.isfile('contest.yaml'):
-      with open('contest.yaml') as yamlfile:
+    yamlfilepath = Path('contest.yaml')
+    if yamlfilepath.is_file():
+      with yamlfilepath.open() as yamlfile:
         try:
           contest_vars = yaml.load(yamlfile)
           for key in contest_vars:
@@ -1609,7 +1614,7 @@ def new_problem(args):
     for key in variables:
       print(key, ' -> ', variables[key])
 
-    shutil.copytree(os.path.join(TOOLS_ROOT, 'skel/problem'), dirname, symlinks=True)
+    shutil.copytree(TOOLS_ROOT / 'skel/problem', dirname, symlinks=True)
 
     substitute_dir_variables(dirname, variables)
 
@@ -1807,11 +1812,8 @@ Run this from one of:
 
 def main():
   global TOOLS_ROOT
-  executable = __file__
-  if os.path.islink(executable):
-    executable = os.path.realpath(executable)
-  TOOLS_ROOT = os.path.realpath(
-      os.path.normpath(os.path.join(os.path.dirname(executable), '..')))
+  # Resolve the file if it's a symlink and strip the bin/tools.py.
+  TOOLS_ROOT = Path(__file__).resolve().parent.parent
 
   # Build Parser
   parser = build_parser()
@@ -1836,13 +1838,13 @@ def main():
 
   if action in ['generate']:
     if level != 'problem':
-      print('Generating output files only works for a single problem.')
+      print(f'{_c.red}Generating output files only works for a single problem.{_c.reset}')
       exit()
 
   if action == 'run':
     if args.submissions:
       if level != 'problem':
-        print('Running a given submission only works from a problem directory.')
+        print('{_c.red}Running a given submission only works from a problem directory.{_c.reset}')
         exit()
       (args.submissions, args.testcases) = split_submissions(args.submissions)
     else:
@@ -1894,7 +1896,7 @@ def main():
     if action in ['constraints']:
       success &= check_constraints(problem, settings)
     if action in ['zip']:
-      output = alpha_num(os.path.basename(os.path.normpath(problem))) + '.zip'
+      output = alpha_num(problem.name) + '.zip'
       problem_zips.append(output)
       if not args.skip:
         success &= build_problem_pdf(problem, True)
