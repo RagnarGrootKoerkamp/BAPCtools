@@ -18,7 +18,6 @@ import stat
 import argparse
 import argcomplete  # For automatic shell completions
 import os
-from pathlib import Path
 import datetime
 import time
 import re
@@ -30,102 +29,17 @@ import yaml
 import configparser
 import io
 import zipfile
+from pathlib import Path
 
 # Local imports
-import export
 import config
-import util
+import export
 import latex
+import util
+import validation
+from util import ProgressBar
 
-
-# color printing
-class Colorcodes(object):
-    def __init__(self):
-        self.bold = '\033[;1m'
-        self.reset = '\033[0;0m'
-        self.blue = '\033[;96m'
-        self.green = '\033[;32m'
-        self.orange = '\033[;33m'
-        self.red = '\033[;31m'
-        self.white = '\033[;39m'
-
-        self.boldblue = '\033[1;34m'
-        self.boldgreen = '\033[1;32m'
-        self.boldorange = '\033[1;33m'
-        self.boldred = '\033[1;31m'
-
-
-_c = Colorcodes()
-
-
-def strip_newline(s):
-    if s.endswith('\n'):
-        return s[:-1]
-    else:
-        return s
-
-
-# A class that draws a progressbar.
-# Construct with a constant prefix, the max length of the items to process, and
-# the number of items to process.
-# When count is None, the bar itself isn't shown.
-# Start each loop with bar.start(current_item), end it with bar.done(message).
-# Optionally, multiple errors can be logged using bar.log(error). If so, the
-# final message on bar.done() will be ignored.
-class ProgressBar:
-    def __init__(self, prefix, max_len=None, count=None):
-        self.prefix = prefix  # The prefix to always print
-        self.item_width = max_len  # The max length of the items we're processing
-        self.count = count  # The number of items we're processing
-        self.i = 0
-        self.total_width = shutil.get_terminal_size().columns  # The terminal width
-        if self.item_width is not None:
-            self.bar_width = self.total_width - len(self.prefix) - 2 - self.item_width - 1
-
-    def update(self, count, max_len):
-        self.count += count
-        self.item_width = max(self.item_width, max_len) if self.item_width else max_len
-        if self.item_width is not None:
-            self.bar_width = self.total_width - len(self.prefix) - 2 - self.item_width - 1
-
-    def clearline():
-        print('\033[K', end='', flush=True)
-
-    def action(prefix, item, width=None):
-        if width is None: width = 0
-        return f'{_c.blue}{prefix}{_c.reset}: {item:<{width}}'
-
-    def get_prefix(self):
-        return ProgressBar.action(self.prefix, self.item, self.item_width)
-
-    def get_bar(self):
-        if self.count is None: return ''
-        fill = (self.i - 1) * (self.bar_width - 2) // self.count
-        return '[' + '#' * fill + '-' * (self.bar_width - 2 - fill) + ']'
-
-    def start(self, item=''):
-        self.i += 1
-        assert self.count is None or self.i <= self.count
-
-        self.item = item
-        self.logged = False
-        print(self.get_prefix(), self.get_bar(), end='\r', flush=True)
-
-    # Done can be called multiple times to make multiple persistent lines.
-    # Make sure that the message does not end in a newline.
-    def log(self, message=''):
-        ProgressBar.clearline()
-        self.logged = True
-        print(self.get_prefix(), message, flush=True)
-
-    # Return True when something was printed
-    def done(self, success=True, message=''):
-        ProgressBar.clearline()
-        if self.logged: return False
-        if config.verbose or not success:
-            self.log(message)
-            return True
-        return False
+_c = util.Colorcodes()
 
 
 def exit(clean=True):
@@ -275,7 +189,7 @@ def build(path):
         if ret[0] is not True:
             message = f'{_c.red}FAILED{_c.reset}'
             if ret[1] is not None:
-                message += '\n' + strip_newline(ret[1])
+                message += '\n' + util.strip_newline(ret[1])
             run_command = None
 
     if run_command is None and message is '':
@@ -435,7 +349,7 @@ def validate(problem, validator_type, settings):
 
                 # Print error message?
                 if ret[1] is not None:
-                    message += '  ' + _c.orange + strip_newline(ret[1]) + _c.reset
+                    message += '  ' + _c.orange + util.strip_newline(ret[1]) + _c.reset
 
                 bar.log(message)
         bar.done()
@@ -560,121 +474,6 @@ def get_submissions(problem):
     return commands
 
 
-def quick_diff(ans, out):
-    ans = ans.decode()
-    out = out.decode()
-    if ans.count('\n') <= 1 and out.count('\n') <= 1:
-        return 'Got ' + strip_newline(out) + ' wanted ' + strip_newline(ans)
-    else:
-        return ''
-
-
-# return: (success, remark)
-def default_output_validator(ansfile, outfile, settings):
-    # settings: floatabs, floatrel, case_sensitive, space_change_sensitive
-    with open(ansfile, 'rb') as f:
-        indata1 = f.read()
-
-    with open(outfile, 'rb') as f:
-        indata2 = f.read()
-
-    if indata1 == indata2:
-        return (True, '')
-
-    if not settings.case_sensitive:
-        # convert to lowercase...
-        data1 = indata1.lower()
-        data2 = indata2.lower()
-
-        if data1 == data2:
-            return (True, 'case')
-    else:
-        data1 = indata1
-        data2 = indata2
-
-    if settings.space_change_sensitive and settings.floatabs == None and settings.floatrel == None:
-        return (False, quick_diff(data1, data2))
-
-    if settings.space_change_sensitive:
-        words1 = re.split(rb'\b(\S+)\b', data1)
-        words2 = re.split(rb'\b(\S+)\b', data2)
-    else:
-        words1 = re.split(rb'[ \n]+', data1)
-        words2 = re.split(rb'[ \n]+', data2)
-        if len(words1) > 0 and words1[-1] == b'': words1.pop()
-        if len(words2) > 0 and words2[-1] == b'': words2.pop()
-        if len(words1) > 0 and words1[0] == b'': words1.pop(0)
-        if len(words2) > 0 and words2[0] == b'': words2.pop(0)
-
-    if words1 == words2:
-        if not settings.space_change_sensitive:
-            return (True, 'white space')
-        else:
-            print('Strings became equal after space sensitive splitting! Something is wrong!')
-            exit()
-
-    if settings.floatabs is None and settings.floatrel is None:
-        return (False, quick_diff(data1, data2))
-
-    if len(words1) != len(words2):
-        return (False, quick_diff(data1, data2))
-
-    peakabserr = 0
-    peakrelerr = 0
-    for (w1, w2) in zip(words1, words2):
-        if w1 != w2:
-            try:
-                f1 = float(w1)
-                f2 = float(w2)
-                abserr = abs(f1 - f2)
-                relerr = abs(f1 - f2) / f1
-                peakabserr = max(peakabserr, abserr)
-                peakrelerr = max(peakrelerr, relerr)
-                if ((settings.floatabs is None or abserr > settings.floatabs)
-                        and (settings.floatrel is None or relerr > settings.floatrel)):
-                    return (False, quick_diff(data1, data2))
-            except ValueError:
-                return (False, quick_diff(data1, data2))
-
-    return (True, 'float: abs {0:.2g} rel {1:.2g}'.format(peakabserr, peakrelerr))
-
-
-# call output validators as ./validator in ans feedbackdir additional_arguments < out
-# return (success, remark)
-def custom_output_validator(testcase, outfile, settings, output_validators):
-    flags = []
-    if settings.space_change_sensitive:
-        flags += ['space_change_sensitive']
-    if settings.case_sensitive:
-        flags += ['case_sensitive']
-
-    for output_validator in output_validators:
-        ret = None
-        with open(outfile, 'rb') as outf:
-            ret = exec_command(
-                output_validator[1] +
-                [testcase.with_suffix('.in'),
-                 testcase.with_suffix('.ans'), config.tmpdir] + flags,
-                expect=config.RTV_AC,
-                stdin=outf)
-        # Read judgemessage if present
-        judgemessagepath = config.tmpdir / 'judgemessage.txt'
-        judgemessage = ''
-        if judgemessagepath.is_file():
-            with judgemessagepath.open() as judgemessagefile:
-                judgemessage = judgemessagefile.read()
-            os.unlink(judgemessagepath)
-
-        if ret[0] is True:
-            continue
-        if ret[0] == config.RTV_WA:
-            return (False, ret[1] + judgemessage)
-        print('ERROR in output validator ', output_validator[0], ' exit code ', ret[0], ': ',
-              ret[1])
-        exit(False)
-    return (True, judgemessage)
-
-
 # Return (ret, timeout (True/False), duration)
 def run_testcase(run_command, testcase, outfile, tle=None):
     timeout = False
@@ -721,9 +520,11 @@ def process_testcase(run_command,
         remark = 'Exited with code ' + str(run_ret[0]) + ':\n' + run_ret[1]
     else:
         if settings.validation == 'default':
-            val_ret = default_output_validator(testcase.with_suffix('.ans'), outfile, settings)
+            val_ret = validation.default_output_validator(
+                testcase.with_suffix('.ans'), outfile, settings)
         elif settings.validation == 'custom':
-            val_ret = custom_output_validator(testcase, outfile, settings, output_validators)
+            val_ret = validation.custom_output_validator(testcase, outfile, settings,
+                                                         output_validators)
         else:
             print(_c.red + 'Validation type must be one of `default` or `custom`' + _c.reset)
             exit()
@@ -785,7 +586,7 @@ def run_submission(submission,
         color = _c.green if got_expected else _c.red
         message = '{:6.3f}s '.format(runtime) + color + verdict + _c.reset
         if remark:
-            message += '  ' + _c.orange + strip_newline(remark) + _c.reset
+            message += '  ' + _c.orange + util.strip_newline(remark) + _c.reset
 
         printed |= bar.done(got_expected, message)
 
@@ -990,7 +791,7 @@ def generate_output(problem, settings):
                     'floatabs': None,
                     'floatrel': None
                 })
-                if default_output_validator(
+                if validation.default_output_validator(
                         testcase.with_suffix('.ans'), outfile, compare_settings)[0]:
                     same = True
                     nsame += 1

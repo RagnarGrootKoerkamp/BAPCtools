@@ -1,4 +1,91 @@
 # read problem settings from config files
+
+import shutil
+import config
+
+# color printing
+class Colorcodes(object):
+    def __init__(self):
+        self.bold = '\033[;1m'
+        self.reset = '\033[0;0m'
+        self.blue = '\033[;96m'
+        self.green = '\033[;32m'
+        self.orange = '\033[;33m'
+        self.red = '\033[;31m'
+        self.white = '\033[;39m'
+
+        self.boldblue = '\033[1;34m'
+        self.boldgreen = '\033[1;32m'
+        self.boldorange = '\033[1;33m'
+        self.boldred = '\033[1;31m'
+
+
+_c = Colorcodes()
+
+
+# A class that draws a progressbar.
+# Construct with a constant prefix, the max length of the items to process, and
+# the number of items to process.
+# When count is None, the bar itself isn't shown.
+# Start each loop with bar.start(current_item), end it with bar.done(message).
+# Optionally, multiple errors can be logged using bar.log(error). If so, the
+# final message on bar.done() will be ignored.
+class ProgressBar:
+    def __init__(self, prefix, max_len=None, count=None):
+        self.prefix = prefix  # The prefix to always print
+        self.item_width = max_len  # The max length of the items we're processing
+        self.count = count  # The number of items we're processing
+        self.i = 0
+        self.total_width = shutil.get_terminal_size().columns  # The terminal width
+        if self.item_width is not None:
+            self.bar_width = self.total_width - len(self.prefix) - 2 - self.item_width - 1
+
+    def update(self, count, max_len):
+        self.count += count
+        self.item_width = max(self.item_width, max_len) if self.item_width else max_len
+        if self.item_width is not None:
+            self.bar_width = self.total_width - len(self.prefix) - 2 - self.item_width - 1
+
+    def clearline():
+        print('\033[K', end='', flush=True)
+
+    def action(prefix, item, width=None):
+        if width is None: width = 0
+        return f'{_c.blue}{prefix}{_c.reset}: {item:<{width}}'
+
+    def get_prefix(self):
+        return ProgressBar.action(self.prefix, self.item, self.item_width)
+
+    def get_bar(self):
+        if self.count is None: return ''
+        fill = (self.i - 1) * (self.bar_width - 2) // self.count
+        return '[' + '#' * fill + '-' * (self.bar_width - 2 - fill) + ']'
+
+    def start(self, item=''):
+        self.i += 1
+        assert self.count is None or self.i <= self.count
+
+        self.item = item
+        self.logged = False
+        print(self.get_prefix(), self.get_bar(), end='\r', flush=True)
+
+    # Done can be called multiple times to make multiple persistent lines.
+    # Make sure that the message does not end in a newline.
+    def log(self, message=''):
+        ProgressBar.clearline()
+        self.logged = True
+        print(self.get_prefix(), message, flush=True)
+
+    # Return True when something was printed
+    def done(self, success=True, message=''):
+        ProgressBar.clearline()
+        if self.logged: return False
+        if config.verbose or not success:
+            self.log(message)
+            return True
+        return False
+
+
 def read_configs(problem):
     # some defaults
     settings = {
@@ -77,3 +164,10 @@ def get_testcases(problem, needans=True, only_sample=False):
     testcases.sort()
 
     return testcases
+
+
+def strip_newline(s):
+    if s.endswith('\n'):
+        return s[:-1]
+    else:
+        return s
