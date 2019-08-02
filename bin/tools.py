@@ -37,14 +37,12 @@ import export
 import latex
 import util
 import validation
-from util import ProgressBar
-
-_c = util.Colorcodes()
+from util import ProgressBar, _c
 
 
 def exit(clean=True):
-    if clean:
-        shutil.rmtree(config.tmpdir)
+    #if clean:
+        #shutil.rmtree(config.tmpdir)
     sys.exit(1)
 
 
@@ -78,51 +76,6 @@ def get_problems(contest=None):
 def is_executable(path):
     return path.is_file() and (path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
-
-def crop_output(output):
-    if config.args.noerror: return None
-    if config.args.error: return output
-
-    lines = output.split('\n')
-    numlines = len(lines)
-    cropped = False
-    # Cap number of lines
-    if numlines > 10:
-        output = '\n'.join(lines[:8])
-        output += '\n'
-        cropped = True
-
-    # Cap line length.
-    if len(output) > 1000:
-        output = output[:1000]
-        output += ' ...\n' + _c.orange + 'Use -e to show full output or -E to hide it.' + _c.reset
-        return output
-
-    if cropped:
-        output += _c.orange + str(
-            numlines -
-            8) + ' lines skipped; use -e to show them or -E to hide all output.' + _c.reset
-    return output
-
-
-# Run `command`, returning stderr if the return code is unexpected.
-def exec_command(command, expect=0, **kwargs):
-    if 'stdout' not in kwargs:
-        kwargs['stdout'] = open(os.devnull, 'w')
-
-    timeout = None
-    if 'timeout' in kwargs:
-        timeout = kwargs['timeout']
-        kwargs.pop('timeout')
-    process = subprocess.Popen(command, stderr=subprocess.PIPE, **kwargs)
-    try:
-        (stdout, stderr) = process.communicate(timeout=timeout)
-    except subprocess.TimeoutExpired:
-        process.kill()
-        (stdout, stderr) = process.communicate()
-
-    return (True if process.returncode == expect else process.returncode,
-            crop_output(stderr.decode('utf-8')))
 
 
 def python_interpreter(version):
@@ -184,8 +137,8 @@ def build(path):
 
     # Prevent building something twice in one invocation of tools.py.
     message = ''
-    if compile_command is not None and not outfile.is_file():
-        ret = exec_command(compile_command)
+    if compile_command is not None: # and not outfile.is_file():
+        ret = util.exec_command(compile_command)
         if ret[0] is not True:
             message = f'{_c.red}FAILED{_c.reset}'
             if ret[1] is not None:
@@ -213,7 +166,7 @@ def build_directory(directory, include_dirname=False, bar=None):
 
         cur_path = os.getcwd()
         os.chdir(directory)
-        if exec_command(['./build'])[0] is not True:
+        if util.exec_command(['./build'])[0] is not True:
             bar.done(False, f'{_c.red}FAILED{_c.reset}')
             return []
         os.chdir(cur_path)
@@ -301,8 +254,12 @@ def validate(problem, validator_type, settings):
         return True
 
     validators = get_validators(problem, validator_type)
-    # validate testcases without answer files
-    testcases = util.get_testcases(problem, validator_type == 'output')
+
+    if hasattr(settings, 'testcases') and settings.testcases:
+        testcases = [problem / t for t in settings.testcases]
+    else:
+        # validate testcases without answer files?
+        testcases = util.get_testcases(problem, validator_type == 'output')
     ext = '.in' if validator_type == 'input' else '.ans'
 
     if len(validators) == 0:
@@ -325,17 +282,17 @@ def validate(problem, validator_type, settings):
     # validate the testcases
     bar = ProgressBar(action, max_testcase_len, len(testcases))
     for testcase in testcases:
-        bar.start(print_name(testcase) + ext)
+        bar.start(print_name(testcase.with_suffix(ext)))
         for validator in validators:
             # simple `program < test.in` for input validation and ctd output validation
             if validator_type == 'input' or Path(validator[0]).suffix == '.ctd':
-                ret = exec_command(
+                ret = util.exec_command(
                     validator[1] + flags,
                     expect=config.RTV_AC,
                     stdin=testcase.with_suffix(ext).open())
             else:
                 # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
-                ret = exec_command(
+                ret = util.exec_command(
                     validator[1] +
                     [testcase.with_suffix('.in'),
                      testcase.with_suffix('.ans'), config.tmpdir] + flags,
@@ -483,7 +440,7 @@ def run_testcase(run_command, testcase, outfile, tle=None):
             try:
                 # Double the tle to check for solutions close to the required bound
                 # ret = True or ret = (code, error)
-                ret = exec_command(
+                ret = util.exec_command(
                     run_command,
                     expect=0,
                     stdin=inf,
@@ -533,7 +490,7 @@ def process_testcase(run_command,
 
         if run_ret[1] is not None and (hasattr(config.args, 'output') and config.args.output):
             if verdict == 'WRONG_ANSWER' or config.args.error:
-                remark += '\n' + crop_output(run_ret[1]) + '\n'
+                remark += '\n' + util.crop_output(run_ret[1]) + '\n'
 
     return (verdict, duration, remark)
 
@@ -931,24 +888,6 @@ def ask_variable(name, default=None):
         return default if val == '' else val
 
 
-def substitute_file_variables(path, variables):
-    with path.open() as infile:
-        data = infile.read()
-
-    for key in variables:
-        if variables[key] == None: continue
-        data = data.replace('{%' + key + '%}', variables[key])
-
-    with path.open('w') as outfile:
-        outfile.write(data)
-
-
-def substitute_dir_variables(dirname, variables):
-    for path in dirname.rglob('*'):
-        if path.is_file():
-            substitute_file_variables(path, variables)
-
-
 def new_contest(name):
     # Ask for all required infos.
     title = ask_variable('name', name)
@@ -965,7 +904,7 @@ def new_contest(name):
 
     shutil.copytree(config.tools_root / 'skel/contest', dirname, symlinks=True)
 
-    substitute_dir_variables(dirname, locals())
+    util.substitute_dir_variables(dirname, locals())
 
 
 def new_problem():
@@ -1004,7 +943,7 @@ def new_problem():
 
     shutil.copytree(config.tools_root / 'skel/problem', dirname, symlinks=True)
 
-    substitute_dir_variables(dirname, variables)
+    util.substitute_dir_variables(dirname, variables)
 
 
 def build_parser():
@@ -1072,9 +1011,14 @@ Run this from one of:
         help='Create problem statements for individual problems as well.')
 
     # Validation
-    subparsers.add_parser('validate', parents=[global_parser], help='validate all grammar')
-    subparsers.add_parser('input', parents=[global_parser], help='validate input grammar')
-    subparsers.add_parser('output', parents=[global_parser], help='validate output grammar')
+    validate_parser = subparsers.add_parser('validate', parents=[global_parser], help='validate all grammar')
+    validate_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
+    input_parser = subparsers.add_parser('input', parents=[global_parser], help='validate input grammar')
+    input_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
+    output_parser = subparsers.add_parser('output', parents=[global_parser], help='validate output grammar')
+    output_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
+
+
     subparsers.add_parser(
         'constraints',
         parents=[global_parser],
@@ -1213,7 +1157,7 @@ def main():
 
         if action in ['pdf', 'solutions']:
             # only build the pdf on the problem level
-            success &= latex.build_problem_pdf(problem, config.args.all or level == 'problem')
+            success &= latex.build_problem_pdf(problem)
 
         if action in ['validate', 'input', 'all']:
             success &= validate(problem, 'input', settings)
@@ -1247,8 +1191,8 @@ def main():
     if action in ['pdf'] and level == 'contest':
         # Run 3 times, to fix the TOC.
         success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
-        success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
-        success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
+        #success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
+        #success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
 
     if action in ['solutions'] and level == 'contest':
         success &= latex.build_contest_pdf(contest, problems, solutions=True)
@@ -1268,4 +1212,4 @@ def main():
 
 if __name__ == '__main__':
     main()
-shutil.rmtree(config.tmpdir)
+#shutil.rmtree(config.tmpdir)

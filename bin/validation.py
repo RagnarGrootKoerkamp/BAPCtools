@@ -95,7 +95,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     for output_validator in output_validators:
         ret = None
         with open(outfile, 'rb') as outf:
-            ret = exec_command(
+            ret = util.exec_command(
                 output_validator[1] +
                 [testcase.with_suffix('.in'),
                  testcase.with_suffix('.ans'), config.tmpdir] + flags,

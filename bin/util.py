@@ -2,6 +2,9 @@
 
 import shutil
 import config
+import yaml
+import subprocess
+import os
 
 # color printing
 class Colorcodes(object):
@@ -141,11 +144,12 @@ def read_configs(problem):
     return settings
 
 
+# TODO: Make this return [(problem, config)] only.
 # sort problems by the id in domjudge-problem.ini, and secondary by name
-# return [(problem, id)]
+# return [(problem, id, config)]
 def sort_problems(problems):
     configs = [(problem, read_configs(problem)) for problem in problems]
-    problems = [(pair[0], pair[1]['probid']) for pair in configs if 'probid' in pair[1]]
+    problems = [(pair[0], pair[1]['probid'], pair[1]) for pair in configs if 'probid' in pair[1]]
     problems.sort(key=lambda x: (x[1], x[0]))
     return problems
 
@@ -171,3 +175,76 @@ def strip_newline(s):
         return s[:-1]
     else:
         return s
+
+def substitute(data, variables):
+    for key in variables:
+        if variables[key] == None: continue
+        data = data.replace('{%' + key + '%}', str(variables[key]))
+    return data
+
+
+def copy_and_substitute(inpath, outpath, variables):
+    data = inpath.read_text()
+    data = substitute(data, variables)
+    outpath.write_text(data)
+
+
+def substitute_file_variables(path, variables):
+    copy_and_substitute(path, path, variables)
+
+
+def substitute_dir_variables(dirname, variables):
+    for path in dirname.rglob('*'):
+        if path.is_file():
+            substitute_file_variables(path, variables)
+
+def crop_output(output):
+    if config.args.noerror: return None
+    if config.args.error: return output
+
+    lines = output.split('\n')
+    numlines = len(lines)
+    cropped = False
+    # Cap number of lines
+    if numlines > 10:
+        output = '\n'.join(lines[:8])
+        output += '\n'
+        cropped = True
+
+    # Cap line length.
+    if len(output) > 1000:
+        output = output[:1000]
+        output += ' ...\n' + _c.orange + 'Use -e to show full output or -E to hide it.' + _c.reset
+        return output
+
+    if cropped:
+        output += _c.orange + str(
+            numlines -
+            8) + ' lines skipped; use -e to show them or -E to hide all output.' + _c.reset
+    return output
+
+
+
+# Run `command`, returning stderr if the return code is unexpected.
+def exec_command(command, expect=0, **kwargs):
+    if 'stdout' not in kwargs:
+        kwargs['stdout'] = open(os.devnull, 'w')
+
+    if config.verbose >= 2:
+        print(command, kwargs)
+
+    timeout = None
+    if 'timeout' in kwargs:
+        timeout = kwargs['timeout']
+        kwargs.pop('timeout')
+    process = subprocess.Popen(command, stderr=subprocess.PIPE, **kwargs)
+    try:
+        (stdout, stderr) = process.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        (stdout, stderr) = process.communicate()
+
+    return (True if process.returncode == expect else process.returncode,
+            crop_output(stderr.decode('utf-8')))
+
+
