@@ -8,17 +8,12 @@ import tempfile
 from pathlib import Path
 
 import config
+import util
+from util import _c
 
-# Creates a symlink if it not exists, else it does nothing
-# the symlink will be created at link_name, pointing to target
-def symlink_quiet(target, link_name):
-    if link_name.is_symlink():
-        link_name.unlink()
-    if not link_name.exists():
-        link_name.symlink_to(target)
-    # if it existed and is not a symlink, do nothing
-
-
+def ensure_symlink(link, target):
+    if link.exists() or link.is_symlink(): return
+    link.symlink_to(target.resolve())
 
 
 def require_latex_build_dir():
@@ -56,172 +51,138 @@ def tex_escape(text):
         '<': r'\textless{}',
         '>': r'\textgreater{}',
         '\'': r'\textquotesingle{}',
+        '\n': '\\newline\n',
     }
     regex = re.compile('|'.join(
-        re.escape(str(key)) for key in sorted(conv.keys(), key=lambda item: -len(item))))
+        re.escape(str(key)) for key in sorted(conv.keys(), key=lambda item:
+            -len(item))), re.MULTILINE)
+
+    # Remove the trailing newline because it will be replaced by \\newline\n
+    has_newline = text[-1] is '\n'
+    if has_newline: text = text[:-1]
     text = regex.sub(lambda match: conv[match.group()], text)
     # Escape leading spaces separately
     regex = re.compile('^ ')
     text = regex.sub('\\\\phantom{.}', text)
+    if has_newline: text += '\n'
     return text
 
 
-# Build a pdf for the problem. Explanation in latex/readme.md
-def build_problem_pdf(problem, make_pdf=True):
-    builddir = require_latex_build_dir()
-
-    # Make the build/<problem> directory
-    (builddir / problem).mkdir(parents=True, exist_ok=True)
-    problemdir = builddir / 'problem'
-    # build/problem -> build/<problem>
-    if problemdir.exists():
-        problemdir.unlink()
-
-    problemdir.symlink_to(problem)
-
-    # link problem_statement dir
-    statement_target = builddir / 'problem/problem_statement'
-    if not statement_target.exists():
-        if statement_target.is_symlink():
-            statement_target.unlink()
-        statement_target.symlink_to((problem / 'problem_statement').resolve())
-
-    # create the problemid.tex file which sets the section counter
-    problemid_file_path = builddir / 'problem/problemid.tex'
-    with problemid_file_path.open('wt') as problemid_file:
-        problem_config = util.read_configs(problem)
-        problemid = ord(problem_config['probid']) - ord('A')
-        problemid_file.write(f'\\setcounter{{section}}{{{problemid}}}\n')
-        # Also renew the timelimit command. Use an integral timelimit if
-        # possible
-        tl = problem_config['timelimit']
-        tl = int(tl) if abs(tl - int(tl)) < 0.25 else tl
-        problemid_file.write(f'\\renewcommand{{\\timelimit}}{{{tl}}}\n')
+def create_samples_file(problem):
+    builddir = config.tmpdir / problem
 
     # create the samples.tex file
     samples = util.get_testcases(problem, needans=True, only_sample=True)
-    samples_file_path = builddir / 'problem/samples.tex'
-    with samples_file_path.open('wt') as samples_file:
-        for sample in samples:
-            samples_file.write('\\begin{Sample}\n')
+    samples_file_path = builddir / 'samples.tex'
+    samples_data = ''
 
-            with sample.with_suffix('.in').open('rt') as in_file:
-                lines = []
-                for line in in_file:
-                    lines.append(tex_escape(line))
-                samples_file.write('\\newline\n'.join(lines))
+    for sample in samples:
+        samples_data += '\\begin{Sample}\n'
+        samples_data += tex_escape(sample.with_suffix('.in').read_text())
+        samples_data += '&\n'
+        samples_data += tex_escape(sample.with_suffix('.ans').read_text())
+        samples_data += '\\\\\n\\end{Sample}\n\n'
+    samples_file_path.write_text(samples_data)
 
-            # Separate the left and the right column.
-            samples_file.write('&\n')
 
-            with sample.with_suffix('.ans').open('rt') as ans_file:
-                lines = []
-                for line in ans_file:
-                    lines.append(tex_escape(line))
-                samples_file.write('\\newline\n'.join(lines))
+# 1. Copy the latex/problem.tex file to tmpdir/<problem>/problem.tex,
+# substituting variables.
+# 2. Link tmpdir/<problem>/statement to the problem statement directory.
+# 3. Link bapc.cls
+# 4. Create tmpdir/<problem>/samples.tex.
+# 5. Run pdflatex and link the resulting problem.pdf into the problem directory.
+def build_problem_pdf(problem):
+    builddir = config.tmpdir / problem
+    builddir.mkdir(exist_ok=True)
+    problem_config = util.read_configs(problem)
+    problemid = ord(problem_config['probid']) - ord('A')
+    tl = problem_config['timelimit']
+    tl = int(tl) if abs(tl - int(tl)) < 0.01 else tl
 
-            # We must include a \\ in latex at the end of the table row.
-            samples_file.write('\\\\\n\\end{Sample}\n')
+    util.copy_and_substitute(config.tools_root / 'latex/problem.tex',
+            builddir/'problem.tex', {
+                'problemid': problemid,
+                'timelimit': tl,
+                })
+    ensure_symlink(builddir/'statement', problem/'problem_statement')
+    ensure_symlink(builddir/'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
-    if not make_pdf:
-        return True
+    create_samples_file(problem)
 
-    # run pdflatex
-    pwd = Path.cwd()
-    os.chdir(config.tools_root / 'latex')
-    subprocess.call(['pdflatex', '-output-directory', './build/problem', 'problem.tex'])
-    os.chdir(pwd)
+    # TODO: Suppress output unless there are errors or call exec_process.
+    subprocess.call(['pdflatex', '-output-directory', builddir,
+        builddir/'problem.tex'], cwd=builddir)
 
     # link the output pdf
-    pdf_path = problem / 'problem.pdf'
-    if not pdf_path.exists():
-        pdf_path.symlink_to(builddir / pdf_path)
+    output_pdf = problem / 'problem.pdf'
+    if output_pdf.exists() or output_pdf.is_symlink(): output_pdf.unlink()
+    output_pdf.symlink_to(builddir/'problem.pdf')
 
     return True
 
 
+def find_logo():
+    logo = Path('../logo.pdf')
+    if logo.exists():
+        return logo
+    return config.tools_root / 'latex/images/logo-not-found.pdf'
+
+
 # Build a pdf for an entire problemset. Explanation in latex/readme.md
 def build_contest_pdf(contest, problems, solutions=False, web=False):
-    builddir = require_latex_build_dir()
+    builddir = config.tmpdir / contest
+    builddir.mkdir(parents=True, exist_ok=True)
+    build_type = 'solution' if solutions else 'problem'
 
-    statement = not solutions
+    # TODO: fix solutions
+    # TODO: Extract data from DomJudge API using RGL tools.
+    #statement = not solutions
 
-    # Make the build/<contest> directory
-    (builddir / contest).mkdir(parents=True, exist_ok=True)
+    main_file = 'solutions.tex' if solutions else ('contest-web.tex' if web else 'contest.tex')
+    ensure_symlink(builddir/'bapc.cls', config.tools_root / 'latex/bapc.cls')
+    ensure_symlink(builddir/'images', config.tools_root / 'latex/images')
+    ensure_symlink(builddir/main_file, config.tools_root / 'latex' / main_file)
+    ensure_symlink(builddir/'contest_data.tex', Path('contest.tex'))
+    statstex = Path('solution_stats.tex')
+    if statstex.exists():
+        ensure_symlink(builddir/'solutions_stats.tex', Path('solution_stats.tex'))
+    ensure_symlink(builddir/'logo.pdf', find_logo())
 
-    contest_dir = builddir / 'contest'
-    # build/contest -> build/<contest>
-    if contest_dir.exists():
-        contest_dir.unlink()
-    contest_dir.symlink_to(contest)
 
-    # link contest.tex
-    config_target = builddir / 'contest/contest.tex'
-    if not config_target.exists():
-        if config_target.is_symlink():
-            config_target.unlink()
-        config_target.symlink_to(Path('contest.tex').resolve())
+    problems_data = ''
+    per_problem_data = (config.tools_root / 'latex' / f'contest-{build_type}.tex').read_text()
 
-    # link solution_stats
-    stats = Path('solution_stats.tex').resolve()
-    if solutions and stats.exists():
-        stats_target = builddir / 'contest/solution_stats.tex'
-        if not stats_target.exists():
-            if stats_target.is_symlink():
-                stats_target.unlink()
-            stats_target.symlink_to(stats)
+    # Some logic to prevent duplicate problem IDs.
+    seen = set()
+    next_spare = 25
+    for problem, _, problem_config in util.sort_problems(problems):
+        problemid = ord(problem_config['probid']) - ord('A')
+        if problemid in seen:
+            problemid = next_spare
+            next_spare -= 1
+            print(f"{_c.red}Problem {problem} has id {problem_config['probid']} which was already used before. Using {chr(ord('A')+problemid)} instead.{_c.reset}")
+        seen.add(problemid)
 
-    # Create the contest/problems.tex file.
-    t = 'solution' if solutions else 'problem'
-    problems_path = builddir / 'contest' / (t + 's.tex')
-    problems_with_ids = util.sort_problems(problems)
-    with open(problems_path, 'wt') as problems_file:
-        for problem_with_id in problems_with_ids:
-            problem = problem_with_id[0]
-            includedir = Path('.') / 'build' / problem / 'problem_statement'
-            includepath = includedir / (t + '.tex')
-            if (config.tools_root / 'latex' / includepath).exists():
-                problems_file.write('\\begingroup\\graphicspath{{{{{includedir}{os.sep}}}}}\n')
-                problemidpath = Path('.') / 'build' / problem / 'problemid.tex'
-                problems_file.write('\\input{{{problemidpath}}}\n')
-                problems_file.write('\\input{{{includepath}}}\n')
-                if statement:
-                    samplespath = Path('.') / 'build' / problem / 'samples.tex'
-                    problems_file.write('\\input{{{samplespath}}}\n')
-                problems_file.write('\\endgroup\n')
+        tl = problem_config['timelimit']
+        tl = int(tl) if abs(tl - int(tl)) < 0.01 else tl
+        problems_data += util.substitute(per_problem_data, {
+                'problemid': problemid,
+                'timelimit': tl,
+                'problemdir': config.tmpdir/problem,
+        })
+               
 
-        # include a statistics slide in the solutions PDF
-        if solutions and stats.exists():
-            statspath = Path('.') / 'build' / 'contest' / 'solution_stats.tex'
-            problems_file.write('\\input{{{statspath}}}\n')
+    # include a statistics slide in the solutions PDF
+    if solutions and statstex.exists():
+        problems_data += f'\\input{{{statstex}}}\n'
 
-    # Link logo. Either `contest/../logo.png` or `images/logo-not-found.png`
-    logo_path = builddir / 'contest/logo.pdf'
-    if not logo_path.exists():
-        logo_source = Path('../logo.pdf')
-        if logo_source.exists():
-            logo_path.symlink_to(logo_source)
-        else:
-            logo_path.symlink_to((config.tools_root / 'latex/images/logo-not-found.pdf').resolve())
+    (builddir/f'contest-{build_type}s.tex').write_text(problems_data)
 
-    # Run pdflatex for problems
-    pwd = os.getcwd()
-    os.chdir(config.tools_root / 'latex')
-    f = 'solutions' if solutions else ('contest-web' if web else 'contest')
-    # The absolute path is needed, because otherwise the `contest.tex` file
-    # in the output directory will get priority.
-    if subprocess.call(
-        ['pdflatex', '-output-directory', './build/contest',
-         Path(f + '.tex').resolve()]) != 0:
-        os.chdir(pwd)
-        # Non-zero exit code marks a failure.
-        print(_c.red, 'An error occurred while compiling latex!', _c.reset)
-        return False
-    os.chdir(pwd)
+    subprocess.call( ['pdflatex', '-output-directory', builddir,
+        (builddir/main_file).with_suffix('.tex')], cwd=builddir)
 
     # link the output pdf
-    output_pdf = Path(f).with_suffix('.pdf')
-    if not output_pdf.exists():
-        output_pdf.symlink_to(builddir / contest / output_pdf)
+    output_pdf = Path(main_file).with_suffix('.pdf')
+    ensure_symlink(output_pdf, builddir/output_pdf)
 
     return True

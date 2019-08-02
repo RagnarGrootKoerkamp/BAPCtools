@@ -42,7 +42,8 @@ class Validator {
 		if(ws) {
 			char c;
 			in >> c;
-			if(c != ' ') expected("space", string("\"") + c + "\"");
+			assert(!in.eof(), "Expected space, found EOF.");
+			if(c != ' ') expected("space", string("\"") + (c=='\n' ? string("newline"):string(1, c)) + "\"");
 		}
 	}
 
@@ -50,6 +51,7 @@ class Validator {
 		if(ws) {
 			char c;
 			in >> c;
+			assert(!in.eof(), "Expected newline, found EOF.");
 			if(c != '\n') expected("newline", string("\"") + c + "\"");
 		}
 	}
@@ -191,6 +193,7 @@ class Validator {
 		if(ws) {
 			char next = in.peek();
 			if(isspace(next)) expected(wanted, next=='\n' ? "newline" : "whitespace");
+			if(in.eof()) expected(wanted, "EOF");
 		}
 		string s;
 		if(in >> s) {
