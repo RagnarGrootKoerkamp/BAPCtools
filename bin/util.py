@@ -6,6 +6,7 @@ import yaml
 import subprocess
 import os
 
+
 # color printing
 class Colorcodes(object):
     def __init__(self):
@@ -176,6 +177,7 @@ def strip_newline(s):
     else:
         return s
 
+
 def substitute(data, variables):
     for key in variables:
         if variables[key] == None: continue
@@ -197,6 +199,7 @@ def substitute_dir_variables(dirname, variables):
     for path in dirname.rglob('*'):
         if path.is_file():
             substitute_file_variables(path, variables)
+
 
 def crop_output(output):
     if config.args.noerror: return None
@@ -224,7 +227,6 @@ def crop_output(output):
     return output
 
 
-
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, **kwargs):
     if 'stdout' not in kwargs:
@@ -246,5 +248,3 @@ def exec_command(command, expect=0, **kwargs):
 
     return (True if process.returncode == expect else process.returncode,
             crop_output(stderr.decode('utf-8')))
-
-

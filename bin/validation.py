@@ -92,6 +92,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     if settings.case_sensitive:
         flags += ['case_sensitive']
 
+    judgemessage = ''
     for output_validator in output_validators:
         ret = None
         with open(outfile, 'rb') as outf:
@@ -103,7 +104,6 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
                 stdin=outf)
         # Read judgemessage if present
         judgemessagepath = config.tmpdir / 'judgemessage.txt'
-        judgemessage = ''
         if judgemessagepath.is_file():
             with judgemessagepath.open() as judgemessagefile:
                 judgemessage = judgemessagefile.read()

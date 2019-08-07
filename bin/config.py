@@ -15,7 +15,7 @@ PROBLEM_OUTCOMES = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME
 TABLE_THRESHOLD = 4
 
 tmpdir = Path('/tmp/bapctools')
-tmpdir.mkdir(parents=True,exist_ok=True)
+tmpdir.mkdir(parents=True, exist_ok=True)
 
 tools_root = Path(__file__).resolve().parent.parent
 

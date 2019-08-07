@@ -11,6 +11,7 @@ import config
 import util
 from util import _c
 
+
 def ensure_symlink(link, target):
     if link.exists() or link.is_symlink(): return
     link.symlink_to(target.resolve())
@@ -53,9 +54,9 @@ def tex_escape(text):
         '\'': r'\textquotesingle{}',
         '\n': '\\newline\n',
     }
-    regex = re.compile('|'.join(
-        re.escape(str(key)) for key in sorted(conv.keys(), key=lambda item:
-            -len(item))), re.MULTILINE)
+    regex = re.compile(
+        '|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key=lambda item: -len(item))),
+        re.MULTILINE)
 
     # Remove the trailing newline because it will be replaced by \\newline\n
     has_newline = text[-1] is '\n'
@@ -99,24 +100,23 @@ def build_problem_pdf(problem):
     tl = problem_config['timelimit']
     tl = int(tl) if abs(tl - int(tl)) < 0.01 else tl
 
-    util.copy_and_substitute(config.tools_root / 'latex/problem.tex',
-            builddir/'problem.tex', {
-                'problemid': problemid,
-                'timelimit': tl,
-                })
-    ensure_symlink(builddir/'statement', problem/'problem_statement')
-    ensure_symlink(builddir/'bapc.cls', config.tools_root / 'latex/bapc.cls')
+    util.copy_and_substitute(config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
+        'problemid': problemid,
+        'timelimit': tl,
+    })
+    ensure_symlink(builddir / 'statement', problem / 'problem_statement')
+    ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
     create_samples_file(problem)
 
     # TODO: Suppress output unless there are errors or call exec_process.
-    subprocess.call(['pdflatex', '-output-directory', builddir,
-        builddir/'problem.tex'], cwd=builddir)
+    subprocess.call(
+        ['pdflatex', '-output-directory', builddir, builddir / 'problem.tex'], cwd=builddir)
 
     # link the output pdf
     output_pdf = problem / 'problem.pdf'
     if output_pdf.exists() or output_pdf.is_symlink(): output_pdf.unlink()
-    output_pdf.symlink_to(builddir/'problem.pdf')
+    output_pdf.symlink_to(builddir / 'problem.pdf')
 
     return True
 
@@ -139,15 +139,14 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     #statement = not solutions
 
     main_file = 'solutions.tex' if solutions else ('contest-web.tex' if web else 'contest.tex')
-    ensure_symlink(builddir/'bapc.cls', config.tools_root / 'latex/bapc.cls')
-    ensure_symlink(builddir/'images', config.tools_root / 'latex/images')
-    ensure_symlink(builddir/main_file, config.tools_root / 'latex' / main_file)
-    ensure_symlink(builddir/'contest_data.tex', Path('contest.tex'))
+    ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
+    ensure_symlink(builddir / 'images', config.tools_root / 'latex/images')
+    ensure_symlink(builddir / main_file, config.tools_root / 'latex' / main_file)
+    ensure_symlink(builddir / 'contest_data.tex', Path('contest.tex'))
     statstex = Path('solution_stats.tex')
     if statstex.exists():
-        ensure_symlink(builddir/'solutions_stats.tex', Path('solution_stats.tex'))
-    ensure_symlink(builddir/'logo.pdf', find_logo())
-
+        ensure_symlink(builddir / 'solutions_stats.tex', Path('solution_stats.tex'))
+    ensure_symlink(builddir / 'logo.pdf', find_logo())
 
     problems_data = ''
     per_problem_data = (config.tools_root / 'latex' / f'contest-{build_type}.tex').read_text()
@@ -160,29 +159,31 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
         if problemid in seen:
             problemid = next_spare
             next_spare -= 1
-            print(f"{_c.red}Problem {problem} has id {problem_config['probid']} which was already used before. Using {chr(ord('A')+problemid)} instead.{_c.reset}")
+            print(
+                f"{_c.red}Problem {problem} has id {problem_config['probid']} which was already used before. Using {chr(ord('A')+problemid)} instead.{_c.reset}"
+            )
         seen.add(problemid)
 
         tl = problem_config['timelimit']
         tl = int(tl) if abs(tl - int(tl)) < 0.01 else tl
         problems_data += util.substitute(per_problem_data, {
-                'problemid': problemid,
-                'timelimit': tl,
-                'problemdir': config.tmpdir/problem,
+            'problemid': problemid,
+            'timelimit': tl,
+            'problemdir': config.tmpdir / problem,
         })
-               
 
     # include a statistics slide in the solutions PDF
     if solutions and statstex.exists():
         problems_data += f'\\input{{{statstex}}}\n'
 
-    (builddir/f'contest-{build_type}s.tex').write_text(problems_data)
+    (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
-    subprocess.call( ['pdflatex', '-output-directory', builddir,
-        (builddir/main_file).with_suffix('.tex')], cwd=builddir)
+    subprocess.call(
+        ['pdflatex', '-output-directory', builddir, (builddir / main_file).with_suffix('.tex')],
+        cwd=builddir)
 
     # link the output pdf
     output_pdf = Path(main_file).with_suffix('.pdf')
-    ensure_symlink(output_pdf, builddir/output_pdf)
+    ensure_symlink(output_pdf, builddir / output_pdf)
 
     return True

@@ -40,12 +40,6 @@ import validation
 from util import ProgressBar, _c
 
 
-def exit(clean=True):
-    #if clean:
-        #shutil.rmtree(config.tmpdir)
-    sys.exit(1)
-
-
 # Get the list of relevant problems.
 # Either use the provided contest, or check the existence of problem.yaml.
 # Returns problems in sorted order by probid in domjudge.ini.
@@ -77,7 +71,6 @@ def is_executable(path):
     return path.is_file() and (path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
 
-
 def python_interpreter(version):
     if hasattr(config.args, 'pypy') and config.args.pypy:
         if version is 2: return 'pypy'
@@ -106,7 +99,7 @@ def build(path):
         ]
         run_command = [outfile]
     elif ext in ('.cc', '.cpp'):
-        compile_command = [
+        compile_command = ([
             '/usr/bin/g++',
             '-I',
             config.tools_root / 'headers',
@@ -116,8 +109,8 @@ def build(path):
             '-fdiagnostics-color=always',  # Enable color output
             '-o',
             outfile,
-            path
-        ]
+            path] +
+            ([] if config.args.cpp_flags is None else config.args.cpp_flags.split()))
         run_command = [outfile]
     elif ext == '.java':
         compile_command = ['javac', '-d', config.tmpdir, path]
@@ -137,7 +130,7 @@ def build(path):
 
     # Prevent building something twice in one invocation of tools.py.
     message = ''
-    if compile_command is not None: # and not outfile.is_file():
+    if compile_command is not None:  # and not outfile.is_file():
         ret = util.exec_command(compile_command)
         if ret[0] is not True:
             message = f'{_c.red}FAILED{_c.reset}'
@@ -246,9 +239,7 @@ def get_validators(problem, validator_type):
 #
 # We always pass both the case_sensitive and space_change_sensitive flags.
 def validate(problem, validator_type, settings):
-    if not validator_type in ['input', 'output']:
-        print('Validator type must be `input` or `output`!')
-        exit()
+    assert validator_type in ['input', 'output']
 
     if validator_type == 'output' and settings.validation == 'custom':
         return True
@@ -476,15 +467,14 @@ def process_testcase(run_command,
         verdict = 'RUN_TIME_ERROR'
         remark = 'Exited with code ' + str(run_ret[0]) + ':\n' + run_ret[1]
     else:
+        assert settings.validation in ['default', 'custom']
         if settings.validation == 'default':
             val_ret = validation.default_output_validator(
                 testcase.with_suffix('.ans'), outfile, settings)
         elif settings.validation == 'custom':
             val_ret = validation.custom_output_validator(testcase, outfile, settings,
                                                          output_validators)
-        else:
-            print(_c.red + 'Validation type must be one of `default` or `custom`' + _c.reset)
-            exit()
+
         verdict = 'ACCEPTED' if val_ret[0] else 'WRONG_ANSWER'
         remark = val_ret[1]
 
@@ -689,7 +679,7 @@ def generate_output(problem, settings):
         submissions = list(problem.glob('submissions/accepted/*'))
         if len(submissions) == 0:
             print('No submission found for this problem!')
-            exit()
+            sys.exit(1)
         submissions.sort()
         # Look fora c++ solution if available.
         submission = None
@@ -943,7 +933,7 @@ def new_problem():
 
     shutil.copytree(config.tools_root / 'skel/problem', dirname, symlinks=True)
 
-    util.substitute_dir_variables(dirname, variables)
+    util.substitute_dir_variables(Path(dirname), variables)
 
 
 def build_parser():
@@ -970,6 +960,7 @@ Run this from one of:
         '-e', '--error', action='store_true', help='Print full output of failing commands')
     global_parser.add_argument(
         '-E', '--noerror', action='store_true', help='Hide output of failing commands')
+    global_parser.add_argument('--cpp_flags', help='Additional compiler flags used for all c++ compilations.')
 
     subparsers = parser.add_subparsers(title='actions', dest='action')
     subparsers.required = True
@@ -1011,13 +1002,15 @@ Run this from one of:
         help='Create problem statements for individual problems as well.')
 
     # Validation
-    validate_parser = subparsers.add_parser('validate', parents=[global_parser], help='validate all grammar')
+    validate_parser = subparsers.add_parser(
+        'validate', parents=[global_parser], help='validate all grammar')
     validate_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
-    input_parser = subparsers.add_parser('input', parents=[global_parser], help='validate input grammar')
+    input_parser = subparsers.add_parser(
+        'input', parents=[global_parser], help='validate input grammar')
     input_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
-    output_parser = subparsers.add_parser('output', parents=[global_parser], help='validate output grammar')
+    output_parser = subparsers.add_parser(
+        'output', parents=[global_parser], help='validate output grammar')
     output_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
-
 
     subparsers.add_parser(
         'constraints',
@@ -1099,11 +1092,11 @@ def main():
 
     if action in ['contest']:
         new_contest(config.args.contestname)
-        exit()
+        return
 
     if action in ['problem']:
-        new_problem(config.args)
-        exit()
+        new_problem()
+        return
 
     # Get problems and cd to contest
     problems, level, contest = get_problems(config.args.contest)
@@ -1111,15 +1104,15 @@ def main():
     if action in ['generate']:
         if level != 'problem':
             print(f'{_c.red}Generating output files only works for a single problem.{_c.reset}')
-            exit()
+            sys.exit(1)
 
     if action == 'run':
         if config.args.submissions:
             if level != 'problem':
                 print(
-                    '{_c.red}Running a given submission only works from a problem directory.{_c.reset}'
+                    f'{_c.red}Running a given submission only works from a problem directory.{_c.reset}'
                 )
-                exit()
+                return
             (config.args.submissions,
              config.args.testcases) = split_submissions(config.args.submissions)
         else:
@@ -1140,7 +1133,7 @@ def main():
     if action == 'kattis':
         if level != "contest":
             print("Only contest level is currently supported...")
-            exit()
+            return
         prepare_kattis_directory()
 
     problem_zips = []
@@ -1207,9 +1200,8 @@ def main():
         export.build_contest_zip(problem_zips, contest + '.zip', config.args)
 
     if not success:
-        exit()
+        sys.exit(1)
 
 
 if __name__ == '__main__':
     main()
-#shutil.rmtree(config.tmpdir)

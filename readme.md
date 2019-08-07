@@ -236,5 +236,5 @@ This repository has `checktestdata` as a git submodule. The tool looks for the
 
 TODO: Really we should find a better way to distribute this, potentially by
 putting the compiled binary in the repository. Also, since CTD is slow, we
-should probably add an additional validator flag that enabled the CTD
+should probably add an additional validator flag that enables the CTD
 validators.
