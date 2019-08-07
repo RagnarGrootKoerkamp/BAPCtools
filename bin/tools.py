@@ -224,7 +224,13 @@ def print_name(path):
 
 
 def get_validators(problem, validator_type):
-    return build_directory(problem / (validator_type + '_validators'))
+    validators = build_directory(problem / (validator_type + '_validators'))
+
+    if len(validators) == 0:
+        print(f'\n{_c.red}Aborting: At least one {validator_type} validator is needed!{_c.reset}')
+        sys.exit(1)
+
+    return validators
 
 
 # Validate the .in and .ans files for a problem.
