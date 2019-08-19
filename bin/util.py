@@ -93,6 +93,7 @@ class ProgressBar:
 def read_configs(problem):
     # some defaults
     settings = {
+        'probid': 'A',
         'timelimit': 1,
         'name': '',
         'floatabs': None,
