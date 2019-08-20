@@ -45,7 +45,7 @@ from util import ProgressBar, _c
 # Returns problems in sorted order by probid in domjudge.ini.
 def get_problems(contest=None):
     def is_problem_directory(path):
-        return (path / 'problem.yaml').is_file()
+        return (path / 'problem.yaml').is_file() or (path / 'problem_statement').is_dir()
 
     if contest is not None:
         os.chdir(contest)
@@ -335,19 +335,21 @@ def get_stat(count, threshold=True, upper_bound=None):
 def stats(problems):
     stats = [
         # Roughly in order of importance
+        ('yaml', 'problem.yaml'),
         ('ini', 'domjudge-problem.ini'),
-        ('tex', 'problem_statement/problem.tex'),
+        ('tex', 'problem_statement/problem*.tex'),
         ('sol', 'problem_statement/solution.tex'),
         ('   Ival', ['input_validators/*.ctd', 'input_validators/*.cpp']),
         ('Oval', ['output_validators/*.ctd', 'output_validators/*.cpp']),
         ('   sample', 'data/sample/*.in', 2),
         ('secret', 'data/secret/*.in', 15, 50),
-        ('    AC', 'submissions/accepted/*', 3),
+        ('   AC', 'submissions/accepted/*', 3),
         (' WA', 'submissions/wrong_answer/*', 2),
         ('TLE', 'submissions/time_limit_exceeded/*', 1),
-        ('    java', 'submissions/accepted/*.java'),
-        ('py2', ['submissions/accepted/*.py', 'submissions/accepted/*.py2']),
-        ('py3', 'submissions/accepted/*.py3'),
+        ('   cpp', 'submissions/accepted/*.c*', 1),
+        ('java', 'submissions/accepted/*.java', 1),
+        ('py2', ['submissions/accepted/*.py', 'submissions/accepted/*.py2'], 1),
+        ('py3', 'submissions/accepted/*.py3', 1),
     ]
 
     headers = ['problem'] + [h[0] for h in stats]

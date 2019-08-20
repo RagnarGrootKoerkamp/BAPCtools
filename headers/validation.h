@@ -145,6 +145,13 @@ class Validator {
 		return v;
 	}
 
+	long double read_long_double(long double low, long double high) {
+		long double v = read_long_double();
+		if(low <= v && v <= high) return v;
+		expected("long double between " + to_string(low) + " and " + to_string(high), to_string(v));
+	}
+
+
 	// Check the next character.
 	bool peek(char c) {
 		if(!ws) in >> ::ws;
