@@ -122,8 +122,6 @@ def build(path):
         'java', '-enableassertions', '-Xss1024M', '-cp', config.tmpdir,
         path.stem
     ]
-    print(compile_command)
-    print(run_command)
   elif ext in ('.py', '.py2'):
     p = python_interpreter(2)
     if p is not None:
