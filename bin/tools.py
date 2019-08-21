@@ -24,7 +24,6 @@ import re
 import shutil
 import subprocess
 import time
-import glob
 import yaml
 import configparser
 import io
@@ -37,7 +36,7 @@ import export
 import latex
 import util
 import validation
-from util import ProgressBar, _c
+from util import ProgressBar, _c, glob
 
 
 # Get the list of relevant problems.
@@ -57,7 +56,7 @@ def get_problems(contest=None):
         os.chdir('..')  # cd to contest dir.
     else:
         level = 'contest'
-        dirs = [p[0] for p in util.sort_problems(Path('.').glob('*/'))]
+        dirs = [p[0] for p in util.sort_problems(glob(Path('.'), '*/'))]
         for problem in dirs:
             if is_problem_directory(problem):
                 problems.append(problem)
@@ -172,7 +171,7 @@ def build_directory(directory, include_dirname=False, bar=None):
     if is_executable(runfile):
         return [('run', [runfile])]
 
-    files = [x for x in directory.glob('*') if x.name[0] is not '.']
+    files = [x for x in glob(directory, '*') if x.name[0] is not '.']
     files.sort()
 
     if len(files) == 0: return commands
@@ -378,12 +377,7 @@ def stats(problems):
             if type(path) is list:
                 return sum(count(p) for p in path)
             cnt = 0
-            for p in problem.glob(path):
-                hidden = False
-                for d in p.parts:
-                    if d[0] == '.':
-                        hidden = True
-                if hidden: continue
+            for p in glob(problem, path):
                 # Exclude files containing 'TODO: Remove'.
                 if p.is_file():
                     with p.open() as file:
@@ -409,7 +403,7 @@ def stats(problems):
 
 # returns a map {answer type -> [(name, command)]}
 def get_submissions(problem):
-    dirs = list(problem.glob('submissions/*/'))
+    dirs = list(glob(problem, 'submissions/*/'))
     commands = {}
 
     max_dir_len = max(len(d.name) for d in dirs)
@@ -684,7 +678,7 @@ def generate_output(problem, settings):
         submission = problem / settings.submission
     else:
         # only get one accepted submission
-        submissions = list(problem.glob('submissions/accepted/*'))
+        submissions = list(glob(problem, 'submissions/accepted/*'))
         if len(submissions) == 0:
             print('No submission found for this problem!')
             sys.exit(1)
@@ -693,12 +687,16 @@ def generate_output(problem, settings):
         submission = None
         for s in submissions:
             # Skip files containing 'NO_GENERATE'.
+            # Pick files containing 'CANONICAL'.
             with open(s) as submission_file:
-                if submission_file.read().find('NO_GENERATE') != -1:
+                text = submission_file.read()
+                if text.find('NO_GENERATE') != -1:
                     continue
+                if text.find('CANONICAL') != -1:
+                    submission = s
+                    break
             if s.suffix == '.cpp':
                 submission = s
-                break
             else:
                 if submission is None:
                     submission = s

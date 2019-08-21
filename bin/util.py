@@ -156,11 +156,23 @@ def sort_problems(problems):
     return problems
 
 
+def is_hidden(path):
+    for d in path.parts:
+        if d[0] == '.':
+            return True
+    return False
+
+
+# glob, but without hidden files
+def glob(path, expression):
+    return [p for p in path.glob(expression) if not is_hidden(p)]
+
+
 # testcases; returns list of basenames
 def get_testcases(problem, needans=True, only_sample=False):
-    infiles = list(problem.glob('data/sample/*.in'))
+    infiles = list(glob(problem, 'data/sample/*.in'))
     if not only_sample:
-        infiles += list(problem.glob('data/secret/*.in'))
+        infiles += list(glob(problem, 'data/secret/*.in'))
 
     testcases = []
     for f in infiles:
