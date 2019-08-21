@@ -78,10 +78,9 @@ def python_interpreter(version):
   if hasattr(config.args, 'pypy') and config.args.pypy:
     if version is 2:
       return 'pypy'
-    print('\n' + _c.red + 'Pypy only works for python2!' + _c.reset)
-    return None
-  else:
-    return 'python' + str(version)
+    print('\n' + _c.orange +
+          'Pypy only works for python2! Using cpython for python3.' + _c.reset)
+  return 'python' + str(version)
 
 
 # a function to convert c++ or java to something executable
