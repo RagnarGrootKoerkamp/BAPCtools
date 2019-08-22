@@ -11,6 +11,8 @@ import config
 import util
 from util import _c
 
+PDFLATEX = ['pdflatex', '-halt-on-error']
+
 
 def ensure_symlink(link, target):
     if link.exists() or link.is_symlink(): return
@@ -109,15 +111,23 @@ def build_problem_pdf(problem):
 
     create_samples_file(problem)
 
-    # TODO: Suppress output unless there are errors or call exec_process.
-    subprocess.call(
-        ['pdflatex', '-output-directory', builddir, builddir / 'problem.tex'], cwd=builddir)
+    for i in range(3):
+        ok, err, out = util.exec_command(
+            PDFLATEX + ['-output-directory', builddir, builddir / 'problem.tex'],
+            0, False,
+            cwd=builddir,
+            stdout=subprocess.PIPE
+            )
+        if ok is not True:
+            print(f'{_c.red}Failure compiling pdf:{_c.reset}\n{out}')
+            return False
 
     # link the output pdf
     output_pdf = problem / 'problem.pdf'
     if output_pdf.exists() or output_pdf.is_symlink(): output_pdf.unlink()
     output_pdf.symlink_to(builddir / 'problem.pdf')
 
+    print(f'{_c.green}Pdf written to {output_pdf}{_c.reset}')
     return True
 
 
@@ -178,12 +188,20 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
-    subprocess.call(
-        ['pdflatex', '-output-directory', builddir, (builddir / main_file).with_suffix('.tex')],
-        cwd=builddir)
+    for i in range(3):
+        ok, err, out = util.exec_command(
+            PDFLATEX + ['-output-directory', builddir, (builddir / main_file).with_suffix('.tex')],
+            0, False,
+            cwd=builddir,
+            stdout=subprocess.PIPE
+            )
+        if ok is not True:
+            print(f'{_c.red}Failure compiling pdf:{_c.reset}\n{out}')
+            return False
 
     # link the output pdf
     output_pdf = Path(main_file).with_suffix('.pdf')
     ensure_symlink(output_pdf, builddir / output_pdf)
 
+    print(f'{_c.green}Pdf written to {output_pdf}{_c.reset}')
     return True

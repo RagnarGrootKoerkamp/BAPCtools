@@ -55,7 +55,7 @@ class ProgressBar:
 
     def action(prefix, item, width=None, total_width=None):
         if width is None: width = 0
-        if len(prefix) + 2 + width > total_width:
+        if total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
         if len(item) > width: item = item[:width]
         s = f'{_c.blue}{prefix}{_c.reset}: {item:<{width}}'
@@ -252,7 +252,7 @@ def crop_output(output):
 
 
 # Run `command`, returning stderr if the return code is unexpected.
-def exec_command(command, expect=0, **kwargs):
+def exec_command(command, expect=0, crop=True, **kwargs):
     if 'stdout' not in kwargs:
         kwargs['stdout'] = open(os.devnull, 'w')
 
@@ -270,5 +270,9 @@ def exec_command(command, expect=0, **kwargs):
         process.kill()
         (stdout, stderr) = process.communicate()
 
+    def maybe_crop(s):
+        return crop_output(s) if crop else s
+
     return (True if process.returncode == expect else process.returncode,
-            crop_output(stderr.decode('utf-8')))
+            maybe_crop(stderr.decode('utf-8')),
+            maybe_crop(stdout.decode('utf-8')) if stdout else None)

@@ -1270,7 +1270,7 @@ def main():
     for key in problemsettings:
       vars(settings)[key] = problemsettings[key]
 
-    if action in ['pdf', 'solutions']:
+    if action in ['pdf', 'solutions', 'all']:
       # only build the pdf on the problem level
       success &= latex.build_problem_pdf(problem)
 
@@ -1301,25 +1301,23 @@ def main():
 
     if len(problems) > 1:
       print()
+  
+  if level == 'contest':
+    print(f'{_c.bold}CONTEST {contest}{_c.reset}')
 
-  # build pdf for the entire contest
-  if action in ['pdf'] and level == 'contest':
-    # Run 3 times, to fix the TOC.
-    success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
-    #success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
-    #success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
+    # build pdf for the entire contest
+    if action in ['pdf']:
+      success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
 
-  if action in ['solutions'] and level == 'contest':
-    success &= latex.build_contest_pdf(contest, problems, solutions=True)
+    if action in ['solutions']:
+      success &= latex.build_contest_pdf(contest, problems, solutions=True)
 
-  if action in ['zip'] and config.args.contest:
-    success &= latex.build_contest_pdf(contest, problems)
-    success &= latex.build_contest_pdf(contest, problems)
-    success &= latex.build_contest_pdf(contest, problems)
-    success &= latex.build_contest_pdf(contest, problems, web=True)
-    success &= latex.build_contest_pdf(contest, problems, solutions=True)
+    if action in ['zip']:
+      success &= latex.build_contest_pdf(contest, problems)
+      success &= latex.build_contest_pdf(contest, problems, web=True)
+      success &= latex.build_contest_pdf(contest, problems, solutions=True)
 
-    export.build_contest_zip(problem_zips, contest + '.zip', config.args)
+      export.build_contest_zip(problem_zips, contest + '.zip', config.args)
 
   if not success:
     sys.exit(1)
