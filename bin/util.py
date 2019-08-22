@@ -124,7 +124,7 @@ def read_configs(problem):
     if yamlpath.is_file():
         with yamlpath.open() as yamlfile:
             try:
-                config = yaml.load(yamlfile)
+                config = yaml.safe_load(yamlfile)
                 for key, value in config.items():
                     settings[key] = value
             except:

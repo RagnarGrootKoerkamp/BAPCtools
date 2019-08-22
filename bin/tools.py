@@ -982,7 +982,7 @@ def new_problem():
   if yamlfilepath.is_file():
     with yamlfilepath.open() as yamlfile:
       try:
-        contest_vars = yaml.load(yamlfile)
+        contest_vars = yaml.safe_load(yamlfile)
         for key in contest_vars:
           variables[
               key] = '' if contest_vars[key] is None else contest_vars[key]
