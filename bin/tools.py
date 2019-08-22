@@ -43,20 +43,32 @@ from util import ProgressBar, _c, glob
 # Get the list of relevant problems.
 # Either use the provided contest, or check the existence of problem.yaml.
 # Returns problems in sorted order by probid in domjudge.ini.
-def get_problems(contest=None):
+def get_problems():
 
   def is_problem_directory(path):
-    return (path / 'problem.yaml').is_file() or (path /
-                                                 'problem_statement').is_dir()
+    return (path / 'problem.yaml').is_file() or (path / 'problem_statement').is_dir()
 
-  if contest is not None:
-    os.chdir(contest)
+  contest = None
+  problem = None
   level = None
-  problems = []
-  if is_problem_directory(Path('.')):
+  if hasattr(config.args, 'contest') and config.args.contest:
+    contest = config.args.contest
+    os.chdir(contest)
+    level = 'contest'
+  elif hasattr(config.args, 'problem') and config.args.problem:
+    problem = Path(config.args.problem)
     level = 'problem'
-    problems = [Path(Path().cwd().name)]
-    os.chdir('..')  # cd to contest dir.
+    os.chdir(problem.parent)
+  elif is_problem_directory(Path('.')):
+    problem = Path().cwd()
+    level = 'problem'
+    os.chdir('..')
+  else:
+    level = 'contest'
+
+  problems = []
+  if level == 'problem':
+    problems = [Path(problem.name)]
   else:
     level = 'contest'
     dirs = [p[0] for p in util.sort_problems(glob(Path('.'), '*/'))]
@@ -1009,6 +1021,10 @@ Run this from one of:
       '--contest',
       help='The contest to use, when running from repository root.')
   global_parser.add_argument(
+      '-p',
+      '--problem',
+      help='The problem to use, when running from repository root.')
+  global_parser.add_argument(
       '-e',
       '--error',
       action='store_true',
@@ -1203,7 +1219,7 @@ def main():
     return
 
   # Get problems and cd to contest
-  problems, level, contest = get_problems(config.args.contest)
+  problems, level, contest = get_problems()
 
   if action in ['generate']:
     if level != 'problem':
