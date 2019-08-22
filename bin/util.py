@@ -53,15 +53,20 @@ class ProgressBar:
     def clearline():
         print('\033[K', end='', flush=True)
 
-    def action(prefix, item, width=None):
+    def action(prefix, item, width=None, total_width=None):
         if width is None: width = 0
-        return f'{_c.blue}{prefix}{_c.reset}: {item:<{width}}'
+        if len(prefix) + 2 + width > total_width:
+            width = total_width - len(prefix) - 2
+        if len(item) > width: item = item[:width]
+        s = f'{_c.blue}{prefix}{_c.reset}: {item:<{width}}'
+        return s
 
     def get_prefix(self):
-        return ProgressBar.action(self.prefix, self.item, self.item_width)
+        return ProgressBar.action(self.prefix, self.item, self.item_width,
+                self.total_width)
 
     def get_bar(self):
-        if self.count is None: return ''
+        if self.count is None or self.bar_width < 4: return ''
         fill = (self.i - 1) * (self.bar_width - 2) // self.count
         return '[' + '#' * fill + '-' * (self.bar_width - 2 - fill) + ']'
 
@@ -71,7 +76,13 @@ class ProgressBar:
 
         self.item = item
         self.logged = False
-        print(self.get_prefix(), self.get_bar(), end='\r', flush=True)
+        prefix = self.get_prefix()
+        bar = self.get_bar()
+
+        if bar is None or bar == '':
+            print(self.get_prefix(), end='\r', flush=True)
+        else:
+            print(self.get_prefix(), self.get_bar(), end='\r', flush=True)
 
     # Done can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
