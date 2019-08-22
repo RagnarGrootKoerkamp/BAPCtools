@@ -602,7 +602,7 @@ def run_submission(submission,
   # Print summary line
   boldcolor = _c.bold if printed else ''
   print(
-      f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{verdict}'
+      f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{verdict}{_c.reset}'
   )
 
   if printed:
@@ -1025,6 +1025,11 @@ Run this from one of:
       '--problem',
       help='The problem to use, when running from repository root.')
   global_parser.add_argument(
+      '-s',
+      '--silent',
+      action='store_true',
+      help='Do not show progress bars in non-interactive environments.')
+  global_parser.add_argument(
       '-e',
       '--error',
       action='store_true',
@@ -1165,7 +1170,6 @@ Run this from one of:
       parents=[global_parser],
       help='Create zip file that can be imported into DomJudge')
   zipparser.add_argument(
-      '-s',
       '--skip',
       action='store_true',
       help='Skip recreation of problem zips.')
