@@ -14,10 +14,10 @@ PROBLEM_OUTCOMES = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD = 4
 
-tmpdir = Path('/tmp/bapctools')
-tmpdir.mkdir(parents=True, exist_ok=True)
-
 tools_root = Path(__file__).resolve().parent.parent
+
+tmpdir = Path('/tmp/bapctools_' + hex(hash(tools_root))a[-6:])
+tmpdir.mkdir(parents=True, exist_ok=True)
 
 # this is lifted for convenience
 args = None
