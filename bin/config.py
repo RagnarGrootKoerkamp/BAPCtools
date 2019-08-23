@@ -16,7 +16,7 @@ TABLE_THRESHOLD = 4
 
 tools_root = Path(__file__).resolve().parent.parent
 
-tmpdir = Path('/tmp/bapctools_' + hex(hash(tools_root))a[-6:])
+tmpdir = Path('/tmp/bapctools_' + hex(hash(tools_root))[-6:])
 tmpdir.mkdir(parents=True, exist_ok=True)
 
 # this is lifted for convenience
