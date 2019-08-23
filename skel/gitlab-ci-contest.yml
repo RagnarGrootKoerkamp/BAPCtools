@@ -1,0 +1,10 @@
+contest_pdf_{%contest%}:
+  script:
+      - ./bt pdf --cp --silent -contest {%contest%}
+  only:
+    changes:
+{%changes%}
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - {%contest%}/contest.pdf

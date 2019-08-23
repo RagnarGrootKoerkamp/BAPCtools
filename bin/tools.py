@@ -997,6 +997,23 @@ def new_problem():
   util.substitute_dir_variables(Path(dirname), variables)
 
 
+def create_gitlab_jobs(contest, problems):
+    def problem_source_dir(problem):
+        return problem.resolve().relative_to(Path('..').resolve())
+
+    contest_yml = (config.tools_root/'skel/gitlab-ci-contest.yml').read_text()
+    changes = ''
+    for problem in problems:
+        changes += '      - ' + str(problem_source_dir(problem)) + '/problem_statement/**/*\n'
+    print(util.substitute(contest_yml, locals()))
+
+    problem_yml = (config.tools_root/'skel/gitlab-ci-problem.yml').read_text()
+    for problem in problems:
+        changesdir = problem_source_dir(problem)
+        print('\n')
+        print(util.substitute(problem_yml, locals()), end='')
+
+
 def build_parser():
   parser = argparse.ArgumentParser(
       description="""
@@ -1203,6 +1220,9 @@ Run this from one of:
       parents=[global_parser],
       help='Build a directory for verification with the kattis format')
 
+  subparsers.add_parser('gitlabci', parents=[global_parser],
+      help='Print a list of jobs for the given contest.')
+
   argcomplete.autocomplete(parser)
 
   return parser
@@ -1265,6 +1285,11 @@ def main():
       print('Only contest level is currently supported...')
       return
     prepare_kattis_directory()
+    return
+
+  if action == 'gitlabci':
+    create_gitlab_jobs(contest, problems)
+    return
 
   problem_zips = []
 

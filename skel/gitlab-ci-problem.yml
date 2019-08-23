@@ -1,0 +1,10 @@
+verify_{%problem%}:
+  script:
+      - ./bt all --cp --silent --problem {%contest%}/{%problem%}
+  only:
+    changes:
+      - {%changesdir%}/**/*
+  artifacts:
+    expire_in: 1 week
+    paths:
+      - {%contest%}/{%problem%}/problem.pdf
