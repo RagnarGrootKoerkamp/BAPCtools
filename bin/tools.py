@@ -1081,6 +1081,8 @@ Run this from one of:
       help='Create problem statements for individual problems as well.')
   pdfparser.add_argument(
       '--web', action='store_true', help='Create a web version of the pdf.')
+  pdfparser.add_argument(
+      '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.')
 
   # Solution slides
   solparser = subparsers.add_parser(
@@ -1159,10 +1161,12 @@ Run this from one of:
       help='sort the problems for a contest by name')
 
   # All
-  subparsers.add_parser(
+  allparser = subparsers.add_parser(
       'all',
       parents=[global_parser],
       help='validate input, validate output, and run programs')
+  allparser.add_argument(
+      '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.')
 
   # Build DomJudge zip
   zipparser = subparsers.add_parser(

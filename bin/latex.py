@@ -5,6 +5,7 @@ import util
 import re
 import subprocess
 import tempfile
+import shutil
 from pathlib import Path
 
 import config
@@ -14,8 +15,15 @@ from util import _c
 PDFLATEX = ['pdflatex', '-halt-on-error']
 
 
-def ensure_symlink(link, target):
-    if link.exists() or link.is_symlink(): return
+# When output is True, copy the file when args.cp is true.
+def ensure_symlink(link, target, output=False):
+    if output and hasattr(config.args, 'cp') and config.args.cp == True:
+        if link.exists() or link.is_symlink(): link.unlink()
+        shutil.copyfile(target, link)
+        return
+
+    if link.is_symlink(): return
+    if link.exists(): link.unlink()
     link.symlink_to(target.resolve())
 
 
@@ -124,8 +132,7 @@ def build_problem_pdf(problem):
 
     # link the output pdf
     output_pdf = problem / 'problem.pdf'
-    if output_pdf.exists() or output_pdf.is_symlink(): output_pdf.unlink()
-    output_pdf.symlink_to(builddir / 'problem.pdf')
+    ensure_symlink(output_pdf, builddir / 'problem.pdf', True)
 
     print(f'{_c.green}Pdf written to {output_pdf}{_c.reset}')
     return True
@@ -201,7 +208,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
 
     # link the output pdf
     output_pdf = Path(main_file).with_suffix('.pdf')
-    ensure_symlink(output_pdf, builddir / output_pdf)
+    ensure_symlink(output_pdf, builddir / output_pdf, True)
 
     print(f'{_c.green}Pdf written to {output_pdf}{_c.reset}')
     return True
