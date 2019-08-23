@@ -16,6 +16,7 @@ Bommel.
 
 import sys
 import stat
+import hashlib
 import argparse
 import argcomplete  # For automatic shell completions
 import os
@@ -77,6 +78,14 @@ def get_problems():
         problems.append(problem)
 
   contest = Path().cwd().name
+
+  # We create one tmpdir per repository, assuming the repository is one level
+  # higher than the contest directory.
+  if config.tmpdir is None:
+    h = hashlib.sha256(bytes(Path().cwd().parent)).hexdigest()[-6:]
+    config.tmpdir = Path('/tmp/bapctools_' + h)
+    config.tmpdir.mkdir(parents=True, exist_ok=True)
+
   return (problems, level, contest)
 
 
@@ -90,39 +99,104 @@ def is_executable(path):
 def python_version(path):
   shebang = path.read_text().split('\n')[0]
   if re.match('^#!.*python2', shebang):
-      return 2
+      return 'python2'
   if re.match('^#!.*python3', shebang):
-      return 3
-  return 2
+      return 'python3'
+  return 'python2'
 
 
 def python_interpreter(version):
   if hasattr(config.args, 'pypy') and config.args.pypy:
-    if version is 2:
+    if version == 'python2':
       return 'pypy'
     print('\n' + _c.orange +
           'Pypy only works for python2! Using cpython for python3.' + _c.reset)
-  return 'python' + str(version)
+  return version
 
 
-# a function to convert c++ or java to something executable
-# returns a command to execute and an optional error message
+# A function to convert c++ or java to something executable.
+# Returns a command to execute and an optional error message.
+# This can take either a path to a file (c, c++, java, python) or a directory.
+# The directory may contain multiple files.
 def build(path):
   # mirror directory structure on tmpfs
-  ext = path.suffix
-  outfile = config.tmpdir / path.with_suffix('')
-  outfile.parent.mkdir(parents=True, exist_ok=True)
+  outdir = config.tmpdir / path
+  outdir.mkdir(parents=True, exist_ok=True)
+  for f in outdir.glob('*'): f.unlink()
+  outfile = outdir / 'run'
 
+  # Link all input files
+  files = list(path.glob('*')) if path.is_dir() else [path]
+  if len(files) == 0:
+      return (None, f'{_c.red}{str(path)} is an empty directory.{_c.reset}')
+  for f in files:
+      latex.ensure_symlink(outdir/f.name, f)
+  
+  # If build or run present, use them:
+  if is_executable(outdir / 'build'):
+    cur_path = os.getcwd()
+    os.chdir(outdir)
+    if util.exec_command(['./build'])[0] is not True:
+      return (False, f'{_c.red}FAILED{_c.reset}')
+    os.chdir(cur_path)
+    if not is_executable(runfile):
+      return (False, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
+
+  if is_executable(outdir / 'run'):
+    return ([outdir / 'run'], None)
+
+  # Otherwise, detect the language and entry point and build manually.
+  language_code = None
+  main_file = None if path.is_dir() else outdir/path.name
+  for f in files:
+      e = f.suffix
+
+      lang = None
+      main = False
+
+      if e in ['.c']:
+          lang = 'c'
+          main = True
+      if e in ['.cc', '.cpp', '.cxx.', '.c++', '.C']:
+          lang = 'cpp'
+          main = True
+      if e in ['.java']:
+          lang = 'java'
+          main = f.name == 'Main.java'
+      if e in ['.py', '.py2', '.py3']:
+          if   e == '.py2': lang = 'python2'
+          elif e == '.py3': lang = 'python3'
+          elif e == '.py': lang = python_version(path)
+          main = f.name == 'main.py'
+      if e in ['.ctd']:
+          lang = 'ctd'
+          main = True
+
+      if language_code is not None and lang is not None and lang != language_code:
+          msg = f'{_c.red}Could not build {path}: found conflicting languages {language_code} and {lang}!{_c.reset}'
+          print(msg)
+          return (None, msg)
+      if language_code is None: language_code = lang
+
+      if main_file is not None and main and main_file != outdir/f.name:
+          msg = f'{_c.red}Could not build {path}: found conflicting main files {main_file.name} and {f.name}!{_c.reset}'
+          print(msg)
+          return (None, msg)
+      if main_file is None and main: main_file = outdir/f.name
+
+  if language_code is None:
+      return (None, f'{_c.red}No language detected for {path}.{_c.reset}')
+  
   compile_command = None
   run_command = None
 
-  if ext == '.c':
+  if language_code == 'c':
     compile_command = [
         'gcc', '-I', config.tools_root / 'headers', '-std=c11', '-Wall', '-O2',
-        '-o', outfile, path, '-lm'
+        '-o', outfile, main_file, '-lm'
     ]
     run_command = [outfile]
-  elif ext in ('.cc', '.cpp'):
+  elif language_code == 'cpp':
     compile_command = ([
         '/usr/bin/g++',
         '-I',
@@ -133,28 +207,21 @@ def build(path):
         '-fdiagnostics-color=always',  # Enable color output
         '-o',
         outfile,
-        path
-    ] + ([] if config.args.cpp_flags is None else config.args.cpp_flags.split())
-                      )
+        main_file
+    ] + ([] if config.args.cpp_flags is None else config.args.cpp_flags.split()))
     run_command = [outfile]
-  elif ext == '.java':
-    compile_command = ['javac', '-d', config.tmpdir, path]
+  elif language_code == 'java':
+    compile_command = ['javac', '-d', outdir, main_file]
     run_command = [
-        'java', '-enableassertions', '-Xss1024M', '-cp', config.tmpdir,
-        path.stem
+        'java', '-enableassertions', '-Xss1024M', '-cp', outdir,
+        main_file.stem
     ]
-  elif ext in ['.py', '.py2', '.py3']:
-    version = None
-    if   ext == '.py2': version = 2
-    elif ext == '.py3': version = 3
-    elif ext == '.py': version = python_version(path)
-
-    p = python_interpreter(version)
-    run_command = [p, path]
-  elif ext == '.ctd':
+  elif language_code in ['python2', 'python3']:
+    run_command = [python_interpreter(language_code), main_file]
+  elif language_code == 'ctd':
     ctd_path = config.tools_root / 'checktestdata' / 'checktestdata'
     if ctd_path.is_file():
-      run_command = [ctd_path, path]
+      run_command = [ctd_path, main_file]
   else:
     return (None,
             f'{_c.red}Unknown extension \'{ext}\' at file {path}{_c.reset}')
@@ -177,83 +244,37 @@ def build(path):
 # build all files in a directory; return a list of tuples (file, command)
 # When 'build' is found, we execute it, and return 'run' as the executable
 # This recursively calls itself for subdirectories.
-def build_directory(directory, include_dirname=False, bar=None):
+def build_programs(programs, include_dirname=False):
+  max_file_len = max(len(print_name(path)) for path in programs)
+  bar = ProgressBar('Building', max_file_len, len(programs))
+
   commands = []
-
-  buildfile = directory / 'build'
-  runfile = directory / 'run'
-
-  if is_executable(buildfile):
-    if bar is None:
-      bar = ProgressBar('Running')
-    else:
-      bar.update(1, len(buildfile))
-    bar.start(buildfile)
-
-    cur_path = os.getcwd()
-    os.chdir(directory)
-    if util.exec_command(['./build'])[0] is not True:
-      bar.done(False, f'{_c.red}FAILED{_c.reset}')
-      return []
-    os.chdir(cur_path)
-    if not is_executable(runfile):
-      bar.done(False, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
-      return []
-    bar.done()
-    return [('run', [runfile])]
-
-  if is_executable(runfile):
-    return [('run', [runfile])]
-
-  files = [x for x in glob(directory, '*') if x.name[0] is not '.']
-  files.sort()
-
-  if len(files) == 0:
-    return commands
-
-  max_file_len = max(len(print_name(path)) for path in files)
-  if bar is None:
-    bar = ProgressBar('Building', max_file_len, len(files))
-  else:
-    bar.update(len(files), max_file_len)
-
-  for path in files:
+  for path in programs:
     bar.start(print_name(path))
-
-    basename = path.name
-    if basename == 'a.out':
-      bar.done()
-      continue
 
     if include_dirname:
       dirname = path.parent.name
-      name = Path(dirname) / basename
+      name = Path(dirname) / path.name
     else:
-      name = basename
+      name = path.name
 
-    if path.is_dir():
-      bar.done()
-      r = build_directory(path, include_dirname=True, bar=bar)
-      commands += r
-      continue
-    elif is_executable(path):
-      commands.append((name, [path]))
+    run_command, message = build(path)
+    if run_command is not None:
+      commands.append((name, run_command))
     else:
-      ext = path.suffix
-      if ext in config.BUILD_EXTENSIONS:
-        run_command, message = build(path)
-        if run_command != None:
-          commands.append((name, run_command))
-        else:
-          bar.log(message)
-      else:
-        bar.log(
-            f'{_c.red}Extension \'{ext}\' is not supported for file {path}{_c.reset}'
-        )
-
+      bar.log(message)
     bar.done()
-
+  if config.verbose: print()
   return commands
+
+
+def build_directory(dirs, include_dirname=False):
+  if not isinstance(dirs, list): dirs = [dirs]
+
+  programs = []
+  for d in dirs: programs += glob(d, '*')
+  if len(programs) == 0: return []
+  return build_programs(programs)
 
 
 # Drops the first two path components <problem>/<type>/
@@ -262,7 +283,7 @@ def print_name(path):
 
 
 def get_validators(problem, validator_type):
-  validators = build_directory(problem / (validator_type + '_validators'))
+  validators = build_programs(glob(problem / (validator_type + '_validators'), '*'))
 
   if len(validators) == 0:
     print(
@@ -351,7 +372,7 @@ def validate(problem, validator_type, settings):
     bar.done()
 
   if not config.verbose and success:
-    print(ProgressBar.action(action, f'{_c.green}Done{_c.reset}'))
+    print(ProgressBar.action(action, f'{_c.green}Done{_c.reset}\n'))
   else:
     print()
 
@@ -449,26 +470,30 @@ def stats(problems):
 
 # returns a map {answer type -> [(name, command)]}
 def get_submissions(problem):
-  dirs = list(glob(problem, 'submissions/*/'))
-  commands = {}
 
-  max_dir_len = max(len(d.name) for d in dirs)
+  programs = []
 
-  bar = ProgressBar('Building', max_dir_len, len(dirs))
+  if hasattr(config.args, 'submissions') and config.args.submissions:
+    for submission in config.args.submissions:
+      if Path(problem/submission).parent == problem / 'submissions':
+        programs += glob(problem/submission,'*')
+      else:
+        programs.append(problem / submission)
+  else:
+    for verdict in config.PROBLEM_OUTCOMES:
+        programs += glob(problem, f'submissions/{verdict.lower()}/*')
 
-  for d in dirs:
-    dirname = d.name
-    bar.start(dirname)
-    bar.done()
-    if not dirname.upper() in config.PROBLEM_OUTCOMES:
-      continue
-    # include directory in submission name
-    commands[dirname.upper()] = build_directory(d, True, bar=bar)
+  run_commands = build_programs(programs, True)
+  submissions = {
+      'ACCEPTED': [],
+      'WRONG_ANSWER': [],
+      'TIME_LIMIT_EXCEEDED': [],
+      'RUN_TIME_ERROR': []
+  }
+  for c in run_commands:
+    submissions[get_submission_type(c[0])].append(c)
 
-  if config.verbose:
-    print()
-
-  return commands
+  return submissions
 
 
 # Return (ret, timeout (True/False), duration)
@@ -648,43 +673,7 @@ def run_submissions(problem, settings):
   if settings.validation == 'custom':
     output_validators = get_validators(problem, 'output')
 
-  if hasattr(settings, 'submissions') and settings.submissions:
-    submissions = {
-        'ACCEPTED': [],
-        'WRONG_ANSWER': [],
-        'TIME_LIMIT_EXCEEDED': [],
-        'RUN_TIME_ERROR': []
-    }
-    max_submission_len = max(
-        len(print_name(problem / s)) for s in settings.submissions)
-    bar = ProgressBar('Building', max_submission_len, len(settings.submissions))
-
-    for submission in settings.submissions:
-      path = problem / submission
-      bar.start(print_name(path))
-
-      if path.is_dir():
-        bar.done()
-        commands = build_directory(path, True, bar)
-        for c in commands:
-          submissions[get_submission_type(c[0])].append(c)
-        continue
-
-      if path.is_file():
-        run_command, message = build(path)
-        bar.done(run_command is not None, message)
-        if run_command:
-          submissions[get_submission_type(path)].append(
-              (print_name(path), run_command))
-        continue
-
-      bar.done(False,
-               f'{_c.red}FAILED{_c.reset} {path} is not a file or directory.')
-
-    if config.verbose:
-      print()
-  else:
-    submissions = get_submissions(problem)
+  submissions = get_submissions(problem)
 
   max_submission_len = max(
       [0] + [len(str(x[0])) for cat in submissions for x in submissions[cat]])
@@ -762,10 +751,8 @@ def generate_output(problem, settings):
           submission = s
 
   # build submission
-  bar = ProgressBar('Building')
-  bar.start(print_name(submission))
+  print(ProgressBar.action('Building', str(submission)))
   run_command, message = build(submission)
-  bar.done(False, message)
   if config.verbose:
     print()
 
@@ -825,14 +812,10 @@ def generate_output(problem, settings):
 
     bar.done(same, message)
 
-  print()
-  print('Done:')
-  print('%d testcases new' % nnew)
-  print('%d testcases changed' % nchange)
-  print('%d testcases skipped' % nskip)
-  print('%d testcases unchanged' % nsame)
-  print('%d testcases failed' % nfail)
+  if not config.verbose and nskip == 0 and nfail == 0:
+    print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
 
+  print()
 
 def print_sorted(problems):
   prefix = config.args.contest + '/' if config.args.contest else ''
@@ -846,8 +829,6 @@ def print_sorted(problems):
   However it is not guaranteed it will find all constraints.
   Checking constraints by yourself is probably the best way.
 """
-
-
 def check_constraints(problem, settings):
   vinput = problem / 'input_validators/input_validator.cpp'
   voutput = problem / 'output_validators/output_validator.cpp'
@@ -906,12 +887,14 @@ def check_constraints(problem, settings):
   return True
 
 
-# Returns the alphanumeric version of a string, removing all characters that are not a-zA-Z0-9
-def alpha_num(string, allow_dash=False):
-  if allow_dash:
-    return re.sub(r'[^a-z0-9_-]', '', string.lower().replace(' ', '-'))
-  else:
-    return re.sub(r'[^a-z0-9]', '', string.lower())
+# Returns the alphanumeric version of a string:
+# This reduces it to a string that follows the regex:
+# [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
+def alpha_num(string):
+  s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '-'))
+  while s.startswith('_.-'): s = s[1:]
+  while s.endswith('_.-'): s = s[:-1]
+  return s
 
 
 def split_submissions(s):
@@ -952,7 +935,7 @@ def new_contest(name):
   # Ask for all required infos.
   title = ask_variable('name', name)
   subtitle = ask_variable('subtitle', '')
-  dirname = ask_variable('dirname', alpha_num(title, allow_dash=True))
+  dirname = ask_variable('dirname', alpha_num(title))
   author = ask_variable('author', f'The {title} jury')
   testsession = ('% ' if ask_variable('testsession?', 'n (y/n)')[0] == 'n' else
                  '') + '\\testsession'
@@ -970,7 +953,7 @@ def new_contest(name):
 def new_problem():
   problemname = config.args.problemname if config.args.problemname else ask_variable(
       'problem name')
-  dirname = ask_variable('dirname', alpha_num(problemname, True))
+  dirname = ask_variable('dirname', alpha_num(problemname))
   author = config.args.author if config.args.author else ask_variable(
       'author', config.args.author)
 

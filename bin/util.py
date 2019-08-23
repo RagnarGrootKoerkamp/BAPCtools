@@ -55,10 +55,10 @@ class ProgressBar:
         print('\033[K', end='', flush=True)
 
     def action(prefix, item, width=None, total_width=None):
-        if width is None: width = 0
-        if total_width is not None and len(prefix) + 2 + width > total_width:
+        if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
-        if len(item) > width: item = item[:width]
+        if width is not None and len(item) > width: item = item[:width]
+        if width is None: width = 0
         s = f'{_c.blue}{prefix}{_c.reset}: {item:<{width}}'
         return s
 

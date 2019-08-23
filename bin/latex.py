@@ -135,6 +135,7 @@ def build_problem_pdf(problem):
     ensure_symlink(output_pdf, builddir / 'problem.pdf', True)
 
     print(f'{_c.green}Pdf written to {output_pdf}{_c.reset}')
+    print()
     return True
 
 
