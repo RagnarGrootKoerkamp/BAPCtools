@@ -85,6 +85,16 @@ def is_executable(path):
   return path.is_file() and (path.stat().st_mode &
                              (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
+# Look at the shebang at the first line of the file to choose between python 2
+# and python 3.
+def python_version(path):
+  shebang = path.read_text().split('\n')[0]
+  if re.match('^#!.*python2', shebang):
+      return 2
+  if re.match('^#!.*python3', shebang):
+      return 3
+  return 2
+
 
 def python_interpreter(version):
   if hasattr(config.args, 'pypy') and config.args.pypy:
@@ -133,14 +143,14 @@ def build(path):
         'java', '-enableassertions', '-Xss1024M', '-cp', config.tmpdir,
         path.stem
     ]
-  elif ext in ('.py', '.py2'):
-    p = python_interpreter(2)
-    if p is not None:
-      run_command = [p, path]
-  elif ext == '.py3':
-    p = python_interpreter(3)
-    if p is not None:
-      run_command = [p, path]
+  elif ext in ['.py', '.py2', '.py3']:
+    version = None
+    if   ext == '.py2': version = 2
+    elif ext == '.py3': version = 3
+    elif ext == '.py': version = python_version(path)
+
+    p = python_interpreter(version)
+    run_command = [p, path]
   elif ext == '.ctd':
     ctd_path = config.tools_root / 'checktestdata' / 'checktestdata'
     if ctd_path.is_file():
@@ -159,7 +169,7 @@ def build(path):
         message += '\n' + util.strip_newline(ret[1])
       run_command = None
 
-  if run_command is None and message is '':
+  if run_command is None and message == '':
     message = f'{_c.red}FAILED{_c.reset}'
   return (run_command, message)
 
@@ -1042,8 +1052,7 @@ Run this from one of:
       '--problem',
       help='The problem to use, when running from repository root.')
   global_parser.add_argument(
-      '-s',
-      '--silent',
+      '--no-bar',
       action='store_true',
       help='Do not show progress bars in non-interactive environments.')
   global_parser.add_argument(

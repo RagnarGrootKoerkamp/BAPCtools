@@ -51,7 +51,7 @@ class ProgressBar:
             self.bar_width = self.total_width - len(self.prefix) - 2 - self.item_width - 1
 
     def clearline():
-        if hasattr(config.args, 'silent') and config.args.silent: return
+        if hasattr(config.args, 'no_bar') and config.args.no_bar: return
         print('\033[K', end='', flush=True)
 
     def action(prefix, item, width=None, total_width=None):
@@ -78,7 +78,7 @@ class ProgressBar:
         self.item = item
         self.logged = False
 
-        if hasattr(config.args, 'silent') and config.args.silent: return
+        if hasattr(config.args, 'no_bar') and config.args.no_bar: return
 
         prefix = self.get_prefix()
         bar = self.get_bar()
