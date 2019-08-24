@@ -5,6 +5,7 @@ import config
 import yaml
 import subprocess
 import os
+from pathlib import Path
 
 
 # color printing
@@ -185,8 +186,26 @@ def glob(path, expression):
 
 # testcases; returns list of basenames
 def get_testcases(problem, needans=True, only_sample=False):
+
+    # Require both in and ans files
+    samplesonly = only_sample or hasattr(config.args, 'samples') and config.args.samples
+    if hasattr(config.args, 'testcases') and config.args.testcases:
+      if samplesonly:
+        print(f'{_c.red}Ignoring the --samples flag because testcases are explicitly listed.{_c.reset}')
+      # Deduplicate testcases with both .in and .ans.
+      ts = []
+      for t in config.args.testcases:
+          if Path(problem / t).is_dir():
+            ts += glob(Path(problem / t), '**/*.in')
+          else:
+            ts.append(Path(problem / t))
+
+      ts = [Path(t).with_suffix('.in') for t in ts]
+      ts = sorted(list(set(ts)))
+      return ts
+
     infiles = list(glob(problem, 'data/sample/*.in'))
-    if not only_sample:
+    if not samplesonly:
         infiles += list(glob(problem, 'data/secret/*.in'))
 
     testcases = []
@@ -194,7 +213,7 @@ def get_testcases(problem, needans=True, only_sample=False):
         if needans and not f.with_suffix('.ans').is_file():
             print(f'{_c.red}Found input file {str(f)} without a .ans file.{_c.reset}')
             continue
-        testcases.append(f.with_suffix(''))
+        testcases.append(f.with_suffix('.in'))
     testcases.sort()
 
     return testcases

@@ -297,12 +297,7 @@ def get_validators(problem, validator_type):
 # We always pass both the case_sensitive and space_change_sensitive flags.
 def validate(problem, validator_type, settings):
   assert validator_type in ['input', 'output']
-
-  if hasattr(settings, 'testcases') and settings.testcases:
-    testcases = [problem / t for t in settings.testcases]
-  else:
-    # validate testcases without answer files?
-    testcases = util.get_testcases(problem, validator_type == 'output')
+  testcases = util.get_testcases(problem, validator_type == 'output')
 
   if validator_type == 'output' and settings.validation == 'custom':
     return True
@@ -488,31 +483,41 @@ def get_submissions(problem):
 
 
 # Return (ret, timeout (True/False), duration)
-def run_testcase(run_command, testcase, outfile, tle=None):
-  timeout = False
-  with testcase.with_suffix('.in').open('rb') as inf:
-    with open(outfile, 'wb') as outf:
-      tstart = time.monotonic()
-      try:
-        # Double the tle to check for solutions close to the required bound
-        # ret = True or ret = (code, error)
-        ret = util.exec_command(
-            run_command,
-            expect=0,
-            stdin=inf,
-            stdout=outf,
-            timeout=float(config.args.timeout)
-            if hasattr(config.args, 'timeout') and config.args.timeout else
-            (2 * tle if tle is not None else None))
-      except subprocess.TimeoutExpired:
-        timeout = True
-        ret = (True, None)
-      tend = time.monotonic()
+def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
+  if hasattr(config.args, 'timeout') and config.args.timeout :
+    timeout = float(config.args.timeout)
+  elif tle:
+    timeout = 2*tle
+  else:
+    timeout = None
 
-  duration = tend - tstart
-  if tle and duration > tle:
-    timeout = True
-  return (ret, timeout, duration)
+  with testcase.with_suffix('.in').open('rb') as inf:
+    def run(outfile):
+        did_timeout = False
+        tstart = time.monotonic()
+        try:
+          # Double the tle to check for solutions close to the required bound
+          # ret = True or ret = (code, error)
+          ret = util.exec_command(
+              run_command,
+              expect=0,
+              crop=crop,
+              stdin=inf,
+              stdout=outfile,
+              timeout=timeout)
+        except subprocess.TimeoutExpired:
+          did_timeout = True
+          ret = (True, None)
+        tend = time.monotonic()
+
+        if tend - tstart > tle: did_timeout = True
+        return ret, did_timeout, tend - tstart
+
+    if outfile is None:
+      return run(outfile)
+    else:
+      with open(outfile, 'wb') as outf:
+        return run(outf)
 
 
 # return (verdict, time, remark)
@@ -521,7 +526,6 @@ def process_testcase(run_command,
                      outfile,
                      settings,
                      output_validators,
-                     silent=False,
                      printnewline=False):
 
   run_ret, timeout, duration = run_testcase(run_command, testcase, outfile,
@@ -570,7 +574,7 @@ def run_submission(submission,
 
   action = 'Running ' + str(submission[0])
   max_total_length = max(
-      max([len(print_name(testcase)) for testcase in testcases]),
+      max([len(print_name(testcase.with_suffix(''))) for testcase in testcases]),
       15) + max_submission_len
   max_testcase_len = max_total_length - len(str(submission[0]))
 
@@ -578,13 +582,11 @@ def run_submission(submission,
   bar = ProgressBar(action, max_testcase_len, len(testcases))
 
   for testcase in testcases:
-    bar.start(print_name(testcase))
+    bar.start(print_name(testcase.with_suffix('')))
     outfile = config.tmpdir / 'test.out'
-    #silent = expected != 'ACCEPTED'
-    silent = False
     verdict, runtime, remark = \
         process_testcase(submission[1], testcase, outfile, settings, output_validators,
-                silent, need_newline)
+                need_newline)
     verdict_count[verdict] += 1
 
     time_total += runtime
@@ -645,14 +647,7 @@ def get_submission_type(s):
 
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
-  # Require both in and ans files
-  samplesonly = hasattr(settings, 'samples') and settings.samples
-  if hasattr(settings, 'testcases') and settings.testcases:
-    if samplesonly:
-      print(f'{_c.red}Ignoring the --samples flag because testcases are explicitly listed.{_c.reset}')
-    testcases = [problem / t for t in settings.testcases]
-  else:
-    testcases = util.get_testcases(problem, True, samplesonly)
+  testcases = util.get_testcases(problem, needans=True)
 
   if len(testcases) == 0:
     print(_c.red + 'No testcases found!' + _c.reset)
@@ -669,18 +664,17 @@ def run_submissions(problem, settings):
 
   success = True
   verdict_table = []
-  for verdict in config.PROBLEM_OUTCOMES:
-    if verdict in submissions:
-      for submission in submissions[verdict]:
-        verdict_table.append(dict())
-        success &= run_submission(
-            submission,
-            testcases,
-            settings,
-            output_validators,
-            max_submission_len,
-            verdict,
-            table_dict=verdict_table[-1])
+  for verdict in submissions:
+    for submission in submissions[verdict]:
+      verdict_table.append(dict())
+      success &= run_submission(
+          submission,
+          testcases,
+          settings,
+          output_validators,
+          max_submission_len,
+          verdict,
+          table_dict=verdict_table[-1])
 
   if hasattr(settings, 'table') and settings.table:
     # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
@@ -709,6 +703,46 @@ def run_submissions(problem, settings):
       print(end='\n')
 
   return success
+
+
+def test_submission(submission, testcases, settings):
+  print(ProgressBar.action('Running', str(submission[0])))
+
+  time_total = 0
+  time_max = 0
+  for testcase in testcases:
+    print(ProgressBar.action('Running ' + str(submission[0]),
+        str(testcase.with_suffix(''))))
+    outfile = config.tmpdir / 'test.out'
+    run_ret, timeout, duration = run_testcase(submission[1], testcase, outfile=None,
+            tle=settings.timelimit, crop=False)
+    print()
+
+    time_total += duration
+    time_max = max(time_max, duration)
+
+
+  time_avg = time_total / len(testcases)
+
+
+# Takes a list of submissions and runs them against the chosen testcases.
+# Instead of validating the output, this function just prints all output to the
+# terminal.
+# Note: The CLI only accepts one submission.
+def test_submissions(problem, settings):
+  testcases = util.get_testcases(problem, needans=True)
+
+  if len(testcases) == 0:
+    print(_c.red + 'No testcases found!' + _c.reset)
+    return False
+
+  submissions = get_submissions(problem)
+
+  verdict_table = []
+  for verdict in submissions:
+    for submission in submissions[verdict]:
+      test_submission(submission, testcases, settings)
+  return True
 
 
 def generate_output(problem, settings):
@@ -745,8 +779,7 @@ def generate_output(problem, settings):
   if config.verbose:
     print()
 
-  # get all testcases with .in files
-  testcases = util.get_testcases(problem, False)
+  testcases = util.get_testcases(problem, needans=False)
 
   nsame = 0
   nchange = 0
@@ -1133,7 +1166,7 @@ Run this from one of:
 
   # Run
   runparser = subparsers.add_parser(
-      'run', parents=[global_parser], help='run programs and check answers')
+      'run', parents=[global_parser], help='Run multiple programs against some or all input.')
   runparser.add_argument(
       '--table',
       action='store_true',
@@ -1148,6 +1181,22 @@ Run this from one of:
       '--pypy', action='store_true', help='Use pypy instead of cpython.')
   runparser.add_argument(
       '--samples', action='store_true', help='Only run on the samples.')
+
+  # Test
+  testparser = subparsers.add_parser(
+      'test', parents=[global_parser], help='Run a single program and print the output.')
+  testparser.add_argument(
+      'submissions',
+      nargs=1,
+      help='A single submission to run')
+  testparser.add_argument(
+      'testcases',
+      nargs='*',
+      help='Optionally a list of testcases to run on.')
+  testparser.add_argument(
+      '--samples', action='store_true', help='Only run on the samples.')
+  testparser.add_argument(
+      '--pypy', action='store_true', help='Use pypy instead of cpython.')
 
   # Sort
   subparsers.add_parser(
@@ -1227,12 +1276,12 @@ def main():
   # Get problems and cd to contest
   problems, level, contest = get_problems()
 
-  if action in ['generate']:
-    if level != 'problem':
-      print(
-          f'{_c.red}Generating output files only works for a single problem.{_c.reset}'
-      )
-      sys.exit(1)
+  if level != 'problem' and action in ['generate', 'test']:
+    if action == 'generate':
+      print(f'{_c.red}Generating output files only works for a single problem.{_c.reset}')
+    if action == 'test':
+      print(f'{_c.red}Testing a submission only works for a single problem.{_c.reset}')
+    sys.exit(1)
 
   if action == 'run':
     if config.args.submissions:
@@ -1273,16 +1322,10 @@ def main():
 
   success = True
 
-  if level == 'contest' and action == 'pdf':
-    print(f'{_c.bold}CONTEST {contest}{_c.reset}')
-
-    # build pdf for the entire contest
-    if action in ['pdf']:
-      success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
-    return success
-
-
   for problem in problems:
+    if level == 'contest' and action == 'pdf' and not (hasattr(config.args,
+        'all') and config.args.all):
+        continue
     print(_c.bold, 'PROBLEM ', problem, _c.reset, sep='')
 
     # merge problem settings with arguments into one namespace
@@ -1306,6 +1349,8 @@ def main():
       success &= validate(problem, 'output', settings)
     if action in ['run', 'all']:
       success &= run_submissions(problem, settings)
+    if action in ['test']:
+      success &= test_submissions(problem, settings)
     if action in ['constraints']:
       success &= check_constraints(problem, settings)
     if action in ['zip']:
@@ -1328,6 +1373,10 @@ def main():
   
   if level == 'contest':
     print(f'{_c.bold}CONTEST {contest}{_c.reset}')
+
+    # build pdf for the entire contest
+    if action in ['pdf']:
+      success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
 
     if action in ['solutions']:
       success &= latex.build_contest_pdf(contest, problems, solutions=True)

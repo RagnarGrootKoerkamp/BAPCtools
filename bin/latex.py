@@ -111,8 +111,9 @@ def prepare_problem(problem):
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run pdflatex and link the resulting problem.pdf into the problem directory.
 def build_problem_pdf(problem):
-    prepare_problem_pdf(problem)
+    prepare_problem(problem)
 
+    builddir = config.tmpdir / problem
     problem_config = util.read_configs(problem)
     problemid = ord(problem_config['probid']) - ord('A')
     tl = problem_config['timelimit']
@@ -141,7 +142,6 @@ def build_problem_pdf(problem):
     ensure_symlink(output_pdf, builddir / 'problem.pdf', True)
 
     print(f'{_c.green}Pdf written to {output_pdf}{_c.reset}')
-    print()
     return True
 
 
