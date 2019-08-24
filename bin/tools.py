@@ -148,6 +148,7 @@ def build(path):
   # Otherwise, detect the language and entry point and build manually.
   language_code = None
   main_file = None if path.is_dir() else outdir/path.name
+  c_files = []
   for f in files:
       e = f.suffix
 
@@ -157,9 +158,11 @@ def build(path):
       if e in ['.c']:
           lang = 'c'
           main = True
+          c_files.append(outdir/f.name)
       if e in ['.cc', '.cpp', '.cxx.', '.c++', '.C']:
           lang = 'cpp'
           main = True
+          c_files.append(outdir/f.name)
       if e in ['.java']:
           lang = 'java'
           main = f.name == 'Main.java'
@@ -174,13 +177,11 @@ def build(path):
 
       if language_code is not None and lang is not None and lang != language_code:
           msg = f'{_c.red}Could not build {path}: found conflicting languages {language_code} and {lang}!{_c.reset}'
-          print(msg)
           return (None, msg)
       if language_code is None: language_code = lang
 
-      if main_file is not None and main and main_file != outdir/f.name:
+      if main_file is not None and main and main_file != outdir/f.name and language_code != 'cpp':
           msg = f'{_c.red}Could not build {path}: found conflicting main files {main_file.name} and {f.name}!{_c.reset}'
-          print(msg)
           return (None, msg)
       if main_file is None and main: main_file = outdir/f.name
 
@@ -193,8 +194,7 @@ def build(path):
   if language_code == 'c':
     compile_command = [
         'gcc', '-I', config.tools_root / 'headers', '-std=c11', '-Wall', '-O2',
-        '-o', outfile, main_file, '-lm'
-    ]
+        '-o', outfile] + c_files + ['-lm']
     run_command = [outfile]
   elif language_code == 'cpp':
     compile_command = ([
@@ -661,6 +661,8 @@ def run_submissions(problem, settings):
   output_validators = None
   if settings.validation == 'custom':
     output_validators = get_validators(problem, 'output')
+    if len(output_validators) == 0:
+        return False
 
   submissions = get_submissions(problem)
 
