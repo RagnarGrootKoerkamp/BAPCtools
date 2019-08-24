@@ -715,21 +715,14 @@ def run_submissions(problem, settings):
 def test_submission(submission, testcases, settings):
   print(ProgressBar.action('Running', str(submission[0])))
 
-  time_total = 0
-  time_max = 0
   for testcase in testcases:
-    print(ProgressBar.action('Running ' + str(submission[0]),
-        str(testcase.with_suffix(''))))
+    header = ProgressBar.action('Running ' + str(submission[0]), str(testcase.with_suffix('')))
+    print(header)
     outfile = config.tmpdir / 'test.out'
     run_ret, timeout, duration = run_testcase(submission[1], testcase, outfile=None,
             tle=settings.timelimit, crop=False)
+    print(f'{_c.bold}Took: {duration:6.3f}s{_c.reset}')
     print()
-
-    time_total += duration
-    time_max = max(time_max, duration)
-
-
-  time_avg = time_total / len(testcases)
 
 
 # Takes a list of submissions and runs them against the chosen testcases.
