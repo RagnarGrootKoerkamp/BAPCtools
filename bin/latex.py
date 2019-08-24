@@ -95,6 +95,15 @@ def create_samples_file(problem):
     samples_file_path.write_text(samples_data)
 
 
+# Steps needed for both problem and contest compilation.
+def prepare_problem(problem):
+    builddir = config.tmpdir / problem
+    builddir.mkdir(exist_ok=True)
+    ensure_symlink(builddir / 'statement', problem / 'problem_statement')
+
+    create_samples_file(problem)
+
+
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/problem.tex,
 # substituting variables.
 # 2. Link tmpdir/<problem>/statement to the problem statement directory.
@@ -102,8 +111,8 @@ def create_samples_file(problem):
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run pdflatex and link the resulting problem.pdf into the problem directory.
 def build_problem_pdf(problem):
-    builddir = config.tmpdir / problem
-    builddir.mkdir(exist_ok=True)
+    prepare_problem_pdf(problem)
+
     problem_config = util.read_configs(problem)
     problemid = ord(problem_config['probid']) - ord('A')
     tl = problem_config['timelimit']
@@ -113,11 +122,9 @@ def build_problem_pdf(problem):
         'problemid': problemid,
         'timelimit': tl,
     })
-    ensure_symlink(builddir / 'statement', problem / 'problem_statement')
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
-    create_samples_file(problem)
-
+    builddir = config.tmpdir / problem
     for i in range(3):
         ok, err, out = util.exec_command(
             PDFLATEX + ['-output-directory', builddir, builddir / 'problem.tex'],
@@ -170,12 +177,16 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
 
     # Some logic to prevent duplicate problem IDs.
     seen = set()
-    next_spare = 25
+    next_spare = 0
     for problem, _, problem_config in util.sort_problems(problems):
+        prepare_problem(problem)
         problemid = ord(problem_config['probid']) - ord('A')
-        if problemid in seen:
+        id_ok = True
+        while problemid in seen:
             problemid = next_spare
-            next_spare -= 1
+            next_spare += 1
+            id_ok = False
+        if not id_ok:
             print(
                 f"{_c.red}Problem {problem} has id {problem_config['probid']} which was already used before. Using {chr(ord('A')+problemid)} instead.{_c.reset}"
             )

@@ -280,7 +280,6 @@ def get_validators(problem, validator_type):
     print(
         f'\n{_c.red}Aborting: At least one {validator_type} validator is needed!{_c.reset}'
     )
-    sys.exit(1)
 
   return validators
 
@@ -1277,6 +1276,16 @@ def main():
   problem_zips = []
 
   success = True
+
+  if level == 'contest' and action == 'pdf':
+    print(f'{_c.bold}CONTEST {contest}{_c.reset}')
+
+    # build pdf for the entire contest
+    if action in ['pdf']:
+      success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
+    return success
+
+
   for problem in problems:
     print(_c.bold, 'PROBLEM ', problem, _c.reset, sep='')
 
@@ -1287,8 +1296,11 @@ def main():
       vars(settings)[key] = problemsettings[key]
 
     if action in ['pdf', 'solutions', 'all']:
-      # only build the pdf on the problem level
-      success &= latex.build_problem_pdf(problem)
+        # only build the pdf on the problem level, or on the contest level when
+        # --all is passed.
+      if level == 'problem' or (level == 'contest' and hasattr(config.args, 'all') and
+              config.args.all):
+        success &= latex.build_problem_pdf(problem)
 
     if action in ['validate', 'input', 'all']:
       success &= validate(problem, 'input', settings)
@@ -1320,10 +1332,6 @@ def main():
   
   if level == 'contest':
     print(f'{_c.bold}CONTEST {contest}{_c.reset}')
-
-    # build pdf for the entire contest
-    if action in ['pdf']:
-      success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
 
     if action in ['solutions']:
       success &= latex.build_contest_pdf(contest, problems, solutions=True)
