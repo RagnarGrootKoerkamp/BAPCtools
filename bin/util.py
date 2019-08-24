@@ -180,7 +180,7 @@ def is_hidden(path):
 
 # glob, but without hidden files
 def glob(path, expression):
-    return [p for p in path.glob(expression) if not is_hidden(p)]
+    return sorted([p for p in path.glob(expression) if not is_hidden(p)])
 
 
 # testcases; returns list of basenames

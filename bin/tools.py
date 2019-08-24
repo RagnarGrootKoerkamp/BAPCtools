@@ -268,15 +268,6 @@ def build_programs(programs, include_dirname=False):
   return commands
 
 
-def build_directory(dirs, include_dirname=False):
-  if not isinstance(dirs, list): dirs = [dirs]
-
-  programs = []
-  for d in dirs: programs += glob(d, '*')
-  if len(programs) == 0: return []
-  return build_programs(programs)
-
-
 # Drops the first two path components <problem>/<type>/
 def print_name(path):
   return str(Path(*path.parts[2:]))
