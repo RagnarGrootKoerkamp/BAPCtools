@@ -651,10 +651,13 @@ def get_submission_type(s):
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
   # Require both in and ans files
+  samplesonly = hasattr(settings, 'samples') and settings.samples
   if hasattr(settings, 'testcases') and settings.testcases:
+    if samplesonly:
+      print(f'{_c.red}Ignoring the --samples flag because testcases are explicitly listed.{_c.reset}')
     testcases = [problem / t for t in settings.testcases]
   else:
-    testcases = util.get_testcases(problem, True)
+    testcases = util.get_testcases(problem, True, samplesonly)
 
   if len(testcases) == 0:
     print(_c.red + 'No testcases found!' + _c.reset)
@@ -1153,6 +1156,8 @@ Run this from one of:
       help='Print output of WA submissions.')
   runparser.add_argument(
       '--pypy', action='store_true', help='Use pypy instead of cpython.')
+  runparser.add_argument(
+      '--samples', action='store_true', help='Only run on the samples.')
 
   # Sort
   subparsers.add_parser(
