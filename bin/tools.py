@@ -295,7 +295,7 @@ def get_validators(problem, validator_type):
 #   none, .ans file not needed.
 #
 # We always pass both the case_sensitive and space_change_sensitive flags.
-def validate(problem, validator_type, settings):
+def validate(problem, validator_type, settings, printnewline=False):
   assert validator_type in ['input', 'output']
   testcases = util.get_testcases(problem, validator_type == 'output')
 
@@ -347,18 +347,23 @@ def validate(problem, validator_type, settings):
 
       # Failure?
       if ret[0] is not True:
-        success = False
         message = _c.red + 'FAILED ' + validator[0] + _c.reset
 
         # Print error message?
         if ret[1] is not None:
           message += '  ' + _c.orange + util.strip_newline(ret[1]) + _c.reset
 
+        if not config.verbose and success and printnewline:
+            ProgressBar.clearline()
+            print()
         bar.log(message)
+        success = False
     bar.done()
 
   if not config.verbose and success:
-    print(ProgressBar.action(action, f'{_c.green}Done{_c.reset}\n'))
+    print(ProgressBar.action(action, f'{_c.green}Done{_c.reset}'))
+    if validator_type == 'output':
+        print()
   else:
     print()
 
@@ -1341,12 +1346,14 @@ def main():
               config.args.all):
         success &= latex.build_problem_pdf(problem)
 
+    input_validator_ok = False
     if action in ['validate', 'input', 'all']:
-      success &= validate(problem, 'input', settings)
+      input_validator_ok = validate(problem, 'input', settings)
+      success &= input_validator_ok
     if action in ['generate', 'all']:
       generate_output(problem, settings)
     if action in ['validate', 'output', 'all']:
-      success &= validate(problem, 'output', settings)
+      success &= validate(problem, 'output', settings, input_validator_ok)
     if action in ['run', 'all']:
       success &= run_submissions(problem, settings)
     if action in ['test']:
