@@ -298,16 +298,17 @@ def get_validators(problem, validator_type):
 def validate(problem, validator_type, settings):
   assert validator_type in ['input', 'output']
 
-  if validator_type == 'output' and settings.validation == 'custom':
-    return True
-
-  validators = get_validators(problem, validator_type)
-
   if hasattr(settings, 'testcases') and settings.testcases:
     testcases = [problem / t for t in settings.testcases]
   else:
     # validate testcases without answer files?
     testcases = util.get_testcases(problem, validator_type == 'output')
+
+  if validator_type == 'output' and settings.validation == 'custom':
+    return True
+
+  validators = get_validators(problem, validator_type)
+
   ext = '.in' if validator_type == 'input' else '.ans'
 
   if len(validators) == 0:

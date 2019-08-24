@@ -192,6 +192,7 @@ def get_testcases(problem, needans=True, only_sample=False):
     testcases = []
     for f in infiles:
         if needans and not f.with_suffix('.ans').is_file():
+            print(f'{_c.red}Found input file {str(f)} without a .ans file.{_c.reset}')
             continue
         testcases.append(f.with_suffix(''))
     testcases.sort()
