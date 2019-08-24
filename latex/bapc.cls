@@ -16,7 +16,7 @@
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{bapc}
 
-\RequirePackage{frcursive}
+%\RequirePackage{frcursive}
 
 %-------------------------------------------------------------------------------
 % ThisIsNotABlankPage: clears to an odd page. If a blank page is created, then
