@@ -12,7 +12,7 @@ import config
 import util
 from util import _c
 
-PDFLATEX = ['pdflatex', '-halt-on-error']
+PDFLATEX = ['pdflatex', '-interaction=nonstopmode', '-halt-on-error']
 
 
 # When output is True, copy the file when args.cp is true.
