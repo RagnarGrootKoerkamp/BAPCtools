@@ -545,11 +545,6 @@ def process_testcase(run_command,
     verdict = 'ACCEPTED' if val_ret[0] else 'WRONG_ANSWER'
     remark = val_ret[1]
 
-    if run_ret[1] is not None and (hasattr(config.args, 'output') and
-                                   config.args.output):
-      if verdict == 'WRONG_ANSWER' or config.args.error:
-        remark += '\n' + util.crop_output(run_ret[1]) + '\n'
-
   return (verdict, duration, remark)
 
 
@@ -706,7 +701,7 @@ def run_submissions(problem, settings):
 
     print('\nVerdict analysis table. Submissions are ordered as above.')
     for testcase in testcases:
-      print('{:<60}'.format(testcase), end=' ')
+      print(f'{str(testcase):<60}', end=' ')
       resultant = make_verdict(testcase)
       print(resultant, end='  ')
       if resultant in resultant_id:
@@ -1149,11 +1144,6 @@ Run this from one of:
       help='optionally supply a list of programs and testcases to run')
   runparser.add_argument(
       '-t', '--timeout', help='Override the default timeout.')
-  runparser.add_argument(
-      '-o',
-      '--output',
-      action='store_true',
-      help='Print output of WA submissions.')
   runparser.add_argument(
       '--pypy', action='store_true', help='Use pypy instead of cpython.')
   runparser.add_argument(
