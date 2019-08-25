@@ -295,10 +295,17 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     memory_limit = 1000000000 # 1GB
     if hasattr(config.args, 'memory') and config.args.memory:
         memory_limit = int(config.args.memory)
+    if 'memory' in kwargs:
+        memory_limit = kwargs['memory']
+        kwargs.pop('memory')
+    # Disable memory limits for Java.
+    if command[0] == 'java':
+        memory_limit = None
 
     def setlimits():
         resource.setrlimit(resource.RLIMIT_CPU, (hard_timeout, hard_timeout))
-        resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+        if memory_limit:
+            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
     process = subprocess.Popen(command, preexec_fn=setlimits, **kwargs)
     try:
@@ -314,5 +321,5 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         return crop_output(s) if crop else s
 
     return (True if process.returncode == expect else process.returncode,
-            maybe_crop(stderr.decode('utf-8')) if stderr else None,
-            maybe_crop(stdout.decode('utf-8')) if stdout else None)
+            maybe_crop(stderr.decode('utf-8')) if stderr is not None else None,
+            maybe_crop(stdout.decode('utf-8')) if stdout is not None else None)

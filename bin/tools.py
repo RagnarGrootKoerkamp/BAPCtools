@@ -136,7 +136,7 @@ def build(path):
   if is_executable(outdir / 'build'):
     cur_path = os.getcwd()
     os.chdir(outdir)
-    if util.exec_command(['./build'])[0] is not True:
+    if util.exec_command(['./build'], memory=4000000000)[0] is not True:
       return (False, f'{_c.red}FAILED{_c.reset}')
     os.chdir(cur_path)
     if not is_executable(runfile):
@@ -213,7 +213,11 @@ def build(path):
   elif language_code == 'java':
     compile_command = ['javac', '-d', outdir, main_file]
     run_command = [
-        'java', '-enableassertions', '-Xss1024M', '-cp', outdir,
+        'java', '-enableassertions', '-XX:+UseSerialGC',
+        '-Xss64M',   # Max stack size
+        '-Xms1024M', # Initial heap size
+        '-Xmx1024M', # Max heap size
+        '-cp', outdir,
         main_file.stem
     ]
   elif language_code in ['python2', 'python3']:
@@ -229,11 +233,13 @@ def build(path):
   # Prevent building something twice in one invocation of tools.py.
   message = ''
   if compile_command is not None:  # and not outfile.is_file():
-    ret = util.exec_command(compile_command)
+    ret = util.exec_command(compile_command, stdout=subprocess.PIPE, memory=4000000000)
     if ret[0] is not True:
-      message = f'{_c.red}FAILED{_c.reset}'
+      message = f'{_c.red}FAILED{_c.reset} '
       if ret[1] is not None:
-        message += '\n' + util.strip_newline(ret[1])
+        message += '\n' + _c.red + util.strip_newline(ret[1]) + _c.reset
+      if ret[2] is not None:
+        message += '\n' + _c.red + util.strip_newline(ret[2]) + _c.reset
       run_command = None
 
   if run_command is None and message == '':
@@ -1091,7 +1097,7 @@ Run this from one of:
   global_parser.add_argument(
       '-m',
       '--memory',
-      help='The max amount of memory (in bytes) a subprocesses may use.')
+      help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
 
   subparsers = parser.add_subparsers(title='actions', dest='action')
   subparsers.required = True
