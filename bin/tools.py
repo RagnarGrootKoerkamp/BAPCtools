@@ -503,13 +503,23 @@ def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
         try:
           # Double the tle to check for solutions close to the required bound
           # ret = True or ret = (code, error)
-          ret = util.exec_command(
-              run_command,
-              expect=0,
-              crop=crop,
-              stdin=inf,
-              stdout=outfile,
-              timeout=timeout)
+            if outfile is None:
+              ret = util.exec_command(
+                  run_command,
+                  expect=0,
+                  crop=crop,
+                  stdin=inf,
+                  stdout=outfile,
+                  stderr=None,
+                  timeout=timeout)
+            else:
+              ret = util.exec_command(
+                  run_command,
+                  expect=0,
+                  crop=crop,
+                  stdin=inf,
+                  stdout=outfile,
+                  timeout=timeout)
         except subprocess.TimeoutExpired:
           did_timeout = True
           ret = (True, None)
@@ -721,7 +731,12 @@ def test_submission(submission, testcases, settings):
     outfile = config.tmpdir / 'test.out'
     run_ret, timeout, duration = run_testcase(submission[1], testcase, outfile=None,
             tle=settings.timelimit, crop=False)
-    print(f'{_c.bold}Took: {duration:6.3f}s{_c.reset}')
+    if timeout:
+        print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+    elif run_ret[0] is not True:
+        print(f'{_c.red}Run time error!{_c.reset} exit code {run_ret[0]} {_c.bold}{duration:6.3f}s{_c.reset}')
+    else:
+        print(f'{_c.green}Done:{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
     print()
 
 
@@ -1073,6 +1088,10 @@ Run this from one of:
   global_parser.add_argument(
       '--cpp_flags',
       help='Additional compiler flags used for all c++ compilations.')
+  global_parser.add_argument(
+      '-m',
+      '--memory',
+      help='The max amount of memory (in bytes) a subprocesses may use.')
 
   subparsers = parser.add_subparsers(title='actions', dest='action')
   subparsers.required = True

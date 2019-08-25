@@ -4,6 +4,7 @@ import shutil
 import config
 import yaml
 import subprocess
+import resource
 import os
 from pathlib import Path
 
@@ -277,17 +278,29 @@ def crop_output(output):
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
-    if 'stdout' not in kwargs:
-        kwargs['stdout'] = open(os.devnull, 'w')
+    # By default: discard stdout, return stderr
+    if 'stdout' not in kwargs: kwargs['stdout'] = open(os.devnull, 'w')
+    if 'stderr' not in kwargs: kwargs['stderr'] = subprocess.PIPE
 
     if config.verbose >= 2:
         print(command, kwargs)
 
     timeout = None
+    hard_timeout = 60 # Kill a program after 60s cpu time
     if 'timeout' in kwargs:
         timeout = kwargs['timeout']
+        hard_timeout = timeout + 1
         kwargs.pop('timeout')
-    process = subprocess.Popen(command, stderr=subprocess.PIPE, **kwargs)
+
+    memory_limit = 1000000000 # 1GB
+    if hasattr(config.args, 'memory') and config.args.memory:
+        memory_limit = int(config.args.memory)
+
+    def setlimits():
+        resource.setrlimit(resource.RLIMIT_CPU, (hard_timeout, hard_timeout))
+        resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+
+    process = subprocess.Popen(command, preexec_fn=setlimits, **kwargs)
     try:
         (stdout, stderr) = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -301,5 +314,5 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         return crop_output(s) if crop else s
 
     return (True if process.returncode == expect else process.returncode,
-            maybe_crop(stderr.decode('utf-8')),
+            maybe_crop(stderr.decode('utf-8')) if stderr else None,
             maybe_crop(stdout.decode('utf-8')) if stdout else None)
