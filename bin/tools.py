@@ -136,7 +136,7 @@ def build(path):
   if is_executable(outdir / 'build'):
     cur_path = os.getcwd()
     os.chdir(outdir)
-    if util.exec_command(['./build'], memory=4000000000)[0] is not True:
+    if util.exec_command(['./build'], memory=5000000000)[0] is not True:
       return (False, f'{_c.red}FAILED{_c.reset}')
     os.chdir(cur_path)
     if not is_executable(runfile):
@@ -233,7 +233,7 @@ def build(path):
   # Prevent building something twice in one invocation of tools.py.
   message = ''
   if compile_command is not None:  # and not outfile.is_file():
-    ret = util.exec_command(compile_command, stdout=subprocess.PIPE, memory=4000000000)
+    ret = util.exec_command(compile_command, stdout=subprocess.PIPE, memory=5000000000)
     if ret[0] is not True:
       message = f'{_c.red}FAILED{_c.reset} '
       if ret[1] is not None:
