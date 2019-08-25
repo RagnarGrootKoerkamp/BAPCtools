@@ -289,8 +289,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     hard_timeout = 60 # Kill a program after 60s cpu time
     if 'timeout' in kwargs:
         timeout = kwargs['timeout']
-        hard_timeout = timeout + 1
         kwargs.pop('timeout')
+        if timeout is not None:
+            hard_timeout = timeout + 1
 
     memory_limit = 1000000000 # 1GB
     if hasattr(config.args, 'memory') and config.args.memory:
