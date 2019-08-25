@@ -356,8 +356,15 @@ def validate(problem, validator_type, settings, printnewline=False):
         message = _c.red + 'FAILED ' + validator[0] + _c.reset
 
         # Print error message?
-        if ret[1] is not None:
-          message += '  ' + _c.orange + util.strip_newline(ret[1]) + _c.reset
+        if ret[1]:
+          prefix = '  '
+          if ret[1].count('\n') > 1: prefix = '\n'
+          message += prefix + _c.orange + util.strip_newline(ret[1]) + _c.reset
+        # Print error message?
+        if ret[2]:
+          prefix = '  '
+          if ret[2].count('\n') > 1: prefix = '\n'
+          message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(ret[2]) + _c.reset
 
         if not config.verbose and success and printnewline:
             ProgressBar.clearline()

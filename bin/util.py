@@ -279,7 +279,7 @@ def crop_output(output):
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
     # By default: discard stdout, return stderr
-    if 'stdout' not in kwargs: kwargs['stdout'] = open(os.devnull, 'w')
+    if 'stdout' not in kwargs: kwargs['stdout'] = subprocess.PIPE
     if 'stderr' not in kwargs: kwargs['stderr'] = subprocess.PIPE
 
     if config.verbose >= 2:
