@@ -531,7 +531,7 @@ def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
           ret = (True, None)
         tend = time.monotonic()
 
-        if tend - tstart > tle: did_timeout = True
+        if tle is not None and tend - tstart > tle: did_timeout = True
         return ret, did_timeout, tend - tstart
 
     if outfile is None:
@@ -584,7 +584,6 @@ def run_submission(submission,
                    max_submission_len,
                    expected='ACCEPTED',
                    table_dict=None):
-
   need_newline = config.verbose == 1
 
   verdict_count = {}
@@ -738,9 +737,9 @@ def test_submission(submission, testcases, settings):
     header = ProgressBar.action('Running ' + str(submission[0]), str(testcase.with_suffix('')))
     print(header)
     outfile = config.tmpdir / 'test.out'
-    run_ret, timeout, duration = run_testcase(submission[1], testcase, outfile=None,
+    run_ret, did_timeout, duration = run_testcase(submission[1], testcase, outfile=None,
             tle=timeout, crop=False)
-    if timeout:
+    if did_timeout:
         print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
     elif run_ret[0] is not True:
         print(f'{_c.red}Run time error!{_c.reset} exit code {run_ret[0]} {_c.bold}{duration:6.3f}s{_c.reset}')
