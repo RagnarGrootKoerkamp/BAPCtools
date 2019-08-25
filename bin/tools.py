@@ -739,10 +739,10 @@ def test_submission(submission, testcases, settings):
     outfile = config.tmpdir / 'test.out'
     run_ret, did_timeout, duration = run_testcase(submission[1], testcase, outfile=None,
             tle=timeout, crop=False)
-    if did_timeout:
-        print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
-    elif run_ret[0] is not True:
+    if run_ret[0] is not True:
         print(f'{_c.red}Run time error!{_c.reset} exit code {run_ret[0]} {_c.bold}{duration:6.3f}s{_c.reset}')
+    elif did_timeout:
+        print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
     else:
         print(f'{_c.green}Done:{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
     print()
