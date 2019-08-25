@@ -731,12 +731,15 @@ def run_submissions(problem, settings):
 def test_submission(submission, testcases, settings):
   print(ProgressBar.action('Running', str(submission[0])))
 
+  timeout = settings.timelimit
+  if hasattr(config.args, 'timeout') and config.args.timeout :
+    timeout = float(config.args.timeout)
   for testcase in testcases:
     header = ProgressBar.action('Running ' + str(submission[0]), str(testcase.with_suffix('')))
     print(header)
     outfile = config.tmpdir / 'test.out'
     run_ret, timeout, duration = run_testcase(submission[1], testcase, outfile=None,
-            tle=settings.timelimit, crop=False)
+            tle=timeout, crop=False)
     if timeout:
         print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
     elif run_ret[0] is not True:
@@ -808,12 +811,12 @@ def generate_output(problem, settings):
   nnew = 0
   nfail = 0
 
-  max_testcase_len = max([len(print_name(testcase)) for testcase in testcases])
+  max_testcase_len = max([len(print_name(testcase.with_suffix('.ans'))) for testcase in testcases])
 
   bar = ProgressBar('Generate', max_testcase_len, len(testcases))
 
   for testcase in testcases:
-    bar.start(print_name(testcase))
+    bar.start(print_name(testcase.with_suffix('.ans')))
 
     outfile = config.tmpdir / 'test.out'
     try:
@@ -1222,6 +1225,8 @@ Run this from one of:
       '--samples', action='store_true', help='Only run on the samples.')
   testparser.add_argument(
       '--pypy', action='store_true', help='Use pypy instead of cpython.')
+  testparser.add_argument(
+      '-t', '--timeout', help='Override the default timeout.')
 
   # Sort
   subparsers.add_parser(
@@ -1370,7 +1375,7 @@ def main():
     if action in ['validate', 'input', 'all']:
       input_validator_ok = validate(problem, 'input', settings)
       success &= input_validator_ok
-    if action in ['generate', 'all']:
+    if action in ['generate']:
       generate_output(problem, settings)
     if action in ['validate', 'output', 'all']:
       success &= validate(problem, 'output', settings, input_validator_ok)
