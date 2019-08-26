@@ -303,22 +303,20 @@ def get_validators(problem, validator_type):
 # We always pass both the case_sensitive and space_change_sensitive flags.
 def validate(problem, validator_type, settings, printnewline=False):
   assert validator_type in ['input', 'output']
-  testcases = util.get_testcases(problem, validator_type == 'output')
 
   if validator_type == 'output' and settings.validation == 'custom':
     return True
 
   validators = get_validators(problem, validator_type)
-
-  ext = '.in' if validator_type == 'input' else '.ans'
-
   if len(validators) == 0:
     return False
+
+  testcases = util.get_testcases(problem, validator_type == 'output')
   if len(testcases) == 0:
     return True
 
+  ext = '.in' if validator_type == 'input' else '.ans'
   success = True
-
   action = 'Validating ' + validator_type
 
   # Flags are only needed for output validators; input validators are

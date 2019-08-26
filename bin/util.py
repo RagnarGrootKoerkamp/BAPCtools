@@ -187,7 +187,6 @@ def glob(path, expression):
 
 # testcases; returns list of basenames
 def get_testcases(problem, needans=True, only_sample=False):
-
     # Require both in and ans files
     samplesonly = only_sample or hasattr(config.args, 'samples') and config.args.samples
     if hasattr(config.args, 'testcases') and config.args.testcases:
@@ -203,6 +202,8 @@ def get_testcases(problem, needans=True, only_sample=False):
 
       ts = [Path(t).with_suffix('.in') for t in ts]
       ts = sorted(list(set(ts)))
+      if needans:
+        ts = [t for t in ts if t.with_suffix('.ans').is_file()]
       return ts
 
     infiles = list(glob(problem, 'data/sample/*.in'))
