@@ -707,8 +707,11 @@ def run_submissions(problem, settings):
 
   if hasattr(settings, 'table') and settings.table:
     # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
-    single_verdict = lambda row, testcase: str(int(row[testcase])
-                                              ) if testcase in row else '-'
+    def single_verdict(row, testcase):
+        if testcase in row:
+            if row[testcase]: return _c.green + '1' + _c.reset
+            else:  return _c.red + '0' + _c.reset
+        else: return '-'
     make_verdict = lambda tc: ''.join(
         map(lambda row: single_verdict(row, testcase), verdict_table))
     resultant_count, resultant_id = dict(), dict()
@@ -722,11 +725,27 @@ def run_submissions(problem, settings):
         special_id += 1
         resultant_id[resultant] = special_id
 
-    print('\nVerdict analysis table. Submissions are ordered as above.')
+    scores = {}
+    for t in testcases: scores[t] = 0
+    for dct in verdict_table:
+        failures = 0
+        for t in dct:
+            if not dct[t]: failures+=1
+        for t in dct:
+            if not dct[t]:
+                scores[t] += 1./failures
+    scores_list = sorted(scores.values())
+
+    print('\nVerdict analysis table. Submissions are ordered as above. Higher '
+            'scores indicate they are critical to break some submissions.')
     for testcase in testcases:
+      color = _c.reset
+      if len(scores_list) > 6 and scores[testcase] >= scores_list[-6]: color = _c.orange
+      if len(scores_list) > 3 and scores[testcase] >= scores_list[-3]: color = _c.red
       print(f'{str(testcase):<60}', end=' ')
       resultant = make_verdict(testcase)
       print(resultant, end='  ')
+      print(f'{color}{scores[testcase]:0.3f}{_c.reset}  ', end='')
       if resultant in resultant_id:
         print(str.format('(Type {})', resultant_id[resultant]), end='')
       print(end='\n')
