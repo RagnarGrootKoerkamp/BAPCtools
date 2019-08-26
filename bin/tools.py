@@ -406,8 +406,8 @@ def stats(problems):
       ('ini', 'domjudge-problem.ini'),
       ('tex', 'problem_statement/problem*.tex'),
       ('sol', 'problem_statement/solution.tex'),
-      ('   Ival', ['input_validators/*.ctd', 'input_validators/*.cpp']),
-      ('Oval', ['output_validators/*.ctd', 'output_validators/*.cpp']),
+      ('   Ival', ['input_validators/*']),
+      ('Oval', ['output_validators/*']),
       ('   sample', 'data/sample/*.in', 2),
       ('secret', 'data/secret/*.in', 15, 50),
       ('   AC', 'submissions/accepted/*', 3),
@@ -452,6 +452,8 @@ def stats(problems):
             data = file.read()
             if data.find('TODO: Remove') == -1:
               cnt += 1
+        if p.is_dir():
+            cnt += 1
       return cnt
 
     counts = [count(s[1]) for s in stats]
