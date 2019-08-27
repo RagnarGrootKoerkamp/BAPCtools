@@ -189,6 +189,7 @@ def glob(path, expression):
 def get_testcases(problem, needans=True, only_sample=False):
     # Require both in and ans files
     samplesonly = only_sample or hasattr(config.args, 'samples') and config.args.samples
+    success = True
     if hasattr(config.args, 'testcases') and config.args.testcases:
       if samplesonly:
         print(f'{_c.red}Ignoring the --samples flag because testcases are explicitly listed.{_c.reset}')
@@ -203,8 +204,9 @@ def get_testcases(problem, needans=True, only_sample=False):
       ts = [Path(t).with_suffix('.in') for t in ts]
       ts = sorted(list(set(ts)))
       if needans:
-        ts = [t for t in ts if t.with_suffix('.ans').is_file()]
-      return ts
+        ts2 = [t for t in ts if t.with_suffix('.ans').is_file()]
+      if len(ts2) < len(ts): success = False
+      return ts2, success
 
     infiles = list(glob(problem, 'data/sample/*.in'))
     if not samplesonly:
@@ -214,11 +216,12 @@ def get_testcases(problem, needans=True, only_sample=False):
     for f in infiles:
         if needans and not f.with_suffix('.ans').is_file():
             print(f'{_c.red}Found input file {str(f)} without a .ans file.{_c.reset}')
+            success = False
             continue
         testcases.append(f.with_suffix('.in'))
     testcases.sort()
 
-    return testcases
+    return testcases, success
 
 
 def strip_newline(s):

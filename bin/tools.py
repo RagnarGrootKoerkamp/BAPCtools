@@ -311,12 +311,11 @@ def validate(problem, validator_type, settings, printnewline=False):
   if len(validators) == 0:
     return False
 
-  testcases = util.get_testcases(problem, validator_type == 'output')
+  testcases, success = util.get_testcases(problem, validator_type == 'output')
   if len(testcases) == 0:
     return True
 
   ext = '.in' if validator_type == 'input' else '.ans'
-  success = True
   action = 'Validating ' + validator_type
 
   # Flags are only needed for output validators; input validators are
@@ -674,7 +673,7 @@ def get_submission_type(s):
 
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
-  testcases = util.get_testcases(problem, needans=True)
+  testcases, success = util.get_testcases(problem, needans=True)
 
   if len(testcases) == 0:
     print(_c.red + 'No testcases found!' + _c.reset)
@@ -779,7 +778,7 @@ def test_submission(submission, testcases, settings):
 # terminal.
 # Note: The CLI only accepts one submission.
 def test_submissions(problem, settings):
-  testcases = util.get_testcases(problem, needans=False)
+  testcases, success = util.get_testcases(problem, needans=False)
 
   if len(testcases) == 0:
     print(_c.red + 'No testcases found!' + _c.reset)
@@ -828,7 +827,7 @@ def generate_output(problem, settings):
   if config.verbose:
     print()
 
-  testcases = util.get_testcases(problem, needans=False)
+  testcases, success = util.get_testcases(problem, needans=False)
 
   nsame = 0
   nchange = 0

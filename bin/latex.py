@@ -82,7 +82,7 @@ def create_samples_file(problem):
     builddir = config.tmpdir / problem
 
     # create the samples.tex file
-    samples = util.get_testcases(problem, needans=True, only_sample=True)
+    samples, success = util.get_testcases(problem, needans=True, only_sample=True)
     samples_file_path = builddir / 'samples.tex'
     samples_data = ''
 
