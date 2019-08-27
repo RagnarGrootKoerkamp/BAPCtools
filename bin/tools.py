@@ -18,7 +18,7 @@ import sys
 import stat
 import hashlib
 import argparse
-import argcomplete  # For automatic shell completions
+#import argcomplete  # For automatic shell completions
 import os
 import datetime
 import time
@@ -47,7 +47,8 @@ from util import ProgressBar, _c, glob
 def get_problems():
 
   def is_problem_directory(path):
-    return (path / 'problem.yaml').is_file() or (path / 'problem_statement').is_dir()
+    return (path / 'problem.yaml').is_file() or (path /
+                                                 'problem_statement').is_dir()
 
   contest = None
   problem = None
@@ -94,14 +95,15 @@ def is_executable(path):
   return path.is_file() and (path.stat().st_mode &
                              (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
+
 # Look at the shebang at the first line of the file to choose between python 2
 # and python 3.
 def python_version(path):
   shebang = path.read_text().split('\n')[0]
   if re.match('^#!.*python2', shebang):
-      return 'python2'
+    return 'python2'
   if re.match('^#!.*python3', shebang):
-      return 'python3'
+    return 'python3'
   return 'python2'
 
 
@@ -122,16 +124,17 @@ def build(path):
   # mirror directory structure on tmpfs
   outdir = config.tmpdir / path
   outdir.mkdir(parents=True, exist_ok=True)
-  for f in outdir.glob('*'): f.unlink()
+  for f in outdir.glob('*'):
+    f.unlink()
   outfile = outdir / 'run'
 
   # Link all input files
   files = list(path.glob('*')) if path.is_dir() else [path]
   if len(files) == 0:
-      return (None, f'{_c.red}{str(path)} is an empty directory.{_c.reset}')
+    return (None, f'{_c.red}{str(path)} is an empty directory.{_c.reset}')
   for f in files:
-      latex.ensure_symlink(outdir/f.name, f)
-  
+    latex.ensure_symlink(outdir / f.name, f)
+
   # If build or run present, use them:
   if is_executable(outdir / 'build'):
     cur_path = os.getcwd()
@@ -147,54 +150,62 @@ def build(path):
 
   # Otherwise, detect the language and entry point and build manually.
   language_code = None
-  main_file = None if path.is_dir() else outdir/path.name
+  main_file = None if path.is_dir() else outdir / path.name
   c_files = []
   for f in files:
-      e = f.suffix
+    e = f.suffix
 
-      lang = None
-      main = False
+    lang = None
+    main = False
 
-      if e in ['.c']:
-          lang = 'c'
-          main = True
-          c_files.append(outdir/f.name)
-      if e in ['.cc', '.cpp', '.cxx.', '.c++', '.C']:
-          lang = 'cpp'
-          main = True
-          c_files.append(outdir/f.name)
-      if e in ['.java']:
-          lang = 'java'
-          main = f.name == 'Main.java'
-      if e in ['.py', '.py2', '.py3']:
-          if   e == '.py2': lang = 'python2'
-          elif e == '.py3': lang = 'python3'
-          elif e == '.py': lang = python_version(path)
-          main = f.name == 'main.py'
-      if e in ['.ctd']:
-          lang = 'ctd'
-          main = True
+    if e in ['.c']:
+      lang = 'c'
+      main = True
+      c_files.append(outdir / f.name)
+    if e in ['.cc', '.cpp', '.cxx.', '.c++', '.C']:
+      lang = 'cpp'
+      main = True
+      c_files.append(outdir / f.name)
+    if e in ['.java']:
+      lang = 'java'
+      main = f.name == 'Main.java'
+    if e in ['.py', '.py2', '.py3']:
+      if e == '.py2':
+        lang = 'python2'
+      elif e == '.py3':
+        lang = 'python3'
+      elif e == '.py':
+        lang = python_version(path)
+      main = f.name == 'main.py'
+    if e in ['.ctd']:
+      lang = 'ctd'
+      main = True
 
-      if language_code is not None and lang is not None and lang != language_code:
-          msg = f'{_c.red}Could not build {path}: found conflicting languages {language_code} and {lang}!{_c.reset}'
-          return (None, msg)
-      if language_code is None: language_code = lang
+    if language_code is not None and lang is not None and lang != language_code:
+      msg = (f'{_c.red}Could not build {path}: found conflicting languages '
+             f'{language_code} and {lang}!{_c.reset}')
+      return (None, msg)
+    if language_code is None:
+      language_code = lang
 
-      if main_file is not None and main and main_file != outdir/f.name and language_code != 'cpp':
-          msg = f'{_c.red}Could not build {path}: found conflicting main files {main_file.name} and {f.name}!{_c.reset}'
-          return (None, msg)
-      if main_file is None and main: main_file = outdir/f.name
+    if main_file is not None and main and main_file != outdir / f.name and language_code != 'cpp':
+      msg = (f'{_c.red}Could not build {path}: found conflicting main files '
+             f'{main_file.name} and {f.name}!{_c.reset}')
+      return (None, msg)
+    if main_file is None and main:
+      main_file = outdir / f.name
 
   if language_code is None:
-      return (None, f'{_c.red}No language detected for {path}.{_c.reset}')
-  
+    return (None, f'{_c.red}No language detected for {path}.{_c.reset}')
+
   compile_command = None
   run_command = None
 
   if language_code == 'c':
     compile_command = [
         'gcc', '-I', config.tools_root / 'headers', '-std=c11', '-Wall', '-O2',
-        '-o', outfile] + c_files + ['-lm']
+        '-o', outfile
+    ] + c_files + ['-lm']
     run_command = [outfile]
   elif language_code == 'cpp':
     compile_command = ([
@@ -208,16 +219,20 @@ def build(path):
         '-o',
         outfile,
         main_file
-    ] + ([] if config.args.cpp_flags is None else config.args.cpp_flags.split()))
+    ] + ([] if config.args.cpp_flags is None else config.args.cpp_flags.split())
+                      )
     run_command = [outfile]
   elif language_code == 'java':
     compile_command = ['javac', '-d', outdir, main_file]
     run_command = [
-        'java', '-enableassertions', '-XX:+UseSerialGC',
-        '-Xss64M',   # Max stack size
-        '-Xms1024M', # Initial heap size
-        '-Xmx1024M', # Max heap size
-        '-cp', outdir,
+        'java',
+        '-enableassertions',
+        '-XX:+UseSerialGC',
+        '-Xss64M',  # Max stack size
+        '-Xms1024M',  # Initial heap size
+        '-Xmx1024M',  # Max heap size
+        '-cp',
+        outdir,
         main_file.stem
     ]
   elif language_code in ['python2', 'python3']:
@@ -233,7 +248,8 @@ def build(path):
   # Prevent building something twice in one invocation of tools.py.
   message = ''
   if compile_command is not None:  # and not outfile.is_file():
-    ret = util.exec_command(compile_command, stdout=subprocess.PIPE, memory=5000000000)
+    ret = util.exec_command(
+        compile_command, stdout=subprocess.PIPE, memory=5000000000)
     if ret[0] is not True:
       message = f'{_c.red}FAILED{_c.reset} '
       if ret[1] is not None:
@@ -270,7 +286,8 @@ def build_programs(programs, include_dirname=False):
     else:
       bar.log(message)
     bar.done()
-  if config.verbose: print()
+  if config.verbose:
+    print()
   return commands
 
 
@@ -280,7 +297,8 @@ def print_name(path):
 
 
 def get_validators(problem, validator_type):
-  validators = build_programs(glob(problem / (validator_type + '_validators'), '*'))
+  validators = build_programs(
+      glob(problem / (validator_type + '_validators'), '*'))
 
   if len(validators) == 0:
     print(
@@ -355,17 +373,20 @@ def validate(problem, validator_type, settings, printnewline=False):
         # Print error message?
         if ret[1]:
           prefix = '  '
-          if ret[1].count('\n') > 1: prefix = '\n'
+          if ret[1].count('\n') > 1:
+            prefix = '\n'
           message += prefix + _c.orange + util.strip_newline(ret[1]) + _c.reset
         # Print error message?
         if ret[2]:
           prefix = '  '
-          if ret[2].count('\n') > 1: prefix = '\n'
-          message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(ret[2]) + _c.reset
+          if ret[2].count('\n') > 1:
+            prefix = '\n'
+          message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(
+              ret[2]) + _c.reset
 
         if not config.verbose and success and printnewline:
-            ProgressBar.clearline()
-            print()
+          ProgressBar.clearline()
+          print()
         bar.log(message)
         success = False
     bar.done()
@@ -373,7 +394,7 @@ def validate(problem, validator_type, settings, printnewline=False):
   if not config.verbose and success:
     print(ProgressBar.action(action, f'{_c.green}Done{_c.reset}'))
     if validator_type == 'output':
-        print()
+      print()
   else:
     print()
 
@@ -450,7 +471,7 @@ def stats(problems):
             if data.find('TODO: Remove') == -1:
               cnt += 1
         if p.is_dir():
-            cnt += 1
+          cnt += 1
       return cnt
 
     counts = [count(s[1]) for s in stats]
@@ -478,13 +499,13 @@ def get_submissions(problem):
 
   if hasattr(config.args, 'submissions') and config.args.submissions:
     for submission in config.args.submissions:
-      if Path(problem/submission).parent == problem / 'submissions':
-        programs += glob(problem/submission,'*')
+      if Path(problem / submission).parent == problem / 'submissions':
+        programs += glob(problem / submission, '*')
       else:
         programs.append(problem / submission)
   else:
     for verdict in config.PROBLEM_OUTCOMES:
-        programs += glob(problem, f'submissions/{verdict.lower()}/*')
+      programs += glob(problem, f'submissions/{verdict.lower()}/*')
 
   run_commands = build_programs(programs, True)
   submissions = {
@@ -501,44 +522,46 @@ def get_submissions(problem):
 
 # Return (ret, timeout (True/False), duration)
 def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
-  if hasattr(config.args, 'timeout') and config.args.timeout :
+  if hasattr(config.args, 'timeout') and config.args.timeout:
     timeout = float(config.args.timeout)
   elif tle:
-    timeout = 2*tle
+    timeout = 2 * tle
   else:
     timeout = None
 
   with testcase.with_suffix('.in').open('rb') as inf:
-    def run(outfile):
-        did_timeout = False
-        tstart = time.monotonic()
-        try:
-          # Double the tle to check for solutions close to the required bound
-          # ret = True or ret = (code, error)
-            if outfile is None:
-              ret = util.exec_command(
-                  run_command,
-                  expect=0,
-                  crop=crop,
-                  stdin=inf,
-                  stdout=outfile,
-                  stderr=None,
-                  timeout=timeout)
-            else:
-              ret = util.exec_command(
-                  run_command,
-                  expect=0,
-                  crop=crop,
-                  stdin=inf,
-                  stdout=outfile,
-                  timeout=timeout)
-        except subprocess.TimeoutExpired:
-          did_timeout = True
-          ret = (True, None)
-        tend = time.monotonic()
 
-        if tle is not None and tend - tstart > tle: did_timeout = True
-        return ret, did_timeout, tend - tstart
+    def run(outfile):
+      did_timeout = False
+      tstart = time.monotonic()
+      try:
+        # Double the tle to check for solutions close to the required bound
+        # ret = True or ret = (code, error)
+        if outfile is None:
+          ret = util.exec_command(
+              run_command,
+              expect=0,
+              crop=crop,
+              stdin=inf,
+              stdout=outfile,
+              stderr=None,
+              timeout=timeout)
+        else:
+          ret = util.exec_command(
+              run_command,
+              expect=0,
+              crop=crop,
+              stdin=inf,
+              stdout=outfile,
+              timeout=timeout)
+      except subprocess.TimeoutExpired:
+        did_timeout = True
+        ret = (True, None)
+      tend = time.monotonic()
+
+      if tle is not None and tend - tstart > tle:
+        did_timeout = True
+      return ret, did_timeout, tend - tstart
 
     if outfile is None:
       return run(outfile)
@@ -600,8 +623,8 @@ def run_submission(submission,
 
   action = 'Running ' + str(submission[0])
   max_total_length = max(
-      max([len(print_name(testcase.with_suffix(''))) for testcase in testcases]),
-      15) + max_submission_len
+      max([len(print_name(testcase.with_suffix(''))) for testcase in testcases
+          ]), 15) + max_submission_len
   max_testcase_len = max_total_length - len(str(submission[0]))
 
   printed = False
@@ -683,7 +706,7 @@ def run_submissions(problem, settings):
   if settings.validation == 'custom':
     output_validators = get_validators(problem, 'output')
     if len(output_validators) == 0:
-        return False
+      return False
 
   submissions = get_submissions(problem)
 
@@ -707,10 +730,14 @@ def run_submissions(problem, settings):
   if hasattr(settings, 'table') and settings.table:
     # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
     def single_verdict(row, testcase):
-        if testcase in row:
-            if row[testcase]: return _c.green + '1' + _c.reset
-            else:  return _c.red + '0' + _c.reset
-        else: return '-'
+      if testcase in row:
+        if row[testcase]:
+          return _c.green + '1' + _c.reset
+        else:
+          return _c.red + '0' + _c.reset
+      else:
+        return '-'
+
     make_verdict = lambda tc: ''.join(
         map(lambda row: single_verdict(row, testcase), verdict_table))
     resultant_count, resultant_id = dict(), dict()
@@ -725,22 +752,26 @@ def run_submissions(problem, settings):
         resultant_id[resultant] = special_id
 
     scores = {}
-    for t in testcases: scores[t] = 0
+    for t in testcases:
+      scores[t] = 0
     for dct in verdict_table:
-        failures = 0
-        for t in dct:
-            if not dct[t]: failures+=1
-        for t in dct:
-            if not dct[t]:
-                scores[t] += 1./failures
+      failures = 0
+      for t in dct:
+        if not dct[t]:
+          failures += 1
+      for t in dct:
+        if not dct[t]:
+          scores[t] += 1. / failures
     scores_list = sorted(scores.values())
 
     print('\nVerdict analysis table. Submissions are ordered as above. Higher '
-            'scores indicate they are critical to break some submissions.')
+          'scores indicate they are critical to break some submissions.')
     for testcase in testcases:
       color = _c.reset
-      if len(scores_list) > 6 and scores[testcase] >= scores_list[-6]: color = _c.orange
-      if len(scores_list) > 3 and scores[testcase] >= scores_list[-3]: color = _c.red
+      if len(scores_list) > 6 and scores[testcase] >= scores_list[-6]:
+        color = _c.orange
+      if len(scores_list) > 3 and scores[testcase] >= scores_list[-3]:
+        color = _c.red
       print(f'{str(testcase):<60}', end=' ')
       resultant = make_verdict(testcase)
       print(resultant, end='  ')
@@ -756,20 +787,23 @@ def test_submission(submission, testcases, settings):
   print(ProgressBar.action('Running', str(submission[0])))
 
   timeout = settings.timelimit
-  if hasattr(config.args, 'timeout') and config.args.timeout :
+  if hasattr(config.args, 'timeout') and config.args.timeout:
     timeout = float(config.args.timeout)
   for testcase in testcases:
-    header = ProgressBar.action('Running ' + str(submission[0]), str(testcase.with_suffix('')))
+    header = ProgressBar.action('Running ' + str(submission[0]),
+                                str(testcase.with_suffix('')))
     print(header)
     outfile = config.tmpdir / 'test.out'
-    run_ret, did_timeout, duration = run_testcase(submission[1], testcase, outfile=None,
-            tle=timeout, crop=False)
+    run_ret, did_timeout, duration = run_testcase(
+        submission[1], testcase, outfile=None, tle=timeout, crop=False)
     if run_ret[0] is not True:
-        print(f'{_c.red}Run time error!{_c.reset} exit code {run_ret[0]} {_c.bold}{duration:6.3f}s{_c.reset}')
+      print(
+          f'{_c.red}Run time error!{_c.reset} exit code {run_ret[0]} {_c.bold}{duration:6.3f}s{_c.reset}'
+      )
     elif did_timeout:
-        print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+      print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
     else:
-        print(f'{_c.green}Done:{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+      print(f'{_c.green}Done:{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
     print()
 
 
@@ -835,7 +869,8 @@ def generate_output(problem, settings):
   nnew = 0
   nfail = 0
 
-  max_testcase_len = max([len(print_name(testcase.with_suffix('.ans'))) for testcase in testcases])
+  max_testcase_len = max(
+      [len(print_name(testcase.with_suffix('.ans'))) for testcase in testcases])
 
   bar = ProgressBar('Generate', max_testcase_len, len(testcases))
 
@@ -887,6 +922,7 @@ def generate_output(problem, settings):
 
   print()
 
+
 def print_sorted(problems):
   prefix = config.args.contest + '/' if config.args.contest else ''
   for problem in util.sort_problems(problems):
@@ -899,6 +935,8 @@ def print_sorted(problems):
   However it is not guaranteed it will find all constraints.
   Checking constraints by yourself is probably the best way.
 """
+
+
 def check_constraints(problem, settings):
   vinput = problem / 'input_validators/input_validator.cpp'
   voutput = problem / 'output_validators/output_validator.cpp'
@@ -962,8 +1000,10 @@ def check_constraints(problem, settings):
 # [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
 def alpha_num(string):
   s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '-'))
-  while s.startswith('_.-'): s = s[1:]
-  while s.endswith('_.-'): s = s[:-1]
+  while s.startswith('_.-'):
+    s = s[1:]
+  while s.endswith('_.-'):
+    s = s[:-1]
   return s
 
 
@@ -1061,20 +1101,22 @@ def new_problem():
 
 
 def create_gitlab_jobs(contest, problems):
-    def problem_source_dir(problem):
-        return problem.resolve().relative_to(Path('..').resolve())
 
-    contest_yml = (config.tools_root/'skel/gitlab-ci-contest.yml').read_text()
-    changes = ''
-    for problem in problems:
-        changes += '      - ' + str(problem_source_dir(problem)) + '/problem_statement/**/*\n'
-    print(util.substitute(contest_yml, locals()))
+  def problem_source_dir(problem):
+    return problem.resolve().relative_to(Path('..').resolve())
 
-    problem_yml = (config.tools_root/'skel/gitlab-ci-problem.yml').read_text()
-    for problem in problems:
-        changesdir = problem_source_dir(problem)
-        print('\n')
-        print(util.substitute(problem_yml, locals()), end='')
+  contest_yml = (config.tools_root / 'skel/gitlab-ci-contest.yml').read_text()
+  changes = ''
+  for problem in problems:
+    changes += '      - ' + str(
+        problem_source_dir(problem)) + '/problem_statement/**/*\n'
+  print(util.substitute(contest_yml, locals()))
+
+  problem_yml = (config.tools_root / 'skel/gitlab-ci-problem.yml').read_text()
+  for problem in problems:
+    changesdir = problem_source_dir(problem)
+    print('\n')
+    print(util.substitute(problem_yml, locals()), end='')
 
 
 def build_parser():
@@ -1124,7 +1166,8 @@ Run this from one of:
   global_parser.add_argument(
       '-m',
       '--memory',
-      help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
+      help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.'
+  )
 
   subparsers = parser.add_subparsers(title='actions', dest='action')
   subparsers.required = True
@@ -1165,7 +1208,9 @@ Run this from one of:
   pdfparser.add_argument(
       '--web', action='store_true', help='Create a web version of the pdf.')
   pdfparser.add_argument(
-      '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.')
+      '--cp',
+      action='store_true',
+      help='Copy the output pdf instead of symlinking it.')
 
   # Solution slides
   solparser = subparsers.add_parser(
@@ -1218,7 +1263,9 @@ Run this from one of:
 
   # Run
   runparser = subparsers.add_parser(
-      'run', parents=[global_parser], help='Run multiple programs against some or all input.')
+      'run',
+      parents=[global_parser],
+      help='Run multiple programs against some or all input.')
   runparser.add_argument(
       '--table',
       action='store_true',
@@ -1236,15 +1283,13 @@ Run this from one of:
 
   # Test
   testparser = subparsers.add_parser(
-      'test', parents=[global_parser], help='Run a single program and print the output.')
+      'test',
+      parents=[global_parser],
+      help='Run a single program and print the output.')
   testparser.add_argument(
-      'submissions',
-      nargs=1,
-      help='A single submission to run')
+      'submissions', nargs=1, help='A single submission to run')
   testparser.add_argument(
-      'testcases',
-      nargs='*',
-      help='Optionally a list of testcases to run on.')
+      'testcases', nargs='*', help='Optionally a list of testcases to run on.')
   testparser.add_argument(
       '--samples', action='store_true', help='Only run on the samples.')
   testparser.add_argument(
@@ -1264,7 +1309,9 @@ Run this from one of:
       parents=[global_parser],
       help='validate input, validate output, and run programs')
   allparser.add_argument(
-      '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.')
+      '--cp',
+      action='store_true',
+      help='Copy the output pdf instead of symlinking it.')
 
   # Build DomJudge zip
   zipparser = subparsers.add_parser(
@@ -1272,9 +1319,7 @@ Run this from one of:
       parents=[global_parser],
       help='Create zip file that can be imported into DomJudge')
   zipparser.add_argument(
-      '--skip',
-      action='store_true',
-      help='Skip recreation of problem zips.')
+      '--skip', action='store_true', help='Skip recreation of problem zips.')
   zipparser.add_argument(
       '-f',
       '--force',
@@ -1301,10 +1346,12 @@ Run this from one of:
       parents=[global_parser],
       help='Build a directory for verification with the kattis format')
 
-  subparsers.add_parser('gitlabci', parents=[global_parser],
+  subparsers.add_parser(
+      'gitlabci',
+      parents=[global_parser],
       help='Print a list of jobs for the given contest.')
 
-  argcomplete.autocomplete(parser)
+  #argcomplete.autocomplete(parser)
 
   return parser
 
@@ -1332,9 +1379,13 @@ def main():
 
   if level != 'problem' and action in ['generate', 'test']:
     if action == 'generate':
-      print(f'{_c.red}Generating output files only works for a single problem.{_c.reset}')
+      print(
+          f'{_c.red}Generating output files only works for a single problem.{_c.reset}'
+      )
     if action == 'test':
-      print(f'{_c.red}Testing a submission only works for a single problem.{_c.reset}')
+      print(
+          f'{_c.red}Testing a submission only works for a single problem.{_c.reset}'
+      )
     sys.exit(1)
 
   if action == 'run':
@@ -1377,9 +1428,9 @@ def main():
   success = True
 
   for problem in problems:
-    if level == 'contest' and action == 'pdf' and not (hasattr(config.args,
-        'all') and config.args.all):
-        continue
+    if level == 'contest' and action == 'pdf' and not (hasattr(
+        config.args, 'all') and config.args.all):
+      continue
     print(_c.bold, 'PROBLEM ', problem, _c.reset, sep='')
 
     # merge problem settings with arguments into one namespace
@@ -1389,10 +1440,10 @@ def main():
       vars(settings)[key] = problemsettings[key]
 
     if action in ['pdf', 'solutions', 'all']:
-        # only build the pdf on the problem level, or on the contest level when
-        # --all is passed.
-      if level == 'problem' or (level == 'contest' and hasattr(config.args, 'all') and
-              config.args.all):
+      # only build the pdf on the problem level, or on the contest level when
+      # --all is passed.
+      if level == 'problem' or (level == 'contest' and hasattr(
+          config.args, 'all') and config.args.all):
         success &= latex.build_problem_pdf(problem)
 
     input_validator_ok = False
@@ -1426,7 +1477,7 @@ def main():
 
     if len(problems) > 1:
       print()
-  
+
   if level == 'contest':
     print(f'{_c.bold}CONTEST {contest}{_c.reset}')
 
