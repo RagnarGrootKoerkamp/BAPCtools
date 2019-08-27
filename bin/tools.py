@@ -779,7 +779,7 @@ def test_submission(submission, testcases, settings):
 # terminal.
 # Note: The CLI only accepts one submission.
 def test_submissions(problem, settings):
-  testcases = util.get_testcases(problem, needans=True)
+  testcases = util.get_testcases(problem, needans=False)
 
   if len(testcases) == 0:
     print(_c.red + 'No testcases found!' + _c.reset)
