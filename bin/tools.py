@@ -140,10 +140,10 @@ def build(path):
     cur_path = os.getcwd()
     os.chdir(outdir)
     if util.exec_command(['./build'], memory=5000000000)[0] is not True:
-      return (False, f'{_c.red}FAILED{_c.reset}')
+      return (None, f'{_c.red}FAILED{_c.reset}')
     os.chdir(cur_path)
     if not is_executable(runfile):
-      return (False, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
+      return (None, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
 
   if is_executable(outdir / 'run'):
     return ([outdir / 'run'], None)
