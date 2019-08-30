@@ -856,8 +856,13 @@ def generate_output(problem, settings):
           submission = s
 
   # build submission
-  print(ProgressBar.action('Building', str(submission)))
+  bar = ProgressBar('Building')
+  bar.start(str(submission))
   run_command, message = build(submission)
+  if run_command is None:
+    print(bar.log(message))
+    return False
+
   if config.verbose:
     print()
 
@@ -921,6 +926,7 @@ def generate_output(problem, settings):
     print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
 
   print()
+  return nskip == 0 and nfail == 0
 
 
 def print_sorted(problems):
@@ -1451,7 +1457,7 @@ def main():
       input_validator_ok = validate(problem, 'input', settings)
       success &= input_validator_ok
     if action in ['generate']:
-      generate_output(problem, settings)
+      success &= generate_output(problem, settings)
     if action in ['validate', 'output', 'all']:
       success &= validate(problem, 'output', settings, input_validator_ok)
     if action in ['run', 'all']:
