@@ -144,7 +144,7 @@ def build(path):
       config.n_error += 1
       return (None, f'{_c.red}FAILED{_c.reset}')
     os.chdir(cur_path)
-    if not is_executable(runfile):
+    if not is_executable(outdir / 'run'):
       config.n_error += 1
       return (None, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
 
