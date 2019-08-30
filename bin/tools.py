@@ -543,6 +543,8 @@ def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
   if hasattr(config.args, 'timeout') and config.args.timeout:
     timeout = float(config.args.timeout)
   elif tle:
+    # Double the tle to check for solutions close to the required bound
+    # ret = True or ret = (code, error)
     timeout = 2 * tle
   else:
     timeout = None
@@ -553,19 +555,18 @@ def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
       did_timeout = False
       tstart = time.monotonic()
       try:
-        # Double the tle to check for solutions close to the required bound
-        # ret = True or ret = (code, error)
         if outfile is None:
-          ret = util.exec_command(
+          # Print both stdout and stderr directly to the terminal.
+          ok, err, out = util.exec_command(
               run_command,
               expect=0,
               crop=crop,
               stdin=inf,
-              stdout=outfile,
+              stdout=None,
               stderr=None,
               timeout=timeout)
         else:
-          ret = util.exec_command(
+          ok, err, out = util.exec_command(
               run_command,
               expect=0,
               crop=crop,
@@ -574,12 +575,12 @@ def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
               timeout=timeout)
       except subprocess.TimeoutExpired:
         did_timeout = True
-        ret = (True, None)
+        ok, err, out = (True, None, None)
       tend = time.monotonic()
 
       if tle is not None and tend - tstart > tle:
         did_timeout = True
-      return ret, did_timeout, tend - tstart
+      return ok, did_timeout, tend - tstart, err, out
 
     if outfile is None:
       return run(outfile)
@@ -596,15 +597,15 @@ def process_testcase(run_command,
                      output_validators,
                      printnewline=False):
 
-  run_ret, timeout, duration = run_testcase(run_command, testcase, outfile,
+  ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
                                             settings.timelimit)
   verdict = None
   remark = ''
   if timeout:
     verdict = 'TIME_LIMIT_EXCEEDED'
-  elif run_ret[0] is not True:
+  elif ok is not True:
     verdict = 'RUN_TIME_ERROR'
-    remark = 'Exited with code ' + str(run_ret[0]) + ':\n' + run_ret[1]
+    remark = 'Exited with code ' + str(ok) + ':\n' + err
   else:
     assert settings.validation in ['default', 'custom']
     if settings.validation == 'default':
@@ -812,9 +813,11 @@ def test_submission(submission, testcases, settings):
                                 str(testcase.with_suffix('')))
     print(header)
     outfile = config.tmpdir / 'test.out'
-    run_ret, did_timeout, duration = run_testcase(
+    # err and out should be None because they go to the terminal.
+    ok, did_timeout, duration, err, out = run_testcase(
         submission[1], testcase, outfile=None, tle=timeout, crop=False)
-    if run_ret[0] is not True:
+    assert err is None and out is None
+    if ok is not True:
       config.n_error += 1
       print(
           f'{_c.red}Run time error!{_c.reset} exit code {run_ret[0]} {_c.bold}{duration:6.3f}s{_c.reset}'
@@ -907,11 +910,13 @@ def generate_output(problem, settings):
       os.unlink(outfile)
     except OSError:
       pass
-    ret, timeout, duration = run_testcase(run_command, testcase, outfile,
+
+    # Ignore stdout and stderr from the program.
+    ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
                                           settings.timelimit)
     message = ''
     same = False
-    if ret[0] is not True or timeout is True:
+    if ok is not True or timeout is True:
       message = 'FAILED'
       nfail += 1
     else:
