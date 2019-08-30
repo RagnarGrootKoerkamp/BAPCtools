@@ -15,6 +15,8 @@ required dependencies manually:
 -   Python 3 with the `yaml`
     [library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install
     pyyaml` or the `python-yaml` Arch Linux package.
+-   The `argcomplete` library for command line argument completion. Install via
+    `python[3]-argcomplete`.
 -   The `pdflatex` command, provided by `texlive-bin` on Arch Linux.
 -   Potentially some specific LaTeX packages (like tikz) provided by
     `texlive-extra`.

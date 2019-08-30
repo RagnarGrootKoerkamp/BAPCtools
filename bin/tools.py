@@ -18,7 +18,7 @@ import sys
 import stat
 import hashlib
 import argparse
-#import argcomplete  # For automatic shell completions
+import argcomplete  # For automatic shell completions
 import os
 import datetime
 import time
@@ -255,15 +255,15 @@ def build(path):
   # Prevent building something twice in one invocation of tools.py.
   message = ''
   if compile_command is not None:  # and not outfile.is_file():
-    ret = util.exec_command(
+    ok, err, out = util.exec_command(
         compile_command, stdout=subprocess.PIPE, memory=5000000000)
-    if ret[0] is not True:
+    if ok is not True:
       config.n_error += 1
       message = f'{_c.red}FAILED{_c.reset} '
-      if ret[1] is not None:
-        message += '\n' + _c.red + util.strip_newline(ret[1]) + _c.reset
-      if ret[2] is not None:
-        message += '\n' + _c.red + util.strip_newline(ret[2]) + _c.reset
+      if err is not None:
+        message += '\n' + util.strip_newline(err) + _c.reset
+      if out is not None:
+        message += '\n' + util.strip_newline(out) + _c.reset
       run_command = None
 
   if run_command is None and message == '':
@@ -1398,7 +1398,7 @@ Run this from one of:
       parents=[global_parser],
       help='Print a list of jobs for the given contest.')
 
-  #argcomplete.autocomplete(parser)
+  argcomplete.autocomplete(parser)
 
   return parser
 
