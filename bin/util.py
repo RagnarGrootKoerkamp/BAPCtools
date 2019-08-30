@@ -29,6 +29,9 @@ class Colorcodes(object):
 _c = Colorcodes()
 
 
+
+
+
 # A class that draws a progressbar.
 # Construct with a constant prefix, the max length of the items to process, and
 # the number of items to process.
@@ -102,6 +105,7 @@ class ProgressBar:
         ProgressBar.clearline()
         if self.logged: return False
         if config.verbose or not success:
+            config.n_error += 1
             self.log(message)
             return True
         return False
@@ -189,39 +193,38 @@ def glob(path, expression):
 def get_testcases(problem, needans=True, only_sample=False):
     # Require both in and ans files
     samplesonly = only_sample or hasattr(config.args, 'samples') and config.args.samples
-    success = True
+    infiles = None
     if hasattr(config.args, 'testcases') and config.args.testcases:
       if samplesonly:
+        config.n_warn += 1
         print(f'{_c.red}Ignoring the --samples flag because testcases are explicitly listed.{_c.reset}')
       # Deduplicate testcases with both .in and .ans.
-      ts = []
+      infiles = []
       for t in config.args.testcases:
           if Path(problem / t).is_dir():
-            ts += glob(Path(problem / t), '**/*.in')
+            infiles += glob(Path(problem / t), '**/*.in')
           else:
-            ts.append(Path(problem / t))
+            infiles.append(Path(problem / t))
 
-      ts = [Path(t).with_suffix('.in') for t in ts]
-      ts = sorted(list(set(ts)))
-      if needans:
-        ts2 = [t for t in ts if t.with_suffix('.ans').is_file()]
-      if len(ts2) < len(ts): success = False
-      return ts2, success
-
-    infiles = list(glob(problem, 'data/sample/*.in'))
-    if not samplesonly:
-        infiles += list(glob(problem, 'data/secret/*.in'))
+      infiles = [t.with_suffix('.in') for t in infiles]
+      infiles = list(set(infiles))
+    else:
+        infiles = list(glob(problem, 'data/sample/*.in'))
+        if not samplesonly:
+            infiles += list(glob(problem, 'data/secret/*.in'))
 
     testcases = []
     for f in infiles:
         if needans and not f.with_suffix('.ans').is_file():
+            config.n_warn += 1
             print(f'{_c.red}Found input file {str(f)} without a .ans file.{_c.reset}')
-            success = False
             continue
         testcases.append(f.with_suffix('.in'))
     testcases.sort()
 
-    return testcases, success
+    if len(testcases) == 0:
+        config.n_warn += 1
+    return testcases
 
 
 def strip_newline(s):

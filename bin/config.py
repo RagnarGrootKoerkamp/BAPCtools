@@ -18,6 +18,11 @@ tools_root = Path(__file__).resolve().parent.parent
 
 tmpdir = None
 
-# this is lifted for convenience
+# This is lifted for convenience.
 args = None
 verbose = False
+
+# The number of warnings and errors encountered.
+# The program will return non-zero when the number of errors is nonzero.
+n_error = 0
+n_warn = 0

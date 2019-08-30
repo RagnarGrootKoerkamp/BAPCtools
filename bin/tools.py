@@ -131,6 +131,7 @@ def build(path):
   # Link all input files
   files = list(path.glob('*')) if path.is_dir() else [path]
   if len(files) == 0:
+    config.n_warn += 1
     return (None, f'{_c.red}{str(path)} is an empty directory.{_c.reset}')
   for f in files:
     latex.ensure_symlink(outdir / f.name, f)
@@ -140,9 +141,11 @@ def build(path):
     cur_path = os.getcwd()
     os.chdir(outdir)
     if util.exec_command(['./build'], memory=5000000000)[0] is not True:
+      config.n_error += 1
       return (None, f'{_c.red}FAILED{_c.reset}')
     os.chdir(cur_path)
     if not is_executable(runfile):
+      config.n_error += 1
       return (None, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
 
   if is_executable(outdir / 'run'):
@@ -182,6 +185,7 @@ def build(path):
       main = True
 
     if language_code is not None and lang is not None and lang != language_code:
+      config.n_error += 1
       msg = (f'{_c.red}Could not build {path}: found conflicting languages '
              f'{language_code} and {lang}!{_c.reset}')
       return (None, msg)
@@ -189,6 +193,7 @@ def build(path):
       language_code = lang
 
     if main_file is not None and main and main_file != outdir / f.name and language_code != 'cpp':
+      config.n_error += 1
       msg = (f'{_c.red}Could not build {path}: found conflicting main files '
              f'{main_file.name} and {f.name}!{_c.reset}')
       return (None, msg)
@@ -196,6 +201,7 @@ def build(path):
       main_file = outdir / f.name
 
   if language_code is None:
+    config.n_error += 1
     return (None, f'{_c.red}No language detected for {path}.{_c.reset}')
 
   compile_command = None
@@ -242,6 +248,7 @@ def build(path):
     if ctd_path.is_file():
       run_command = [ctd_path, main_file]
   else:
+    config.n_error += 1
     return (None,
             f'{_c.red}Unknown extension \'{ext}\' at file {path}{_c.reset}')
 
@@ -251,6 +258,7 @@ def build(path):
     ret = util.exec_command(
         compile_command, stdout=subprocess.PIPE, memory=5000000000)
     if ret[0] is not True:
+      config.n_error += 1
       message = f'{_c.red}FAILED{_c.reset} '
       if ret[1] is not None:
         message += '\n' + _c.red + util.strip_newline(ret[1]) + _c.reset
@@ -259,6 +267,7 @@ def build(path):
       run_command = None
 
   if run_command is None and message == '':
+    config.n_error += 1
     message = f'{_c.red}FAILED{_c.reset}'
   return (run_command, message)
 
@@ -301,6 +310,7 @@ def get_validators(problem, validator_type):
       glob(problem / (validator_type + '_validators'), '*'))
 
   if len(validators) == 0:
+    config.n_error += 1
     print(
         f'\n{_c.red}Aborting: At least one {validator_type} validator is needed!{_c.reset}'
     )
@@ -329,7 +339,7 @@ def validate(problem, validator_type, settings, printnewline=False):
   if len(validators) == 0:
     return False
 
-  testcases, success = util.get_testcases(problem, validator_type == 'output')
+  testcases = util.get_testcases(problem, validator_type == 'output')
   if len(testcases) == 0:
     return True
 
@@ -342,6 +352,7 @@ def validate(problem, validator_type, settings, printnewline=False):
   if validator_type == 'output':
     flags = ['case_sensitive', 'space_change_sensitive']
 
+  success = True
   max_testcase_len = max(
       [len(print_name(testcase) + ext) for testcase in testcases])
 
@@ -368,6 +379,7 @@ def validate(problem, validator_type, settings, printnewline=False):
 
       # Failure?
       if ret[0] is not True:
+        config.n_error += 1
         message = _c.red + 'FAILED ' + validator[0] + _c.reset
 
         # Print error message?
@@ -696,7 +708,7 @@ def get_submission_type(s):
 
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
-  testcases, success = util.get_testcases(problem, needans=True)
+  testcases = util.get_testcases(problem, needans=True)
 
   if len(testcases) == 0:
     print(_c.red + 'No testcases found!' + _c.reset)
@@ -797,10 +809,12 @@ def test_submission(submission, testcases, settings):
     run_ret, did_timeout, duration = run_testcase(
         submission[1], testcase, outfile=None, tle=timeout, crop=False)
     if run_ret[0] is not True:
+      config.n_error += 1
       print(
           f'{_c.red}Run time error!{_c.reset} exit code {run_ret[0]} {_c.bold}{duration:6.3f}s{_c.reset}'
       )
     elif did_timeout:
+      config.n_error += 1
       print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
     else:
       print(f'{_c.green}Done:{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
@@ -812,7 +826,7 @@ def test_submission(submission, testcases, settings):
 # terminal.
 # Note: The CLI only accepts one submission.
 def test_submissions(problem, settings):
-  testcases, success = util.get_testcases(problem, needans=False)
+  testcases = util.get_testcases(problem, needans=False)
 
   if len(testcases) == 0:
     print(_c.red + 'No testcases found!' + _c.reset)
@@ -866,7 +880,7 @@ def generate_output(problem, settings):
   if config.verbose:
     print()
 
-  testcases, success = util.get_testcases(problem, needans=False)
+  testcases = util.get_testcases(problem, needans=False)
 
   nsame = 0
   nchange = 0
@@ -1501,7 +1515,7 @@ def main():
 
       export.build_contest_zip(problem_zips, contest + '.zip', config.args)
 
-  if not success:
+  if not success or config.n_error > 0 or config.n_warn > 0:
     sys.exit(1)
 
 
