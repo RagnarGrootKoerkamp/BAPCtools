@@ -363,13 +363,13 @@ def validate(problem, validator_type, settings, printnewline=False):
     for validator in validators:
       # simple `program < test.in` for input validation and ctd output validation
       if validator_type == 'input' or Path(validator[0]).suffix == '.ctd':
-        ret = util.exec_command(
+        ok, err, out = util.exec_command(
             validator[1] + flags,
             expect=config.RTV_AC,
             stdin=testcase.with_suffix(ext).open())
       else:
         # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
-        ret = util.exec_command(
+        ok, err, out = util.exec_command(
             validator[1] + [
                 testcase.with_suffix('.in'),
                 testcase.with_suffix('.ans'), config.tmpdir
@@ -377,30 +377,36 @@ def validate(problem, validator_type, settings, printnewline=False):
             expect=config.RTV_AC,
             stdin=testcase.with_suffix(ext).open())
 
+      print_message = config.verbose > 0
+      message = ''
+
       # Failure?
-      if ret[0] is not True:
+      if ok is True:
+        message = _c.green + 'PASSED ' + validator[0] + _c.reset
+      else:
         config.n_error += 1
         message = _c.red + 'FAILED ' + validator[0] + _c.reset
+        print_message = True
+        success = False
 
-        # Print error message?
-        if ret[1]:
+      # Print stderr whenever something is printed
+      if err and print_message:
           prefix = '  '
-          if ret[1].count('\n') > 1:
-            prefix = '\n'
-          message += prefix + _c.orange + util.strip_newline(ret[1]) + _c.reset
-        # Print error message?
-        if ret[2]:
-          prefix = '  '
-          if ret[2].count('\n') > 1:
-            prefix = '\n'
-          message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(
-              ret[2]) + _c.reset
+          if err.count('\n') > 1: prefix = '\n'
+          message += prefix + _c.orange + util.strip_newline(err) + _c.reset
+      # Print stdout when -e is set. (But not on normal failures.)
+      if out and print_message and config.args.error:
+        prefix = '  '
+        if out.count('\n') > 1: prefix = '\n'
+        message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(
+            out) + _c.reset
 
-        if not config.verbose and success and printnewline:
+      if print_message:
+        if not config.verbose and printnewline:
           ProgressBar.clearline()
+          printnewline = False
           print()
         bar.log(message)
-        success = False
     bar.done()
 
   if not config.verbose and success:
