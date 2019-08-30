@@ -104,8 +104,8 @@ class ProgressBar:
     def done(self, success=True, message=''):
         ProgressBar.clearline()
         if self.logged: return False
+        if not success: config.n_error += 1
         if config.verbose or not success:
-            config.n_error += 1
             self.log(message)
             return True
         return False

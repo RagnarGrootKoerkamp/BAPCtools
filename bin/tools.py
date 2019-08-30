@@ -390,15 +390,15 @@ def validate(problem, validator_type, settings, printnewline=False):
         success = False
 
       # Print stderr whenever something is printed
-      if err and print_message:
+      if err:
           prefix = '  '
           if err.count('\n') > 1: prefix = '\n'
           message += prefix + _c.orange + util.strip_newline(err) + _c.reset
       # Print stdout when -e is set. (But not on normal failures.)
-      if out and print_message and config.args.error:
+      if out and config.args.error:
         prefix = '  '
         if out.count('\n') > 1: prefix = '\n'
-        message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(
+        message += f'\n{_c.red}VALIDATOR STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(
             out) + _c.reset
 
       if print_message:
@@ -600,25 +600,27 @@ def process_testcase(run_command,
   ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
                                             settings.timelimit)
   verdict = None
-  remark = ''
   if timeout:
     verdict = 'TIME_LIMIT_EXCEEDED'
   elif ok is not True:
     verdict = 'RUN_TIME_ERROR'
-    remark = 'Exited with code ' + str(ok) + ':\n' + err
+    err = 'Exited with code ' + str(ok) + ':\n' + err
   else:
     assert settings.validation in ['default', 'custom']
     if settings.validation == 'default':
-      val_ret = validation.default_output_validator(
+      ok, err, out = validation.default_output_validator(
           testcase.with_suffix('.ans'), outfile, settings)
     elif settings.validation == 'custom':
-      val_ret = validation.custom_output_validator(testcase, outfile, settings,
-                                                   output_validators)
+      ok, err, out = validation.custom_output_validator(testcase, outfile, settings, output_validators)
 
-    verdict = 'ACCEPTED' if val_ret[0] else 'WRONG_ANSWER'
-    remark = val_ret[1]
+    if ok is True: verdict = 'ACCEPTED'
+    elif ok is False: verdict = 'WRONG_ANSWER'
+    else:
+        config.n_error += 1
+        verdict = 'VALIDATOR_CRASH'
+        err = 'Exited with code ' + str(ok) + ':\n' + err
 
-  return (verdict, duration, remark)
+  return (verdict, duration, err, out)
 
 
 # program is of the form (name, command)
@@ -652,10 +654,9 @@ def run_submission(submission,
   for testcase in testcases:
     bar.start(print_name(testcase.with_suffix('')))
     outfile = config.tmpdir / 'test.out'
-    verdict, runtime, remark = \
-        process_testcase(submission[1], testcase, outfile, settings, output_validators,
-                need_newline)
-    verdict_count[verdict] += 1
+    verdict, runtime, err, out = process_testcase(submission[1], testcase, outfile, settings, output_validators, need_newline)
+    if verdict != 'VALIDATOR_CRASH':
+        verdict_count[verdict] += 1
 
     time_total += runtime
     time_max = max(time_max, runtime)
@@ -665,11 +666,26 @@ def run_submission(submission,
 
     got_expected = verdict == 'ACCEPTED' or verdict == expected
     color = _c.green if got_expected else _c.red
+    print_message = config.verbose > 0 or not got_expected
     message = '{:6.3f}s '.format(runtime) + color + verdict + _c.reset
-    if remark:
-      message += '  ' + _c.orange + util.strip_newline(remark) + _c.reset
 
-    printed |= bar.done(got_expected, message)
+    # Print stderr whenever something is printed
+    if err:
+      prefix = '  '
+      if err.count('\n') > 1: prefix = '\n'
+      message += prefix + _c.orange + util.strip_newline(err) + _c.reset
+
+    # Print stdout when -e is set.
+    if out and (verdict == 'VALIDATOR_CRASH' or config.args.error):
+      prefix = '  '
+      if out.count('\n') > 1: prefix = '\n'
+      message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(out) + _c.reset
+
+    if print_message:
+      bar.log(message)
+      printed=True
+
+    bar.done()
 
     if not config.verbose and verdict in [
         'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR'

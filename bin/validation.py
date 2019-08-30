@@ -13,7 +13,7 @@ def quick_diff(ans, out):
         return ''
 
 
-# return: (success, remark)
+# return: (success, err, out=None)
 def default_output_validator(ansfile, outfile, settings):
     # settings: floatabs, floatrel, case_sensitive, space_change_sensitive
     with open(ansfile, 'rb') as f:
@@ -23,7 +23,7 @@ def default_output_validator(ansfile, outfile, settings):
         indata2 = f.read()
 
     if indata1 == indata2:
-        return (True, '')
+        return (True, '', None)
 
     if not settings.case_sensitive:
         # convert to lowercase...
@@ -31,13 +31,13 @@ def default_output_validator(ansfile, outfile, settings):
         data2 = indata2.lower()
 
         if data1 == data2:
-            return (True, 'case')
+            return (True, 'case', None)
     else:
         data1 = indata1
         data2 = indata2
 
     if settings.space_change_sensitive and settings.floatabs == None and settings.floatrel == None:
-        return (False, quick_diff(data1, data2))
+        return (False, quick_diff(data1, data2), None)
 
     if settings.space_change_sensitive:
         words1 = re.split(rb'\b(\S+)\b', data1)
@@ -52,16 +52,16 @@ def default_output_validator(ansfile, outfile, settings):
 
     if words1 == words2:
         if not settings.space_change_sensitive:
-            return (True, 'white space')
+            return (True, 'white space', None)
         else:
             print('Strings became equal after space sensitive splitting! Something is wrong!')
             exit()
 
     if settings.floatabs is None and settings.floatrel is None:
-        return (False, quick_diff(data1, data2))
+        return (False, quick_diff(data1, data2), None)
 
     if len(words1) != len(words2):
-        return (False, quick_diff(data1, data2))
+        return (False, quick_diff(data1, data2), None)
 
     peakabserr = 0
     peakrelerr = 0
@@ -76,15 +76,16 @@ def default_output_validator(ansfile, outfile, settings):
                 peakrelerr = max(peakrelerr, relerr)
                 if ((settings.floatabs is None or abserr > settings.floatabs)
                         and (settings.floatrel is None or relerr > settings.floatrel)):
-                    return (False, quick_diff(data1, data2))
+                    return (False, quick_diff(data1, data2), None)
             except ValueError:
-                return (False, quick_diff(data1, data2))
+                return (False, quick_diff(data1, data2), None)
 
-    return (True, 'float: abs {0:.2g} rel {1:.2g}'.format(peakabserr, peakrelerr))
+    return (True, 'float: abs {0:.2g} rel {1:.2g}'.format(peakabserr, peakrelerr), None)
 
 
 # call output validators as ./validator in ans feedbackdir additional_arguments < out
-# return (success, remark)
+# return (success, err, out) for the last validator that was run.
+# TODO: Read and process tmpdir/judgemessage.txt
 def custom_output_validator(testcase, outfile, settings, output_validators):
     flags = []
     if settings.space_change_sensitive:
@@ -92,28 +93,19 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     if settings.case_sensitive:
         flags += ['case_sensitive']
 
-    judgemessage = ''
+    ok = True
+    err = None
+    out = None
     for output_validator in output_validators:
-        ret = None
         with open(outfile, 'rb') as outf:
-            ret = util.exec_command(
+            ok, err, out = util.exec_command(
                 output_validator[1] +
                 [testcase.with_suffix('.in'),
                  testcase.with_suffix('.ans'), config.tmpdir] + flags,
                 expect=config.RTV_AC,
                 stdin=outf)
-        # Read judgemessage if present
-        judgemessagepath = config.tmpdir / 'judgemessage.txt'
-        if judgemessagepath.is_file():
-            with judgemessagepath.open() as judgemessagefile:
-                judgemessage = judgemessagefile.read()
-            os.unlink(judgemessagepath)
 
-        if ret[0] is True:
-            continue
-        if ret[0] == config.RTV_WA:
-            return (False, ret[1] + judgemessage)
-        print('ERROR in output validator ', output_validator[0], ' exit code ', ret[0], ': ',
-              ret[1])
-        exit(False)
-    return (True, judgemessage)
+        if ok is True: continue
+        if ok == config.RTV_WA: ok = False
+        break
+    return (ok, err, out)
