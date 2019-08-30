@@ -304,7 +304,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         memory_limit = kwargs['memory']
         kwargs.pop('memory')
     # Disable memory limits for Java.
-    if command[0] == 'java':
+    if command[0] == 'java' or command[0] == 'javac':
         memory_limit = None
 
     def setlimits():
