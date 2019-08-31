@@ -43,7 +43,7 @@ class Validator {
 			char c;
 			in >> c;
 			assert(!in.eof(), "Expected space, found EOF.");
-			if(c != ' ') expected("space", string("\"") + (c=='\n' ? string("newline"):string(1, c)) + "\"");
+			if(c != ' ') expected("space", string("\"") + ((c=='\n' or c=='\r') ? string("newline"):string(1, c)) + "\"");
 		}
 	}
 
@@ -52,7 +52,10 @@ class Validator {
 			char c;
 			in >> c;
 			assert(!in.eof(), "Expected newline, found EOF.");
-			if(c != '\n') expected("newline", string("\"") + c + "\"");
+			if(c != '\n'){
+				if(c == '\r') expected("newline", "DOS line ending (\\r)");
+				else expected("newline", string("\"") + c + "\"");
+			}
 		}
 	}
 
