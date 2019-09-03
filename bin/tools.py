@@ -836,7 +836,7 @@ def test_submission(submission, testcases, settings):
     if ok is not True:
       config.n_error += 1
       print(
-          f'{_c.red}Run time error!{_c.reset} exit code {run_ret[0]} {_c.bold}{duration:6.3f}s{_c.reset}'
+          f'{_c.red}Run time error!{_c.reset} exit code {ok} {_c.bold}{duration:6.3f}s{_c.reset}'
       )
     elif did_timeout:
       config.n_error += 1
