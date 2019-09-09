@@ -146,9 +146,10 @@ def build_problem_pdf(problem):
 
 
 def find_logo():
+    logo = Path('logo.pdf')
+    if logo.exists(): return logo
     logo = Path('../logo.pdf')
-    if logo.exists():
-        return logo
+    if logo.exists(): return logo
     return config.tools_root / 'latex/images/logo-not-found.pdf'
 
 
