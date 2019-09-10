@@ -985,35 +985,51 @@ def print_sorted(problems):
 
 
 def check_constraints(problem, settings):
-  vinput = problem / 'input_validators/input_validator.cpp'
-  voutput = problem / 'output_validators/output_validator.cpp'
+  vinput = problem / 'input_validators/input_validator/input_validator.cpp'
+  voutput = problem / 'output_validators/output_validator/output_validator.cpp'
 
-  cpp_statement = re.compile(
-      '^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);$'
-  )
+  cpp_statement = [
+      (re.compile('^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);'), 3, 4, None),
+      (re.compile('(?:(\w*)\s*=\s*.*)?\.read_(?:string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'), 1, 2, 3),
+    ]
 
-  defs = []
+  defs_validators = []
   for validator in [vinput, voutput]:
     with open(validator) as file:
       for line in file:
-        mo = cpp_statement.search(line)
-        if mo is not None:
-          defs.append(mo)
-
-  defs_validators = [(mo.group(3), mo.group(4)) for mo in defs]
+        for r, name, v1, v2 in cpp_statement:
+            mo = r.search(line)
+            if mo is not None:
+                if mo.group(v1) is not None:
+                    defs_validators.append([mo.group(name) or '', mo.group(v1)])
+                if v2 is not None and mo.group(v2) is not None:
+                    defs_validators.append([mo.group(name) or '', mo.group(v2)])
 
   statement = problem / 'problem_statement/problem.tex'
-  latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$')
-  latex_define = re.compile('{\\\\(\w+)}{(.*)}')
+  #latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$')
+  latex_defines = [
+    (re.compile('{\\\\(\w+)}{(.*)}'), 1, 2, False),
+    (re.compile('([0-9-e,.^]+)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*(\w*)'), 2, 1, True),
+    (re.compile('(\w*)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*([0-9-e,.^]+)'), 1, 2, True),
+  ]
 
-  defs.clear()
+  defs_statement = []
+  input_output = False
   with open(statement) as file:
     for line in file:
-      mo = latex_define.search(line)
-      if mo is not None:
-        defs.append(mo)
+      for r, name, value, io_only in latex_defines:
+          if 'begin{Input}' in line: input_output = True
+          if 'end{Input}' in line: input_output = False
+          if 'begin{Output}' in line: input_output = True
+          if 'end{Output}' in line: input_output = False
+          if io_only and not input_output: continue
 
-  defs_statement = [(mo.group(1), mo.group(2)) for mo in defs]
+          mo = r.search(line)
+          if mo is not None:
+            mo = r.search(line)
+            if mo is not None:
+                if mo.group(value) is not None:
+                    defs_statement.append([mo.group(name) or '', mo.group(value)])
 
   # print all the definitions.
   nl = len(defs_validators)
@@ -1024,7 +1040,7 @@ def check_constraints(problem, settings):
   for i in range(0, max(nl, nr)):
     if i < nl:
       print(
-          '{:>15}  {:<13}'.format(defs_validators[i][1], defs_validators[i][0]),
+          '{:>15}  {:<13}'.format(defs_validators[i][0], defs_validators[i][1]),
           sep='',
           end='')
     else:
@@ -1032,7 +1048,7 @@ def check_constraints(problem, settings):
     print('|', end='')
     if i < nr:
       print(
-          '{:>15}  {:<13}'.format(defs_statement[i][1], defs_statement[i][0]),
+          '{:>15}  {:<13}'.format(defs_statement[i][0], defs_statement[i][1]),
           sep='',
           end='')
     else:
