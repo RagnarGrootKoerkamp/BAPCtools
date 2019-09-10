@@ -27,8 +27,8 @@
 		\thispagestyle{empty}
 		\vfill
 		\begin{center}
-			%\huge\cursive\emph{Ceci n'est pas une page blanche.}
-			\includegraphics{images/blank-page-fr.png}
+			\huge{This page is intentionally left blank.}
+			%\includegraphics{images/blank-page-fr.png}
 		\end{center}
 		\vspace*{5.55cm} % slightly above vertical centre.
 		\vfill
