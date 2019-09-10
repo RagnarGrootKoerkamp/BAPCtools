@@ -1,6 +1,6 @@
 contest_pdf_{%contest%}:
   script:
-      - ./bt pdf --cp --silent --contest {%contest%}
+      - ./bt pdf --cp --no-bar --contest {%contest%}
   only:
     changes:
 {%changes%}
