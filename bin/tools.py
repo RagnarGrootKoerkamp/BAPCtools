@@ -121,7 +121,13 @@ def python_interpreter(version):
 # The directory may contain multiple files.
 def build(path):
   # mirror directory structure on tmpfs
-  outdir = config.tmpdir / path
+  if path.is_absolute():
+    outdir = config.tmpdir / path.name
+  else:
+    outdir = config.tmpdir / path
+    if not str(outdir.resolve()).startswith(str(config.tmpdir)):
+      outdir = config.tmpdir / path.name
+
   outdir.mkdir(parents=True, exist_ok=True)
   for f in outdir.glob('*'):
     f.unlink()
