@@ -42,7 +42,7 @@ class Validator {
 		if(ws) {
 			char c;
 			in >> c;
-			assert(!in.eof(), "Expected space, found EOF.");
+			check(!in.eof(), "Expected space, found EOF.");
 			if(c != ' ') expected("space", string("\"") + ((c=='\n' or c=='\r') ? string("newline"):string(1, c)) + "\"");
 		}
 	}
@@ -51,7 +51,7 @@ class Validator {
 		if(ws) {
 			char c;
 			in >> c;
-			assert(!in.eof(), "Expected newline, found EOF.");
+			check(!in.eof(), "Expected newline, found EOF.");
 			if(c != '\n'){
 				if(c == '\r') expected("newline", "DOS line ending (\\r)");
 				else expected("newline", string("\"") + c + "\"");
@@ -191,7 +191,7 @@ class Validator {
 	}
 
 	template <typename... Ts>
-	void assert(bool b, Ts... ts) {
+	void check(bool b, Ts... ts) {
 		if(!b) WA(ts...);
 	}
 
