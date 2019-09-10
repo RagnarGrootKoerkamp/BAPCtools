@@ -275,6 +275,7 @@ def build(path):
 # When 'build' is found, we execute it, and return 'run' as the executable
 # This recursively calls itself for subdirectories.
 def build_programs(programs, include_dirname=False):
+  if len(programs) == 0: return []
   max_file_len = max(len(print_name(path)) for path in programs)
   bar = ProgressBar('Building', max_file_len, len(programs))
 
@@ -1166,6 +1167,9 @@ def create_gitlab_jobs(contest, problems):
 
   def problem_source_dir(problem):
     return problem.resolve().relative_to(Path('..').resolve())
+
+  header_yml = (config.tools_root / 'skel/gitlab-ci-header.yml').read_text()
+  print(util.substitute(header_yml, locals()))
 
   contest_yml = (config.tools_root / 'skel/gitlab-ci-contest.yml').read_text()
   changes = ''
