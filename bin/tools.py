@@ -1231,6 +1231,8 @@ Run this from one of:
       '--memory',
       help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.'
   )
+  global_parser.add_argument(
+      '--pypy', action='store_true', help='Use pypy instead of cpython.')
 
   subparsers = parser.add_subparsers(title='actions', dest='action')
   subparsers.required = True
@@ -1340,8 +1342,6 @@ Run this from one of:
   runparser.add_argument(
       '-t', '--timeout', help='Override the default timeout.')
   runparser.add_argument(
-      '--pypy', action='store_true', help='Use pypy instead of cpython.')
-  runparser.add_argument(
       '--samples', action='store_true', help='Only run on the samples.')
 
   # Test
@@ -1355,8 +1355,6 @@ Run this from one of:
       'testcases', nargs='*', help='Optionally a list of testcases to run on.')
   testparser.add_argument(
       '--samples', action='store_true', help='Only run on the samples.')
-  testparser.add_argument(
-      '--pypy', action='store_true', help='Use pypy instead of cpython.')
   testparser.add_argument(
       '-t', '--timeout', help='Override the default timeout.')
 
