@@ -111,8 +111,7 @@ def python_interpreter(version):
   if hasattr(config.args, 'pypy') and config.args.pypy:
     if version == 'python2':
       return 'pypy'
-    print('\n' + _c.orange +
-          'Pypy only works for python2! Using cpython for python3.' + _c.reset)
+    #print('\n' + _c.orange + 'Pypy only works for python2! Using cpython for python3.' + _c.reset)
   return version
 
 

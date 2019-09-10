@@ -8,6 +8,7 @@ RUN pacman -Syu --noconfirm \
 	vim \
 	gcc \
 	python \
+	pypy \
 	python-yaml \
 	python-argcomplete \
 	python2 \
