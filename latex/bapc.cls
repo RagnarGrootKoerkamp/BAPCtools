@@ -57,6 +57,7 @@
 \RequirePackage{eqparbox}
 \RequirePackage{tabularx}
 \RequirePackage{environ}
+\RequirePackage{etoolbox}
 
 % Add a relatively unknown package for hyperlinks,
 % since hyperref messes up the entire document.
@@ -92,7 +93,7 @@
 	\section{#1}
 	\vspace{-2.3em}
 	\hfill
-	{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}
+	\ifdefempty{\timelimit}{}{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}
 	\outline[]{1}[\thesection]{#1}
 
 	\rmfamily

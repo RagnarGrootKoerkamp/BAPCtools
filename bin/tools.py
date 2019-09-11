@@ -1277,6 +1277,10 @@ Run this from one of:
       '--cp',
       action='store_true',
       help='Copy the output pdf instead of symlinking it.')
+  pdfparser.add_argument(
+      '--no_timelimit',
+      action='store_true',
+      help='Do not print timelimits.')
 
   # Solution slides
   solparser = subparsers.add_parser(
@@ -1374,6 +1378,10 @@ Run this from one of:
       '--cp',
       action='store_true',
       help='Copy the output pdf instead of symlinking it.')
+  allparser.add_argument(
+      '--no_timelimit',
+      action='store_true',
+      help='Do not print timelimits.')
 
   # Build DomJudge zip
   zipparser = subparsers.add_parser(

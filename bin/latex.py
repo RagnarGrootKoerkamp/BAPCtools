@@ -104,6 +104,19 @@ def prepare_problem(problem):
     create_samples_file(problem)
 
 
+def get_tl(problem_config):
+    tl = problem_config['timelimit']
+    tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
+    
+    print_tl = True
+    if 'print_timelimit' in problem_config:
+        print_tl = problem_config['print_timelimit']
+    else:
+        print_tl = not config.args.no_timelimit
+
+    return tl if print_tl else ''
+
+
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/problem.tex,
 # substituting variables.
 # 2. Link tmpdir/<problem>/statement to the problem statement directory.
@@ -116,12 +129,10 @@ def build_problem_pdf(problem):
     builddir = config.tmpdir / problem
     problem_config = util.read_configs(problem)
     problemid = ord(problem_config['probid']) - ord('A')
-    tl = problem_config['timelimit']
-    tl = int(tl) if abs(tl - int(tl)) < 0.01 else tl
 
     util.copy_and_substitute(config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
         'problemid': problemid,
-        'timelimit': tl,
+        'timelimit': get_tl(problem_config)
     })
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
@@ -197,11 +208,9 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
             )
         seen.add(problemid)
 
-        tl = problem_config['timelimit']
-        tl = int(tl) if abs(tl - int(tl)) < 0.01 else tl
         problems_data += util.substitute(per_problem_data, {
             'problemid': problemid,
-            'timelimit': tl,
+            'timelimit': get_tl(problem_config),
             'problemdir': config.tmpdir / problem,
         })
 
