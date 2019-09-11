@@ -230,6 +230,9 @@
   %\noindent
 }
 
+%% Number figures as A.1 A.2... B.1 B.2...
+\renewcommand{\thefigure}{\thesection.\arabic{figure}}
+
 %-------------------------------------------------------------------------------
 % Reduce font size of figure captions.
 %-------------------------------------------------------------------------------
