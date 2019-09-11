@@ -217,6 +217,18 @@
 \renewcommand\@memback@floats{}
 \makeatletter
 
+\newcommand{\illustration}[3]{
+  \begin{wrapfigure}{r}{#1\textwidth}
+    \includegraphics[width=#1\textwidth]{#2}
+    \begin{flushright}
+      \vspace{-9pt}
+      \tiny #3
+    \end{flushright}
+    \vspace{-15pt}
+  \end{wrapfigure}
+  %\par
+  %\noindent
+}
 
 %-------------------------------------------------------------------------------
 % Reduce font size of figure captions.
