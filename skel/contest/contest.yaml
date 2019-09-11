@@ -2,3 +2,10 @@ source: {%source%}
 source_url: {%source_url%}
 license: {%license%}
 rights_owner: {%rights_owner%}
+
+# Latex fields:
+title: BAPC 2019
+subtitle: The 2019 Benelux Algorithm Programming Contest
+year: 2019
+author: The BAPC 2019 jury
+testsession: false

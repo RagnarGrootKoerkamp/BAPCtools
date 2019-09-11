@@ -1150,16 +1150,8 @@ def new_problem():
       'author': author,
       'validation': validation
   }
-  yamlfilepath = Path('contest.yaml')
-  if yamlfilepath.is_file():
-    with yamlfilepath.open() as yamlfile:
-      try:
-        contest_vars = yaml.safe_load(yamlfile)
-        for key in contest_vars:
-          variables[
-              key] = '' if contest_vars[key] is None else contest_vars[key]
-      except:
-        pass
+  for k, v in util.read_yaml(Path('contest.yaml')).items():
+      variables[k] = v
 
   for key in variables:
     print(key, ' -> ', variables[key])

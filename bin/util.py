@@ -111,6 +111,19 @@ class ProgressBar:
         return False
 
 
+def read_yaml(path):
+  settings = {}
+  if path.is_file():
+    with path.open() as yamlfile:
+      try:
+        config = yaml.safe_load(yamlfile)
+        for key, value in config.items():
+          settings[key] = '' if value is None else value
+      except:
+        pass
+  return settings
+
+
 def read_configs(problem):
     # some defaults
     settings = {
@@ -127,14 +140,8 @@ def read_configs(problem):
 
     # parse problem.yaml
     yamlpath = problem / 'problem.yaml'
-    if yamlpath.is_file():
-        with yamlpath.open() as yamlfile:
-            try:
-                config = yaml.safe_load(yamlfile)
-                for key, value in config.items():
-                    settings[key] = value
-            except:
-                pass
+    for k, v in read_yaml(problem / 'problem.yaml').items():
+        settings[k] = v
 
     # parse validator_flags
     if 'validator_flags' in settings and settings['validator_flags']:

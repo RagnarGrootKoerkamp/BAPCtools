@@ -167,7 +167,11 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
     ensure_symlink(builddir / 'images', config.tools_root / 'latex/images')
     ensure_symlink(builddir / main_file, config.tools_root / 'latex' / main_file)
-    ensure_symlink(builddir / 'contest_data.tex', Path('contest.tex'))
+    config_data = util.read_yaml(Path('contest.yaml'))
+    config_data['testsession'] = '\\testsession' if config_data['testsession'] else ''
+    print(config_data)
+    util.copy_and_substitute(config.tools_root / 'latex/contest-data.tex',
+            builddir / 'contest_data.tex', config_data)
     statstex = Path('solution_stats.tex')
     if statstex.exists():
         ensure_symlink(builddir / 'solutions_stats.tex', Path('solution_stats.tex'))

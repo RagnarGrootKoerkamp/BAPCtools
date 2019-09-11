@@ -59,18 +59,12 @@ Creative Commons Attribution-ShareAlike 4.0 International License.
 \end{minipage}\\
 \end{tabular}
 
-% Start numbering at X for test sessions.
-\if\@testsession1
-	\setcounter{section}{23}
-\fi
-
-
 % Include the problems.
 \makeatother
 \input{./contest-problems.tex}
 \makeatletter
 
-% An empty page at the end.
+% An empty page at the end for non-testsession.
 \if\@testsession0
 	\clearpage
 	\pagestyle{empty}
