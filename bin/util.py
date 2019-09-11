@@ -251,6 +251,7 @@ def substitute(data, variables):
 def copy_and_substitute(inpath, outpath, variables):
     data = inpath.read_text()
     data = substitute(data, variables)
+    if outpath.is_symlink(): outpath.unlink()
     outpath.write_text(data)
 
 
