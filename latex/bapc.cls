@@ -58,6 +58,7 @@
 \RequirePackage{tabularx}
 \RequirePackage{environ}
 \RequirePackage{etoolbox}
+\RequirePackage{float}
 
 % Add a relatively unknown package for hyperlinks,
 % since hyperref messes up the entire document.
@@ -110,6 +111,7 @@
 		\par
 	}{}
 	\setcounter{SampleCount}{0}
+	\setcounter{figure}{0}
 }
 
 %-------------------------------------------------------------------------------
@@ -219,12 +221,17 @@
 
 \newcommand{\illustration}[3]{
   \begin{wrapfigure}{r}{#1\textwidth}
+	\vspace{-10pt}
     \includegraphics[width=#1\textwidth]{#2}
-    \begin{flushright}
-      \vspace{-9pt}
-      \tiny #3
-    \end{flushright}
-    \vspace{-15pt}
+	\ifstrempty{#3}{
+		\vspace{-30pt}
+	}{
+		\begin{flushright}
+		\vspace{-9pt}
+		\tiny #3
+		\end{flushright}
+		\vspace{-15pt}
+	}
   \end{wrapfigure}
   %\par
   %\noindent
