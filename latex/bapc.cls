@@ -224,7 +224,7 @@
 	\vspace{-10pt}
     \includegraphics[width=#1\textwidth]{#2}
 	\ifstrempty{#3}{
-		\vspace{-30pt}
+		\vspace{-25pt}
 	}{
 		\begin{flushright}
 		\vspace{-9pt}
