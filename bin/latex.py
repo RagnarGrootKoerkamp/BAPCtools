@@ -179,7 +179,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     ensure_symlink(builddir / 'images', config.tools_root / 'latex/images')
     ensure_symlink(builddir / main_file, config.tools_root / 'latex' / main_file)
     config_data = util.read_yaml(Path('contest.yaml'))
-    config_data['testsession'] = '\\testsession' if config_data['testsession'] else ''
+    config_data['testsession'] = '\\testsession' if hasattr(config_data, 'testsession') and config_data['testsession'] else ''
     util.copy_and_substitute(config.tools_root / 'latex/contest-data.tex',
             builddir / 'contest_data.tex', config_data)
     statstex = Path('solution_stats.tex')
