@@ -86,7 +86,6 @@ def default_output_validator(ansfile, outfile, settings):
 
 # call output validators as ./validator in ans feedbackdir additional_arguments < out
 # return (success, err, out) for the last validator that was run.
-# TODO: Read and process tmpdir/judgemessage.txt
 def custom_output_validator(testcase, outfile, settings, output_validators):
     flags = []
     if settings.space_change_sensitive:
@@ -114,7 +113,8 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
                 err += judgemessage.read_text()
                 judgemessage.unlink()
             if judgeerror.is_file():
-                err += judgeerror.read_text()
+                # Remove any std output because it will usually only contain the
+                err = judgeerror.read_text()
                 judgeerror.unlink()
 
         if ok is True: continue

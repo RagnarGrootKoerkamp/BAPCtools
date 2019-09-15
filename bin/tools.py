@@ -626,7 +626,7 @@ def process_testcase(run_command,
     else:
         config.n_error += 1
         verdict = 'VALIDATOR_CRASH'
-        err = 'Exited with code ' + str(ok) + ':\n' + err
+        #err = err
 
   return (verdict, duration, err, out)
 
