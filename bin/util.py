@@ -279,8 +279,8 @@ def crop_output(output):
         cropped = True
 
     # Cap line length.
-    if len(output) > 1000:
-        output = output[:1000]
+    if len(output) > 100:
+        output = output[:100]
         output += ' ...\n' + _c.orange + 'Use -e to show full output or -E to hide it.' + _c.reset
         return output
 

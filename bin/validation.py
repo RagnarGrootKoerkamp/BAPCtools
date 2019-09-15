@@ -8,7 +8,8 @@ def quick_diff(ans, out):
     ans = ans.decode()
     out = out.decode()
     if ans.count('\n') <= 1 and out.count('\n') <= 1:
-        return 'Got ' + util.strip_newline(out) + ' wanted ' + util.strip_newline(ans)
+        return util.crop_output('Got ' + util.strip_newline(out) + ' wanted ' +
+                util.strip_newline(ans))
     else:
         return ''
 
@@ -98,12 +99,23 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     out = None
     for output_validator in output_validators:
         with open(outfile, 'rb') as outf:
+            judgepath = config.tmpdir/'judge'
+            judgepath.mkdir(parents=True, exist_ok=True)
+            judgemessage = judgepath/'judgemessage.txt'
+            judgeerror = judgepath/'judgeerror.txt'
             ok, err, out = util.exec_command(
                 output_validator[1] +
                 [testcase.with_suffix('.in'),
-                 testcase.with_suffix('.ans'), config.tmpdir] + flags,
+                 testcase.with_suffix('.ans'), judgepath] + flags,
                 expect=config.RTV_AC,
                 stdin=outf)
+            if err is None: err = ''
+            if judgemessage.is_file():
+                err += judgemessage.read_text()
+                judgemessage.unlink()
+            if judgeerror.is_file():
+                err += judgeerror.read_text()
+                judgeerror.unlink()
 
         if ok is True: continue
         if ok == config.RTV_WA: ok = False
