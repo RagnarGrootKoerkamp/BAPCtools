@@ -312,8 +312,10 @@ def print_name(path):
 
 
 def get_validators(problem, validator_type):
-  validators = build_programs(
-      glob(problem / (validator_type + '_validators'), '*'))
+  files = (glob(problem / (validator_type + '_validators'), '*')
+    + glob(problem / (validator_type + '_format_validators'), '*'))
+   
+  validators = build_programs(files)
 
   if len(validators) == 0:
     config.n_error += 1
@@ -748,6 +750,9 @@ def run_submissions(problem, settings):
     output_validators = get_validators(problem, 'output')
     if len(output_validators) == 0:
       return False
+
+  #if hasattr(config.args, 'timelimit') and config.args.timelimit is not None:
+      #settings.timelimit = float(config.args.timelimit)
 
   submissions = get_submissions(problem)
 
@@ -1330,6 +1335,8 @@ Run this from one of:
       'submission',
       nargs='?',
       help='The program to generate answers. Defaults to first found.')
+  genparser.add_argument(
+      '-t', '--timelimit', type=int, help='Override the default timeout.')
 
   # Run
   runparser = subparsers.add_parser(
@@ -1345,7 +1352,9 @@ Run this from one of:
       nargs='*',
       help='optionally supply a list of programs and testcases to run')
   runparser.add_argument(
-      '-t', '--timeout', help='Override the default timeout.')
+      '-t', '--timeout', type=int, help='Override the default timeout.')
+  runparser.add_argument(
+      '--timelimit', action='store', type=int, help='Override the default timelimit.')
   runparser.add_argument(
       '--samples', action='store_true', help='Only run on the samples.')
 
@@ -1505,9 +1514,10 @@ def main():
 
     # merge problem settings with arguments into one namespace
     problemsettings = util.read_configs(problem)
-    settings = config.args
-    for key in problemsettings:
-      vars(settings)[key] = problemsettings[key]
+    settings = argparse.Namespace(**problemsettings)
+    for key in vars(config.args):
+      if vars(config.args)[key] is not None:
+        vars(settings)[key] = vars(config.args)[key]
 
     if action in ['pdf', 'solutions', 'all']:
       # only build the pdf on the problem level, or on the contest level when
