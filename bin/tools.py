@@ -214,7 +214,7 @@ def build(path):
 
   if language_code == 'c':
     compile_command = [
-        'gcc', '-I', config.tools_root / 'headers', '-std=c11', '-Wall', '-O2',
+        'gcc', '-I', config.tools_root / 'headers', '-std=c14', '-Wall', '-O2',
         '-o', outfile
     ] + c_files + ['-lm']
     run_command = [outfile]
@@ -223,7 +223,7 @@ def build(path):
         '/usr/bin/g++',
         '-I',
         config.tools_root / 'headers',
-        '-std=c++11',
+        '-std=c++14',
         '-Wall',
         '-O2',
         '-fdiagnostics-color=always',  # Enable color output
