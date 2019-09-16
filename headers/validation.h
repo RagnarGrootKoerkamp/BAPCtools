@@ -14,8 +14,9 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
-#include <unordered_map>
+#include <map>
 #include <vector>
+#include <type_traits>
 #include <experimental/source_location>
 using namespace std;
 using std::experimental::source_location;
@@ -272,29 +273,62 @@ class Validator {
 	}
 
 	// Keep track of the min/max value read at every call site.
-	unordered_map<string, pair<bool, bool>> read_range;
 	template<typename T>
-	void log_constraint(source_location loc, T low, T high, T v){
+	struct Bounds {
+		T min, max;  // Smallest / largest value observed
+		T low, high; // Bounds
+		bool has_min=false, has_max=false;
+	};
+	map<string, Bounds<long long>> int_bounds;
+	map<string, Bounds<double>> float_bounds;
+	template<typename T>
+	void log_constraint(source_location loc, long long low, long long high, T v){
 		// Do not log when line number is unknown/default/unsupported.
 		if(loc.line() == 0 or constraints_file_path.empty()) return;
 
 		string location = string(loc.file_name())+":"+to_string(loc.line());
-		auto r = read_range.emplace(location, pair<bool, bool>{false, false});
-		auto& done = r.first->second;
-		done.first |= v == low;
-		done.second |= v == high;
+
+		auto& done = int_bounds.emplace(location, Bounds<long long>{v, v, low, high}).first->second;
+		if(v < done.min){
+			done.min = v;
+			done.low = low;
+		}
+		if(v > done.max){
+			done.max = v;
+			done.high = high;
+		}
+		done.has_min |= v == low;
+		done.has_max |= v == high;
+	}
+	void log_constraint(source_location loc, double low, double high, double v){
+		cerr << "FALSE\n";
+		// Do not log when line number is unknown/default/unsupported.
+		if(loc.line() == 0 or constraints_file_path.empty()) return;
+
+		string location = string(loc.file_name())+":"+to_string(loc.line());
+
+		auto& done = int_bounds.emplace(location, Bounds<long long>{v, v, low, high}).first->second;
+		if(v < done.min){
+			done.min = v;
+			done.low = low;
+		}
+		if(v > done.max){
+			done.max = v;
+			done.high = high;
+		}
+		done.has_min |= v == low;
+		done.has_max |= v == high;
 	}
 
 	void write_constraints(){
 		if(constraints_file_path.empty()) return;
-		vector<pair<string, pair<bool, bool>>> data(begin(read_range),end(read_range));
-		sort(begin(data), end(data));
 
 		ofstream out(constraints_file_path);
 
-		for(const auto& d : data){
-			out << d.first << " " << d.second.first << " " << d.second.second << endl;
-		}
+		for(const auto& d : int_bounds)
+			out << d.first << " " << d.second.has_min << " " << d.second.has_max << " " << d.second.min << " " << d.second.max << " " << d.second.low << " " << d.second.high << endl;
+		for(const auto& d : float_bounds)
+			out << d.first << " " << d.second.has_min << " " << d.second.has_max << " " << d.second.min << " " << d.second.max << " " << d.second.low << " " << d.second.high << endl;
 	}
 
 	const int ret_AC = 42, ret_WA = 43;

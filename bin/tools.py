@@ -392,13 +392,22 @@ def validate(problem, validator_type, settings, printnewline=False,
         # Merge with previous constraints.
         if constraints_file.is_file(): 
             for line in constraints_file.read_text().splitlines():
-                loc, low, high = line.split()
-                low = bool(int(low))
-                high = bool(int(high))
+                loc, has_low, has_high, vmin, vmax, low, high = line.split()
+                has_low = bool(int(has_low))
+                has_high = bool(int(has_high))
+                vmin = int(vmin)
+                vmax = int(vmax)
                 if loc in constraints:
-                    low |= constraints[loc][0]
-                    high |= constraints[loc][1]
-                constraints[loc] = (low, high)
+                    c = constraints[loc]
+                    has_low |= c[0]
+                    has_high |=c[1]
+                    if c[2] < vmin:
+                        vmin = c[2]
+                        low = c[4]
+                    if c[3] > vmax:
+                        vmax = c[3]
+                        high = c[5]
+                constraints[loc] = (has_low, has_high, vmin, vmax, low, high)
 
             constraints_file.unlink()
 
@@ -447,11 +456,11 @@ def validate(problem, validator_type, settings, printnewline=False,
   # Make sure all constraints are satisfied.
   for loc, value in constraints.items():
       loc = Path(loc).name
-      low, high = value
-      if not low:
-          print(f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the lower bound.{_c.reset}')
-      if not high:
-          print(f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the upper bound.{_c.reset}')
+      has_low, has_high, vmin, vmax, low, high = value
+      if not has_low:
+          print(f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}{_c.reset}')
+      if not has_high:
+          print(f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}{_c.reset}')
       success = False
 
 
