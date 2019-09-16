@@ -337,7 +337,8 @@ def get_validators(problem, validator_type):
 #   none, .ans file not needed.
 #
 # We always pass both the case_sensitive and space_change_sensitive flags.
-def validate(problem, validator_type, settings, printnewline=False):
+def validate(problem, validator_type, settings, printnewline=False,
+        check_constraints=False):
   assert validator_type in ['input', 'output']
 
   if validator_type == 'output' and settings.validation == 'custom':
@@ -364,17 +365,43 @@ def validate(problem, validator_type, settings, printnewline=False):
   max_testcase_len = max(
       [len(print_name(testcase) + ext) for testcase in testcases])
 
+  constraints = {}
+
   # validate the testcases
   bar = ProgressBar(action, max_testcase_len, len(testcases))
   for testcase in testcases:
     bar.start(print_name(testcase.with_suffix(ext)))
     for validator in validators:
       # simple `program < test.in` for input validation and ctd output validation
-      if validator_type == 'input' or Path(validator[0]).suffix == '.ctd':
+      if Path(validator[0]).suffix == '.ctd':
         ok, err, out = util.exec_command(
             validator[1] + flags,
             expect=config.RTV_AC,
             stdin=testcase.with_suffix(ext).open())
+      elif validator_type == 'input':
+        constraints_file = config.tmpdir / 'constraints'
+        if constraints_file.is_file(): constraints_file.unlink()
+        ok, err, out = util.exec_command(
+            # TODO: Store constraints per problem.
+            validator[1] + flags +
+            (['--constraints_file', constraints_file] if
+                check_constraints else []),
+            expect=config.RTV_AC,
+            stdin=testcase.with_suffix(ext).open())
+
+        # Merge with previous constraints.
+        if constraints_file.is_file(): 
+            for line in constraints_file.read_text().splitlines():
+                loc, low, high = line.split()
+                low = bool(int(low))
+                high = bool(int(high))
+                if loc in constraints:
+                    low |= constraints[loc][0]
+                    high |= constraints[loc][1]
+                constraints[loc] = (low, high)
+
+            constraints_file.unlink()
+
       else:
         # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
         ok, err, out = util.exec_command(
@@ -416,6 +443,17 @@ def validate(problem, validator_type, settings, printnewline=False):
           print()
         bar.log(message)
     bar.done()
+
+  # Make sure all constraints are satisfied.
+  for loc, value in constraints.items():
+      loc = Path(loc).name
+      low, high = value
+      if not low:
+          print(f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the lower bound.{_c.reset}')
+      if not high:
+          print(f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the upper bound.{_c.reset}')
+      success = False
+
 
   if not config.verbose and success:
     print(ProgressBar.action(action, f'{_c.green}Done{_c.reset}'))
@@ -996,6 +1034,8 @@ def print_sorted(problems):
 
 
 def check_constraints(problem, settings):
+  validate(problem, 'input', settings, check_constraints=True)
+
   vinput = problem / 'input_validators/input_validator/input_validator.cpp'
   voutput = problem / 'output_validators/output_validator/output_validator.cpp'
 
@@ -1016,7 +1056,7 @@ def check_constraints(problem, settings):
                 if v2 is not None and mo.group(v2) is not None:
                     defs_validators.append([mo.group(name) or '', mo.group(v2)])
 
-  statement = problem / 'problem_statement/problem.tex'
+  statement = problem / 'problem_statement/problem.en.tex'
   #latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$')
   latex_defines = [
     (re.compile('{\\\\(\w+)}{(.*)}'), 1, 2, False),

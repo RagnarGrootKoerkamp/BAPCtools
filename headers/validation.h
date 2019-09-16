@@ -14,14 +14,20 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <unordered_map>
+#include <vector>
+#include <experimental/source_location>
 using namespace std;
+using std::experimental::source_location;
 
 const string case_sensitive_flag = "case_sensitive";
 const string ws_sensitive_flag = "space_change_sensitive";
+const string constraints_file_flag = "--constraints_file";
 
 class Validator {
   protected:
-	Validator(bool ws_, bool case_ , istream &in_) : in(in_), ws(ws_), case_sensitive(case_) {
+	Validator(bool ws_, bool case_ , istream &in_, string constraints_file_path_ = "")
+	   	: in(in_), ws(ws_), case_sensitive(case_), constraints_file_path(constraints_file_path_) {
 		if(ws) in >> noskipws;
 		else in >> skipws;
 	}
@@ -35,6 +41,7 @@ class Validator {
 	// If so, return AC. Otherwise, return WA.
 	~Validator() {
 		eof();
+		write_constraints();
 		AC();
 	}
 
@@ -66,10 +73,11 @@ class Validator {
 	string read_string(string expected) { return read_string_impl(expected); }
 
 	// Read an arbitrary string of a given length.
-	string read_string(size_t min, size_t max) {
+	string read_string(size_t min, size_t max, source_location loc = source_location::current()) {
 		string s = read_string();
 		if(s.size() < min || s.size() > max)
 			expected("String of length between " + to_string(min) + " and " + to_string(max), s);
+		log_constraint(loc, min, max, s.size());
 		return s;
 	}
 
@@ -117,20 +125,24 @@ class Validator {
 	}
 
 	// Read a long long within a given range.
-	long long read_long_long(long long low, long long high) {
+	long long read_long_long(long long low, long long high, source_location loc = source_location::current()) {
 		auto v = read_long_long();
-		if(low <= v && v <= high) return v;
-		expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
+		if(v < low or v > high)
+			expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
+		log_constraint(loc, low, high, v);
+		return v;
 	}
 
 	int read_int() {
-		return read_long_long(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
+		return read_long_long(std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), source_location());
 	}
 
-	int read_int(int low, int high) {
-		int v = read_long_long(std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
-		if(low <= v && v <= high) return v;
-		expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
+	int read_int(int low, int high, source_location loc = source_location::current()) {
+		int v = read_int();
+		if(v < low or v > high)
+			expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
+		log_constraint(loc, low, high, v);
+		return v;
 	}
 
 	// Read a long double.
@@ -148,10 +160,12 @@ class Validator {
 		return v;
 	}
 
-	long double read_long_double(long double low, long double high) {
+	long double read_long_double(long double low, long double high, source_location loc = source_location::current()) {
 		long double v = read_long_double();
-		if(low <= v && v <= high) return v;
-		expected("long double between " + to_string(low) + " and " + to_string(high), to_string(v));
+		if(v < low or v > high)
+			expected("long double between " + to_string(low) + " and " + to_string(high), to_string(v));
+		log_constraint(loc, low, high, v);
+		return v;
 	}
 
 
@@ -219,7 +233,9 @@ class Validator {
 	}
 
 	// Return ACCEPTED verdict.
-	[[noreturn]] void AC() { exit(ret_AC); }
+	[[noreturn]] void AC() {
+	   	exit(ret_AC);
+   	}
 
 	void eof() {
 		if(in.eof()) return;
@@ -255,17 +271,56 @@ class Validator {
 		return {line, col};
 	}
 
+	// Keep track of the min/max value read at every call site.
+	unordered_map<string, pair<bool, bool>> read_range;
+	template<typename T>
+	void log_constraint(source_location loc, T low, T high, T v){
+		// Do not log when line number is unknown/default/unsupported.
+		if(loc.line() == 0 or constraints_file_path.empty()) return;
+
+		string location = string(loc.file_name())+":"+to_string(loc.line());
+		auto r = read_range.emplace(location, pair<bool, bool>{false, false});
+		auto& done = r.first->second;
+		done.first |= v == low;
+		done.second |= v == high;
+	}
+
+	void write_constraints(){
+		if(constraints_file_path.empty()) return;
+		vector<pair<string, pair<bool, bool>>> data(begin(read_range),end(read_range));
+		sort(begin(data), end(data));
+
+		ofstream out(constraints_file_path);
+
+		for(const auto& d : data){
+			out << d.first << " " << d.second.first << " " << d.second.second << endl;
+		}
+	}
+
 	const int ret_AC = 42, ret_WA = 43;
 	istream &in;
 	bool ws;
 	bool case_sensitive;
-
+	const string constraints_file_path;
 };
 
 class InputValidator : public Validator {
   public:
 	// An InputValidator is always both whitespace and case sensitive.
-	InputValidator() : Validator(true, true, std::cin) {}
+	InputValidator(int argc=0, char** argv=nullptr) : Validator(true, true, std::cin, get_constraints_file(argc, argv)) {}
+
+  private:
+	static string get_constraints_file(int argc, char** argv){
+		for(int i = 1; i < argc; ++i){
+			if(argv[i] == constraints_file_flag){
+				if(i + 1 < argc)
+					return argv[i+1];
+				cerr << constraints_file_flag << " should be followed by a file path!";
+				exit(1);
+			}
+		}
+		return {};
+	}
 };
 
 class OutputValidator : public Validator {
@@ -277,13 +332,13 @@ class OutputValidator : public Validator {
 
   private:
 	static bool is_ws_sensitive(int argc, char **argv){
-		for(int i = 0; i < argc; ++i) {
+		for(int i = 1; i < argc; ++i) {
 			if(argv[i] == ws_sensitive_flag) return true;
 		}
 		return false;
 	}
 	static bool is_case_sensitive(int argc, char **argv){
-		for(int i = 0; i < argc; ++i) {
+		for(int i = 1; i < argc; ++i) {
 			if(argv[i] == case_sensitive_flag) return true;
 		}
 		return false;
