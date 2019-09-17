@@ -214,7 +214,7 @@ def build(path):
 
   if language_code == 'c':
     compile_command = [
-        'gcc', '-I', config.tools_root / 'headers', '-std=c14', '-Wall', '-O2',
+        'gcc', '-I', config.tools_root / 'headers', '-std=c11', '-Wall', '-O2',
         '-o', outfile
     ] + c_files + ['-lm']
     run_command = [outfile]
@@ -281,7 +281,8 @@ def build(path):
 # When 'build' is found, we execute it, and return 'run' as the executable
 # This recursively calls itself for subdirectories.
 def build_programs(programs, include_dirname=False):
-  if len(programs) == 0: return []
+  if len(programs) == 0:
+    return []
   max_file_len = max(len(print_name(path)) for path in programs)
   bar = ProgressBar('Building', max_file_len, len(programs))
 
@@ -312,9 +313,10 @@ def print_name(path):
 
 
 def get_validators(problem, validator_type):
-  files = (glob(problem / (validator_type + '_validators'), '*')
-    + glob(problem / (validator_type + '_format_validators'), '*'))
-   
+  files = (
+      glob(problem / (validator_type + '_validators'), '*') +
+      glob(problem / (validator_type + '_format_validators'), '*'))
+
   validators = build_programs(files)
 
   if len(validators) == 0:
@@ -337,8 +339,11 @@ def get_validators(problem, validator_type):
 #   none, .ans file not needed.
 #
 # We always pass both the case_sensitive and space_change_sensitive flags.
-def validate(problem, validator_type, settings, printnewline=False,
-        check_constraints=False):
+def validate(problem,
+             validator_type,
+             settings,
+             printnewline=False,
+             check_constraints=False):
   assert validator_type in ['input', 'output']
 
   if validator_type == 'output' and settings.validation == 'custom':
@@ -380,36 +385,36 @@ def validate(problem, validator_type, settings, printnewline=False,
             stdin=testcase.with_suffix(ext).open())
       elif validator_type == 'input':
         constraints_file = config.tmpdir / 'constraints'
-        if constraints_file.is_file(): constraints_file.unlink()
+        if constraints_file.is_file():
+          constraints_file.unlink()
         ok, err, out = util.exec_command(
             # TODO: Store constraints per problem.
-            validator[1] + flags +
-            (['--constraints_file', constraints_file] if
-                check_constraints else []),
+            validator[1] + flags + (['--constraints_file', constraints_file]
+                                    if check_constraints else []),
             expect=config.RTV_AC,
             stdin=testcase.with_suffix(ext).open())
 
         # Merge with previous constraints.
-        if constraints_file.is_file(): 
-            for line in constraints_file.read_text().splitlines():
-                loc, has_low, has_high, vmin, vmax, low, high = line.split()
-                has_low = bool(int(has_low))
-                has_high = bool(int(has_high))
-                vmin = int(vmin)
-                vmax = int(vmax)
-                if loc in constraints:
-                    c = constraints[loc]
-                    has_low |= c[0]
-                    has_high |=c[1]
-                    if c[2] < vmin:
-                        vmin = c[2]
-                        low = c[4]
-                    if c[3] > vmax:
-                        vmax = c[3]
-                        high = c[5]
-                constraints[loc] = (has_low, has_high, vmin, vmax, low, high)
+        if constraints_file.is_file():
+          for line in constraints_file.read_text().splitlines():
+            loc, has_low, has_high, vmin, vmax, low, high = line.split()
+            has_low = bool(int(has_low))
+            has_high = bool(int(has_high))
+            vmin = int(vmin)
+            vmax = int(vmax)
+            if loc in constraints:
+              c = constraints[loc]
+              has_low |= c[0]
+              has_high |= c[1]
+              if c[2] < vmin:
+                vmin = c[2]
+                low = c[4]
+              if c[3] > vmax:
+                vmax = c[3]
+                high = c[5]
+            constraints[loc] = (has_low, has_high, vmin, vmax, low, high)
 
-            constraints_file.unlink()
+          constraints_file.unlink()
 
       else:
         # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
@@ -435,13 +440,15 @@ def validate(problem, validator_type, settings, printnewline=False,
 
       # Print stderr whenever something is printed
       if err:
-          prefix = '  '
-          if err.count('\n') > 1: prefix = '\n'
-          message += prefix + _c.orange + util.strip_newline(err) + _c.reset
+        prefix = '  '
+        if err.count('\n') > 1:
+          prefix = '\n'
+        message += prefix + _c.orange + util.strip_newline(err) + _c.reset
       # Print stdout when -e is set. (But not on normal failures.)
       if out and config.args.error:
         prefix = '  '
-        if out.count('\n') > 1: prefix = '\n'
+        if out.count('\n') > 1:
+          prefix = '\n'
         message += f'\n{_c.red}VALIDATOR STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(
             out) + _c.reset
 
@@ -455,14 +462,17 @@ def validate(problem, validator_type, settings, printnewline=False,
 
   # Make sure all constraints are satisfied.
   for loc, value in constraints.items():
-      loc = Path(loc).name
-      has_low, has_high, vmin, vmax, low, high = value
-      if not has_low:
-          print(f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}{_c.reset}')
-      if not has_high:
-          print(f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}{_c.reset}')
-      success = False
-
+    loc = Path(loc).name
+    has_low, has_high, vmin, vmax, low, high = value
+    if not has_low:
+      print(
+          f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}{_c.reset}'
+      )
+    if not has_high:
+      print(
+          f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}{_c.reset}'
+      )
+    success = False
 
   if not config.verbose and success:
     print(ProgressBar.action(action, f'{_c.green}Done{_c.reset}'))
@@ -653,7 +663,7 @@ def process_testcase(run_command,
                      printnewline=False):
 
   ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
-                                            settings.timelimit)
+                                                 settings.timelimit)
   verdict = None
   if timeout:
     verdict = 'TIME_LIMIT_EXCEEDED'
@@ -666,14 +676,18 @@ def process_testcase(run_command,
       ok, err, out = validation.default_output_validator(
           testcase.with_suffix('.ans'), outfile, settings)
     elif settings.validation == 'custom':
-      ok, err, out = validation.custom_output_validator(testcase, outfile, settings, output_validators)
+      ok, err, out = validation.custom_output_validator(testcase, outfile,
+                                                        settings,
+                                                        output_validators)
 
-    if ok is True: verdict = 'ACCEPTED'
-    elif ok is False: verdict = 'WRONG_ANSWER'
+    if ok is True:
+      verdict = 'ACCEPTED'
+    elif ok is False:
+      verdict = 'WRONG_ANSWER'
     else:
-        config.n_error += 1
-        verdict = 'VALIDATOR_CRASH'
-        #err = err
+      config.n_error += 1
+      verdict = 'VALIDATOR_CRASH'
+      #err = err
 
   return (verdict, duration, err, out)
 
@@ -709,9 +723,12 @@ def run_submission(submission,
   for testcase in testcases:
     bar.start(print_name(testcase.with_suffix('')))
     outfile = config.tmpdir / 'test.out'
-    verdict, runtime, err, out = process_testcase(submission[1], testcase, outfile, settings, output_validators, need_newline)
+    verdict, runtime, err, out = process_testcase(submission[1], testcase,
+                                                  outfile, settings,
+                                                  output_validators,
+                                                  need_newline)
     if verdict != 'VALIDATOR_CRASH':
-        verdict_count[verdict] += 1
+      verdict_count[verdict] += 1
 
     time_total += runtime
     time_max = max(time_max, runtime)
@@ -727,18 +744,21 @@ def run_submission(submission,
     # Print stderr whenever something is printed
     if err:
       prefix = '  '
-      if err.count('\n') > 1: prefix = '\n'
+      if err.count('\n') > 1:
+        prefix = '\n'
       message += prefix + _c.orange + util.strip_newline(err) + _c.reset
 
     # Print stdout when -e is set.
     if out and (verdict == 'VALIDATOR_CRASH' or config.args.error):
       prefix = '  '
-      if out.count('\n') > 1: prefix = '\n'
-      message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(out) + _c.reset
+      if out.count('\n') > 1:
+        prefix = '\n'
+      message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(
+          out) + _c.reset
 
     if print_message:
       bar.log(message)
-      printed=True
+      printed = True
 
     bar.done()
 
@@ -799,7 +819,7 @@ def run_submissions(problem, settings):
       return False
 
   #if hasattr(config.args, 'timelimit') and config.args.timelimit is not None:
-      #settings.timelimit = float(config.args.timelimit)
+  #settings.timelimit = float(config.args.timelimit)
 
   submissions = get_submissions(problem)
 
@@ -986,8 +1006,8 @@ def generate_output(problem, settings):
       pass
 
     # Ignore stdout and stderr from the program.
-    ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
-                                          settings.timelimit)
+    ok, timeout, duration, err, out = run_testcase(run_command, testcase,
+                                                   outfile, settings.timelimit)
     message = ''
     same = False
     if ok is not True or timeout is True:
@@ -1049,28 +1069,36 @@ def check_constraints(problem, settings):
   voutput = problem / 'output_validators/output_validator/output_validator.cpp'
 
   cpp_statement = [
-      (re.compile('^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);'), 3, 4, None),
-      (re.compile('(?:(\w*)\s*=\s*.*)?\.read_(?:string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'), 1, 2, 3),
-    ]
+      (re.compile(
+          '^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);'
+      ), 3, 4, None),
+      (re.compile(
+          '(?:(\w*)\s*=\s*.*)?\.read_(?:string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'
+      ), 1, 2, 3),
+  ]
 
   defs_validators = []
   for validator in [vinput, voutput]:
     with open(validator) as file:
       for line in file:
         for r, name, v1, v2 in cpp_statement:
-            mo = r.search(line)
-            if mo is not None:
-                if mo.group(v1) is not None:
-                    defs_validators.append([mo.group(name) or '', mo.group(v1)])
-                if v2 is not None and mo.group(v2) is not None:
-                    defs_validators.append([mo.group(name) or '', mo.group(v2)])
+          mo = r.search(line)
+          if mo is not None:
+            if mo.group(v1) is not None:
+              defs_validators.append([mo.group(name) or '', mo.group(v1)])
+            if v2 is not None and mo.group(v2) is not None:
+              defs_validators.append([mo.group(name) or '', mo.group(v2)])
 
   statement = problem / 'problem_statement/problem.en.tex'
   #latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$')
   latex_defines = [
-    (re.compile('{\\\\(\w+)}{(.*)}'), 1, 2, False),
-    (re.compile('([0-9-e,.^]+)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*(\w*)'), 2, 1, True),
-    (re.compile('(\w*)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*([0-9-e,.^]+)'), 1, 2, True),
+      (re.compile('{\\\\(\w+)}{(.*)}'), 1, 2, False),
+      (re.compile(
+          '([0-9-e,.^]+)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*(\w*)'), 2,
+       1, True),
+      (re.compile(
+          '(\w*)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*([0-9-e,.^]+)'), 1,
+       2, True),
   ]
 
   defs_statement = []
@@ -1078,18 +1106,23 @@ def check_constraints(problem, settings):
   with open(statement) as file:
     for line in file:
       for r, name, value, io_only in latex_defines:
-          if 'begin{Input}' in line: input_output = True
-          if 'end{Input}' in line: input_output = False
-          if 'begin{Output}' in line: input_output = True
-          if 'end{Output}' in line: input_output = False
-          if io_only and not input_output: continue
+        if 'begin{Input}' in line:
+          input_output = True
+        if 'end{Input}' in line:
+          input_output = False
+        if 'begin{Output}' in line:
+          input_output = True
+        if 'end{Output}' in line:
+          input_output = False
+        if io_only and not input_output:
+          continue
 
+        mo = r.search(line)
+        if mo is not None:
           mo = r.search(line)
           if mo is not None:
-            mo = r.search(line)
-            if mo is not None:
-                if mo.group(value) is not None:
-                    defs_statement.append([mo.group(name) or '', mo.group(value)])
+            if mo.group(value) is not None:
+              defs_statement.append([mo.group(name) or '', mo.group(value)])
 
   # print all the definitions.
   nl = len(defs_validators)
@@ -1205,7 +1238,7 @@ def new_problem():
       'validation': validation
   }
   for k, v in util.read_yaml(Path('contest.yaml')).items():
-      variables[k] = v
+    variables[k] = v
 
   for key in variables:
     print(key, ' -> ', variables[key])
@@ -1332,9 +1365,7 @@ Run this from one of:
       action='store_true',
       help='Copy the output pdf instead of symlinking it.')
   pdfparser.add_argument(
-      '--no_timelimit',
-      action='store_true',
-      help='Do not print timelimits.')
+      '--no_timelimit', action='store_true', help='Do not print timelimits.')
 
   # Solution slides
   solparser = subparsers.add_parser(
@@ -1403,7 +1434,10 @@ Run this from one of:
   runparser.add_argument(
       '-t', '--timeout', type=int, help='Override the default timeout.')
   runparser.add_argument(
-      '--timelimit', action='store', type=int, help='Override the default timelimit.')
+      '--timelimit',
+      action='store',
+      type=int,
+      help='Override the default timelimit.')
   runparser.add_argument(
       '--samples', action='store_true', help='Only run on the samples.')
 
@@ -1437,9 +1471,7 @@ Run this from one of:
       action='store_true',
       help='Copy the output pdf instead of symlinking it.')
   allparser.add_argument(
-      '--no_timelimit',
-      action='store_true',
-      help='Do not print timelimits.')
+      '--no_timelimit', action='store_true', help='Do not print timelimits.')
 
   # Build DomJudge zip
   zipparser = subparsers.add_parser(
