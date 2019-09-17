@@ -78,7 +78,7 @@ class Validator {
 		string s = read_string();
 		if(s.size() < min || s.size() > max)
 			expected("String of length between " + to_string(min) + " and " + to_string(max), s);
-		log_constraint(loc, min, max, s.size());
+		log_constraint(min, max, s.size(), loc);
 		return s;
 	}
 
@@ -130,7 +130,7 @@ class Validator {
 		auto v = read_long_long();
 		if(v < low or v > high)
 			expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
-		log_constraint(loc, low, high, v);
+		log_constraint(low, high, v, loc);
 		return v;
 	}
 
@@ -142,7 +142,7 @@ class Validator {
 		int v = read_int();
 		if(v < low or v > high)
 			expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
-		log_constraint(loc, low, high, v);
+		log_constraint(low, high, v, loc);
 		return v;
 	}
 
@@ -165,7 +165,7 @@ class Validator {
 		long double v = read_long_double();
 		if(v < low or v > high)
 			expected("long double between " + to_string(low) + " and " + to_string(high), to_string(v));
-		log_constraint(loc, low, high, v);
+		log_constraint(low, high, v, loc);
 		return v;
 	}
 
@@ -281,8 +281,9 @@ class Validator {
 	};
 	map<string, Bounds<long long>> int_bounds;
 	map<string, Bounds<double>> float_bounds;
+  public:
 	template<typename T>
-	void log_constraint(source_location loc, long long low, long long high, T v){
+	void log_constraint(long long low, long long high, T v, source_location loc = source_location::current()){
 		// Do not log when line number is unknown/default/unsupported.
 		if(loc.line() == 0 or constraints_file_path.empty()) return;
 
@@ -300,7 +301,7 @@ class Validator {
 		done.has_min |= v == low;
 		done.has_max |= v == high;
 	}
-	void log_constraint(source_location loc, double low, double high, double v){
+	void log_constraint(double low, double high, double v, source_location loc = source_location::current()){
 		cerr << "FALSE\n";
 		// Do not log when line number is unknown/default/unsupported.
 		if(loc.line() == 0 or constraints_file_path.empty()) return;
@@ -320,6 +321,7 @@ class Validator {
 		done.has_max |= v == high;
 	}
 
+  private:
 	void write_constraints(){
 		if(constraints_file_path.empty()) return;
 
