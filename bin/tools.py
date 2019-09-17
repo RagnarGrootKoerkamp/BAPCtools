@@ -1213,7 +1213,7 @@ def new_contest(name):
 
   shutil.copytree(config.tools_root / 'skel/contest', dirname, symlinks=True)
 
-  util.substitute_dir_variables(dirname, locals())
+  util.substitute_dir_variables(Path(dirname), locals())
 
 
 def new_problem():

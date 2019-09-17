@@ -72,7 +72,7 @@ def default_output_validator(ansfile, outfile, settings):
                 f1 = float(w1)
                 f2 = float(w2)
                 abserr = abs(f1 - f2)
-                relerr = abs(f1 - f2) / f1
+                relerr = abs(f1 - f2) / f1 if f1 != 0 else 1000
                 peakabserr = max(peakabserr, abserr)
                 peakrelerr = max(peakrelerr, relerr)
                 if ((settings.floatabs is None or abserr > settings.floatabs)
