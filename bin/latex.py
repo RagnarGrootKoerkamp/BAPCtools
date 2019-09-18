@@ -111,8 +111,10 @@ def get_tl(problem_config):
     print_tl = True
     if 'print_timelimit' in problem_config:
         print_tl = problem_config['print_timelimit']
-    else:
+    elif hasattr(config.args, 'no_timelimit'):
         print_tl = not config.args.no_timelimit
+    else:
+        print_tl = True
 
     return tl if print_tl else ''
 

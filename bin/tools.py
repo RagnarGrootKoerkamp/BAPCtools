@@ -1493,6 +1493,10 @@ Run this from one of:
       '--kattis',
       action='store_true',
       help='Make a zip more following the kattis problemarchive.com format.')
+  zipparser.add_argument(
+      '--no_solutions',
+      action='store_true',
+      help='Do not compile solutions')
 
   # Build a zip with all samples.
   subparsers.add_parser(
@@ -1625,10 +1629,10 @@ def main():
       output = alpha_num(problem.name) + '.zip'
       problem_zips.append(output)
       if not config.args.skip:
-        success &= latex.build_problem_pdf(problem, True)
+        success &= latex.build_problem_pdf(problem)
         if not config.args.force:
           success &= validate(problem, 'input', settings)
-          success &= validate(problem, 'output', settings)
+          success &= validate(problem, 'output', settings, check_constraints=True)
 
         # Write to problemname.zip, where we strip all non-alphanumeric from the
         # problem directory name.
@@ -1652,7 +1656,8 @@ def main():
     if action in ['zip']:
       success &= latex.build_contest_pdf(contest, problems)
       success &= latex.build_contest_pdf(contest, problems, web=True)
-      success &= latex.build_contest_pdf(contest, problems, solutions=True)
+      if not config.args.no_solutions:
+        success &= latex.build_contest_pdf(contest, problems, solutions=True)
 
       export.build_contest_zip(problem_zips, contest + '.zip', config.args)
 
