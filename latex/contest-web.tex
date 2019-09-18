@@ -32,11 +32,11 @@
 	{\LARGE\fontfamily{ppl}\selectfont\emph{\@subtitle}}
 	
 	\vfill
-	\includegraphics[height=7.4cm]{logo}
+	\vfill
+	\includegraphics[height=5cm]{logo}
 	\vfill
 	
 	\listofproblems
-	\vfill
 \end{center}
 
 % 2ND PAGE WITH CC-BY-SA LICENCE
@@ -59,15 +59,16 @@ Creative Commons Attribution-ShareAlike 4.0 International License.
 \end{minipage}\\
 \end{tabular}
 
-% Start numbering at X for test sessions.
-\if\@testsession1
-	\setcounter{section}{23}
-\fi
-
-
 % Include the problems.
 \makeatother
 \input{./contest-problems.tex}
 \makeatletter
+
+% An empty page at the end for non-testsession.
+\if\@testsession0
+	\clearpage
+	\pagestyle{empty}
+	\mbox{}
+\fi
 
 \end{document}
