@@ -1377,6 +1377,10 @@ Run this from one of:
       '--all',
       action='store_true',
       help='Create problem statements for individual problems as well.')
+  solparser.add_argument(
+      '--cp',
+      action='store_true',
+      help='Copy the output pdf instead of symlinking it.')
 
   # Validation
   validate_parser = subparsers.add_parser(
