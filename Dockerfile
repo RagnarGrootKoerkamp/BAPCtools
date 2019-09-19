@@ -16,5 +16,6 @@ RUN pacman -Syu --noconfirm \
 	texlive-core \
 	texlive-latexextra \
 	texlive-pictures \
+	texlive-science \
 	&& \
 	pacman -Scc --noconfirm
