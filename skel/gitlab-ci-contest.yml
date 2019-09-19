@@ -9,3 +9,4 @@ contest_pdf_{%contest%}:
     expire_in: 1 week
     paths:
       - {%contest%}/contest.pdf
+      - {%contest%}/solutions.pdf
