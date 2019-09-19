@@ -1626,7 +1626,7 @@ def main():
     if action in ['constraints']:
       success &= check_constraints(problem, settings)
     if action in ['zip']:
-      output = alpha_num(problem.name) + '.zip'
+      output = settings.probid + '.zip'
       problem_zips.append(output)
       if not config.args.skip:
         success &= latex.build_problem_pdf(problem)
