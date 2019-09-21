@@ -184,12 +184,16 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     config_data['testsession'] = '\\testsession' if hasattr(config_data, 'testsession') and config_data['testsession'] else ''
     util.copy_and_substitute(config.tools_root / 'latex/contest-data.tex',
             builddir / 'contest_data.tex', config_data)
-    statstex = Path('solution_stats.tex')
-    if statstex.exists():
-        ensure_symlink(builddir / 'solution_stats.tex', Path('solution_stats.tex'))
+
     ensure_symlink(builddir / 'logo.pdf', find_logo())
 
     problems_data = ''
+
+    # include a header slide in the solutions PDF
+    headertex = Path('solution_header.tex')
+    if headertex.exists(): ensure_symlink(builddir / 'solution_header.tex', headertex)
+    if solutions and headertex.exists(): problems_data += f'\\input{{{headertex}}}\n'
+
     per_problem_data = (config.tools_root / 'latex' / f'contest-{build_type}.tex').read_text()
 
     # Some logic to prevent duplicate problem IDs.
@@ -216,8 +220,9 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
         })
 
     # include a statistics slide in the solutions PDF
-    if solutions and statstex.exists():
-        problems_data += f'\\input{{{statstex}}}\n'
+    statstex = Path('solution_stats.tex')
+    if statstex.exists(): ensure_symlink(builddir / 'solution_stats.tex', statstex)
+    if solutions and statstex.exists(): problems_data += f'\\input{{{statstex}}}\n'
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
