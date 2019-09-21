@@ -346,8 +346,8 @@ def validate(problem,
              check_constraints=False):
   assert validator_type in ['input', 'output']
 
-  if validator_type == 'output' and settings.validation == 'custom':
-    return True
+  #if validator_type == 'output' and settings.validation == 'custom':
+    #return True
 
   validators = get_validators(problem, validator_type)
   if len(validators) == 0:
