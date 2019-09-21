@@ -852,7 +852,7 @@ def run_submissions(problem, settings):
         return '-'
 
     make_verdict = lambda tc: ''.join(
-        map(lambda row: single_verdict(row, testcase), verdict_table))
+        map(lambda row: single_verdict(row, tc), verdict_table))
     resultant_count, resultant_id = dict(), dict()
     special_id = 0
     for testcase in testcases:
@@ -880,6 +880,9 @@ def run_submissions(problem, settings):
     print('\nVerdict analysis table. Submissions are ordered as above. Higher '
           'scores indicate they are critical to break some submissions.')
     for testcase in testcases:
+      # Skip all AC testcases
+      if all(map(lambda row: row[testcase], verdict_table)): continue
+
       color = _c.reset
       if len(scores_list) > 6 and scores[testcase] >= scores_list[-6]:
         color = _c.orange
