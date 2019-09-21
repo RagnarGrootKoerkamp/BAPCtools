@@ -705,9 +705,6 @@ def run_submission(submission,
                    table_dict=None):
   need_newline = config.verbose == 1
 
-  verdict_count = {}
-  for outcome in config.PROBLEM_OUTCOMES:
-    verdict_count[outcome] = 0
   time_total = 0
   time_max = 0
 
@@ -720,6 +717,7 @@ def run_submission(submission,
   printed = False
   bar = ProgressBar(action, max_testcase_len, len(testcases))
 
+  final_verdict = 'ACCEPTED'
   for testcase in testcases:
     bar.start(print_name(testcase.with_suffix('')))
     outfile = config.tmpdir / 'test.out'
@@ -727,9 +725,11 @@ def run_submission(submission,
                                                   outfile, settings,
                                                   output_validators,
                                                   need_newline)
-    if verdict != 'VALIDATOR_CRASH':
-      verdict_count[verdict] += 1
 
+    if config.PRIORITY[verdict] > config.PRIORITY[final_verdict]:
+        final_verdict = verdict
+
+    # Manage timings, table data, and print output
     time_total += runtime
     time_max = max(time_max, runtime)
 
@@ -762,35 +762,27 @@ def run_submission(submission,
 
     bar.done()
 
-    if not config.verbose and verdict in [
-        'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR'
-    ]:
-      break
-
-  verdict = 'ACCEPTED'
-  for v in reversed(config.PROBLEM_OUTCOMES):
-    if verdict_count[v] > 0:
-      verdict = v
+    if not config.verbose and verdict in config.MAX_PRIORITY_VERDICT:
       break
 
   # Use a bold summary line if things were printed before.
   if printed:
-    color = _c.boldgreen if verdict == expected else _c.boldred
+    color = _c.boldgreen if final_verdict == expected else _c.boldred
   else:
-    color = _c.green if verdict == expected else _c.red
+    color = _c.green if final_verdict == expected else _c.red
 
   time_avg = time_total / len(testcases)
 
   # Print summary line
   boldcolor = _c.bold if printed else ''
   print(
-      f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{verdict}{_c.reset}'
+      f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{final_verdict}{_c.reset}'
   )
 
   if printed:
     print()
 
-  return verdict == expected
+  return final_verdict == expected
 
 
 def get_submission_type(s):
