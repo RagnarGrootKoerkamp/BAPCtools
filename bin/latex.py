@@ -174,8 +174,9 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     builddir.mkdir(parents=True, exist_ok=True)
     build_type = 'solution' if solutions else 'problem'
 
+    main_file = 'solutions' if solutions else 'contest'
+    main_file += '-web.tex' if web else '.tex'
 
-    main_file = 'solutions.tex' if solutions else ('contest-web.tex' if web else 'contest.tex')
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
     ensure_symlink(builddir / 'images', config.tools_root / 'latex/images')
     ensure_symlink(builddir / main_file, config.tools_root / 'latex' / main_file)

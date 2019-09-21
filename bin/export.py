@@ -90,7 +90,7 @@ def build_contest_zip(zipfiles, outfile, args):
         zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 
     if not args.kattis:
-        for fname in ['contest.pdf', 'contest-web.pdf', 'solutions.pdf']:
+        for fname in ['contest.pdf', 'contest-web.pdf', 'solutions.pdf', 'solutions-web.pdf']:
             if Path(fname).is_file():
                 zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 

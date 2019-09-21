@@ -1380,6 +1380,8 @@ Run this from one of:
       '--order',
       action='store',
       help='The order of the problems, e.g.: "CAB"')
+  solparser.add_argument(
+      '--web', action='store_true', help='Create a web version of the pdf.')
 
   # Validation
   validate_parser = subparsers.add_parser(
@@ -1654,13 +1656,14 @@ def main():
       success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
 
     if action in ['solutions']:
-      success &= latex.build_contest_pdf(contest, problems, solutions=True)
+      success &= latex.build_contest_pdf(contest, problems, solutions=True, web=config.args.web)
 
     if action in ['zip']:
       success &= latex.build_contest_pdf(contest, problems)
       success &= latex.build_contest_pdf(contest, problems, web=True)
       if not config.args.no_solutions:
         success &= latex.build_contest_pdf(contest, problems, solutions=True)
+        success &= latex.build_contest_pdf(contest, problems, solutions=True, web=True)
 
       export.build_contest_zip(problem_zips, contest + '.zip', config.args)
 
