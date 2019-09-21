@@ -194,7 +194,6 @@
 \usepackage{amsmath,amssymb}
 \usepackage{wrapfig}
 \usepackage{tikz}
-\usetikzlibrary{shapes}
 \usepackage{enumitem}	% [noitemsep] for smaller lists
 \usepackage{textcomp} % textquotesingle: '
 
