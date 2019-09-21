@@ -328,6 +328,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     def setlimits():
         resource.setrlimit(resource.RLIMIT_CPU, (hard_timeout, hard_timeout))
+        resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
         if memory_limit:
             resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
