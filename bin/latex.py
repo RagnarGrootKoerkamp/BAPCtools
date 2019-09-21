@@ -167,14 +167,13 @@ def find_logo():
 
 
 # Build a pdf for an entire problemset. Explanation in latex/readme.md
+# Specify `order` to order the problems by e.g. difficulty.
+# TODO: Extract data from DomJudge API using RGL tools.
 def build_contest_pdf(contest, problems, solutions=False, web=False):
     builddir = config.tmpdir / contest
     builddir.mkdir(parents=True, exist_ok=True)
     build_type = 'solution' if solutions else 'problem'
 
-    # TODO: fix solutions
-    # TODO: Extract data from DomJudge API using RGL tools.
-    #statement = not solutions
 
     main_file = 'solutions.tex' if solutions else ('contest-web.tex' if web else 'contest.tex')
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')

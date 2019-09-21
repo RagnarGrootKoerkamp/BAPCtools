@@ -1384,6 +1384,10 @@ Run this from one of:
       '--cp',
       action='store_true',
       help='Copy the output pdf instead of symlinking it.')
+  solparser.add_argument(
+      '--order',
+      action='store',
+      help='The order of the problems, e.g.: "CAB"')
 
   # Validation
   validate_parser = subparsers.add_parser(

@@ -180,7 +180,15 @@ def read_configs(problem):
 def sort_problems(problems):
     configs = [(problem, read_configs(problem)) for problem in problems]
     problems = [(pair[0], pair[1]['probid'], pair[1]) for pair in configs if 'probid' in pair[1]]
-    problems.sort(key=lambda x: (x[1], x[0]))
+
+    if hasattr(config.args, 'order') and config.args.order is not None:
+        # Sort by position of id in order
+        def get_pos(id):
+            if id in config.args.order: return config.args.order.index(id)
+            else: return len(config.args.order)+1
+        problems.sort(key=lambda x: (get_pos(x[1]), x[0]))
+    else:
+        problems.sort(key=lambda x: (x[1], x[0]))
     return problems
 
 
