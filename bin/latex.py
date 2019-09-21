@@ -186,7 +186,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
             builddir / 'contest_data.tex', config_data)
     statstex = Path('solution_stats.tex')
     if statstex.exists():
-        ensure_symlink(builddir / 'solutions_stats.tex', Path('solution_stats.tex'))
+        ensure_symlink(builddir / 'solution_stats.tex', Path('solution_stats.tex'))
     ensure_symlink(builddir / 'logo.pdf', find_logo())
 
     problems_data = ''
