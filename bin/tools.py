@@ -1631,7 +1631,12 @@ def main():
     if action in ['constraints']:
       success &= check_constraints(problem, settings)
     if action in ['zip']:
+      # For DJ: export to A.zip
       output = settings.probid + '.zip'
+      # For Kattis: export to shortname.zip
+      if hasattr(config.args, 'kattis') and config.args.kattis:
+          output = problem.with_suffix('.zip')
+
       problem_zips.append(output)
       if not config.args.skip:
         success &= latex.build_problem_pdf(problem)
@@ -1665,7 +1670,9 @@ def main():
         success &= latex.build_contest_pdf(contest, problems, solutions=True)
         success &= latex.build_contest_pdf(contest, problems, solutions=True, web=True)
 
-      export.build_contest_zip(problem_zips, contest + '.zip', config.args)
+      outfile = contest + '.zip'
+      if config.args.kattis: outfile = contest + '-kattis.zip'
+      export.build_contest_zip(problems, problem_zips, outfile, config.args)
 
   if not success or config.n_error > 0 or config.n_warn > 0:
     sys.exit(1)
