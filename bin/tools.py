@@ -438,6 +438,7 @@ def validate(problem,
         print_message = True
         success = False
 
+
       # Print stderr whenever something is printed
       if err:
         prefix = '  '
@@ -458,6 +459,12 @@ def validate(problem,
           printnewline = False
           print()
         bar.log(message)
+
+        if hasattr(config.args, 'remove') and config.args.remove:
+            bar.log(_c.red + 'REMOVING TESTCASE!' + _c.reset)
+            testcase.unlink()
+            testcase.with_suffix('.ans').unlink()
+
     bar.done()
 
   # Make sure all constraints are satisfied.
@@ -1402,6 +1409,8 @@ Run this from one of:
       'validate', parents=[global_parser], help='validate all grammar')
   validate_parser.add_argument(
       'testcases', nargs='*', help='The testcases to run on.')
+  validate_parser.add_argument(
+      '--remove', action='store_true', help='Remove failing testcsaes.')
   input_parser = subparsers.add_parser(
       'input', parents=[global_parser], help='validate input grammar')
   input_parser.add_argument(

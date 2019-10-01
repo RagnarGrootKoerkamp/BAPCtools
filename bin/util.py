@@ -289,7 +289,7 @@ def crop_output(output):
     # Cap line length.
     if len(output) > 100:
         output = output[:100]
-        output += ' ...\n' + _c.orange + 'Use -e to show full output or -E to hide it.' + _c.reset
+        output += ' ...\n'
         return output
 
     if cropped:
