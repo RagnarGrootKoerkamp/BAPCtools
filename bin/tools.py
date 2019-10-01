@@ -522,13 +522,13 @@ def stats(problems):
       ('py3', 'submissions/accepted/*.py3', 1),
   ]
 
-  headers = ['problem'] + [h[0] for h in stats]
-  cumulative = [0] * len(stats)
+  headers = ['problem'] + [h[0] for h in stats] + ['  comment']
+  cumulative = [0] * (len(stats))
 
   header_string = ''
   format_string = ''
   for header in headers:
-    if header == 'problem':
+    if header in ['problem', 'comment']:
       width = len(header)
       for problem in problems:
         width = max(width, len(problem.name))
@@ -562,19 +562,31 @@ def stats(problems):
     counts = [count(s[1]) for s in stats]
     for i in range(0, len(stats)):
       cumulative[i] = cumulative[i] + counts[i]
+
+    config = util.read_configs(problem)
+    verified = False
+    comment = ''
+    if 'verified' in config:
+        verified=bool(config['verified'])
+    if 'comment' in config:
+        comment = config['comment']
+
+    if verified: comment = _c.green + comment + _c.reset
+    else: comment = _c.orange + comment + _c.reset
+
     print(
         format_string.format(
             problem.name, *[
                 get_stat(counts[i], True if len(stats[i]) <= 2 else stats[i][2],
                          None if len(stats[i]) <= 3 else stats[i][3])
                 for i in range(len(stats))
-            ]))
+            ], comment))
 
   # print the cumulative count
   print('-' * len(header))
   print(
       format_string.format(*(
-          ['TOTAL'] + list(map(lambda x: get_stat(x, False), cumulative)))))
+          ['TOTAL'] + list(map(lambda x: get_stat(x, False), cumulative)) + [''])))
 
 
 # returns a map {answer type -> [(name, command)]}
