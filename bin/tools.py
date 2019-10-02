@@ -1247,14 +1247,14 @@ def new_problem():
     validation = ask_variable('validation', 'default')
 
   # Read settings from the contest-level yaml file.
-  variables = {
-      'problemname': problemname,
-      'dirname': dirname,
-      'author': author,
-      'validation': validation
-  }
+  variables = {}
   for k, v in util.read_yaml(Path('contest.yaml')).items():
     variables[k] = v
+  for k, v in { 'problemname': problemname,
+                'dirname': dirname,
+                'author': author,
+                'validation': validation }.items():
+      variables[k] = v
 
   for key in variables:
     print(key, ' -> ', variables[key])
