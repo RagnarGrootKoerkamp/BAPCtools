@@ -168,8 +168,7 @@ def build(path):
     return ([outfile], None)
 
   # If the run file is up to date, no need to rebuild.
-  run_time = outfile.stat().st_ctime
-  if run_time > last_input_update:
+  if outfile.exists() and outfile.stat().st_ctime > last_input_update:
       return ([outfile], "Reused existing run file.")
 
   # Otherwise, detect the language and entry point and build manually.
