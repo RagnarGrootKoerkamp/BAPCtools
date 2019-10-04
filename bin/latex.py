@@ -22,6 +22,10 @@ def ensure_symlink(link, target, output=False):
         shutil.copyfile(target, link)
         return
 
+    # Do nothing if link already points to the right target.
+    if link.is_symlink() and link.resolve() == target.resolve():
+        return
+
     if link.is_symlink() or link.exists(): link.unlink()
     link.symlink_to(target.resolve())
 

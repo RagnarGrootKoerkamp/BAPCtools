@@ -129,17 +129,27 @@ def build(path):
       outdir = config.tmpdir / path.name
 
   outdir.mkdir(parents=True, exist_ok=True)
-  for f in outdir.glob('*'):
-    f.unlink()
-  outfile = outdir / 'run'
 
   # Link all input files
-  files = list(path.glob('*')) if path.is_dir() else [path]
-  if len(files) == 0:
+  input_files = list(path.glob('*')) if path.is_dir() else [path]
+  linked_files = []
+  if len(input_files) == 0:
     config.n_warn += 1
     return (None, f'{_c.red}{str(path)} is an empty directory.{_c.reset}')
-  for f in files:
+
+  last_input_update = 0
+  for f in input_files:
     latex.ensure_symlink(outdir / f.name, f)
+    linked_files.append(outdir / f.name)
+    last_input_update = max(last_input_update, f.stat().st_ctime)
+
+  outfile = outdir / 'run'
+
+  # Remove all other files.
+  for f in outdir.glob('*'):
+    if f not in (linked_files + [outfile]) :
+      f.unlink()
+
 
   # If build or run present, use them:
   if is_executable(outdir / 'build'):
@@ -153,14 +163,20 @@ def build(path):
       config.n_error += 1
       return (None, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
 
-  if is_executable(outdir / 'run'):
-    return ([outdir / 'run'], None)
+  # If the run file was provided in the input, just return it.
+  if outfile in linked_files:
+    return ([outfile], None)
+
+  # If the run file is up to date, no need to rebuild.
+  run_time = outfile.stat().st_ctime
+  if run_time > last_input_update:
+      return ([outfile], "Reused existing run file.")
 
   # Otherwise, detect the language and entry point and build manually.
   language_code = None
   main_file = None if path.is_dir() else outdir / path.name
   c_files = []
-  for f in files:
+  for f in input_files:
     e = f.suffix
 
     lang = None
