@@ -1060,9 +1060,12 @@ def generate_output(problem, settings):
           nsame += 1
         else:
           if hasattr(settings, 'force') and settings.force:
-            shutil.move(outfile, testcase.with_suffix('.ans'))
-            nchange += 1
-            message = 'CHANGED'
+            if (hasattr(settings, 'samples') and settings.samples) or 'sample' not in str(testcase):
+                shutil.move(outfile, testcase.with_suffix('.ans'))
+                nchange += 1
+                message = 'CHANGED'
+            else:
+                message = _c.orange + 'SKIPPED' + _c.reset + '; supply -f --samples to overwrite'
           else:
             nskip += 1
             message = _c.red + 'SKIPPED' + _c.reset + '; supply -f to overwrite'
@@ -1461,6 +1464,8 @@ Run this from one of:
       help='The program to generate answers. Defaults to first found.')
   genparser.add_argument(
       '-t', '--timelimit', type=int, help='Override the default timeout.')
+  genparser.add_argument(
+      '--samples', action='store_true', help='Overwrite the samples as well, in combination with -f.')
 
   # Run
   runparser = subparsers.add_parser(
