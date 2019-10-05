@@ -119,7 +119,8 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
                 # Remove any std output because it will usually only contain the
                 err = judgeerror.read_text()
                 judgeerror.unlink()
-            err = header + err
+            if err:
+                err = header + err
 
         if ok == None: ok = val_ok
         if run_all_validators and val_ok != ok:
