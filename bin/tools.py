@@ -143,13 +143,16 @@ def build(path):
     linked_files.append(outdir / f.name)
     last_input_update = max(last_input_update, f.stat().st_ctime)
 
-  outfile = outdir / 'run'
+  runfile = outdir / 'run'
 
   # Remove all other files.
   for f in outdir.glob('*'):
-    if f not in (linked_files + [outfile]) :
+    if f not in (linked_files + [runfile]) :
       f.unlink()
 
+  # If the run file is up to date, no need to rebuild.
+  if runfile.exists() and runfile not in linked_files and runfile.stat().st_ctime > last_input_update:
+      return ([runfile], "Reused existing run file.")
 
   # If build or run present, use them:
   if is_executable(outdir / 'build'):
@@ -164,12 +167,8 @@ def build(path):
       return (None, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
 
   # If the run file was provided in the input, just return it.
-  if outfile in linked_files:
-    return ([outfile], None)
-
-  # If the run file is up to date, no need to rebuild.
-  if outfile.exists() and outfile.stat().st_ctime > last_input_update:
-      return ([outfile], "Reused existing run file.")
+  if runfile.exists():
+      return ([runfile], None)
 
   # Otherwise, detect the language and entry point and build manually.
   language_code = None
@@ -230,9 +229,9 @@ def build(path):
   if language_code == 'c':
     compile_command = [
         'gcc', '-I', config.tools_root / 'headers', '-std=c11', '-Wall', '-O2',
-        '-o', outfile
+        '-o', runfile
     ] + c_files + ['-lm']
-    run_command = [outfile]
+    run_command = [runfile]
   elif language_code == 'cpp':
     compile_command = ([
         '/usr/bin/g++',
@@ -243,11 +242,11 @@ def build(path):
         '-O2',
         '-fdiagnostics-color=always',  # Enable color output
         '-o',
-        outfile,
+        runfile,
         main_file
     ] + ([] if config.args.cpp_flags is None else config.args.cpp_flags.split())
                       )
-    run_command = [outfile]
+    run_command = [runfile]
   elif language_code == 'java':
     compile_command = ['javac', '-d', outdir, main_file]
     run_command = [
@@ -274,7 +273,7 @@ def build(path):
 
   # Prevent building something twice in one invocation of tools.py.
   message = ''
-  if compile_command is not None:  # and not outfile.is_file():
+  if compile_command is not None:
     ok, err, out = util.exec_command(
         compile_command, stdout=subprocess.PIPE, memory=5000000000)
     if ok is not True:
