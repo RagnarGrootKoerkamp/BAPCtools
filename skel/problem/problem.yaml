@@ -26,3 +26,5 @@ validation: {%validation%}
 
 verified: false
 comment:
+# When true, all validators should give the same result.
+all_validators: false

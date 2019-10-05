@@ -93,7 +93,9 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     if settings.case_sensitive:
         flags += ['case_sensitive']
 
-    ok = True
+    run_all_validators = hasattr(settings, 'all_validators') and settings.all_validators
+
+    ok = None
     err = None
     out = None
     for output_validator in output_validators:
@@ -103,7 +105,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
             judgepath.mkdir(parents=True, exist_ok=True)
             judgemessage = judgepath/'judgemessage.txt'
             judgeerror = judgepath/'judgeerror.txt'
-            ok, err, out = util.exec_command(
+            val_ok, err, out = util.exec_command(
                 output_validator[1] +
                 [testcase.with_suffix('.in'),
                  testcase.with_suffix('.ans'), judgepath] + flags,
@@ -119,7 +121,15 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
                 judgeerror.unlink()
             err = header + err
 
-        if ok is True: continue
-        if ok == config.RTV_WA: ok = False
-        break
+        if ok == None: ok = val_ok
+        if run_all_validators and val_ok != ok:
+            ok = 'INCONSISTENT_VALIDATORS'
+            err = 'INCONSISTENT VALIDATORS: ' + err
+            return (ok, err, out)
+
+        if val_ok is True: continue
+        if not run_all_validators:
+            break
+
+    if ok == config.RTV_WA: ok = False
     return (ok, err, out)

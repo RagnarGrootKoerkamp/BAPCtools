@@ -151,8 +151,10 @@ def build(path):
       f.unlink()
 
   # If the run file is up to date, no need to rebuild.
-  if runfile.exists() and runfile not in linked_files and runfile.stat().st_ctime > last_input_update:
-      return ([runfile], "Reused existing run file.")
+  if runfile.exists() and runfile not in linked_files:
+      if runfile.stat().st_ctime > last_input_update:
+        return ([runfile], "Reused existing run file.")
+      runfile.unlink()
 
   # If build or run present, use them:
   if is_executable(outdir / 'build'):

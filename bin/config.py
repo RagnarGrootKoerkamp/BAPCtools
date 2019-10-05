@@ -12,6 +12,8 @@ BUILD_EXTENSIONS = ['.c', '.cc', '.cpp', '.java', '.py', '.py2', '.py3', '.ctd']
 PROBLEM_OUTCOMES = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']
 # Judging stops as soon as a max priority verdict is found.
 PRIORITY = {
+    'INCONSISTENT_VALIDATORS': -1,
+    'VALIDATOR_CRASH': -1,
     'ACCEPTED': 0,
     'WRONG_ANSWER': 99,
     'TIME_LIMIT_EXCEEDED': 99,
