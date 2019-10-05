@@ -97,6 +97,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     err = None
     out = None
     for output_validator in output_validators:
+        header = output_validator[0] + ': ' if len(output_validators) > 1 else ''
         with open(outfile, 'rb') as outf:
             judgepath = config.tmpdir/'judge'
             judgepath.mkdir(parents=True, exist_ok=True)
@@ -116,6 +117,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
                 # Remove any std output because it will usually only contain the
                 err = judgeerror.read_text()
                 judgeerror.unlink()
+            err = header + err
 
         if ok is True: continue
         if ok == config.RTV_WA: ok = False
