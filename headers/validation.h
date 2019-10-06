@@ -10,13 +10,16 @@
 // passed. When validating team output, the flags in problem.yaml should be used.
 
 #include <algorithm>
+#include <cassert>
 #include <stdexcept>
 #include <fstream>
 #include <iostream>
+#include <iomanip>
 #include <limits>
 #include <map>
 #include <vector>
 #include <type_traits>
+#include <random>
 #include <experimental/source_location>
 using namespace std;
 using std::experimental::source_location;
@@ -24,11 +27,13 @@ using std::experimental::source_location;
 const string case_sensitive_flag = "case_sensitive";
 const string ws_sensitive_flag = "space_change_sensitive";
 const string constraints_file_flag = "--constraints_file";
+const string generate_flag = "--generate";
 
 class Validator {
   protected:
-	Validator(bool ws_, bool case_ , istream &in_, string constraints_file_path_ = "")
-	   	: in(in_), ws(ws_), case_sensitive(case_), constraints_file_path(constraints_file_path_) {
+	Validator(bool ws_, bool case_ , istream &in_, string constraints_file_path_ = "", bool gen_ = false)
+	   	: in(in_), ws(ws_), case_sensitive(case_), constraints_file_path(constraints_file_path_), gen(gen_) {
+		if(gen) return;
 		if(ws) in >> noskipws;
 		else in >> skipws;
 	}
@@ -47,6 +52,11 @@ class Validator {
 	}
 
 	void space() {
+		if(gen){
+			out << ' ';
+			return;
+		}
+
 		if(ws) {
 			char c;
 			in >> c;
@@ -56,6 +66,10 @@ class Validator {
 	}
 
 	void newline() {
+		if(gen){
+			out << '\n';
+			return;
+		}
 		if(ws) {
 			char c;
 			in >> c;
@@ -68,13 +82,23 @@ class Validator {
 	}
 
 	// Just read a string.
-	string read_string() { return read_string_impl(); }
+	string read_string() {
+		assert(!gen && "Generating strings is not supported!");
+	   	return read_string_impl();
+   	}
 
 	// Read a string and make sure it equals `expected`.
-	string read_string(string expected) { return read_string_impl(expected); }
+	string read_string(string expected) {
+		if(gen){
+			out << expected;
+			return expected;
+		}
+	   	return read_string_impl(expected);
+   	}
 
 	// Read an arbitrary string of a given length.
 	string read_string(size_t min, size_t max, source_location loc = source_location::current()) {
+		assert(!gen && "Generating strings is not supported!");
 		string s = read_string();
 		if(s.size() < min || s.size() > max)
 			expected("String of length between " + to_string(min) + " and " + to_string(max), s);
@@ -84,6 +108,10 @@ class Validator {
 
 	// Read the string t.
 	void test_string(string t) {
+		if(gen){
+			out << t;
+			return;
+		}
 		string s = read_string();
 		if(case_sensitive) {
 			if(s != t) expected(t, s);
@@ -94,6 +122,12 @@ class Validator {
 
 	// Read a long long.
 	long long read_long_long() {
+		if(gen){
+			std::uniform_int_distribution<long long> dis(std::numeric_limits<long long>::lowest(), std::numeric_limits<long long>::max());
+			auto v = dis(rng);
+			out << v;
+			return v;
+		}
 		string s = read_string_impl("", "integer");
 		if(s.empty()){
 			WA("Want integer, found nothing");
@@ -127,6 +161,12 @@ class Validator {
 
 	// Read a long long within a given range.
 	long long read_long_long(long long low, long long high, source_location loc = source_location::current()) {
+		if(gen){
+			std::uniform_int_distribution<long long> dis(low, high);
+			auto v = dis(rng);
+			out << v;
+			return v;
+		}
 		auto v = read_long_long();
 		if(v < low or v > high)
 			expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
@@ -135,19 +175,23 @@ class Validator {
 	}
 
 	int read_int() {
-		return read_long_long(std::numeric_limits<int>::min(), std::numeric_limits<int>::max(), source_location());
+		return read_long_long(std::numeric_limits<int>::lowest(), std::numeric_limits<int>::max(), source_location());
 	}
 
 	int read_int(int low, int high, source_location loc = source_location::current()) {
-		int v = read_int();
-		if(v < low or v > high)
-			expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
+		auto v = read_long_long(low, high, loc);
 		log_constraint(low, high, v, loc);
 		return v;
 	}
 
 	// Read a long double.
 	long double read_long_double() {
+		if(gen){
+			std::uniform_real_distribution<long double> dis(std::numeric_limits<long double>::lowest(), std::numeric_limits<long double>::max());
+			auto v = dis(rng);
+			out << setprecision(10) << fixed << v;
+			return v;
+		}
 		string s = read_string_impl("", "long double");
 		long double v;
 		try {
@@ -162,6 +206,12 @@ class Validator {
 	}
 
 	long double read_long_double(long double low, long double high, source_location loc = source_location::current()) {
+		if(gen){
+			std::uniform_real_distribution<long double> dis(low, high);
+			auto v = dis(rng);
+			out << setprecision(10) << fixed << v;
+			return v;
+		}
 		long double v = read_long_double();
 		if(v < low or v > high)
 			expected("long double between " + to_string(low) + " and " + to_string(high), to_string(v));
@@ -172,12 +222,20 @@ class Validator {
 
 	// Check the next character.
 	bool peek(char c) {
+		if(gen){
+			std::bernoulli_distribution dis(0.5);
+			return dis(rng);
+		}
 		if(!ws) in >> ::ws;
-		return in.peek() == char_traits<char>::to_int_type(c);
+		if(case_sensitive)
+		   	return in.peek() == char_traits<char>::to_int_type(c);
+		else
+		   	return tolower(in.peek()) == tolower(char_traits<char>::to_int_type(c));
 	}
 
 	// Return WRONG ANSWER verdict.
 	[[noreturn]] void expected(string exp = "", string s = "") {
+		assert(!gen && "Expected is not supported for generators.");
 		if(s.size())
 			WA("Expected ", exp, ", found ", s);
 		else
@@ -215,6 +273,7 @@ class Validator {
 	// expected: if not "", string must equal this.
 	// wanted: on failure, print "expected <wanted>, got ..."
 	string read_string_impl(string expected_string = "", string wanted = "string") {
+		assert(!gen && "read_string_impl is not supported for generators.");
 		if(ws) {
 			char next = in.peek();
 			if(isspace(next)) expected(wanted, next=='\n' ? "newline" : "whitespace");
@@ -239,6 +298,7 @@ class Validator {
    	}
 
 	void eof() {
+		if(gen) return;
 		if(in.eof()) return;
 		// Sometimes EOF hasn't been triggered yet.
 		if(!ws) in >> ::ws;
@@ -252,7 +312,9 @@ class Validator {
 	// Convert a string to lowercase is matching is not case sensitive.
 	string &lowercase(string &s) {
 		if(!case_sensitive) return s;
-		transform(s.begin(), s.end(), s.begin(), ::tolower);
+		transform(s.begin(), s.end(), s.begin(),
+				[](unsigned char c){ return std::tolower(c); }
+			   	);
 		return s;
 	}
 
@@ -308,7 +370,7 @@ class Validator {
 
 		string location = string(loc.file_name())+":"+to_string(loc.line());
 
-		auto& done = int_bounds.emplace(location, Bounds<long long>{v, v, low, high}).first->second;
+		auto& done = float_bounds.emplace(location, Bounds<double>{v, v, low, high}).first->second;
 		if(v < done.min){
 			done.min = v;
 			done.low = low;
@@ -334,16 +396,20 @@ class Validator {
 	}
 
 	const int ret_AC = 42, ret_WA = 43;
-	istream &in;
-	bool ws;
-	bool case_sensitive;
+	istream &in = std::cin;
+	ostream &out = std::cout;
+	bool ws = true;
+	bool case_sensitive = true;
 	const string constraints_file_path;
+	bool gen = false;
+
+	std::mt19937_64 rng{std::random_device()()};
 };
 
 class InputValidator : public Validator {
   public:
 	// An InputValidator is always both whitespace and case sensitive.
-	InputValidator(int argc=0, char** argv=nullptr) : Validator(true, true, std::cin, get_constraints_file(argc, argv)) {}
+	InputValidator(int argc=0, char** argv=nullptr) : Validator(true, true, std::cin, get_constraints_file(argc, argv), is_generator_mode(argc, argv)) {}
 
   private:
 	static string get_constraints_file(int argc, char** argv){
@@ -356,6 +422,15 @@ class InputValidator : public Validator {
 			}
 		}
 		return {};
+	}
+
+	static bool is_generator_mode(int argc, char** argv){
+		for(int i = 1; i < argc; ++i){
+			if(argv[i] == generate_flag){
+				return true;
+			}
+		}
+		return false;
 	}
 };
 

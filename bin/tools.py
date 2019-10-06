@@ -324,14 +324,17 @@ def build_programs(programs, include_dirname=False):
 
 
 # Drops the first two path components <problem>/<type>/
-def print_name(path):
-  return str(Path(*path.parts[2:]))
+def print_name(path, keep_type=False):
+  return str(Path(*path.parts[1 if keep_type else 2:]))
 
 
 def get_validators(problem, validator_type):
   files = (
       glob(problem / (validator_type + '_validators'), '*') +
       glob(problem / (validator_type + '_format_validators'), '*'))
+
+  if hasattr(config.args, 'validator') and config.args.validator:
+      files = [problem/config.args.validator]
 
   validators = build_programs(files)
 
@@ -985,6 +988,52 @@ def test_submissions(problem, settings):
   return True
 
 
+def generate_input(problem, settings):
+  # Find the right validator
+  validators = get_validators(problem, 'input')
+  if len(validators) != 1:
+      print(_c.red + 'Choosing a default validator failed. Use --validator <validator> instead.')
+  validator = validators[0]
+
+  testcases = [problem/x for x in settings.testcases]
+
+  max_testcase_len = max([len(print_name(testcase.with_suffix('.in'), True)) for testcase in testcases])
+
+  bar = ProgressBar('Generate', max_testcase_len, len(testcases))
+
+  nskip = 0
+  nfail = 0
+  for testcase in testcases:
+    bar.start(print_name(testcase.with_suffix('.in'), True))
+
+    if testcase.exists() and not (hasattr(settings, 'force') and settings.force):
+        message = _c.red + 'SKIPPED' + _c.reset + '; file already exists. -f to overwrite'
+        nskip += 1
+    else:
+        if testcase.exists():
+            testcase.unlink()
+        ok, err, out = util.exec_command(
+            validator[1] + ['--generate'],
+            expect=config.RTV_AC,
+            stdout=testcase.open('w')
+            #stdin=testcase.with_suffix(ext).open()
+            )
+
+        if ok:
+            message = _c.green + 'WRITTEN' + _c.reset
+        else:
+            message = _c.red + 'GENERATION FAILED' + _c.reset + ': ' + err
+            nskip += 1
+
+    bar.done(False, message)
+
+  if not config.verbose and nskip == 0 and nfail == 0:
+    print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
+
+  print()
+  return nskip == 0 and nfail == 0
+
+
 def generate_output(problem, settings):
   if hasattr(settings, 'submission') and settings.submission:
     submission = problem / settings.submission
@@ -1459,7 +1508,24 @@ Run this from one of:
       parents=[global_parser],
       help='show statistics for contest/problem')
 
-  # Generate
+  # Generate Input
+  inputgenparser = subparsers.add_parser(
+      'generate_input', parents=[global_parser], help='generate  testcases')
+  inputgenparser.add_argument(
+      '-f',
+      '--force',
+      action='store_true',
+      help='Overwrite existing input flies.')
+  inputgenparser.add_argument(
+      'testcases',
+      nargs='+',
+      help='The name of the testcase to generate.')
+  inputgenparser.add_argument(
+      '--validator',
+      nargs='?',
+      help='The validator to use, in case there is more than one.')
+
+  # Generate Output
   genparser = subparsers.add_parser(
       'generate', parents=[global_parser], help='generate answers testcases')
   genparser.add_argument(
@@ -1599,7 +1665,11 @@ def main():
   # Get problems and cd to contest
   problems, level, contest = get_problems()
 
-  if level != 'problem' and action in ['generate', 'test']:
+  if level != 'problem' and action in ['generate_input', 'generate', 'test']:
+    if action == 'generate_input':
+      print(
+          f'{_c.red}Generating testcases only works for a single problem.{_c.reset}'
+      )
     if action == 'generate':
       print(
           f'{_c.red}Generating output files only works for a single problem.{_c.reset}'
@@ -1673,6 +1743,8 @@ def main():
     if action in ['validate', 'input', 'all']:
       input_validator_ok = validate(problem, 'input', settings)
       success &= input_validator_ok
+    if action in ['generate_input']:
+      success &= generate_input(problem, settings)
     if action in ['generate']:
       success &= generate_output(problem, settings)
     if action in ['validate', 'output', 'all']:
