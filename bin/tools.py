@@ -995,16 +995,16 @@ def generate_input(problem, settings):
       print(_c.red + 'Choosing a default validator failed. Use --validator <validator> instead.')
   validator = validators[0]
 
-  testcases = [problem/x for x in settings.testcases]
+  testcases = [(problem/x).with_suffix('.in') for x in settings.testcases]
 
-  max_testcase_len = max([len(print_name(testcase.with_suffix('.in'), True)) for testcase in testcases])
+  max_testcase_len = max([len(print_name(testcase, True)) for testcase in testcases])
 
   bar = ProgressBar('Generate', max_testcase_len, len(testcases))
 
   nskip = 0
   nfail = 0
   for testcase in testcases:
-    bar.start(print_name(testcase.with_suffix('.in'), True))
+    bar.start(print_name(testcase, True))
 
     if testcase.exists() and not (hasattr(settings, 'force') and settings.force):
         message = _c.red + 'SKIPPED' + _c.reset + '; file already exists. -f to overwrite'
