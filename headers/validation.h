@@ -311,7 +311,7 @@ class Validator {
 
 	// Convert a string to lowercase is matching is not case sensitive.
 	string &lowercase(string &s) {
-		if(!case_sensitive) return s;
+		if(case_sensitive) return s;
 		transform(s.begin(), s.end(), s.begin(),
 				[](unsigned char c){ return std::tolower(c); }
 			   	);
