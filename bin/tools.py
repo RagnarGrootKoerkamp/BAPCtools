@@ -579,7 +579,16 @@ def stats(problems):
             if data.find('TODO: Remove') == -1:
               cnt += 1
         if p.is_dir():
-          cnt += 1
+          ok = True
+          for f in glob(p, '*'):
+            if f.is_file():
+                with f.open() as file:
+                    data = file.read()
+                    if data.find('TODO') != -1:
+                        ok = False
+                        break
+          if ok:
+            cnt += 1
       return cnt
 
     counts = [count(s[1]) for s in stats]
