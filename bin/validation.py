@@ -5,8 +5,6 @@ import util
 
 
 def quick_diff(ans, out):
-    ans = ans.decode()
-    out = out.decode()
     if ans.count('\n') <= 1 and out.count('\n') <= 1:
         return util.crop_output('Got ' + util.strip_newline(out) + ' wanted ' +
                 util.strip_newline(ans))
@@ -17,10 +15,10 @@ def quick_diff(ans, out):
 # return: (success, err, out=None)
 def default_output_validator(ansfile, outfile, settings):
     # settings: floatabs, floatrel, case_sensitive, space_change_sensitive
-    with open(ansfile, 'rb') as f:
+    with open(ansfile, 'r') as f:
         indata1 = f.read()
 
-    with open(outfile, 'rb') as f:
+    with open(outfile, 'r') as f:
         indata2 = f.read()
 
     if indata1 == indata2:
@@ -41,11 +39,11 @@ def default_output_validator(ansfile, outfile, settings):
         return (False, quick_diff(data1, data2), None)
 
     if settings.space_change_sensitive:
-        words1 = re.split(rb'\b(\S+)\b', data1)
-        words2 = re.split(rb'\b(\S+)\b', data2)
+        words1 = re.split(r'\b(\S+)\b', data1)
+        words2 = re.split(r'\b(\S+)\b', data2)
     else:
-        words1 = re.split(rb'[ \n]+', data1)
-        words2 = re.split(rb'[ \n]+', data2)
+        words1 = re.split(r'[ \n]+', data1)
+        words2 = re.split(r'[ \n]+', data2)
         if len(words1) > 0 and words1[-1] == b'': words1.pop()
         if len(words2) > 0 and words2[-1] == b'': words2.pop()
         if len(words1) > 0 and words1[0] == b'': words1.pop(0)
@@ -100,7 +98,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     out = None
     for output_validator in output_validators:
         header = output_validator[0] + ': ' if len(output_validators) > 1 else ''
-        with open(outfile, 'rb') as outf:
+        with open(outfile, 'r') as outf:
             judgepath = config.tmpdir/'judge'
             judgepath.mkdir(parents=True, exist_ok=True)
             judgemessage = judgepath/'judgemessage.txt'
