@@ -236,7 +236,7 @@ def build(path):
     run_command = [runfile]
   elif language_code == 'cpp':
     compile_command = ([
-        '/usr/bin/g++',
+        'g++',
         '-I',
         config.tools_root / 'headers',
         '-std=c++14',
@@ -262,7 +262,7 @@ def build(path):
         outdir,
         main_file.stem
     ]
-  elif language_code in ['python2', 'python3']:
+  elif language_code in ['python2', 'python3', 'python', 'Python']:
     run_command = [python_interpreter(language_code), main_file]
   elif language_code == 'ctd':
     ctd_path = config.tools_root / 'checktestdata' / 'checktestdata'
@@ -271,7 +271,7 @@ def build(path):
   else:
     config.n_error += 1
     return (None,
-            f'{_c.red}Unknown extension \'{ext}\' at file {path}{_c.reset}')
+            f'{_c.red}Unknown language \'{language_code}\' at file {path}{_c.reset}')
 
   # Prevent building something twice in one invocation of tools.py.
   message = ''
