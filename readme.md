@@ -21,6 +21,12 @@ required dependencies manually:
 -   Potentially some specific LaTeX packages (like tikz) provided by
     `texlive-extra`.
 
+*For Windows* clone the `windows` branch. You'll need the following in your
+`path`:
+- `Python` for Python 3
+- `g++` to compile C++
+- `javac` and `java` to compile and run `java`.
+
 ## Usage
 
 The `bin/tools.py` file is the only thing you need. You can symlink it to a more
