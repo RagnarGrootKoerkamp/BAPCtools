@@ -305,6 +305,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     if 'stdout' not in kwargs: kwargs['stdout'] = subprocess.PIPE
     if 'stderr' not in kwargs: kwargs['stderr'] = subprocess.PIPE
 
+    # Convert any Pathlib objects to string.
+    command = [str(x) for x in command]
+
     if config.verbose >= 2:
         print(command, kwargs)
 
