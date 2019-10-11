@@ -239,6 +239,7 @@ def get_testcases(problem, needans=True, only_sample=False):
 
     if len(testcases) == 0:
         config.n_warn += 1
+        print(f'{_c.red}Didn\'t find any testcases for {str(problem)}{_c.reset}')
     return testcases
 
 
