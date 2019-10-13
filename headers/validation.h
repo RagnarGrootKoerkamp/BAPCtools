@@ -6,7 +6,7 @@
 // so that it will be picked up when creating a contest zip.
 
 // The default checking behaviour is lenient for both white space and case.
-// When validating .in and .ans files, the case_sensitve and space_change_sensitive flags should be
+// When validating .in and .ans files, the case_sensitive and space_change_sensitive flags should be
 // passed. When validating team output, the flags in problem.yaml should be used.
 
 #include <algorithm>

@@ -288,8 +288,8 @@ def crop_output(output):
         cropped = True
 
     # Cap line length.
-    if len(output) > 100:
-        output = output[:100]
+    if len(output) > 200:
+        output = output[:200]
         output += ' ...\n'
         return output
 
