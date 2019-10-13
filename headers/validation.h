@@ -162,6 +162,7 @@ class Validator {
 	// Read a long long within a given range.
 	long long read_long_long(long long low, long long high, source_location loc = source_location::current()) {
 		if(gen){
+			assert(low <= high);
 			std::uniform_int_distribution<long long> dis(low, high);
 			auto v = dis(rng);
 			out << v;
@@ -207,6 +208,7 @@ class Validator {
 
 	long double read_long_double(long double low, long double high, source_location loc = source_location::current()) {
 		if(gen){
+			assert(low <= high);
 			std::uniform_real_distribution<long double> dis(low, high);
 			auto v = dis(rng);
 			out << setprecision(10) << fixed << v;

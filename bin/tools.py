@@ -1010,20 +1010,27 @@ def generate_input(problem, settings):
         message = _c.red + 'SKIPPED' + _c.reset + '; file already exists. -f to overwrite'
         nskip += 1
     else:
-        if testcase.exists():
-            testcase.unlink()
-        ok, err, out = util.exec_command(
-            validator[1] + ['--generate'],
-            expect=config.RTV_AC,
-            stdout=testcase.open('w')
-            #stdin=testcase.with_suffix(ext).open()
-            )
+        for retry in range(settings.retries):
+            if testcase.exists():
+                testcase.unlink()
+            ok, err, out = util.exec_command(
+                validator[1] + ['--generate'],
+                expect=config.RTV_AC,
+                stdout=testcase.open('w'),
+                #stderr=None
+                )
 
-        if ok:
-            message = _c.green + 'WRITTEN' + _c.reset
-        else:
-            message = _c.red + 'GENERATION FAILED' + _c.reset + ': ' + err
-            nskip += 1
+            if ok == True:
+                message = _c.green + 'WRITTEN' + _c.reset
+                break
+            else:
+                message = _c.red + 'GENERATION FAILED' + _c.reset + ':\n' + err
+                nskip += 1
+
+        if retry == settings.retries-1:
+            nfail += 1
+            message = _c.red + 'GENERATION FAILED' + _c.reset + ': ' + f'All {settings.retries} attempts failed. Try --retries <num>.'
+
 
     bar.done(False, message)
 
@@ -1525,6 +1532,11 @@ Run this from one of:
       '--validator',
       nargs='?',
       help='The validator to use, in case there is more than one.')
+  inputgenparser.add_argument(
+      '--retries',
+      default=1,
+      type=int,
+      help='Rerun the generator until it success.')
 
   # Generate Output
   genparser = subparsers.add_parser(
