@@ -1025,6 +1025,8 @@ def generate_input(problem, settings):
                 break
             else:
                 message = _c.red + 'GENERATION FAILED' + _c.reset + ':\n' + err
+                if testcase.exists():
+                    testcase.unlink()
                 nskip += 1
 
         if retry == settings.retries-1:
