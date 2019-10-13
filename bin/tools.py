@@ -1065,6 +1065,7 @@ def generate_output(problem, settings):
   # build submission
   bar = ProgressBar('Building')
   bar.start(str(submission))
+  bar.log()
   run_command, message = build(submission)
   if run_command is None:
     print(bar.log(message))
