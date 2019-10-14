@@ -20,9 +20,20 @@
 #include <vector>
 #include <type_traits>
 #include <random>
+#include <string>
+
+#ifdef use_source_location
 #include <experimental/source_location>
-using namespace std;
 using std::experimental::source_location;
+#else
+struct source_location {
+	static source_location current(){ return {}; }
+	int line(){ return 0; }
+	std::string file_name(){ return ""; }
+};
+#endif
+
+using namespace std;
 
 const string case_sensitive_flag = "case_sensitive";
 const string ws_sensitive_flag = "space_change_sensitive";
@@ -339,6 +350,7 @@ class Validator {
 	// Keep track of the min/max value read at every call site.
 	template<typename T>
 	struct Bounds {
+		Bounds(T min, T max, T low, T high) : min(min), max(max), low(low), high(high) {}
 		T min, max;  // Smallest / largest value observed
 		T low, high; // Bounds
 		bool has_min=false, has_max=false;
@@ -353,7 +365,7 @@ class Validator {
 
 		string location = string(loc.file_name())+":"+to_string(loc.line());
 
-		auto& done = int_bounds.emplace(location, Bounds<long long>{v, v, low, high}).first->second;
+		auto& done = int_bounds.emplace(location, Bounds<long long>(v, v, low, high)).first->second;
 		if(v < done.min){
 			done.min = v;
 			done.low = low;
@@ -372,7 +384,7 @@ class Validator {
 
 		string location = string(loc.file_name())+":"+to_string(loc.line());
 
-		auto& done = float_bounds.emplace(location, Bounds<double>{v, v, low, high}).first->second;
+		auto& done = float_bounds.emplace(location, Bounds<double>(v, v, low, high)).first->second;
 		if(v < done.min){
 			done.min = v;
 			done.low = low;
