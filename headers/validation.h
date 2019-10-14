@@ -108,12 +108,13 @@ class Validator {
    	}
 
 	// Read an arbitrary string of a given length.
-	string read_string(size_t min, size_t max, source_location loc = source_location::current()) {
+	string read_string(long long min, long long max, source_location loc = source_location::current()) {
 		assert(!gen && "Generating strings is not supported!");
 		string s = read_string();
-		if(s.size() < min || s.size() > max)
+		long long size = s.size();
+		if(size < min || size > max)
 			expected("String of length between " + to_string(min) + " and " + to_string(max), s);
-		log_constraint(min, max, s.size(), loc);
+		log_constraint(min, max, size, loc);
 		return s;
 	}
 
@@ -356,10 +357,9 @@ class Validator {
 		bool has_min=false, has_max=false;
 	};
 	map<string, Bounds<long long>> int_bounds;
-	map<string, Bounds<double>> float_bounds;
+	map<string, Bounds<long double>> float_bounds;
   public:
-	template<typename T>
-	void log_constraint(long long low, long long high, T v, source_location loc = source_location::current()){
+	void log_constraint(long long low, long long high, long long v, source_location loc = source_location::current()){
 		// Do not log when line number is unknown/default/unsupported.
 		if(loc.line() == 0 or constraints_file_path.empty()) return;
 
@@ -377,14 +377,14 @@ class Validator {
 		done.has_min |= v == low;
 		done.has_max |= v == high;
 	}
-	void log_constraint(double low, double high, double v, source_location loc = source_location::current()){
+	void log_constraint(long double low, long double high, long double v, source_location loc = source_location::current()){
 		cerr << "FALSE\n";
 		// Do not log when line number is unknown/default/unsupported.
 		if(loc.line() == 0 or constraints_file_path.empty()) return;
 
 		string location = string(loc.file_name())+":"+to_string(loc.line());
 
-		auto& done = float_bounds.emplace(location, Bounds<double>(v, v, low, high)).first->second;
+		auto& done = float_bounds.emplace(location, Bounds<long double>(v, v, low, high)).first->second;
 		if(v < done.min){
 			done.min = v;
 			done.low = low;
