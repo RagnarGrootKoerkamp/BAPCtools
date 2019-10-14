@@ -479,7 +479,15 @@ def validate(problem,
           print()
         bar.log(message)
 
-        if hasattr(config.args, 'remove') and config.args.remove:
+        if hasattr(config.args, 'move_to') and config.args.move_to:
+            bar.log(_c.orange + 'MOVING TESTCASE' + _c.reset)
+            targetdir=problem/config.args.move_to
+            targetdir.mkdir(parents=True,exist_ok=True)
+            testcase.rename(targetdir/testcase.name)
+            ansfile=testcase.with_suffix('.ans')
+            ansfile.rename(targetdir/ansfile.name)
+
+        elif hasattr(config.args, 'remove') and config.args.remove:
             bar.log(_c.red + 'REMOVING TESTCASE!' + _c.reset)
             testcase.unlink()
             testcase.with_suffix('.ans').unlink()
@@ -1010,6 +1018,7 @@ def generate_input(problem, settings):
         message = _c.red + 'SKIPPED' + _c.reset + '; file already exists. -f to overwrite'
         nskip += 1
     else:
+        success = False
         for retry in range(settings.retries):
             if testcase.exists():
                 testcase.unlink()
@@ -1022,16 +1031,17 @@ def generate_input(problem, settings):
 
             if ok == True:
                 message = _c.green + 'WRITTEN' + _c.reset
+                success = True
                 break
             else:
-                message = _c.red + 'GENERATION FAILED' + _c.reset + ':\n' + err
+                message = err
                 if testcase.exists():
                     testcase.unlink()
                 nskip += 1
 
-        if retry == settings.retries-1:
+        if not success and retry == settings.retries-1:
             nfail += 1
-            message = _c.red + 'GENERATION FAILED' + _c.reset + ': ' + f'All {settings.retries} attempts failed. Try --retries <num>.'
+            message = _c.red + 'GENERATION FAILED' + _c.reset + ': ' + f'All {settings.retries} attempts failed. Try --retries <num>.' + '\n' + message
 
 
     bar.done(False, message)
@@ -1498,6 +1508,8 @@ Run this from one of:
       'testcases', nargs='*', help='The testcases to run on.')
   validate_parser.add_argument(
       '--remove', action='store_true', help='Remove failing testcsaes.')
+  validate_parser.add_argument(
+      '--move_to', help='Move failing testcases to this directory.')
   input_parser = subparsers.add_parser(
       'input', parents=[global_parser], help='validate input grammar')
   input_parser.add_argument(
