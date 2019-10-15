@@ -46,15 +46,16 @@ class ProgressBar:
         self.item_width = max_len  # The max length of the items we're processing
         self.count = count  # The number of items we're processing
         self.i = 0
-        self.total_width = shutil.get_terminal_size().columns  # The terminal width
-        if self.item_width is not None:
-            self.bar_width = self.total_width - len(self.prefix) - 2 - self.item_width - 1
+
+    def total_width(self):
+        return shutil.get_terminal_size().columns
+    def bar_width(self):
+        if self.item_width is None: return None
+        return self.total_width() - len(self.prefix) - 2 - self.item_width - 1
 
     def update(self, count, max_len):
         self.count += count
         self.item_width = max(self.item_width, max_len) if self.item_width else max_len
-        if self.item_width is not None:
-            self.bar_width = self.total_width - len(self.prefix) - 2 - self.item_width - 1
 
     def clearline():
         if hasattr(config.args, 'no_bar') and config.args.no_bar: return
@@ -70,12 +71,13 @@ class ProgressBar:
 
     def get_prefix(self):
         return ProgressBar.action(self.prefix, self.item, self.item_width,
-                self.total_width)
+                self.total_width())
 
     def get_bar(self):
-        if self.count is None or self.bar_width < 4: return ''
-        fill = (self.i - 1) * (self.bar_width - 2) // self.count
-        return '[' + '#' * fill + '-' * (self.bar_width - 2 - fill) + ']'
+        bar_width = self.bar_width()
+        if self.count is None or bar_width < 4: return ''
+        fill = (self.i - 1) * (bar_width - 2) // self.count
+        return '[' + '#' * fill + '-' * (bar_width - 2 - fill) + ']'
 
     def start(self, item=''):
         self.i += 1
