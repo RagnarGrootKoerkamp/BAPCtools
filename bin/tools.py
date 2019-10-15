@@ -368,6 +368,11 @@ def validate(problem,
   #if validator_type == 'output' and settings.validation == 'custom':
     #return True
 
+  if check_constraints:
+      if not config.args.cpp_flags:
+          config.args.cpp_flags = ''
+      config.args.cpp_flags += ' -Duse_source_location'
+
   validators = get_validators(problem, validator_type)
   if len(validators) == 0:
     return False
