@@ -59,7 +59,7 @@ def build_problem_zip(problem, output, settings):
     copyfiles = []
 
     for pattern, required in files:
-        paths = list(Path(problem).glob(pattern))
+        paths = list(util.glob(Path(problem), pattern))
         if required and len(paths) == 0:
             print(f'{_c.red}No matches for required path {pattern}{_c.reset}.')
         for f in paths:
