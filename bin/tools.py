@@ -162,6 +162,7 @@ def build(path):
     os.chdir(outdir)
     if util.exec_command(['./build'], memory=5000000000)[0] is not True:
       config.n_error += 1
+      os.chdir(cur_path)
       return (None, f'{_c.red}FAILED{_c.reset}')
     os.chdir(cur_path)
     if not is_executable(outdir / 'run'):
