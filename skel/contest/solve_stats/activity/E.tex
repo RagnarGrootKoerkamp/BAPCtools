@@ -1,0 +1,76 @@
+\documentclass[class=article]{standalone}
+\usepackage[dvipsnames]{xcolor}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usetikzlibrary{patterns}
+\pgfplotsset{compat=1.15}
+\begin{document}
+\pgfplotstableread{
+t accept pending wronganswer timelimit failed
+0 0 0 0 0 0
+1 0 0 0 0 0
+2 0 0 0 0 0
+3 0 0 0 0 0
+4 0 0 0 0 0
+5 0 0 1 0 0
+6 0 0 1 0 1
+7 0 0 1 0 0
+8 1 0 1 1 1
+9 0 0 2 0 1
+10 2 0 0 0 0
+11 0 0 1 0 1
+12 0 0 0 1 0
+13 0 0 2 1 0
+14 1 0 1 0 1
+15 2 0 2 0 0
+16 2 0 0 1 1
+17 3 0 0 3 2
+18 0 0 1 0 0
+19 1 0 0 0 1
+20 1 0 1 2 1
+21 0 0 0 0 3
+22 1 0 2 1 0
+23 0 0 0 4 1
+24 0 4 0 0 0
+25 0 6 0 0 0
+26 0 12 0 0 0
+27 0 13 0 0 0
+28 0 13 0 0 0
+29 0 20 0 0 0
+}\attempts
+\pgfplotsset{
+	/pgfplots/bar cycle list/.style={/pgfplots/cycle list=
+	{ {Green,fill=LimeGreen},% Accepted
+    {Red,fill=Red},% Wrong-Answer
+    {Plum,fill=Plum},% Time-Limit
+    {Goldenrod,fill=Goldenrod},% Compile-Error / Runtime-Error
+		{SkyBlue,fill=SkyBlue},% Pending 1
+		{SkyBlue,fill=SkyBlue},% Pending 2
+   {White,fill=White,opacity=0}}% Prevent clipping
+	}
+}%
+\begin{tikzpicture}
+  \begin{axis}[
+    % axis lines=none,
+    axis x line=center,
+    axis y line=none,
+    clip=false,
+    xmin=0,
+    xmax=30,
+    width=20cm,
+    bar width=0.5cm,
+    height=5cm,
+    ybar stacked,
+    grid=none,
+    ticks=none]
+    \addplot table[x=t,y expr={+\thisrow{accept}}] {\attempts};
+    \addplot table[x=t,y expr={-\thisrow{wronganswer}}] {\attempts};
+    \addplot table[x=t,y expr={-\thisrow{timelimit}}] {\attempts};
+    \addplot table[x=t,y expr={-\thisrow{failed}}] {\attempts};
+    \addplot table[x=t,y expr={+\thisrow{pending}*1}] {\attempts};
+    \addplot table[x=t,y expr={-\thisrow{pending}*0}] {\attempts};
+    \addplot table[x=t,y expr={-5}] {\attempts};
+  \end{axis}
+\end{tikzpicture}
+\end{document}
