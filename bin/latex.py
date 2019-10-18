@@ -181,6 +181,8 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     main_file = 'solutions' if solutions else 'contest'
     main_file += '-web.tex' if web else '.tex'
 
+    if solutions:
+        ensure_symlink(builddir / 'solutions-base.tex', config.tools_root / 'latex/solutions-base.tex')
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
     ensure_symlink(builddir / 'images', config.tools_root / 'latex/images')
     ensure_symlink(builddir / main_file, config.tools_root / 'latex' / main_file)
@@ -192,6 +194,12 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     ensure_symlink(builddir / 'logo.pdf', find_logo())
 
     problems_data = ''
+
+    # Link the solve stats directory if it exists.
+    solve_stats = Path('solve_stats')
+    if solve_stats.exists():
+        ensure_symlink(builddir / 'solve_stats', solve_stats)
+
 
     # include a header slide in the solutions PDF
     headertex = Path('solution_header.tex')
@@ -219,14 +227,17 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
 
         problems_data += util.substitute(per_problem_data, {
             'problemid': problemid,
+            'problemletter': problem_config['probid'],
+            'problemname': problem_config['name'],
+            'problemauthor': problem_config['author'],
             'timelimit': get_tl(problem_config),
             'problemdir': config.tmpdir / problem,
         })
 
     # include a statistics slide in the solutions PDF
-    statstex = Path('solution_stats.tex')
-    if statstex.exists(): ensure_symlink(builddir / 'solution_stats.tex', statstex)
-    if solutions and statstex.exists(): problems_data += f'\\input{{{statstex}}}\n'
+    footer_tex = Path('solution_footer.tex')
+    if footer_tex.exists(): ensure_symlink(builddir / 'solution_footer.tex', footer_tex)
+    if solutions and footer_tex.exists(): problems_data += f'\\input{{{footer_tex}}}\n'
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 

@@ -1005,6 +1005,9 @@ def test_submissions(problem, settings):
 def generate_input(problem, settings):
   # Find the right validator
   validators = get_validators(problem, 'input')
+  if len(validators) == 0:
+      return False
+
   if len(validators) != 1:
       print(_c.red + 'Choosing a default validator failed. Use --validator <validator> instead.')
   validator = validators[0]
@@ -1041,7 +1044,7 @@ def generate_input(problem, settings):
                 break
             else:
                 message = err
-                if testcase.exists():
+                if testcase.exists() and not (hasattr(settings, 'keep') and settings.keep):
                     testcase.unlink()
                 nskip += 1
 
@@ -1557,6 +1560,10 @@ Run this from one of:
       default=1,
       type=int,
       help='Rerun the generator until it success.')
+  inputgenparser.add_argument(
+      '--keep',
+      action='store_true',
+      help='Keep output of failed generator runs.')
 
   # Generate Output
   genparser = subparsers.add_parser(
@@ -1734,7 +1741,7 @@ def main():
     return
 
   if action in ['samplezip']:
-    export.build_sample_zip(problems)
+    export.build_samples_zip(problems)
     return
 
   if action == 'kattis':

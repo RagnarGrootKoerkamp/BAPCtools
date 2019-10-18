@@ -1,5 +1,9 @@
 \begingroup\graphicspath{{{%problemdir%}/statement}}
 	\setcounter{section}{{%problemid%}}
+	\renewcommand{\problemletter}{{%problemletter%}}
+	\renewcommand{\problemname}{{%problemname%}}
+	\renewcommand{\problemauthor}{{%problemauthor%}}
 	\renewcommand{\timelimit}{{%timelimit%}}
 	\input{{%problemdir%}/statement/solution.tex}
+	\renewcommand{\problemletter}{}
 \endgroup

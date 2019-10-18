@@ -1,0 +1,141 @@
+\usepackage[T1, OT1]{fontenc}
+\DeclareTextSymbolDefault{\dh}{T1}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+
+%-------------------------------------------------------------------------------
+% The following are required for most problems:
+%-------------------------------------------------------------------------------
+\usepackage{amsmath,amssymb}
+\usepackage{pgf,tikz}
+\usepackage{mathrsfs}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes}
+\usetikzlibrary{backgrounds}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\usetikzlibrary{patterns}
+\pgfplotsset{compat=1.15}
+\usepackage{graphicx}
+\usepackage{listings}
+%\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage[makeroom]{cancel}
+\usepackage[noend]{algpseudocode}
+\usepackage{standalone}
+\usepackage{ifthen}
+\usepackage{tcolorbox}
+\usepackage[makeroom]{cancel}
+\usepackage{listings}
+
+\lstset{
+	backgroundcolor=\color{white},
+	tabsize=4,
+	language=python,
+	basicstyle=\footnotesize\ttfamily,
+	breaklines=true,
+	keywordstyle=\color[rgb]{0, 0, 1},
+	commentstyle=\color[rgb]{0, 0.5, 0},
+	stringstyle=\color{red}
+}
+
+%-------------------------------------------------------------------------------
+% General layout settings:
+% 
+% These are very similar to the setting from the BAPC 2015 presentation, except
+% that the colours have been replaced by the TU Delft colours.
+%-------------------------------------------------------------------------------
+\usetheme{default}
+\useinnertheme{rectangles}
+\useoutertheme{infolines}
+\setbeamertemplate{navigation symbols}{} % remove navigation symbols
+\setbeamertemplate{frametitle}[default][center]
+\setbeamersize{text margin left=1cm} 
+\setbeamersize{text margin right=1cm} 
+
+\definecolor{tudCyan}{RGB}{61,152,222} % TU Delft colour
+\definecolor{uva}{RGB}{64,83,163} % Bapc 2017 UvA colour
+\definecolor{beamer@blendedblue}{RGB}{64,83,163}
+\definecolor{uclouvain}{RGB}{0,46,98} % BAPC 2018 Louvain
+\definecolor{rucolour}{RGB}{0,46,98} % BAPC 2019 Nijmegen
+\definecolor{titlegray}{RGB}{60,60,60} % BAPC 2019 Nijmegen
+
+\setbeamercolor{footlinecolor}{fg=white,bg=rucolour}
+\setbeamercolor{headlinecolor}{bg=titlegray}
+\setbeamercolor{frametitle}{fg=rucolour}
+\setbeamercolor{title}{fg=rucolour}
+
+%\setbeamertemplate{footline}{%
+	%\begin{beamercolorbox}[sep=1em,wd=\paperwidth,leftskip=0.5cm,rightskip=0.5cm]{footlinecolor}
+		%\insertshorttitle\ --- \insertdate \hfill\hfill\insertframenumber
+	%\end{beamercolorbox}%
+%}
+%\setbeamertemplate{headline}{%
+	%\begin{beamercolorbox}[sep=2.4em,wd=\paperwidth,leftskip=0.5cm,rightskip=0.5cm]{headlinecolor}
+		%\insertshorttitle\ --- \insertdate \hfill\hfill\insertframenumber
+	%\end{beamercolorbox}%
+%}
+
+%-------------------------------------------------------------------------------
+% BAPC logo in the top right corner:
+%-------------------------------------------------------------------------------
+%\addtobeamertemplate{headline}{
+	%\begin{figure}[!ht]
+		%\vspace{0.02\textwidth}
+		%\hspace{0.05\textwidth}
+		%\includegraphics[width=0.14\textwidth]{logo}
+		%\hfill 
+		%\phantom{}
+	%\end{figure}
+	%\vspace{-0.10\textwidth} 
+%}
+
+% A bit ugly solution, but it works...
+\setbeamertemplate{frametitle}{%
+  \nointerlineskip%
+  \begin{beamercolorbox}[%
+      wd=\paperwidth,%
+      sep=0pt,%
+      leftskip=4.2ex,%
+      rightskip=2.2ex,%
+    ]{frametitle}%
+    \begin{minipage}{0.4\paperwidth}%
+    \rule{0pt}{2.2ex}%
+	\ifdefempty{\problemletter}{%
+		\insertframetitle%
+	}{%
+		\fullproblemname %
+		\\[0.3em]%
+		\tiny%
+		Problem Author: \problemauthor%
+	}%
+    \nolinebreak%
+    \end{minipage}%
+    \begin{minipage}{0.5\paperwidth}%
+      \activitychart%
+    \end{minipage}%
+    \rule[-2.2ex]{0pt}{2.2ex}%
+  \end{beamercolorbox}%
+}
+
+\newcommand{\timelimit}{1.0s}
+\newcommand{\problemletter}{} % Empty to hide activity chart
+\newcommand{\problemname}{Problem name}
+\newcommand{\problemauthor}{Problem author}
+\newcommand{\fullproblemname}{\problemletter: \problemname}
+\newcommand{\activitychart}{
+  \ifdefempty{\problemletter}{}{
+	\includestandalone[width=\textwidth]{solve_stats/activity/\problemletter}
+  }
+}
+\newcommand{\solvestats}{\csname solvestats\problemletter \endcsname}
+\newcommand{\printsolvestats}[3]{%
+  \vfill
+  \onslide<+->
+  Statistics: #1 submissions, #2 accepted, #3 unknown%
+}
+
+\begin{document}
+\input{./solve_stats/problem_stats.tex}
+\input{./contest-solutions.tex}
+\end{document}
