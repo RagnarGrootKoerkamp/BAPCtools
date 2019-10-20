@@ -9,6 +9,9 @@
 // When validating .in and .ans files, the case_sensitive and space_change_sensitive flags should be
 // passed. When validating team output, the flags in problem.yaml should be used.
 
+// Compile with -Duse_source_location to enable std::experimental::source_location.
+// This is needed for constraints checking.
+
 #include <algorithm>
 #include <cassert>
 #include <stdexcept>

@@ -156,7 +156,7 @@ def build(path):
   if runfile.exists() and runfile not in linked_files:
       if not (hasattr(config.args, 'force_build') and config.args.force_build):
         if runfile.stat().st_ctime > last_input_update:
-            return ([runfile], "Reused existing run file.")
+            return ([runfile], None)
       runfile.unlink()
 
   # If build or run present, use them:
