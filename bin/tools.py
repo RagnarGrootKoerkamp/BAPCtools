@@ -266,9 +266,11 @@ def build(path):
   elif language_code in ['python2', 'python3', 'python', 'Python']:
     run_command = [python_interpreter(language_code), main_file]
   elif language_code == 'ctd':
-    ctd_path = config.tools_root / 'checktestdata' / 'checktestdata'
-    if ctd_path.is_file():
-      run_command = [ctd_path, main_file]
+    ctd_executable = shutil.which('checktestdata')
+    if ctd_executable is None:
+        run_command = None
+    else:
+      run_command = [ctd_executable, main_file]
   else:
     config.n_error += 1
     return (None,
@@ -406,7 +408,9 @@ def validate(problem,
       if Path(validator[0]).suffix == '.ctd':
         ok, err, out = util.exec_command(
             validator[1] + flags,
-            expect=config.RTV_AC,
+            # TODO: Can we make this more generic? CTD returning 0 instead of 42
+            # is a bit annoying.
+            expect=0,
             stdin=testcase.with_suffix(ext).open())
       elif validator_type == 'input':
         constraints_file = config.tmpdir / 'constraints'
