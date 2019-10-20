@@ -154,8 +154,9 @@ def build(path):
 
   # If the run file is up to date, no need to rebuild.
   if runfile.exists() and runfile not in linked_files:
-      if runfile.stat().st_ctime > last_input_update:
-        return ([runfile], "Reused existing run file.")
+      if not (hasattr(config.args, 'force_build') and config.args.force_build):
+        if runfile.stat().st_ctime > last_input_update:
+            return ([runfile], "Reused existing run file.")
       runfile.unlink()
 
   # If build or run present, use them:
@@ -185,6 +186,8 @@ def build(path):
     lang = None
     main = False
 
+    message = ''
+
     if e in ['.c']:
       lang = 'c'
       main = True
@@ -193,6 +196,12 @@ def build(path):
       lang = 'cpp'
       main = True
       c_files.append(outdir / f.name)
+
+      # Make sure c++ does not depend on stdc++.h, because it's not portable.
+      if f.read_text().find('bits/stdc++.h') != -1:
+          config.n_warn += 1
+          message = f'{_c.orange}{print_name(f)} should not depend on bits/stdc++.h{_c.reset}'
+
     if e in ['.java']:
       lang = 'java'
       main = f.name == 'Main.java'
@@ -230,7 +239,6 @@ def build(path):
 
   compile_command = None
   run_command = None
-  message = ''
 
   if language_code == 'c':
     compile_command = [
@@ -322,8 +330,8 @@ def build_programs(programs, include_dirname=False):
     run_command, message = build(path)
     if run_command is not None:
       commands.append((name, run_command))
-    else:
-      bar.log(message)
+    if message:
+        bar.log(message)
     bar.done()
   if config.verbose:
     print()
@@ -1455,6 +1463,8 @@ Run this from one of:
   )
   global_parser.add_argument(
       '--pypy', action='store_true', help='Use pypy instead of cpython.')
+  global_parser.add_argument(
+      '--force_build', action='store_true', help='Force rebuild instead of only on changed files.')
 
   subparsers = parser.add_subparsers(title='actions', dest='action')
   subparsers.required = True
