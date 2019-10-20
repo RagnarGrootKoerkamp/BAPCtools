@@ -4,33 +4,47 @@ import shutil
 import config
 import yaml
 import subprocess
-import resource
+import sys
 import os
 from pathlib import Path
-import sys
 
+def is_windows():
+    return sys.platform in [ 'win32', 'cygwin' ]
+
+if not is_windows():
+    import resource
 
 # color printing
 class Colorcodes(object):
     def __init__(self):
-        self.bold = '\033[;1m'
-        self.reset = '\033[0;0m'
-        self.blue = '\033[;96m'
-        self.green = '\033[;32m'
-        self.orange = '\033[;33m'
-        self.red = '\033[;31m'
-        self.white = '\033[;39m'
+        if not is_windows():
+            self.bold = '\033[;1m'
+            self.reset = '\033[0;0m'
+            self.blue = '\033[;96m'
+            self.green = '\033[;32m'
+            self.orange = '\033[;33m'
+            self.red = '\033[;31m'
+            self.white = '\033[;39m'
 
-        self.boldblue = '\033[1;34m'
-        self.boldgreen = '\033[1;32m'
-        self.boldorange = '\033[1;33m'
-        self.boldred = '\033[1;31m'
+            self.boldblue = '\033[1;34m'
+            self.boldgreen = '\033[1;32m'
+            self.boldorange = '\033[1;33m'
+            self.boldred = '\033[1;31m'
+        else:
+            self.bold = ''
+            self.reset = ''
+            self.blue = ''
+            self.green = ''
+            self.orange = ''
+            self.red = ''
+            self.white = ''
 
+            self.boldblue = ''
+            self.boldgreen = ''
+            self.boldorange = ''
+            self.boldred = ''
 
 _c = Colorcodes()
-
-
-
 
 
 # A class that draws a progressbar.
@@ -46,6 +60,7 @@ class ProgressBar:
         self.item_width = max_len  # The max length of the items we're processing
         self.count = count  # The number of items we're processing
         self.i = 0
+        self.carriage_return = '\r' if is_windows() else '\033[K'
 
     def total_width(self):
         return shutil.get_terminal_size().columns
@@ -59,7 +74,7 @@ class ProgressBar:
 
     def clearline():
         if hasattr(config.args, 'no_bar') and config.args.no_bar: return
-        print('\033[K', end='', flush=True)
+        print(self.carriage_return, end='', flush=True)
 
     def action(prefix, item, width=None, total_width=None):
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
@@ -99,13 +114,13 @@ class ProgressBar:
     # Done can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
     def log(self, message=''):
-        ProgressBar.clearline()
+        self.clearline()
         self.logged = True
         print(self.get_prefix(), message, flush=True)
 
     # Return True when something was printed
     def done(self, success=True, message=''):
-        ProgressBar.clearline()
+        self.clearline()
         if self.logged: return False
         if not success: config.n_error += 1
         if config.verbose or not success:
@@ -333,14 +348,19 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     if command[0] == 'java' or command[0] == 'javac':
         memory_limit = None
 
+    # Note: Resource limits do not work on windows.
     def setlimits():
         resource.setrlimit(resource.RLIMIT_CPU, (hard_timeout, hard_timeout))
+        # Increase the max stack size from default to the max available.
         if sys.platform != 'darwin':
             resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
         if memory_limit:
             resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
-    process = subprocess.Popen(command, preexec_fn=setlimits, **kwargs)
+    if not is_windows():
+        process = subprocess.Popen(command, preexec_fn=setlimits, **kwargs)
+    else:
+        process = subprocess.Popen(command, **kwargs)
     try:
         (stdout, stderr) = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:

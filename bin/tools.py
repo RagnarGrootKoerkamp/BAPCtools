@@ -99,6 +99,8 @@ def is_executable(path):
 # Look at the shebang at the first line of the file to choose between python 2
 # and python 3.
 def python_version(path):
+  if util.is_windows(): return 'Python'
+
   shebang = path.read_text().split('\n')[0]
   if re.match('^#!.*python2', shebang):
     return 'python2'
@@ -489,6 +491,7 @@ def validate(problem,
           print()
         bar.log(message)
 
+        # Move testcase to destination directory if specified.
         if hasattr(config.args, 'move_to') and config.args.move_to:
             bar.log(_c.orange + 'MOVING TESTCASE' + _c.reset)
             targetdir=problem/config.args.move_to
@@ -496,11 +499,14 @@ def validate(problem,
             testcase.rename(targetdir/testcase.name)
             ansfile=testcase.with_suffix('.ans')
             ansfile.rename(targetdir/ansfile.name)
-
-        elif hasattr(config.args, 'remove') and config.args.remove:
+        
+        # Remove testcase if specified.
+        elif validator_type == 'input' and hasattr(config.args, 'remove') and config.args.remove:
             bar.log(_c.red + 'REMOVING TESTCASE!' + _c.reset)
-            testcase.unlink()
-            testcase.with_suffix('.ans').unlink()
+            if testcase.exists():
+                testcase.unlink()
+            if testcase.with_suffix('.ans').exists():
+                testcase.with_suffix('.ans').unlink()
 
     bar.done()
 
