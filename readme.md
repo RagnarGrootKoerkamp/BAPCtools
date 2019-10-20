@@ -4,8 +4,8 @@ BAPCtools is a tool for creating and developing problems following the
 [DomJudge/Kattis problem format](https://www.problemarchive.org/wiki/index.php/Problem_Format).
 
 The aim of this tool is to run all necessary compilation, validation, and
-testing commands while working on an ICPC-style problem. Ideally I should never
-have to manually run any compilation or testing command myself.
+testing commands while working on an ICPC-style problem.
+ Ideally I should never have to manually run any compilation or testing command myself.
 
 ## Installation
 
@@ -21,43 +21,39 @@ required dependencies manually:
 -   Potentially some specific LaTeX packages (like tikz) provided by
     `texlive-extra`.
 
-*For Windows* clone the `windows` branch. You'll need the following in your
+For Windows, you'll need the following in your
 `path`:
 - `Python` for Python 3
 - `g++` to compile C++
 - `javac` and `java` to compile and run `java`.
+
+Note that colorized output does not work (yet?) on Windows.
+Resource limits (memory limit/hard cpu time limit) are also not supported.
 
 ## Usage
 
 The `bin/tools.py` file is the only thing you need. You can symlink it to a more
 convenient location if needed. I prefer `bt` for this.
 
-Currently the typical setup is to create a git repository with this `BAPCtools`
-repository as a submodule at the top level. Next to this are one or more contest
-directories which contain the actual problem directories.
-
 The tool can be run either from a problem directory or a contest directory. This
 is automatically detected by searching for the `problem.yaml` file.
 
-The most important subcommands it supports are (see `--help` for a few more and
-aliases): * `contest`: Create a new stub contest directory. * `problem`: Create
-a new stub problem directory filled with very simple example code. * `run`: Run
-given or all submissions against the given or all testcases. * `generate`: Use a
-submission to create `.ans` files for all `.in` files. * `validate`, `input`,
-`output`: Validate input and/or output data files using a small c++-library. *
-CheckTestdata is also supported but more difficult to install and it tends to be
-slow. * `constraints` searches for `const int <name> = <value>;` numeric values
-in the validator file and `\newcommand{<name>}{<number>}` definitions in the
-latex statement and prints the values side by side for easy manual verification.
-* `pdf`, `solutions`: Build a (solutions) pdf for either a problem or entire
-contest. * `stats`: Print statistics on the number of testcases and submissions
-per problem. * `zip`, `kattis`: Create a zip file ready for uploading to
-DomJudge/ready for verification by Kattis `problemtools`. * `samplezip`: Create
-a zip containing all sample testcases in a contest, useful for distribution to
-contestant computers.
+The most important subcommands it supports are (see `--help` for a few more and aliases):
+* `contest`: Create a new stub contest directory.
+* `problem`: Create a new stub problem directory filled with very simple example code.
+* `run`: Run given or all submissions against the given or all testcases.
+* `validate`, `input`, `output`: Validate input and/or output data files using a small c++-library.
+	* CheckTestdata is also supported when found in the Path.
+* `generate`: Use a submission to create `.ans` files for all `.in` files.
+* `generate_input`: Use an input validator to generate random `.in` files.
+* `constraints` searches for `const int <name> = <value>;` numeric values in the validator file and `\newcommand{<name>}{<number>}` definitions in the latex statement and prints the values side by side for easy manual verification. 
+* `pdf`, `solutions`: Build a (solutions) pdf for either a problem or entire contest.
+* `stats`: Print statistics on the number of testcases and submissions per problem.
+* `zip`, `kattis`: Create a zip file ready for uploading to DomJudge/ready for verification by Kattis `problemtools`.
+* `samplezip`: Create a zip containing all sample testcases in a contest, useful for distribution to contestant computers.
 
-Please try the `-v` flag (up to three times for `run`) for more verbose output,
-especially for `run` and `validate`.
+Please try the `-v` flag for more verbose output especially for `run` and `validate`.
+Specify it twice to print all external compile/run/validate commands being executed.
 
 The tool prints the first few lines of compile errors and wrong answer diffs.
 `-e` enables full output and `-E` hides it completely.
@@ -114,8 +110,11 @@ overwrite changed answer files.
 `tools.py validate` runs all validator files in the `input_validator` and
 `output_validator` directories against all testcases.
 
-Validators can be one of - an executable, - a c++ program, - a .ctd
-CheckTestData file (this needs extra work to succeed).
+Validators can be one of
+ - an executable,
+ - a c++ program,
+ - a .ctd CheckTestData file (this needs the `checktestdata` executable in the
+   PATH).
 
 See the Notes on Validation section further down for more info.
 
@@ -246,13 +245,3 @@ for parsing the answer file that will be provided to stdin.
 For custom validation, the code can read the input from `argv[1]`, the answer
 from `argv[2]` and the OutputValidator will still bind to the team output on
 `stdin`.
-
-### CheckTestData
-
-This repository has `checktestdata` as a git submodule. The tool looks for the
-`checktestdata/checktestdata` binary to validate `.ctd` files.
-
-TODO: Really we should find a better way to distribute this, potentially by
-putting the compiled binary in the repository. Also, since CTD is slow, we
-should probably add an additional validator flag that enables the CTD
-validators.

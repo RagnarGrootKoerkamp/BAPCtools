@@ -230,6 +230,7 @@ def build(path):
 
   compile_command = None
   run_command = None
+  message = ''
 
   if language_code == 'c':
     compile_command = [
@@ -271,6 +272,8 @@ def build(path):
     ctd_executable = shutil.which('checktestdata')
     if ctd_executable is None:
         run_command = None
+        config.n_error += 1
+        message = f'{_c.red}checktestdata executable not found in PATH{_c.reset}'
     else:
       run_command = [ctd_executable, main_file]
   else:
@@ -279,7 +282,6 @@ def build(path):
             f'{_c.red}Unknown language \'{language_code}\' at file {path}{_c.reset}')
 
   # Prevent building something twice in one invocation of tools.py.
-  message = ''
   if compile_command is not None:
     ok, err, out = util.exec_command(
         compile_command, stdout=subprocess.PIPE, memory=5000000000)

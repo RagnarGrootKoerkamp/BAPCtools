@@ -72,7 +72,7 @@ class ProgressBar:
         self.count += count
         self.item_width = max(self.item_width, max_len) if self.item_width else max_len
 
-    def clearline():
+    def clearline(self):
         if hasattr(config.args, 'no_bar') and config.args.no_bar: return
         print(self.carriage_return, end='', flush=True)
 
