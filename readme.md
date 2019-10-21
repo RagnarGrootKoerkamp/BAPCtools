@@ -47,6 +47,8 @@ The most important subcommands it supports are (see `--help` for a few more and 
 * `contest`: Create a new stub contest directory.
 * `problem`: Create a new stub problem directory filled with very simple example code.
 * `run`: Run given or all submissions against the given or all testcases.
+* `test`: Run a single submissions against the given testcases and print the
+  output (instead of validating it).
 * `validate`, `input`, `output`: Validate input and/or output data files using a small c++-library.
 	* CheckTestdata is also supported when found in the Path.
 * `generate`: Use a submission to create `.ans` files for all `.in` files.
@@ -56,6 +58,8 @@ The most important subcommands it supports are (see `--help` for a few more and 
 * `stats`: Print statistics on the number of testcases and submissions per problem.
 * `zip`, `kattis`: Create a zip file ready for uploading to DomJudge/ready for verification by Kattis `problemtools`.
 * `samplezip`: Create a zip containing all sample testcases in a contest, useful for distribution to contestant computers.
+* `gitlabci`: Prints commands that can be included in a `.gitlab-ci.yml` to set
+  up CI for all problems and the contest pdf.
 
 Please try the `-v` flag for more verbose output especially for `run` and `validate`.
 Specify it twice to print all external compile/run/validate commands being executed.
@@ -125,6 +129,9 @@ Validators can be one of
    PATH).
 
 See the Notes on Validation section further down for more info.
+
+You can use `--remove` to delete all failing testdata or `--move <dir>` to move
+them to a separate directory.
 
 ![validator](./doc/images/05_validate.png)
 
