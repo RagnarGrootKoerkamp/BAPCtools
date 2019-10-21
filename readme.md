@@ -17,9 +17,14 @@ required dependencies manually:
     pyyaml` or the `python-yaml` Arch Linux package.
 -   The `argcomplete` library for command line argument completion. Install via
     `python[3]-argcomplete`.
--   The `pdflatex` command, provided by `texlive-bin` on Arch Linux.
--   Potentially some specific LaTeX packages (like tikz) provided by
-    `texlive-extra`.
+	- Note that actually using `argcomplete` is optional, but recommended.
+	  Detailed instructions are [here](https://argcomplete.readthedocs.io/en/latest/).
+	 
+      TL;DR: Put `eval "$(register-python-argcomplete tools.py)"` in your `.bashrc` or `.zshrc`.
+-   The `pdflatex` command, provided by `texlive-bin` on Arch Linux and
+    potentially some specific LaTeX packages (like tikz) provided by
+	`texlive-extra`.
+	These are only needed for building `pdf` files, not for `run` and `validate` and such.
 
 For Windows, you'll need the following in your
 `path`:
@@ -58,6 +63,9 @@ Specify it twice to print all external compile/run/validate commands being execu
 The tool prints the first few lines of compile errors and wrong answer diffs.
 `-e` enables full output and `-E` hides it completely.
 
+**Please use `bt --help` and `bt <command> --help` to see all optional arguments.
+There are quite a few that are not documented here.**
+
 What follows is a quick walk-through of some of the most important commands.
 
 ### Create a new contest
@@ -67,7 +75,7 @@ What follows is a quick walk-through of some of the most important commands.
 This creates a new directory `example_contest` with a `contest.tex` file
 containing metadata to put on the front page of the generated pdf.
 
-![new contest](images/00_contest.png)
+![new contest](./doc/images/00_contest.png)
 
 ### Create a new problem
 
@@ -75,7 +83,7 @@ containing metadata to put on the front page of the generated pdf.
 
 This create a new problem directory following the DomJudge/Kattis format.
 
-![new problem](images/01_problem.png)
+![new problem](./doc/images/01_problem.png)
 
 The stub files contain the problem to read and print a single integer.
 
@@ -87,7 +95,7 @@ From inside either a problem or contest directory: `tools.py run [-v] [-v]
 This runs all submissions in the problem/contest on all testdata for the
 problem. Use `-v` to make it print testcases where submissions fail.
 
-![run](images/02_run.gif)
+![run](./doc/images/02_run.gif)
 
 You can also run one (or multiple) given submissions and see the status with
 `-v`. Note that the wrong answer verdict is green here because the submission is
@@ -95,7 +103,7 @@ expected to get wrong answer. Unexpected outcomes are always printed, even
 without `-v`. If the given and expected answer are a single line only, the diff
 is given inline. Otherwise a small snippet is printed on the lines below.
 
-![run single submission](images/03_run_submission.gif)
+![run single submission](./doc/images/03_run_submission.gif)
 
 ### Generating output files
 
@@ -103,7 +111,7 @@ is given inline. Otherwise a small snippet is printed on the lines below.
 submission to generate a `.ans` file for every `.in` file. Supply `-f` to
 overwrite changed answer files.
 
-![generate ans files](images/04_generate.gif)
+![generate ans files](./doc/images/04_generate.gif)
 
 ### Validating input/answer/output files
 
@@ -118,18 +126,18 @@ Validators can be one of
 
 See the Notes on Validation section further down for more info.
 
-![validator](images/05_validate.png)
+![validator](./doc/images/05_validate.png)
 
 ### Building problem PDF
 
 `tools.py pdf [--web]` creates a PDF of the problem statement or entire contest,
 depending on where you run it. The `--web` flag removes empty pages and makes it
 single sided. The output file is a `example_problem/problem.pdf` like
-[this](images/problem.pdf) symlink to a build directory. (See the Notes on LaTeX
+[this](./doc/images/problem.pdf) symlink to a build directory. (See the Notes on LaTeX
 further down.)
 
 Running it from a contest directory creates a `contest.pdf` like
-[this](images/contest.pdf) file in the contest directory.
+[this](./doc/images/contest.pdf) file in the contest directory.
 
 *   The problem letter and time limit are extracted from `domjudge-problem.ini`.
 *   Samples are automatically included from the `data/sample` directory.
@@ -141,42 +149,31 @@ Running it from a contest directory creates a `contest.pdf` like
     -   an `Input` section or environment
     -   an `Output` section or environment
 
-### Printing problem stats
+### Printing problem stats and progress
 
 `tools.py stats` print the number of AC/WA/TLE solutions, the number of
 sample/secret testcases and whether the required config files are present:
 
-![stats](images/09_stats.png)
+![stats](./doc/images/09_stats.png)
 
 ## Notes on compilation
 
 All compilation output for submissions and validators goes into a temporary
-directory (in `/tmp/bapctools_xxxxxx`) created by pythons `tempfile.mkdtemp`. A
-*new* directory is created for each run. Usually this directory is deleted again
-when the program is finished, but it can stay around when the command is
-aborted.
-
-TODO: It would be nice to make this directory persistent between runs to prevent
-recompilation when only testdata changed.
+directory (in `/tmp/bapctools_xxxxxx`) created by python's `tempfile.mkdtemp`.
+All build output is stored there and reused when the source files did not
+change. Use `--force_rebuild` if needed.
 
 ## Notes on LaTeX
 
-LaTeX files are compiled using `pdflatex`. If it does not exist a build
-directory is created at `./latex/build` inside this repository. (This should
-probably be changed to something nicer.) This is done using `tempfile.mkdtemp`
-to create a new directory in `/tmp/bapctools_latex_xxxxxxx` (if supported) and
-next it is symlinked to `./latex/build`.
-
-The benefit of this approach is that all compilation happens in memory which is
-slightly faster (and saves disk writes). Since the build directory is preserved
-between runs (but not between reboots) re-running the build of a problem/contest
-pdf will be faster as usual.
+LaTeX files are compiled using `pdflatex`.
+To keep the problem repository clean and prevent compilation on disk, all latex files are copied or symlinked
+into `/tmp/`.
 
 The tool *does not* call `pdflatex` multiple times so it is recommended to run
 `tools.py pdf` multiple times to fix the table of contents and references to
 images.
 
-### Build structure
+### Build structure (outdated)
 
 [latex/readme.md](latex/readme.md) has more detailed information on the steps
 taken to compile a problem/contest pdf. A quick overview:
@@ -232,8 +229,6 @@ input in strict mode.
 TODO: The `float_tolerance` flags are not yet supported in custom validation
 mode, though they do work with the default validator build into `tools.py`
 itself.
-
-TODO: We should support `.ans` validator even for 'custom' validator type.
 
 The output validator will be called as `./output_validator testcase.in
 testcase.ans output_dir [flags] < team_output.out`.
