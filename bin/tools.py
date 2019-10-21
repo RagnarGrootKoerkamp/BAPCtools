@@ -280,7 +280,8 @@ def build(path):
         main_file.stem
     ]
   elif language_code == 'kt':
-    compile_command = ['javac', '-d', outdir, main_file]
+    jarfile = runfile.with_suffix('.jar')
+    compile_command = ['kotlinc', '-d', jarfile, '-include-runtime', main_file]
     run_command = [
         'java',
         '-enableassertions',
@@ -288,9 +289,7 @@ def build(path):
         '-Xss64M',  # Max stack size
         '-Xms1024M',  # Initial heap size
         '-Xmx1024M',  # Max heap size
-        '-cp',
-        outdir,
-        main_file.stem
+        '-jar', jarfile
     ]
   elif language_code in ['python2', 'python3', 'python', 'Python']:
     run_command = [python_interpreter(language_code), main_file]
