@@ -13,6 +13,7 @@ RUN pacman -Syu --noconfirm \
 	python-argcomplete \
 	python2 \
 	jdk8-openjdk \
+	kotlin \
 	texlive-core \
 	texlive-latexextra \
 	texlive-pictures \
