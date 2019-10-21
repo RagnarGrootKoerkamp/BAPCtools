@@ -205,6 +205,10 @@ def build(path):
     if e in ['.java']:
       lang = 'java'
       main = f.name == 'Main.java'
+    if e in ['.kt']:
+        lang = 'kt'
+        # TODO: this probably isn't correct, but fine until it breaks.
+        main = True
     if e in ['.py', '.py2', '.py3']:
       if e == '.py2':
         lang = 'python2'
@@ -222,6 +226,7 @@ def build(path):
       msg = (f'{_c.red}Could not build {path}: found conflicting languages '
              f'{language_code} and {lang}!{_c.reset}')
       return (None, msg)
+
     if language_code is None:
       language_code = lang
 
@@ -262,6 +267,19 @@ def build(path):
                       )
     run_command = [runfile]
   elif language_code == 'java':
+    compile_command = ['javac', '-d', outdir, main_file]
+    run_command = [
+        'java',
+        '-enableassertions',
+        '-XX:+UseSerialGC',
+        '-Xss64M',  # Max stack size
+        '-Xms1024M',  # Initial heap size
+        '-Xmx1024M',  # Max heap size
+        '-cp',
+        outdir,
+        main_file.stem
+    ]
+  elif language_code == 'kt':
     compile_command = ['javac', '-d', outdir, main_file]
     run_command = [
         'java',
