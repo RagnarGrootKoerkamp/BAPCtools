@@ -1,10 +1,13 @@
 \documentclass{bapc}
 \begin{document}
-% Set the relative directory for graphic includes.
-\begingroup\graphicspath{{statement/}}
+\begingroup\graphicspath{{{%problemdir%}/statement}}
 	\setcounter{section}{{%problemid%}}
+	\renewcommand{\problemletter}{{%problemletter%}}
+	\renewcommand{\problemtitle}{{%problemtitle%}}
+	\renewcommand{\problemauthor}{{%problemauthor%}}
 	\renewcommand{\timelimit}{{%timelimit%}}
-	\input{statement/problem.en.tex}
-	\input{samples.tex}
+	\input{{%problemdir%}/statement/problem.en.tex}
+	\input{{%problemdir%}/samples.tex}
+	\renewcommand{\problemletter}{}
 \endgroup
 \end{document}

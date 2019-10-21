@@ -138,8 +138,13 @@ def build_problem_pdf(problem):
 
     util.copy_and_substitute(config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
         'problemid': problemid,
-        'timelimit': get_tl(problem_config)
+        'problemletter': problem_config['probid'],
+        'problemtitle': problem_config['name'],
+        'problemauthor': problem_config['author'],
+        'timelimit': get_tl(problem_config),
+        'problemdir': config.tmpdir / problem,
     })
+
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
     builddir = config.tmpdir / problem
@@ -228,7 +233,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
         problems_data += util.substitute(per_problem_data, {
             'problemid': problemid,
             'problemletter': problem_config['probid'],
-            'problemname': problem_config['name'],
+            'problemtitle': problem_config['name'],
             'problemauthor': problem_config['author'],
             'timelimit': get_tl(problem_config),
             'problemdir': config.tmpdir / problem,

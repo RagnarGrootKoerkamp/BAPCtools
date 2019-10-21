@@ -103,7 +103,7 @@
 	\ifdefempty{\problemletter}{%
 		\insertframetitle%
 	}{%
-		\fullproblemname %
+		\fullproblemtitle %
 		\\[0.3em]%
 		\tiny%
 		Problem Author: \problemauthor%
@@ -119,9 +119,9 @@
 
 \newcommand{\timelimit}{1.0s}
 \newcommand{\problemletter}{} % Empty to hide activity chart
-\newcommand{\problemname}{Problem name}
+\newcommand{\problemtitle}{Problem name}
 \newcommand{\problemauthor}{Problem author}
-\newcommand{\fullproblemname}{\problemletter: \problemname}
+\newcommand{\fullproblemtitle}{\problemletter: \problemtitle}
 
 % If solve_stats/activity/A.tex exists, define the \activitychart command
 \IfFileExists{./solve_stats/activity/A.tex}{
@@ -144,7 +144,7 @@
 \IfFileExists{./solve_stats/problem_stats.tex}{
 	\newcommand{\solvestats}{\csname solvestats\problemletter \endcsname}
 	\input{./solve_stats/problem_stats.tex}
-}{file
+}{
 	\newcommand{\solvestats}{}
 }
 

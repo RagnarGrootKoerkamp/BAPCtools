@@ -88,14 +88,28 @@
 	\vspace*{-1cm}
 }
 \renewcommand{\afterloptitle}{\thispagestyle{empty}\afterchaptertitle}
+
 \newcommand{\timelimit}{TIMELIMIT MISSING}
+\newcommand{\problemletter}{} % Empty to hide activity chart
+\newcommand{\problemtitle}{Problem name}
+\newcommand{\problemauthor}{Problem author}
+\newcommand{\fullproblemtitle}{\problemletter: \problemtitle}
+
 \newcommand{\problemname}[1]{
 	\ThisIsNotABlankPage
-	\section{#1}
+	\ifblank{#1}{
+		\section{\problemtitle}
+	}{
+		\section{#1}
+	}
 	\vspace{-2.3em}
 	\hfill
 	\ifdefempty{\timelimit}{}{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}
-	\outline[]{1}[\thesection]{#1}
+	\ifblank{#1}{
+		\outline[]{1}[\thesection]{\problemtitle}
+	}{
+		\outline[]{1}[\thesection]{#1}
+	}
 
 	\rmfamily
 
@@ -106,7 +120,11 @@
 		\Large
 		\eqmakebox[letter][c]{\thesection}
 		\quad
-		\eqmakebox[titel][l]{#1}
+		\ifblank{#1}{
+			\eqmakebox[titel][l]{\problemtitle}
+		}{
+			\eqmakebox[titel][l]{#1}
+		}
 		}
 		\par
 	}{}
