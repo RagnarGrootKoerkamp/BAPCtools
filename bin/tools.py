@@ -112,8 +112,15 @@ def python_version(path):
 def python_interpreter(version):
   if hasattr(config.args, 'pypy') and config.args.pypy:
     if version == 'python2':
-      return 'pypy'
-    #print('\n' + _c.orange + 'Pypy only works for python2! Using cpython for python3.' + _c.reset)
+      if shutil.which('pypy') is not None:
+        return 'pypy'
+      else:
+        print('\n' + _c.orange + 'pypy executable not found, falling back to python2' + _c.reset)
+    if version == 'python3':
+      if shutil.which('pypy3') is not None:
+        return 'pypy3'
+      else:
+        print('\n' + _c.orange + 'pypy3 executable not found, falling back to python3' + _c.reset)
   return version
 
 
