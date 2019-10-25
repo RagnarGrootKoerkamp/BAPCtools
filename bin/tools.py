@@ -814,6 +814,7 @@ def run_submission(submission,
 
   time_total = 0
   time_max = 0
+  testcase_max_time = None
 
   action = 'Running ' + str(submission[0])
   max_total_length = max(
@@ -838,7 +839,9 @@ def run_submission(submission,
 
     # Manage timings, table data, and print output
     time_total += runtime
-    time_max = max(time_max, runtime)
+    if runtime > time_max:
+        time_max = runtime
+        testcase_max_time = print_name(testcase.with_suffix(''))
 
     if table_dict is not None:
       table_dict[testcase] = verdict == 'ACCEPTED'
@@ -883,7 +886,7 @@ def run_submission(submission,
   # Print summary line
   boldcolor = _c.bold if printed else ''
   print(
-      f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{final_verdict}{_c.reset}'
+      f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{final_verdict:<20}{_c.reset} @ {testcase_max_time}'
   )
 
   if printed:
