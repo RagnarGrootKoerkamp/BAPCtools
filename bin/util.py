@@ -242,9 +242,9 @@ def get_testcases(problem, needans=True, only_sample=False):
       infiles = [t.with_suffix('.in') for t in infiles]
       infiles = list(set(infiles))
     else:
-        infiles = list(glob(problem, 'data/sample/*.in'))
+        infiles = list(glob(problem, 'data/sample/**/*.in'))
         if not samplesonly:
-            infiles += list(glob(problem, 'data/secret/*.in'))
+            infiles += list(glob(problem, 'data/secret/**/*.in'))
 
     testcases = []
     for f in infiles:

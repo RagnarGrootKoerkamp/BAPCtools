@@ -597,7 +597,7 @@ def stats(problems):
       ('   Ival', ['input_validators/*']),
       ('Oval', ['output_validators/*']),
       ('   sample', 'data/sample/*.in', 2),
-      ('secret', 'data/secret/*.in', 15, 50),
+      ('secret', 'data/secret/**/*.in', 15, 50),
       ('   AC', 'submissions/accepted/*', 3),
       (' WA', 'submissions/wrong_answer/*', 2),
       ('TLE', 'submissions/time_limit_exceeded/*', 1),
@@ -851,7 +851,7 @@ def run_submission(submission,
 
     got_expected = verdict == 'ACCEPTED' or verdict == expected
     color = _c.green if got_expected else _c.red
-    print_message = config.verbose > 0 or not got_expected
+    print_message = config.verbose > 0 or (not got_expected and verdict != 'TIME_LIMIT_EXCEEDED')
     message = '{:6.3f}s '.format(runtime) + color + verdict + _c.reset
 
     # Print stderr whenever something is printed
@@ -892,7 +892,7 @@ def run_submission(submission,
       f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{final_verdict:<20}{_c.reset} @ {testcase_max_time}'
   )
 
-  if printed:
+  if config.verbose:
     print()
 
   return final_verdict == expected
