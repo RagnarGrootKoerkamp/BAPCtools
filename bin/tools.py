@@ -439,6 +439,7 @@ def validate(problem,
   bar = ProgressBar(action, max_testcase_len, len(testcases))
   for testcase in testcases:
     bar.start(print_name(testcase.with_suffix(ext)))
+
     for validator in validators:
       # simple `program < test.in` for input validation and ctd output validation
       if Path(validator[0]).suffix == '.ctd':
@@ -533,6 +534,7 @@ def validate(problem,
             testcase.rename(targetdir/testcase.name)
             ansfile=testcase.with_suffix('.ans')
             ansfile.rename(targetdir/ansfile.name)
+            break
         
         # Remove testcase if specified.
         elif validator_type == 'input' and hasattr(config.args, 'remove') and config.args.remove:
@@ -541,6 +543,7 @@ def validate(problem,
                 testcase.unlink()
             if testcase.with_suffix('.ans').exists():
                 testcase.with_suffix('.ans').unlink()
+            break
 
     bar.done()
 
