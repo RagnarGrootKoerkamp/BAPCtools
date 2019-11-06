@@ -100,7 +100,7 @@
     ]{frametitle}%
     \begin{minipage}{0.4\paperwidth}%
     \rule{0pt}{2.2ex}%
-	\ifdefempty{\problemletter}{%
+	\ifdefempty{\problemlabel}{%
 		\insertframetitle%
 	}{%
 		\fullproblemtitle %
@@ -118,16 +118,16 @@
 }
 
 \newcommand{\timelimit}{1.0s}
-\newcommand{\problemletter}{} % Empty to hide activity chart
-\newcommand{\problemtitle}{Problem name}
+\newcommand{\problemlabel}{} % Empty to hide activity chart
+\newcommand{\problemyamlname}{Problem name}
 \newcommand{\problemauthor}{Problem author}
-\newcommand{\fullproblemtitle}{\problemletter: \problemtitle}
+\newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 
 % If solve_stats/activity/A.tex exists, define the \activitychart command
 \IfFileExists{./solve_stats/activity/A.tex}{
 	\newcommand{\activitychart}{
-	  \ifdefempty{\problemletter}{}{
-		\includestandalone[width=\textwidth]{solve_stats/activity/\problemletter}
+	  \ifdefempty{\problemlabel}{}{
+		\includestandalone[width=\textwidth]{solve_stats/activity/\problemlabel}
 	  }
 	}
 }{
@@ -142,7 +142,7 @@
 
 % Define \solvestats for the current problem if the file exists.
 \IfFileExists{./solve_stats/problem_stats.tex}{
-	\newcommand{\solvestats}{\csname solvestats\problemletter \endcsname}
+	\newcommand{\solvestats}{\csname solvestats\problemlabel \endcsname}
 	\input{./solve_stats/problem_stats.tex}
 }{
 	\newcommand{\solvestats}{}

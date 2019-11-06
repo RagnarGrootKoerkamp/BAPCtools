@@ -34,6 +34,7 @@ from pathlib import Path
 
 # Local imports
 import config
+from objects import *
 import export
 import latex
 import util
@@ -42,11 +43,13 @@ from util import ProgressBar, _c, glob
 
 
 # Get the list of relevant problems.
-# Either use the provided contest, or check the existence of problem.yaml.
-# Returns problems in sorted order by probid in domjudge.ini.
+# Either use the problems.yaml, or check the existence of problem.yaml and sort
+# by shortname.
 def get_problems():
+  # TODO: Rename 'contest' to 'problemset'?
 
   def is_problem_directory(path):
+    # TODO: Simplify this when problem.yaml is required.
     return (path / 'problem.yaml').is_file() or (path /
                                                  'problem_statement').is_dir()
 
@@ -70,13 +73,38 @@ def get_problems():
 
   problems = []
   if level == 'problem':
-    problems = [Path(problem.name)]
+    # TODO: look for a problems.yaml file above here and find a letter?
+    problems = [Problem(Path(problem.name))]
   else:
     level = 'contest'
-    dirs = [p[0] for p in util.sort_problems(glob(Path('.'), '*/'))]
-    for problem in dirs:
-      if is_problem_directory(problem):
-        problems.append(problem)
+    # If problemset.yaml is available, use it.
+    problemsyaml = Path('problems.yaml')
+    if problemsyaml.is_file():
+        # TODO: Implement label default value
+        problemlist = util.read_yaml(problemsyaml)
+        assert problemlist is not None
+        labels = set()
+        nextlabel = 'A'
+        problems = []
+        for p in problemlist:
+            label = nextlabel
+            if 'label' in p: label = p['label']
+            assert label != ''
+            nextlabel = label[:-1] + chr(ord(label[-1])+1) 
+            # TODO: Print a nice error instead using some error() util.
+            assert label not in labels
+            labels.add(label)
+            problems.append(Problem(Path(p['id']), label))
+    else:
+        # Otherwise, fallback to all directories with a problem.yaml and sort by
+        # shortname.
+        # TODO: Keep this fallback?
+        label_ord = 0
+        for path in glob(Path('.'), '*/'):
+          if is_problem_directory(path):
+            label = chr(ord('A')+label_ord)
+            problems.append(Problem(path, label))
+            label_ord += 1
 
   contest = Path().cwd().name
 
@@ -287,17 +315,22 @@ def build(path):
         main_file.stem
     ]
   elif language_code == 'kt':
-    jarfile = runfile.with_suffix('.jar')
-    compile_command = ['kotlinc', '-d', jarfile, '-include-runtime', main_file]
-    run_command = [
-        'java',
-        '-enableassertions',
-        '-XX:+UseSerialGC',
-        '-Xss64M',  # Max stack size
-        '-Xms1024M',  # Initial heap size
-        '-Xmx1024M',  # Max heap size
-        '-jar', jarfile
-    ]
+    if shutil.which('kotlinc') is None:
+        run_command = None
+        config.n_error += 1
+        message = f'{_c.red}kotlinc executable not found in PATH{_c.reset}'
+    else:
+        jarfile = runfile.with_suffix('.jar')
+        compile_command = ['kotlinc', '-d', jarfile, '-include-runtime', main_file]
+        run_command = [
+            'java',
+            '-enableassertions',
+            '-XX:+UseSerialGC',
+            '-Xss64M',  # Max stack size
+            '-Xms1024M',  # Initial heap size
+            '-Xmx1024M',  # Max heap size
+            '-jar', jarfile
+        ]
   elif language_code in ['python2', 'python3', 'python', 'Python']:
     run_command = [python_interpreter(language_code), main_file]
   elif language_code == 'ctd':
@@ -594,7 +627,7 @@ def stats(problems):
       ('ini', 'domjudge-problem.ini'),
       ('tex', 'problem_statement/problem*.tex'),
       ('sol', 'problem_statement/solution.tex'),
-      ('   Ival', ['input_validators/*']),
+      ('   Ival', ['input_validators/*', 'input_format_validators/*']),
       ('Oval', ['output_validators/*']),
       ('   sample', 'data/sample/*.in', 2),
       ('secret', 'data/secret/**/*.in', 15, 50),
@@ -618,7 +651,7 @@ def stats(problems):
     if header in ['problem', 'comment']:
       width = len(header)
       for problem in problems:
-        width = max(width, len(problem.name))
+          width = max(width, len(problem.label + ' ' + problem.id))
       header_string += '{:<' + str(width) + '}'
       format_string += '{:<' + str(width) + '}'
     else:
@@ -635,7 +668,7 @@ def stats(problems):
       if type(path) is list:
         return sum(count(p) for p in path)
       cnt = 0
-      for p in glob(problem, path):
+      for p in glob(problem.path, path):
         # Exclude files containing 'TODO: Remove'.
         if p.is_file():
           with p.open() as file:
@@ -659,20 +692,19 @@ def stats(problems):
     for i in range(0, len(stats)):
       cumulative[i] = cumulative[i] + counts[i]
 
-    config = util.read_configs(problem)
     verified = False
     comment = ''
-    if 'verified' in config:
-        verified=bool(config['verified'])
-    if 'comment' in config:
-        comment = config['comment']
+    if 'verified' in problem.config:
+        verified=bool(problem.config['verified'])
+    if 'comment' in problem.config:
+        comment = problem.config['comment']
 
     if verified: comment = _c.green + comment + _c.reset
     else: comment = _c.orange + comment + _c.reset
 
     print(
         format_string.format(
-            problem.name, *[
+            problem.label + ' ' + problem.id, *[
                 get_stat(counts[i], True if len(stats[i]) <= 2 else stats[i][2],
                          None if len(stats[i]) <= 3 else stats[i][3])
                 for i in range(len(stats))
@@ -1222,8 +1254,7 @@ def generate_output(problem, settings):
 
 def print_sorted(problems):
   prefix = config.args.contest + '/' if config.args.contest else ''
-  for problem in util.sort_problems(problems):
-    print(prefix + problem[0])
+  for problem in problems: print(f'{problem.label:<2}: {problem.path}')
 
 
 """DISCLAIMER:
@@ -1251,6 +1282,9 @@ def check_constraints(problem, settings):
 
   defs_validators = []
   for validator in [vinput, voutput]:
+    if not validator.is_file():
+        print(f'{_c.red}Checking failed because {print_name(validator)} does not exist.{_c.reset}')
+        continue
     with open(validator) as file:
       for line in file:
         for r, name, v1, v2 in cpp_statement:
@@ -1754,8 +1788,10 @@ def main():
     new_problem()
     return
 
-  # Get problems and cd to contest
+  # Get problem_paths and cd to contest
+  # TODO: Migrate from plain problem paths to Problem objects.
   problems, level, contest = get_problems()
+  problem_paths = [p.path for p in problems]
 
   if level != 'problem' and action in ['generate_input', 'generate', 'test']:
     if action == 'generate_input':
@@ -1804,7 +1840,7 @@ def main():
     return
 
   if action == 'gitlabci':
-    create_gitlab_jobs(contest, problems)
+    create_gitlab_jobs(contest, problem_paths)
     return
 
   problem_zips = []
@@ -1815,10 +1851,10 @@ def main():
     if level == 'contest' and action == 'pdf' and not (hasattr(
         config.args, 'all') and config.args.all):
       continue
-    print(_c.bold, 'PROBLEM ', problem, _c.reset, sep='')
+    print(_c.bold, 'PROBLEM ', problem.path, _c.reset, sep='')
 
     # merge problem settings with arguments into one namespace
-    problemsettings = util.read_configs(problem)
+    problemsettings = problem.config
     settings = argparse.Namespace(**problemsettings)
     for key in vars(config.args):
       if vars(config.args)[key] is not None:
@@ -1833,41 +1869,41 @@ def main():
 
     input_validator_ok = False
     if action in ['validate', 'input', 'all']:
-      input_validator_ok = validate(problem, 'input', settings)
+      input_validator_ok = validate(problem.path, 'input', settings)
       success &= input_validator_ok
     if action in ['generate_input']:
-      success &= generate_input(problem, settings)
+      success &= generate_input(problem.path, settings)
     if action in ['generate']:
-      success &= generate_output(problem, settings)
+      success &= generate_output(problem.path, settings)
     if action in ['validate', 'output', 'all']:
-      success &= validate(problem, 'output', settings, input_validator_ok)
+      success &= validate(problem.path, 'output', settings, input_validator_ok)
     if action in ['run', 'all']:
-      success &= run_submissions(problem, settings)
+      success &= run_submissions(problem.path, settings)
     if action in ['test']:
-      success &= test_submissions(problem, settings)
+      success &= test_submissions(problem.path, settings)
     if action in ['constraints']:
-      success &= check_constraints(problem, settings)
+      success &= check_constraints(problem.path, settings)
     if action in ['zip']:
       # For DJ: export to A.zip
-      output = settings.probid + '.zip'
+      output = settings.label + '.zip'
       # For Kattis: export to shortname.zip
       if hasattr(config.args, 'kattis') and config.args.kattis:
-          output = problem.with_suffix('.zip')
+          output = problem.path.with_suffix('.zip')
 
       problem_zips.append(output)
       if not config.args.skip:
         success &= latex.build_problem_pdf(problem)
         if not config.args.force:
-          success &= validate(problem, 'input', settings)
-          success &= validate(problem, 'output', settings, check_constraints=True)
+          success &= validate(problem.path, 'input', settings)
+          success &= validate(problem.path, 'output', settings, check_constraints=True)
 
         # Write to problemname.zip, where we strip all non-alphanumeric from the
         # problem directory name.
-        success &= export.build_problem_zip(problem, output, settings)
+        success &= export.build_problem_zip(problem.path, output, settings)
     if action == 'kattis':
-      export.prepare_kattis_problem(problem, settings)
+      export.prepare_kattis_problem(problem.path, settings)
 
-    if len(problems) > 1:
+    if len(problem_paths) > 1:
       print()
 
   if level == 'contest':
@@ -1878,14 +1914,14 @@ def main():
       success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
 
     if action in ['solutions']:
-      success &= latex.build_contest_pdf(contest, problems, solutions=True, web=config.args.web)
+      success &= latex.build_contest_pdf(contest, problem_paths, solutions=True, web=config.args.web)
 
     if action in ['zip']:
-      success &= latex.build_contest_pdf(contest, problems)
-      success &= latex.build_contest_pdf(contest, problems, web=True)
+      success &= latex.build_contest_pdf(contest, problem_paths)
+      success &= latex.build_contest_pdf(contest, problem_paths, web=True)
       if not config.args.no_solutions:
-        success &= latex.build_contest_pdf(contest, problems, solutions=True)
-        success &= latex.build_contest_pdf(contest, problems, solutions=True, web=True)
+        success &= latex.build_contest_pdf(contest, problem_paths, solutions=True)
+        success &= latex.build_contest_pdf(contest, problem_paths, solutions=True, web=True)
 
       outfile = contest + '.zip'
       if config.args.kattis: outfile = contest + '-kattis.zip'

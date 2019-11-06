@@ -133,81 +133,12 @@ def read_yaml(path):
   settings = {}
   if path.is_file():
     with path.open() as yamlfile:
-      try:
-        config = yaml.safe_load(yamlfile)
-        for key, value in config.items():
-          settings[key] = '' if value is None else value
-      except:
-        pass
+      config = yaml.safe_load(yamlfile)
+      if config is None: return None
+      if isinstance(config, list): return config
+      for key, value in config.items():
+        settings[key] = '' if value is None else value
   return settings
-
-
-def read_configs(problem):
-    # some defaults
-    settings = {
-        'probid': 'A',
-        'timelimit': 1,
-        'name': '',
-        'floatabs': None,
-        'floatrel': None,
-        'validation': 'default',
-        'case_sensitive': False,
-        'space_change_sensitive': False,
-        'validator_flags': None
-    }
-
-    # parse problem.yaml
-    yamlpath = problem / 'problem.yaml'
-    for k, v in read_yaml(problem / 'problem.yaml').items():
-        settings[k] = v
-
-    # parse validator_flags
-    if 'validator_flags' in settings and settings['validator_flags']:
-        flags = settings['validator_flags'].split(' ')
-        i = 0
-        while i < len(flags):
-            if flags[i] in ['case_sensitive', 'space_change_sensitive']:
-                settings[flags[i]] = True
-            elif flags[i] == 'float_absolute_tolerance':
-                settings['floatabs'] = float(flags[i + 1])
-                i += 1
-            elif flags[i] == 'float_relative_tolerance':
-                settings['floatrel'] = float(flags[i + 1])
-                i += 1
-            elif flags[i] == 'float_tolerance':
-                settings['floatabs'] = float(flags[i + 1])
-                settings['floatrel'] = float(flags[i + 1])
-                i += 1
-            i += 1
-
-    # parse domjudge-problem.ini
-    domjudge_path = problem / 'domjudge-problem.ini'
-    if domjudge_path.is_file():
-        with domjudge_path.open() as f:
-            for line in f.readlines():
-                key, var = line.strip().split('=')
-                var = var[1:-1]
-                settings[key] = float(var) if key == 'timelimit' else var
-
-    return settings
-
-
-# TODO: Make this return [(problem, config)] only.
-# sort problems by the id in domjudge-problem.ini, and secondary by name
-# return [(problem, id, config)]
-def sort_problems(problems):
-    configs = [(problem, read_configs(problem)) for problem in problems]
-    problems = [(pair[0], pair[1]['probid'], pair[1]) for pair in configs if 'probid' in pair[1]]
-
-    if hasattr(config.args, 'order') and config.args.order is not None:
-        # Sort by position of id in order
-        def get_pos(id):
-            if id in config.args.order: return config.args.order.index(id)
-            else: return len(config.args.order)+1
-        problems.sort(key=lambda x: (get_pos(x[1]), x[0]))
-    else:
-        problems.sort(key=lambda x: (x[1], x[0]))
-    return problems
 
 
 def is_hidden(path):

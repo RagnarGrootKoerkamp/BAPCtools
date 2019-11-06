@@ -16,14 +16,14 @@ def build_samples_zip(problems):
     zf = zipfile.ZipFile(
         'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
-    for problem in util.sort_problems(problems):
-        letter = problem[1]
-        problem = problem[0]
-        samples = util.get_testcases(problem, needans=True, only_sample=True)
+    for problem in problems:
+        samples = util.get_testcases(problem.path, needans=True, only_sample=True)
+        sampledir = Path(problem.label)
         for i in range(0, len(samples)):
             sample = samples[i]
-            zf.write(sample.with_suffix('.in'), os.path.join(letter, str(i+1)) + '.in')
-            zf.write(sample.with_suffix('.ans'), os.path.join(letter, str(i+1)) + '.ans')
+            basename = sampledir / str(i+1)
+            zf.write(sample.with_suffix('.in'), basename.with_suffix('.in'))
+            zf.write(sample.with_suffix('.ans'), basename.with_suffix('.ans'))
 
     zf.close()
     print("Wrote zip to samples.zip")

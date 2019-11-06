@@ -73,7 +73,7 @@
 % Creating a new list for the problems (instead of using the tableofcontents)
 % turned out to be a lot easier in terms of custom formatting.
 %-------------------------------------------------------------------------------
-\renewcommand{\thesection}{\Alph{section}}
+\renewcommand{\thesection}{\problemlabel}
 \newlistof{listofproblems}{lop}{Problems}
 \newcounter{SampleCount}
 \renewcommand{\printloptitle}[1]{
@@ -90,15 +90,15 @@
 \renewcommand{\afterloptitle}{\thispagestyle{empty}\afterchaptertitle}
 
 \newcommand{\timelimit}{TIMELIMIT MISSING}
-\newcommand{\problemletter}{} % Empty to hide activity chart
-\newcommand{\problemtitle}{Problem name}
+\newcommand{\problemlabel}{} % Empty to hide activity chart
+\newcommand{\problemyamlname}{Problem name}
 \newcommand{\problemauthor}{Problem author}
-\newcommand{\fullproblemtitle}{\problemletter: \problemtitle}
+\newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 
 \newcommand{\problemname}[1]{
 	\ThisIsNotABlankPage
 	\ifblank{#1}{
-		\section{\problemtitle}
+		\section{\problemyamlname}
 	}{
 		\section{#1}
 	}
@@ -106,7 +106,7 @@
 	\hfill
 	\ifdefempty{\timelimit}{}{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}
 	\ifblank{#1}{
-		\outline[]{1}[\thesection]{\problemtitle}
+		\outline[]{1}[\thesection]{\problemyamlname}
 	}{
 		\outline[]{1}[\thesection]{#1}
 	}
@@ -121,7 +121,7 @@
 		\eqmakebox[letter][c]{\thesection}
 		\quad
 		\ifblank{#1}{
-			\eqmakebox[titel][l]{\problemtitle}
+			\eqmakebox[titel][l]{\problemyamlname}
 		}{
 			\eqmakebox[titel][l]{#1}
 		}

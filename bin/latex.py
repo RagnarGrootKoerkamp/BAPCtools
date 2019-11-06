@@ -101,11 +101,11 @@ def create_samples_file(problem):
 
 # Steps needed for both problem and contest compilation.
 def prepare_problem(problem):
-    builddir = config.tmpdir / problem
+    builddir = config.tmpdir / problem.id
     builddir.mkdir(exist_ok=True)
-    ensure_symlink(builddir / 'statement', problem / 'problem_statement')
+    ensure_symlink(builddir / 'problem_statement', problem.path / 'problem_statement')
 
-    create_samples_file(problem)
+    create_samples_file(problem.path)
 
 
 def get_tl(problem_config):
@@ -125,29 +125,25 @@ def get_tl(problem_config):
 
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/problem.tex,
 # substituting variables.
-# 2. Link tmpdir/<problem>/statement to the problem statement directory.
+# 2. Link tmpdir/<problem>/problem_statement to the problem problem_statement directory.
 # 3. Link bapc.cls
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run pdflatex and link the resulting problem.pdf into the problem directory.
 def build_problem_pdf(problem):
     prepare_problem(problem)
 
-    builddir = config.tmpdir / problem
-    problem_config = util.read_configs(problem)
-    problemid = ord(problem_config['probid']) - ord('A')
+    builddir = config.tmpdir / problem.id
 
     util.copy_and_substitute(config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
-        'problemid': problemid,
-        'problemletter': problem_config['probid'],
-        'problemtitle': problem_config['name'],
-        'problemauthor': problem_config['author'],
-        'timelimit': get_tl(problem_config),
-        'problemdir': config.tmpdir / problem,
+        'problemlabel': problem.label,
+        'problemyamlname': problem.config['name'],
+        'problemauthor': problem.config['author'],
+        'timelimit': get_tl(problem.config),
+        'problemdir': builddir,
     })
 
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
-    builddir = config.tmpdir / problem
     for i in range(3):
         ok, err, out = util.exec_command(
             PDFLATEX + ['-output-directory', builddir, builddir / 'problem.tex'],
@@ -160,7 +156,7 @@ def build_problem_pdf(problem):
             return False
 
     # link the output pdf
-    output_pdf = problem / 'problem.pdf'
+    output_pdf = problem.path / 'problem.pdf'
     ensure_symlink(output_pdf, builddir / 'problem.pdf', True)
 
     print(f'{_c.green}Pdf written to {output_pdf}{_c.reset}')
@@ -214,29 +210,16 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     per_problem_data = (config.tools_root / 'latex' / f'contest-{build_type}.tex').read_text()
 
     # Some logic to prevent duplicate problem IDs.
-    seen = set()
-    next_spare = 0
-    for problem, _, problem_config in util.sort_problems(problems):
+    for problem in problems:
         prepare_problem(problem)
-        problemid = ord(problem_config['probid']) - ord('A')
         id_ok = True
-        while problemid in seen:
-            problemid = next_spare
-            next_spare += 1
-            id_ok = False
-        if not id_ok:
-            print(
-                f"{_c.red}Problem {problem} has id {problem_config['probid']} which was already used before. Using {chr(ord('A')+problemid)} instead.{_c.reset}"
-            )
-        seen.add(problemid)
 
         problems_data += util.substitute(per_problem_data, {
-            'problemid': problemid,
-            'problemletter': problem_config['probid'],
-            'problemtitle': problem_config['name'],
-            'problemauthor': problem_config['author'],
-            'timelimit': get_tl(problem_config),
-            'problemdir': config.tmpdir / problem,
+            'problemlabel': problem.label,
+            'problemyamlname': problem.config['name'],
+            'problemauthor': problem.config['author'],
+            'timelimit': get_tl(problem.config),
+            'problemdir': config.tmpdir / problem.id,
         })
 
     # include a statistics slide in the solutions PDF

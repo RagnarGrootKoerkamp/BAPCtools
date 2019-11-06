@@ -1,13 +1,11 @@
 \documentclass{bapc}
 \begin{document}
-\begingroup\graphicspath{{{%problemdir%}/statement}}
-	\setcounter{section}{{%problemid%}}
-	\renewcommand{\problemletter}{{%problemletter%}}
-	\renewcommand{\problemtitle}{{%problemtitle%}}
+\begingroup\graphicspath{{{%problemdir%}/problem_statement/}}
+	\renewcommand{\problemlabel}{{%problemlabel%}}
+	\renewcommand{\problemyamlname}{{%problemyamlname%}}
 	\renewcommand{\problemauthor}{{%problemauthor%}}
 	\renewcommand{\timelimit}{{%timelimit%}}
-	\input{{%problemdir%}/statement/problem.en.tex}
+	\input{{%problemdir%}/problem_statement/problem.en.tex}
 	\input{{%problemdir%}/samples.tex}
-	\renewcommand{\problemletter}{}
 \endgroup
 \end{document}
