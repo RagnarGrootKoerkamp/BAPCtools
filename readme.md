@@ -6,7 +6,11 @@ It aims to implement the entire spec, but some parts may not yet work.
 
 The aim of this tool is to run all necessary compilation, validation, and
 testing commands while working on an ICPC-style problem.
- Ideally I should never have to manually run any compilation or testing command myself.
+Ideally I should never have to manually run any compilation or testing command myself.
+
+I'm interested to know who's using this, so feel free to inform me (e.g. via an issue) if so ;)
+The current state is relatively stable, but things do change from time to
+time since I'm not aware of usage outside of BAPC yet.
 
 ## Installation
 
