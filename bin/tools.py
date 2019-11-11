@@ -255,6 +255,9 @@ def build(path):
     if e in ['.ctd']:
       lang = 'ctd'
       main = True
+    if e in ['.viva']:
+      lang = 'viva'
+      main = True
 
     if language_code is not None and lang is not None and lang != language_code:
       config.n_error += 1
@@ -341,6 +344,14 @@ def build(path):
         message = f'{_c.red}checktestdata executable not found in PATH{_c.reset}'
     else:
       run_command = [ctd_executable, main_file]
+  elif language_code == 'viva':
+    viva_jar = config.tools_root / 'support/viva/viva.jar'
+    if not viva_jar.is_file():
+        run_command = None
+        config.n_error += 1
+        message = f'{_c.red}viva.jar not found{_c.reset}'
+    else:
+      run_command = ['java', '-jar', viva_jar, main_file]
   else:
     config.n_error += 1
     return (None,
@@ -482,6 +493,15 @@ def validate(problem,
             # is a bit annoying.
             expect=0,
             stdin=testcase.with_suffix(ext).open())
+      elif Path(validator[0]).suffix == '.viva':
+        ok, err, out = util.exec_command(
+            validator[1] + flags + [testcase.with_suffix(ext)],
+            # TODO: Can we make this more generic? VIVA returning 0 instead of 42
+            # is a bit annoying.
+            expect=0)
+        # Slightly hacky: CTD prints testcase errors on stderr while VIVA prints
+        # them on stdout.
+        err = out
       elif validator_type == 'input':
         constraints_file = config.tmpdir / 'constraints'
         if constraints_file.is_file():
@@ -538,7 +558,7 @@ def validate(problem,
         success = False
 
 
-      # Print stderr whenever something is printed
+      # Print stdout and stderr whenever something is printed
       if err:
         prefix = '  '
         if err.count('\n') > 1:
