@@ -411,10 +411,27 @@ def print_name(path, keep_type=False):
   return str(Path(*path.parts[1 if keep_type else 2:]))
 
 
-def get_validators(problem, validator_type):
+# If check_constraints is True, this chooses the first validator that matches
+# contains 'constraints_file' in its source.
+def get_validators(problem, validator_type, check_constraints=False):
   files = (
       glob(problem / (validator_type + '_validators'), '*') +
       glob(problem / (validator_type + '_format_validators'), '*'))
+
+  def has_constraints_checking(f): return 'constraints_file' in f.read_text()
+
+  if check_constraints:
+      for f in files:
+          if f.is_file(): sources = [f]
+          elif f.is_dir(): sources = glob(f, '**/*')
+          has_constraints = False
+          for s in sources:
+              if has_constraints_checking(s):
+                  has_constraints = True
+                  break
+          if has_constraints:
+              files = [f]
+              break
 
   if hasattr(config.args, 'validator') and config.args.validator:
       files = [problem/config.args.validator]
@@ -456,7 +473,10 @@ def validate(problem,
           config.args.cpp_flags = ''
       config.args.cpp_flags += ' -Duse_source_location'
 
-  validators = get_validators(problem, validator_type)
+      validators = get_validators(problem, validator_type, check_constraints=True)
+  else:
+    validators = get_validators(problem, validator_type)
+
   if len(validators) == 0:
     return False
 
@@ -519,8 +539,14 @@ def validate(problem,
             loc, has_low, has_high, vmin, vmax, low, high = line.split()
             has_low = bool(int(has_low))
             has_high = bool(int(has_high))
-            vmin = int(vmin)
-            vmax = int(vmax)
+            try:
+                vmin = int(vmin)
+            except:
+                vmin = float(vmin)
+            try:
+                vmax = int(vmax)
+            except:
+                vmax = float(vmax)
             if loc in constraints:
               c = constraints[loc]
               has_low |= c[0]
@@ -601,7 +627,7 @@ def validate(problem,
     bar.done()
 
   # Make sure all constraints are satisfied.
-  for loc, value in constraints.items():
+  for loc, value in sorted(constraints.items()):
     loc = Path(loc).name
     has_low, has_high, vmin, vmax, low, high = value
     if not has_low:
@@ -1288,7 +1314,7 @@ def print_sorted(problems):
 def check_constraints(problem, settings):
   validate(problem, 'input', settings, check_constraints=True)
 
-  vinput = problem / 'input_validators/input_validator/input_validator.cpp'
+  vinput = problem / 'input_format_validators/input_validator/input_validator.cpp'
   voutput = problem / 'output_validators/output_validator/output_validator.cpp'
 
   cpp_statement = [
@@ -1303,7 +1329,7 @@ def check_constraints(problem, settings):
   defs_validators = []
   for validator in [vinput, voutput]:
     if not validator.is_file():
-        print(f'{_c.red}Checking failed because {print_name(validator)} does not exist.{_c.reset}')
+        print(f'{_c.orange}{print_name(validator)} does not exist.{_c.reset}')
         continue
     with open(validator) as file:
       for line in file:
