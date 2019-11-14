@@ -55,6 +55,7 @@ The most important subcommands it supports are (see `--help` for a few more and 
 * `test`: Run a single submissions against the given testcases and print the
   output (instead of validating it).
 * `validate`, `input`, `output`: Validate input and/or output data files using a small c++-library.
+	* Viva is supported.
 	* CheckTestdata is also supported when found in the Path.
 * `generate`: Use a submission to create `.ans` files for all `.in` files.
 * `generate_input`: Use an input validator to generate random `.in` files.
@@ -132,6 +133,7 @@ Validators can be one of
  - a c++ program,
  - a .ctd CheckTestData file (this needs the `checktestdata` executable in the
    PATH).
+- a .viva file.
 
 See the Notes on Validation section further down for more info.
 
