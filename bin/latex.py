@@ -137,7 +137,7 @@ def build_problem_pdf(problem):
     util.copy_and_substitute(config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
         'problemlabel': problem.label,
         'problemyamlname': problem.config['name'],
-        'problemauthor': problem.config['author'],
+        'problemauthor': problem.config.get('author'),
         'timelimit': get_tl(problem.config),
         'problemdir': builddir,
     })
@@ -217,7 +217,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
         problems_data += util.substitute(per_problem_data, {
             'problemlabel': problem.label,
             'problemyamlname': problem.config['name'],
-            'problemauthor': problem.config['author'],
+            'problemauthor': problem.config.get('author'),
             'timelimit': get_tl(problem.config),
             'problemdir': config.tmpdir / problem.id,
         })

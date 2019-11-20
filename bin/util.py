@@ -47,6 +47,16 @@ class Colorcodes(object):
 _c = Colorcodes()
 
 
+def warn(msg):
+    print(_c.orange + msg + _c.reset)
+    config.n_warn += 1
+
+
+def error(msg):
+    print(_c.red + msg + _c.reset)
+    config.n_error += 1
+
+
 # A class that draws a progressbar.
 # Construct with a constant prefix, the max length of the items to process, and
 # the number of items to process.
@@ -201,8 +211,9 @@ def strip_newline(s):
 
 def substitute(data, variables):
     for key in variables:
-        if variables[key] == None: continue
-        data = data.replace('{%' + key + '%}', str(variables[key]))
+        r = ''
+        if variables[key] != None: r = variables[key]
+        data = data.replace('{%' + key + '%}', str(r))
     return data
 
 
@@ -270,8 +281,11 @@ def exec_command(command, expect=0, crop=True, **kwargs):
             hard_timeout = timeout + 1
 
     memory_limit = 1000000000 # 1GB
-    if hasattr(config.args, 'memory') and config.args.memory:
-        memory_limit = int(config.args.memory)
+    if hasattr(config.args, 'memory'):
+        if config.args.memory and config.args.memory != 'unlimited':
+            memory_limit = int(config.args.memory)
+        else:
+            memory_limit = None
     if 'memory' in kwargs:
         memory_limit = kwargs['memory']
         kwargs.pop('memory')

@@ -1,10 +1,10 @@
 name: {%problemname%}
 author: {%author%}
+# BAPC 2020
 source: {%source%}
+# 2020.bapc.eu
 source_url: {%source_url%}
-# 'cc by-sa' by default
 license: {%license%}
-# 'author' by default
 rights_owner: {%rights_owner%}
 # 'default' or 'custom'
 validation: {%validation%}

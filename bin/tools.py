@@ -1500,6 +1500,10 @@ def new_problem():
   util.substitute_dir_variables(Path(dirname), variables)
 
 
+def new_cfp_problem(name):
+  shutil.copytree(config.tools_root / 'skel/problem_cfp', name, symlinks=True)
+
+
 def create_gitlab_jobs(contest, problems):
 
   def problem_source_dir(problem):
@@ -1603,6 +1607,14 @@ Run this from one of:
       '--default_validation',
       action='store_true',
       help='Use default validation for this problem.')
+
+  # New CfP problem
+  cfpproblemparser = subparsers.add_parser(
+      'cfp_problem',
+      help='Stub for minimal cfp problem.')
+  cfpproblemparser.add_argument('shortname',
+          action='store',
+          help='The shortname/directory name of the problem.')
 
   # Problem statements
   pdfparser = subparsers.add_parser(
@@ -1832,6 +1844,10 @@ def main():
 
   if action in ['problem']:
     new_problem()
+    return
+
+  if action in ['cfp_problem']:
+    new_cfp_problem(config.args.shortname)
     return
 
   # Get problem_paths and cd to contest
