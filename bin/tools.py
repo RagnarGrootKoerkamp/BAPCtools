@@ -1130,7 +1130,7 @@ def test_submissions(problem, settings):
   return True
 
 
-def generate_input(problem, settings):
+def generate_random_input(problem, settings):
   # Find the right validator
   validators = get_validators(problem, 'input')
   if len(validators) == 0:
@@ -1190,7 +1190,7 @@ def generate_input(problem, settings):
   return nskip == 0 and nfail == 0
 
 
-def generate_output(problem, settings):
+def generate_answer(problem, settings):
   if hasattr(settings, 'submission') and settings.submission:
     submission = problem / settings.submission
   else:
@@ -1685,7 +1685,7 @@ Run this from one of:
 
   # Generate Input
   inputgenparser = subparsers.add_parser(
-      'generate_input', parents=[global_parser], help='generate  testcases')
+      'generate_random_input', parents=[global_parser], help='generate random testcases usinginput validator')
   inputgenparser.add_argument(
       '-f',
       '--force',
@@ -1711,7 +1711,7 @@ Run this from one of:
 
   # Generate Output
   genparser = subparsers.add_parser(
-      'generate', parents=[global_parser], help='generate answers testcases')
+      'generate_ans', parents=[global_parser], help='generate answers testcases')
   genparser.add_argument(
       '-f',
       '--force',
@@ -1855,12 +1855,12 @@ def main():
   problems, level, contest = get_problems()
   problem_paths = [p.path for p in problems]
 
-  if level != 'problem' and action in ['generate_input', 'generate', 'test']:
-    if action == 'generate_input':
+  if level != 'problem' and action in ['generate_random_input', 'generate_ans', 'test']:
+    if action == 'generate_random_input':
       print(
           f'{_c.red}Generating testcases only works for a single problem.{_c.reset}'
       )
-    if action == 'generate':
+    if action == 'generate_ans':
       print(
           f'{_c.red}Generating output files only works for a single problem.{_c.reset}'
       )
@@ -1933,10 +1933,10 @@ def main():
     if action in ['validate', 'input', 'all']:
       input_validator_ok = validate(problem.path, 'input', settings)
       success &= input_validator_ok
-    if action in ['generate_input']:
-      success &= generate_input(problem.path, settings)
-    if action in ['generate']:
-      success &= generate_output(problem.path, settings)
+    if action in ['generate_random_input']:
+      success &= generate_random_input(problem.path, settings)
+    if action in ['generate_ans']:
+      success &= generate_answer(problem.path, settings)
     if action in ['validate', 'output', 'all']:
       success &= validate(problem.path, 'output', settings, input_validator_ok)
     if action in ['run', 'all']:
@@ -1965,7 +1965,7 @@ def main():
     if action == 'kattis':
       export.prepare_kattis_problem(problem.path, settings)
 
-    if len(problem_paths) > 1:
+    if len(problems) > 1:
       print()
 
   if level == 'contest':
