@@ -1,5 +1,16 @@
-Please give a brief overview of your problem:
-- Succinct problem statement.
-- Brief explanation of solution(s).
-- Expected difficulty (0%: everybody solves, 100%: nobody solves)
-- Possible pitfalls.
+# Problem:
+
+Print the perimeter of a square with a given area $a$.
+
+
+## Solution and analysis:
+
+A square with area $a$ has a side length of $\sqrt a$. A square has 4 sides so
+the total perimeter is $4\sqrt a$.
+
+One potential issue is that teams might not print sufficiently many digits.
+
+
+## Difficulty:
+(0%: everybody solves the problem, 99%: 1 team solves the problem)
+5%: I think that 5% of BAPC teams will *not* solve this.

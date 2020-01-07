@@ -1,2 +1,7 @@
-Please include your name and email address.
-Also, briefly list your experience with programming contests, either as participant or jury member.
+name: Your name
+email: your@email.address
+
+Relevant experience:
+- e.g. BAPC participant in year
+- also coach/organiser/jury/... roles
+
