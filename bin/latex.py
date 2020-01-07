@@ -111,7 +111,7 @@ def prepare_problem(problem):
 def get_tl(problem_config):
     tl = problem_config['timelimit']
     tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
-    
+
     print_tl = True
     if 'print_timelimit' in problem_config:
         print_tl = problem_config['print_timelimit']
@@ -134,23 +134,24 @@ def build_problem_pdf(problem):
 
     builddir = config.tmpdir / problem.id
 
-    util.copy_and_substitute(config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
-        'problemlabel': problem.label,
-        'problemyamlname': problem.config['name'],
-        'problemauthor': problem.config.get('author'),
-        'timelimit': get_tl(problem.config),
-        'problemdir': builddir,
-    })
+    util.copy_and_substitute(
+        config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
+            'problemlabel': problem.label,
+            'problemyamlname': problem.config['name'],
+            'problemauthor': problem.config.get('author'),
+            'timelimit': get_tl(problem.config),
+            'problemdir': builddir,
+        })
 
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
     for i in range(3):
         ok, err, out = util.exec_command(
             PDFLATEX + ['-output-directory', builddir, builddir / 'problem.tex'],
-            0, False,
+            0,
+            False,
             cwd=builddir,
-            stdout=subprocess.PIPE
-            )
+            stdout=subprocess.PIPE)
         if ok is not True:
             print(f'{_c.red}Failure compiling pdf:{_c.reset}\n{out}')
             return False
@@ -183,14 +184,16 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     main_file += '-web.tex' if web else '.tex'
 
     if solutions:
-        ensure_symlink(builddir / 'solutions-base.tex', config.tools_root / 'latex/solutions-base.tex')
+        ensure_symlink(builddir / 'solutions-base.tex',
+                       config.tools_root / 'latex/solutions-base.tex')
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
     ensure_symlink(builddir / 'images', config.tools_root / 'latex/images')
     ensure_symlink(builddir / main_file, config.tools_root / 'latex' / main_file)
     config_data = util.read_yaml(Path('contest.yaml'))
-    config_data['testsession'] = '\\testsession' if hasattr(config_data, 'testsession') and config_data['testsession'] else ''
+    config_data['testsession'] = '\\testsession' if hasattr(
+        config_data, 'testsession') and config_data['testsession'] else ''
     util.copy_and_substitute(config.tools_root / 'latex/contest-data.tex',
-            builddir / 'contest_data.tex', config_data)
+                             builddir / 'contest_data.tex', config_data)
 
     ensure_symlink(builddir / 'logo.pdf', find_logo())
 
@@ -200,7 +203,6 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     solve_stats = Path('solve_stats')
     if solve_stats.exists():
         ensure_symlink(builddir / 'solve_stats', solve_stats)
-
 
     # include a header slide in the solutions PDF
     headertex = Path('solution_header.tex')
@@ -214,13 +216,14 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
         prepare_problem(problem)
         id_ok = True
 
-        problems_data += util.substitute(per_problem_data, {
-            'problemlabel': problem.label,
-            'problemyamlname': problem.config['name'],
-            'problemauthor': problem.config.get('author'),
-            'timelimit': get_tl(problem.config),
-            'problemdir': config.tmpdir / problem.id,
-        })
+        problems_data += util.substitute(
+            per_problem_data, {
+                'problemlabel': problem.label,
+                'problemyamlname': problem.config['name'],
+                'problemauthor': problem.config.get('author'),
+                'timelimit': get_tl(problem.config),
+                'problemdir': config.tmpdir / problem.id,
+            })
 
     # include a statistics slide in the solutions PDF
     footer_tex = Path('solution_footer.tex')
@@ -232,10 +235,10 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     for i in range(3):
         ok, err, out = util.exec_command(
             PDFLATEX + ['-output-directory', builddir, (builddir / main_file).with_suffix('.tex')],
-            0, False,
+            0,
+            False,
             cwd=builddir,
-            stdout=subprocess.PIPE
-            )
+            stdout=subprocess.PIPE)
         if ok is not True:
             print(f'{_c.red}Failure compiling pdf:{_c.reset}\n{out}')
             return False

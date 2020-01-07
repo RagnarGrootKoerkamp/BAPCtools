@@ -13,15 +13,17 @@ from pathlib import Path
 
 
 def build_samples_zip(problems):
-    zf = zipfile.ZipFile(
-        'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
+    zf = zipfile.ZipFile('samples.zip',
+                         mode="w",
+                         compression=zipfile.ZIP_DEFLATED,
+                         allowZip64=False)
 
     for problem in problems:
         samples = util.get_testcases(problem.path, needans=True, only_sample=True)
         sampledir = Path(problem.label)
         for i in range(0, len(samples)):
             sample = samples[i]
-            basename = sampledir / str(i+1)
+            basename = sampledir / str(i + 1)
             zf.write(sample.with_suffix('.in'), basename.with_suffix('.in'))
             zf.write(sample.with_suffix('.ans'), basename.with_suffix('.ans'))
 
@@ -68,7 +70,6 @@ def build_problem_zip(problem, output, settings):
             out = Path(str(f).replace('input_validators', 'input_format_validators'))
             copyfiles.append((f, out.relative_to(Path(problem))))
 
-
     # Build .ZIP file.
     print("writing ZIP file:", output)
 
@@ -85,9 +86,7 @@ def build_problem_zip(problem, output, settings):
         if isinstance(fname, tuple):
             source = fname[0]
             target = fname[1]
-        zf.write(
-            source, target,
-            compress_type=zipfile.ZIP_DEFLATED)
+        zf.write(source, target, compress_type=zipfile.ZIP_DEFLATED)
 
     # Done.
     zf.close()
@@ -114,8 +113,10 @@ def build_contest_zip(problems, zipfiles, outfile, args):
     if not args.kattis:
         build_samples_zip(problems)
 
-        for fname in ['contest.pdf', 'contest-web.pdf', 'solutions.pdf',
-                'solutions-web.pdf', 'samples.zip']:
+        for fname in [
+                'contest.pdf', 'contest-web.pdf', 'solutions.pdf', 'solutions-web.pdf',
+                'samples.zip'
+        ]:
             if Path(fname).is_file():
                 zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 
@@ -123,5 +124,3 @@ def build_contest_zip(problems, zipfiles, outfile, args):
     print()
 
     zf.close()
-
-

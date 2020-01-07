@@ -8,7 +8,7 @@ class Problem:
     _shortname_regex_string = '^[a-z0-9]+$'
     _shortname_regex = re.compile(_shortname_regex_string)
 
-    def __init__(self, path, label = 'A'):
+    def __init__(self, path, label='A'):
         # The problem id (shortname). This is also the name of the problem directory.
         self.id = path.resolve().name
         # The label for the problem: A, B, A1, A2, X, ...
@@ -21,8 +21,9 @@ class Problem:
         # TODO: transform this into nice warnings
         assert path.is_dir()
         if not Problem._shortname_regex.match(self.id):
-            util.warn(f'Problem has a bad shortname: {self.id} does not match {self._shortname_regex_string}')
-
+            util.warn(
+                f'Problem has a bad shortname: {self.id} does not match {self._shortname_regex_string}'
+            )
 
     def _read_configs(problem):
         # some defaults

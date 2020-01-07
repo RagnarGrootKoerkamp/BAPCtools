@@ -7,7 +7,7 @@ import util
 def quick_diff(ans, out):
     if ans.count('\n') <= 1 and out.count('\n') <= 1:
         return util.crop_output('Got ' + util.strip_newline(out) + ' wanted ' +
-                util.strip_newline(ans))
+                                util.strip_newline(ans))
     else:
         return ''
 
@@ -99,10 +99,10 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     for output_validator in output_validators:
         header = output_validator[0] + ': ' if len(output_validators) > 1 else ''
         with open(outfile, 'r') as outf:
-            judgepath = config.tmpdir/'judge'
+            judgepath = config.tmpdir / 'judge'
             judgepath.mkdir(parents=True, exist_ok=True)
-            judgemessage = judgepath/'judgemessage.txt'
-            judgeerror = judgepath/'judgeerror.txt'
+            judgemessage = judgepath / 'judgemessage.txt'
+            judgeerror = judgepath / 'judgeerror.txt'
             val_ok, err, out = util.exec_command(
                 output_validator[1] +
                 [testcase.with_suffix('.in'),

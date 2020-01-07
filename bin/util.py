@@ -8,11 +8,14 @@ import sys
 import os
 from pathlib import Path
 
+
 def is_windows():
-    return sys.platform in [ 'win32', 'cygwin' ]
+    return sys.platform in ['win32', 'cygwin']
+
 
 if not is_windows():
     import resource
+
 
 # color printing
 class Colorcodes(object):
@@ -44,6 +47,7 @@ class Colorcodes(object):
             self.boldorange = ''
             self.boldred = ''
 
+
 _c = Colorcodes()
 
 
@@ -74,6 +78,7 @@ class ProgressBar:
 
     def total_width(self):
         return shutil.get_terminal_size().columns
+
     def bar_width(self):
         if self.item_width is None: return None
         return self.total_width() - len(self.prefix) - 2 - self.item_width - 1
@@ -95,8 +100,7 @@ class ProgressBar:
         return s
 
     def get_prefix(self):
-        return ProgressBar.action(self.prefix, self.item, self.item_width,
-                self.total_width())
+        return ProgressBar.action(self.prefix, self.item, self.item_width, self.total_width())
 
     def get_bar(self):
         bar_width = self.bar_width()
@@ -140,15 +144,15 @@ class ProgressBar:
 
 
 def read_yaml(path):
-  settings = {}
-  if path.is_file():
-    with path.open() as yamlfile:
-      config = yaml.safe_load(yamlfile)
-      if config is None: return None
-      if isinstance(config, list): return config
-      for key, value in config.items():
-        settings[key] = '' if value is None else value
-  return settings
+    settings = {}
+    if path.is_file():
+        with path.open() as yamlfile:
+            config = yaml.safe_load(yamlfile)
+            if config is None: return None
+            if isinstance(config, list): return config
+            for key, value in config.items():
+                settings[key] = '' if value is None else value
+    return settings
 
 
 def is_hidden(path):
@@ -169,19 +173,21 @@ def get_testcases(problem, needans=True, only_sample=False):
     samplesonly = only_sample or hasattr(config.args, 'samples') and config.args.samples
     infiles = None
     if hasattr(config.args, 'testcases') and config.args.testcases:
-      if samplesonly:
-        config.n_warn += 1
-        print(f'{_c.red}Ignoring the --samples flag because testcases are explicitly listed.{_c.reset}')
-      # Deduplicate testcases with both .in and .ans.
-      infiles = []
-      for t in config.args.testcases:
-          if Path(problem / t).is_dir():
-            infiles += glob(Path(problem / t), '**/*.in')
-          else:
-            infiles.append(Path(problem / t))
+        if samplesonly:
+            config.n_warn += 1
+            print(
+                f'{_c.red}Ignoring the --samples flag because testcases are explicitly listed.{_c.reset}'
+            )
+        # Deduplicate testcases with both .in and .ans.
+        infiles = []
+        for t in config.args.testcases:
+            if Path(problem / t).is_dir():
+                infiles += glob(Path(problem / t), '**/*.in')
+            else:
+                infiles.append(Path(problem / t))
 
-      infiles = [t.with_suffix('.in') for t in infiles]
-      infiles = list(set(infiles))
+        infiles = [t.with_suffix('.in') for t in infiles]
+        infiles = list(set(infiles))
     else:
         infiles = list(glob(problem, 'data/sample/**/*.in'))
         if not samplesonly:
@@ -273,14 +279,14 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         print(command, kwargs)
 
     timeout = None
-    hard_timeout = 60 # Kill a program after 60s cpu time
+    hard_timeout = 60  # Kill a program after 60s cpu time
     if 'timeout' in kwargs:
         timeout = kwargs['timeout']
         kwargs.pop('timeout')
         if timeout is not None:
             hard_timeout = timeout + 1
 
-    memory_limit = 1000000000 # 1GB
+    memory_limit = 1000000000  # 1GB
     if hasattr(config.args, 'memory'):
         if config.args.memory and config.args.memory != 'unlimited':
             memory_limit = int(config.args.memory)
@@ -298,7 +304,8 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         resource.setrlimit(resource.RLIMIT_CPU, (hard_timeout, hard_timeout))
         # Increase the max stack size from default to the max available.
         if sys.platform != 'darwin':
-            resource.setrlimit(resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+            resource.setrlimit(resource.RLIMIT_STACK,
+                               (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
         if memory_limit:
             resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
