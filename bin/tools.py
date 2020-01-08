@@ -15,6 +15,7 @@ Bommel.
 """
 
 import sys
+import shlex
 import stat
 import hashlib
 import argparse
@@ -1117,6 +1118,158 @@ def test_submissions(problem, settings):
     return True
 
 
+# Run generators according to the .gen files.
+def generate(problem, settings):
+    genfiles = util.get_genfiles(problem)
+
+    # TODO: Consider using MAKEFILE instead of build for more targeted+efficient builds.
+    # If build or run present, use them:
+    buildfile = problem / 'generators' / 'build'
+    if is_executable(buildfile):
+        cur_path = os.getcwd()
+        os.chdir(outdir)
+        if util.exec_command(['./build'], memory=5000000000)[0] is not True:
+            config.n_error += 1
+            os.chdir(cur_path)
+            print(f'{_c.red}FAILED{_c.reset}')
+            return False
+        os.chdir(cur_path)
+
+    max_testcase_len = max([len(print_name(genfile)) for genfile in genfiles])
+
+    bar = ProgressBar('Generate', max_testcase_len, len(genfiles))
+
+    # TODO: support multiple outputs from a single .gen file.
+
+    # Add the generators directory to the PATH
+    PATH = os.environ['PATH']
+    os.environ['PATH'] = str(problem / 'generators') + ':' + os.environ['PATH']
+
+    nsame = 0
+    nchange = 0
+    nskip = 0
+    nnew = 0
+    nfail = 0
+
+    tmpdir = config.tmpdir / problem.name
+
+    for genfile in genfiles:
+        basename = genfile.with_suffix('')
+        bar.start(print_name(basename))
+
+        gendir = tmpdir / basename.parent.relative_to(problem)
+
+        # Clean the directory.
+        for f in gendir.iterdir():
+            f.unlink()
+
+        tmpbasename = gendir / basename.name
+        tmpbasename.parent.mkdir(parents=True, exist_ok=True)
+
+        stdoutfile = (gendir / genfile.with_suffix('.stdout').name)
+
+        command = shlex.split(genfile.read_text())
+
+        # Append the basename of the testcase to be generated
+        command.append(tmpbasename)
+
+        ok, err, out = util.exec_command(command, stdout=stdoutfile.open('w'))
+
+        message = ''
+        if ok is not True:
+            message = _c.red + 'FAILED ' + err
+            nfail += 1
+            ok = False
+        else:
+            # Were any files written, apart from .stdout?
+            newfiles = []
+            for f in gendir.iterdir():
+                if f != stdoutfile:
+                    newfiles.append(f)
+
+            # Use stdout as .in file when no files are written.
+            if len(newfiles) == 0:
+                infile = gendir / genfile.with_suffix('.in').name
+                newfiles.append(infile)
+                shutil.move(stdoutfile, infile)
+            else:
+                if len(stdoutfile.read_text()) > 0:
+                    bar.log(
+                        f'{_c.red}Stdout of generator was ignored because it also wrote files.{_c.reset}'
+                    )
+
+            # Copy all generated files back to the data directory.
+            for f in newfiles:
+                # Some sanity checks
+                if not f.name.startswith(basename.name):
+                    config.n_error += 1
+                    bar.log(
+                        f'{_c.red}Generated file {f.name} does not start with the provided basename {basename.name}.{_c.reset}'
+                    )
+                    continue
+                if f.name == basename.name:
+                    config.n_error += 1
+                    bar.log(
+                        f'{_c.red}Generated file {f.name} is not an extension of basename {basename.name}.{_c.reset}'
+                    )
+                    continue
+                if f.name == genfile.name:
+                    config.n_error += 1
+                    bar.log(
+                        f'{_c.red}Generated file {f.name} should not match existing {genfile.name}.{_c.reset}'
+                    )
+                    continue
+
+                target = genfile.parent / f.name
+                same = False
+                if target.is_file():
+                    if f.read_text() == target.read_text():
+                        nsame += 1
+                        same = True
+                    else:
+                        if hasattr(settings, 'force') and settings.force:
+                            shutil.move(f, target)
+                            nchange += 1
+                            message = 'CHANGED: ' + target.name
+                        else:
+                            nskip += 1
+                            message = _c.red + 'SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite'
+                else:
+                    shutil.move(f, target)
+                    message = 'NEW: ' + target.name
+                    nnew += 1
+
+                if not same:
+                    bar.log(message)
+
+                ok &= same
+
+        bar.done(ok, message)
+
+    if not config.verbose and nskip == 0 and nfail == 0:
+        print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
+
+    print()
+
+    os.environ['PATH'] = PATH
+    return nskip == 0 and nfail == 0
+
+
+# Remove all .in and .ans files corresponding to .gen files.
+def clean(problem):
+    for genfile in util.get_genfiles(problem):
+        infile = genfile.with_suffix('.in')
+        ansfile = genfile.with_suffix('.ans')
+        if infile.is_file():
+            infile.unlink()
+            print('Deleted: ', infile)
+        if ansfile.is_file():
+            ansfile.unlink()
+            print('Deleted: ', ansfile)
+    return True
+
+
+# Use a compatible input validator to generate random testcases.
 def generate_random_input(problem, settings):
     # Find the right validator
     validators = get_validators(problem, 'input')
@@ -1637,6 +1790,26 @@ Run this from one of:
                           parents=[global_parser],
                           help='show statistics for contest/problem')
 
+    # Generate Testcases
+    genparser = subparsers.add_parser('generate',
+                                      parents=[global_parser],
+                                      help='Generate testcases according to .gen files.')
+    genparser.add_argument('-f',
+                           '--force',
+                           action='store_true',
+                           help='Overwrite existing input flies.')
+    genparser.add_argument(
+        'testcases',
+        nargs='*',
+        help=
+        'The testcases to (re)generate. Either .gen or .in files can be used. Empty to generate everything.'
+    )
+
+    # Clean
+    cleanparser = subparsers.add_parser('clean',
+                                        parents=[global_parser],
+                                        help='Delete all .in and .ans corresponding to .gen.')
+
     # Generate Input
     inputgenparser = subparsers.add_parser('generate_random_input',
                                            parents=[global_parser],
@@ -1660,20 +1833,20 @@ Run this from one of:
                                 help='Keep output of failed generator runs.')
 
     # Generate Output
-    genparser = subparsers.add_parser('generate_ans',
-                                      parents=[global_parser],
-                                      help='generate answers testcases')
-    genparser.add_argument('-f',
-                           '--force',
-                           action='store_true',
-                           help='Overwrite answers that have changed.')
-    genparser.add_argument('submission',
-                           nargs='?',
-                           help='The program to generate answers. Defaults to first found.')
-    genparser.add_argument('-t', '--timelimit', type=int, help='Override the default timeout.')
-    genparser.add_argument('--samples',
-                           action='store_true',
-                           help='Overwrite the samples as well, in combination with -f.')
+    ansgenparser = subparsers.add_parser('generate_ans',
+                                         parents=[global_parser],
+                                         help='generate answers testcases')
+    ansgenparser.add_argument('-f',
+                              '--force',
+                              action='store_true',
+                              help='Overwrite answers that have changed.')
+    ansgenparser.add_argument('submission',
+                              nargs='?',
+                              help='The program to generate answers. Defaults to first found.')
+    ansgenparser.add_argument('-t', '--timelimit', type=int, help='Override the default timeout.')
+    ansgenparser.add_argument('--samples',
+                              action='store_true',
+                              help='Overwrite the samples as well, in combination with -f.')
 
     # Run
     runparser = subparsers.add_parser('run',
@@ -1780,9 +1953,14 @@ def main():
     problems, level, contest = get_problems()
     problem_paths = [p.path for p in problems]
 
-    if level != 'problem' and action in ['generate_random_input', 'generate_ans', 'test']:
-        if action == 'generate_random_input':
+    if level != 'problem' and action in [
+            'generate', 'generate_random_input', 'generate_ans', 'test'
+    ]:
+        if action == 'generate':
             print(f'{_c.red}Generating testcases only works for a single problem.{_c.reset}')
+        if action == 'generate_random_input':
+            print(
+                f'{_c.red}Generating random testcases only works for a single problem.{_c.reset}')
         if action == 'generate_ans':
             print(f'{_c.red}Generating output files only works for a single problem.{_c.reset}')
         if action == 'test':
@@ -1852,6 +2030,10 @@ def main():
         if action in ['validate', 'input', 'all']:
             input_validator_ok = validate(problem.path, 'input', settings)
             success &= input_validator_ok
+        if action in ['clean']:
+            success &= clean(problem.path)
+        if action in ['generate']:
+            success &= generate(problem.path, settings)
         if action in ['generate_random_input']:
             success &= generate_random_input(problem.path, settings)
         if action in ['generate_ans']:

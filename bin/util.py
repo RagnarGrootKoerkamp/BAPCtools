@@ -208,6 +208,30 @@ def get_testcases(problem, needans=True, only_sample=False):
     return testcases
 
 
+def get_genfiles(problem):
+    # Get .gen files
+    # Require both in and ans files
+    genfiles = []
+    if hasattr(config.args, 'testcases') and config.args.testcases:
+        # Deduplicate testcases with both .in and .ans.
+        genfiles = []
+        for t in config.args.testcases:
+            if Path(problem / t).is_dir():
+                genfiles += glob(Path(problem / t), '**/*.gen')
+            else:
+                genfiles.append(Path(problem / t).with_suffix('.gen'))
+
+        genfiles = list(set(genfiles))
+    else:
+        genfiles = list(glob(problem, 'data/sample/**/*.gen'))
+        genfiles += list(glob(problem, 'data/secret/**/*.gen'))
+
+    if len(genfiles) == 0:
+        config.n_warn += 1
+        print(f'{_c.red}Didn\'t find any .gen files for {str(problem)}{_c.reset}')
+    return genfiles
+
+
 def strip_newline(s):
     if s.endswith('\n'):
         return s[:-1]
