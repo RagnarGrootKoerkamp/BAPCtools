@@ -208,6 +208,7 @@ def get_testcases(problem, needans=True, only_sample=False):
     return testcases
 
 
+# TODO(#1): Issue a warning when genfiles are not prefixfree.
 def get_genfiles(problem):
     # Get .gen files
     # Require both in and ans files
