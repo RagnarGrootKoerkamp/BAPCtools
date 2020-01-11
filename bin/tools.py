@@ -197,7 +197,7 @@ def build(path):
 
     # If build or run present, use them:
     if is_executable(outdir / 'build'):
-        cur_path = os.getcwd()
+        cur_path = Path.cwd()
         os.chdir(outdir)
         if util.exec_command(['./build'], memory=5000000000)[0] is not True:
             config.n_error += 1
@@ -1126,7 +1126,7 @@ def generate(problem, settings):
     # If build or run present, use them:
     buildfile = problem / 'generators' / 'build'
     if is_executable(buildfile):
-        cur_path = os.getcwd()
+        cur_path = Path.cwd()
         os.chdir(outdir)
         if util.exec_command(['./build'], memory=5000000000)[0] is not True:
             config.n_error += 1
@@ -1387,7 +1387,7 @@ def generate_answer(problem, settings):
 
         outfile = config.tmpdir / 'test.out'
         try:
-            os.unlink(outfile)
+            outfile.unlink()
         except OSError:
             pass
 
@@ -1400,7 +1400,7 @@ def generate_answer(problem, settings):
             message = 'FAILED'
             nfail += 1
         else:
-            if os.access(testcase.with_suffix('.ans'), os.R_OK):
+            if testcase.with_suffix('.ans').is_file():
                 compare_settings = argparse.Namespace()
                 compare_settings.__dict__.update({
                     'case_sensitive': True,
@@ -1556,15 +1556,15 @@ def split_submissions(s):
     submissions = []
     testcases = []
     for p in s:
+        pp = Path(p)
         if 'data/' in p or '.in' in p or '.ans' in p:
             # Strip potential .ans and .in
-            (base, ext) = os.path.splitext(p)
-            if ext in ['.ans', '.in']:
-                testcases.append(base)
+            if pp.suffix in ['.ans', '.in']:
+                testcases.append(pp.with_suffix(''))
             else:
-                testcases.append(p)
+                testcases.append(pp)
         else:
-            submissions.append(p)
+            submissions.append(pp)
     return (submissions, testcases)
 
 
