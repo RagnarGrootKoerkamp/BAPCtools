@@ -52,14 +52,18 @@ _c = Colorcodes()
 
 
 def warn(msg):
-    print(_c.orange + msg + _c.reset)
+    print(_c.orange + 'WARNING: ' + msg + _c.reset)
     config.n_warn += 1
 
 
 def error(msg):
-    print(_c.red + msg + _c.reset)
+    print(_c.red + 'ERROR: ' + msg + _c.reset)
     config.n_error += 1
 
+
+def fatal(msg):
+    print(_c.red + 'FATAL: ' + msg + _c.reset)
+    exit(1)
 
 # A class that draws a progressbar.
 # Construct with a constant prefix, the max length of the items to process, and
@@ -174,10 +178,7 @@ def get_testcases(problem, needans=True, only_sample=False):
     infiles = None
     if hasattr(config.args, 'testcases') and config.args.testcases:
         if samplesonly:
-            config.n_warn += 1
-            print(
-                f'{_c.red}Ignoring the --samples flag because testcases are explicitly listed.{_c.reset}'
-            )
+            warn(f'Ignoring the --samples flag because testcases are explicitly listed.')
         # Deduplicate testcases with both .in and .ans.
         infiles = []
         for t in config.args.testcases:
@@ -196,15 +197,13 @@ def get_testcases(problem, needans=True, only_sample=False):
     testcases = []
     for f in infiles:
         if needans and not f.with_suffix('.ans').is_file():
-            config.n_warn += 1
-            print(f'{_c.red}Found input file {str(f)} without a .ans file.{_c.reset}')
+            warn(f'Found input file {str(f)} without a .ans file.')
             continue
         testcases.append(f.with_suffix('.in'))
     testcases.sort()
 
     if len(testcases) == 0:
-        config.n_warn += 1
-        print(f'{_c.red}Didn\'t find any testcases for {str(problem)}{_c.reset}')
+        warn(f'Didn\'t find any testcases for {str(problem)}')
     return testcases
 
 
@@ -228,8 +227,7 @@ def get_genfiles(problem):
         genfiles += list(glob(problem, 'data/secret/**/*.gen'))
 
     if len(genfiles) == 0:
-        config.n_warn += 1
-        print(f'{_c.red}Didn\'t find any .gen files for {str(problem)}{_c.reset}')
+        warn(f'Didn\'t find any .gen files for {str(problem)}')
     return genfiles
 
 
@@ -344,8 +342,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         process.kill()
         (stdout, stderr) = process.communicate()
     except KeyboardInterrupt:
-        print(f'{_c.red}Running interrupted.{_c.reset}')
-        exit(1)
+        fatal('Running interrupted.')
 
     def maybe_crop(s):
         return crop_output(s) if crop else s

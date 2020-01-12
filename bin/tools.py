@@ -40,7 +40,7 @@ import export
 import latex
 import util
 import validation
-from util import ProgressBar, _c, glob
+from util import ProgressBar, _c, glob, warn, error, fatal
 
 
 # Get the list of relevant problems.
@@ -439,8 +439,7 @@ def get_validators(problem, validator_type, check_constraints=False):
     validators = build_programs(files)
 
     if len(validators) == 0:
-        config.n_error += 1
-        print(f'\n{_c.red}Aborting: At least one {validator_type} validator is needed!{_c.reset}')
+        error(f'\nAborting: At least one {validator_type} validator is needed!')
 
     return validators
 
@@ -623,13 +622,9 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
         loc = Path(loc).name
         has_low, has_high, vmin, vmax, low, high = value
         if not has_low:
-            print(
-                f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}{_c.reset}'
-            )
+            warn(f'BOUND NOT REACHED: The value at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}')
         if not has_high:
-            print(
-                f'{_c.orange}BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}{_c.reset}'
-            )
+            warn(f'BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}')
         success = False
 
     if not config.verbose and success:
@@ -980,7 +975,7 @@ def run_submissions(problem, settings):
     testcases = util.get_testcases(problem, needans=True)
 
     if len(testcases) == 0:
-        print(_c.red + 'No testcases found!' + _c.reset)
+        warn('No testcases found!')
         return False
 
     output_validators = None
@@ -1106,7 +1101,7 @@ def test_submissions(problem, settings):
     testcases = util.get_testcases(problem, needans=False)
 
     if len(testcases) == 0:
-        print(_c.red + 'No testcases found!' + _c.reset)
+        warn('No testcases found!')
         return False
 
     submissions = get_submissions(problem)
@@ -1131,7 +1126,7 @@ def generate(problem, settings):
         if util.exec_command(['./build'], memory=5000000000)[0] is not True:
             config.n_error += 1
             os.chdir(cur_path)
-            print(f'{_c.red}FAILED{_c.reset}')
+            error('FAILED')
             return False
         os.chdir(cur_path)
 
@@ -1277,7 +1272,8 @@ def generate_random_input(problem, settings):
         return False
 
     if len(validators) != 1:
-        print(_c.red + 'Choosing a default validator failed. Use --validator <validator> instead.')
+        error('Choosing a default validator failed. Use --validator <validator> instead.')
+        return False
     validator = validators[0]
 
     testcases = [(problem / x).with_suffix('.in') for x in settings.testcases]
@@ -1455,7 +1451,7 @@ def print_sorted(problems):
 def check_constraints(problem, settings):
     validate(problem, 'input', settings, check_constraints=True)
 
-    vinput = problem / 'input_format_validators/input_validator/input_validator.cpp'
+    vinput = problem / 'input_validators/input_validator/input_validator.cpp'
     voutput = problem / 'output_validators/output_validator/output_validator.cpp'
 
     cpp_statement = [
@@ -1469,8 +1465,9 @@ def check_constraints(problem, settings):
 
     defs_validators = []
     for validator in [vinput, voutput]:
+        print(validator)
         if not validator.is_file():
-            print(f'{_c.orange}{print_name(validator)} does not exist.{_c.reset}')
+            warn(f'{print_name(validator)} does not exist.')
             continue
         with open(validator) as file:
             for line in file:
@@ -1957,23 +1954,18 @@ def main():
             'generate', 'generate_random_input', 'generate_ans', 'test'
     ]:
         if action == 'generate':
-            print(f'{_c.red}Generating testcases only works for a single problem.{_c.reset}')
+            fatal('Generating testcases only works for a single problem.')
         if action == 'generate_random_input':
-            print(
-                f'{_c.red}Generating random testcases only works for a single problem.{_c.reset}')
+            fatal('Generating random testcases only works for a single problem.')
         if action == 'generate_ans':
-            print(f'{_c.red}Generating output files only works for a single problem.{_c.reset}')
+            fatal('Generating output files only works for a single problem.')
         if action == 'test':
-            print(f'{_c.red}Testing a submission only works for a single problem.{_c.reset}')
-        sys.exit(1)
+            fatal('Testing a submission only works for a single problem.')
 
     if action == 'run':
         if config.args.submissions:
             if level != 'problem':
-                print(
-                    f'{_c.red}Running a given submission only works from a problem directory.{_c.reset}'
-                )
-                return
+                fatal('Running a given submission only works from a problem directory.')
             (config.args.submissions, config.args.testcases) = split_submissions(
                 config.args.submissions)
         else:
