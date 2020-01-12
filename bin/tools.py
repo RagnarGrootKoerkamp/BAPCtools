@@ -1135,10 +1135,7 @@ def generate(problem, settings):
     PATH = os.environ['PATH']
     os.environ['PATH'] = str(problem / 'generators') + ':' + os.environ['PATH']
 
-    nsame = 0
-    nchange = 0
     nskip = 0
-    nnew = 0
     nfail = 0
 
     tmpdir = config.tmpdir / problem.name
@@ -1181,7 +1178,6 @@ def generate(problem, settings):
 
             files_written = last_output_update > last_input_update
 
-            message = ''
             if ok is not True:
                 message = _c.red + 'FAILED ' + err
                 nfail += 1
@@ -1216,30 +1212,24 @@ def generate(problem, settings):
 
 
             target = genfile.parent / f.name
-            same = False
+            same = True
             if target.is_file():
-                if f.read_text() == target.read_text():
-                    nsame += 1
-                    same = True
-                else:
+                if f.read_text() != target.read_text():
+                    same = False
                     if hasattr(settings, 'force') and settings.force:
                         shutil.move(f, target)
-                        nchange += 1
-                        message = 'CHANGED: ' + target.name
+                        bar.log('CHANGED: ' + target.name)
                     else:
                         nskip += 1
-                        message = _c.red + 'SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite'
+                        bar.warn('SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite')
             else:
+                same = False
                 shutil.move(f, target)
-                message = 'NEW: ' + target.name
-                nnew += 1
-
-            if not same:
-                bar.log(message)
+                bar.log('NEW: ' + target.name)
 
             ok &= same
 
-        bar.done(ok, message)
+        bar.done(ok)
 
     if not config.verbose and nskip == 0 and nfail == 0:
         print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
