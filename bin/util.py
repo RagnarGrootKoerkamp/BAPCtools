@@ -136,6 +136,14 @@ class ProgressBar:
         self.logged = True
         print(self.get_prefix(), message, flush=True)
 
+    def warn(self, message=''):
+        config.n_warn += 1
+        self.log(_c.orange + message + _c.reset)
+
+    def error(self, message=''):
+        config.n_error += 1
+        self.log(_c.red + message + _c.reset)
+
     # Return True when something was printed
     def done(self, success=True, message=''):
         self.clearline()

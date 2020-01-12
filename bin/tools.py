@@ -157,6 +157,8 @@ def python_interpreter(version):
 # Returns a command to execute and an optional error message.
 # This can take either a path to a file (c, c++, java, python) or a directory.
 # The directory may contain multiple files.
+# This also accepts executable files but will first try to build them anyway using the settings for
+# the language.
 def build(path):
     # mirror directory structure on tmpfs
     if path.is_absolute():
@@ -277,6 +279,10 @@ def build(path):
         if main_file is None and main:
             main_file = outdir / f.name
 
+    # Check if the file itself is executable.
+    if language_code is None and main_file is not None and is_executable(main_file):
+        return ([main_file], None)
+
     if language_code is None:
         config.n_error += 1
         return (None, f'{_c.red}No language detected for {path}.{_c.reset}')
@@ -353,6 +359,8 @@ def build(path):
         else:
             run_command = ['java', '-jar', viva_jar, main_file]
     else:
+
+
         config.n_error += 1
         return (None, f'{_c.red}Unknown language \'{language_code}\' at file {path}{_c.reset}')
 
@@ -1117,19 +1125,6 @@ def test_submissions(problem, settings):
 def generate(problem, settings):
     genfiles = util.get_genfiles(problem)
 
-    # TODO: Consider using MAKEFILE instead of build for more targeted+efficient builds.
-    # If build or run present, use them:
-    buildfile = problem / 'generators' / 'build'
-    if is_executable(buildfile):
-        cur_path = Path.cwd()
-        os.chdir(outdir)
-        if util.exec_command(['./build'], memory=5000000000)[0] is not True:
-            config.n_error += 1
-            os.chdir(cur_path)
-            error('FAILED')
-            return False
-        os.chdir(cur_path)
-
     max_testcase_len = max([len(print_name(genfile)) for genfile in genfiles])
 
     bar = ProgressBar('Generate', max_testcase_len, len(genfiles))
@@ -1153,91 +1148,96 @@ def generate(problem, settings):
         bar.start(print_name(basename))
 
         gendir = tmpdir / basename.parent.relative_to(problem)
+        gendir.mkdir(parents=True, exist_ok=True)
+
+        stdoutfile = gendir / genfile.with_suffix('.stdout').name
 
         # Clean the directory.
         for f in gendir.iterdir():
             f.unlink()
 
-        tmpbasename = gendir / basename.name
-        tmpbasename.parent.mkdir(parents=True, exist_ok=True)
+        for command in genfile.read_text().splitlines():
+            input_command = shlex.split(command)
 
-        stdoutfile = (gendir / genfile.with_suffix('.stdout').name)
+            generator_name = input_command[0]
+            input_args = input_command[1:]
 
-        command = shlex.split(genfile.read_text())
+            generator_command, msg = build(problem / 'generators' / generator_name)
+            if generator_command is None:
+                error(msg)
+                break
 
-        # Append the basename of the testcase to be generated
-        command.append(tmpbasename)
+            # Last update timestamp of existing
+            last_input_update = max((f.stat().st_ctime for f in gendir.iterdir() if f !=
+                stdoutfile), default=0)
 
-        ok, err, out = util.exec_command(command, stdout=stdoutfile.open('w'))
+            # Append the basename of the testcase to be generated
+            command = generator_command + input_args + [basename.name]
 
-        message = ''
-        if ok is not True:
-            message = _c.red + 'FAILED ' + err
-            nfail += 1
-            ok = False
-        else:
-            # Were any files written, apart from .stdout?
-            newfiles = []
-            for f in gendir.iterdir():
-                if f != stdoutfile:
-                    newfiles.append(f)
+            ok, err, out = util.exec_command(command, stdout=stdoutfile.open('w'), cwd=gendir)
 
-            # Use stdout as .in file when no files are written.
-            if len(newfiles) == 0:
-                infile = gendir / genfile.with_suffix('.in').name
-                newfiles.append(infile)
-                shutil.move(stdoutfile, infile)
+            last_output_update = max((f.stat().st_ctime for f in gendir.iterdir() if f !=
+                    stdoutfile), default=0)
+
+            files_written = last_output_update > last_input_update
+
+            message = ''
+            if ok is not True:
+                message = _c.red + 'FAILED ' + err
+                nfail += 1
+                ok = False
+                break
             else:
-                if len(stdoutfile.read_text()) > 0:
-                    bar.log(
-                        f'{_c.red}Stdout of generator was ignored because it also wrote files.{_c.reset}'
-                    )
-
-            # Copy all generated files back to the data directory.
-            for f in newfiles:
-                # Some sanity checks
-                if not f.name.startswith(basename.name):
-                    config.n_error += 1
-                    bar.log(
-                        f'{_c.red}Generated file {f.name} does not start with the provided basename {basename.name}.{_c.reset}'
-                    )
-                    continue
-                if f.name == basename.name:
-                    config.n_error += 1
-                    bar.log(
-                        f'{_c.red}Generated file {f.name} is not an extension of basename {basename.name}.{_c.reset}'
-                    )
-                    continue
-                if f.name == genfile.name:
-                    config.n_error += 1
-                    bar.log(
-                        f'{_c.red}Generated file {f.name} should not match existing {genfile.name}.{_c.reset}'
-                    )
-                    continue
-
-                target = genfile.parent / f.name
-                same = False
-                if target.is_file():
-                    if f.read_text() == target.read_text():
-                        nsame += 1
-                        same = True
-                    else:
-                        if hasattr(settings, 'force') and settings.force:
-                            shutil.move(f, target)
-                            nchange += 1
-                            message = 'CHANGED: ' + target.name
-                        else:
-                            nskip += 1
-                            message = _c.red + 'SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite'
+                # Use stdout as .in file when no files are written.
+                if not files_written:
+                    infile = gendir / genfile.with_suffix('.in').name
+                    shutil.move(stdoutfile, infile)
                 else:
-                    shutil.move(f, target)
-                    message = 'NEW: ' + target.name
-                    nnew += 1
+                    if len(stdoutfile.read_text()) > 0:
+                        bar.warn('Stdout of generator was ignored because it also wrote files.')
 
-                if not same:
-                    bar.log(message)
+        # Copy all generated files back to the data directory.
+        for f in gendir.iterdir():
+            if f == stdoutfile: continue
 
-                ok &= same
+            # Some sanity checks
+            if not f.name.startswith(basename.name):
+                bar.error(f'Generated file {f.name} does not start with the provided basename {basename.name}.')
+                continue
+            if f.name == basename.name:
+                bar.error(f'Generated file {f.name} should not equal {basename.name}.')
+                continue
+            if f.name == genfile.name:
+                bar.error(f'Generated file {f.name} should not match existing {genfile.name}.')
+                continue
+            if f.suffix == '.gen':
+                bar.error(f'Generated file {f.name} should not have extension .gen.')
+                continue
+
+
+            target = genfile.parent / f.name
+            same = False
+            if target.is_file():
+                if f.read_text() == target.read_text():
+                    nsame += 1
+                    same = True
+                else:
+                    if hasattr(settings, 'force') and settings.force:
+                        shutil.move(f, target)
+                        nchange += 1
+                        message = 'CHANGED: ' + target.name
+                    else:
+                        nskip += 1
+                        message = _c.red + 'SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite'
+            else:
+                shutil.move(f, target)
+                message = 'NEW: ' + target.name
+                nnew += 1
+
+            if not same:
+                bar.log(message)
+
+            ok &= same
 
         bar.done(ok, message)
 
