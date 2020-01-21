@@ -598,7 +598,7 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
 
             if print_message:
                 if not config.verbose and printnewline:
-                    ProgressBar.clearline()
+                    bar.clearline()
                     printnewline = False
                     print()
                 bar.log(message)
