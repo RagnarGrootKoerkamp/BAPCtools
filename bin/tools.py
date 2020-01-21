@@ -31,6 +31,7 @@ import yaml
 import configparser
 import io
 import zipfile
+import hashlib
 from pathlib import Path
 
 # Local imports
@@ -1120,98 +1121,121 @@ def test_submissions(problem, settings):
             test_submission(submission, testcases, settings)
     return True
 
+def parse_gen_yaml(problem):
+    yaml_path = problem / 'generators' / 'gen.yaml'
+    if not yaml_path.is_file():
+        error(f'{yaml_path} not found!')
+        return {}
 
-# Run generators according to the .gen files.
+    yaml_data = yaml.safe_load(yaml_path.read_text())
+
+    # path -> [commands]
+    generator_runs = {}
+
+    def parse_yaml(prefix, m):
+        for key in m:
+            if prefix/key in generator_runs:
+                warn(f'Duplicate generator key {prefix/key}.')
+            if m[key] is None:
+                # manual testcase
+                continue
+            if isinstance(m[key], dict):
+                parse_yaml(prefix / key, m[key])
+                continue
+            if isinstance(m[key], list):
+                generator_runs[prefix / key] = m[key]
+                continue
+            if isinstance(m[key], str):
+                generator_runs[prefix / key] = [m[key]]
+                continue
+            error(f'Could not parse generator value for key {key}: {m[key]}')
+
+    parse_yaml(Path(''), yaml_data)
+
+    # Filter for the given paths.
+    if hasattr(config.args, 'generators') and config.args.generators != []:
+        def drop_data(p): return p[5:] if p.startswith('data/') else p
+        prefixes = tuple(drop_data(p) for p in config.args.generators)
+        new_runs = {}
+        for path in generator_runs:
+            if str(path).startswith(prefixes):
+                new_runs[path] = generator_runs[path]
+        generator_runs = new_runs
+
+    return generator_runs
+
+# Run generators according to the gen.yaml file.
 def generate(problem, settings):
-    genfiles = util.get_genfiles(problem)
+    generator_runs = parse_gen_yaml(problem)
+    if len(generator_runs) == 0: return True
 
-    max_testcase_len = max([len(print_name(genfile)) for genfile in genfiles])
+    max_testcase_len = max([len(str(key)) for key in generator_runs])
 
-    bar = ProgressBar('Generate', max_testcase_len, len(genfiles))
-
-    # TODO: support multiple outputs from a single .gen file.
-
-    # Add the generators directory to the PATH
-    PATH = os.environ['PATH']
-    os.environ['PATH'] = str(problem / 'generators') + ':' + os.environ['PATH']
+    bar = ProgressBar('Generate', max_testcase_len, len(generator_runs))
 
     nskip = 0
     nfail = 0
 
-    tmpdir = config.tmpdir / problem.name
+    tmpdir = config.tmpdir / problem.name / 'generate'
+    tmpdir.mkdir(parents=True, exist_ok=True)
 
-    for genfile in genfiles:
-        basename = genfile.with_suffix('')
-        bar.start(print_name(basename))
+    for file_name in generator_runs:
+        commands = generator_runs[file_name]
 
-        gendir = tmpdir / basename.parent.relative_to(problem)
-        gendir.mkdir(parents=True, exist_ok=True)
+        bar.start(str(file_name))
 
-        stdoutfile = gendir / genfile.with_suffix('.stdout').name
+        (problem / 'data' / file_name.parent).mkdir(parents=True, exist_ok=True)
 
         # Clean the directory.
-        for f in gendir.iterdir():
+        for f in tmpdir.iterdir():
             f.unlink()
 
-        for command in genfile.read_text().splitlines():
+        stdin_path  = tmpdir / file_name.name
+        stdout_path = tmpdir / (file_name.name+'.stdout')
+
+        for command in commands:
             input_command = shlex.split(command)
 
             generator_name = input_command[0]
             input_args = input_command[1:]
+
+            for i in range(len(input_args)):
+                x = input_args[i]
+                if x == '$SEED':
+                    val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(), 16)%(2**31)
+                    input_args[i] = val
 
             generator_command, msg = build(problem / 'generators' / generator_name)
             if generator_command is None:
                 error(msg)
                 break
 
-            # Last update timestamp of existing
-            last_input_update = max((f.stat().st_ctime for f in gendir.iterdir() if f !=
-                stdoutfile), default=0)
-
             # Append the basename of the testcase to be generated
-            command = generator_command + input_args + [basename.name]
+            command = generator_command + input_args
 
-            ok, err, out = util.exec_command(command, stdout=stdoutfile.open('w'), cwd=gendir)
+            stdout_file = stdout_path.open('w')
+            stdin_file  = stdin_path.open('r') if stdin_path.is_file() else None
+            ok, err, out = util.exec_command(command, stdout=stdout_file, stdin=stdin_file, cwd=tmpdir)
+            stdout_file.close()
+            if stdin_file: stdin_file.close()
 
-            last_output_update = max((f.stat().st_ctime for f in gendir.iterdir() if f !=
-                    stdoutfile), default=0)
-
-            files_written = last_output_update > last_input_update
+            if stdout_path.is_file():
+                shutil.move(stdout_path, stdin_path)
 
             if ok is not True:
-                message = _c.red + 'FAILED ' + err
+                bar.error('FAILED')
                 nfail += 1
                 ok = False
                 break
-            else:
-                # Use stdout as .in file when no files are written.
-                if not files_written:
-                    infile = gendir / genfile.with_suffix('.in').name
-                    shutil.move(stdoutfile, infile)
-                else:
-                    if len(stdoutfile.read_text()) > 0:
-                        bar.warn('Stdout of generator was ignored because it also wrote files.')
+
+        #if stdin_path.is_file() and stdin_path.read_text() != '':
+            #shutil.move(stdin_path, problem/'data'/file_name)
 
         # Copy all generated files back to the data directory.
-        for f in gendir.iterdir():
-            if f == stdoutfile: continue
+        for f in tmpdir.iterdir():
+            if f.stat().st_size == 0: continue
 
-            # Some sanity checks
-            if not f.name.startswith(basename.name):
-                bar.error(f'Generated file {f.name} does not start with the provided basename {basename.name}.')
-                continue
-            if f.name == basename.name:
-                bar.error(f'Generated file {f.name} should not equal {basename.name}.')
-                continue
-            if f.name == genfile.name:
-                bar.error(f'Generated file {f.name} should not match existing {genfile.name}.')
-                continue
-            if f.suffix == '.gen':
-                bar.error(f'Generated file {f.name} should not have extension .gen.')
-                continue
-
-
-            target = genfile.parent / f.name
+            target = problem / 'data' / file_name.parent / f.name
             same = True
             if target.is_file():
                 if f.read_text() != target.read_text():
@@ -1235,22 +1259,21 @@ def generate(problem, settings):
         print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
 
     print()
-
-    os.environ['PATH'] = PATH
     return nskip == 0 and nfail == 0
 
-
-# Remove all .in and .ans files corresponding to .gen files.
+# Remove all files mentioned in the gen.yaml file.
+# TODO: this could also clean by prefix instead of exact match.
 def clean(problem):
-    for genfile in util.get_genfiles(problem):
-        infile = genfile.with_suffix('.in')
-        ansfile = genfile.with_suffix('.ans')
-        if infile.is_file():
-            infile.unlink()
-            print('Deleted: ', infile)
-        if ansfile.is_file():
-            ansfile.unlink()
-            print('Deleted: ', ansfile)
+    generator_runs = parse_gen_yaml(problem)
+    for file_path in generator_runs:
+        f = problem / 'data' / file_path
+        if f.is_file():
+            print(ProgressBar.action('REMOVE: ', str(f)))
+            f.unlink()
+
+        try: f.parent.rmdir()
+        except: pass
+
     return True
 
 
@@ -1786,10 +1809,10 @@ Run this from one of:
                            action='store_true',
                            help='Overwrite existing input flies.')
     genparser.add_argument(
-        'testcases',
+        'generators',
         nargs='*',
         help=
-        'The testcases to (re)generate. Either .gen or .in files can be used. Empty to generate everything.'
+        'The generators to run. Everything which has one of these as a prefix will be run. Leading `data/` will be dropped. Empty to generate everything.'
     )
 
     # Clean
