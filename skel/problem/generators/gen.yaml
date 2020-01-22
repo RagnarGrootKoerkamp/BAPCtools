@@ -3,3 +3,6 @@ config:
     generate_ans: true
     # Could also live in generators/.
     submission: # submissions/accepted/solution.cpp
+
+secret:
+    # test.in: generator.py $SEED
