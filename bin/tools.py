@@ -26,6 +26,7 @@ import time
 import re
 import shutil
 import subprocess
+import resource
 import time
 import yaml
 import configparser
@@ -861,8 +862,85 @@ def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
         if outfile is None:
             return run(outfile)
         else:
-            with open(outfile, 'wb') as outf:
-                return run(outf)
+            return run(outfile.open('wb'))
+
+
+# return (verdict, time, remark)
+def process_interactive_testcase(run_command,
+                     testcase,
+                     outfile,
+                     settings,
+                     output_validators,
+                     printnewline=False):
+    if len(output_validators) != 1:
+        error('Interactive problems need exactly one output validator. Found {len(output_validators)}.')
+    output_validator = output_validators[0]
+
+    # Compute the timeouts
+    validator_timeout = 60
+
+    if hasattr(config.args, 'timeout') and config.args.timeout:
+        submission_timeout = float(config.args.timeout)
+    elif settings.timelimit:
+        # Double the tle to check for solutions close to the required bound
+        # ret = True or ret = (code, error)
+        submission_timeout = 2 * settings.timelimit
+    else:
+        submission_timeout = 60
+
+
+    # Set up pipes.
+    # Run the validator
+    flags = []
+    if settings.space_change_sensitive: flags += ['space_change_sensitive']
+    if settings.case_sensitive: flags += ['case_sensitive']
+
+    judgepath = config.tmpdir / 'judge'
+    judgepath.mkdir(parents=True, exist_ok=True)
+
+    def setlimits():
+        resource.setrlimit(resource.RLIMIT_CPU, (validator_timeout, validator_timeout))
+
+    # Start the validator.
+    validator_process = subprocess.Popen(
+        output_validator[1] + [testcase.with_suffix('.in'), testcase.with_suffix('.ans'), judgepath] + flags,
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        preexec_fn=setlimits
+    )
+
+    # Start and time the submission.
+    tstart = time.monotonic()
+    ok, err, out = util.exec_command(run_command,
+                                     expect=0,
+                                     stdin=validator_process.stdout,
+                                     stdout=validator_process.stdin,
+                                     stderr=subprocess.PIPE,
+                                     timeout=submission_timeout)
+
+    # Wait 
+    (validator_out, validator_err) = validator_process.communicate()
+
+    tend = time.monotonic()
+    
+    did_timeout=False
+    if settings.timelimit is not None and tend - tstart > settings.timelimit:
+        did_timeout = True
+
+    validator_ok = validator_process.returncode
+
+    if validator_ok != config.RTV_AC and validator_ok != config.RTV_WA:
+        config.n_error += 1
+        verdict = 'VALIDATOR_CRASH'
+    elif did_timeout:
+        verdict = 'TIME_LIMIT_EXCEEDED'
+    elif ok is not True:
+        verdict = 'RUN_TIME_ERROR'
+    elif validator_ok == config.RTV_WA:
+        verdict = 'WRONG_ANSWER'
+    elif validator_ok == config.RTV_AC:
+        verdict = 'ACCEPTED'
+
+    return (verdict, tend - tstart, validator_err.decode('utf-8'), err)
 
 
 # return (verdict, time, remark)
@@ -872,6 +950,10 @@ def process_testcase(run_command,
                      settings,
                      output_validators,
                      printnewline=False):
+
+    if settings.validation == 'interactive':
+        return process_interactive_testcase(run_command, testcase, outfile, settings,
+                output_validators)
 
     ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
                                                    settings.timelimit)
@@ -965,7 +1047,9 @@ def run_submission(submission,
             prefix = '  '
             if out.count('\n') > 1:
                 prefix = '\n'
-            message += f'\n{_c.red}STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(
+            output_type = 'STDOUT'
+            if settings.validation == 'interactive': output_type = 'PROGRAM STDERR'
+            message += f'\n{_c.red}{output_type}{_c.reset}' + prefix + _c.orange + util.strip_newline(
                 out) + _c.reset
 
         if print_message:
@@ -1010,14 +1094,16 @@ def get_submission_type(s):
 
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
-    testcases = util.get_testcases(problem, needans=True)
+    needans = True
+    if settings.validation == 'interactive': needans = False
+    testcases = util.get_testcases(problem, needans=needans)
 
     if len(testcases) == 0:
         warn('No testcases found!')
         return False
 
     output_validators = None
-    if settings.validation == 'custom':
+    if settings.validation in ['custom', 'interactive']:
         output_validators = get_validators(problem, 'output')
         if len(output_validators) == 0:
             return False

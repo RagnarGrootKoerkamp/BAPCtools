@@ -6,7 +6,7 @@ source: {%source%}
 source_url: {%source_url%}
 license: {%license%}
 rights_owner: {%rights_owner%}
-# 'default' or 'custom'
+# 'default', 'custom', or 'interactive'
 validation: {%validation%}
 
 # One or more of:
