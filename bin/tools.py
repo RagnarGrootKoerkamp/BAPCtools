@@ -362,7 +362,6 @@ def build(path):
             run_command = ['java', '-jar', viva_jar, main_file]
     else:
 
-
         config.n_error += 1
         return (None, f'{_c.red}Unknown language \'{language_code}\' at file {path}{_c.reset}')
 
@@ -521,7 +520,8 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
 
         bad_testcase = False
         if validator_type == 'input':
-            bad_testcase = 'data/bad/' in str(testcase) and not testcase.with_suffix('.ans').is_file() and not testcase.with_suffix('.out').is_file()
+            bad_testcase = 'data/bad/' in str(testcase) and not testcase.with_suffix(
+                '.ans').is_file() and not testcase.with_suffix('.out').is_file()
 
         if validator_type == 'output':
             bad_testcase = 'data/bad/' in str(testcase)
@@ -537,7 +537,7 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
                     validator[1],
                     # TODO: Can we make this more generic? CTD returning 0 instead of 42
                     # is a bit annoying.
-                    expect= 1 if bad_testcase else 0,
+                    expect=1 if bad_testcase else 0,
                     stdin=main_file.open())
 
             elif Path(validator[0]).suffix == '.viva':
@@ -546,7 +546,7 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
                     validator[1] + [main_file],
                     # TODO: Can we make this more generic? VIVA returning 0 instead of 42
                     # is a bit annoying.
-                    expect= 1 if bad_testcase else 0)
+                    expect=1 if bad_testcase else 0)
                 # Slightly hacky: CTD prints testcase errors on stderr while VIVA prints
                 # them on stdout.
                 err = out
@@ -661,9 +661,13 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
         loc = Path(loc).name
         has_low, has_high, vmin, vmax, low, high = value
         if not has_low:
-            warn(f'BOUND NOT REACHED: The value at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}')
+            warn(
+                f'BOUND NOT REACHED: The value at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}'
+            )
         if not has_high:
-            warn(f'BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}')
+            warn(
+                f'BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}'
+            )
         success = False
 
     if not config.verbose and success:
@@ -867,13 +871,15 @@ def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
 
 # return (verdict, time, remark)
 def process_interactive_testcase(run_command,
-                     testcase,
-                     outfile,
-                     settings,
-                     output_validators,
-                     printnewline=False):
+                                 testcase,
+                                 outfile,
+                                 settings,
+                                 output_validators,
+                                 printnewline=False):
     if len(output_validators) != 1:
-        error('Interactive problems need exactly one output validator. Found {len(output_validators)}.')
+        error(
+            'Interactive problems need exactly one output validator. Found {len(output_validators)}.'
+        )
     output_validator = output_validators[0]
 
     # Compute the timeouts
@@ -887,7 +893,6 @@ def process_interactive_testcase(run_command,
         submission_timeout = 2 * settings.timelimit
     else:
         submission_timeout = 60
-
 
     # Set up pipes.
     # Run the validator
@@ -903,11 +908,14 @@ def process_interactive_testcase(run_command,
 
     # Start the validator.
     validator_process = subprocess.Popen(
-        output_validator[1] + [testcase.with_suffix('.in'), testcase.with_suffix('.ans'), judgepath] + flags,
-        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+        output_validator[1] +
+        [testcase.with_suffix('.in'),
+         testcase.with_suffix('.ans'), judgepath] + flags,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         preexec_fn=setlimits,
-        bufsize=2**20
-    )
+        bufsize=2**20)
 
     # Start and time the submission.
     tstart = time.monotonic()
@@ -918,12 +926,12 @@ def process_interactive_testcase(run_command,
                                      stderr=subprocess.PIPE,
                                      timeout=submission_timeout)
 
-    # Wait 
+    # Wait
     (validator_out, validator_err) = validator_process.communicate()
 
     tend = time.monotonic()
-    
-    did_timeout=False
+
+    did_timeout = False
     if settings.timelimit is not None and tend - tstart > settings.timelimit:
         did_timeout = True
 
@@ -954,7 +962,7 @@ def process_testcase(run_command,
 
     if settings.validation == 'interactive':
         return process_interactive_testcase(run_command, testcase, outfile, settings,
-                output_validators)
+                                            output_validators)
 
     ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
                                                    settings.timelimit)
@@ -1237,6 +1245,7 @@ def test_submissions(problem, settings):
             test_submission(submission, testcases, settings)
     return True
 
+
 # Return config, generator_runs pair
 def parse_gen_yaml(problem):
     yaml_path = problem / 'generators' / 'gen.yaml'
@@ -1256,7 +1265,7 @@ def parse_gen_yaml(problem):
 
     def parse_yaml(prefix, m):
         for key in m:
-            if prefix/key in generator_runs:
+            if prefix / key in generator_runs:
                 warn(f'Duplicate generator key {prefix/key}.')
             if m[key] is None:
                 # manual testcase
@@ -1276,7 +1285,10 @@ def parse_gen_yaml(problem):
 
     # Filter for the given paths.
     if hasattr(config.args, 'generators') and config.args.generators != []:
-        def drop_data(p): return p[5:] if p.startswith('data/') else p
+
+        def drop_data(p):
+            return p[5:] if p.startswith('data/') else p
+
         prefixes = tuple(drop_data(p) for p in config.args.generators)
         new_runs = {}
         for path in generator_runs:
@@ -1285,6 +1297,7 @@ def parse_gen_yaml(problem):
         generator_runs = new_runs
 
     return gen_config, generator_runs
+
 
 # Run generators according to the gen.yaml file.
 def generate(problem, settings):
@@ -1295,7 +1308,7 @@ def generate(problem, settings):
     if gen_config:
         if 'generate_ans' in gen_config:
             generate_ans = gen_config['generate_ans']
-        if  generate_ans and 'submission' in gen_config:
+        if generate_ans and 'submission' in gen_config:
             submission = gen_config['submission']
             if not submission:
                 error(f'Submission should not be empty!')
@@ -1312,7 +1325,7 @@ def generate(problem, settings):
             if submission is None:
                 error(msg)
 
-    max_testcase_len = max([len(str(key)) for key in generator_runs])+1
+    max_testcase_len = max([len(str(key)) for key in generator_runs]) + 1
 
     bar = ProgressBar('Generate', max_testcase_len, len(generator_runs))
 
@@ -1333,8 +1346,8 @@ def generate(problem, settings):
         for f in tmpdir.iterdir():
             f.unlink()
 
-        stdin_path  = tmpdir / file_name.name
-        stdout_path = tmpdir / (file_name.name+'.stdout')
+        stdin_path = tmpdir / file_name.name
+        stdout_path = tmpdir / (file_name.name + '.stdout')
 
         # Run all commands.
         for command in commands:
@@ -1346,7 +1359,7 @@ def generate(problem, settings):
             for i in range(len(input_args)):
                 x = input_args[i]
                 if x == '$SEED':
-                    val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(), 16)%(2**31)
+                    val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(), 16) % (2**31)
                     input_args[i] = val
 
             generator_command, msg = build(problem / 'generators' / generator_name)
@@ -1357,8 +1370,11 @@ def generate(problem, settings):
             command = generator_command + input_args
 
             stdout_file = stdout_path.open('w')
-            stdin_file  = stdin_path.open('r') if stdin_path.is_file() else None
-            ok, err, out = util.exec_command(command, stdout=stdout_file, stdin=stdin_file, cwd=tmpdir)
+            stdin_file = stdin_path.open('r') if stdin_path.is_file() else None
+            ok, err, out = util.exec_command(command,
+                                             stdout=stdout_file,
+                                             stdin=stdin_file,
+                                             cwd=tmpdir)
             stdout_file.close()
             if stdin_file: stdin_file.close()
 
@@ -1388,7 +1404,6 @@ def generate(problem, settings):
                 bar.log('NEW: ' + target.name)
             return same
 
-
         # Copy all generated files back to the data directory.
         for f in tmpdir.iterdir():
             if f.stat().st_size == 0: continue
@@ -1399,7 +1414,7 @@ def generate(problem, settings):
             if f.suffix == '.in' and generate_ans and submission:
                 ansfile = f.with_suffix('.ans')
                 ok, timeout, duration, err, out = run_testcase(submission, f, ansfile,
-                                                       settings.timelimit)
+                                                               settings.timelimit)
                 if not ok:
                     bar.error('.ans FAILED')
                 else:
@@ -1416,6 +1431,7 @@ def generate(problem, settings):
     print()
     return nskip == 0 and nfail == 0
 
+
 # Remove all files mentioned in the gen.yaml file.
 def clean(problem):
     gen_config, generator_runs = parse_gen_yaml(problem)
@@ -1431,8 +1447,10 @@ def clean(problem):
             print(ProgressBar.action('REMOVE', str(ansfile)))
             ansfile.unlink()
 
-        try: f.parent.rmdir()
-        except: pass
+        try:
+            f.parent.rmdir()
+        except:
+            pass
 
     return True
 

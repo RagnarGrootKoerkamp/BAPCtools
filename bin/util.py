@@ -65,6 +65,7 @@ def fatal(msg):
     print(_c.red + 'FATAL: ' + msg + _c.reset)
     exit(1)
 
+
 # A class that draws a progressbar.
 # Construct with a constant prefix, the max length of the items to process, and
 # the number of items to process.
