@@ -483,6 +483,18 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
         return False
 
     testcases = util.get_testcases(problem, validator_type == 'output')
+
+    # Get the bad testcases:
+    # For input validation, look for .in files without .ans or .out.
+    # For output validator, look for .in files with a .ans or .out.
+    for f in glob(problem, 'data/bad/**/*.in'):
+        has_ans = f.with_suffix('.ans').is_file()
+        has_out = f.with_suffix('.out').is_file()
+        if validator_type == 'input' and not has_ans and not has_out:
+            testcases.append(f)
+        if validator_type == 'output' and (has_ans or has_out):
+            testcases.append(f)
+
     if len(testcases) == 0:
         return True
 
@@ -505,34 +517,45 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix(ext)))
 
+        bad_testcase = 'data/bad/' in str(testcase)
+
+        main_file = testcase.with_suffix(ext)
+        if bad_testcase and validator_type == 'output' and main_file.with_suffix('.out').is_file():
+            main_file = testcase.with_suffix('.out')
+
         for validator in validators:
             # simple `program < test.in` for input validation and ctd output validation
             if Path(validator[0]).suffix == '.ctd':
                 ok, err, out = util.exec_command(
-                    validator[1] + flags,
+                    validator[1],
                     # TODO: Can we make this more generic? CTD returning 0 instead of 42
                     # is a bit annoying.
-                    expect=0,
-                    stdin=testcase.with_suffix(ext).open())
+                    expect= 1 if bad_testcase else 0,
+                    stdin=main_file.open())
+
             elif Path(validator[0]).suffix == '.viva':
+                # Called as `viva validator.viva testcase.in`.
                 ok, err, out = util.exec_command(
-                    validator[1] + flags + [testcase.with_suffix(ext)],
+                    validator[1] + [main_file],
                     # TODO: Can we make this more generic? VIVA returning 0 instead of 42
                     # is a bit annoying.
-                    expect=0)
+                    expect= 1 if bad_testcase else 0)
                 # Slightly hacky: CTD prints testcase errors on stderr while VIVA prints
                 # them on stdout.
                 err = out
+
             elif validator_type == 'input':
+
                 constraints_file = config.tmpdir / 'constraints'
                 if constraints_file.is_file():
                     constraints_file.unlink()
+
                 ok, err, out = util.exec_command(
                     # TODO: Store constraints per problem.
                     validator[1] + flags +
                     (['--constraints_file', constraints_file] if check_constraints else []),
-                    expect=config.RTV_AC,
-                    stdin=testcase.with_suffix(ext).open())
+                    expect=config.RTV_WA if bad_testcase else config.RTV_AC,
+                    stdin=main_file.open())
 
                 # Merge with previous constraints.
                 if constraints_file.is_file():
@@ -568,8 +591,8 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
                     validator[1] +
                     [testcase.with_suffix('.in'),
                      testcase.with_suffix('.ans'), config.tmpdir] + flags,
-                    expect=config.RTV_AC,
-                    stdin=testcase.with_suffix(ext).open())
+                    expect=config.RTV_WA if bad_testcase else config.RTV_AC,
+                    stdin=main_file.open())
 
             print_message = config.verbose > 0
             message = ''
