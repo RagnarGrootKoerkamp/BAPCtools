@@ -905,7 +905,8 @@ def process_interactive_testcase(run_command,
     validator_process = subprocess.Popen(
         output_validator[1] + [testcase.with_suffix('.in'), testcase.with_suffix('.ans'), judgepath] + flags,
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-        preexec_fn=setlimits
+        preexec_fn=setlimits,
+        bufsize=2**20
     )
 
     # Start and time the submission.
