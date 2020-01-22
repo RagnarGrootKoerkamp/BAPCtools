@@ -490,7 +490,8 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
     for f in glob(problem, 'data/bad/**/*.in'):
         has_ans = f.with_suffix('.ans').is_file()
         has_out = f.with_suffix('.out').is_file()
-        if validator_type == 'input' and not has_ans and not has_out:
+        if validator_type == 'input':
+            # This will only be marked 'bad' if there is no .ans or .out.
             testcases.append(f)
         if validator_type == 'output' and (has_ans or has_out):
             testcases.append(f)
@@ -517,7 +518,12 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix(ext)))
 
-        bad_testcase = 'data/bad/' in str(testcase)
+        bad_testcase = False
+        if validator_type == 'input':
+            bad_testcase = 'data/bad/' in str(testcase) and not testcase.with_suffix('.ans').is_file() and not testcase.with_suffix('.out').is_file()
+
+        if validator_type == 'output':
+            bad_testcase = 'data/bad/' in str(testcase)
 
         main_file = testcase.with_suffix(ext)
         if bad_testcase and validator_type == 'output' and main_file.with_suffix('.out').is_file():
