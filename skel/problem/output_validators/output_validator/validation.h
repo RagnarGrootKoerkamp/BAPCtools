@@ -24,6 +24,7 @@
 #include <type_traits>
 #include <random>
 #include <string>
+#include <function>
 
 #ifdef use_source_location
 #include <experimental/source_location>
@@ -273,10 +274,20 @@ class Validator {
 	}
 
   public:
+    std::function<void()> WA_handler;
+    void set_WA_handler(std::function<void()> f){
+        WA_handler = std::move(f);
+    }
+
 	template <typename... Ts>
 	[[noreturn]] void WA(Ts... ts) {
+        static_assert(sizeof...(Ts) > 0);
+
+        WA_handler();
+
 		auto pos = get_file_pos();
 		cerr << pos.first << ":" << pos.second << ": ";
+
 		WA_impl(ts...);
 	}
 

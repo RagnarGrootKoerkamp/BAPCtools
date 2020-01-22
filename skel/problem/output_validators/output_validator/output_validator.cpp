@@ -17,6 +17,12 @@
 // You should also check the validity of the answer here.
 // For example, check that a tree printed by the team is a tree indeed.
 
+// For INTERACTIVE PROBLEMS:
+// Write your output validator as usual, but make sure to flush all standard
+// output. Call `v.set_WA_handler(lambda)` to gracefully handle failures when
+// parsing team output. You could e.g. send a '-1' to the submission to tell it
+// to stop running.
+
 // TODO: Remove these comments, and summarize your output validator.
 
 int main(int argc, char **argv) {
