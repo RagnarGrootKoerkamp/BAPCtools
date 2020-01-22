@@ -237,7 +237,7 @@ def build(path):
             c_files.append(outdir / f.name)
 
             # Make sure c++ does not depend on stdc++.h, because it's not portable.
-            if f.read_text().find('bits/stdc++.h') != -1:
+            if 'validators/' in str(f) and f.read_text().find('bits/stdc++.h') != -1:
                 config.n_warn += 1
                 message = f'{_c.orange}{print_name(f)} should not depend on bits/stdc++.h{_c.reset}'
 
