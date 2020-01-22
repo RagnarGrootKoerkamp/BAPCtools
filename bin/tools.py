@@ -1687,7 +1687,12 @@ def new_problem():
     for key in variables:
         print(key, ' -> ', variables[key])
 
-    shutil.copytree(config.tools_root / 'skel/problem', dirname, symlinks=True)
+    # Copy tree from the skel directory, next to the contest, if it is found.
+    skeldir = config.tools_root / 'skel/problem'
+    if Path('skel/problem').is_dir(): skeldir = Path('skel/problem')
+    if Path('../skel/problem').is_dir(): skeldir = Path('../skel/problem')
+    print(f'Copying {skeldir} to {dirname}.')
+    shutil.copytree(skeldir, dirname, symlinks=True)
 
     util.substitute_dir_variables(Path(dirname), variables)
 
