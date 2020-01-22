@@ -27,6 +27,6 @@ int main(int argc, char **argv) {
 
 	int input;
 	in >> input;
-	int answer = v.read_long_long(input, input);
+	int answer = v.read_long_double(0, 1000000000);
 	v.newline();
 }

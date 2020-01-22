@@ -381,7 +381,6 @@ class Validator {
 		done.has_max |= v == high;
 	}
 	void log_constraint(long double low, long double high, long double v, source_location loc = source_location::current()){
-		cerr << "FALSE\n";
 		// Do not log when line number is unknown/default/unsupported.
 		if(loc.line() == 0 or constraints_file_path.empty()) return;
 
