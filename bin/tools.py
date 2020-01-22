@@ -1121,13 +1121,19 @@ def test_submissions(problem, settings):
             test_submission(submission, testcases, settings)
     return True
 
+# Return config, generator_runs pair
 def parse_gen_yaml(problem):
     yaml_path = problem / 'generators' / 'gen.yaml'
     if not yaml_path.is_file():
         error(f'{yaml_path} not found!')
-        return {}
+        return None, {}
 
     yaml_data = yaml.safe_load(yaml_path.read_text())
+
+    gen_config = None
+    if 'config' in yaml_data:
+        gen_config = yaml_data['config']
+        del yaml_data['config']
 
     # path -> [commands]
     generator_runs = {}
@@ -1162,14 +1168,35 @@ def parse_gen_yaml(problem):
                 new_runs[path] = generator_runs[path]
         generator_runs = new_runs
 
-    return generator_runs
+    return gen_config, generator_runs
 
 # Run generators according to the gen.yaml file.
 def generate(problem, settings):
-    generator_runs = parse_gen_yaml(problem)
+    gen_config, generator_runs = parse_gen_yaml(problem)
+
+    generate_ans = False
+    submission = None
+    if gen_config:
+        if 'generate_ans' in gen_config:
+            generate_ans = gen_config['generate_ans']
+        if  generate_ans and 'submission' in gen_config:
+            submission = gen_config['submission']
+            if not submission:
+                error(f'Submission should not be empty!')
+
     if len(generator_runs) == 0: return True
 
-    max_testcase_len = max([len(str(key)) for key in generator_runs])
+    if generate_ans and submission is not None:
+        submission_path = problem / submission
+        if not (submission_path.is_file() or submission_path.is_dir()):
+            error(f'Submission not found: {submission_path}')
+            submission = None
+        else:
+            submission, msg = build(problem / submission)
+            if submission is None:
+                error(msg)
+
+    max_testcase_len = max([len(str(key)) for key in generator_runs])+1
 
     bar = ProgressBar('Generate', max_testcase_len, len(generator_runs))
 
@@ -1193,6 +1220,7 @@ def generate(problem, settings):
         stdin_path  = tmpdir / file_name.name
         stdout_path = tmpdir / (file_name.name+'.stdout')
 
+        # Run all commands.
         for command in commands:
             input_command = shlex.split(command)
 
@@ -1210,7 +1238,6 @@ def generate(problem, settings):
                 error(msg)
                 break
 
-            # Append the basename of the testcase to be generated
             command = generator_command + input_args
 
             stdout_file = stdout_path.open('w')
@@ -1228,30 +1255,42 @@ def generate(problem, settings):
                 ok = False
                 break
 
-        #if stdin_path.is_file() and stdin_path.read_text() != '':
-            #shutil.move(stdin_path, problem/'data'/file_name)
-
-        # Copy all generated files back to the data directory.
-        for f in tmpdir.iterdir():
-            if f.stat().st_size == 0: continue
-
-            target = problem / 'data' / file_name.parent / f.name
+        def maybe_move(source, target):
             same = True
             if target.is_file():
-                if f.read_text() != target.read_text():
+                if source.read_text() != target.read_text():
                     same = False
                     if hasattr(settings, 'force') and settings.force:
-                        shutil.move(f, target)
+                        shutil.move(source, target)
                         bar.log('CHANGED: ' + target.name)
                     else:
                         nskip += 1
                         bar.warn('SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite')
             else:
                 same = False
-                shutil.move(f, target)
+                shutil.move(source, target)
                 bar.log('NEW: ' + target.name)
+            return same
 
-            ok &= same
+
+        # Copy all generated files back to the data directory.
+        for f in tmpdir.iterdir():
+            if f.stat().st_size == 0: continue
+
+            target = problem / 'data' / file_name.parent / f.name
+
+            # Generate .ans for .in files.
+            if f.suffix == '.in' and generate_ans and submission:
+                ansfile = f.with_suffix('.ans')
+                ok, timeout, duration, err, out = run_testcase(submission, f, ansfile,
+                                                       settings.timelimit)
+                if not ok:
+                    bar.error('.ans FAILED')
+                else:
+                    ok &= maybe_move(ansfile, target.with_suffix('.ans'))
+
+            # Move the .in.
+            ok &= maybe_move(f, target)
 
         bar.done(ok)
 
@@ -1262,14 +1301,19 @@ def generate(problem, settings):
     return nskip == 0 and nfail == 0
 
 # Remove all files mentioned in the gen.yaml file.
-# TODO: this could also clean by prefix instead of exact match.
 def clean(problem):
-    generator_runs = parse_gen_yaml(problem)
+    gen_config, generator_runs = parse_gen_yaml(problem)
     for file_path in generator_runs:
         f = problem / 'data' / file_path
         if f.is_file():
-            print(ProgressBar.action('REMOVE: ', str(f)))
+            print(ProgressBar.action('REMOVE', str(f)))
             f.unlink()
+
+        ansfile = f.with_suffix('.ans')
+
+        if ansfile.is_file():
+            print(ProgressBar.action('REMOVE', str(ansfile)))
+            ansfile.unlink()
 
         try: f.parent.rmdir()
         except: pass

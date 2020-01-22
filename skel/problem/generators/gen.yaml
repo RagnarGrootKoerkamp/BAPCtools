@@ -1,0 +1,5 @@
+config:
+    # Generate a .ans for each .in that's found.
+    generate_ans: true
+    # Could also live in generators/.
+    submission: # submissions/accepted/solution.cpp
