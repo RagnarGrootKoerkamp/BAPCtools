@@ -44,10 +44,14 @@ def default_output_validator(ansfile, outfile, settings):
     else:
         words1 = re.split(r'[ \n]+', data1)
         words2 = re.split(r'[ \n]+', data2)
-        if len(words1) > 0 and words1[-1] == b'': words1.pop()
-        if len(words2) > 0 and words2[-1] == b'': words2.pop()
-        if len(words1) > 0 and words1[0] == b'': words1.pop(0)
-        if len(words2) > 0 and words2[0] == b'': words2.pop(0)
+        if len(words1) > 0 and words1[-1] == '':
+            words1.pop()
+        if len(words2) > 0 and words2[-1] == '':
+            words2.pop()
+        if len(words1) > 0 and words1[0] == '':
+            words1.pop(0)
+        if len(words2) > 0 and words2[0] == '':
+            words2.pop(0)
 
     if words1 == words2:
         if not settings.space_change_sensitive:
@@ -109,7 +113,8 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
                  testcase.with_suffix('.ans'), judgepath] + flags,
                 expect=config.RTV_AC,
                 stdin=outf)
-            if err is None: err = ''
+            if err is None:
+                err = ''
             if judgemessage.is_file():
                 err += judgemessage.read_text()
                 judgemessage.unlink()
@@ -120,15 +125,18 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
             if err:
                 err = header + err
 
-        if ok == None: ok = val_ok
+        if ok == None:
+            ok = val_ok
         if run_all_validators and val_ok != ok:
             ok = 'INCONSISTENT_VALIDATORS'
             err = 'INCONSISTENT VALIDATORS: ' + err
             return (ok, err, out)
 
-        if val_ok is True: continue
+        if val_ok is True:
+            continue
         if not run_all_validators:
             break
 
-    if ok == config.RTV_WA: ok = False
+    if ok == config.RTV_WA:
+        ok = False
     return (ok, err, out)
