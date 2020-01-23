@@ -25,6 +25,7 @@
 #include <type_traits>
 #include <random>
 #include <string>
+#include <string_view>
 #include <functional>
 
 // Used for order statistics tree.
@@ -380,12 +381,27 @@ class Validator {
    	}
 
 	// Read an arbitrary string of a given length.
-	string read_string(const string& name, long long min, long long max, source_location loc = source_location::current()) {
+	string read_string(const string& name, long long min, long long max, const std::string_view chars = "", source_location loc = source_location::current()) {
+		if(gen){
+			assert(!chars.empty());
+
+			string s(uniform_number(min, max), ' ');
+			for(auto &x : s) x = chars[uniform_number(0, (int)chars.size()-1)];
+
+			out << s;
+			return s;
+		}
 		assert(!gen && "Generating strings is not supported!");
 		string s = read_string_impl();
 		long long size = s.size();
 		if(size < min || size > max)
 			expected(name + ": string of length between " + to_string(min) + " and " + to_string(max), s);
+		std::array<bool, 256> ok_char;
+		ok_char.fill(false);
+		if(!chars.empty()){
+			for(auto c : chars) ok_char[c] = true;
+			for(auto c : s) check(ok_char[c], name, ": expected characters in ", chars, " but found ", c);
+		}
 		log_constraint(min, max, size, loc);
 		return s;
 	}
