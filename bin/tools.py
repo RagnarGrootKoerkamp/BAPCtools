@@ -1731,7 +1731,7 @@ def check_constraints(problem, settings):
 # This reduces it to a string that follows the regex:
 # [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
 def alpha_num(string):
-    s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '-'))
+    s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '').replace('-', ''))
     while s.startswith('_.-'):
         s = s[1:]
     while s.endswith('_.-'):
