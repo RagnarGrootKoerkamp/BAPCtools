@@ -426,7 +426,7 @@ class Validator {
 			if constexpr(std::is_integral<T>::value)
 				return integer_bounds.emplace(loc, Bounds<long long>(v, v, low, high)).first->second;
 			else
-				return float_bounds.emplace(loc, Bounds<long long>(v, v, low, high)).first->second;
+				return float_bounds.emplace(loc, Bounds<long double>(v, v, low, high)).first->second;
 		}();
 		if(v < done.min){
 			done.min = v;
