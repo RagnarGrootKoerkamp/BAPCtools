@@ -1805,9 +1805,8 @@ def new_problem():
         validation = ask_variable('validation', 'default')
 
     # Read settings from the contest-level yaml file.
-    variables = {}
-    for k, v in util.read_yaml(Path('contest.yaml')).items():
-        variables[k] = v
+    variables = util.read_yaml(Path('contest.yaml'))
+
     for k, v in {
             'problemname': problemname,
             'dirname': dirname,
@@ -1815,9 +1814,6 @@ def new_problem():
             'validation': validation
     }.items():
         variables[k] = v
-
-    for key in variables:
-        print(key, ' -> ', variables[key])
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir = config.tools_root / 'skel/problem'
