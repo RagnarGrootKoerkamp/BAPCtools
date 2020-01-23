@@ -7,20 +7,22 @@
 
 int main(int argc, char** argv) {
 	InputValidator v(argc, argv);
-	int n = v.read_long_long(0, 100000);
+	int n = v.read_integer("n", 0, 100000);
+	v.space();
+	float f = v.read_float("f", 0, 100000);
 	v.newline();
 	return 0;
 
 	// Other useful commands:
-	v.space();
-	v.newline();
 	string s = v.read_string();
+	// read_{float,integer}[s] takes an optional tag:
+	// Unique, Increasing, Decreasing, StrictlyIncreasing, StrictlyDecreasing
+	v.read_integers("v", /*count=*/10, 0, 1000000, Unique);
 	v.read_string("ACCEPTED"); // only succeeds when it reads the given string.
-	v.read_string(4, 5);     // only succeeds when it reads a string with length in inclusive range.
-	v.read_long_long();      // reads a long long.
-	v.read_long_long(0, 10); // reads integer in inclusive range.
+	v.read_string("s", 4, 5);     // only succeeds when it reads a string with length in inclusive range.
 	bool b = v.peek('x');    // test the next character.
 	v.WA("The input is not valid."); // Print error and exit with code 43.
+	v.check(false, "WA on false");
 
 	// In its destructor, v automatically exits with code 42 here.
 }
