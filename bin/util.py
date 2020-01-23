@@ -236,9 +236,15 @@ def substitute(data, variables):
 
 
 def copy_and_substitute(inpath, outpath, variables):
-    data = inpath.read_text()
+    try:
+        data = inpath.read_text()
+    except UnicodeDecodeError:
+        # skip this file
+        warn(f'File "{inpath}" has no unicode encoding.')
+        return
     data = substitute(data, variables)
-    if outpath.is_symlink(): outpath.unlink()
+    if outpath.is_symlink():
+        outpath.unlink()
     outpath.write_text(data)
 
 
