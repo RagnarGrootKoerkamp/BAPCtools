@@ -1786,9 +1786,8 @@ def new_contest(name):
     license = ask_variable('license', 'cc by-sa')
     rights_owner = ask_variable('rights owner', 'author')
 
-    shutil.copytree(config.tools_root / 'skel/contest', dirname, symlinks=True)
-
-    util.substitute_dir_variables(Path(dirname), locals())
+    skeldir = config.tools_root / 'skel/contest'
+    util.copytree_and_substitute(skeldir, Path(dirname), locals(), exist_ok=False)
 
 
 def new_problem():
@@ -1825,10 +1824,8 @@ def new_problem():
     if Path('skel/problem').is_dir(): skeldir = Path('skel/problem')
     if Path('../skel/problem').is_dir(): skeldir = Path('../skel/problem')
     print(f'Copying {skeldir} to {dirname}.')
-    shutil.copytree(skeldir, dirname, symlinks=True)
 
-    util.substitute_dir_variables(Path(dirname), variables)
-
+    util.copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True)
 
 def new_cfp_problem(name):
     shutil.copytree(config.tools_root / 'skel/problem_cfp', name, symlinks=True)
