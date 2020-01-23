@@ -20,11 +20,16 @@
 #include <iomanip>
 #include <limits>
 #include <map>
+#include <set>
 #include <vector>
 #include <type_traits>
 #include <random>
 #include <string>
-#include <function>
+#include <functional>
+
+// Used for order statistics tree.
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
 
 #ifdef use_source_location
 #include <experimental/source_location>
@@ -32,10 +37,17 @@ using std::experimental::source_location;
 #else
 struct source_location {
 	static source_location current(){ return {}; }
-	int line(){ return 0; }
-	std::string file_name(){ return ""; }
+	int line() const { return 0; }
+	std::string file_name() const { return ""; }
 };
 #endif
+
+bool operator<(const source_location& l, const source_location& r){
+	return l.line() < r.line();
+}
+std::string to_string(source_location loc){
+	return std::string(loc.file_name())+":"+std::to_string(loc.line());
+}
 
 using namespace std;
 
@@ -43,6 +55,44 @@ const string case_sensitive_flag = "case_sensitive";
 const string ws_sensitive_flag = "space_change_sensitive";
 const string constraints_file_flag = "--constraints_file";
 const string generate_flag = "--generate";
+
+struct ArbitraryTag {
+	static constexpr bool unique = false;
+	static constexpr bool strict = false;
+	static constexpr bool increasing = false;
+	static constexpr bool decreasing = false;
+} Arbitrary;
+struct UniqueTag {
+	static constexpr bool unique = true;
+	static constexpr bool strict = false;
+	static constexpr bool increasing = false;
+	static constexpr bool decreasing = false;
+} Unique;
+struct IncreasingTag {
+	static constexpr bool unique = false;
+	static constexpr bool strict = false;
+	static constexpr bool increasing = true;
+	static constexpr bool decreasing = false;
+} Increasing;
+struct DecreasingTag {
+	static constexpr bool unique = false;
+	static constexpr bool strict = false;
+	static constexpr bool increasing = false;
+	static constexpr bool decreasing = true;
+} Decreasing;
+struct StrictlyIncreasingTag {
+	static constexpr bool unique = false;
+	static constexpr bool strict = true;
+	static constexpr bool increasing = true;
+	static constexpr bool decreasing = false;
+} StrictlyIncreasing;
+struct StrictlyDecreasingTag {
+	static constexpr bool unique = false;
+	static constexpr bool strict = true;
+	static constexpr bool increasing = false;
+	static constexpr bool decreasing = true;
+} StrictlyDecreasing;
+
 
 class Validator {
   protected:
@@ -85,6 +135,7 @@ class Validator {
 			out << '\n';
 			return;
 		}
+
 		if(ws) {
 			char c;
 			in >> c;
@@ -96,147 +147,213 @@ class Validator {
 		}
 	}
 
-	// Just read a string.
-	string read_string() {
-		assert(!gen && "Generating strings is not supported!");
-	   	return read_string_impl();
-   	}
 
-	// Read a string and make sure it equals `expected`.
-	string read_string(string expected) {
-		if(gen){
-			out << expected;
-			return expected;
+  private:
+	template<typename T, typename Tag>
+	void check_number(const string& name, T low, T high, T v, Tag, source_location loc){
+		if(v < low or v > high){
+			expected(name + ": " + typeid(T).name() + " between " + to_string(low) + " and " + to_string(high), to_string(v));
 		}
-	   	return read_string_impl(expected);
-   	}
-
-	// Read an arbitrary string of a given length.
-	string read_string(long long min, long long max, source_location loc = source_location::current()) {
-		assert(!gen && "Generating strings is not supported!");
-		string s = read_string();
-		long long size = s.size();
-		if(size < min || size > max)
-			expected("String of length between " + to_string(min) + " and " + to_string(max), s);
-		log_constraint(min, max, size, loc);
-		return s;
-	}
-
-	// Read the string t.
-	void test_string(string t) {
-		if(gen){
-			out << t;
-			return;
-		}
-		string s = read_string();
-		if(case_sensitive) {
-			if(s != t) expected(t, s);
+		log_constraint(low, high, v, loc);
+		if constexpr(Tag::unique){
+			static map<source_location, set<T>> seen;
+			auto [it, inserted] = seen[loc].emplace(v);
+			check(inserted, name, ": Value ", v, " seen twice, but must be unique!");
 		} else {
-			if(lowercase(s) != lowercase(t)) expected(t, s);
+			static map<source_location, T> last_map;
+			auto [it, inserted] = last_map.emplace(loc, v);
+			if(inserted) return;
+
+			auto last = it->second;
+			it->second = v;
+
+			if constexpr(Tag::increasing) check(v >= last, name, " is not increasing: value ", v, " follows ", last);
+			if constexpr(Tag::decreasing) check(v <= last, name, " is not decreasing: value ", v, " follows ", last);
+			if constexpr(Tag::strict) check(v != last, name, " is not strict: value ", v, " equals ", last);
 		}
 	}
 
-	// Read a long long.
-	long long read_long_long() {
-		if(gen){
-			std::uniform_int_distribution<long long> dis(std::numeric_limits<long long>::lowest(), std::numeric_limits<long long>::max());
-			auto v = dis(rng);
-			out << v;
-			return v;
+	template<typename T>
+	T uniform_number(T low, T high){
+		assert(low <= high);
+		if constexpr(std::is_integral<T>::value)
+			return std::uniform_int_distribution<T>(low, high)(rng);
+		else
+			return std::uniform_real_distribution<T>(low, high)(rng);
+	}
+
+	template<typename T, typename Tag>
+	T gen_number(const string& name, T low, T high, Tag, source_location loc){
+		T v;
+
+		if constexpr(Tag::unique){
+			if constexpr(std::is_integral<T>::value){
+				static map<source_location, tuple<set<T>, vector<T>, bool>> seen;
+
+				auto& [seen_here, remaining_here, use_remaining] = seen[loc];
+
+				if(use_remaining){
+					check(!remaining_here.empty(), name, ": no unique values left");
+					v = remaining_here.back();
+					remaining_here.pop_back();
+				} else {
+					do {
+						v = uniform_number(low, high);
+					} while(!seen_here.insert(v).second);
+
+					struct CountIterator{
+						using value_type = T;
+						using reference = T&;
+						using pointer = T;
+						using difference_type = T;
+						using iterator_category = std::input_iterator_tag;
+						T v;
+						T& operator*(){ return v; }
+						T& operator++(){ return ++v; }
+						T operator++(int){ return v++; }
+						bool operator!=(CountIterator r){ return v != r.v; }
+					};
+
+					if(seen_here.size() > (high-low)/2){
+						use_remaining=true;
+						set_difference(CountIterator{low}, CountIterator{high+1}, seen_here.begin(), seen_here.end(), std::back_inserter(remaining_here));
+					}
+				}
+			} else {
+				static map<source_location, set<T>> seen;
+
+				// For floats, just regenerate numbers until success.
+				auto& seen_here = seen[loc];
+				do {
+					v = uniform_number(low, high);
+				} while(!seen_here.insert(v).second);
+			}
+
+		} else {
+			assert(not Tag::increasing && "Generating increasing sequences is not yet supported!");
+			assert(not Tag::decreasing && "Generating decreasing sequences is not yet supported!");
+			assert((std::is_same<Tag, ArbitraryTag>::value) && "Only Unique and Arbitrary are supported!");
+
+			v = uniform_number(low, high);
 		}
-		string s = read_string_impl("", "integer");
-		if(s.empty()){
-			WA("Want integer, found nothing");
-		}
-		long long v;
-		try {
-			size_t chars_processed = 0;
-			v                      = stoll(s, &chars_processed);
-			if(chars_processed != s.size())
-				WA("Parsing " + s + " as long long failed! Did not process all characters");
-		} catch(const out_of_range &e) {
-			WA("Number " + s + " does not fit in a long long!");
-		} catch(const invalid_argument &e) { WA("Parsing " + s + " as long long failed!"); }
-		// Check for leading zero.
-		if(v == 0){
-			if(s.size() != 1)
-				WA("Parsed 0, but has leading 0 or minus sign: " , s);
-		}
-		if(v > 0){
-			if(s[0] == '0')
-				WA("Parsed ",v,", but has leading 0: " , s);
-		}
-		if(v < 0){
-			if(s.size() <= 1)
-				WA("Parsed ",v,", but string is: " , s);
-			if(s[1] == '0')
-				WA("Parsed ",v,", but has leading 0: " , s);
-		}
+
+		out << setprecision(10) << fixed << v;
 		return v;
 	}
 
-	// Read a long long within a given range.
-	long long read_long_long(long long low, long long high, source_location loc = source_location::current()) {
-		if(gen){
-			assert(low <= high);
-			std::uniform_int_distribution<long long> dis(low, high);
-			auto v = dis(rng);
-			out << v;
-			return v;
+	template<typename T, typename Tag>
+	std::vector<T> gen_numbers(const string& name, int count, T low, T high, Tag, source_location loc){
+		std::vector<T> v;
+		v.reserve(count);
+		if constexpr(std::is_same<Tag, ArbitraryTag>::value){
+			for(int i = 0; i < count; ++i){
+				v.push_back(uniform_number(low, high));
+			}
+		} else if constexpr(Tag::unique){
+			set<T> seen_here;
+			if constexpr(std::is_integral<T>::value){
+				if(2*count < high-low){
+					for(int i = 0; i < count; ++i){
+						// If density < 1/2: retry.
+						T w;
+						do {
+							w = uniform_number(low, high);
+						} while(!seen_here.insert(w).second);
+						v.push_back(w);
+					}
+				} else {
+					// If density >= 1/2, crop a random permutation.
+					v.resize(high-low+1);
+					iota(begin(v), end(v), low);
+					shuffle(begin(v), end(v), rng);
+					v.resize(count);
+				}
+			} else {
+				for(int i = 0; i < count; ++i){
+					// For floats, just regenerate numbers until success.
+					T w;
+					do {
+						w = uniform_number(low, high);
+					} while(!seen_here.insert(w).second);
+					v.push_back(w);
+				}
+			}
+		} else {
+			static_assert(Tag::increasing or Tag::decreasing);
+
+			constexpr bool integral_strict = Tag::strict and std::is_integral<T>::value;
+			if(integral_strict) high = high - count + 1;
+
+			for(int i = 0; i < count; ++i)
+				v.push_back(uniform_number(low, high));
+
+			sort(begin(v), end(v));
+
+			if(integral_strict){
+				for(int i = 0; i < count; ++i)
+					v[i] += i;
+			}
+
+			if(Tag::decreasing) reverse(begin(v), end(v));
 		}
-		auto v = read_long_long();
-		if(v < low or v > high)
-			expected("integer between " + to_string(low) + " and " + to_string(high), to_string(v));
-		log_constraint(low, high, v, loc);
-		return v;
-	}
 
-	int read_int() {
-		return read_long_long(std::numeric_limits<int>::lowest(), std::numeric_limits<int>::max(), source_location());
-	}
-
-	int read_int(int low, int high, source_location loc = source_location::current()) {
-		auto v = read_long_long(low, high, loc);
-		log_constraint(low, high, v, loc);
-		return v;
-	}
-
-	// Read a long double.
-	long double read_long_double() {
-		if(gen){
-			std::uniform_real_distribution<long double> dis(std::numeric_limits<long double>::lowest(), std::numeric_limits<long double>::max());
-			auto v = dis(rng);
-			out << setprecision(10) << fixed << v;
-			return v;
+		out << setprecision(10) << fixed;
+		for(int i = 0; i < count; ++i){
+			out << v[i];
+			if(i < count-1) space();
 		}
-		string s = read_string_impl("", "long double");
-		long double v;
-		try {
-			size_t chars_processed;
-			v = stold(s, &chars_processed);
-			if(chars_processed != s.size())
-				WA("Parsing ", s, " as long double failed! Did not process all characters.");
-		} catch(const out_of_range &e) {
-			WA("Number " + s + " does not fit in a long double!");
-		} catch(const invalid_argument &e) { WA("Parsing " + s + " as long double failed!"); }
+		newline();
 		return v;
 	}
 
-	long double read_long_double(long double low, long double high, source_location loc = source_location::current()) {
-		if(gen){
-			assert(low <= high);
-			std::uniform_real_distribution<long double> dis(low, high);
-			auto v = dis(rng);
-			out << setprecision(10) << fixed << v;
-			return v;
+
+	template <typename T, typename Tag>
+	T read_number(const string& name, T low, T high, Tag tag, source_location loc) {
+		if(gen) return gen_number(name, low, high, tag, loc);
+
+		const auto v = [&]{
+			if constexpr(std::is_integral<T>::value)
+				return read_integer(name);
+			else
+				return read_float(name);
+		}();
+
+		check_number(name, low, high, v, tag, loc);
+		return v;
+	}
+
+	// Read a vector of numbers, separated by spaces and ended by a newline.
+	template <typename T, typename Tag>
+	std::vector<T> read_numbers(const string& name, int count, T low, T high, Tag tag, source_location loc) {
+		if(gen) return gen_numbers(name, count, low, high, tag, loc);
+		std::vector<T> v(count);
+		for(int i = 0; i < count; ++i){
+			v[i] = read_integer(name);
+			check_number(name, low, high, v[i], tag, loc);
+			if(i < count-1) space();
 		}
-		long double v = read_long_double();
-		if(v < low or v > high)
-			expected("long double between " + to_string(low) + " and " + to_string(high), to_string(v));
-		log_constraint(low, high, v, loc);
+		newline();
 		return v;
 	}
 
+  public:
+	template <typename Tag=ArbitraryTag>
+	long long read_integer(const string& name, long long low, long long high, Tag tag=Tag{}, source_location loc = source_location::current()) {
+		return read_number(name, low, high, tag, loc);
+	}
+	template <typename Tag=ArbitraryTag>
+	std::vector<long long> read_integers(const string& name, int count, long long low, long long high, Tag tag=Tag{}, source_location loc = source_location::current()) {
+		return read_numbers(name, count, low, high, tag, loc);
+	}
+
+	template <typename Tag=ArbitraryTag>
+	long double read_float(const string& name, long double low, long double high, Tag tag=Tag{}, source_location loc = source_location::current()) {
+		return read_number(name, low, high, tag, loc);
+	}
+	template <typename Tag=ArbitraryTag>
+	std::vector<long double> read_floats(const string& name, int count, long double low, long double high, Tag tag=Tag{}, source_location loc = source_location::current()) {
+		return read_numbers(name, count, low, high, tag, loc);
+	}
 
 	// Check the next character.
 	bool peek(char c) {
@@ -251,16 +368,146 @@ class Validator {
 		   	return tolower(in.peek()) == tolower(char_traits<char>::to_int_type(c));
 	}
 
-	// Return WRONG ANSWER verdict.
+
+
+	// Read a string and make sure it equals `expected`.
+	string read_string(string expected) {
+		if(gen){
+			out << expected;
+			return expected;
+		}
+	   	return read_string_impl(expected);
+   	}
+
+	// Read an arbitrary string of a given length.
+	string read_string(const string& name, long long min, long long max, source_location loc = source_location::current()) {
+		assert(!gen && "Generating strings is not supported!");
+		string s = read_string_impl();
+		long long size = s.size();
+		if(size < min || size > max)
+			expected(name + ": string of length between " + to_string(min) + " and " + to_string(max), s);
+		log_constraint(min, max, size, loc);
+		return s;
+	}
+
+    std::function<void()> WA_handler = []{};
+    void set_WA_handler(std::function<void()> f){
+        WA_handler = std::move(f);
+    }
+
+	// Return WA with the given reason.
+	template <typename... Ts>
+	[[noreturn]] void WA(Ts... ts) {
+        static_assert(sizeof...(Ts) > 0);
+
+		WA_handler();
+
+		auto pos = get_file_pos();
+		cerr << pos.first << ":" << pos.second << ": ";
+
+		WA_impl(ts...);
+	}
+
+	// Check that the condition is true.
+	template <typename... Ts>
+	void check(bool b, Ts... ts) {
+        static_assert(sizeof...(Ts) > 0);
+
+		if(!b) WA(ts...);
+	}
+
+	// Log some value in a range.
+	template<typename T>
+	void log_constraint(T low, T high, T v, source_location loc = source_location::current()){
+		// Do not log when line number is unknown/default/unsupported.
+		if(loc.line() == 0 or constraints_file_path.empty()) return;
+
+		auto& done = [&]() -> auto& {
+			if constexpr(std::is_integral<T>::value)
+				return integer_bounds.emplace(loc, Bounds<long long>(v, v, low, high)).first->second;
+			else
+				return float_bounds.emplace(loc, Bounds<long long>(v, v, low, high)).first->second;
+		}();
+		if(v < done.min){
+			done.min = v;
+			done.low = low;
+		}
+		if(v > done.max){
+			done.max = v;
+			done.high = high;
+		}
+		done.has_min |= v == low;
+		done.has_max |= v == high;
+	}
+
+
+  private:
+	long long read_integer(const string& name) {
+		if(gen){
+			std::uniform_int_distribution<long long> dis(std::numeric_limits<long long>::lowest(), std::numeric_limits<long long>::max());
+			auto v = dis(rng);
+			out << v;
+			return v;
+		}
+		string s = read_string_impl("", "integer");
+		if(s.empty()){
+			WA(name, ": Want integer, found nothing");
+		}
+		long long v;
+		try {
+			size_t chars_processed = 0;
+			v                      = stoll(s, &chars_processed);
+			if(chars_processed != s.size())
+				WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
+		} catch(const out_of_range &e) {
+			WA(name, ": Number " + s + " does not fit in a long long!");
+		} catch(const invalid_argument &e) { WA("Parsing " + s + " as long long failed!"); }
+		// Check for leading zero.
+		if(v == 0){
+			if(s.size() != 1)
+				WA(name, ": Parsed 0, but has leading 0 or minus sign: " , s);
+		}
+		if(v > 0){
+			if(s[0] == '0')
+				WA(name, ": Parsed ",v,", but has leading 0: " , s);
+		}
+		if(v < 0){
+			if(s.size() <= 1)
+				WA(name, ": Parsed ",v,", but string is: " , s);
+			if(s[1] == '0')
+				WA(name, ": Parsed ",v,", but has leading 0: " , s);
+		}
+		return v;
+	}
+
+	long double read_float(const string& name) {
+		if(gen){
+			std::uniform_real_distribution<long double> dis(std::numeric_limits<long double>::lowest(), std::numeric_limits<long double>::max());
+			auto v = dis(rng);
+			out << setprecision(10) << fixed << v;
+			return v;
+		}
+		string s = read_string_impl("", "long double");
+		long double v;
+		try {
+			size_t chars_processed;
+			v = stold(s, &chars_processed);
+			if(chars_processed != s.size())
+				WA(name, ": Parsing ", s, " as long double failed! Did not process all characters.");
+		} catch(const out_of_range &e) {
+			WA(name, ": Number " + s + " does not fit in a long double!");
+		} catch(const invalid_argument &e) { WA("Parsing " + s + " as long double failed!"); }
+		return v;
+	}
+
 	[[noreturn]] void expected(string exp = "", string s = "") {
 		assert(!gen && "Expected is not supported for generators.");
-		if(s.size())
+		if(!s.empty())
 			WA("Expected ", exp, ", found ", s);
 		else
 			WA(exp);
 	}
 
-  private:
 	template <typename T>
 	[[noreturn]] void WA_impl(T t) {
 		cerr << t << endl;
@@ -273,30 +520,6 @@ class Validator {
 		WA_impl(ts...);
 	}
 
-  public:
-    std::function<void()> WA_handler;
-    void set_WA_handler(std::function<void()> f){
-        WA_handler = std::move(f);
-    }
-
-	template <typename... Ts>
-	[[noreturn]] void WA(Ts... ts) {
-        static_assert(sizeof...(Ts) > 0);
-
-        WA_handler();
-
-		auto pos = get_file_pos();
-		cerr << pos.first << ":" << pos.second << ": ";
-
-		WA_impl(ts...);
-	}
-
-	template <typename... Ts>
-	void check(bool b, Ts... ts) {
-		if(!b) WA(ts...);
-	}
-
-  private:
 	// Read an arbitrary string.
 	// expected: if not "", string must equal this.
 	// wanted: on failure, print "expected <wanted>, got ..."
@@ -365,61 +588,24 @@ class Validator {
 	// Keep track of the min/max value read at every call site.
 	template<typename T>
 	struct Bounds {
-		Bounds(T min, T max, T low, T high) : min(min), max(max), low(low), high(high) {}
+		Bounds(T min_, T max_, T low_, T high_) : min(min_), max(max_), low(low_), high(high_) {}
 		T min, max;  // Smallest / largest value observed
 		T low, high; // Bounds
 		bool has_min=false, has_max=false;
 	};
-	map<string, Bounds<long long>> int_bounds;
-	map<string, Bounds<long double>> float_bounds;
-  public:
-	void log_constraint(long long low, long long high, long long v, source_location loc = source_location::current()){
-		// Do not log when line number is unknown/default/unsupported.
-		if(loc.line() == 0 or constraints_file_path.empty()) return;
 
-		string location = string(loc.file_name())+":"+to_string(loc.line());
+	map<source_location, Bounds<long long>> integer_bounds;
+	map<source_location, Bounds<long double>> float_bounds;
 
-		auto& done = int_bounds.emplace(location, Bounds<long long>(v, v, low, high)).first->second;
-		if(v < done.min){
-			done.min = v;
-			done.low = low;
-		}
-		if(v > done.max){
-			done.max = v;
-			done.high = high;
-		}
-		done.has_min |= v == low;
-		done.has_max |= v == high;
-	}
-	void log_constraint(long double low, long double high, long double v, source_location loc = source_location::current()){
-		// Do not log when line number is unknown/default/unsupported.
-		if(loc.line() == 0 or constraints_file_path.empty()) return;
-
-		string location = string(loc.file_name())+":"+to_string(loc.line());
-
-		auto& done = float_bounds.emplace(location, Bounds<long double>(v, v, low, high)).first->second;
-		if(v < done.min){
-			done.min = v;
-			done.low = low;
-		}
-		if(v > done.max){
-			done.max = v;
-			done.high = high;
-		}
-		done.has_min |= v == low;
-		done.has_max |= v == high;
-	}
-
-  private:
 	void write_constraints(){
 		if(constraints_file_path.empty()) return;
 
-		ofstream out(constraints_file_path);
+		ofstream os(constraints_file_path);
 
-		for(const auto& d : int_bounds)
-			out << d.first << " " << d.second.has_min << " " << d.second.has_max << " " << d.second.min << " " << d.second.max << " " << d.second.low << " " << d.second.high << endl;
+		for(const auto& d : integer_bounds)
+			os << to_string(d.first) << " " << d.second.has_min << " " << d.second.has_max << " " << d.second.min << " " << d.second.max << " " << d.second.low << " " << d.second.high << endl;
 		for(const auto& d : float_bounds)
-			out << d.first << " " << d.second.has_min << " " << d.second.has_max << " " << d.second.min << " " << d.second.max << " " << d.second.low << " " << d.second.high << endl;
+			os << to_string(d.first) << " " << d.second.has_min << " " << d.second.has_max << " " << d.second.min << " " << d.second.max << " " << d.second.low << " " << d.second.high << endl;
 	}
 
 	const int ret_AC = 42, ret_WA = 43;
