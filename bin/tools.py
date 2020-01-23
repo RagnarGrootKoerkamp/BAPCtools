@@ -1825,6 +1825,7 @@ def new_problem():
     skeldir = config.tools_root / 'skel/problem'
     if Path('skel/problem').is_dir(): skeldir = Path('skel/problem')
     if Path('../skel/problem').is_dir(): skeldir = Path('../skel/problem')
+    if config.skel: skeldir = Path(config.skel)
     print(f'Copying {skeldir} to {dirname}.')
     shutil.copytree(skeldir, dirname, symlinks=True)
 
@@ -1921,6 +1922,8 @@ Run this from one of:
     problemparser.add_argument('--default_validation',
                                action='store_true',
                                help='Use default validation for this problem.')
+    problemparser.add_argument('--skel',
+                               help='Skeleton problem directory to copy from.')
 
     # New CfP problem
     cfpproblemparser = subparsers.add_parser('cfp_problem', help='Stub for minimal cfp problem.')
