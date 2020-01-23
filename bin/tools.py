@@ -302,7 +302,7 @@ def build(path):
             'g++',
             '-I',
             config.tools_root / 'headers',
-            '-std=c++14',
+            '-std=c++17',
             '-Wall',
             '-O2',
             '-fdiagnostics-color=always',  # Enable color output
