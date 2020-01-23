@@ -1989,8 +1989,7 @@ def new_contest(name):
     subtitle = ask_variable('subtitle', '')
     dirname = ask_variable('dirname', alpha_num(title))
     author = ask_variable('author', f'The {title} jury')
-    testsession = ('% '
-                   if ask_variable('testsession?', 'n (y/n)')[0] == 'n' else '') + '\\testsession'
+    testsession = ask_variable('testsession?', 'n (y/n)')[0] != 'n' # boolean
     year = ask_variable('year', str(datetime.datetime.now().year))
     source = ask_variable('source', title)
     source_url = ask_variable('source url', '')
