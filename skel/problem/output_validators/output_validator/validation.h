@@ -371,7 +371,7 @@ class Validator {
 
 
 	// Read a string and make sure it equals `expected`.
-	string read_string(string expected) {
+	string test_string(string expected) {
 		if(gen){
 			out << expected;
 			return expected;

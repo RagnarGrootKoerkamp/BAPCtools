@@ -1825,7 +1825,7 @@ def new_problem():
     skeldir = config.tools_root / 'skel/problem'
     if Path('skel/problem').is_dir(): skeldir = Path('skel/problem')
     if Path('../skel/problem').is_dir(): skeldir = Path('../skel/problem')
-    if config.skel: skeldir = Path(config.skel)
+    if config.args.skel: skeldir = Path(config.args.skel)
     print(f'Copying {skeldir} to {dirname}.')
     shutil.copytree(skeldir, dirname, symlinks=True)
 
