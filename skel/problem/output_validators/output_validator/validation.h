@@ -561,6 +561,8 @@ class Validator {
 
 	// Return ACCEPTED verdict.
 	[[noreturn]] void AC() {
+		if(gen) exit(0);
+
 	   	exit(ret_AC);
    	}
 

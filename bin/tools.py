@@ -1349,6 +1349,8 @@ def generate(problem, settings):
         stdin_path = tmpdir / file_name.name
         stdout_path = tmpdir / (file_name.name + '.stdout')
 
+        ok = True
+
         # Run all commands.
         for command in commands:
             input_command = shlex.split(command)
@@ -1365,6 +1367,7 @@ def generate(problem, settings):
             generator_command, msg = build(problem / 'generators' / generator_name)
             if generator_command is None:
                 error(msg)
+                ok = False
                 break
 
             command = generator_command + input_args
@@ -1382,13 +1385,14 @@ def generate(problem, settings):
                 shutil.move(stdout_path, stdin_path)
 
             if ok is not True:
-                bar.error('FAILED')
+                bar.error('FAILED: ' + err)
                 nfail += 1
                 ok = False
                 break
 
         def maybe_move(source, target):
             same = True
+            nonlocal nskip
             if target.is_file():
                 if source.read_text() != target.read_text():
                     same = False
@@ -1405,23 +1409,24 @@ def generate(problem, settings):
             return same
 
         # Copy all generated files back to the data directory.
-        for f in tmpdir.iterdir():
-            if f.stat().st_size == 0: continue
+        if ok:
+            for f in tmpdir.iterdir():
+                if f.stat().st_size == 0: continue
 
-            target = problem / 'data' / file_name.parent / f.name
+                target = problem / 'data' / file_name.parent / f.name
 
-            # Generate .ans for .in files.
-            if f.suffix == '.in' and generate_ans and submission:
-                ansfile = f.with_suffix('.ans')
-                ok, timeout, duration, err, out = run_testcase(submission, f, ansfile,
-                                                               settings.timelimit)
-                if not ok:
-                    bar.error('.ans FAILED')
-                else:
-                    ok &= maybe_move(ansfile, target.with_suffix('.ans'))
+                # Generate .ans for .in files.
+                if f.suffix == '.in' and generate_ans and submission:
+                    ansfile = f.with_suffix('.ans')
+                    ok, timeout, duration, err, out = run_testcase(submission, f, ansfile,
+                                                                   settings.timelimit)
+                    if not ok:
+                        bar.error('.ans FAILED')
+                    else:
+                        ok &= maybe_move(ansfile, target.with_suffix('.ans'))
 
-            # Move the .in.
-            ok &= maybe_move(f, target)
+                # Move the .in.
+                ok &= maybe_move(f, target)
 
         bar.done(ok)
 
@@ -1488,13 +1493,13 @@ def generate_random_input(problem, settings):
                     testcase.unlink()
                 ok, err, out = util.exec_command(
                     validator[1] + ['--generate'],
-                    expect=config.RTV_AC,
+                    expect=0,
                     stdout=testcase.open('w'),
                     #stderr=None
                 )
 
                 if ok == True:
-                    message = _c.green + 'WRITTEN' + _c.reset
+                    message = _c.green + 'WRITTEN' + _c.reset + f' after {retry+1} tries'
                     success = True
                     break
                 else:
