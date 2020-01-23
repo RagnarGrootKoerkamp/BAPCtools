@@ -33,6 +33,6 @@ int main(int argc, char **argv) {
 
 	int input;
 	in >> input;
-	int answer = v.read_integer(0, 1000000000);
+	int answer = v.read_integer("answer", 0, 1000000000);
 	v.newline();
 }

@@ -14,11 +14,10 @@ int main(int argc, char** argv) {
 	return 0;
 
 	// Other useful commands:
-	string s = v.read_string();
 	// read_{float,integer}[s] takes an optional tag:
 	// Unique, Increasing, Decreasing, StrictlyIncreasing, StrictlyDecreasing
 	v.read_integers("v", /*count=*/10, 0, 1000000, Unique);
-	v.read_string("ACCEPTED"); // only succeeds when it reads the given string.
+	v.test_string("ACCEPTED"); // only succeeds when it reads the given string.
 	v.read_string("s", 4, 5);     // only succeeds when it reads a string with length in inclusive range.
 	bool b = v.peek('x');    // test the next character.
 	v.WA("The input is not valid."); // Print error and exit with code 43.
