@@ -97,8 +97,8 @@ struct StrictlyDecreasingTag {
 
 class Validator {
   protected:
-	Validator(bool ws_, bool case_ , istream &in_, string constraints_file_path_ = "", bool gen_ = false)
-	   	: in(in_), ws(ws_), case_sensitive(case_), constraints_file_path(constraints_file_path_), gen(gen_) {
+	Validator(bool ws_, bool case_ , istream &in_, string constraints_file_path_ = "", bool gen_ = false, std::optional<unsigned int> seed = std::nullopt)
+		: in(in_), ws(ws_), case_sensitive(case_), constraints_file_path(constraints_file_path_), gen(gen_), rng(seed.value_or(std::random_device()())) {
 		if(gen) return;
 		if(ws) in >> noskipws;
 		else in >> skipws;
@@ -634,13 +634,13 @@ class Validator {
 	const string constraints_file_path;
 	bool gen = false;
 
-	std::mt19937_64 rng{std::random_device()()};
+	std::mt19937_64 rng;
 };
 
 class InputValidator : public Validator {
   public:
 	// An InputValidator is always both whitespace and case sensitive.
-	InputValidator(int argc=0, char** argv=nullptr) : Validator(true, true, std::cin, get_constraints_file(argc, argv), is_generator_mode(argc, argv)) {}
+	InputValidator(int argc=0, char** argv=nullptr) : Validator(true, true, std::cin, get_constraints_file(argc, argv), is_generator_mode(argc, argv), get_seed(argc, argv)) {}
 
   private:
 	static string get_constraints_file(int argc, char** argv){
@@ -662,6 +662,15 @@ class InputValidator : public Validator {
 			}
 		}
 		return false;
+	}
+
+	static std::optional<unsigned int> get_seed(int argc, char** argv){
+		for(int i = 1; i < argc-1; ++i){
+			if(argv[i] == generate_flag){
+				return stol(argv[i+1]);
+			}
+		}
+		return std::nullopt;
 	}
 };
 
