@@ -1303,7 +1303,7 @@ def get_random_submission(problem):
     # only get one accepted submission
     submissions = list(glob(problem, 'submissions/accepted/*'))
     if len(submissions) == 0:
-        fatal('No submission found for this problem!')
+        return None
     submissions.sort()
     # Look for a c++ solution if available.
     submission = None
@@ -1328,14 +1328,14 @@ def generate(problem, settings):
     gen_config, generator_runs = parse_gen_yaml(problem)
 
     generate_ans = False
-    submission = get_random_submission(problem)
+    submission = None
     retries = 1
     if gen_config:
         if 'generate_ans' in gen_config:
             generate_ans = gen_config['generate_ans']
-        if generate_ans and 'submission' in gen_config:
-            if gen_config['submission']:
-                submission = gen_config['submission']
+            submission = get_random_submission(problem)
+        if generate_ans and 'submission' in gen_config and gen_config['submission']:
+            submission = gen_config['submission']
         if 'retries' in gen_config:
             retries = max(gen_config['retries'], 1)
 
@@ -1559,6 +1559,8 @@ def generate_answer(problem, settings):
         submission = problem / settings.submission
     else:
         submission = get_random_submission(problem)
+        if submission is None:
+            fatal('No submission found for this problem!')
 
     # build submission
     bar = ProgressBar('Building')
