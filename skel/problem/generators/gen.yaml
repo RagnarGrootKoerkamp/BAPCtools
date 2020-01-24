@@ -3,6 +3,10 @@ config:
     generate_ans: true
     # Could also live in generators/.
     submission: # submissions/accepted/solution.cpp
+    # The number of retries for generators that may fail.
+    # $SEED is incremented by 1 on each new run.
+    #retries: 1
+
 
 secret:
     # test.in: generator.py $SEED

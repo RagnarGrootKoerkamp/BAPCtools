@@ -1305,6 +1305,7 @@ def generate(problem, settings):
 
     generate_ans = False
     submission = None
+    retries = 1
     if gen_config:
         if 'generate_ans' in gen_config:
             generate_ans = gen_config['generate_ans']
@@ -1312,6 +1313,8 @@ def generate(problem, settings):
             submission = gen_config['submission']
             if not submission:
                 error(f'Submission should not be empty!')
+        if 'retries' in gen_config:
+            retries = max(gen_config['retries'], 1)
 
     if len(generator_runs) == 0: return True
 
@@ -1342,53 +1345,64 @@ def generate(problem, settings):
 
         (problem / 'data' / file_name.parent).mkdir(parents=True, exist_ok=True)
 
-        # Clean the directory.
-        for f in tmpdir.iterdir():
-            f.unlink()
-
         stdin_path = tmpdir / file_name.name
         stdout_path = tmpdir / (file_name.name + '.stdout')
 
+
+        # Try running all commands |retries| times.
         ok = True
+        for retry in range(retries):
+            # Clean the directory.
+            for f in tmpdir.iterdir():
+                f.unlink()
 
-        # Run all commands.
-        for command in commands:
-            input_command = shlex.split(command)
+            try_ok = True
 
-            generator_name = input_command[0]
-            input_args = input_command[1:]
+            for command in commands:
+                input_command = shlex.split(command)
 
-            for i in range(len(input_args)):
-                x = input_args[i]
-                if x == '$SEED':
-                    val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(), 16) % (2**31)
-                    input_args[i] = val
+                generator_name = input_command[0]
+                input_args = input_command[1:]
 
-            generator_command, msg = build(problem / 'generators' / generator_name)
-            if generator_command is None:
-                error(msg)
-                ok = False
-                break
+                for i in range(len(input_args)):
+                    x = input_args[i]
+                    if x == '$SEED':
+                        val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(), 16) % (2**31)
+                        input_args[i] = (val + retry) % (2**31)
 
-            command = generator_command + input_args
+                generator_command, msg = build(problem / 'generators' / generator_name)
+                if generator_command is None:
+                    error(msg)
+                    ok = False
+                    break
 
-            stdout_file = stdout_path.open('w')
-            stdin_file = stdin_path.open('r') if stdin_path.is_file() else None
-            ok, err, out = util.exec_command(command,
-                                             stdout=stdout_file,
-                                             stdin=stdin_file,
-                                             cwd=tmpdir)
-            stdout_file.close()
-            if stdin_file: stdin_file.close()
+                command = generator_command + input_args
 
-            if stdout_path.is_file():
-                shutil.move(stdout_path, stdin_path)
+                stdout_file = stdout_path.open('w')
+                stdin_file = stdin_path.open('r') if stdin_path.is_file() else None
+                try_ok, err, out = util.exec_command(command,
+                                                 stdout=stdout_file,
+                                                 stdin=stdin_file,
+                                                 cwd=tmpdir)
+                stdout_file.close()
+                if stdin_file: stdin_file.close()
 
-            if ok is not True:
-                bar.error('FAILED: ' + err)
-                nfail += 1
-                ok = False
-                break
+                if stdout_path.is_file():
+                    shutil.move(stdout_path, stdin_path)
+
+                if try_ok is not True:
+                    nfail += 1
+                    try_ok = False
+                    break
+
+            if not ok: break
+            if try_ok: break
+
+        if not try_ok:
+            bar.error('FAILED: ' + err)
+            ok = False
+
+        tries_msg = '' if retry == 1 else f' after {retry} tries'
 
         def maybe_move(source, target):
             same = True
@@ -1398,14 +1412,14 @@ def generate(problem, settings):
                     same = False
                     if hasattr(settings, 'force') and settings.force:
                         shutil.move(source, target)
-                        bar.log('CHANGED: ' + target.name)
+                        bar.log('CHANGED: ' + target.name + tries_msg)
                     else:
                         nskip += 1
                         bar.warn('SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite')
             else:
                 same = False
                 shutil.move(source, target)
-                bar.log('NEW: ' + target.name)
+                bar.log('NEW: ' + target.name + tries_msg)
             return same
 
         # Copy all generated files back to the data directory.
@@ -1506,16 +1520,12 @@ def generate_random_input(problem, settings):
                     message = err
                     if testcase.exists() and not (hasattr(settings, 'keep') and settings.keep):
                         testcase.unlink()
-                    nskip += 1
 
             if not success and retry == settings.retries - 1:
                 nfail += 1
                 message = _c.red + 'GENERATION FAILED' + _c.reset + ': ' + f'All {settings.retries} attempts failed. Try --retries <num>.' + '\n' + message
 
         bar.done(False, message)
-
-    if not config.verbose and nskip == 0 and nfail == 0:
-        print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
 
     print()
     return nskip == 0 and nfail == 0
