@@ -1299,20 +1299,43 @@ def parse_gen_yaml(problem):
     return gen_config, generator_runs
 
 
+def get_random_submission(problem):
+    # only get one accepted submission
+    submissions = list(glob(problem, 'submissions/accepted/*'))
+    if len(submissions) == 0:
+        fatal('No submission found for this problem!')
+    submissions.sort()
+    # Look for a c++ solution if available.
+    submission = None
+    for s in submissions:
+        # Skip files containing 'NO_GENERATE'.
+        # Pick files containing 'CANONICAL'.
+        with open(s) as submission_file:
+            text = submission_file.read()
+            if text.find('NO_GENERATE') != -1:
+                continue
+            if text.find('CANONICAL') != -1:
+                submission = s
+                break
+        if s.suffix == '.cpp':
+            submission = s
+        else:
+            if submission is None:
+                submission = s
+
 # Run generators according to the gen.yaml file.
 def generate(problem, settings):
     gen_config, generator_runs = parse_gen_yaml(problem)
 
     generate_ans = False
-    submission = None
+    submission = get_random_submission(problem)
     retries = 1
     if gen_config:
         if 'generate_ans' in gen_config:
             generate_ans = gen_config['generate_ans']
         if generate_ans and 'submission' in gen_config:
-            submission = gen_config['submission']
-            if not submission:
-                error(f'Submission should not be empty!')
+            if gen_config['submission']:
+                submission = gen_config['submission']
         if 'retries' in gen_config:
             retries = max(gen_config['retries'], 1)
 
@@ -1402,7 +1425,7 @@ def generate(problem, settings):
             bar.error('FAILED: ' + err)
             ok = False
 
-        tries_msg = '' if retry == 1 else f' after {retry} tries'
+        tries_msg = '' if retry == 0 else f' after {retry+1} tries'
 
         def maybe_move(source, target):
             same = True
@@ -1535,29 +1558,7 @@ def generate_answer(problem, settings):
     if hasattr(settings, 'submission') and settings.submission:
         submission = problem / settings.submission
     else:
-        # only get one accepted submission
-        submissions = list(glob(problem, 'submissions/accepted/*'))
-        if len(submissions) == 0:
-            print('No submission found for this problem!')
-            sys.exit(1)
-        submissions.sort()
-        # Look fora c++ solution if available.
-        submission = None
-        for s in submissions:
-            # Skip files containing 'NO_GENERATE'.
-            # Pick files containing 'CANONICAL'.
-            with open(s) as submission_file:
-                text = submission_file.read()
-                if text.find('NO_GENERATE') != -1:
-                    continue
-                if text.find('CANONICAL') != -1:
-                    submission = s
-                    break
-            if s.suffix == '.cpp':
-                submission = s
-            else:
-                if submission is None:
-                    submission = s
+        submission = get_random_submission(problem)
 
     # build submission
     bar = ProgressBar('Building')
