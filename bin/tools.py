@@ -304,6 +304,7 @@ def build(path):
             config.tools_root / 'headers',
             '-std=c++17',
             '-Wall',
+            '-Wfatal-errors',
             '-O2',
             '-fdiagnostics-color=always',  # Enable color output
             '-o',
@@ -369,7 +370,9 @@ def build(path):
     if compile_command is not None:
         ok, err, out = util.exec_command(compile_command,
                                          stdout=subprocess.PIPE,
-                                         memory=5000000000)
+                                         memory=5000000000,
+                                         # Compile errors are never cropped.
+                                         crop=False)
         if ok is not True:
             config.n_error += 1
             message = f'{_c.red}FAILED{_c.reset} '

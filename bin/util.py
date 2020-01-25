@@ -265,12 +265,10 @@ def crop_output(output):
     if len(output) > 200:
         output = output[:200]
         output += ' ...\n'
-        return output
+        cropped = True
 
     if cropped:
-        output += _c.orange + str(
-            numlines -
-            8) + ' lines skipped; use -e to show them or -E to hide all output.' + _c.reset
+        output += _c.orange + 'Use -e to show more or -E to hide it.' + _c.reset
     return output
 
 
