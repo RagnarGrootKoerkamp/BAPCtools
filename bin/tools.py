@@ -135,7 +135,7 @@ def python_version(path):
         return 'python2'
     if re.match('^#!.*python3', shebang):
         return 'python3'
-    return 'python2'
+    return 'python3'
 
 
 def python_interpreter(version):
@@ -1322,6 +1322,7 @@ def get_random_submission(problem):
         else:
             if submission is None:
                 submission = s
+    return submission
 
 # Run generators according to the gen.yaml file.
 def generate(problem, settings):
@@ -1335,19 +1336,18 @@ def generate(problem, settings):
             generate_ans = gen_config['generate_ans']
             submission = get_random_submission(problem)
         if generate_ans and 'submission' in gen_config and gen_config['submission']:
-            submission = gen_config['submission']
+            submission = problem / gen_config['submission']
         if 'retries' in gen_config:
             retries = max(gen_config['retries'], 1)
 
     if len(generator_runs) == 0: return True
 
     if generate_ans and submission is not None:
-        submission_path = problem / submission
-        if not (submission_path.is_file() or submission_path.is_dir()):
-            error(f'Submission not found: {submission_path}')
+        if not (submission.is_file() or submission.is_dir()):
+            error(f'Submission not found: {submission}')
             submission = None
         else:
-            submission, msg = build(problem / submission)
+            submission, msg = build(submission)
             if submission is None:
                 error(msg)
 
