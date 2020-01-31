@@ -91,11 +91,35 @@ def create_samples_file(problem):
     samples_data = ''
 
     for sample in samples:
-        samples_data += '\\begin{Sample}\n'
-        samples_data += tex_escape(sample.with_suffix('.in').read_text())
-        samples_data += '&\n'
-        samples_data += tex_escape(sample.with_suffix('.ans').read_text())
-        samples_data += '\\\\\n\\end{Sample}\n\n'
+        interaction_file = sample.with_suffix('.interaction')
+        if interaction_file.is_file():
+            samples_data += '\\InteractiveSampleHeading\n'
+            lines = interaction_file.read_text()
+            last = 'x'
+            cur = ''
+
+            def flush():
+                assert last in '<>'
+                nonlocal samples_data
+                mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
+                samples_data += '\\begin{'+mode+'}\n'
+                samples_data += tex_escape(cur)
+                samples_data += '\\end{'+mode+'}\n\n'
+
+            for line in lines.splitlines():
+                if line[0] == last:
+                    cur += line[1:] + '\n'
+                else:
+                    if cur: flush()
+                    cur = line[1:] + '\n'
+                    last = line[0]
+            flush()
+        else:
+            samples_data += '\\begin{Sample}\n'
+            samples_data += tex_escape(sample.with_suffix('.in').read_text())
+            samples_data += '&\n'
+            samples_data += tex_escape(sample.with_suffix('.ans').read_text())
+            samples_data += '\\\\\n\\end{Sample}\n\n'
     samples_file_path.write_text(samples_data)
 
 

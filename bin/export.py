@@ -49,7 +49,7 @@ def build_problem_zip(problem, output, settings):
         ('submissions/run_time_error/**/*', False),
     ]
 
-    if settings.validation == 'custom':
+    if 'custom' in settings.validation:
         files.append(('output_validators/**/*', True))
 
     if config.args.kattis:

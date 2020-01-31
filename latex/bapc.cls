@@ -51,6 +51,7 @@
 
 % (Joris: add space between paragraphs)
 \setlength{\parindent}{0pt}
+\setlength{\medskipamount}{0pt} % Prevent spaces before/after lstlisting.
 \nonzeroparskip
 
 % Require some packages.
@@ -59,6 +60,7 @@
 \RequirePackage{environ}
 \RequirePackage{etoolbox}
 \RequirePackage{float}
+\RequirePackage{listingsutf8}
 
 % Add a relatively unknown package for hyperlinks,
 % since hyperref messes up the entire document.
@@ -194,6 +196,54 @@
 		\hline
 	\end{tabularx}%
 	\rmfamily
+}
+
+
+
+\newcommand{\InteractiveSampleHeading}{
+	\par\noindent%
+	\stepcounter{SampleCount}%
+	\begin{tabularx}{0.983\textwidth}{XXX}%
+		\large\bfseries\textrm Read \hfill%
+		& %
+		\centering \large\bfseries\textrm Sample Interaction
+		\arabic{SampleCount}%
+		& %
+		\hfill \large\bfseries\textrm Write \\%
+	\end{tabularx}
+	\par
+}
+\NewEnviron{InteractiveWrite}{
+	\noindent
+	\normalsize
+	\ttfamily
+	\hfill\framebox[0.55\textwidth][l]{%
+		\parbox[t]{\textwidth}{
+			\vspace{-.4em}%
+			\strut%
+			\BODY
+			\vspace{-.4em}%
+			\strut%
+		}
+	}
+	\vspace{-0.4em}
+	\par
+}
+\NewEnviron{InteractiveRead}{
+	\noindent
+	\normalsize
+	\ttfamily
+	\framebox[0.55\textwidth][l]{%
+		\parbox[t]{\textwidth}{
+			\vspace{-.4em}%
+			\strut%
+			\BODY
+			\vspace{-.4em}%
+			\strut%
+		}
+	}
+	\vspace{-0.4em}
+	\par%
 }
 
 %-------------------------------------------------------------------------------

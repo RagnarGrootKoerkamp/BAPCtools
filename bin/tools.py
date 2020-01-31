@@ -963,7 +963,7 @@ def process_testcase(run_command,
                      output_validators,
                      printnewline=False):
 
-    if settings.validation == 'interactive':
+    if 'interactive' in settings.validation:
         return process_interactive_testcase(run_command, testcase, outfile, settings,
                                             output_validators)
 
@@ -1060,7 +1060,7 @@ def run_submission(submission,
             if out.count('\n') > 1:
                 prefix = '\n'
             output_type = 'STDOUT'
-            if settings.validation == 'interactive': output_type = 'PROGRAM STDERR'
+            if 'interactive' in settings.validation: output_type = 'PROGRAM STDERR'
             message += f'\n{_c.red}{output_type}{_c.reset}' + prefix + _c.orange + util.strip_newline(
                 out) + _c.reset
 
@@ -1107,7 +1107,7 @@ def get_submission_type(s):
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
     needans = True
-    if settings.validation == 'interactive': needans = False
+    if 'interactive' in settings.validation: needans = False
     testcases = util.get_testcases(problem, needans=needans)
 
     if len(testcases) == 0:
@@ -1115,7 +1115,7 @@ def run_submissions(problem, settings):
         return False
 
     output_validators = None
-    if settings.validation in ['custom', 'interactive']:
+    if settings.validation in ['custom', 'interactive', 'custom interactive']:
         output_validators = get_validators(problem, 'output')
         if len(output_validators) == 0:
             return False
@@ -2260,7 +2260,7 @@ def main():
             success &= check_constraints(problem.path, settings)
         if action in ['zip']:
             # For DJ: export to A.zip
-            output = settings.label + '.zip'
+            output = problem.label + '.zip'
             # For Kattis: export to shortname.zip
             if hasattr(config.args, 'kattis') and config.args.kattis:
                 output = problem.path.with_suffix('.zip')
