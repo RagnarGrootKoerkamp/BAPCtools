@@ -44,7 +44,7 @@ import export
 import latex
 import util
 import validation
-from util import ProgressBar, _c, glob, warn, error, fatal
+from util import ProgressBar, _c, glob, log, warn, error, fatal
 
 
 # Get the list of relevant problems.
@@ -484,10 +484,14 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
     else:
         validators = get_validators(problem, validator_type)
 
+    if settings.validation == 'custom interactive' and validator_type == 'output':
+        log('Not validating .ans for interactive problem.')
+        return True
+
     if len(validators) == 0:
         return False
 
-    testcases = util.get_testcases(problem, validator_type == 'output')
+    testcases = util.get_testcases(problem, needans=validator_type == 'output')
 
     # Get the bad testcases:
     # For input validation, look for .in files without .ans or .out.
@@ -899,15 +903,12 @@ def process_interactive_testcase(run_command,
     else:
         submission_timeout = 60
 
-    # Set up pipes.
-    # Run the validator
+    # Validator command
     flags = []
     if settings.space_change_sensitive: flags += ['space_change_sensitive']
     if settings.case_sensitive: flags += ['case_sensitive']
-
     judgepath = config.tmpdir / 'judge'
     judgepath.mkdir(parents=True, exist_ok=True)
-
     validator_command = output_validator[1] + [testcase.with_suffix('.in'), testcase.with_suffix('.ans'), judgepath] + flags 
 
     # On Windows:
@@ -970,11 +971,50 @@ def process_interactive_testcase(run_command,
     # - Close first program + write end of pipe
     # - Close remaining program + write end of pipe
 
-    val_in, team_out = os.pipe2(os.O_CLOEXEC)
-    team_in, val_out = os.pipe2(os.O_CLOEXEC)
-    F_SETPIPE_SZ = 1031
-    fcntl.fcntl(team_out, F_SETPIPE_SZ, 2**20)
-    fcntl.fcntl(val_out, F_SETPIPE_SZ, 2**20)
+    def mkpipe():
+        # TODO: is os.O_CLOEXEC needed here?
+        r, w = os.pipe2(os.O_CLOEXEC)
+        F_SETPIPE_SZ = 1031
+        fcntl.fcntl(w, F_SETPIPE_SZ, 2**20)
+        return r, w
+
+    interaction = False
+    # TODO: Print interaction when needed.
+    if False:
+        interaction = True
+        interaction_path = testcase.with_suffix('.interaction')
+
+    team_log_in, team_out = mkpipe()
+    val_log_in, val_out = mkpipe()
+    if interaction:
+        val_in, team_log_out = mkpipe()
+        team_in, val_log_out = mkpipe()
+    else:
+        val_in = team_log_in
+        team_in = val_log_in
+
+
+    if interaction:
+        if interaction_path.is_file(): interaction_path.unlink()
+        # Connect pipes with tee.
+        TEE_CODE = '''
+import sys
+f = open(sys.argv[2], 'a', buffering=1)
+c = sys.argv[1]
+new = True
+while True:
+    l = sys.stdin.read(1)
+    if l=='': break
+    sys.stdout.write(l)
+    sys.stdout.flush()
+    if new: f.write(c)
+    f.write(l)
+    new = l=='\\n'
+'''
+        team_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '>', interaction_path], stdin=team_log_in, stdout=team_log_out)
+        team_tee_pid = team_tee.pid
+        val_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '<', interaction_path], stdin=val_log_in, stdout=val_log_out)
+        val_tee_pid = val_tee.pid
 
     # Run Validator
     def set_validator_limits():
@@ -1010,6 +1050,9 @@ def process_interactive_testcase(run_command,
 
     os.close(team_out)
     os.close(val_out)
+    if interaction:
+        os.close(team_log_out)
+        os.close(val_log_out)
 
     # To be filled
     validator_status = None
@@ -1026,12 +1069,12 @@ def process_interactive_testcase(run_command,
     signal.signal(signal.SIGALRM, kill_submission)
 
     # Wait for first to finish
-    for i in range(2):
+    for i in range(4 if interaction else 2):
         pid, status, rusage = os.wait3(0)
         status >>= 8
 
         if pid == validator_pid:
-            if i == 0: first = 'validator'
+            if first is None: first = 'validator'
             validator_status = status
             # Kill the team submission in case we already know it's WA.
             if i == 0 and validator_status != config.RTV_AC:
@@ -1040,17 +1083,23 @@ def process_interactive_testcase(run_command,
 
         if pid == submission_pid:
             signal.alarm(0)
-            if i == 0: first = 'submission'
+            if first is None: first = 'submission'
             submission_status = status
             # Possibly already written by the alarm.
             if not submission_time:
                 submission_time = rusage.ru_utime + rusage.ru_stime
             continue
 
+        if pid == team_tee_pid: continue
+        if pid == val_tee_pid: continue
+
         assert False
 
     os.close(team_in)
     os.close(val_in)
+    if interaction:
+        os.close(team_log_in)
+        os.close(val_log_in)
 
     did_timeout = settings.timelimit is not None and submission_time > settings.timelimit
 

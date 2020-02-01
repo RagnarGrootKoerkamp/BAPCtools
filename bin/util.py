@@ -51,6 +51,10 @@ class Colorcodes(object):
 _c = Colorcodes()
 
 
+def log(msg):
+    print(_c.green + 'LOG: ' + msg + _c.reset)
+
+
 def warn(msg):
     print(_c.orange + 'WARNING: ' + msg + _c.reset)
     config.n_warn += 1
