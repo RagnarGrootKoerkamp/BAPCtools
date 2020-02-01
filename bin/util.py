@@ -271,6 +271,18 @@ def crop_output(output):
         output += _c.orange + 'Use -e to show more or -E to hide it.' + _c.reset
     return output
 
+# Return memory limit in bytes.
+def get_memory_limit(kwargs=None):
+    memory_limit = 1000000000  # 1GB
+    if hasattr(config.args, 'memory'):
+        if config.args.memory and config.args.memory != 'unlimited':
+            memory_limit = int(config.args.memory)
+        else:
+            memory_limit = None
+    if kwargs and 'memory' in kwargs:
+        memory_limit = kwargs['memory']
+        kwargs.pop('memory')
+    return memory_limit
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
@@ -292,15 +304,8 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         if timeout is not None:
             hard_timeout = timeout + 1
 
-    memory_limit = 1000000000  # 1GB
-    if hasattr(config.args, 'memory'):
-        if config.args.memory and config.args.memory != 'unlimited':
-            memory_limit = int(config.args.memory)
-        else:
-            memory_limit = None
-    if 'memory' in kwargs:
-        memory_limit = kwargs['memory']
-        kwargs.pop('memory')
+    memory_limit = get_memory_limit(kwargs)
+
     # Disable memory limits for Java.
     if command[0] == 'java' or command[0] == 'javac':
         memory_limit = None

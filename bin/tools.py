@@ -15,6 +15,7 @@ Bommel.
 """
 
 import sys
+import fcntl
 import shlex
 import stat
 import hashlib
@@ -26,6 +27,7 @@ import time
 import re
 import shutil
 import subprocess
+import signal
 import resource
 import time
 import yaml
@@ -885,15 +887,15 @@ def process_interactive_testcase(run_command,
         )
     output_validator = output_validators[0]
 
-    # Compute the timeouts
+    # Set limits
     validator_timeout = 60
 
+    memory_limit = util.get_memory_limit()
     if hasattr(config.args, 'timeout') and config.args.timeout:
         submission_timeout = float(config.args.timeout)
     elif settings.timelimit:
         # Double the tle to check for solutions close to the required bound
-        # ret = True or ret = (code, error)
-        submission_timeout = 2 * settings.timelimit
+        submission_timeout = settings.timelimit + 1
     else:
         submission_timeout = 60
 
@@ -906,53 +908,186 @@ def process_interactive_testcase(run_command,
     judgepath = config.tmpdir / 'judge'
     judgepath.mkdir(parents=True, exist_ok=True)
 
-    def setlimits():
+    validator_command = output_validator[1] + [testcase.with_suffix('.in'), testcase.with_suffix('.ans'), judgepath] + flags 
+
+    # On Windows:
+    # - Start the validator
+    # - Start the submission
+    # - Wait for the submission to complete or timeout
+    # - Wait for the validator to complete.
+    # This cannot handle cases where the validator reports WA and the submission timeout out
+    # afterwards.
+    if util.is_windows():
+
+        # Start the validator.
+        validator_process = subprocess.Popen(validator_command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            bufsize=2**20)
+
+        # Start and time the submission.
+        tstart = time.monotonic()
+        ok, err, out = util.exec_command(run_command,
+                                         expect=0,
+                                         stdin=validator_process.stdout,
+                                         stdout=validator_process.stdin,
+                                         stderr=subprocess.PIPE,
+                                         timeout=submission_timeout)
+
+        # Wait
+        (validator_out, validator_err) = validator_process.communicate()
+
+        tend = time.monotonic()
+
+        did_timeout = False
+        if settings.timelimit is not None and tend - tstart > settings.timelimit:
+            did_timeout = True
+
+        validator_ok = validator_process.returncode
+
+        if validator_ok != config.RTV_AC and validator_ok != config.RTV_WA:
+            config.n_error += 1
+            verdict = 'VALIDATOR_CRASH'
+        elif did_timeout:
+            verdict = 'TIME_LIMIT_EXCEEDED'
+        elif ok is not True:
+            verdict = 'RUN_TIME_ERROR'
+        elif validator_ok == config.RTV_WA:
+            verdict = 'WRONG_ANSWER'
+        elif validator_ok == config.RTV_AC:
+            verdict = 'ACCEPTED'
+        return (verdict, tend - tstart, validator_err.decode('utf-8'), err)
+
+    # On Linux:
+    # - Create 2 pipes
+    # - Update the size to 1MB
+    # - Start validator
+    # - Start submission, limiting CPU time to timelimit+1s
+    # - Close unused read end of pipes
+    # - Set alarm for timelimit+1s, and kill submission on SIGALRM if needed.
+    # - Wait for either validator or submission to finish
+    # - Close first program + write end of pipe
+    # - Close remaining program + write end of pipe
+
+    val_in, team_out = os.pipe2(os.O_CLOEXEC)
+    team_in, val_out = os.pipe2(os.O_CLOEXEC)
+    F_SETPIPE_SZ = 1031
+    fcntl.fcntl(team_out, F_SETPIPE_SZ, 2**20)
+    fcntl.fcntl(val_out, F_SETPIPE_SZ, 2**20)
+
+    # Run Validator
+    def set_validator_limits():
         resource.setrlimit(resource.RLIMIT_CPU, (validator_timeout, validator_timeout))
+        # Increase the max stack size from default to the max available.
+        if sys.platform != 'darwin':
+            resource.setrlimit(resource.RLIMIT_STACK,
+                               (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
-    # Start the validator.
-    validator_process = subprocess.Popen(
-        output_validator[1] +
-        [testcase.with_suffix('.in'),
-         testcase.with_suffix('.ans'), judgepath] + flags,
-        stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        preexec_fn=setlimits,
-        bufsize=2**20)
+    validator = subprocess.Popen(validator_command,
+            stdin=val_in,
+            stdout=val_out,
+            stderr=subprocess.PIPE,
+            preexec_fn=set_validator_limits)
+    validator_pid = validator.pid
 
-    # Start and time the submission.
-    tstart = time.monotonic()
-    ok, err, out = util.exec_command(run_command,
-                                     expect=0,
-                                     stdin=validator_process.stdout,
-                                     stdout=validator_process.stdin,
-                                     stderr=subprocess.PIPE,
-                                     timeout=submission_timeout)
+    # Run Submission
+    def set_submission_limits():
+        resource.setrlimit(resource.RLIMIT_CPU, (submission_timeout, submission_timeout))
+        # Increase the max stack size from default to the max available.
+        if sys.platform != 'darwin':
+            resource.setrlimit(resource.RLIMIT_STACK,
+                               (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+        if memory_limit:
+            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
-    # Wait
-    (validator_out, validator_err) = validator_process.communicate()
+    submission = subprocess.Popen(run_command,
+            stdin=team_in,
+            stdout=team_out,
+            stderr=subprocess.PIPE,
+            preexec_fn=set_submission_limits)
+    submission_pid = submission.pid
 
-    tend = time.monotonic()
+    os.close(team_out)
+    os.close(val_out)
 
-    did_timeout = False
-    if settings.timelimit is not None and tend - tstart > settings.timelimit:
-        did_timeout = True
+    # To be filled
+    validator_status = None
+    submission_status = None
+    submission_time = None
+    first = None
 
-    validator_ok = validator_process.returncode
+    # Raise alarm after timeout reached
+    signal.alarm(submission_timeout)
+    def kill_submission(signal, frame):
+        submission.kill()
+        nonlocal submission_time
+        submission_time = submission_timeout
+    signal.signal(signal.SIGALRM, kill_submission)
 
-    if validator_ok != config.RTV_AC and validator_ok != config.RTV_WA:
+    # Wait for first to finish
+    for i in range(2):
+        pid, status, rusage = os.wait3(0)
+        status >>= 8
+
+        if pid == validator_pid:
+            if i == 0: first = 'validator'
+            validator_status = status
+            # Kill the team submission in case we already know it's WA.
+            if i == 0 and validator_status != config.RTV_AC:
+                submission.kill()
+            continue
+
+        if pid == submission_pid:
+            signal.alarm(0)
+            if i == 0: first = 'submission'
+            submission_status = status
+            # Possibly already written by the alarm.
+            if not submission_time:
+                submission_time = rusage.ru_utime + rusage.ru_stime
+            continue
+
+        assert False
+
+    os.close(team_in)
+    os.close(val_in)
+
+    did_timeout = settings.timelimit is not None and submission_time > settings.timelimit
+
+    # If team exists first with TLE/RTE -> TLE/RTE
+    # If team exists first nicely -> validator result
+    # If validator exits first with WA -> WA
+    # If validator exits first with AC:
+    # - team TLE/RTE -> TLE/RTE
+    # - more team output -> WA
+    # - no more team output -> AC
+    
+    if validator_status != config.RTV_AC and validator_status != config.RTV_WA:
         config.n_error += 1
         verdict = 'VALIDATOR_CRASH'
-    elif did_timeout:
-        verdict = 'TIME_LIMIT_EXCEEDED'
-    elif ok is not True:
-        verdict = 'RUN_TIME_ERROR'
-    elif validator_ok == config.RTV_WA:
-        verdict = 'WRONG_ANSWER'
-    elif validator_ok == config.RTV_AC:
-        verdict = 'ACCEPTED'
+    elif first == 'validator':
+        # WA has priority because validator reported it first.
+        if validator_status == config.RTV_WA:
+            verdict = 'WRONG_ANSWER'
+        elif submission_status != 0:
+            verdict = 'RUN_TIME_ERROR'
+        elif did_timeout:
+            verdict = 'TIME_LIMIT_EXCEEDED'
+        else:
+            verdict = 'ACCEPTED'
+    else:
+        assert first == 'submission'
+        if submission_status != 0:
+            verdict = 'RUN_TIME_ERROR'
+        elif did_timeout:
+            verdict = 'TIME_LIMIT_EXCEEDED'
+        elif validator_status == config.RTV_WA:
+            verdict = 'WRONG_ANSWER'
+        else:
+            verdict = 'ACCEPTED'
 
-    return (verdict, tend - tstart, validator_err.decode('utf-8'), err)
+    return (verdict, submission_time, validator.stderr.read().decode('utf-8'),
+            submission.stderr.read().decode('utf-8'))
 
 
 # return (verdict, time, remark)
