@@ -878,13 +878,14 @@ def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
             return run(outfile.open('wb'))
 
 
-# return (verdict, time, remark)
+# return (verdict, time, validator error, submission error)
 def process_interactive_testcase(run_command,
                                  testcase,
-                                 outfile,
                                  settings,
                                  output_validators,
-                                 printnewline=False):
+                                 validator_error=False,
+                                 team_error=False,
+                                 show_interaction=False):
     if len(output_validators) != 1:
         error(
             'Interactive problems need exactly one output validator. Found {len(output_validators)}.'
@@ -911,6 +912,9 @@ def process_interactive_testcase(run_command,
     judgepath.mkdir(parents=True, exist_ok=True)
     validator_command = output_validator[1] + [testcase.with_suffix('.in'), testcase.with_suffix('.ans'), judgepath] + flags 
 
+    if validator_error is False: validator_error = subprecess.PIPE
+    if team_error is False: team_error = subprecess.PIPE
+
     # On Windows:
     # - Start the validator
     # - Start the submission
@@ -924,7 +928,7 @@ def process_interactive_testcase(run_command,
         validator_process = subprocess.Popen(validator_command,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stderr=validator_error,
             bufsize=2**20)
 
         # Start and time the submission.
@@ -933,7 +937,7 @@ def process_interactive_testcase(run_command,
                                          expect=0,
                                          stdin=validator_process.stdout,
                                          stdout=validator_process.stdin,
-                                         stderr=subprocess.PIPE,
+                                         stderr=team_error,
                                          timeout=submission_timeout)
 
         # Wait
@@ -980,9 +984,8 @@ def process_interactive_testcase(run_command,
 
     interaction = False
     # TODO: Print interaction when needed.
-    if False:
+    if True:
         interaction = True
-        interaction_path = testcase.with_suffix('.interaction')
 
     team_log_in, team_out = mkpipe()
     val_log_in, val_out = mkpipe()
@@ -995,11 +998,9 @@ def process_interactive_testcase(run_command,
 
 
     if interaction:
-        if interaction_path.is_file(): interaction_path.unlink()
         # Connect pipes with tee.
-        TEE_CODE = '''
+        TEE_CODE = R'''
 import sys
-f = open(sys.argv[2], 'a', buffering=1)
 c = sys.argv[1]
 new = True
 while True:
@@ -1007,13 +1008,14 @@ while True:
     if l=='': break
     sys.stdout.write(l)
     sys.stdout.flush()
-    if new: f.write(c)
-    f.write(l)
-    new = l=='\\n'
+    if new: sys.stderr.write(c)
+    sys.stderr.write(l)
+    sys.stderr.flush()
+    new = l=='\n'
 '''
-        team_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '>', interaction_path], stdin=team_log_in, stdout=team_log_out)
+        team_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '>'], stdin=team_log_in, stdout=team_log_out)
         team_tee_pid = team_tee.pid
-        val_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '<', interaction_path], stdin=val_log_in, stdout=val_log_out)
+        val_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '<'], stdin=val_log_in, stdout=val_log_out)
         val_tee_pid = val_tee.pid
 
     # Run Validator
@@ -1027,7 +1029,7 @@ while True:
     validator = subprocess.Popen(validator_command,
             stdin=val_in,
             stdout=val_out,
-            stderr=subprocess.PIPE,
+            stderr=validator_error,
             preexec_fn=set_validator_limits)
     validator_pid = validator.pid
 
@@ -1044,7 +1046,7 @@ while True:
     submission = subprocess.Popen(run_command,
             stdin=team_in,
             stdout=team_out,
-            stderr=subprocess.PIPE,
+            stderr=team_error,
             preexec_fn=set_submission_limits)
     submission_pid = submission.pid
 
@@ -1061,7 +1063,7 @@ while True:
     first = None
 
     # Raise alarm after timeout reached
-    signal.alarm(submission_timeout)
+    signal.alarm(int(submission_timeout+1))
     def kill_submission(signal, frame):
         submission.kill()
         nonlocal submission_time
@@ -1135,8 +1137,11 @@ while True:
         else:
             verdict = 'ACCEPTED'
 
-    return (verdict, submission_time, validator.stderr.read().decode('utf-8'),
-            submission.stderr.read().decode('utf-8'))
+    val_err = None
+    if validator_error is not None: val_err = validator.stderr.read().decode('utf-8')
+    team_err = None
+    if team_error is not None: team_err = submission.stderr.read().decode('utf-8')
+    return (verdict, submission_time, val_err, team_err)
 
 
 # return (verdict, time, remark)
@@ -1148,7 +1153,7 @@ def process_testcase(run_command,
                      printnewline=False):
 
     if 'interactive' in settings.validation:
-        return process_interactive_testcase(run_command, testcase, outfile, settings,
+        return process_interactive_testcase(run_command, testcase, settings,
                                             output_validators)
 
     ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
@@ -1383,8 +1388,11 @@ def run_submissions(problem, settings):
     return success
 
 
-def test_submission(submission, testcases, settings):
+def test_submission(problem, submission, testcases, settings):
     print(ProgressBar.action('Running', str(submission[0])))
+
+    if 'interactive':
+        output_validators = get_validators(problem, 'output')
 
     timeout = settings.timelimit
     if hasattr(config.args, 'timeout') and config.args.timeout:
@@ -1392,25 +1400,43 @@ def test_submission(submission, testcases, settings):
     for testcase in testcases:
         header = ProgressBar.action('Running ' + str(submission[0]), str(testcase.with_suffix('')))
         print(header)
-        outfile = config.tmpdir / 'test.out'
-        # err and out should be None because they go to the terminal.
-        ok, did_timeout, duration, err, out = run_testcase(submission[1],
-                                                           testcase,
-                                                           outfile=None,
-                                                           tle=timeout,
-                                                           crop=False)
-        assert err is None and out is None
-        if ok is not True:
-            config.n_error += 1
-            print(
-                f'{_c.red}Run time error!{_c.reset} exit code {ok} {_c.bold}{duration:6.3f}s{_c.reset}'
-            )
-        elif did_timeout:
-            config.n_error += 1
-            print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+
+        if 'interactive' not in settings.validation:
+            # err and out should be None because they go to the terminal.
+            ok, did_timeout, duration, err, out = run_testcase(submission[1],
+                                                               testcase,
+                                                               outfile=None,
+                                                               tle=timeout,
+                                                               crop=False)
+            assert err is None and out is None
+            if ok is not True:
+                config.n_error += 1
+                print(
+                    f'{_c.red}Run time error!{_c.reset} exit code {ok} {_c.bold}{duration:6.3f}s{_c.reset}'
+                )
+            elif did_timeout:
+                config.n_error += 1
+                print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+            else:
+                print(f'{_c.green}Done:{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+            print()
+
         else:
-            print(f'{_c.green}Done:{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
-        print()
+            # Interactive problem.
+            verdict, duration, val_err, team_err = process_interactive_testcase(submission[1], testcase, settings, output_validators,
+                    show_interaction=True, validator_error=None, team_error=None)
+            if verdict != 'ACCEPTED':
+                config.n_error += 1
+                print(
+                    f'{_c.red}{verdict}{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}'
+                )
+            else:
+                print(f'{_c.green}{verdict}{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+
+
+
+
+
 
 
 # Takes a list of submissions and runs them against the chosen testcases.
@@ -1429,7 +1455,7 @@ def test_submissions(problem, settings):
     verdict_table = []
     for verdict in submissions:
         for submission in submissions[verdict]:
-            test_submission(submission, testcases, settings)
+            test_submission(problem, submission, testcases, settings)
     return True
 
 
