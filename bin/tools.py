@@ -830,47 +830,32 @@ def get_submissions(problem):
     return submissions
 
 
-# Return (ret, timeout (True/False), duration)
-def run_testcase(run_command, testcase, outfile, tle=None, crop=True):
-    if hasattr(config.args, 'timeout') and config.args.timeout:
-        timeout = float(config.args.timeout)
-    elif tle:
-        # Double the tle to check for solutions close to the required bound
-        # ret = True or ret = (code, error)
-        timeout = 2 * tle
-    else:
-        timeout = None
-
+# Return (ret, duration)
+def run_testcase(run_command, testcase, outfile, timeout, crop=True):
     with testcase.with_suffix('.in').open('rb') as inf:
 
         def run(outfile):
             did_timeout = False
             tstart = time.monotonic()
-            try:
-                if outfile is None:
-                    # Print both stdout and stderr directly to the terminal.
-                    ok, err, out = util.exec_command(run_command,
-                                                     expect=0,
-                                                     crop=crop,
-                                                     stdin=inf,
-                                                     stdout=None,
-                                                     stderr=None,
-                                                     timeout=timeout)
-                else:
-                    ok, err, out = util.exec_command(run_command,
-                                                     expect=0,
-                                                     crop=crop,
-                                                     stdin=inf,
-                                                     stdout=outfile,
-                                                     timeout=timeout)
-            except subprocess.TimeoutExpired:
-                did_timeout = True
-                ok, err, out = (True, None, None)
+            if outfile is None:
+                # Print both stdout and stderr directly to the terminal.
+                ok, err, out = util.exec_command(run_command,
+                                                 expect=0,
+                                                 crop=crop,
+                                                 stdin=inf,
+                                                 stdout=None,
+                                                 stderr=None,
+                                                 timeout=timeout)
+            else:
+                ok, err, out = util.exec_command(run_command,
+                                                 expect=0,
+                                                 crop=crop,
+                                                 stdin=inf,
+                                                 stdout=outfile,
+                                                 timeout=timeout)
             tend = time.monotonic()
 
-            if tle is not None and tend - tstart > tle:
-                did_timeout = True
-            return ok, did_timeout, tend - tstart, err, out
+            return ok, tend - tstart, err, out
 
         if outfile is None:
             return run(outfile)
@@ -896,13 +881,7 @@ def process_interactive_testcase(run_command,
     validator_timeout = 60
 
     memory_limit = util.get_memory_limit()
-    if hasattr(config.args, 'timeout') and config.args.timeout:
-        submission_timeout = float(config.args.timeout)
-    elif settings.timelimit:
-        # Double the tle to check for solutions close to the required bound
-        submission_timeout = settings.timelimit + 1
-    else:
-        submission_timeout = 60
+    time_limit, timeout = util.get_time_limits(settings)
 
     # Validator command
     flags = []
@@ -932,22 +911,21 @@ def process_interactive_testcase(run_command,
             bufsize=2**20)
 
         # Start and time the submission.
+        # TODO: use rusage instead
         tstart = time.monotonic()
         ok, err, out = util.exec_command(run_command,
                                          expect=0,
                                          stdin=validator_process.stdout,
                                          stdout=validator_process.stdin,
                                          stderr=team_error,
-                                         timeout=submission_timeout)
+                                         timeout=timeout)
 
         # Wait
         (validator_out, validator_err) = validator_process.communicate()
 
         tend = time.monotonic()
 
-        did_timeout = False
-        if settings.timelimit is not None and tend - tstart > settings.timelimit:
-            did_timeout = True
+        did_timeout = tend-tstart > time_limit
 
         validator_ok = validator_process.returncode
 
@@ -1035,7 +1013,7 @@ while True:
 
     # Run Submission
     def set_submission_limits():
-        resource.setrlimit(resource.RLIMIT_CPU, (submission_timeout, submission_timeout))
+        resource.setrlimit(resource.RLIMIT_CPU, (timeout, timeout))
         # Increase the max stack size from default to the max available.
         if sys.platform != 'darwin':
             resource.setrlimit(resource.RLIMIT_STACK,
@@ -1063,11 +1041,11 @@ while True:
     first = None
 
     # Raise alarm after timeout reached
-    signal.alarm(int(submission_timeout+1))
+    signal.alarm(timeout)
     def kill_submission(signal, frame):
         submission.kill()
         nonlocal submission_time
-        submission_time = submission_timeout
+        submission_time = timeout
     signal.signal(signal.SIGALRM, kill_submission)
 
     # Wait for first to finish
@@ -1103,7 +1081,7 @@ while True:
         os.close(team_log_in)
         os.close(val_log_in)
 
-    did_timeout = settings.timelimit is not None and submission_time > settings.timelimit
+    did_timeout = submission_time > time_limit
 
     # If team exists first with TLE/RTE -> TLE/RTE
     # If team exists first nicely -> validator result
@@ -1156,10 +1134,12 @@ def process_testcase(run_command,
         return process_interactive_testcase(run_command, testcase, settings,
                                             output_validators)
 
-    ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
-                                                   settings.timelimit)
+    timelimit, timeout = util.get_time_limits(settings)
+    ok, duration, err, out = run_testcase(run_command, testcase, outfile,
+                                                   timeout)
+    did_timeout = duration > timelimit
     verdict = None
-    if timeout:
+    if did_timeout:
         verdict = 'TIME_LIMIT_EXCEEDED'
     elif ok is not True:
         verdict = 'RUN_TIME_ERROR'
@@ -1309,9 +1289,6 @@ def run_submissions(problem, settings):
         if len(output_validators) == 0:
             return False
 
-    #if hasattr(config.args, 'timelimit') and config.args.timelimit is not None:
-    #settings.timelimit = float(config.args.timelimit)
-
     submissions = get_submissions(problem)
 
     max_submission_len = max([0] +
@@ -1394,20 +1371,19 @@ def test_submission(problem, submission, testcases, settings):
     if 'interactive':
         output_validators = get_validators(problem, 'output')
 
-    timeout = settings.timelimit
-    if hasattr(config.args, 'timeout') and config.args.timeout:
-        timeout = float(config.args.timeout)
+    time_limit, timeout = gutil.et_time_limits(settings)
     for testcase in testcases:
         header = ProgressBar.action('Running ' + str(submission[0]), str(testcase.with_suffix('')))
         print(header)
 
         if 'interactive' not in settings.validation:
             # err and out should be None because they go to the terminal.
-            ok, did_timeout, duration, err, out = run_testcase(submission[1],
+            ok, duration, err, out = run_testcase(submission[1],
                                                                testcase,
                                                                outfile=None,
-                                                               tle=timeout,
+                                                               timeout=timeout,
                                                                crop=False)
+            did_timeout = duration > timelimit
             assert err is None and out is None
             if ok is not True:
                 config.n_error += 1
@@ -1432,11 +1408,6 @@ def test_submission(problem, submission, testcases, settings):
                 )
             else:
                 print(f'{_c.green}{verdict}{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
-
-
-
-
-
 
 
 # Takes a list of submissions and runs them against the chosen testcases.
@@ -1574,6 +1545,8 @@ def generate(problem, settings):
     tmpdir = config.tmpdir / problem.name / 'generate'
     tmpdir.mkdir(parents=True, exist_ok=True)
 
+    _, timeout = util.get_time_limits(settings)
+
     for file_name in generator_runs:
         commands = generator_runs[file_name]
 
@@ -1668,8 +1641,7 @@ def generate(problem, settings):
                 # Generate .ans for .in files.
                 if f.suffix == '.in' and generate_ans and submission:
                     ansfile = f.with_suffix('.ans')
-                    ok, timeout, duration, err, out = run_testcase(submission, f, ansfile,
-                                                                   settings.timelimit)
+                    ok, duration, err, out = run_testcase(submission, f, ansfile, timeout)
                     if not ok:
                         bar.error('.ans FAILED')
                     else:
@@ -1800,6 +1772,8 @@ def generate_answer(problem, settings):
 
     bar = ProgressBar('Generate', max_testcase_len, len(testcases))
 
+    _, timeout = util.get_time_limits(settings)
+
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix('.ans')))
 
@@ -1810,11 +1784,10 @@ def generate_answer(problem, settings):
             pass
 
         # Ignore stdout and stderr from the program.
-        ok, timeout, duration, err, out = run_testcase(run_command, testcase, outfile,
-                                                       settings.timelimit)
+        ok, duration, err, out = run_testcase(run_command, testcase, outfile, timeout)
         message = ''
         same = False
-        if ok is not True or timeout is True:
+        if ok is not True or duration > timeout:
             message = 'FAILED'
             nfail += 1
         else:
@@ -2270,7 +2243,7 @@ Run this from one of:
     ansgenparser.add_argument('submission',
                               nargs='?',
                               help='The program to generate answers. Defaults to first found.')
-    ansgenparser.add_argument('-t', '--timelimit', type=int, help='Override the default timeout.')
+    ansgenparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
     ansgenparser.add_argument('--samples',
                               action='store_true',
                               help='Overwrite the samples as well, in combination with -f.')
@@ -2286,10 +2259,7 @@ Run this from one of:
                            nargs='*',
                            help='optionally supply a list of programs and testcases to run')
     runparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
-    runparser.add_argument('--timelimit',
-                           action='store',
-                           type=int,
-                           help='Override the default timelimit.')
+    runparser.add_argument('--timelimit', type=int, help='Override the default timelimit.')
     runparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
 
     # Test

@@ -288,6 +288,22 @@ def get_memory_limit(kwargs=None):
         kwargs.pop('memory')
     return memory_limit
 
+
+# Return the time limits: a pair (problem time limit, hard wall timeout)
+# problem time limit: default from problem config; overridden by --timelimit
+# hard wall timeout: default 1.5*timelimit+1, overridden by --timeout
+#   wall timeout will be at least time_limit+1 
+def get_time_limits(settings):
+    time_limit = settings.timelimit
+    if hasattr(config.args, 'timelimit'): time_limit = config.args.timelimit
+    if time_limit is None: time_limit = 1
+
+    timeout = 1.5*time_limit+1
+    if hasattr(config.args, 'timeout') and config.args.timeout:
+        timeout = max(config.args.timeout, time_limit+1)
+    return time_limit, int(timeout)
+
+
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
     # By default: discard stdout, return stderr
@@ -300,13 +316,10 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     if config.verbose >= 2:
         print(command, kwargs)
 
-    timeout = None
-    hard_timeout = 60  # Kill a program after 60s cpu time
+    timeout = 30
     if 'timeout' in kwargs:
         timeout = kwargs['timeout']
         kwargs.pop('timeout')
-        if timeout is not None:
-            hard_timeout = timeout + 1
 
     memory_limit = get_memory_limit(kwargs)
 
@@ -316,7 +329,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     # Note: Resource limits do not work on windows.
     def setlimits():
-        resource.setrlimit(resource.RLIMIT_CPU, (hard_timeout, hard_timeout))
+        resource.setrlimit(resource.RLIMIT_CPU, (timeout+1, timeout+1))
         # Increase the max stack size from default to the max available.
         if sys.platform != 'darwin':
             resource.setrlimit(resource.RLIMIT_STACK,
