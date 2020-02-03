@@ -293,6 +293,9 @@ def get_memory_limit(kwargs=None):
 # problem time limit: default from problem config; overridden by --timelimit
 # hard wall timeout: default 1.5*timelimit+1, overridden by --timeout
 #   wall timeout will be at least time_limit+1 
+#
+# Note: This is only suitable for running submissions.
+# Other programs should have a larger default timeout.
 def get_time_limits(settings):
     time_limit = settings.timelimit
     if hasattr(config.args, 'timelimit'): time_limit = config.args.timelimit
@@ -303,6 +306,11 @@ def get_time_limits(settings):
         timeout = max(config.args.timeout, time_limit+1)
     return time_limit, int(timeout)
 
+# Return the command line timeout or the default of 30
+def get_timeout():
+    if hasattr(config.args, 'timeout') and config.args.timeout:
+        return config.args.timeout
+    return 30
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
@@ -318,7 +326,8 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     timeout = 30
     if 'timeout' in kwargs:
-        timeout = kwargs['timeout']
+        if kwargs['timeout']:
+            timeout = kwargs['timeout']
         kwargs.pop('timeout')
 
     memory_limit = get_memory_limit(kwargs)

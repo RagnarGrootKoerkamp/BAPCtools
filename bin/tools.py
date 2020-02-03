@@ -1545,7 +1545,7 @@ def generate(problem, settings):
     tmpdir = config.tmpdir / problem.name / 'generate'
     tmpdir.mkdir(parents=True, exist_ok=True)
 
-    _, timeout = util.get_time_limits(settings)
+    timeout = util.get_timeout()
 
     for file_name in generator_runs:
         commands = generator_runs[file_name]
@@ -1565,8 +1565,6 @@ def generate(problem, settings):
             for f in tmpdir.iterdir():
                 f.unlink()
 
-            try_ok = True
-
             for command in commands:
                 input_command = shlex.split(command)
 
@@ -1581,7 +1579,7 @@ def generate(problem, settings):
 
                 generator_command, msg = build(problem / 'generators' / generator_name)
                 if generator_command is None:
-                    error(msg)
+                    bar.error(msg)
                     ok = False
                     break
 
@@ -1592,12 +1590,20 @@ def generate(problem, settings):
                 try_ok, err, out = util.exec_command(command,
                                                  stdout=stdout_file,
                                                  stdin=stdin_file,
+                                                 timeout=timeout,
                                                  cwd=tmpdir)
                 stdout_file.close()
                 if stdin_file: stdin_file.close()
 
                 if stdout_path.is_file():
                     shutil.move(stdout_path, stdin_path)
+
+                if try_ok == -9:
+                    # Timeout
+                    bar.error(f'TIMEOUT after {timeout}s')
+                    nfail += 1
+                    ok = False
+                    break
 
                 if try_ok is not True:
                     nfail += 1
@@ -2204,6 +2210,7 @@ Run this from one of:
         help=
         'The generators to run. Everything which has one of these as a prefix will be run. Leading `data/` will be dropped. Empty to generate everything.'
     )
+    genparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
 
     # Clean
     cleanparser = subparsers.add_parser('clean',
