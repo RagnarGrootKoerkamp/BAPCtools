@@ -222,13 +222,13 @@ def build(path):
     language_code = None
     main_file = None if path.is_dir() else outdir / path.name
     c_files = []
+    message = ''
+
     for f in input_files:
         e = f.suffix
 
         lang = None
         main = False
-
-        message = ''
 
         if e in ['.c']:
             lang = 'c'
