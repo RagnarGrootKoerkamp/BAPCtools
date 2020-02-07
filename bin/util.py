@@ -186,6 +186,8 @@ def glob(path, expression):
 
 # testcases; returns list of basenames
 def get_testcases(problem, needans=True, only_sample=False):
+    # TODO: add a cache so we only have to read these once.
+
     # Require both in and ans files
     samplesonly = only_sample or hasattr(config.args, 'samples') and config.args.samples
     infiles = None

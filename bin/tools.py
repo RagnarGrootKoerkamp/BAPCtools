@@ -1280,7 +1280,6 @@ def run_submissions(problem, settings):
     testcases = util.get_testcases(problem, needans=needans)
 
     if len(testcases) == 0:
-        warn('No testcases found!')
         return False
 
     output_validators = None
