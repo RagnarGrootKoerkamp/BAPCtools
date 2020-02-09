@@ -1433,7 +1433,6 @@ def test_submissions(problem, settings):
 def parse_gen_yaml(problem):
     yaml_path = problem / 'generators' / 'gen.yaml'
     if not yaml_path.is_file():
-        error(f'{yaml_path} not found!')
         return None, {}
 
     yaml_data = yaml.safe_load(yaml_path.read_text())
@@ -1486,6 +1485,7 @@ def get_random_submission(problem):
     # only get one accepted submission
     submissions = list(glob(problem, 'submissions/accepted/*'))
     if len(submissions) == 0:
+        warn('No submissions found!')
         return None
     submissions.sort()
     # Look for a c++ solution if available.
@@ -1511,20 +1511,19 @@ def get_random_submission(problem):
 def generate(problem, settings):
     gen_config, generator_runs = parse_gen_yaml(problem)
 
-    generate_ans = False
+    generate_ans = True
     submission = None
     retries = 1
     if gen_config:
         if 'generate_ans' in gen_config:
             generate_ans = gen_config['generate_ans']
-            submission = get_random_submission(problem)
         if generate_ans and 'submission' in gen_config and gen_config['submission']:
             submission = problem / gen_config['submission']
         if 'retries' in gen_config:
             retries = max(gen_config['retries'], 1)
 
-    if len(generator_runs) == 0: return True
-
+    if generate_ans and submission is None:
+        submission = get_random_submission(problem)
     if generate_ans and submission is not None:
         if not (submission.is_file() or submission.is_dir()):
             error(f'Submission not found: {submission}')
@@ -1533,135 +1532,178 @@ def generate(problem, settings):
             submission, msg = build(submission)
             if submission is None:
                 error(msg)
+    if submission is None: generate_ans = False
 
-    max_testcase_len = max([len(str(key)) for key in generator_runs]) + 1
-
-    bar = ProgressBar('Generate', max_testcase_len, len(generator_runs))
+    if len(generator_runs) == 0 and generate_ans is False:
+        return True
 
     nskip = 0
     nfail = 0
 
-    tmpdir = config.tmpdir / problem.name / 'generate'
-    tmpdir.mkdir(parents=True, exist_ok=True)
-
     timeout = util.get_timeout()
 
-    for file_name in generator_runs:
-        commands = generator_runs[file_name]
-
-        bar.start(str(file_name))
-
-        (problem / 'data' / file_name.parent).mkdir(parents=True, exist_ok=True)
-
-        stdin_path = tmpdir / file_name.name
-        stdout_path = tmpdir / (file_name.name + '.stdout')
-
-
-        # Try running all commands |retries| times.
-        ok = True
-        for retry in range(retries):
-            # Clean the directory.
-            for f in tmpdir.iterdir():
-                f.unlink()
-
-            for command in commands:
-                input_command = shlex.split(command)
-
-                generator_name = input_command[0]
-                input_args = input_command[1:]
-
-                for i in range(len(input_args)):
-                    x = input_args[i]
-                    if x == '$SEED':
-                        val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(), 16) % (2**31)
-                        input_args[i] = (val + retry) % (2**31)
-
-                generator_command, msg = build(problem / 'generators' / generator_name)
-                if generator_command is None:
-                    bar.error(msg)
-                    ok = False
-                    break
-
-                command = generator_command + input_args
-
-                stdout_file = stdout_path.open('w')
-                stdin_file = stdin_path.open('r') if stdin_path.is_file() else None
-                try_ok, err, out = util.exec_command(command,
-                                                 stdout=stdout_file,
-                                                 stdin=stdin_file,
-                                                 timeout=timeout,
-                                                 cwd=tmpdir)
-                stdout_file.close()
-                if stdin_file: stdin_file.close()
-
-                if stdout_path.is_file():
-                    shutil.move(stdout_path, stdin_path)
-
-                if try_ok == -9:
-                    # Timeout
-                    bar.error(f'TIMEOUT after {timeout}s')
-                    nfail += 1
-                    ok = False
-                    break
-
-                if try_ok is not True:
-                    nfail += 1
-                    try_ok = False
-                    break
-
-            if not ok: break
-            if try_ok: break
-
-        if not try_ok:
-            bar.error('FAILED: ' + err)
-            ok = False
-
-        tries_msg = '' if retry == 0 else f' after {retry+1} tries'
-
-        def maybe_move(source, target):
-            same = True
-            nonlocal nskip
-            if target.is_file():
-                if source.read_text() != target.read_text():
-                    same = False
-                    if hasattr(settings, 'force') and settings.force:
+    # Move source to target but check that --force was passed if target already exists and source is
+    # different. Overwriting samples needs --samples as well.
+    def maybe_move(source, target, tries_msg=''):
+        same = True
+        nonlocal nskip
+        if target.is_file():
+            if source.read_text() != target.read_text():
+                same = False
+                if hasattr(settings, 'force') and settings.force:
+                    if 'sample' in str(testcase):
+                        if hasattr(settings, 'samples') and settings.samples:
+                            shutil.move(source, target)
+                            bar.log('CHANGED: ' + target.name + tries_msg)
+                        else:
+                            bar.warn('SKIPPED: ' + target.name + _c.reset + '; supply -f --samples to overwrite')
+                    else:
                         shutil.move(source, target)
                         bar.log('CHANGED: ' + target.name + tries_msg)
-                    else:
-                        nskip += 1
-                        bar.warn('SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite')
+                else:
+                    nskip += 1
+                    bar.warn('SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite')
+        else:
+            same = False
+            shutil.move(source, target)
+            bar.log('NEW: ' + target.name + tries_msg)
+        return same
+
+    # Generate Input
+    if len(generator_runs) > 0:
+        max_testcase_len = max([len(str(key)) for key in generator_runs]) + 1
+
+        bar = ProgressBar('Generate', max_testcase_len, len(generator_runs))
+
+        tmpdir = config.tmpdir / problem.name / 'generate'
+        tmpdir.mkdir(parents=True, exist_ok=True)
+
+        for file_name in generator_runs:
+            commands = generator_runs[file_name]
+
+            bar.start(str(file_name))
+
+            (problem / 'data' / file_name.parent).mkdir(parents=True, exist_ok=True)
+
+            stdin_path = tmpdir / file_name.name
+            stdout_path = tmpdir / (file_name.name + '.stdout')
+
+
+            # Try running all commands |retries| times.
+            ok = True
+            for retry in range(retries):
+                # Clean the directory.
+                for f in tmpdir.iterdir():
+                    f.unlink()
+
+                for command in commands:
+                    input_command = shlex.split(command)
+
+                    generator_name = input_command[0]
+                    input_args = input_command[1:]
+
+                    for i in range(len(input_args)):
+                        x = input_args[i]
+                        if x == '$SEED':
+                            val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(), 16) % (2**31)
+                            input_args[i] = (val + retry) % (2**31)
+
+                    generator_command, msg = build(problem / 'generators' / generator_name)
+                    if generator_command is None:
+                        bar.error(msg)
+                        ok = False
+                        break
+
+                    command = generator_command + input_args
+
+                    stdout_file = stdout_path.open('w')
+                    stdin_file = stdin_path.open('r') if stdin_path.is_file() else None
+                    try_ok, err, out = util.exec_command(command,
+                                                     stdout=stdout_file,
+                                                     stdin=stdin_file,
+                                                     timeout=timeout,
+                                                     cwd=tmpdir)
+                    stdout_file.close()
+                    if stdin_file: stdin_file.close()
+
+                    if stdout_path.is_file():
+                        shutil.move(stdout_path, stdin_path)
+
+                    if try_ok == -9:
+                        # Timeout
+                        bar.error(f'TIMEOUT after {timeout}s')
+                        nfail += 1
+                        ok = False
+                        break
+
+                    if try_ok is not True:
+                        nfail += 1
+                        try_ok = False
+                        break
+
+                if not ok: break
+                if try_ok: break
+
+            if not try_ok:
+                bar.error('FAILED: ' + err)
+                ok = False
+
+            tries_msg = '' if retry == 0 else f' after {retry+1} tries'
+
+            # Copy all generated files back to the data directory.
+            if ok:
+                for f in tmpdir.iterdir():
+                    if f.stat().st_size == 0: continue
+
+                    target = problem / 'data' / file_name.parent / f.name
+                    ok &= maybe_move(f, target, tries_msg)
+
+            bar.done(ok)
+
+        if not config.verbose and nskip == 0 and nfail == 0:
+            print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
+
+    if generate_ans is False or submission is None:
+        return nskip == 0 and nfail == 0
+
+    # Generate Answer
+    testcases = util.get_testcases(problem, needans=False)
+
+    max_testcase_len = max(
+        [len(print_name(testcase.with_suffix('.ans'))) for testcase in testcases])
+
+    bar = ProgressBar('Generate ans', max_testcase_len, len(testcases))
+
+    _, timeout = util.get_time_limits(settings)
+
+    for testcase in testcases:
+        bar.start(print_name(testcase.with_suffix('.ans')))
+
+        outfile = config.tmpdir / 'test.out'
+        try:
+            outfile.unlink()
+        except OSError:
+            pass
+
+        # Ignore stdout and stderr from the program.
+        ok, duration, err, out = run_testcase(submission, testcase, outfile, timeout)
+        if ok is not True or duration > timeout:
+            if duration > timeout:
+                bar.error('TIMEOUT')
+                nfail += 1
             else:
-                same = False
-                shutil.move(source, target)
-                bar.log('NEW: ' + target.name + tries_msg)
-            return same
-
-        # Copy all generated files back to the data directory.
-        if ok:
-            for f in tmpdir.iterdir():
-                if f.stat().st_size == 0: continue
-
-                target = problem / 'data' / file_name.parent / f.name
-
-                # Generate .ans for .in files.
-                if f.suffix == '.in' and generate_ans and submission:
-                    ansfile = f.with_suffix('.ans')
-                    ok, duration, err, out = run_testcase(submission, f, ansfile, timeout)
-                    if not ok:
-                        bar.error('.ans FAILED')
-                    else:
-                        ok &= maybe_move(ansfile, target.with_suffix('.ans'))
-
-                # Move the .in.
-                ok &= maybe_move(f, target)
+                bar.error('FAILED')
+                nfail += 1
+        else:
+            ok &= maybe_move(outfile, testcase.with_suffix('.ans'))
 
         bar.done(ok)
 
     if not config.verbose and nskip == 0 and nfail == 0:
-        print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
+        print(ProgressBar.action('Generate ans', f'{_c.green}Done{_c.reset}'))
 
-    print()
     return nskip == 0 and nfail == 0
+
 
 
 # Remove all files mentioned in the gen.yaml file.
@@ -1739,96 +1781,6 @@ def generate_random_input(problem, settings):
                 message = _c.red + 'GENERATION FAILED' + _c.reset + ': ' + f'All {settings.retries} attempts failed. Try --retries <num>.' + '\n' + message
 
         bar.done(False, message)
-
-    print()
-    return nskip == 0 and nfail == 0
-
-
-def generate_answer(problem, settings):
-    if hasattr(settings, 'submission') and settings.submission:
-        submission = problem / settings.submission
-    else:
-        submission = get_random_submission(problem)
-        if submission is None:
-            fatal('No submission found for this problem!')
-
-    # build submission
-    bar = ProgressBar('Building')
-    bar.start(str(submission))
-    bar.log()
-    run_command, message = build(submission)
-    if run_command is None:
-        print(bar.log(message))
-        return False
-
-    if config.verbose:
-        print()
-
-    testcases = util.get_testcases(problem, needans=False)
-
-    nsame = 0
-    nchange = 0
-    nskip = 0
-    nnew = 0
-    nfail = 0
-
-    max_testcase_len = max(
-        [len(print_name(testcase.with_suffix('.ans'))) for testcase in testcases])
-
-    bar = ProgressBar('Generate', max_testcase_len, len(testcases))
-
-    _, timeout = util.get_time_limits(settings)
-
-    for testcase in testcases:
-        bar.start(print_name(testcase.with_suffix('.ans')))
-
-        outfile = config.tmpdir / 'test.out'
-        try:
-            outfile.unlink()
-        except OSError:
-            pass
-
-        # Ignore stdout and stderr from the program.
-        ok, duration, err, out = run_testcase(run_command, testcase, outfile, timeout)
-        message = ''
-        same = False
-        if ok is not True or duration > timeout:
-            message = 'FAILED'
-            nfail += 1
-        else:
-            if testcase.with_suffix('.ans').is_file():
-                compare_settings = argparse.Namespace()
-                compare_settings.__dict__.update({
-                    'case_sensitive': True,
-                    'space_change_sensitive': True,
-                    'floatabs': None,
-                    'floatrel': None
-                })
-                if validation.default_output_validator(testcase.with_suffix('.ans'), outfile,
-                                                       compare_settings)[0]:
-                    same = True
-                    nsame += 1
-                else:
-                    if hasattr(settings, 'force') and settings.force:
-                        if (hasattr(settings, 'samples')
-                                and settings.samples) or 'sample' not in str(testcase):
-                            shutil.move(outfile, testcase.with_suffix('.ans'))
-                            nchange += 1
-                            message = 'CHANGED'
-                        else:
-                            message = _c.orange + 'SKIPPED' + _c.reset + '; supply -f --samples to overwrite'
-                    else:
-                        nskip += 1
-                        message = _c.red + 'SKIPPED' + _c.reset + '; supply -f to overwrite'
-            else:
-                shutil.move(outfile, testcase.with_suffix('.ans'))
-                nnew += 1
-                message = 'NEW'
-
-        bar.done(same, message)
-
-    if not config.verbose and nskip == 0 and nfail == 0:
-        print(ProgressBar.action('Generate', f'{_c.green}Done{_c.reset}'))
 
     print()
     return nskip == 0 and nfail == 0
@@ -2202,6 +2154,9 @@ Run this from one of:
         'The generators to run. Everything which has one of these as a prefix will be run. Leading `data/` will be dropped. Empty to generate everything.'
     )
     genparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
+    genparser.add_argument('--samples',
+                              action='store_true',
+                              help='Overwrite the samples as well, in combination with -f.')
 
     # Clean
     cleanparser = subparsers.add_parser('clean',
@@ -2229,22 +2184,6 @@ Run this from one of:
     inputgenparser.add_argument('--keep',
                                 action='store_true',
                                 help='Keep output of failed generator runs.')
-
-    # Generate Output
-    ansgenparser = subparsers.add_parser('generate_ans',
-                                         parents=[global_parser],
-                                         help='generate answers testcases')
-    ansgenparser.add_argument('-f',
-                              '--force',
-                              action='store_true',
-                              help='Overwrite answers that have changed.')
-    ansgenparser.add_argument('submission',
-                              nargs='?',
-                              help='The program to generate answers. Defaults to first found.')
-    ansgenparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
-    ansgenparser.add_argument('--samples',
-                              action='store_true',
-                              help='Overwrite the samples as well, in combination with -f.')
 
     # Run
     runparser = subparsers.add_parser('run',
@@ -2349,14 +2288,12 @@ def main():
     problem_paths = [p.path for p in problems]
 
     if level != 'problem' and action in [
-            'generate', 'generate_random_input', 'generate_ans', 'test'
+            'generate', 'generate_random_input', 'test'
     ]:
         if action == 'generate':
             fatal('Generating testcases only works for a single problem.')
         if action == 'generate_random_input':
             fatal('Generating random testcases only works for a single problem.')
-        if action == 'generate_ans':
-            fatal('Generating output files only works for a single problem.')
         if action == 'test':
             fatal('Testing a submission only works for a single problem.')
 
@@ -2426,8 +2363,6 @@ def main():
             success &= generate(problem.path, settings)
         if action in ['generate_random_input']:
             success &= generate_random_input(problem.path, settings)
-        if action in ['generate_ans']:
-            success &= generate_answer(problem.path, settings)
         if action in ['validate', 'output', 'all']:
             success &= validate(problem.path, 'output', settings, input_validator_ok)
         if action in ['run', 'all']:
