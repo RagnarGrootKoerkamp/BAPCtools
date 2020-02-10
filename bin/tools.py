@@ -25,6 +25,7 @@ import os
 import datetime
 import time
 import re
+import fnmatch
 import shutil
 import subprocess
 import signal
@@ -127,36 +128,6 @@ def is_executable(path):
     return path.is_file() and (path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
 
-# Look at the shebang at the first line of the file to choose between python 2
-# and python 3.
-def python_version(path):
-    if util.is_windows(): return 'Python'
-
-    shebang = path.read_text().split('\n')[0]
-    if re.match('^#!.*python2', shebang):
-        return 'python2'
-    if re.match('^#!.*python3', shebang):
-        return 'python3'
-    return 'python3'
-
-
-def python_interpreter(version):
-    if hasattr(config.args, 'pypy') and config.args.pypy:
-        if version == 'python2':
-            if shutil.which('pypy') is not None:
-                return 'pypy'
-            else:
-                print('\n' + _c.orange + 'pypy executable not found, falling back to python2' +
-                      _c.reset)
-        if version == 'python3':
-            if shutil.which('pypy3') is not None:
-                return 'pypy3'
-            else:
-                print('\n' + _c.orange + 'pypy3 executable not found, falling back to python3' +
-                      _c.reset)
-    return version
-
-
 # A function to convert c++ or java to something executable.
 # Returns a command to execute and an optional error message.
 # This can take either a path to a file (c, c++, java, python) or a directory.
@@ -174,13 +145,19 @@ def build(path):
 
     outdir.mkdir(parents=True, exist_ok=True)
 
-    # Link all input files
     input_files = list(path.glob('*')) if path.is_dir() else [path]
+
+    # Check file names.
+    for f in input_files:
+        if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
+            return (None, f'{_c.red}{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
+
     linked_files = []
     if len(input_files) == 0:
         config.n_warn += 1
         return (None, f'{_c.red}{str(path)} is an empty directory.{_c.reset}')
 
+    # Link all input files
     last_input_update = 0
     for f in input_files:
         latex.ensure_symlink(outdir / f.name, f)
@@ -192,7 +169,10 @@ def build(path):
     # Remove all other files.
     for f in outdir.glob('*'):
         if f not in (linked_files + [runfile]):
-            f.unlink()
+            if f.is_dir() and not f.is_symlink():
+                shutil.rmtree(f)
+            else:
+                f.unlink()
 
     # If the run file is up to date, no need to rebuild.
     if runfile.exists() and runfile not in linked_files:
@@ -218,158 +198,103 @@ def build(path):
     if runfile.exists():
         return ([runfile], None)
 
-    # Otherwise, detect the language and entry point and build manually.
-    language_code = None
-    main_file = None if path.is_dir() else outdir / path.name
-    c_files = []
-    message = ''
 
-    for f in input_files:
-        e = f.suffix
 
-        lang = None
-        main = False
+    # LANGUAGE DETECTION IS HERE
 
-        if e in ['.c']:
-            lang = 'c'
-            main = True
-            c_files.append(outdir / f.name)
-        if e in ['.cc', '.cpp', '.cxx.', '.c++', '.C']:
-            lang = 'cpp'
-            main = True
-            c_files.append(outdir / f.name)
 
-            # Make sure c++ does not depend on stdc++.h, because it's not portable.
-            if 'validators/' in str(f) and f.read_text().find('bits/stdc++.h') != -1:
-                config.n_warn += 1
-                message = f'{_c.orange}{print_name(f)} should not depend on bits/stdc++.h{_c.reset}'
+    # Get language config
+    # TODO: Override by local languages.yaml file.
+    if config.languages is None:
+        # Try both contest and repository level.
+        if Path('languages.yaml').is_file():
+            config.languages = util.read_yaml(Path('languages.yaml'))
+        else:
+            config.languages = util.read_yaml(config.tools_root/'config/languages.yaml')
+            #return (None, f'{_c.red}FAILED{_c.reset}: languages.yaml not found!')
 
-        if e in ['.java']:
-            lang = 'java'
-            main = f.name == 'Main.java'
-        if e in ['.kt']:
-            lang = 'kt'
-            # TODO: this probably isn't correct, but fine until it breaks.
-            main = True
-        if e in ['.py', '.py2', '.py3']:
-            if e == '.py2':
-                lang = 'python2'
-            elif e == '.py3':
-                lang = 'python3'
-            elif e == '.py':
-                lang = python_version(path)
-            main = f.name == 'main.py'
-        if e in ['.ctd']:
-            lang = 'ctd'
-            main = True
-        if e in ['.viva']:
-            lang = 'viva'
-            main = True
+        config.languages['ctd'] = {
+            'name': 'Checktestdata',
+            'priority': 1,
+            'files': '*.ctd',
+            'compile': None,
+            'run': 'checktestdata {mainfile}',
+        }
+        config.languages['viva'] = {
+            'name': 'Viva',
+            'priority': 2,
+            'files': '*.viva',
+            'compile': None,
+            'run': 'java -jar {viva_jar} {main_file}'.format(
+                viva_jar=config.tools_root / 'support/viva/viva.jar', main_file='{main_file}')
+        }
 
-        if language_code is not None and lang is not None and lang != language_code:
-            config.n_error += 1
-            msg = (f'{_c.red}Could not build {path}: found conflicting languages '
-                   f'{language_code} and {lang}!{_c.reset}')
-            return (None, msg)
+    # Find the best matching language.
+    def matches_shebang(f, shebang):
+        if shebang is None: return True
+        with f.open() as o:
+            return shebang.search(o.readline())
 
-        if language_code is None:
-            language_code = lang
 
-        if main_file is not None and main and main_file != outdir / f.name and language_code != 'cpp':
-            config.n_error += 1
-            msg = (f'{_c.red}Could not build {path}: found conflicting main files '
-                   f'{main_file.name} and {f.name}!{_c.reset}')
-            return (None, msg)
-        if main_file is None and main:
-            main_file = outdir / f.name
+    best = (None, [], -1)
+    for lang in config.languages:
+        lang_conf = config.languages[lang]
+        globs = lang_conf['files'].split() or []
+        shebang = re.compile(lang_conf['shebang']) if lang_conf.get('shebang', None) else None
+        priority = int(lang_conf['priority'])
 
-    # Check if the file itself is executable.
-    if language_code is None and main_file is not None and is_executable(main_file):
-        return ([main_file], None)
+        matching_files = []
+        for f in linked_files:
+            if any(fnmatch.fnmatch(f, glob) for glob in globs) and matches_shebang(f, shebang):
+                matching_files.append(f)
 
-    if language_code is None:
-        config.n_error += 1
+        if (len(matching_files), priority) > (len(best[1]), best[2]) :
+              best = (lang, matching_files, priority)
+
+        # Make sure c++ does not depend on stdc++.h, because it's not portable.
+        if lang == 'cpp':
+            for f in matching_files:
+                if 'validators/' in str(f) and f.read_text().find('bits/stdc++.h') != -1:
+                    config.n_warn += 1
+                    message = f'{_c.orange}{print_name(f)} should not depend on bits/stdc++.h{_c.reset}'
+
+    lang, files, priority = best
+
+    if lang is None:
         return (None, f'{_c.red}No language detected for {path}.{_c.reset}')
 
-    compile_command = None
-    run_command = None
+    if len(files) == 0:
+        return (None, f'{_c.red}No file detected for language {lang} at {path}.{_c.reset}')
 
-    if language_code == 'c':
-        compile_command = [
-            'gcc', '-I', config.tools_root / 'headers', '-std=c11', '-Wall', '-O2', '-o', runfile
-        ] + c_files + ['-lm']
-        run_command = [runfile]
-    elif language_code == 'cpp':
-        compile_command = ([
-            'g++',
-            '-I',
-            config.tools_root / 'headers',
-            '-std=c++17',
-            '-Wall',
-            '-Wfatal-errors',
-            '-O2',
-            '-fdiagnostics-color=always',  # Enable color output
-            '-o',
-            runfile,
-            main_file
-        ] + ([] if config.args.cpp_flags is None else config.args.cpp_flags.split()))
-        run_command = [runfile]
-    elif language_code == 'java':
-        compile_command = ['javac', '-d', outdir, main_file]
-        run_command = [
-            'java',
-            '-enableassertions',
-            '-XX:+UseSerialGC',
-            '-Xss64M',  # Max stack size
-            '-Xms1024M',  # Initial heap size
-            '-Xmx1024M',  # Max heap size
-            '-cp',
-            outdir,
-            main_file.stem
-        ]
-    elif language_code == 'kt':
-        if shutil.which('kotlinc') is None:
-            run_command = None
-            config.n_error += 1
-            message = f'{_c.red}kotlinc executable not found in PATH{_c.reset}'
-        else:
-            jarfile = runfile.with_suffix('.jar')
-            compile_command = ['kotlinc', '-d', jarfile, '-include-runtime', main_file]
-            run_command = [
-                'java',
-                '-enableassertions',
-                '-XX:+UseSerialGC',
-                '-Xss64M',  # Max stack size
-                '-Xms1024M',  # Initial heap size
-                '-Xmx1024M',  # Max heap size
-                '-jar',
-                jarfile
-            ]
-    elif language_code in ['python2', 'python3', 'python', 'Python']:
-        run_command = [python_interpreter(language_code), main_file]
-    elif language_code == 'ctd':
-        ctd_executable = shutil.which('checktestdata')
-        if ctd_executable is None:
-            run_command = None
-            config.n_error += 1
-            message = f'{_c.red}checktestdata executable not found in PATH{_c.reset}'
-        else:
-            run_command = [ctd_executable, main_file]
-    elif language_code == 'viva':
-        viva_jar = config.tools_root / 'support/viva/viva.jar'
-        if not viva_jar.is_file():
-            run_command = None
-            config.n_error += 1
-            message = f'{_c.red}viva.jar not found{_c.reset}'
-        else:
-            run_command = ['java', '-jar', viva_jar, main_file]
+    mainfile = None
+    if len(files) == 1:
+        mainfile = files[0]
     else:
+        for f in files:
+            if f.ascii_lowercse().starts_with('abcd'):
+                mainfile = f
+        mainfile = mainfile or sorted(files)[0]
 
-        config.n_error += 1
-        return (None, f'{_c.red}Unknown language \'{language_code}\' at file {path}{_c.reset}')
+    env = {
+        'path': str(outdir),
+        # NOTE: This only contains files matching the winning language.
+        'files': ''.join(str(f) for f in files),
+        'binary': str(runfile),
+        'mainfile': str(mainfile),
+        'mainclass': str(Path(mainfile).with_suffix('')),
+        'Mainclass': str(Path(mainfile).with_suffix('')).capitalize(),
+        'memlim': util.get_memory_limit()//1000000
+    }
+
+
+    # TODO: Support executable files?
+
+    compile_command = config.languages[lang]['compile']
+    run_command = config.languages[lang]['run']
 
     # Prevent building something twice in one invocation of tools.py.
     if compile_command is not None:
+        compile_command = shlex.split(compile_command.format(**env))
         ok, err, out = util.exec_command(compile_command,
                                          stdout=subprocess.PIPE,
                                          memory=5000000000,
@@ -382,12 +307,12 @@ def build(path):
                 message += '\n' + util.strip_newline(err) + _c.reset
             if out is not None:
                 message += '\n' + util.strip_newline(out) + _c.reset
-            run_command = None
+            return (None, message)
 
-    if run_command is None and message == '':
-        config.n_error += 1
-        message = f'{_c.red}FAILED{_c.reset}'
-    return (run_command, message)
+    if run_command is not None:
+        run_command = shlex.split(run_command.format(**env))
+
+    return (run_command, None)
 
 
 # build all files in a directory; return a list of tuples (file, command)
@@ -2049,7 +1974,6 @@ Run this from one of:
         '-m',
         '--memory',
         help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
-    global_parser.add_argument('--pypy', action='store_true', help='Use pypy instead of cpython.')
     global_parser.add_argument('--force_build',
                                action='store_true',
                                help='Force rebuild instead of only on changed files.')
