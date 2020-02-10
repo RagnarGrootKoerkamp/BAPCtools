@@ -9,6 +9,7 @@ RUN pacman -Syu --noconfirm \
 	gcc \
 	python \
 	pypy \
+	pypy3 \
 	python-yaml \
 	python-argcomplete \
 	python2 \
