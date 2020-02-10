@@ -320,6 +320,7 @@ def crop_output(output):
         output += _c.orange + 'Use -e to show more or -E to hide it.' + _c.reset
     return output
 
+
 # Return memory limit in bytes.
 def get_memory_limit(kwargs=None):
     memory_limit = 4000000000  # 4GB
@@ -335,7 +336,7 @@ def get_memory_limit(kwargs=None):
 # Return the time limits: a pair (problem time limit, hard wall timeout)
 # problem time limit: default from problem config; overridden by --timelimit
 # hard wall timeout: default 1.5*timelimit+1, overridden by --timeout
-#   wall timeout will be at least time_limit+1 
+#   wall timeout will be at least time_limit+1
 #
 # Note: This is only suitable for running submissions.
 # Other programs should have a larger default timeout.
@@ -344,16 +345,18 @@ def get_time_limits(settings):
     if hasattr(config.args, 'timelimit'): time_limit = config.args.timelimit
     if time_limit is None: time_limit = 1
 
-    timeout = 1.5*time_limit+1
+    timeout = 1.5 * time_limit + 1
     if hasattr(config.args, 'timeout') and config.args.timeout:
-        timeout = max(config.args.timeout, time_limit+1)
+        timeout = max(config.args.timeout, time_limit + 1)
     return time_limit, int(timeout)
+
 
 # Return the command line timeout or the default of 30
 def get_timeout():
     if hasattr(config.args, 'timeout') and config.args.timeout:
         return config.args.timeout
     return 30
+
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
@@ -381,7 +384,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     # Note: Resource limits do not work on windows.
     def setlimits():
-        resource.setrlimit(resource.RLIMIT_CPU, (timeout+1, timeout+1))
+        resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
         # Increase the max stack size from default to the max available.
         if sys.platform != 'darwin':
             resource.setrlimit(resource.RLIMIT_STACK,

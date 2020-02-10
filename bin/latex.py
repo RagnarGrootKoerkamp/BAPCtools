@@ -102,9 +102,9 @@ def create_samples_file(problem):
                 assert last in '<>'
                 nonlocal samples_data
                 mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
-                samples_data += '\\begin{'+mode+'}\n'
+                samples_data += '\\begin{' + mode + '}\n'
                 samples_data += tex_escape(cur)
-                samples_data += '\\end{'+mode+'}\n\n'
+                samples_data += '\\end{' + mode + '}\n\n'
 
             for line in lines.splitlines():
                 if line[0] == last:

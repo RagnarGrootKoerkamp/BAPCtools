@@ -53,7 +53,6 @@ from util import ProgressBar, _c, glob, log, warn, error, fatal
 # by shortname.
 def get_problems():
     # TODO: Rename 'contest' to 'problemset'?
-
     def is_problem_directory(path):
         # TODO: Simplify this when problem.yaml is required.
         return (path / 'problem.yaml').is_file() or (path / 'problem_statement').is_dir()
@@ -150,7 +149,8 @@ def build(path):
     # Check file names.
     for f in input_files:
         if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
-            return (None, f'{_c.red}{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
+            return (None,
+                    f'{_c.red}{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
 
     linked_files = []
     if len(input_files) == 0:
@@ -198,10 +198,7 @@ def build(path):
     if runfile.exists():
         return ([runfile], None)
 
-
-
     # LANGUAGE DETECTION IS HERE
-
 
     # Get language config
     # TODO: Override by local languages.yaml file.
@@ -210,7 +207,7 @@ def build(path):
         if Path('languages.yaml').is_file():
             config.languages = util.read_yaml(Path('languages.yaml'))
         else:
-            config.languages = util.read_yaml(config.tools_root/'config/languages.yaml')
+            config.languages = util.read_yaml(config.tools_root / 'config/languages.yaml')
             #return (None, f'{_c.red}FAILED{_c.reset}: languages.yaml not found!')
 
         config.languages['ctd'] = {
@@ -221,11 +218,16 @@ def build(path):
             'run': 'checktestdata {mainfile}',
         }
         config.languages['viva'] = {
-            'name': 'Viva',
-            'priority': 2,
-            'files': '*.viva',
-            'compile': None,
-            'run': 'java -jar {viva_jar} {main_file}'.format(
+            'name':
+            'Viva',
+            'priority':
+            2,
+            'files':
+            '*.viva',
+            'compile':
+            None,
+            'run':
+            'java -jar {viva_jar} {main_file}'.format(
                 viva_jar=config.tools_root / 'support/viva/viva.jar', main_file='{main_file}')
         }
 
@@ -234,7 +236,6 @@ def build(path):
         if shebang is None: return True
         with f.open() as o:
             return shebang.search(o.readline())
-
 
     best = (None, [], -1)
     for lang in config.languages:
@@ -248,8 +249,8 @@ def build(path):
             if any(fnmatch.fnmatch(f, glob) for glob in globs) and matches_shebang(f, shebang):
                 matching_files.append(f)
 
-        if (len(matching_files), priority) > (len(best[1]), best[2]) :
-              best = (lang, matching_files, priority)
+        if (len(matching_files), priority) > (len(best[1]), best[2]):
+            best = (lang, matching_files, priority)
 
         # Make sure c++ does not depend on stdc++.h, because it's not portable.
         if lang == 'cpp':
@@ -283,9 +284,8 @@ def build(path):
         'mainfile': str(mainfile),
         'mainclass': str(Path(mainfile).with_suffix('')),
         'Mainclass': str(Path(mainfile).with_suffix('')).capitalize(),
-        'memlim': util.get_memory_limit()//1000000
+        'memlim': util.get_memory_limit() // 1000000
     }
-
 
     # TODO: Support executable files?
 
@@ -295,11 +295,12 @@ def build(path):
     # Prevent building something twice in one invocation of tools.py.
     if compile_command is not None:
         compile_command = shlex.split(compile_command.format(**env))
-        ok, err, out = util.exec_command(compile_command,
-                                         stdout=subprocess.PIPE,
-                                         memory=5000000000,
-                                         # Compile errors are never cropped.
-                                         crop=False)
+        ok, err, out = util.exec_command(
+            compile_command,
+            stdout=subprocess.PIPE,
+            memory=5000000000,
+            # Compile errors are never cropped.
+            crop=False)
         if ok is not True:
             config.n_error += 1
             message = f'{_c.red}FAILED{_c.reset} '
@@ -814,7 +815,10 @@ def process_interactive_testcase(run_command,
     if settings.case_sensitive: flags += ['case_sensitive']
     judgepath = config.tmpdir / 'judge'
     judgepath.mkdir(parents=True, exist_ok=True)
-    validator_command = output_validator[1] + [testcase.with_suffix('.in'), testcase.with_suffix('.ans'), judgepath] + flags 
+    validator_command = output_validator[1] + [
+        testcase.with_suffix('.in'),
+        testcase.with_suffix('.ans'), judgepath
+    ] + flags
 
     if validator_error is False: validator_error = subprecess.PIPE
     if team_error is False: team_error = subprecess.PIPE
@@ -830,10 +834,10 @@ def process_interactive_testcase(run_command,
 
         # Start the validator.
         validator_process = subprocess.Popen(validator_command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=validator_error,
-            bufsize=2**20)
+                                             stdin=subprocess.PIPE,
+                                             stdout=subprocess.PIPE,
+                                             stderr=validator_error,
+                                             bufsize=2**20)
 
         # Start and time the submission.
         # TODO: use rusage instead
@@ -850,7 +854,7 @@ def process_interactive_testcase(run_command,
 
         tend = time.monotonic()
 
-        did_timeout = tend-tstart > time_limit
+        did_timeout = tend - tstart > time_limit
 
         validator_ok = validator_process.returncode
 
@@ -899,7 +903,6 @@ def process_interactive_testcase(run_command,
         val_in = team_log_in
         team_in = val_log_in
 
-
     if interaction:
         # Connect pipes with tee.
         TEE_CODE = R'''
@@ -916,9 +919,13 @@ while True:
     sys.stderr.flush()
     new = l=='\n'
 '''
-        team_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '>'], stdin=team_log_in, stdout=team_log_out)
+        team_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '>'],
+                                    stdin=team_log_in,
+                                    stdout=team_log_out)
         team_tee_pid = team_tee.pid
-        val_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '<'], stdin=val_log_in, stdout=val_log_out)
+        val_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '<'],
+                                   stdin=val_log_in,
+                                   stdout=val_log_out)
         val_tee_pid = val_tee.pid
 
     # Run Validator
@@ -930,10 +937,10 @@ while True:
                                (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
     validator = subprocess.Popen(validator_command,
-            stdin=val_in,
-            stdout=val_out,
-            stderr=validator_error,
-            preexec_fn=set_validator_limits)
+                                 stdin=val_in,
+                                 stdout=val_out,
+                                 stderr=validator_error,
+                                 preexec_fn=set_validator_limits)
     validator_pid = validator.pid
 
     # Run Submission
@@ -947,10 +954,10 @@ while True:
             resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
     submission = subprocess.Popen(run_command,
-            stdin=team_in,
-            stdout=team_out,
-            stderr=team_error,
-            preexec_fn=set_submission_limits)
+                                  stdin=team_in,
+                                  stdout=team_out,
+                                  stderr=team_error,
+                                  preexec_fn=set_submission_limits)
     submission_pid = submission.pid
 
     os.close(team_out)
@@ -967,10 +974,12 @@ while True:
 
     # Raise alarm after timeout reached
     signal.alarm(timeout)
+
     def kill_submission(signal, frame):
         submission.kill()
         nonlocal submission_time
         submission_time = timeout
+
     signal.signal(signal.SIGALRM, kill_submission)
 
     # Wait for first to finish
@@ -1015,7 +1024,7 @@ while True:
     # - team TLE/RTE -> TLE/RTE
     # - more team output -> WA
     # - no more team output -> AC
-    
+
     if validator_status != config.RTV_AC and validator_status != config.RTV_WA:
         config.n_error += 1
         verdict = 'VALIDATOR_CRASH'
@@ -1056,12 +1065,10 @@ def process_testcase(run_command,
                      printnewline=False):
 
     if 'interactive' in settings.validation:
-        return process_interactive_testcase(run_command, testcase, settings,
-                                            output_validators)
+        return process_interactive_testcase(run_command, testcase, settings, output_validators)
 
     timelimit, timeout = util.get_time_limits(settings)
-    ok, duration, err, out = run_testcase(run_command, testcase, outfile,
-                                                   timeout)
+    ok, duration, err, out = run_testcase(run_command, testcase, outfile, timeout)
     did_timeout = duration > timelimit
     verdict = None
     if did_timeout:
@@ -1303,10 +1310,10 @@ def test_submission(problem, submission, testcases, settings):
         if 'interactive' not in settings.validation:
             # err and out should be None because they go to the terminal.
             ok, duration, err, out = run_testcase(submission[1],
-                                                               testcase,
-                                                               outfile=None,
-                                                               timeout=timeout,
-                                                               crop=False)
+                                                  testcase,
+                                                  outfile=None,
+                                                  timeout=timeout,
+                                                  crop=False)
             did_timeout = duration > timelimit
             assert err is None and out is None
             if ok is not True:
@@ -1323,13 +1330,17 @@ def test_submission(problem, submission, testcases, settings):
 
         else:
             # Interactive problem.
-            verdict, duration, val_err, team_err = process_interactive_testcase(submission[1], testcase, settings, output_validators,
-                    show_interaction=True, validator_error=None, team_error=None)
+            verdict, duration, val_err, team_err = process_interactive_testcase(
+                submission[1],
+                testcase,
+                settings,
+                output_validators,
+                show_interaction=True,
+                validator_error=None,
+                team_error=None)
             if verdict != 'ACCEPTED':
                 config.n_error += 1
-                print(
-                    f'{_c.red}{verdict}{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}'
-                )
+                print(f'{_c.red}{verdict}{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
             else:
                 print(f'{_c.green}{verdict}{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
 
@@ -1432,6 +1443,7 @@ def get_random_submission(problem):
                 submission = s
     return submission
 
+
 # Run generators according to the gen.yaml file.
 def generate(problem, settings):
     gen_config, generator_runs = parse_gen_yaml(problem)
@@ -1481,7 +1493,8 @@ def generate(problem, settings):
                             shutil.move(source, target)
                             bar.log('CHANGED: ' + target.name + tries_msg)
                         else:
-                            bar.warn('SKIPPED: ' + target.name + _c.reset + '; supply -f --samples to overwrite')
+                            bar.warn('SKIPPED: ' + target.name + _c.reset +
+                                     '; supply -f --samples to overwrite')
                     else:
                         shutil.move(source, target)
                         bar.log('CHANGED: ' + target.name + tries_msg)
@@ -1513,7 +1526,6 @@ def generate(problem, settings):
             stdin_path = tmpdir / file_name.name
             stdout_path = tmpdir / (file_name.name + '.stdout')
 
-
             # Try running all commands |retries| times.
             ok = True
             for retry in range(retries):
@@ -1530,7 +1542,8 @@ def generate(problem, settings):
                     for i in range(len(input_args)):
                         x = input_args[i]
                         if x == '$SEED':
-                            val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(), 16) % (2**31)
+                            val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(),
+                                      16) % (2**31)
                             input_args[i] = (val + retry) % (2**31)
 
                     generator_command, msg = build(problem / 'generators' / generator_name)
@@ -1544,10 +1557,10 @@ def generate(problem, settings):
                     stdout_file = stdout_path.open('w')
                     stdin_file = stdin_path.open('r') if stdin_path.is_file() else None
                     try_ok, err, out = util.exec_command(command,
-                                                     stdout=stdout_file,
-                                                     stdin=stdin_file,
-                                                     timeout=timeout,
-                                                     cwd=tmpdir)
+                                                         stdout=stdout_file,
+                                                         stdin=stdin_file,
+                                                         timeout=timeout,
+                                                         cwd=tmpdir)
                     stdout_file.close()
                     if stdin_file: stdin_file.close()
 
@@ -1628,7 +1641,6 @@ def generate(problem, settings):
         print(ProgressBar.action('Generate ans', f'{_c.green}Done{_c.reset}'))
 
     return nskip == 0 and nfail == 0
-
 
 
 # Remove all files mentioned in the gen.yaml file.
@@ -1865,7 +1877,7 @@ def new_contest(name):
     subtitle = ask_variable('subtitle', '')
     dirname = ask_variable('dirname', alpha_num(title))
     author = ask_variable('author', f'The {title} jury')
-    testsession = ask_variable('testsession?', 'n (y/n)')[0] != 'n' # boolean
+    testsession = ask_variable('testsession?', 'n (y/n)')[0] != 'n'  # boolean
     year = ask_variable('year', str(datetime.datetime.now().year))
     source = ask_variable('source', title)
     source_url = ask_variable('source url', '')
@@ -1909,6 +1921,7 @@ def new_problem():
     print(f'Copying {skeldir} to {dirname}.')
 
     util.copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True)
+
 
 def new_cfp_problem(name):
     shutil.copytree(config.tools_root / 'skel/problem_cfp', name, symlinks=True)
@@ -1999,11 +2012,11 @@ Run this from one of:
     problemparser.add_argument('--default_validation',
                                action='store_true',
                                help='Use default validation for this problem.')
-    problemparser.add_argument('--skel',
-                               help='Skeleton problem directory to copy from.')
+    problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
     # New CfP problem
-    cfpproblemparser = subparsers.add_parser('new_cfp_problem', help='Stub for minimal cfp problem.')
+    cfpproblemparser = subparsers.add_parser('new_cfp_problem',
+                                             help='Stub for minimal cfp problem.')
     cfpproblemparser.add_argument('shortname',
                                   action='store',
                                   help='The shortname/directory name of the problem.')
@@ -2079,8 +2092,8 @@ Run this from one of:
     )
     genparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
     genparser.add_argument('--samples',
-                              action='store_true',
-                              help='Overwrite the samples as well, in combination with -f.')
+                           action='store_true',
+                           help='Overwrite the samples as well, in combination with -f.')
 
     # Clean
     cleanparser = subparsers.add_parser('clean',
@@ -2211,9 +2224,7 @@ def main():
     problems, level, contest = get_problems()
     problem_paths = [p.path for p in problems]
 
-    if level != 'problem' and action in [
-            'generate', 'generate_random_input', 'test'
-    ]:
+    if level != 'problem' and action in ['generate', 'generate_random_input', 'test']:
         if action == 'generate':
             fatal('Generating testcases only works for a single problem.')
         if action == 'generate_random_input':

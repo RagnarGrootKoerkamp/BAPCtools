@@ -40,6 +40,6 @@ verbose = False
 n_error = 0
 n_warn = 0
 
-languages= None
+languages = None
 FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
