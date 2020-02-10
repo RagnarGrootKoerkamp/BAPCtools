@@ -2058,13 +2058,13 @@ Run this from one of:
     subparsers.required = True
 
     # New contest
-    contestparser = subparsers.add_parser('contest',
+    contestparser = subparsers.add_parser('new_contest',
                                           parents=[global_parser],
                                           help='Add a new contest to the current directory.')
     contestparser.add_argument('contestname', nargs='?', help='The name of the contest')
 
     # New problem
-    problemparser = subparsers.add_parser('problem',
+    problemparser = subparsers.add_parser('new_problem',
                                           parents=[global_parser],
                                           help='Add a new problem to the current directory.')
     problemparser.add_argument('problemname', nargs='?', help='The name of the problem,')
@@ -2079,7 +2079,7 @@ Run this from one of:
                                help='Skeleton problem directory to copy from.')
 
     # New CfP problem
-    cfpproblemparser = subparsers.add_parser('cfp_problem', help='Stub for minimal cfp problem.')
+    cfpproblemparser = subparsers.add_parser('new_cfp_problem', help='Stub for minimal cfp problem.')
     cfpproblemparser.add_argument('shortname',
                                   action='store',
                                   help='The shortname/directory name of the problem.')
@@ -2270,15 +2270,15 @@ def main():
                                                     'verbose') and config.args.verbose else 0
     action = config.args.action
 
-    if action in ['contest']:
+    if action in ['new_contest']:
         new_contest(config.args.contestname)
         return
 
-    if action in ['problem']:
+    if action in ['new_problem']:
         new_problem()
         return
 
-    if action in ['cfp_problem']:
+    if action in ['new_cfp_problem']:
         new_cfp_problem(config.args.shortname)
         return
 
@@ -2319,7 +2319,7 @@ def main():
         return
 
     if action == 'kattis':
-        if level != 'contest':
+        if level != 'new_contest':
             print('Only contest level is currently supported...')
             return
         prepare_kattis_directory()
