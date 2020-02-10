@@ -1,5 +1,6 @@
 FROM archlinux/base
 MAINTAINER ragnar.grootkoerkamp@gmail.com
+RUN pacman-key --refresh-keys
 RUN pacman -Syu --noconfirm \
 	automake \
 	git \
