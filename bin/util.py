@@ -271,7 +271,9 @@ def copytree_and_substitute(src, dst, variables, exist_ok=True):
             srcFile = src / name
             dstFile = dst / name
 
-            if (os.path.isdir(srcFile)):
+            if os.path.islink(srcFile):
+                shutil.copy(srcFile, dstFile, follow_symlinks=False)
+            elif (os.path.isdir(srcFile)):
                 copytree_and_substitute(srcFile, dstFile, variables, exist_ok)
             elif (dstFile.exists()):
                 warn(f'File "{dstFile}" already exists, skipping...')
