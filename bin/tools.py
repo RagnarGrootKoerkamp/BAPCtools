@@ -1551,7 +1551,7 @@ def generate(problem, settings):
             if source.read_text() != target.read_text():
                 same = False
                 if hasattr(settings, 'force') and settings.force:
-                    if 'sample' in str(testcase):
+                    if 'sample' in str(target):
                         if hasattr(settings, 'samples') and settings.samples:
                             shutil.move(source, target)
                             bar.log('CHANGED: ' + target.name + tries_msg)
