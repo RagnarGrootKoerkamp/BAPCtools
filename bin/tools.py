@@ -208,7 +208,6 @@ def build(path):
             config.languages = util.read_yaml(Path('languages.yaml'))
         else:
             config.languages = util.read_yaml(config.tools_root / 'config/languages.yaml')
-            #return (None, f'{_c.red}FAILED{_c.reset}: languages.yaml not found!')
 
         config.languages['ctd'] = {
             'name': 'Checktestdata',
@@ -1302,7 +1301,7 @@ def test_submission(problem, submission, testcases, settings):
     if 'interactive':
         output_validators = get_validators(problem, 'output')
 
-    time_limit, timeout = gutil.et_time_limits(settings)
+    time_limit, timeout = util.get_time_limits(settings)
     for testcase in testcases:
         header = ProgressBar.action('Running ' + str(submission[0]), str(testcase.with_suffix('')))
         print(header)
@@ -1314,7 +1313,7 @@ def test_submission(problem, submission, testcases, settings):
                                                   outfile=None,
                                                   timeout=timeout,
                                                   crop=False)
-            did_timeout = duration > timelimit
+            did_timeout = duration > time_limit
             assert err is None and out is None
             if ok is not True:
                 config.n_error += 1
