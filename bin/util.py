@@ -142,6 +142,7 @@ class ProgressBar:
     # Done can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
     def log(self, message='', data='', color=_c.green):
+        if message is None: message = ''
         self.clearline()
         self.logged = True
         print(self.get_prefix(), color + message + ProgressBar._format_data(data) + _c.reset, flush=True)
@@ -177,7 +178,6 @@ class ProgressBar:
                 self.error(message, data)
             return True
         return False
-
 
 
 def read_yaml(path):

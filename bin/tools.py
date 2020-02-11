@@ -381,6 +381,136 @@ def get_validators(problem, validator_type, check_constraints=False):
     return validators
 
 
+def validate_testcase(testcase, validators, validator_type, *, bar, check_constraints=False,
+        constraints=None):
+    ext = '.in' if validator_type == 'input' else '.ans'
+
+    bad_testcase = False
+    if validator_type == 'input':
+        bad_testcase = 'data/bad/' in str(testcase) and not testcase.with_suffix(
+            '.ans').is_file() and not testcase.with_suffix('.out').is_file()
+
+    if validator_type == 'output':
+        bad_testcase = 'data/bad/' in str(testcase)
+
+    main_file = testcase.with_suffix(ext)
+    if bad_testcase and validator_type == 'output' and main_file.with_suffix('.out').is_file():
+        main_file = testcase.with_suffix('.out')
+
+    success = True
+
+    for validator in validators:
+        # simple `program < test.in` for input validation and ctd output validation
+        if Path(validator[0]).suffix == '.ctd':
+            ok, err, out = util.exec_command(
+                validator[1],
+                # TODO: Can we make this more generic? CTD returning 0 instead of 42
+                # is a bit annoying.
+                expect=1 if bad_testcase else 0,
+                stdin=main_file.open())
+
+        elif Path(validator[0]).suffix == '.viva':
+            # Called as `viva validator.viva testcase.in`.
+            ok, err, out = util.exec_command(
+                validator[1] + [main_file],
+                # TODO: Can we make this more generic? VIVA returning 0 instead of 42
+                # is a bit annoying.
+                expect=1 if bad_testcase else 0)
+            # Slightly hacky: CTD prints testcase errors on stderr while VIVA prints
+            # them on stdout.
+            err = out
+
+        elif validator_type == 'input':
+            constraints_file = config.tmpdir / 'constraints'
+            if constraints_file.is_file():
+                constraints_file.unlink()
+
+            ok, err, out = util.exec_command(
+                # TODO: Store constraints per problem.
+                validator[1] +
+                (['--constraints_file', constraints_file] if check_constraints else []),
+                expect=config.RTV_WA if bad_testcase else config.RTV_AC,
+                stdin=main_file.open())
+
+            # Merge with previous constraints.
+            if constraints_file.is_file():
+                for line in constraints_file.read_text().splitlines():
+                    loc, has_low, has_high, vmin, vmax, low, high = line.split()
+                    has_low = bool(int(has_low))
+                    has_high = bool(int(has_high))
+                    try:
+                        vmin = int(vmin)
+                    except:
+                        vmin = float(vmin)
+                    try:
+                        vmax = int(vmax)
+                    except:
+                        vmax = float(vmax)
+                    if loc in constraints:
+                        c = constraints[loc]
+                        has_low |= c[0]
+                        has_high |= c[1]
+                        if c[2] < vmin:
+                            vmin = c[2]
+                            low = c[4]
+                        if c[3] > vmax:
+                            vmax = c[3]
+                            high = c[5]
+                    constraints[loc] = (has_low, has_high, vmin, vmax, low, high)
+
+                constraints_file.unlink()
+
+        else:
+            # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
+            ok, err, out = util.exec_command(
+                validator[1] +
+                [testcase.with_suffix('.in'),
+                 testcase.with_suffix('.ans'), config.tmpdir] + ['case_sensitive', 'space_change_sensitive'],
+                expect=config.RTV_WA if bad_testcase else config.RTV_AC,
+                stdin=main_file.open())
+
+        ok = ok is True
+        success &= ok
+        message = ''
+
+        # Failure?
+        if ok:
+            message =  'PASSED ' + validator[0]
+        else:
+            message =  'FAILED ' + validator[0]
+
+        # Print stdout and stderr whenever something is printed
+        if not err: err = ''
+        if out and config.args.error:
+            out = f'\n{_c.red}VALIDATOR STDOUT{_c.reset}\n' + _c.orange + out
+        else: out = ''
+
+        bar.part_done(ok, message, data=err+out)
+
+        if not ok:
+            # Move testcase to destination directory if specified.
+            if hasattr(config.args, 'move_to') and config.args.move_to:
+                bar.log(_c.orange + 'MOVING TESTCASE' + _c.reset)
+                targetdir = problem / config.args.move_to
+                targetdir.mkdir(parents=True, exist_ok=True)
+                testcase.rename(targetdir / testcase.name)
+                ansfile = testcase.with_suffix('.ans')
+                ansfile.rename(targetdir / ansfile.name)
+                break
+
+            # Remove testcase if specified.
+            elif validator_type == 'input' and hasattr(config.args,
+                                                       'remove') and config.args.remove:
+                bar.log(_c.red + 'REMOVING TESTCASE!' + _c.reset)
+                if testcase.exists():
+                    testcase.unlink()
+                if testcase.with_suffix('.ans').exists():
+                    testcase.with_suffix('.ans').unlink()
+                break
+
+    return success
+
+
 # Validate the .in and .ans files for a problem.
 # For input:
 # - build+run or all files in input_validators
@@ -431,12 +561,6 @@ def validate(problem, validator_type, settings, check_constraints=False):
     ext = '.in' if validator_type == 'input' else '.ans'
     action = 'Validating ' + validator_type
 
-    # Flags are only needed for output validators; input validators are
-    # sensitive by default.
-    flags = []
-    if validator_type == 'output':
-        flags = ['case_sensitive', 'space_change_sensitive']
-
     success = True
     max_testcase_len = max([len(print_name(testcase) + ext) for testcase in testcases])
 
@@ -446,129 +570,8 @@ def validate(problem, validator_type, settings, check_constraints=False):
     bar = ProgressBar(action, max_testcase_len, len(testcases))
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix(ext)))
-
-        bad_testcase = False
-        if validator_type == 'input':
-            bad_testcase = 'data/bad/' in str(testcase) and not testcase.with_suffix(
-                '.ans').is_file() and not testcase.with_suffix('.out').is_file()
-
-        if validator_type == 'output':
-            bad_testcase = 'data/bad/' in str(testcase)
-
-        main_file = testcase.with_suffix(ext)
-        if bad_testcase and validator_type == 'output' and main_file.with_suffix('.out').is_file():
-            main_file = testcase.with_suffix('.out')
-
-        for validator in validators:
-            # simple `program < test.in` for input validation and ctd output validation
-            if Path(validator[0]).suffix == '.ctd':
-                ok, err, out = util.exec_command(
-                    validator[1],
-                    # TODO: Can we make this more generic? CTD returning 0 instead of 42
-                    # is a bit annoying.
-                    expect=1 if bad_testcase else 0,
-                    stdin=main_file.open())
-
-            elif Path(validator[0]).suffix == '.viva':
-                # Called as `viva validator.viva testcase.in`.
-                ok, err, out = util.exec_command(
-                    validator[1] + [main_file],
-                    # TODO: Can we make this more generic? VIVA returning 0 instead of 42
-                    # is a bit annoying.
-                    expect=1 if bad_testcase else 0)
-                # Slightly hacky: CTD prints testcase errors on stderr while VIVA prints
-                # them on stdout.
-                err = out
-
-            elif validator_type == 'input':
-
-                constraints_file = config.tmpdir / 'constraints'
-                if constraints_file.is_file():
-                    constraints_file.unlink()
-
-                ok, err, out = util.exec_command(
-                    # TODO: Store constraints per problem.
-                    validator[1] + flags +
-                    (['--constraints_file', constraints_file] if check_constraints else []),
-                    expect=config.RTV_WA if bad_testcase else config.RTV_AC,
-                    stdin=main_file.open())
-
-                # Merge with previous constraints.
-                if constraints_file.is_file():
-                    for line in constraints_file.read_text().splitlines():
-                        loc, has_low, has_high, vmin, vmax, low, high = line.split()
-                        has_low = bool(int(has_low))
-                        has_high = bool(int(has_high))
-                        try:
-                            vmin = int(vmin)
-                        except:
-                            vmin = float(vmin)
-                        try:
-                            vmax = int(vmax)
-                        except:
-                            vmax = float(vmax)
-                        if loc in constraints:
-                            c = constraints[loc]
-                            has_low |= c[0]
-                            has_high |= c[1]
-                            if c[2] < vmin:
-                                vmin = c[2]
-                                low = c[4]
-                            if c[3] > vmax:
-                                vmax = c[3]
-                                high = c[5]
-                        constraints[loc] = (has_low, has_high, vmin, vmax, low, high)
-
-                    constraints_file.unlink()
-
-            else:
-                # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
-                ok, err, out = util.exec_command(
-                    validator[1] +
-                    [testcase.with_suffix('.in'),
-                     testcase.with_suffix('.ans'), config.tmpdir] + flags,
-                    expect=config.RTV_WA if bad_testcase else config.RTV_AC,
-                    stdin=main_file.open())
-
-            ok = ok is True
-            success &= ok
-            message = ''
-
-            # Failure?
-            if ok:
-                message =  'PASSED ' + validator[0]
-            else:
-                message =  'FAILED ' + validator[0]
-
-            # Print stdout and stderr whenever something is printed
-            if not err: err = ''
-            if out and config.args.error:
-                out = f'\n{_c.red}VALIDATOR STDOUT{_c.reset}\n' + _c.orange + out
-            else: out = ''
-
-            bar.part_done(ok, message, data=err+out)
-
-            if not ok:
-                # Move testcase to destination directory if specified.
-                if hasattr(config.args, 'move_to') and config.args.move_to:
-                    bar.log(_c.orange + 'MOVING TESTCASE' + _c.reset)
-                    targetdir = problem / config.args.move_to
-                    targetdir.mkdir(parents=True, exist_ok=True)
-                    testcase.rename(targetdir / testcase.name)
-                    ansfile = testcase.with_suffix('.ans')
-                    ansfile.rename(targetdir / ansfile.name)
-                    break
-
-                # Remove testcase if specified.
-                elif validator_type == 'input' and hasattr(config.args,
-                                                           'remove') and config.args.remove:
-                    bar.log(_c.red + 'REMOVING TESTCASE!' + _c.reset)
-                    if testcase.exists():
-                        testcase.unlink()
-                    if testcase.with_suffix('.ans').exists():
-                        testcase.with_suffix('.ans').unlink()
-                    break
-
+        success &= validate_testcase(testcase, validators, validator_type, bar=bar,
+                check_constraints=check_constraints, constraints=constraints)
         bar.done()
 
     # Make sure all constraints are satisfied.
@@ -1432,10 +1435,14 @@ def generate(problem, settings):
             error(f'Submission not found: {submission}')
             submission = None
         else:
+            bar = ProgressBar('Building', len(print_name(submission)), 1)
+            bar.start(print_name(submission))
             submission, msg = build(submission)
-            if submission is None:
-                error(msg)
+            bar.done(submission is not None, msg)
     if submission is None: generate_ans = False
+
+    input_validators  = get_validators(problem, 'input' ) if len(generator_runs) > 0 else []
+    output_validators = get_validators(problem, 'output') if generate_ans else []
 
     if len(generator_runs) == 0 and generate_ans is False:
         return True
@@ -1448,39 +1455,48 @@ def generate(problem, settings):
     # Move source to target but check that --force was passed if target already exists and source is
     # different. Overwriting samples needs --samples as well.
     def maybe_move(source, target, tries_msg=''):
-        same = True
         nonlocal nskip
+
+        # Validate new .in and .ans files
+        if source.suffix == '.in':
+            if not validate_testcase(source, input_validators, 'input', bar=bar):
+                return False
+        if source.suffix == '.ans':
+            if not validate_testcase(source, output_validators, 'output', bar=bar):
+                return False
+
+        # Ask -f or -f --samples before overwriting files.
         if target.is_file():
-            if source.read_text() != target.read_text():
-                same = False
-                if hasattr(settings, 'force') and settings.force:
-                    if 'sample' in str(target):
-                        if hasattr(settings, 'samples') and settings.samples:
-                            shutil.move(source, target)
-                            bar.log('CHANGED: ' + target.name + tries_msg)
-                        else:
-                            bar.warn('SKIPPED: ' + target.name + _c.reset +
-                                     '; supply -f --samples to overwrite')
-                    else:
-                        shutil.move(source, target)
-                        bar.log('CHANGED: ' + target.name + tries_msg)
-                else:
-                    nskip += 1
-                    bar.warn('SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite')
+            if source.read_text() == target.read_text():
+                return True
+
+            if 'sample' in str(target) and (not (hasattr(settings, 'samples') and settings.samples)
+                    or not (hasattr(settings, 'force') and settings.force)):
+                bar.warn('SKIPPED: ' + target.name + _c.reset +
+                         '; supply -f --samples to overwrite')
+                return False
+
+            if not (hasattr(settings, 'force') and settings.force):
+                nskip += 1
+                bar.warn('SKIPPED: ' + target.name + _c.reset + '; supply -f to overwrite')
+                return False
+
+        if target.is_file():
+            bar.log('CHANGED: ' + target.name + tries_msg)
         else:
-            same = False
-            shutil.move(source, target)
             bar.log('NEW: ' + target.name + tries_msg)
-        return same
+        shutil.move(source, target)
+        return False
+
+
+    tmpdir = config.tmpdir / problem.name / 'generate'
+    tmpdir.mkdir(parents=True, exist_ok=True)
 
     # Generate Input
     if len(generator_runs) > 0:
         max_testcase_len = max([len(str(key)) for key in generator_runs]) + 1
 
         bar = ProgressBar('Generate', max_testcase_len, len(generator_runs))
-
-        tmpdir = config.tmpdir / problem.name / 'generate'
-        tmpdir.mkdir(parents=True, exist_ok=True)
 
         for file_name in generator_runs:
             commands = generator_runs[file_name]
@@ -1583,7 +1599,7 @@ def generate(problem, settings):
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix('.ans')))
 
-        outfile = config.tmpdir / 'test.out'
+        outfile = tmpdir / testcase.with_suffix('.ans').name
         try:
             outfile.unlink()
         except OSError:
@@ -1599,6 +1615,7 @@ def generate(problem, settings):
                 bar.error('FAILED')
                 nfail += 1
         else:
+            latex.ensure_symlink(outfile.with_suffix('.in'), testcase)
             ok &= maybe_move(outfile, testcase.with_suffix('.ans'))
 
         bar.done(ok)
