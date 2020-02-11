@@ -207,6 +207,9 @@ def build(path):
         else:
             config.languages = util.read_yaml(config.tools_root / 'config/languages.yaml')
 
+        if config.args.cpp_flags:
+            config.languages['cpp']['compile'] += config.args.cpp_flags
+
         config.languages['ctd'] = {
             'name': 'Checktestdata',
             'priority': 1,
