@@ -72,7 +72,7 @@ def tex_escape(text):
         re.MULTILINE)
 
     # Remove the trailing newline because it will be replaced by \\newline\n
-    has_newline = text[-1] is '\n'
+    has_newline = text[-1] == '\n'
     if has_newline: text = text[:-1]
     text = regex.sub(lambda match: conv[match.group()], text)
     # Escape leading spaces separately
