@@ -395,9 +395,6 @@ def get_validators(problem, validator_type, check_constraints=False):
 def validate(problem, validator_type, settings, printnewline=False, check_constraints=False):
     assert validator_type in ['input', 'output']
 
-    #if validator_type == 'output' and settings.validation == 'custom':
-    #return True
-
     if check_constraints:
         if not config.args.cpp_flags:
             config.args.cpp_flags = ''
@@ -1417,7 +1414,7 @@ def parse_gen_yaml(problem):
 def generate(problem, settings):
     gen_config, generator_runs = parse_gen_yaml(problem)
 
-    generate_ans = True
+    generate_ans = settings.validation != 'custom interactive'
     submission = None
     retries = 1
     if gen_config:
@@ -1427,6 +1424,10 @@ def generate(problem, settings):
             submission = problem / gen_config['submission']
         if 'retries' in gen_config:
             retries = max(gen_config['retries'], 1)
+
+    if settings.validation == 'custom interactive' and generate_ans:
+        error('Generating answer files is not supported for interactive problems!')
+        generate_ans = False
 
     if generate_ans and submission is None:
         # Use one of the accepted submissions.
