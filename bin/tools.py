@@ -92,9 +92,9 @@ def get_problems():
             for p in problemlist:
                 label = nextlabel
                 if 'label' in p: label = p['label']
-                if label == '': fatal(f'Found empty label for problem {p[\'id\']}')
+                if label == '': fatal(f'Found empty label for problem {p["id"]}')
                 nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
-                if label in labels: fatal(f'label {label} found twice for problem {p[\'id\']} and {labels[label]}.')
+                if label in labels: fatal(f'label {label} found twice for problem {p["id"]} and {labels[label]}.')
                 labels[label] = p['id']
                 problems.append(Problem(Path(p['id']), label))
         else:
