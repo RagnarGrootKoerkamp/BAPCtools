@@ -86,17 +86,16 @@ def get_problems():
             # TODO: Implement label default value
             problemlist = util.read_yaml(problemsyaml)
             assert problemlist is not None
-            labels = set()
+            labels = dict()
             nextlabel = 'A'
             problems = []
             for p in problemlist:
                 label = nextlabel
                 if 'label' in p: label = p['label']
-                assert label != ''
+                if label == '': fatal(f'Found empty label for problem {p[\'id\']}')
                 nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
-                # TODO: Print a nice error instead using some error() util.
-                assert label not in labels
-                labels.add(label)
+                if label in labels: fatal(f'label {label} found twice for problem {p[\'id\']} and {labels[label]}.')
+                labels[label] = p['id']
                 problems.append(Problem(Path(p['id']), label))
         else:
             # Otherwise, fallback to all directories with a problem.yaml and sort by
@@ -728,7 +727,6 @@ def stats(problems):
 
 # returns a map {answer type -> [(name, command)]}
 def get_submissions(problem):
-
     programs = []
 
     if hasattr(config.args, 'submissions') and config.args.submissions:
@@ -1415,33 +1413,6 @@ def parse_gen_yaml(problem):
     return gen_config, generator_runs
 
 
-def get_random_submission(problem):
-    # only get one accepted submission
-    submissions = list(glob(problem, 'submissions/accepted/*'))
-    if len(submissions) == 0:
-        warn('No submissions found!')
-        return None
-    submissions.sort()
-    # Look for a c++ solution if available.
-    submission = None
-    for s in submissions:
-        # Skip files containing 'NO_GENERATE'.
-        # Pick files containing 'CANONICAL'.
-        with open(s) as submission_file:
-            text = submission_file.read()
-            if text.find('NO_GENERATE') != -1:
-                continue
-            if text.find('CANONICAL') != -1:
-                submission = s
-                break
-        if s.suffix == '.cpp':
-            submission = s
-        else:
-            if submission is None:
-                submission = s
-    return submission
-
-
 # Run generators according to the gen.yaml file.
 def generate(problem, settings):
     gen_config, generator_runs = parse_gen_yaml(problem)
@@ -1458,7 +1429,21 @@ def generate(problem, settings):
             retries = max(gen_config['retries'], 1)
 
     if generate_ans and submission is None:
-        submission = get_random_submission(problem)
+        # Use one of the accepted submissions.
+        submissions = list(glob(problem, 'submissions/accepted/*'))
+        if len(submissions) == 0:
+            warn('No submissions found!')
+        else:
+            submissions.sort()
+            # Look for a c++ solution if available.
+            for s in submissions:
+                if s.suffix == '.cpp':
+                    submission = s
+                    break
+                else:
+                    if submission is None:
+                        submission = s
+
     if generate_ans and submission is not None:
         if not (submission.is_file() or submission.is_dir()):
             error(f'Submission not found: {submission}')
