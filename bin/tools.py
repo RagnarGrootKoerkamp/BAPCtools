@@ -52,7 +52,6 @@ from util import ProgressBar, _c, glob, log, warn, error, fatal
 # Either use the problems.yaml, or check the existence of problem.yaml and sort
 # by shortname.
 def get_problems():
-    # TODO: Rename 'contest' to 'problemset'?
     def is_problem_directory(path):
         # TODO: Simplify this when problem.yaml is required.
         return (path / 'problem.yaml').is_file() or (path / 'problem_statement').is_dir()
@@ -63,7 +62,7 @@ def get_problems():
     if hasattr(config.args, 'contest') and config.args.contest:
         contest = config.args.contest
         os.chdir(contest)
-        level = 'contest'
+        level = 'problemset'
     elif hasattr(config.args, 'problem') and config.args.problem:
         problem = Path(config.args.problem)
         level = 'problem'
@@ -73,14 +72,14 @@ def get_problems():
         level = 'problem'
         os.chdir('..')
     else:
-        level = 'contest'
+        level = 'problemset'
 
     problems = []
     if level == 'problem':
         # TODO: look for a problems.yaml file above here and find a letter?
         problems = [Problem(Path(problem.name))]
     else:
-        level = 'contest'
+        level = 'problemset'
         # If problemset.yaml is available, use it.
         problemsyaml = Path('problems.yaml')
         if problemsyaml.is_file():
@@ -1964,7 +1963,7 @@ Run this from one of:
         action='count',
         help='Verbose output; once for what\'s going on, twice for all intermediate output.')
     global_parser.add_argument('-c',
-                               '--contest',
+                               '--problemset',
                                help='The contest to use, when running from repository root.')
     global_parser.add_argument('-p',
                                '--problem',
@@ -2268,7 +2267,7 @@ def main():
     success = True
 
     for problem in problems:
-        if level == 'contest' and action == 'pdf' and not (hasattr(config.args, 'all')
+        if level == 'problemset' and action == 'pdf' and not (hasattr(config.args, 'all')
                                                            and config.args.all):
             continue
         print(_c.bold, 'PROBLEM ', problem.path, _c.reset, sep='')
@@ -2283,7 +2282,7 @@ def main():
         if action in ['pdf', 'solutions', 'all']:
             # only build the pdf on the problem level, or on the contest level when
             # --all is passed.
-            if level == 'problem' or (level == 'contest' and hasattr(config.args, 'all')
+            if level == 'problem' or (level == 'problemset' and hasattr(config.args, 'all')
                                       and config.args.all):
                 success &= latex.build_problem_pdf(problem)
 
@@ -2328,7 +2327,7 @@ def main():
         if len(problems) > 1:
             print()
 
-    if level == 'contest':
+    if level == 'problemset':
         print(f'{_c.bold}CONTEST {contest}{_c.reset}')
 
         # build pdf for the entire contest
