@@ -196,10 +196,7 @@ def build(path):
     if runfile.exists():
         return ([runfile], None)
 
-    # LANGUAGE DETECTION IS HERE
-
     # Get language config
-    # TODO: Override by local languages.yaml file.
     if config.languages is None:
         # Try both contest and repository level.
         if Path('languages.yaml').is_file():
@@ -395,7 +392,7 @@ def get_validators(problem, validator_type, check_constraints=False):
 #   none, .ans file not needed.
 #
 # We always pass both the case_sensitive and space_change_sensitive flags.
-def validate(problem, validator_type, settings, printnewline=False, check_constraints=False):
+def validate(problem, validator_type, settings, check_constraints=False):
     assert validator_type in ['input', 'output']
 
     if check_constraints:
@@ -533,39 +530,25 @@ def validate(problem, validator_type, settings, printnewline=False, check_constr
                     expect=config.RTV_WA if bad_testcase else config.RTV_AC,
                     stdin=main_file.open())
 
-            print_message = config.verbose > 0
+            ok = ok is True
+            success &= ok
             message = ''
 
             # Failure?
-            if ok is True:
-                message = _c.green + 'PASSED ' + validator[0] + _c.reset
+            if ok:
+                message =  'PASSED ' + validator[0]
             else:
-                config.n_error += 1
-                message = _c.red + 'FAILED ' + validator[0] + _c.reset
-                print_message = True
-                success = False
+                message =  'FAILED ' + validator[0]
 
             # Print stdout and stderr whenever something is printed
-            if err:
-                prefix = '  '
-                if err.count('\n') > 1:
-                    prefix = '\n'
-                message += prefix + _c.orange + util.strip_newline(err) + _c.reset
-            # Print stdout when -e is set. (But not on normal failures.)
+            if not err: err = ''
             if out and config.args.error:
-                prefix = '  '
-                if out.count('\n') > 1:
-                    prefix = '\n'
-                message += f'\n{_c.red}VALIDATOR STDOUT{_c.reset}' + prefix + _c.orange + util.strip_newline(
-                    out) + _c.reset
+                out = f'\n{_c.red}VALIDATOR STDOUT{_c.reset}\n' + _c.orange + out
+            else: out = ''
 
-            if print_message:
-                if not config.verbose and printnewline:
-                    bar.clearline()
-                    printnewline = False
-                    print()
-                bar.log(message)
+            bar.part_done(ok, message, data=err+out)
 
+            if not ok:
                 # Move testcase to destination directory if specified.
                 if hasattr(config.args, 'move_to') and config.args.move_to:
                     bar.log(_c.orange + 'MOVING TESTCASE' + _c.reset)
@@ -1057,8 +1040,7 @@ def process_testcase(run_command,
                      testcase,
                      outfile,
                      settings,
-                     output_validators,
-                     printnewline=False):
+                     output_validators):
 
     if 'interactive' in settings.validation:
         return process_interactive_testcase(run_command, testcase, settings, output_validators)
@@ -1088,7 +1070,6 @@ def process_testcase(run_command,
         else:
             config.n_error += 1
             verdict = 'VALIDATOR_CRASH'
-            #err = err
 
     return (verdict, duration, err, out)
 
@@ -1104,8 +1085,6 @@ def run_submission(submission,
                    max_submission_len,
                    expected='ACCEPTED',
                    table_dict=None):
-    need_newline = config.verbose == 1
-
     time_total = 0
     time_max = 0
     testcase_max_time = None
@@ -1124,7 +1103,7 @@ def run_submission(submission,
         bar.start(print_name(testcase.with_suffix('')))
         outfile = config.tmpdir / 'test.out'
         verdict, runtime, err, out = process_testcase(submission[1], testcase, outfile, settings,
-                                                      output_validators, need_newline)
+                                                      output_validators)
 
         if config.PRIORITY[verdict] > config.PRIORITY[final_verdict]:
             final_verdict = verdict

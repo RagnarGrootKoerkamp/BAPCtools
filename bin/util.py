@@ -134,30 +134,50 @@ class ProgressBar:
         else:
             print(self.get_prefix(), self.get_bar(), end='\r', flush=True)
 
+    def _format_data(data):
+        if not data: return ''
+        prefix = '  ' if data.count('\n') <= 1 else '\n'
+        return prefix + _c.orange + strip_newline(data) + _c.reset
+
     # Done can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message=''):
+    def log(self, message='', data='', color=_c.green):
         self.clearline()
         self.logged = True
-        print(self.get_prefix(), message, flush=True)
+        print(self.get_prefix(), color + message + ProgressBar._format_data(data) + _c.reset, flush=True)
 
-    def warn(self, message=''):
+    def warn(self, message='', data=''):
         config.n_warn += 1
-        self.log(_c.orange + message + _c.reset)
+        self.log(message, data, _c.orange)
 
-    def error(self, message=''):
+    def error(self, message='', data=''):
         config.n_error += 1
-        self.log(_c.red + message + _c.reset)
+        self.log(message, data, _c.red)
 
+    # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     # Return True when something was printed
-    def done(self, success=True, message=''):
+    def done(self, success=True, message='', data=''):
         self.clearline()
         if self.logged: return False
         if not success: config.n_error += 1
         if config.verbose or not success:
-            self.log(message)
+            self.log(message, data)
             return True
         return False
+
+    # Log an intermediate line if it's an error or we're in verbose mode.
+    # Return True when something was printed
+    def part_done(self, success=True, message='', data=''):
+        self.clearline()
+        if not success: config.n_error += 1
+        if config.verbose or not success:
+            if success:
+                self.log(message, data)
+            else:
+                self.error(message, data)
+            return True
+        return False
+
 
 
 def read_yaml(path):
