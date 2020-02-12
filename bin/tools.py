@@ -373,15 +373,9 @@ def get_validators(problem, validator_type, check_constraints=False):
     if hasattr(config.args, 'validator') and config.args.validator:
         files = [problem / config.args.validator]
 
-    validators = build_programs(files)
+    return build_programs(files)
 
-    if len(validators) == 0:
-        error(f'\nAborting: At least one {validator_type} validator is needed!')
-
-    return validators
-
-
-def validate_testcase(testcase, validators, validator_type, *, bar, check_constraints=False,
+def validate_testcase(problem, testcase, validators, validator_type, *, bar, check_constraints=False,
         constraints=None):
     ext = '.in' if validator_type == 'input' else '.ans'
 
@@ -490,12 +484,21 @@ def validate_testcase(testcase, validators, validator_type, *, bar, check_constr
         if not ok:
             # Move testcase to destination directory if specified.
             if hasattr(config.args, 'move_to') and config.args.move_to:
-                bar.log(_c.orange + 'MOVING TESTCASE' + _c.reset)
+                infile = testcase.with_suffix('.in')
                 targetdir = problem / config.args.move_to
                 targetdir.mkdir(parents=True, exist_ok=True)
-                testcase.rename(targetdir / testcase.name)
+                intarget = targetdir/infile.name
+                infile.rename(intarget)
+                bar.warn('Moved to ' + print_name(intarget))
                 ansfile = testcase.with_suffix('.ans')
-                ansfile.rename(targetdir / ansfile.name)
+                if ansfile.is_file():
+                    if validator_type == 'input':
+                        ansfile.unlink()
+                        bar.warn('Deleted ' + print_name(ansfile))
+                    if validator_type == 'output':
+                        anstarget = intarget.with_suffix('.ans')
+                        ansfile.rename(anstarget)
+                        bar.warn('Moved to ' + print_name(anstarget))
                 break
 
             # Remove testcase if specified.
@@ -539,6 +542,7 @@ def validate(problem, validator_type, settings, check_constraints=False):
         return True
 
     if len(validators) == 0:
+        error(f'\nNo {validator_type} validator found!')
         return False
 
     testcases = util.get_testcases(problem, needans=validator_type == 'output')
@@ -570,7 +574,7 @@ def validate(problem, validator_type, settings, check_constraints=False):
     bar = ProgressBar(action, max_testcase_len, len(testcases))
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix(ext)))
-        success &= validate_testcase(testcase, validators, validator_type, bar=bar,
+        success &= validate_testcase(problem, testcase, validators, validator_type, bar=bar,
                 check_constraints=check_constraints, constraints=constraints)
         bar.done()
 
@@ -779,10 +783,7 @@ def process_interactive_testcase(run_command,
                                  validator_error=False,
                                  team_error=False,
                                  show_interaction=False):
-    if len(output_validators) != 1:
-        error(
-            'Interactive problems need exactly one output validator. Found {len(output_validators)}.'
-        )
+    assert len(output_validators) == 1
     output_validator = output_validators[0]
 
     # Set limits
@@ -1193,9 +1194,10 @@ def run_submissions(problem, settings):
         return False
 
     output_validators = None
-    if settings.validation in ['custom', 'interactive', 'custom interactive']:
+    if settings.validation in ['custom', 'custom interactive']:
         output_validators = get_validators(problem, 'output')
         if len(output_validators) == 0:
+            error(f'No output validators found, but validation type is {settings.validation}')
             return False
 
     submissions = get_submissions(problem)
@@ -1277,8 +1279,13 @@ def run_submissions(problem, settings):
 def test_submission(problem, submission, testcases, settings):
     print(ProgressBar.action('Running', str(submission[0])))
 
-    if 'interactive':
+    if 'interactive' in settings.validation:
         output_validators = get_validators(problem, 'output')
+        if len(output_validators) != 1:
+            error(
+                'Interactive problems need exactly one output validator. Found {len(output_validators)}.'
+            )
+            return False
 
     time_limit, timeout = util.get_time_limits(settings)
     for testcase in testcases:
@@ -1459,10 +1466,10 @@ def generate(problem, settings):
 
         # Validate new .in and .ans files
         if source.suffix == '.in':
-            if not validate_testcase(source, input_validators, 'input', bar=bar):
+            if not validate_testcase(problem, source, input_validators, 'input', bar=bar):
                 return False
         if source.suffix == '.ans':
-            if not validate_testcase(source, output_validators, 'output', bar=bar):
+            if not validate_testcase(problem, source, output_validators, 'output', bar=bar):
                 return False
 
         # Ask -f or -f --samples before overwriting files.
