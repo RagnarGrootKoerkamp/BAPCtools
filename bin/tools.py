@@ -1656,63 +1656,6 @@ def clean(problem):
     return True
 
 
-# Use a compatible input validator to generate random testcases.
-def generate_random_input(problem, settings):
-    # Find the right validator
-    validators = get_validators(problem, 'input')
-    if len(validators) == 0:
-        return False
-
-    if len(validators) != 1:
-        error('Choosing a default validator failed. Use --validator <validator> instead.')
-        return False
-    validator = validators[0]
-
-    testcases = [(problem / x).with_suffix('.in') for x in settings.testcases]
-
-    max_testcase_len = max([len(print_name(testcase, True)) for testcase in testcases])
-
-    bar = ProgressBar('Generate', max_testcase_len, len(testcases))
-
-    nskip = 0
-    nfail = 0
-    for testcase in testcases:
-        bar.start(print_name(testcase, True))
-
-        if testcase.exists() and not (hasattr(settings, 'force') and settings.force):
-            message = _c.red + 'SKIPPED' + _c.reset + '; file already exists. -f to overwrite'
-            nskip += 1
-        else:
-            success = False
-            for retry in range(settings.retries):
-                if testcase.exists():
-                    testcase.unlink()
-                ok, err, out = util.exec_command(
-                    validator[1] + ['--generate'],
-                    expect=0,
-                    stdout=testcase.open('w'),
-                    #stderr=None
-                )
-
-                if ok == True:
-                    message = _c.green + 'WRITTEN' + _c.reset + f' after {retry+1} tries'
-                    success = True
-                    break
-                else:
-                    message = err
-                    if testcase.exists() and not (hasattr(settings, 'keep') and settings.keep):
-                        testcase.unlink()
-
-            if not success and retry == settings.retries - 1:
-                nfail += 1
-                message = _c.red + 'GENERATION FAILED' + _c.reset + ': ' + f'All {settings.retries} attempts failed. Try --retries <num>.' + '\n' + message
-
-        bar.done(False, message)
-
-    print()
-    return nskip == 0 and nfail == 0
-
-
 def print_sorted(problems):
     prefix = config.args.contest + '/' if config.args.contest else ''
     for problem in problems:
@@ -2090,28 +2033,6 @@ Run this from one of:
                                         parents=[global_parser],
                                         help='Delete all .in and .ans corresponding to .gen.')
 
-    # Generate Input
-    inputgenparser = subparsers.add_parser('generate_random_input',
-                                           parents=[global_parser],
-                                           help='generate random testcases usinginput validator')
-    inputgenparser.add_argument('-f',
-                                '--force',
-                                action='store_true',
-                                help='Overwrite existing input flies.')
-    inputgenparser.add_argument('testcases',
-                                nargs='+',
-                                help='The name of the testcase to generate.')
-    inputgenparser.add_argument('--validator',
-                                nargs='?',
-                                help='The validator to use, in case there is more than one.')
-    inputgenparser.add_argument('--retries',
-                                default=1,
-                                type=int,
-                                help='Rerun the generator until it success.')
-    inputgenparser.add_argument('--keep',
-                                action='store_true',
-                                help='Keep output of failed generator runs.')
-
     # Run
     runparser = subparsers.add_parser('run',
                                       parents=[global_parser],
@@ -2214,11 +2135,9 @@ def main():
     problems, level, contest = get_problems()
     problem_paths = [p.path for p in problems]
 
-    if level != 'problem' and action in ['generate', 'generate_random_input', 'test']:
+    if level != 'problem' and action in ['generate', 'test']:
         if action == 'generate':
             fatal('Generating testcases only works for a single problem.')
-        if action == 'generate_random_input':
-            fatal('Generating random testcases only works for a single problem.')
         if action == 'test':
             fatal('Testing a submission only works for a single problem.')
 
@@ -2286,8 +2205,6 @@ def main():
             success &= clean(problem.path)
         if action in ['generate']:
             success &= generate(problem.path, settings)
-        if action in ['generate_random_input']:
-            success &= generate_random_input(problem.path, settings)
         if action in ['validate', 'output', 'all']:
             success &= validate(problem.path, 'output', settings, input_validator_ok)
         if action in ['run', 'all']:
