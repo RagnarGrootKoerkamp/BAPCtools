@@ -729,6 +729,10 @@ def get_submissions(problem):
         for verdict in config.PROBLEM_OUTCOMES:
             programs += glob(problem, f'submissions/{verdict.lower()}/*')
 
+    if len(programs) == 0:
+        error('No submissions found!')
+
+
     run_commands = build_programs(programs, True)
     submissions = {
         'ACCEPTED': [],
@@ -1845,6 +1849,9 @@ def new_problem():
             'validation': validation
     }.items():
         variables[k] = v
+
+    for k in ['source', 'source_url', 'license', 'rights_owner']:
+        if k not in variables: variables[k] = ''
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir = config.tools_root / 'skel/problem'
