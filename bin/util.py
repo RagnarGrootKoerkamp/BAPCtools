@@ -184,7 +184,11 @@ def read_yaml(path):
     settings = {}
     if path.is_file():
         with path.open() as yamlfile:
-            config = yaml.safe_load(yamlfile)
+            try:
+                config = yaml.safe_load(yamlfile)
+            except:
+                warn(f'Failed to parse {path}. Using defaults.')
+                return {}
             if config is None: return None
             if isinstance(config, list): return config
             for key, value in config.items():
@@ -251,6 +255,21 @@ def strip_newline(s):
         return s[:-1]
     else:
         return s
+
+
+# When output is True, copy the file when args.cp is true.
+def ensure_symlink(link, target, output=False):
+    if output and hasattr(config.args, 'cp') and config.args.cp == True:
+        if link.exists() or link.is_symlink(): link.unlink()
+        shutil.copyfile(target, link)
+        return
+
+    # Do nothing if link already points to the right target.
+    if link.is_symlink() and link.resolve() == target.resolve():
+        return
+
+    if link.is_symlink() or link.exists(): link.unlink()
+    link.symlink_to(target.resolve())
 
 
 def substitute(data, variables):

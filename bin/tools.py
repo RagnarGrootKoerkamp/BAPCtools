@@ -158,7 +158,7 @@ def build(path):
     # Link all input files
     last_input_update = 0
     for f in input_files:
-        latex.ensure_symlink(outdir / f.name, f)
+        util.ensure_symlink(outdir / f.name, f)
         linked_files.append(outdir / f.name)
         last_input_update = max(last_input_update, f.stat().st_ctime)
 
@@ -542,7 +542,7 @@ def validate(problem, validator_type, settings, check_constraints=False):
         return True
 
     if len(validators) == 0:
-        error(f'No {validator_type} validator found!')
+        error(f'No {validator_type} validators found!')
         return False
 
     testcases = util.get_testcases(problem, needans=validator_type == 'output')
@@ -1622,7 +1622,7 @@ def generate(problem, settings):
                 bar.error('FAILED')
                 nfail += 1
         else:
-            latex.ensure_symlink(outfile.with_suffix('.in'), testcase)
+            util.ensure_symlink(outfile.with_suffix('.in'), testcase)
             ok &= maybe_move(outfile, testcase.with_suffix('.ans'))
 
         bar.done(ok)

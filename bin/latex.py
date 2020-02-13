@@ -10,24 +10,9 @@ from pathlib import Path
 
 import config
 import util
-from util import _c
+from util import _c, ensure_symlink
 
 PDFLATEX = ['pdflatex', '-interaction=nonstopmode', '-halt-on-error']
-
-
-# When output is True, copy the file when args.cp is true.
-def ensure_symlink(link, target, output=False):
-    if output and hasattr(config.args, 'cp') and config.args.cp == True:
-        if link.exists() or link.is_symlink(): link.unlink()
-        shutil.copyfile(target, link)
-        return
-
-    # Do nothing if link already points to the right target.
-    if link.is_symlink() and link.resolve() == target.resolve():
-        return
-
-    if link.is_symlink() or link.exists(): link.unlink()
-    link.symlink_to(target.resolve())
 
 
 def require_latex_build_dir():
