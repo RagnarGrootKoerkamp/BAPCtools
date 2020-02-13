@@ -319,8 +319,7 @@ def build(path):
 def build_programs(programs, include_dirname=False):
     if len(programs) == 0:
         return []
-    max_file_len = max(len(print_name(path)) for path in programs)
-    bar = ProgressBar('Building', max_file_len, len(programs))
+    bar = ProgressBar('Building', items=[print_name(path) for path in programs])
 
     commands = []
     for path in programs:
@@ -566,12 +565,11 @@ def validate(problem, validator_type, settings, check_constraints=False):
     action = 'Validating ' + validator_type
 
     success = True
-    max_testcase_len = max([len(print_name(testcase) + ext) for testcase in testcases])
 
     constraints = {}
 
     # validate the testcases
-    bar = ProgressBar(action, max_testcase_len, len(testcases))
+    bar = ProgressBar(action, items=[print_name(t)+ext for t in testcases])
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix(ext)))
         success &= validate_testcase(problem, testcase, validators, validator_type, bar=bar,
@@ -1446,7 +1444,7 @@ def generate(problem, settings):
             error(f'Submission not found: {submission}')
             submission = None
         else:
-            bar = ProgressBar('Building', len(print_name(submission)), 1)
+            bar = ProgressBar('Building', items=[print_name(submission)])
             bar.start(print_name(submission))
             submission, msg = build(submission)
             bar.done(submission is not None, msg)
@@ -1505,9 +1503,7 @@ def generate(problem, settings):
 
     # Generate Input
     if len(generator_runs) > 0:
-        max_testcase_len = max([len(str(key)) for key in generator_runs]) + 1
-
-        bar = ProgressBar('Generate', max_testcase_len, len(generator_runs))
+        bar = ProgressBar('Generate', items=generator_runs)
 
         for file_name in generator_runs:
             commands = generator_runs[file_name]
@@ -1600,10 +1596,7 @@ def generate(problem, settings):
     # Generate Answer
     testcases = util.get_testcases(problem, needans=False)
 
-    max_testcase_len = max(
-        [len(print_name(testcase.with_suffix('.ans'))) for testcase in testcases])
-
-    bar = ProgressBar('Generate ans', max_testcase_len, len(testcases))
+    bar = ProgressBar('Generate ans', items=[print_name(t.with_suffix('.ans')) for t in testcases])
 
     _, timeout = util.get_time_limits(settings)
 

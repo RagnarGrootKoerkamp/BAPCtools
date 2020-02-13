@@ -78,7 +78,11 @@ def fatal(msg):
 # Optionally, multiple errors can be logged using bar.log(error). If so, the
 # final message on bar.done() will be ignored.
 class ProgressBar:
-    def __init__(self, prefix, max_len=None, count=None):
+    def __init__(self, prefix, max_len=None, count=None, *, items=None):
+        assert not (items and (max_len or count))
+        if items:
+            count = len(items)
+            max_len = max(len(str(x)) for x in items)
         self.prefix = prefix  # The prefix to always print
         self.item_width = max_len  # The max length of the items we're processing
         self.count = count  # The number of items we're processing
