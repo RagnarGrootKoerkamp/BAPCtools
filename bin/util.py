@@ -199,9 +199,13 @@ def is_hidden(path):
     return False
 
 
+def is_template(path):
+    return path.suffix == '.template'
+
+
 # glob, but without hidden files
 def glob(path, expression):
-    return sorted([p for p in path.glob(expression) if not is_hidden(p)])
+    return sorted(p for p in path.glob(expression) if not is_hidden(p) and not is_template(p))
 
 
 # testcases; returns list of basenames

@@ -542,7 +542,7 @@ def validate(problem, validator_type, settings, check_constraints=False):
         return True
 
     if len(validators) == 0:
-        error(f'\nNo {validator_type} validator found!')
+        error(f'No {validator_type} validator found!')
         return False
 
     testcases = util.get_testcases(problem, needans=validator_type == 'output')
@@ -1197,7 +1197,7 @@ def run_submissions(problem, settings):
     if settings.validation in ['custom', 'custom interactive']:
         output_validators = get_validators(problem, 'output')
         if len(output_validators) == 0:
-            error(f'No output validators found, but validation type is {settings.validation}')
+            error(f'No output validators found, but validation type is: {settings.validation}.')
             return False
 
     submissions = get_submissions(problem)
