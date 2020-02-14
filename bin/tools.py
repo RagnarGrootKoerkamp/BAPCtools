@@ -784,7 +784,10 @@ def process_interactive_testcase(run_command,
                                  output_validators,
                                  validator_error=False,
                                  team_error=False,
-                                 show_interaction=False):
+                                 # False/None: no output
+                                 # True: stdout
+                                 # else: path
+                                 interaction=False):
     assert len(output_validators) == 1
     output_validator = output_validators[0]
 
@@ -874,9 +877,10 @@ def process_interactive_testcase(run_command,
         fcntl.fcntl(w, F_SETPIPE_SZ, 2**20)
         return r, w
 
-    interaction = False
+    interaction_file = None
     # TODO: Print interaction when needed.
-    if True:
+    if interaction:
+        interaction_file = None if interaction is True else interaction
         interaction = True
 
     team_log_in, team_out = mkpipe()
@@ -906,11 +910,13 @@ while True:
 '''
         team_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '>'],
                                     stdin=team_log_in,
-                                    stdout=team_log_out)
+                                    stdout=team_log_out,
+                                    stderr=interaction_file)
         team_tee_pid = team_tee.pid
         val_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '<'],
                                    stdin=val_log_in,
-                                   stdout=val_log_out)
+                                   stdout=val_log_out,
+                                   stderr=interaction_file)
         val_tee_pid = val_tee.pid
 
     # Run Validator
@@ -1322,7 +1328,7 @@ def test_submission(problem, submission, testcases, settings):
                 testcase,
                 settings,
                 output_validators,
-                show_interaction=True,
+                interaction=True,
                 validator_error=None,
                 team_error=None)
             if verdict != 'ACCEPTED':
