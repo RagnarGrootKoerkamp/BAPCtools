@@ -142,7 +142,7 @@ def build(path):
 
     outdir.mkdir(parents=True, exist_ok=True)
 
-    input_files = list(path.glob('*')) if path.is_dir() else [path]
+    input_files = list(util.glob(path, '*')) if path.is_dir() else [path]
 
     # Check file names.
     for f in input_files:
@@ -805,8 +805,8 @@ def process_interactive_testcase(run_command,
         testcase.with_suffix('.ans'), judgepath
     ] + flags
 
-    if validator_error is False: validator_error = subprecess.PIPE
-    if team_error is False: team_error = subprecess.PIPE
+    if validator_error is False: validator_error = subprocess.PIPE
+    if team_error is False: team_error = subprocess.PIPE
 
     # On Windows:
     # - Start the validator

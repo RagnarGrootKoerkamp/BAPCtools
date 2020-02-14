@@ -220,6 +220,7 @@
 	\noindent
 	\normalsize
 	\ttfamily
+	\frenchspacing% to prevent extra spaces after punctuation. https://tex.stackexchange.com/q/118455/43242
 	\hfill\framebox[0.55\textwidth][l]{%
 		\parbox[t]{\textwidth}{
 			\vspace{-.4em}%
@@ -236,6 +237,7 @@
 	\noindent
 	\normalsize
 	\ttfamily
+	\frenchspacing% to prevent extra spaces after punctuation. https://tex.stackexchange.com/q/118455/43242
 	\framebox[0.55\textwidth][l]{%
 		\parbox[t]{\textwidth}{
 			\vspace{-.4em}%
