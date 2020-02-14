@@ -1438,6 +1438,8 @@ def generate(problem, settings):
                 else:
                     if submission is None:
                         submission = s
+        if submission is not None:
+            log(f'No submission was specified in generators/gen.yaml. Falling back to {submission}.')
 
     if generate_ans and submission is not None:
         if not (submission.is_file() or submission.is_dir()):

@@ -154,6 +154,9 @@
 \newenvironment{Output}{
 	\subsection*{Output}
 }{}
+\newenvironment{Interaction}{
+	\subsection*{Interaction}
+}{}
 \newenvironment{Explanation}{
 	\subsection*{Explanation of samples}
 }{}
