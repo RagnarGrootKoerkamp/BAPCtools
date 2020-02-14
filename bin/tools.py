@@ -784,6 +784,7 @@ def process_interactive_testcase(run_command,
                                  output_validators,
                                  validator_error=False,
                                  team_error=False,
+                                 *,
                                  # False/None: no output
                                  # True: stdout
                                  # else: path
@@ -880,7 +881,7 @@ def process_interactive_testcase(run_command,
     interaction_file = None
     # TODO: Print interaction when needed.
     if interaction:
-        interaction_file = None if interaction is True else interaction
+        interaction_file = None if interaction is True else interaction.open('a')
         interaction = True
 
     team_log_in, team_out = mkpipe()
@@ -1425,10 +1426,6 @@ def generate(problem, settings):
         if 'retries' in gen_config:
             retries = max(gen_config['retries'], 1)
 
-    if settings.validation == 'custom interactive' and generate_ans:
-        error('Generating answer files is not supported for interactive problems!')
-        generate_ans = False
-
     if generate_ans and submission is None:
         # Use one of the accepted submissions.
         submissions = list(glob(problem, 'submissions/accepted/*'))
@@ -1478,7 +1475,7 @@ def generate(problem, settings):
         if source.suffix == '.in':
             if not validate_testcase(problem, source, input_validators, 'input', bar=bar):
                 return False
-        if source.suffix == '.ans':
+        if source.suffix == '.ans' and settings.validation is not 'custom interactive':
             if not validate_testcase(problem, source, output_validators, 'output', bar=bar):
                 return False
 
@@ -1602,38 +1599,77 @@ def generate(problem, settings):
         return nskip == 0 and nfail == 0
 
     # Generate Answer
-    testcases = util.get_testcases(problem, needans=False)
-
-    bar = ProgressBar('Generate ans', items=[print_name(t.with_suffix('.ans')) for t in testcases])
-
     _, timeout = util.get_time_limits(settings)
 
-    for testcase in testcases:
-        bar.start(print_name(testcase.with_suffix('.ans')))
+    if settings.validation != 'custom interactive':
+        testcases = util.get_testcases(problem, needans=False)
+        bar = ProgressBar('Generate ans', items=[print_name(t.with_suffix('.ans')) for t in testcases])
 
-        outfile = tmpdir / testcase.with_suffix('.ans').name
-        try:
-            outfile.unlink()
-        except OSError:
-            pass
+        for testcase in testcases:
+            bar.start(print_name(testcase.with_suffix('.ans')))
 
-        # Ignore stdout and stderr from the program.
-        ok, duration, err, out = run_testcase(submission, testcase, outfile, timeout)
-        if ok is not True or duration > timeout:
-            if duration > timeout:
-                bar.error('TIMEOUT')
-                nfail += 1
+            outfile = tmpdir / testcase.with_suffix('.ans').name
+            try:
+                outfile.unlink()
+            except OSError:
+                pass
+
+            # Ignore stdout and stderr from the program.
+            ok, duration, err, out = run_testcase(submission, testcase, outfile, timeout)
+            if ok is not True or duration > timeout:
+                if duration > timeout:
+                    bar.error('TIMEOUT')
+                    nfail += 1
+                else:
+                    bar.error('FAILED')
+                    nfail += 1
             else:
-                bar.error('FAILED')
-                nfail += 1
-        else:
-            util.ensure_symlink(outfile.with_suffix('.in'), testcase)
-            ok &= maybe_move(outfile, testcase.with_suffix('.ans'))
+                util.ensure_symlink(outfile.with_suffix('.in'), testcase)
+                ok &= maybe_move(outfile, testcase.with_suffix('.ans'))
 
-        bar.done(ok)
+            bar.done(ok)
 
-    if not config.verbose and nskip == 0 and nfail == 0:
-        print(ProgressBar.action('Generate ans', f'{_c.green}Done{_c.reset}'))
+        if not config.verbose and nskip == 0 and nfail == 0:
+            print(ProgressBar.action('Generate ans', f'{_c.green}Done{_c.reset}'))
+
+    else:
+        # For interactive problems:
+        # - create empty .ans files
+        # - create .interaction files for samples only
+        testcases = util.get_testcases(problem, needans=False, only_sample=True)
+        bar = ProgressBar('Generate interaction', items=[print_name(t.with_suffix('.interaction')) for t in testcases])
+
+        for testcase in testcases:
+            bar.start(print_name(testcase.with_suffix('.interaction')))
+
+            outfile = tmpdir / testcase.with_suffix('.interaction').name
+            try:
+                outfile.unlink()
+            except OSError:
+                pass
+
+            # Ignore stdout and stderr from the program.
+            verdict, duration, err, out = process_interactive_testcase(submission,
+                    testcase, settings, output_validators,
+                    validator_error=None,
+                    team_error=None,
+                    interaction=outfile
+                    )
+            if verdict != 'ACCEPTED':
+                if duration > timeout:
+                    bar.error('TIMEOUT')
+                    nfail += 1
+                else:
+                    bar.error('FAILED')
+                    nfail += 1
+            else:
+                ok &= maybe_move(outfile, testcase.with_suffix('.interaction'))
+
+            bar.done(ok)
+
+        if not config.verbose and nskip == 0 and nfail == 0:
+            print(ProgressBar.action('Generate ans', f'{_c.green}Done{_c.reset}'))
+
 
     return nskip == 0 and nfail == 0
 
