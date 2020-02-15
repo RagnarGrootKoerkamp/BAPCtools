@@ -1475,7 +1475,7 @@ def generate(problem, settings):
         if source.suffix == '.in':
             if not validate_testcase(problem, source, input_validators, 'input', bar=bar):
                 return False
-        if source.suffix == '.ans' and settings.validation is not 'custom interactive':
+        if source.suffix == '.ans' and settings.validation != 'custom interactive':
             if not validate_testcase(problem, source, output_validators, 'output', bar=bar):
                 return False
 
