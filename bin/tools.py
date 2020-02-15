@@ -279,8 +279,8 @@ def build(path):
         'files': ''.join(str(f) for f in files),
         'binary': str(runfile),
         'mainfile': str(mainfile),
-        'mainclass': str(Path(mainfile).with_suffix('')),
-        'Mainclass': str(Path(mainfile).with_suffix('')).capitalize(),
+        'mainclass': str(Path(mainfile).with_suffix('').name),
+        'Mainclass': str(Path(mainfile).with_suffix('').name).capitalize(),
         'memlim': util.get_memory_limit() // 1000000
     }
 
