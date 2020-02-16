@@ -235,6 +235,7 @@ def build(path):
             return shebang.search(o.readline())
 
     best = (None, [], -1)
+    message = None
     for lang in config.languages:
         lang_conf = config.languages[lang]
         globs = lang_conf['files'].split() or []
@@ -252,9 +253,13 @@ def build(path):
         # Make sure c++ does not depend on stdc++.h, because it's not portable.
         if lang == 'cpp':
             for f in matching_files:
-                if 'validators/' in str(f) and f.read_text().find('bits/stdc++.h') != -1:
-                    config.n_warn += 1
-                    message = f'{_c.orange}{print_name(f)} should not depend on bits/stdc++.h{_c.reset}'
+                if f.read_text().find('bits/stdc++.h') != -1:
+                    if 'validators/' in str(f):
+                        config.n_error += 1
+                        return (None,  f'{_c.red}Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{_c.reset}')
+                    else:
+                        message = f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{_c.reset}'
+
 
     lang, files, priority = best
 
@@ -310,7 +315,7 @@ def build(path):
     if run_command is not None:
         run_command = shlex.split(run_command.format(**env))
 
-    return (run_command, None)
+    return (run_command, message)
 
 
 # build all files in a directory; return a list of tuples (file, command)
