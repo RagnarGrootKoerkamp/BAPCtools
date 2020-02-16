@@ -1942,7 +1942,7 @@ Run this from one of:
         action='count',
         help='Verbose output; once for what\'s going on, twice for all intermediate output.')
     global_parser.add_argument('-c',
-                               '--problemset',
+                               '--contest',
                                help='The contest to use, when running from repository root.')
     global_parser.add_argument('-p',
                                '--problem',
