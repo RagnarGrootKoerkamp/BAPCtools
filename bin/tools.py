@@ -15,7 +15,6 @@ Bommel.
 """
 
 import sys
-import fcntl
 import shlex
 import stat
 import hashlib
@@ -47,6 +46,8 @@ import util
 import validation
 from util import ProgressBar, _c, glob, log, warn, error, fatal
 
+if not is_windows():
+    import fnctl
 
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort
