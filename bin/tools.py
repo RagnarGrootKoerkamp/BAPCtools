@@ -42,7 +42,7 @@ import export
 import latex
 import util
 import validation
-from util import ProgressBar, _c, glob, log, warn, error, fatal
+from util import ProgressBar, _c, glob, log, warn, error, fatal, is_windows
 
 if not is_windows():
     import argcomplete  # For automatic shell completions
