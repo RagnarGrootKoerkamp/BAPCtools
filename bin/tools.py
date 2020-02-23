@@ -298,7 +298,7 @@ def build(path):
 
     # Prevent building something twice in one invocation of tools.py.
     if compile_command is not None:
-        compile_command = shlex.split(compile_command.format(**env))
+        compile_command = compile_command.format(**env).split()
         ok, err, out = util.exec_command(
             compile_command,
             stdout=subprocess.PIPE,
@@ -315,7 +315,7 @@ def build(path):
             return (None, message)
 
     if run_command is not None:
-        run_command = shlex.split(run_command.format(**env))
+        run_command = run_command.format(**env).split()
 
     return (run_command, message)
 
