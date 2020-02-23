@@ -15,6 +15,7 @@ Bommel.
 """
 
 import sys
+import tempfile
 import shlex
 import stat
 import hashlib
@@ -115,7 +116,7 @@ def get_problems():
     # higher than the contest directory.
     if config.tmpdir is None:
         h = hashlib.sha256(bytes(Path().cwd().parent)).hexdigest()[-6:]
-        config.tmpdir = Path('/tmp/bapctools_' + h)
+        config.tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
         config.tmpdir.mkdir(parents=True, exist_ok=True)
 
     return (problems, level, contest)
