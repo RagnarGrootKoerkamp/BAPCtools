@@ -19,7 +19,6 @@ import shlex
 import stat
 import hashlib
 import argparse
-import argcomplete  # For automatic shell completions
 import os
 import datetime
 import time
@@ -28,7 +27,6 @@ import fnmatch
 import shutil
 import subprocess
 import signal
-import resource
 import time
 import yaml
 import configparser
@@ -47,7 +45,9 @@ import validation
 from util import ProgressBar, _c, glob, log, warn, error, fatal
 
 if not is_windows():
+    import argcomplete  # For automatic shell completions
     import fcntl
+    import resource
 
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort
@@ -2153,7 +2153,8 @@ Run this from one of:
                           parents=[global_parser],
                           help='Print a list of jobs for the given contest.')
 
-    argcomplete.autocomplete(parser)
+    if not is_windows():
+        argcomplete.autocomplete(parser)
 
     return parser
 
