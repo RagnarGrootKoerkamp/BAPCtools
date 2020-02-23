@@ -47,7 +47,7 @@ import validation
 from util import ProgressBar, _c, glob, log, warn, error, fatal
 
 if not is_windows():
-    import fnctl
+    import fcntl
 
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort
