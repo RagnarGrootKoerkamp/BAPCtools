@@ -299,12 +299,18 @@ def build(path):
     # Prevent building something twice in one invocation of tools.py.
     if compile_command is not None:
         compile_command = compile_command.format(**env).split()
-        ok, err, out = util.exec_command(
-            compile_command,
-            stdout=subprocess.PIPE,
-            memory=5000000000,
-            # Compile errors are never cropped.
-            crop=False)
+        try:
+            ok, err, out = util.exec_command(
+                compile_command,
+                stdout=subprocess.PIPE,
+                memory=5000000000,
+                # Compile errors are never cropped.
+                crop=False)
+        except FileNotFoundError as err:
+            message = f'{_c.red}FAILED{_c.reset} '
+            message += '\n' + str(err) + _c.reset
+            return (None, message)
+
         if ok is not True:
             config.n_error += 1
             message = f'{_c.red}FAILED{_c.reset} '
