@@ -78,7 +78,8 @@ def get_problems():
 
     problems = []
     if level == 'problem':
-        # TODO: look for a problems.yaml file above here and find a letter?
+        # TODO: provide a label from a problems.yaml from dir above?
+        # Currently, the label is parsed from the domjudge-problem.ini probid field.
         problems = [Problem(Path(problem.name))]
     else:
         level = 'problemset'

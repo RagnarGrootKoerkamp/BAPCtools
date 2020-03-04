@@ -8,15 +8,23 @@ class Problem:
     _shortname_regex_string = '^[a-z0-9]+$'
     _shortname_regex = re.compile(_shortname_regex_string)
 
-    def __init__(self, path, label='A'):
+    def __init__(self, path, label=None):
         # The problem id (shortname). This is also the name of the problem directory.
         self.id = path.resolve().name
-        # The label for the problem: A, B, A1, A2, X, ...
-        self.label = label
         # The Path of the problem directory.
         self.path = path
         # Configuration in problem.yaml
         self.config = Problem._read_configs(self.path)
+
+        # The label for the problem: A, B, A1, A2, X, ...
+        if label is None:
+			# Use label from the domjudge-problem.ini
+            if 'probid' in self.config:
+                self.label = self.config['probid']
+            else:
+                self.label = 'A'
+        else:
+            self.label = label
 
         # TODO: transform this into nice warnings
         assert path.is_dir()
