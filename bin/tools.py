@@ -2304,19 +2304,20 @@ def main():
 
         if action in ['solutions']:
             success &= latex.build_contest_pdf(contest,
-                                               problem_paths,
+                                               problems,
                                                solutions=True,
                                                web=config.args.web)
 
         if action in ['zip']:
-            success &= latex.build_contest_pdf(contest, problem_paths)
-            success &= latex.build_contest_pdf(contest, problem_paths, web=True)
-            if not config.args.no_solutions:
-                success &= latex.build_contest_pdf(contest, problem_paths, solutions=True)
-                success &= latex.build_contest_pdf(contest,
-                                                   problem_paths,
-                                                   solutions=True,
-                                                   web=True)
+            if not config.args.kattis:
+                success &= latex.build_contest_pdf(contest, problems)
+                success &= latex.build_contest_pdf(contest, problems, web=True)
+                if not config.args.no_solutions:
+                    success &= latex.build_contest_pdf(contest, problems, solutions=True)
+                    success &= latex.build_contest_pdf(contest,
+                                                       problems,
+                                                       solutions=True,
+                                                       web=True)
 
             outfile = contest + '.zip'
             if config.args.kattis: outfile = contest + '-kattis.zip'
