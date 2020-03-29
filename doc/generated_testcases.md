@@ -4,9 +4,9 @@
 The following `generators/gen.yaml` would specify which files to generate. It should be self explanatory.
 ```yaml
 config:
-  extensions:
+  extensions: # The following extensions will be created for each .in that's generated
     ans: ../solutions/accepted/sol.py
-    png: asy ../visualizers/vis.asy -f png -o -
+    png: asy.py ../visualizers/vis.asy -f png -o - # Note that directly calling a shell executable is not allowed
 
 # Following test cases will be created in the `sample` directory.
 sample:
@@ -24,7 +24,7 @@ secret:
     - stdout.py 5
     - double.py # generator that doubles the number. Reads stdout of the previous command from stdin.
 
-  testgroup:  # creates a subdirectory because it doesn't end in `.in
+  testgroup:  # creates a subdirectory because it doesn't end in `.in`.
     testdata.yaml: # Contents are copied to testgroup/testdata.yaml
       on_reject: break
       accept_score: 25
