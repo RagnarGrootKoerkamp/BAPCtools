@@ -1,7 +1,7 @@
-from pathlib import Path
 import re
 import util
 
+from pathlib import Path
 
 # A problem.
 class Problem:

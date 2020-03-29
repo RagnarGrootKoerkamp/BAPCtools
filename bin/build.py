@@ -1,5 +1,7 @@
 import fnmatch
 import re
+import stat
+import subprocess
 
 from util import *
 

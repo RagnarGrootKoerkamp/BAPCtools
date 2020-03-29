@@ -15,19 +15,13 @@ Bommel.
 """
 
 import argparse
-import configparser
 import datetime
 import hashlib
-import io
 import os
 import re
 import shutil
-import stat
-import subprocess
 import sys
 import tempfile
-import yaml
-import zipfile
 
 from pathlib import Path
 
@@ -45,7 +39,6 @@ from util import *
 
 if not is_windows():
     import argcomplete  # For automatic shell completions
-    import resource
 
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort

@@ -1,5 +1,6 @@
 import signal
 import time
+import subprocess
 
 import build
 import config
@@ -9,6 +10,8 @@ from util import *
 
 if not is_windows():
     import fcntl
+    import resource
+
 
 def _get_submission_type(s):
     ls = str(s).lower()
