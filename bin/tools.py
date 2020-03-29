@@ -27,13 +27,15 @@ from pathlib import Path
 
 # Local imports
 import config
-from objects import *
-import export
-import latex
-import validate
-import generate
-import run
 import constraints
+import export
+import generate
+import latex
+import run
+import skel
+import validate
+
+from objects import Problem
 from util import *
 
 if not is_windows():
@@ -260,102 +262,6 @@ def split_submissions(s):
         else:
             submissions.append(pp)
     return (submissions, testcases)
-
-
-def ask_variable(name, default=None):
-    if default == None:
-        val = ''
-        while True:
-            print(f"{name}: ", end='')
-            val = input()
-            if val == '':
-                print(f"{name} must not be empty!")
-            else:
-                break
-        return val
-    else:
-        print(f"{name} [{default}]: ", end='')
-        val = input()
-        return default if val == '' else val
-
-
-def new_contest(name):
-    # Ask for all required infos.
-    title = ask_variable('name', name)
-    subtitle = ask_variable('subtitle', '')
-    dirname = ask_variable('dirname', alpha_num(title))
-    author = ask_variable('author', f'The {title} jury')
-    testsession = ask_variable('testsession?', 'n (y/n)')[0] != 'n'  # boolean
-    year = ask_variable('year', str(datetime.datetime.now().year))
-    source = ask_variable('source', title)
-    source_url = ask_variable('source url', '')
-    license = ask_variable('license', 'cc by-sa')
-    rights_owner = ask_variable('rights owner', 'author')
-
-    skeldir = config.tools_root / 'skel/contest'
-    copytree_and_substitute(skeldir, Path(dirname), locals(), exist_ok=False)
-
-
-def new_problem():
-    problemname = config.args.problemname if config.args.problemname else ask_variable(
-        'problem name')
-    dirname = ask_variable('dirname', alpha_num(problemname))
-    author = config.args.author if config.args.author else ask_variable(
-        'author', config.args.author)
-
-    if config.args.custom_validation:
-        validation = 'custom'
-    elif config.args.default_validation:
-        validation = 'default'
-    else:
-        validation = ask_variable('validation', 'default')
-
-    # Read settings from the contest-level yaml file.
-    variables = read_yaml(Path('contest.yaml'))
-
-    for k, v in {
-            'problemname': problemname,
-            'dirname': dirname,
-            'author': author,
-            'validation': validation
-    }.items():
-        variables[k] = v
-
-    for k in ['source', 'source_url', 'license', 'rights_owner']:
-        if k not in variables: variables[k] = ''
-
-    # Copy tree from the skel directory, next to the contest, if it is found.
-    skeldir = config.tools_root / 'skel/problem'
-    if Path('skel/problem').is_dir(): skeldir = Path('skel/problem')
-    if Path('../skel/problem').is_dir(): skeldir = Path('../skel/problem')
-    if config.args.skel: skeldir = Path(config.args.skel)
-    print(f'Copying {skeldir} to {dirname}.')
-
-    copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True)
-
-
-def new_cfp_problem(name):
-    shutil.copytree(config.tools_root / 'skel/problem_cfp', name, symlinks=True)
-
-
-def create_gitlab_jobs(contest, problems):
-    def problem_source_dir(problem):
-        return problem.resolve().relative_to(Path('..').resolve())
-
-    header_yml = (config.tools_root / 'skel/gitlab-ci-header.yml').read_text()
-    print(substitute(header_yml, locals()))
-
-    contest_yml = (config.tools_root / 'skel/gitlab-ci-contest.yml').read_text()
-    changes = ''
-    for problem in problems:
-        changes += '      - ' + str(problem_source_dir(problem)) + '/problem_statement/**/*\n'
-    print(substitute(contest_yml, locals()))
-
-    problem_yml = (config.tools_root / 'skel/gitlab-ci-problem.yml').read_text()
-    for problem in problems:
-        changesdir = problem_source_dir(problem)
-        print('\n')
-        print(substitute(problem_yml, locals()), end='')
 
 
 def build_parser():
@@ -598,15 +504,15 @@ def main():
     action = config.args.action
 
     if action in ['new_contest']:
-        new_contest(config.args.contestname)
+        skel.new_contest(config.args.contestname)
         return
 
     if action in ['new_problem']:
-        new_problem()
+        skel.new_problem()
         return
 
     if action in ['new_cfp_problem']:
-        new_cfp_problem(config.args.shortname)
+        skel.new_cfp_problem(config.args.shortname)
         return
 
     # Get problem_paths and cd to contest
@@ -649,7 +555,7 @@ def main():
         return
 
     if action == 'gitlabci':
-        create_gitlab_jobs(contest, problem_paths)
+        skel.create_gitlab_jobs(contest, problem_paths)
         return
 
     problem_zips = []
