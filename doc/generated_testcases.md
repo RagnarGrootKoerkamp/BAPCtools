@@ -131,6 +131,9 @@ commandn
 In this case, no `stdin` or `stdout` is provided and the command may write any
 file and read any file that was created by earlier commands.
 
+**Note:** In this last case, it is not allowed to add manual files/test cases to this
+directory. A `clean` command is allowed to delete all files in this directory.
+
 **Special tokens**
 After tokenizing the `value` as a shell command line, there is one tokens that has a special meaning:
 - Any argument that has `$SEED` **as a prefix** will be replaced by an integer: the hash of the entire `value` in its string representation. It's value is the last `31` bits of the `sha512` hash of the value: `int(hashlib.sha512(value.encode('utf-8')).hexdigest(), 16) % (2**31)`
