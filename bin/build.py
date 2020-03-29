@@ -1,8 +1,11 @@
-from util import ProgressBar, _c, glob, log, warn, error, fatal, is_windows
+import fnmatch
+import re
+
+from util import *
 
 
 # is file at path executable
-def is_executable(path):
+def _is_executable(path):
     return path.is_file() and (path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
 
@@ -23,23 +26,23 @@ def build(path):
 
     outdir.mkdir(parents=True, exist_ok=True)
 
-    input_files = list(util.glob(path, '*')) if path.is_dir() else [path]
+    input_files = list(glob(path, '*')) if path.is_dir() else [path]
 
     # Check file names.
     for f in input_files:
         if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
             return (None,
-                    f'{_c.red}{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
+                    f'{cc.red}{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
 
     linked_files = []
     if len(input_files) == 0:
         config.n_warn += 1
-        return (None, f'{_c.red}{str(path)} is an empty directory.{_c.reset}')
+        return (None, f'{cc.red}{str(path)} is an empty directory.{cc.reset}')
 
     # Link all input files
     last_input_update = 0
     for f in input_files:
-        util.ensure_symlink(outdir / f.name, f)
+        ensure_symlink(outdir / f.name, f)
         linked_files.append(outdir / f.name)
         last_input_update = max(last_input_update, f.stat().st_ctime)
 
@@ -61,17 +64,17 @@ def build(path):
         runfile.unlink()
 
     # If build or run present, use them:
-    if is_executable(outdir / 'build'):
+    if _is_executable(outdir / 'build'):
         cur_path = Path.cwd()
         os.chdir(outdir)
-        if util.exec_command(['./build'], memory=5000000000)[0] is not True:
+        if exec_command(['./build'], memory=5000000000)[0] is not True:
             config.n_error += 1
             os.chdir(cur_path)
-            return (None, f'{_c.red}FAILED{_c.reset}')
+            return (None, f'{cc.red}FAILED{cc.reset}')
         os.chdir(cur_path)
-        if not is_executable(outdir / 'run'):
+        if not _is_executable(outdir / 'run'):
             config.n_error += 1
-            return (None, f'{_c.red}FAILED{_c.reset}: {runfile} must be executable')
+            return (None, f'{cc.red}FAILED{cc.reset}: {runfile} must be executable')
 
     # If the run file was provided in the input, just return it.
     if runfile.exists():
@@ -81,9 +84,9 @@ def build(path):
     if config.languages is None:
         # Try both contest and repository level.
         if Path('languages.yaml').is_file():
-            config.languages = util.read_yaml(Path('languages.yaml'))
+            config.languages = read_yaml(Path('languages.yaml'))
         else:
-            config.languages = util.read_yaml(config.tools_root / 'config/languages.yaml')
+            config.languages = read_yaml(config.tools_root / 'config/languages.yaml')
 
         if config.args.cpp_flags:
             config.languages['cpp']['compile'] += config.args.cpp_flags
@@ -137,18 +140,18 @@ def build(path):
                 if f.read_text().find('bits/stdc++.h') != -1:
                     if 'validators/' in str(f):
                         config.n_error += 1
-                        return (None,  f'{_c.red}Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{_c.reset}')
+                        return (None,  f'{cc.red}Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{cc.reset}')
                     else:
-                        message = f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{_c.reset}'
+                        message = f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{cc.reset}'
 
 
     lang, files, priority = best
 
     if lang is None:
-        return (None, f'{_c.red}No language detected for {path}.{_c.reset}')
+        return (None, f'{cc.red}No language detected for {path}.{cc.reset}')
 
     if len(files) == 0:
-        return (None, f'{_c.red}No file detected for language {lang} at {path}.{_c.reset}')
+        return (None, f'{cc.red}No file detected for language {lang} at {path}.{cc.reset}')
 
     mainfile = None
     if len(files) == 1:
@@ -167,7 +170,7 @@ def build(path):
         'mainfile': str(mainfile),
         'mainclass': str(Path(mainfile).with_suffix('').name),
         'Mainclass': str(Path(mainfile).with_suffix('').name).capitalize(),
-        'memlim': util.get_memory_limit() // 1000000
+        'memlim': get_memory_limit() // 1000000
     }
 
     # TODO: Support executable files?
@@ -179,24 +182,24 @@ def build(path):
     if compile_command is not None:
         compile_command = compile_command.format(**env).split()
         try:
-            ok, err, out = util.exec_command(
+            ok, err, out = exec_command(
                 compile_command,
                 stdout=subprocess.PIPE,
                 memory=5000000000,
                 # Compile errors are never cropped.
                 crop=False)
         except FileNotFoundError as err:
-            message = f'{_c.red}FAILED{_c.reset} '
-            message += '\n' + str(err) + _c.reset
+            message = f'{cc.red}FAILED{cc.reset} '
+            message += '\n' + str(err) + cc.reset
             return (None, message)
 
         if ok is not True:
             config.n_error += 1
-            message = f'{_c.red}FAILED{_c.reset} '
+            message = f'{cc.red}FAILED{cc.reset} '
             if err is not None:
-                message += '\n' + util.strip_newline(err) + _c.reset
+                message += '\n' + strip_newline(err) + cc.reset
             if out is not None:
-                message += '\n' + util.strip_newline(out) + _c.reset
+                message += '\n' + strip_newline(out) + cc.reset
             return (None, message)
 
     if run_command is not None:

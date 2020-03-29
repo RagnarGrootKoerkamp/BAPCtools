@@ -1,10 +1,10 @@
-from build import *
+import build
+from util import *
 
-
-def quick_diff(ans, out):
+def _quick_diff(ans, out):
     if ans.count('\n') <= 1 and out.count('\n') <= 1:
-        return util.crop_output('Got ' + util.strip_newline(out) + ' wanted ' +
-                                util.strip_newline(ans))
+        return crop_output('Got ' + strip_newline(out) + ' wanted ' +
+                                strip_newline(ans))
     else:
         return ''
 
@@ -33,7 +33,7 @@ def default_output_validator(ansfile, outfile, settings):
         data2 = indata2
 
     if settings.space_change_sensitive and settings.floatabs == None and settings.floatrel == None:
-        return (False, quick_diff(data1, data2), None)
+        return (False, _quick_diff(data1, data2), None)
 
     if settings.space_change_sensitive:
         words1 = re.split(r'\b(\S+)\b', data1)
@@ -58,10 +58,10 @@ def default_output_validator(ansfile, outfile, settings):
             exit()
 
     if settings.floatabs is None and settings.floatrel is None:
-        return (False, quick_diff(data1, data2), None)
+        return (False, _quick_diff(data1, data2), None)
 
     if len(words1) != len(words2):
-        return (False, quick_diff(data1, data2), None)
+        return (False, _quick_diff(data1, data2), None)
 
     peakabserr = 0
     peakrelerr = 0
@@ -76,9 +76,9 @@ def default_output_validator(ansfile, outfile, settings):
                 peakrelerr = max(peakrelerr, relerr)
                 if ((settings.floatabs is None or abserr > settings.floatabs)
                         and (settings.floatrel is None or relerr > settings.floatrel)):
-                    return (False, quick_diff(data1, data2), None)
+                    return (False, _quick_diff(data1, data2), None)
             except ValueError:
-                return (False, quick_diff(data1, data2), None)
+                return (False, _quick_diff(data1, data2), None)
 
     return (True, 'float: abs {0:.2g} rel {1:.2g}'.format(peakabserr, peakrelerr), None)
 
@@ -104,7 +104,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
             judgepath.mkdir(parents=True, exist_ok=True)
             judgemessage = judgepath / 'judgemessage.txt'
             judgeerror = judgepath / 'judgeerror.txt'
-            val_ok, err, out = util.exec_command(
+            val_ok, err, out = exec_command(
                 output_validator[1] +
                 [testcase.with_suffix('.in'),
                  testcase.with_suffix('.ans'), judgepath] + flags,
@@ -164,7 +164,7 @@ def get_validators(problem, validator_type, check_constraints=False):
     if hasattr(config.args, 'validator') and config.args.validator:
         files = [problem / config.args.validator]
 
-    return build_programs(files)
+    return build.build_programs(files)
 
 def validate_testcase(problem, testcase, validators, validator_type, *, bar, check_constraints=False,
         constraints=None):
@@ -187,7 +187,7 @@ def validate_testcase(problem, testcase, validators, validator_type, *, bar, che
     for validator in validators:
         # simple `program < test.in` for input validation and ctd output validation
         if Path(validator[0]).suffix == '.ctd':
-            ok, err, out = util.exec_command(
+            ok, err, out = exec_command(
                 validator[1],
                 # TODO: Can we make this more generic? CTD returning 0 instead of 42
                 # is a bit annoying.
@@ -196,7 +196,7 @@ def validate_testcase(problem, testcase, validators, validator_type, *, bar, che
 
         elif Path(validator[0]).suffix == '.viva':
             # Called as `viva validator.viva testcase.in`.
-            ok, err, out = util.exec_command(
+            ok, err, out = exec_command(
                 validator[1] + [main_file],
                 # TODO: Can we make this more generic? VIVA returning 0 instead of 42
                 # is a bit annoying.
@@ -210,7 +210,7 @@ def validate_testcase(problem, testcase, validators, validator_type, *, bar, che
             if constraints_file.is_file():
                 constraints_file.unlink()
 
-            ok, err, out = util.exec_command(
+            ok, err, out = exec_command(
                 # TODO: Store constraints per problem.
                 validator[1] +
                 (['--constraints_file', constraints_file] if check_constraints else []),
@@ -247,7 +247,7 @@ def validate_testcase(problem, testcase, validators, validator_type, *, bar, che
 
         else:
             # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
-            ok, err, out = util.exec_command(
+            ok, err, out = exec_command(
                 validator[1] +
                 [testcase.with_suffix('.in'),
                  testcase.with_suffix('.ans'), config.tmpdir] + ['case_sensitive', 'space_change_sensitive'],
@@ -267,7 +267,7 @@ def validate_testcase(problem, testcase, validators, validator_type, *, bar, che
         # Print stdout and stderr whenever something is printed
         if not err: err = ''
         if out and config.args.error:
-            out = f'\n{_c.red}VALIDATOR STDOUT{_c.reset}\n' + _c.orange + out
+            out = f'\n{cc.red}VALIDATOR STDOUT{cc.reset}\n' + cc.orange + out
         else: out = ''
 
         bar.part_done(ok, message, data=err+out)
@@ -295,7 +295,7 @@ def validate_testcase(problem, testcase, validators, validator_type, *, bar, che
             # Remove testcase if specified.
             elif validator_type == 'input' and hasattr(config.args,
                                                        'remove') and config.args.remove:
-                bar.log(_c.red + 'REMOVING TESTCASE!' + _c.reset)
+                bar.log(cc.red + 'REMOVING TESTCASE!' + cc.reset)
                 if testcase.exists():
                     testcase.unlink()
                 if testcase.with_suffix('.ans').exists():
@@ -336,7 +336,7 @@ def validate(problem, validator_type, settings, check_constraints=False):
         error(f'No {validator_type} validators found!')
         return False
 
-    testcases = util.get_testcases(problem, needans=validator_type == 'output')
+    testcases = get_testcases(problem, needans=validator_type == 'output')
 
     # Get the bad testcases:
     # For input validation, look for .in files without .ans or .out.
@@ -383,11 +383,10 @@ def validate(problem, validator_type, settings, check_constraints=False):
         success = False
 
     if not config.verbose and success:
-        print(ProgressBar.action(action, f'{_c.green}Done{_c.reset}'))
+        print(ProgressBar.action(action, f'{cc.green}Done{cc.reset}'))
         if validator_type == 'output':
             print()
     else:
         print()
 
     return success
-

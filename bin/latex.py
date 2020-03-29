@@ -10,7 +10,7 @@ from pathlib import Path
 
 import config
 import util
-from util import _c, ensure_symlink
+from util import cc, ensure_symlink
 
 PDFLATEX = ['pdflatex', '-interaction=nonstopmode', '-halt-on-error']
 
@@ -162,14 +162,14 @@ def build_problem_pdf(problem):
             cwd=builddir,
             stdout=subprocess.PIPE)
         if ok is not True:
-            print(f'{_c.red}Failure compiling pdf:{_c.reset}\n{out}')
+            print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{out}')
             return False
 
     # link the output pdf
     output_pdf = problem.path / 'problem.pdf'
     ensure_symlink(output_pdf, builddir / 'problem.pdf', True)
 
-    print(f'{_c.green}Pdf written to {output_pdf}{_c.reset}')
+    print(f'{cc.green}Pdf written to {output_pdf}{cc.reset}')
     return True
 
 
@@ -250,12 +250,12 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
             cwd=builddir,
             stdout=subprocess.PIPE)
         if ok is not True:
-            print(f'{_c.red}Failure compiling pdf:{_c.reset}\n{out}')
+            print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{out}')
             return False
 
     # link the output pdf
     output_pdf = Path(main_file).with_suffix('.pdf')
     ensure_symlink(output_pdf, builddir / output_pdf, True)
 
-    print(f'{_c.green}Pdf written to {output_pdf}{_c.reset}')
+    print(f'{cc.green}Pdf written to {output_pdf}{cc.reset}')
     return True

@@ -1,10 +1,27 @@
-import config
+import signal
+import time
+
 import build
-import util
+import config
+import validate
+
 from util import *
 
+if not is_windows():
+    import fcntl
+
+def _get_submission_type(s):
+    ls = str(s).lower()
+    if 'wrong_answer' in ls:
+        return 'WRONG_ANSWER'
+    if 'time_limit_exceeded' in ls:
+        return 'TIME_LIMIT_EXCEEDED'
+    if 'run_time_error' in ls:
+        return 'RUN_TIME_ERROR'
+    return 'ACCEPTED'
+
 # returns a map {answer type -> [(name, command)]}
-def get_submissions(problem):
+def _get_submissions(problem):
     programs = []
 
     if hasattr(config.args, 'submissions') and config.args.submissions:
@@ -29,7 +46,7 @@ def get_submissions(problem):
         'RUN_TIME_ERROR': []
     }
     for c in run_commands:
-        submissions[get_submission_type(c[0])].append(c)
+        submissions[_get_submission_type(c[0])].append(c)
 
     return submissions
 
@@ -43,7 +60,7 @@ def run_testcase(run_command, testcase, outfile, timeout, crop=True):
             tstart = time.monotonic()
             if outfile is None:
                 # Print both stdout and stderr directly to the terminal.
-                ok, err, out = util.exec_command(run_command,
+                ok, err, out = exec_command(run_command,
                                                  expect=0,
                                                  crop=crop,
                                                  stdin=inf,
@@ -51,7 +68,7 @@ def run_testcase(run_command, testcase, outfile, timeout, crop=True):
                                                  stderr=None,
                                                  timeout=timeout)
             else:
-                ok, err, out = util.exec_command(run_command,
+                ok, err, out = exec_command(run_command,
                                                  expect=0,
                                                  crop=crop,
                                                  stdin=inf,
@@ -85,8 +102,8 @@ def process_interactive_testcase(run_command,
     # Set limits
     validator_timeout = 60
 
-    memory_limit = util.get_memory_limit()
-    time_limit, timeout = util.get_time_limits(settings)
+    memory_limit = get_memory_limit()
+    time_limit, timeout = get_time_limits(settings)
 
     # Validator command
     flags = []
@@ -109,7 +126,7 @@ def process_interactive_testcase(run_command,
     # - Wait for the validator to complete.
     # This cannot handle cases where the validator reports WA and the submission timeout out
     # afterwards.
-    if util.is_windows():
+    if is_windows():
 
         # Start the validator.
         validator_process = subprocess.Popen(validator_command,
@@ -121,7 +138,7 @@ def process_interactive_testcase(run_command,
         # Start and time the submission.
         # TODO: use rusage instead
         tstart = time.monotonic()
-        ok, err, out = util.exec_command(run_command,
+        ok, err, out = exec_command(run_command,
                                          expect=0,
                                          stdin=validator_process.stdout,
                                          stdout=validator_process.stdin,
@@ -339,7 +356,7 @@ while True:
 
 
 # return (verdict, time, remark)
-def process_testcase(run_command,
+def _process_testcase(run_command,
                      testcase,
                      outfile,
                      settings,
@@ -348,7 +365,7 @@ def process_testcase(run_command,
     if 'interactive' in settings.validation:
         return process_interactive_testcase(run_command, testcase, settings, output_validators)
 
-    timelimit, timeout = util.get_time_limits(settings)
+    timelimit, timeout = get_time_limits(settings)
     ok, duration, err, out = run_testcase(run_command, testcase, outfile, timeout)
     did_timeout = duration > timelimit
     verdict = None
@@ -360,10 +377,10 @@ def process_testcase(run_command,
     else:
         assert settings.validation in ['default', 'custom']
         if settings.validation == 'default':
-            ok, err, out = validation.default_output_validator(testcase.with_suffix('.ans'),
+            ok, err, out = validate.default_output_validator(testcase.with_suffix('.ans'),
                                                                outfile, settings)
         elif settings.validation == 'custom':
-            ok, err, out = validation.custom_output_validator(testcase, outfile, settings,
+            ok, err, out = validate.custom_output_validator(testcase, outfile, settings,
                                                               output_validators)
 
         if ok is True:
@@ -381,7 +398,7 @@ def process_testcase(run_command,
 # return outcome
 # always: failed submissions
 # -v: all programs and their results (+failed testcases when expected is 'accepted')
-def run_submission(submission,
+def _run_submission(submission,
                    testcases,
                    settings,
                    output_validators,
@@ -405,7 +422,7 @@ def run_submission(submission,
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix('')))
         outfile = config.tmpdir / 'test.out'
-        verdict, runtime, err, out = process_testcase(submission[1], testcase, outfile, settings,
+        verdict, runtime, err, out = _process_testcase(submission[1], testcase, outfile, settings,
                                                       output_validators)
 
         if config.PRIORITY[verdict] > config.PRIORITY[final_verdict]:
@@ -421,17 +438,17 @@ def run_submission(submission,
             table_dict[testcase] = verdict == 'ACCEPTED'
 
         got_expected = verdict == 'ACCEPTED' or verdict == expected
-        color = _c.green if got_expected else _c.red
+        color = cc.green if got_expected else cc.red
         print_message = config.verbose > 0 or (not got_expected
                                                and verdict != 'TIME_LIMIT_EXCEEDED')
-        message = '{:6.3f}s '.format(runtime) + color + verdict + _c.reset
+        message = '{:6.3f}s '.format(runtime) + color + verdict + cc.reset
 
         # Print stderr whenever something is printed
         if err:
             prefix = '  '
             if err.count('\n') > 1:
                 prefix = '\n'
-            message += prefix + _c.orange + util.strip_newline(err) + _c.reset
+            message += prefix + cc.orange + strip_newline(err) + cc.reset
 
         # Print stdout when -e is set.
         if out and (verdict == 'VALIDATOR_CRASH' or config.args.error):
@@ -440,8 +457,8 @@ def run_submission(submission,
                 prefix = '\n'
             output_type = 'STDOUT'
             if 'interactive' in settings.validation: output_type = 'PROGRAM STDERR'
-            message += f'\n{_c.red}{output_type}{_c.reset}' + prefix + _c.orange + util.strip_newline(
-                out) + _c.reset
+            message += f'\n{cc.red}{output_type}{cc.reset}' + prefix + cc.orange + strip_newline(
+                out) + cc.reset
 
         if print_message:
             bar.log(message)
@@ -454,16 +471,16 @@ def run_submission(submission,
 
     # Use a bold summary line if things were printed before.
     if printed:
-        color = _c.boldgreen if final_verdict == expected else _c.boldred
+        color = cc.boldgreen if final_verdict == expected else cc.boldred
     else:
-        color = _c.green if final_verdict == expected else _c.red
+        color = cc.green if final_verdict == expected else cc.red
 
     time_avg = time_total / len(testcases)
 
     # Print summary line
-    boldcolor = _c.bold if printed else ''
+    boldcolor = cc.bold if printed else ''
     print(
-        f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{final_verdict:<20}{_c.reset} @ {testcase_max_time}'
+        f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{final_verdict:<20}{cc.reset} @ {testcase_max_time}'
     )
 
     if config.verbose:
@@ -472,34 +489,24 @@ def run_submission(submission,
     return final_verdict == expected
 
 
-def get_submission_type(s):
-    ls = str(s).lower()
-    if 'wrong_answer' in ls:
-        return 'WRONG_ANSWER'
-    if 'time_limit_exceeded' in ls:
-        return 'TIME_LIMIT_EXCEEDED'
-    if 'run_time_error' in ls:
-        return 'RUN_TIME_ERROR'
-    return 'ACCEPTED'
-
 
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
     needans = True
     if 'interactive' in settings.validation: needans = False
-    testcases = util.get_testcases(problem, needans=needans)
+    testcases = get_testcases(problem, needans=needans)
 
     if len(testcases) == 0:
         return False
 
     output_validators = None
     if settings.validation in ['custom', 'custom interactive']:
-        output_validators = get_validators(problem, 'output')
+        output_validators = validate.get_validators(problem, 'output')
         if len(output_validators) == 0:
             error(f'No output validators found, but validation type is: {settings.validation}.')
             return False
 
-    submissions = get_submissions(problem)
+    submissions = _get_submissions(problem)
 
     max_submission_len = max([0] +
                              [len(str(x[0])) for cat in submissions for x in submissions[cat]])
@@ -509,7 +516,7 @@ def run_submissions(problem, settings):
     for verdict in submissions:
         for submission in submissions[verdict]:
             verdict_table.append(dict())
-            success &= run_submission(submission,
+            success &= _run_submission(submission,
                                       testcases,
                                       settings,
                                       output_validators,
@@ -522,9 +529,9 @@ def run_submissions(problem, settings):
         def single_verdict(row, testcase):
             if testcase in row:
                 if row[testcase]:
-                    return _c.green + '1' + _c.reset
+                    return cc.green + '1' + cc.reset
                 else:
-                    return _c.red + '0' + _c.reset
+                    return cc.red + '0' + cc.reset
             else:
                 return '-'
 
@@ -559,15 +566,15 @@ def run_submissions(problem, settings):
             # Skip all AC testcases
             if all(map(lambda row: row[testcase], verdict_table)): continue
 
-            color = _c.reset
+            color = cc.reset
             if len(scores_list) > 6 and scores[testcase] >= scores_list[-6]:
-                color = _c.orange
+                color = cc.orange
             if len(scores_list) > 3 and scores[testcase] >= scores_list[-3]:
-                color = _c.red
+                color = cc.red
             print(f'{str(testcase):<60}', end=' ')
             resultant = make_verdict(testcase)
             print(resultant, end='  ')
-            print(f'{color}{scores[testcase]:0.3f}{_c.reset}  ', end='')
+            print(f'{color}{scores[testcase]:0.3f}{cc.reset}  ', end='')
             if resultant in resultant_id:
                 print(str.format('(Type {})', resultant_id[resultant]), end='')
             print(end='\n')
@@ -575,18 +582,18 @@ def run_submissions(problem, settings):
     return success
 
 
-def test_submission(problem, submission, testcases, settings):
+def _test_submission(problem, submission, testcases, settings):
     print(ProgressBar.action('Running', str(submission[0])))
 
     if 'interactive' in settings.validation:
-        output_validators = get_validators(problem, 'output')
+        output_validators = validate.get_validators(problem, 'output')
         if len(output_validators) != 1:
             error(
                 'Interactive problems need exactly one output validator. Found {len(output_validators)}.'
             )
             return False
 
-    time_limit, timeout = util.get_time_limits(settings)
+    time_limit, timeout = get_time_limits(settings)
     for testcase in testcases:
         header = ProgressBar.action('Running ' + str(submission[0]), str(testcase.with_suffix('')))
         print(header)
@@ -603,13 +610,13 @@ def test_submission(problem, submission, testcases, settings):
             if ok is not True:
                 config.n_error += 1
                 print(
-                    f'{_c.red}Run time error!{_c.reset} exit code {ok} {_c.bold}{duration:6.3f}s{_c.reset}'
+                    f'{cc.red}Run time error!{cc.reset} exit code {ok} {cc.bold}{duration:6.3f}s{cc.reset}'
                 )
             elif did_timeout:
                 config.n_error += 1
-                print(f'{_c.red}Aborted!{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+                print(f'{cc.red}Aborted!{cc.reset} {cc.bold}{duration:6.3f}s{cc.reset}')
             else:
-                print(f'{_c.green}Done:{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+                print(f'{cc.green}Done:{cc.reset} {cc.bold}{duration:6.3f}s{cc.reset}')
             print()
 
         else:
@@ -624,9 +631,9 @@ def test_submission(problem, submission, testcases, settings):
                 team_error=None)
             if verdict != 'ACCEPTED':
                 config.n_error += 1
-                print(f'{_c.red}{verdict}{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+                print(f'{cc.red}{verdict}{cc.reset} {cc.bold}{duration:6.3f}s{cc.reset}')
             else:
-                print(f'{_c.green}{verdict}{_c.reset} {_c.bold}{duration:6.3f}s{_c.reset}')
+                print(f'{cc.green}{verdict}{cc.reset} {cc.bold}{duration:6.3f}s{cc.reset}')
 
 
 # Takes a list of submissions and runs them against the chosen testcases.
@@ -634,17 +641,17 @@ def test_submission(problem, submission, testcases, settings):
 # terminal.
 # Note: The CLI only accepts one submission.
 def test_submissions(problem, settings):
-    testcases = util.get_testcases(problem, needans=False)
+    testcases = get_testcases(problem, needans=False)
 
     if len(testcases) == 0:
         warn('No testcases found!')
         return False
 
-    submissions = get_submissions(problem)
+    submissions = _get_submissions(problem)
 
     verdict_table = []
     for verdict in submissions:
         for submission in submissions[verdict]:
-            test_submission(problem, submission, testcases, settings)
+            _test_submission(problem, submission, testcases, settings)
     return True
 

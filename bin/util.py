@@ -48,25 +48,25 @@ class Colorcodes(object):
             self.boldred = ''
 
 
-_c = Colorcodes()
+cc = Colorcodes()
 
 
 def log(msg):
-    print(_c.green + 'LOG: ' + msg + _c.reset)
+    print(cc.green + 'LOG: ' + msg + cc.reset)
 
 
 def warn(msg):
-    print(_c.orange + 'WARNING: ' + msg + _c.reset)
+    print(cc.orange + 'WARNING: ' + msg + cc.reset)
     config.n_warn += 1
 
 
 def error(msg):
-    print(_c.red + 'ERROR: ' + msg + _c.reset)
+    print(cc.red + 'ERROR: ' + msg + cc.reset)
     config.n_error += 1
 
 
 def fatal(msg):
-    print(_c.red + 'FATAL: ' + msg + _c.reset)
+    print(cc.red + 'FATAL: ' + msg + cc.reset)
     exit(1)
 
 
@@ -109,7 +109,7 @@ class ProgressBar:
             width = total_width - len(prefix) - 2
         if width is not None and len(item) > width: item = item[:width]
         if width is None: width = 0
-        s = f'{_c.blue}{prefix}{_c.reset}: {item:<{width}}'
+        s = f'{cc.blue}{prefix}{cc.reset}: {item:<{width}}'
         return s
 
     def get_prefix(self):
@@ -141,23 +141,23 @@ class ProgressBar:
     def _format_data(data):
         if not data: return ''
         prefix = '  ' if data.count('\n') <= 1 else '\n'
-        return prefix + _c.orange + strip_newline(data) + _c.reset
+        return prefix + cc.orange + strip_newline(data) + cc.reset
 
     # Done can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message='', data='', color=_c.green):
+    def log(self, message='', data='', color=cc.green):
         if message is None: message = ''
         self.clearline()
         self.logged = True
-        print(self.get_prefix(), color + message + ProgressBar._format_data(data) + _c.reset, flush=True)
+        print(self.get_prefix(), color + message + ProgressBar._format_data(data) + cc.reset, flush=True)
 
     def warn(self, message='', data=''):
         config.n_warn += 1
-        self.log(message, data, _c.orange)
+        self.log(message, data, cc.orange)
 
     def error(self, message='', data=''):
         config.n_error += 1
-        self.log(message, data, _c.red)
+        self.log(message, data, cc.red)
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     # Return True when something was printed
@@ -369,7 +369,7 @@ def crop_output(output):
         cropped = True
 
     if cropped:
-        output += _c.orange + 'Use -e to show more or -E to hide it.' + _c.reset
+        output += cc.orange + 'Use -e to show more or -E to hide it.' + cc.reset
     return output
 
 

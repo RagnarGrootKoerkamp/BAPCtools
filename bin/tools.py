@@ -14,26 +14,21 @@ Parts of this are copied from/based on run_program.py, written by Raymond van
 Bommel.
 """
 
+import argparse
+import configparser
+import datetime
+import hashlib
+import io
+import os
+import re
+import shutil
+import stat
+import subprocess
 import sys
 import tempfile
-import shlex
-import stat
-import hashlib
-import argparse
-import os
-import datetime
-import time
-import re
-import fnmatch
-import shutil
-import subprocess
-import signal
-import time
 import yaml
-import configparser
-import io
 import zipfile
-import hashlib
+
 from pathlib import Path
 
 # Local imports
@@ -41,17 +36,15 @@ import config
 from objects import *
 import export
 import latex
-
+import validate
+import generate
+import run
+import constraints
 from util import *
-from validate import *
-from generate import *
-from run import *
-from constraints import *
 
 
 if not is_windows():
     import argcomplete  # For automatic shell completions
-    import fcntl
     import resource
 
 # Get the list of relevant problems.
@@ -91,7 +84,7 @@ def get_problems():
         problemsyaml = Path('problems.yaml')
         if problemsyaml.is_file():
             # TODO: Implement label default value
-            problemlist = util.read_yaml(problemsyaml)
+            problemlist = read_yaml(problemsyaml)
             assert problemlist is not None
             labels = dict()
             nextlabel = 'A'
@@ -133,15 +126,15 @@ def get_problems():
 def get_stat(count, threshold=True, upper_bound=None):
     if threshold is True:
         if count >= 1:
-            return _c.white + 'Y' + _c.reset
+            return cc.white + 'Y' + cc.reset
         else:
-            return _c.red + 'N' + _c.reset
-    color = _c.white
+            return cc.red + 'N' + cc.reset
+    color = cc.white
     if upper_bound != None and count > upper_bound:
-        color = _c.orange
+        color = cc.orange
     if count < threshold:
-        color = _c.red
-    return color + str(count) + _c.reset
+        color = cc.red
+    return color + str(count) + cc.reset
 
 
 def stats(problems):
@@ -181,10 +174,10 @@ def stats(problems):
         else:
             width = len(header)
             header_string += ' {:>' + str(width) + '}'
-            format_string += ' {:>' + str(width + len(_c.white) + len(_c.reset)) + '}'
+            format_string += ' {:>' + str(width + len(cc.white) + len(cc.reset)) + '}'
 
     header = header_string.format(*headers)
-    print(_c.bold + header + _c.reset)
+    print(cc.bold + header + cc.reset)
 
     for problem in problems:
 
@@ -223,8 +216,8 @@ def stats(problems):
         if 'comment' in problem.config:
             comment = problem.config['comment']
 
-        if verified: comment = _c.green + comment + _c.reset
-        else: comment = _c.orange + comment + _c.reset
+        if verified: comment = cc.green + comment + cc.reset
+        else: comment = cc.orange + comment + cc.reset
 
         print(
             format_string.format(
@@ -239,29 +232,6 @@ def stats(problems):
     print(
         format_string.format(*(['TOTAL'] + list(map(lambda x: get_stat(x, False), cumulative)) +
                                [''])))
-
-
-# Remove all files mentioned in the gen.yaml file.
-def clean(problem):
-    gen_config, generator_runs = parse_gen_yaml(problem)
-    for file_path in generator_runs:
-        f = problem / 'data' / file_path
-        if f.is_file():
-            print(ProgressBar.action('REMOVE', str(f)))
-            f.unlink()
-
-        ansfile = f.with_suffix('.ans')
-
-        if ansfile.is_file():
-            print(ProgressBar.action('REMOVE', str(ansfile)))
-            ansfile.unlink()
-
-        try:
-            f.parent.rmdir()
-        except:
-            pass
-
-    return True
 
 
 def print_sorted(problems):
@@ -329,7 +299,7 @@ def new_contest(name):
     rights_owner = ask_variable('rights owner', 'author')
 
     skeldir = config.tools_root / 'skel/contest'
-    util.copytree_and_substitute(skeldir, Path(dirname), locals(), exist_ok=False)
+    copytree_and_substitute(skeldir, Path(dirname), locals(), exist_ok=False)
 
 
 def new_problem():
@@ -347,7 +317,7 @@ def new_problem():
         validation = ask_variable('validation', 'default')
 
     # Read settings from the contest-level yaml file.
-    variables = util.read_yaml(Path('contest.yaml'))
+    variables = read_yaml(Path('contest.yaml'))
 
     for k, v in {
             'problemname': problemname,
@@ -367,7 +337,7 @@ def new_problem():
     if config.args.skel: skeldir = Path(config.args.skel)
     print(f'Copying {skeldir} to {dirname}.')
 
-    util.copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True)
+    copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True)
 
 
 def new_cfp_problem(name):
@@ -379,19 +349,19 @@ def create_gitlab_jobs(contest, problems):
         return problem.resolve().relative_to(Path('..').resolve())
 
     header_yml = (config.tools_root / 'skel/gitlab-ci-header.yml').read_text()
-    print(util.substitute(header_yml, locals()))
+    print(substitute(header_yml, locals()))
 
     contest_yml = (config.tools_root / 'skel/gitlab-ci-contest.yml').read_text()
     changes = ''
     for problem in problems:
         changes += '      - ' + str(problem_source_dir(problem)) + '/problem_statement/**/*\n'
-    print(util.substitute(contest_yml, locals()))
+    print(substitute(contest_yml, locals()))
 
     problem_yml = (config.tools_root / 'skel/gitlab-ci-problem.yml').read_text()
     for problem in problems:
         changesdir = problem_source_dir(problem)
         print('\n')
-        print(util.substitute(problem_yml, locals()), end='')
+        print(substitute(problem_yml, locals()), end='')
 
 
 def build_parser():
@@ -696,7 +666,7 @@ def main():
         if level == 'problemset' and action == 'pdf' and not (hasattr(config.args, 'all')
                                                            and config.args.all):
             continue
-        print(_c.bold, 'PROBLEM ', problem.path, _c.reset, sep='')
+        print(cc.bold, 'PROBLEM ', problem.path, cc.reset, sep='')
 
         # merge problem settings with arguments into one namespace
         problemsettings = problem.config
@@ -714,20 +684,20 @@ def main():
 
         input_validator_ok = False
         if action in ['validate', 'input', 'all']:
-            input_validator_ok = validate(problem.path, 'input', settings)
+            input_validator_ok = validate.validate(problem.path, 'input', settings)
             success &= input_validator_ok
         if action in ['clean']:
-            success &= clean(problem.path)
+            success &= generate.clean(problem.path)
         if action in ['generate']:
-            success &= generate(problem.path, settings)
+            success &= generate.generate(problem.path, settings)
         if action in ['validate', 'output', 'all']:
-            success &= validate(problem.path, 'output', settings, input_validator_ok)
+            success &= validate.validate(problem.path, 'output', settings, input_validator_ok)
         if action in ['run', 'all']:
-            success &= run_submissions(problem.path, settings)
+            success &= run.run_submissions(problem.path, settings)
         if action in ['test']:
-            success &= test_submissions(problem.path, settings)
+            success &= run.test_submissions(problem.path, settings)
         if action in ['constraints']:
-            success &= check_constraints(problem.path, settings)
+            success &= constraints.check_constraints(problem.path, settings)
         if action in ['zip']:
             # For DJ: export to A.zip
             output = problem.label + '.zip'
@@ -739,8 +709,8 @@ def main():
             if not config.args.skip:
                 success &= latex.build_problem_pdf(problem)
                 if not config.args.force:
-                    success &= validate(problem.path, 'input', settings)
-                    success &= validate(problem.path, 'output', settings, check_constraints=True)
+                    success &= validate.validate(problem.path, 'input', settings)
+                    success &= validate.validate(problem.path, 'output', settings, check_constraints=True)
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
@@ -752,7 +722,7 @@ def main():
             print()
 
     if level == 'problemset':
-        print(f'{_c.bold}CONTEST {contest}{_c.reset}')
+        print(f'{cc.bold}CONTEST {contest}{cc.reset}')
 
         # build pdf for the entire contest
         if action in ['pdf']:

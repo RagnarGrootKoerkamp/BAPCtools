@@ -1,4 +1,6 @@
-from build import *
+import re
+
+import validate
 
 """DISCLAIMER:
 
@@ -9,7 +11,7 @@ from build import *
 
 
 def check_constraints(problem, settings):
-    validate(problem, 'input', settings, check_constraints=True)
+    validate.validate(problem, 'input', settings, check_constraints=True)
 
     vinput = problem / 'input_validators/input_validator/input_validator.cpp'
     voutput = problem / 'output_validators/output_validator/output_validator.cpp'
