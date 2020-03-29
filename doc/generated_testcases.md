@@ -173,6 +173,10 @@ Add an empty key to reset a previously set value.
 
 Using the `gen.yaml` file, tooling can do the following things:
 - `generate`: Generate all testdata as specified above. Output of unchanged rules may be cached.
-- `clean`: Delete all generated test cases. This will delete all `testcase.in`, `testcase.ext` for `ext` in the `transforms` map, and clean all generated directories completely.
+- `clean`: Delete all generated data:
+   - `.in` files that we generated
+   - Corresponding `.ans`/`.png`/... extensions that are specified as
+     `transforms`.
+   - Completely clean all generated directories for non-`.in` generators.
 - Before running a submission, the tooling could verify that all test data is up to date. (Useful when cloning a git repository and the user is not aware some test data needs to be generated first.)
 - Tooling may want to use extra `config:` settings to specify which files should be cleaned (`.ans` as well? All files with the same basename?).
