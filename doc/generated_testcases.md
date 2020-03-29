@@ -39,6 +39,11 @@ secret:
 
   random_graphs: write_random_graphs.py # rule that writes multiple testcases in the random_graphs directory
 
+  test.in: # writes tree.txt and path.txt files. Then reads them and prints the final testcase to stdout
+    - tree.py 10 tree.txt
+    - path.py 20 path.txt
+    - combine.py tree.txt path.txt
+
 # Forbidden because of /
 #secret/5.in:      stdout.py 5
 ```
@@ -48,7 +53,9 @@ For a each rule `test.in` ending in `.in`, execute the command(s) as:
 ```
 command1 | ... | commandn > test.in
 ```
-none of these commands may write to a file.
+These commands may write and read local files and pipes do not _have_ to be
+used. Note though, that only the `stdout` of the final command will be written
+to `test.in`.
 
 For any other rule, create a directory and execute the command(s) as:
 ```
@@ -62,7 +69,7 @@ For a transformation to `ext`, execute
 ```
 command1 | ... | commandn > test.ext
 ```
-Any files written by these commands will be discarded.
+Files created by these commands will not be copied to `data/`.
 
 **TODO**: Do we also need to support commands that write the file directly? The
 current proposal is to keep this consistent with simple generators.
