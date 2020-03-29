@@ -4,14 +4,14 @@
 The following `generators/gen.yaml` would specify which files to generate. It should be self explanatory.
 ```yaml
 config:
-  transforms:
+  extensions:
     ans: ../solutions/accepted/sol.py
     png: asy ../visualizers/vis.asy -f png -o -
 
 # Following test cases will be created in the `sample` directory.
 sample:
   config:
-    transforms:
+    extensions:
       ans: # empty to disable generating .ans files here
   1.in:    stdout.py 1  # prints `1` to stdout, which is piped to 1.in
 
@@ -144,15 +144,17 @@ Running the same (list of) generators twice should not generate different output
 
 ### Config
 Some additional configuration can be specified via the `config` key. It may
-contain the `transforms` key, containing a dictionary from file extensions to
+contain the `extensions` key, containing a dictionary from file extensions to
 rules.
 For each `.in` file that is generated, the commands for each extension in this
 map will be executed to create the corresponding files (e.g. `.ans` and `.png`).
+If specified, the `.ans` will be generated first, followed by all other
+extensions in unspecified order.
 
 Consider:
 ```
 config:
-  transforms:
+  extensions:
     ans: ../solutions/accepted/sol.py
     png: asy ../visualizers/vis.asy -f png -o -
 ```
@@ -176,7 +178,7 @@ Using the `gen.yaml` file, tooling can do the following things:
 - `clean`: Delete all generated data:
    - `.in` files that we generated
    - Corresponding `.ans`/`.png`/... extensions that are specified as
-     `transforms`.
+     `extensions`.
    - Completely clean all generated directories for non-`.in` generators.
 - Before running a submission, the tooling could verify that all test data is up to date. (Useful when cloning a git repository and the user is not aware some test data needs to be generated first.)
 - Tooling may want to use extra `config:` settings to specify which files should be cleaned (`.ans` as well? All files with the same basename?).
