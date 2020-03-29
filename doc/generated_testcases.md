@@ -76,7 +76,7 @@ commandn
 ```
 No `stdin` is provided and any `stdout` is ignored in this case.
 
-For a transformation to `ext`, execute
+For each transformation to `ext` as specified in the `extensions` config, execute
 ```
 command1 < test.in | ... | commandn > test.ext
 ```
