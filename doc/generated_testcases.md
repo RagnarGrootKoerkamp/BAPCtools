@@ -170,7 +170,7 @@ config:
   extensions:
     ans: ../solutions/accepted/sol.py
     png: asy.py ../visualizers/vis.asy -f png -o -
-	hint: generated
+    hint: generated
 ```
 In this case, for each `.in` that's generated two commands are run:
 - `sol.py < test.in > test.ans`
