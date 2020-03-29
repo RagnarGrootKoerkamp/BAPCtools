@@ -151,7 +151,9 @@ class ProgressBar:
         if message is None: message = ''
         self.clearline()
         self.logged = True
-        print(self.get_prefix(), color + message + ProgressBar._format_data(data) + cc.reset, flush=True)
+        print(self.get_prefix(),
+              color + message + ProgressBar._format_data(data) + cc.reset,
+              flush=True)
 
     def warn(self, message='', data=''):
         config.n_warn += 1

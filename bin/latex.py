@@ -174,8 +174,8 @@ def build_problem_pdf(problem):
 
 
 def find_logo():
-    for directory in [ "", "../" ]:
-        for extension in [ "pdf", "png", "jpg" ]:
+    for directory in ["", "../"]:
+        for extension in ["pdf", "png", "jpg"]:
             logo = Path(directory + 'logo.' + extension)
             if logo.exists(): return logo
     return config.tools_root / 'latex/images/logo-not-found.pdf'

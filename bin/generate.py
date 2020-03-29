@@ -7,6 +7,7 @@ import build
 import validate
 import run
 
+
 # Return config, generator_runs pair
 def _parse_gen_yaml(problem):
     yaml_path = problem / 'generators' / 'gen.yaml'
@@ -90,7 +91,8 @@ def generate(problem, settings):
                     if submission is None:
                         submission = s
         if submission is not None:
-            log(f'No submission was specified in generators/gen.yaml. Falling back to {submission}.')
+            log(f'No submission was specified in generators/gen.yaml. Falling back to {submission}.'
+                )
 
     if generate_ans and submission is not None:
         if not (submission.is_file() or submission.is_dir()):
@@ -103,7 +105,7 @@ def generate(problem, settings):
             bar.done(submission is not None, msg)
     if submission is None: generate_ans = False
 
-    input_validators  = validate.get_validators(problem, 'input' ) if len(generator_runs) > 0 else []
+    input_validators = validate.get_validators(problem, 'input') if len(generator_runs) > 0 else []
     output_validators = validate.get_validators(problem, 'output') if generate_ans else []
 
     if len(generator_runs) == 0 and generate_ans is False:
@@ -124,7 +126,8 @@ def generate(problem, settings):
             if not validate.validate_testcase(problem, source, input_validators, 'input', bar=bar):
                 return False
         if source.suffix == '.ans' and settings.validation != 'custom interactive':
-            if not validate.validate_testcase(problem, source, output_validators, 'output', bar=bar):
+            if not validate.validate_testcase(
+                    problem, source, output_validators, 'output', bar=bar):
                 return False
 
         # Ask -f or -f --samples before overwriting files.
@@ -133,7 +136,8 @@ def generate(problem, settings):
                 return True
 
             if 'sample' in str(target) and (not (hasattr(settings, 'samples') and settings.samples)
-                    or not (hasattr(settings, 'force') and settings.force)):
+                                            or
+                                            not (hasattr(settings, 'force') and settings.force)):
                 bar.warn('SKIPPED: ' + target.name + cc.reset +
                          '; supply -f --samples to overwrite')
                 return False
@@ -149,7 +153,6 @@ def generate(problem, settings):
             bar.log('NEW: ' + target.name + tries_msg)
         shutil.move(source, target)
         return False
-
 
     tmpdir = config.tmpdir / problem.name / 'generate'
     tmpdir.mkdir(parents=True, exist_ok=True)
@@ -199,10 +202,10 @@ def generate(problem, settings):
                     stdout_file = stdout_path.open('w')
                     stdin_file = stdin_path.open('r') if stdin_path.is_file() else None
                     try_ok, err, out = exec_command(command,
-                                                         stdout=stdout_file,
-                                                         stdin=stdin_file,
-                                                         timeout=timeout,
-                                                         cwd=tmpdir)
+                                                    stdout=stdout_file,
+                                                    stdin=stdin_file,
+                                                    timeout=timeout,
+                                                    cwd=tmpdir)
                     stdout_file.close()
                     if stdin_file: stdin_file.close()
 
@@ -251,7 +254,8 @@ def generate(problem, settings):
 
     if settings.validation != 'custom interactive':
         testcases = get_testcases(problem, needans=False)
-        bar = ProgressBar('Generate ans', items=[print_name(t.with_suffix('.ans')) for t in testcases])
+        bar = ProgressBar('Generate ans',
+                          items=[print_name(t.with_suffix('.ans')) for t in testcases])
 
         for testcase in testcases:
             bar.start(print_name(testcase.with_suffix('.ans')))
@@ -285,7 +289,8 @@ def generate(problem, settings):
         # - create empty .ans files
         # - create .interaction files for samples only
         testcases = get_testcases(problem, needans=False, only_sample=True)
-        bar = ProgressBar('Generate interaction', items=[print_name(t.with_suffix('.interaction')) for t in testcases])
+        bar = ProgressBar('Generate interaction',
+                          items=[print_name(t.with_suffix('.interaction')) for t in testcases])
 
         for testcase in testcases:
             bar.start(print_name(testcase.with_suffix('.interaction')))
@@ -298,11 +303,12 @@ def generate(problem, settings):
 
             # Ignore stdout and stderr from the program.
             verdict, duration, err, out = run.process_interactive_testcase(submission,
-                    testcase, settings, output_validators,
-                    validator_error=None,
-                    team_error=None,
-                    interaction=outfile
-                    )
+                                                                           testcase,
+                                                                           settings,
+                                                                           output_validators,
+                                                                           validator_error=None,
+                                                                           team_error=None,
+                                                                           interaction=outfile)
             if verdict != 'ACCEPTED':
                 if duration > timeout:
                     bar.error('TIMEOUT')
@@ -318,9 +324,7 @@ def generate(problem, settings):
         if not config.verbose and nskip == 0 and nfail == 0:
             print(ProgressBar.action('Generate ans', f'{cc.green}Done{cc.reset}'))
 
-
     return nskip == 0 and nfail == 0
-
 
 
 # Remove all files mentioned in the gen.yaml file.

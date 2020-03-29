@@ -23,6 +23,7 @@ def _get_submission_type(s):
         return 'RUN_TIME_ERROR'
     return 'ACCEPTED'
 
+
 # returns a map {answer type -> [(name, command)]}
 def _get_submissions(problem):
     programs = []
@@ -39,7 +40,6 @@ def _get_submissions(problem):
 
     if len(programs) == 0:
         error('No submissions found!')
-
 
     run_commands = build.build_programs(programs, True)
     submissions = {
@@ -64,19 +64,19 @@ def run_testcase(run_command, testcase, outfile, timeout, crop=True):
             if outfile is None:
                 # Print both stdout and stderr directly to the terminal.
                 ok, err, out = exec_command(run_command,
-                                                 expect=0,
-                                                 crop=crop,
-                                                 stdin=inf,
-                                                 stdout=None,
-                                                 stderr=None,
-                                                 timeout=timeout)
+                                            expect=0,
+                                            crop=crop,
+                                            stdin=inf,
+                                            stdout=None,
+                                            stderr=None,
+                                            timeout=timeout)
             else:
                 ok, err, out = exec_command(run_command,
-                                                 expect=0,
-                                                 crop=crop,
-                                                 stdin=inf,
-                                                 stdout=outfile,
-                                                 timeout=timeout)
+                                            expect=0,
+                                            crop=crop,
+                                            stdin=inf,
+                                            stdout=outfile,
+                                            timeout=timeout)
             tend = time.monotonic()
 
             return ok, tend - tstart, err, out
@@ -88,17 +88,18 @@ def run_testcase(run_command, testcase, outfile, timeout, crop=True):
 
 
 # return (verdict, time, validator error, submission error)
-def process_interactive_testcase(run_command,
-                                 testcase,
-                                 settings,
-                                 output_validators,
-                                 validator_error=False,
-                                 team_error=False,
-                                 *,
-                                 # False/None: no output
-                                 # True: stdout
-                                 # else: path
-                                 interaction=False):
+def process_interactive_testcase(
+        run_command,
+        testcase,
+        settings,
+        output_validators,
+        validator_error=False,
+        team_error=False,
+        *,
+        # False/None: no output
+        # True: stdout
+        # else: path
+        interaction=False):
     assert len(output_validators) == 1
     output_validator = output_validators[0]
 
@@ -142,11 +143,11 @@ def process_interactive_testcase(run_command,
         # TODO: use rusage instead
         tstart = time.monotonic()
         ok, err, out = exec_command(run_command,
-                                         expect=0,
-                                         stdin=validator_process.stdout,
-                                         stdout=validator_process.stdin,
-                                         stderr=team_error,
-                                         timeout=timeout)
+                                    expect=0,
+                                    stdin=validator_process.stdout,
+                                    stdout=validator_process.stdin,
+                                    stderr=team_error,
+                                    timeout=timeout)
 
         # Wait
         (validator_out, validator_err) = validator_process.communicate()
@@ -359,11 +360,7 @@ while True:
 
 
 # return (verdict, time, remark)
-def _process_testcase(run_command,
-                     testcase,
-                     outfile,
-                     settings,
-                     output_validators):
+def _process_testcase(run_command, testcase, outfile, settings, output_validators):
 
     if 'interactive' in settings.validation:
         return process_interactive_testcase(run_command, testcase, settings, output_validators)
@@ -380,11 +377,11 @@ def _process_testcase(run_command,
     else:
         assert settings.validation in ['default', 'custom']
         if settings.validation == 'default':
-            ok, err, out = validate.default_output_validator(testcase.with_suffix('.ans'),
-                                                               outfile, settings)
+            ok, err, out = validate.default_output_validator(testcase.with_suffix('.ans'), outfile,
+                                                             settings)
         elif settings.validation == 'custom':
             ok, err, out = validate.custom_output_validator(testcase, outfile, settings,
-                                                              output_validators)
+                                                            output_validators)
 
         if ok is True:
             verdict = 'ACCEPTED'
@@ -402,12 +399,12 @@ def _process_testcase(run_command,
 # always: failed submissions
 # -v: all programs and their results (+failed testcases when expected is 'accepted')
 def _run_submission(submission,
-                   testcases,
-                   settings,
-                   output_validators,
-                   max_submission_len,
-                   expected='ACCEPTED',
-                   table_dict=None):
+                    testcases,
+                    settings,
+                    output_validators,
+                    max_submission_len,
+                    expected='ACCEPTED',
+                    table_dict=None):
     time_total = 0
     time_max = 0
     testcase_max_time = None
@@ -426,7 +423,7 @@ def _run_submission(submission,
         bar.start(print_name(testcase.with_suffix('')))
         outfile = config.tmpdir / 'test.out'
         verdict, runtime, err, out = _process_testcase(submission[1], testcase, outfile, settings,
-                                                      output_validators)
+                                                       output_validators)
 
         if config.PRIORITY[verdict] > config.PRIORITY[final_verdict]:
             final_verdict = verdict
@@ -492,7 +489,6 @@ def _run_submission(submission,
     return final_verdict == expected
 
 
-
 # return true if all submissions for this problem pass the tests
 def run_submissions(problem, settings):
     needans = True
@@ -520,12 +516,12 @@ def run_submissions(problem, settings):
         for submission in submissions[verdict]:
             verdict_table.append(dict())
             success &= _run_submission(submission,
-                                      testcases,
-                                      settings,
-                                      output_validators,
-                                      max_submission_len,
-                                      verdict,
-                                      table_dict=verdict_table[-1])
+                                       testcases,
+                                       settings,
+                                       output_validators,
+                                       max_submission_len,
+                                       verdict,
+                                       table_dict=verdict_table[-1])
 
     if hasattr(settings, 'table') and settings.table:
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
@@ -657,4 +653,3 @@ def test_submissions(problem, settings):
         for submission in submissions[verdict]:
             _test_submission(problem, submission, testcases, settings)
     return True
-

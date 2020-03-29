@@ -1,10 +1,10 @@
 import build
 from util import *
 
+
 def _quick_diff(ans, out):
     if ans.count('\n') <= 1 and out.count('\n') <= 1:
-        return crop_output('Got ' + strip_newline(out) + ' wanted ' +
-                                strip_newline(ans))
+        return crop_output('Got ' + strip_newline(out) + ' wanted ' + strip_newline(ans))
     else:
         return ''
 
@@ -166,8 +166,15 @@ def get_validators(problem, validator_type, check_constraints=False):
 
     return build.build_programs(files)
 
-def validate_testcase(problem, testcase, validators, validator_type, *, bar, check_constraints=False,
-        constraints=None):
+
+def validate_testcase(problem,
+                      testcase,
+                      validators,
+                      validator_type,
+                      *,
+                      bar,
+                      check_constraints=False,
+                      constraints=None):
     ext = '.in' if validator_type == 'input' else '.ans'
 
     bad_testcase = False
@@ -250,7 +257,8 @@ def validate_testcase(problem, testcase, validators, validator_type, *, bar, che
             ok, err, out = exec_command(
                 validator[1] +
                 [testcase.with_suffix('.in'),
-                 testcase.with_suffix('.ans'), config.tmpdir] + ['case_sensitive', 'space_change_sensitive'],
+                 testcase.with_suffix('.ans'), config.tmpdir] +
+                ['case_sensitive', 'space_change_sensitive'],
                 expect=config.RTV_WA if bad_testcase else config.RTV_AC,
                 stdin=main_file.open())
 
@@ -260,17 +268,18 @@ def validate_testcase(problem, testcase, validators, validator_type, *, bar, che
 
         # Failure?
         if ok:
-            message =  'PASSED ' + validator[0]
+            message = 'PASSED ' + validator[0]
         else:
-            message =  'FAILED ' + validator[0]
+            message = 'FAILED ' + validator[0]
 
         # Print stdout and stderr whenever something is printed
         if not err: err = ''
         if out and config.args.error:
             out = f'\n{cc.red}VALIDATOR STDOUT{cc.reset}\n' + cc.orange + out
-        else: out = ''
+        else:
+            out = ''
 
-        bar.part_done(ok, message, data=err+out)
+        bar.part_done(ok, message, data=err + out)
 
         if not ok:
             # Move testcase to destination directory if specified.
@@ -278,7 +287,7 @@ def validate_testcase(problem, testcase, validators, validator_type, *, bar, che
                 infile = testcase.with_suffix('.in')
                 targetdir = problem / config.args.move_to
                 targetdir.mkdir(parents=True, exist_ok=True)
-                intarget = targetdir/infile.name
+                intarget = targetdir / infile.name
                 infile.rename(intarget)
                 bar.warn('Moved to ' + print_name(intarget))
                 ansfile = testcase.with_suffix('.ans')
@@ -361,11 +370,16 @@ def validate(problem, validator_type, settings, check_constraints=False):
     constraints = {}
 
     # validate the testcases
-    bar = ProgressBar(action, items=[print_name(t)+ext for t in testcases])
+    bar = ProgressBar(action, items=[print_name(t) + ext for t in testcases])
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix(ext)))
-        success &= validate_testcase(problem, testcase, validators, validator_type, bar=bar,
-                check_constraints=check_constraints, constraints=constraints)
+        success &= validate_testcase(problem,
+                                     testcase,
+                                     validators,
+                                     validator_type,
+                                     bar=bar,
+                                     check_constraints=check_constraints,
+                                     constraints=constraints)
         bar.done()
 
     # Make sure all constraints are satisfied.

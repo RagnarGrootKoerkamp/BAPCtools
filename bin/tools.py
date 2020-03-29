@@ -36,9 +36,9 @@ import run
 import constraints
 from util import *
 
-
 if not is_windows():
     import argcomplete  # For automatic shell completions
+
 
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort
@@ -87,7 +87,8 @@ def get_problems():
                 if 'label' in p: label = p['label']
                 if label == '': fatal(f'Found empty label for problem {p["id"]}')
                 nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
-                if label in labels: fatal(f'label {label} found twice for problem {p["id"]} and {labels[label]}.')
+                if label in labels:
+                    fatal(f'label {label} found twice for problem {p["id"]} and {labels[label]}.')
                 labels[label] = p['id']
                 problems.append(Problem(Path(p['id']), label))
         else:
@@ -111,7 +112,6 @@ def get_problems():
         config.tmpdir.mkdir(parents=True, exist_ok=True)
 
     return (problems, level, contest)
-
 
 
 # This prints the number belonging to the count.
@@ -231,6 +231,7 @@ def print_sorted(problems):
     prefix = config.args.contest + '/' if config.args.contest else ''
     for problem in problems:
         print(f'{problem.label:<2}: {problem.path}')
+
 
 # Returns the alphanumeric version of a string:
 # This reduces it to a string that follows the regex:
@@ -657,7 +658,7 @@ def main():
 
     for problem in problems:
         if level == 'problemset' and action == 'pdf' and not (hasattr(config.args, 'all')
-                                                           and config.args.all):
+                                                              and config.args.all):
             continue
         print(cc.bold, 'PROBLEM ', problem.path, cc.reset, sep='')
 
@@ -703,7 +704,10 @@ def main():
                 success &= latex.build_problem_pdf(problem)
                 if not config.args.force:
                     success &= validate.validate(problem.path, 'input', settings)
-                    success &= validate.validate(problem.path, 'output', settings, check_constraints=True)
+                    success &= validate.validate(problem.path,
+                                                 'output',
+                                                 settings,
+                                                 check_constraints=True)
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
@@ -733,10 +737,7 @@ def main():
                 success &= latex.build_contest_pdf(contest, problems, web=True)
                 if not config.args.no_solutions:
                     success &= latex.build_contest_pdf(contest, problems, solutions=True)
-                    success &= latex.build_contest_pdf(contest,
-                                                       problems,
-                                                       solutions=True,
-                                                       web=True)
+                    success &= latex.build_contest_pdf(contest, problems, solutions=True, web=True)
 
             outfile = contest + '.zip'
             if config.args.kattis: outfile = contest + '-kattis.zip'

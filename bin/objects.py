@@ -3,6 +3,7 @@ import util
 
 from pathlib import Path
 
+
 # A problem.
 class Problem:
     _shortname_regex_string = '^[a-z0-9]+$'
@@ -18,7 +19,7 @@ class Problem:
 
         # The label for the problem: A, B, A1, A2, X, ...
         if label is None:
-			# Use label from the domjudge-problem.ini
+            # Use label from the domjudge-problem.ini
             if 'probid' in self.config:
                 self.label = self.config['probid']
             else:

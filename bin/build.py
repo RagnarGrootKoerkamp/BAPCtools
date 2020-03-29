@@ -142,10 +142,12 @@ def build(path):
                 if f.read_text().find('bits/stdc++.h') != -1:
                     if 'validators/' in str(f):
                         config.n_error += 1
-                        return (None,  f'{cc.red}Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{cc.reset}')
+                        return (
+                            None,
+                            f'{cc.red}Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{cc.reset}'
+                        )
                     else:
                         message = f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{cc.reset}'
-
 
     lang, files, priority = best
 

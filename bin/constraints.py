@@ -1,7 +1,6 @@
 import re
 
 import validate
-
 """DISCLAIMER:
 
   This tool was only made to check constraints faster.
