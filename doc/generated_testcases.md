@@ -6,7 +6,7 @@ The following `generators/gen.yaml` would specify which files to generate. It sh
 config:
   extensions: # The following extensions will be created for each .in that's generated
     ans: ../solutions/accepted/sol.py
-    png: asy.py ../visualizers/vis.asy -f png -o - # Note that directly calling a shell executable is not allowed
+    png: ../visualizers/asy.py # Note that directly calling a shell executable is not allowed
 
 # Following test cases will be created in the `sample` directory.
 sample:
@@ -171,6 +171,9 @@ map will be executed to create the corresponding files (e.g. `.ans` and `.png`).
 If specified, the `.ans` will be generated first, followed by all other
 extensions in unspecified order.
 
+Commands with relative paths are relative to the `generators` directory.
+Absolute paths may be used for paths relative to the problem root.
+
 Each extension may also have the special value `generated`. This means files of
 this extension will be written by the generators directly, and are preserved
 instead of deleted.
@@ -179,8 +182,8 @@ Consider:
 ```
 config:
   extensions:
-    ans: ../solutions/accepted/sol.py
-    png: asy.py ../visualizers/vis.asy -f png -o -
+    ans: /solutions/accepted/sol.py
+    png: ../visualizers/asy.py
     hint: generated
 ```
 In this case, for each `.in` that's generated two commands are run:
@@ -212,4 +215,6 @@ Using the `gen.yaml` file, tooling can do the following things:
      `extensions`.
    - Completely clean all generated directories for non-`.in` generators.
 - Before running a submission, the tooling could verify that all test data is up to date. (Useful when cloning a git repository and the user is not aware some test data needs to be generated first.)
-- Tooling may want to use extra `config:` settings to specify which files should be cleaned (`.ans` as well? All files with the same basename?).
+- `generate` may take additional arguments to only regenerate a subset of data.
+  Most easy would probably be a glob on the full test case path.
+
