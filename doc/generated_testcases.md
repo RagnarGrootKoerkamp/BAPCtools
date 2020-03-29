@@ -24,9 +24,20 @@ secret:
     - stdout.py 5
     - double.py # generator that doubles the number. Reads stdout of the previous command from stdin.
 
-  testgroup:  # creates a subdirectory because it doesn't end in `.in`.
+  testgroup:  # creates a subdirectory because it doesn't end in `.in
+    testdata.yaml: # Contents are copied to testgroup/testdata.yaml
+      on_reject: break
+      accept_score: 25
+      range: 0 25
+      grader_flags: min
     a.in: stdout.py a
     b.in: stdout.py b
+
+  other_testgroup:
+    config:
+      extensions:
+        ans: generated # Make sure the .ans generated below is preserved.
+    test.in: in_ans_generator.py $PATH # $PATH=test.in. writes .in to stdout and .ans to test.ans.
 
   # $SEED is computed as the last 31 bits of the sha512 hash of the command:
   # SEED = int(hashlib.sha512(command.encode('utf-8')).hexdigest(), 16)%(2**31)
@@ -67,7 +78,7 @@ No `stdin` is provided and any `stdout` is ignored in this case.
 
 For a transformation to `ext`, execute
 ```
-command1 | ... | commandn > test.ext
+command1 < test.in | ... | commandn > test.ext
 ```
 Files created by these commands will not be copied to `data/`.
 
