@@ -17,7 +17,7 @@ sample:
 
 secret:
   manual.in:      # optionally list manual case with empty arguments
-# manual-2.in     # not listed but still fine.
+# manual-2.in     # not listed but .ans and .png are still generated.
   3.in: stdout.py 3
   4.in: cpp.cpp 4 # Similarly to validators, a generator can be a c++/java/.. file or directory
   10.in:
@@ -166,7 +166,7 @@ Running the same (list of) generators twice should not generate different output
 Some additional configuration can be specified via the `config` key. It may
 contain the `extensions` key, containing a dictionary from file extensions to
 rules.
-For each `.in` file that is generated, the commands for each extension in this
+For each `.in` file that is generated or already present as a manual input, the commands for each extension in this
 map will be executed to create the corresponding files (e.g. `.ans` and `.png`).
 If specified, the `.ans` will be generated first, followed by all other
 extensions in unspecified order.
