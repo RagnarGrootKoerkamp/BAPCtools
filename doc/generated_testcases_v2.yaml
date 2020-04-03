@@ -1,0 +1,110 @@
+# The following extensions will be created for each .in that's found.
+# Any key starting with a dot will be interpreted as an extension generator.
+# .ans will be generated before all others.
+.ans: /solutions/accepted/sol.py
+.png: /visualizers/asy.py # Note that directly calling a shell executable is not allowed
+
+
+# Optionally, a salt for generating the {seed} variables. Will be prepended to
+# the command being run.
+random_salt: abcd
+
+
+## Layout of generators/ directory:
+# - stdout.py <val>:             takes a value and writes it to stdout
+# - stdout.cpp <val>:            idem, but is a c++ file.
+# - dir/lib.h
+# - dir/generator.cpp <val>:     idem, but now includes a header. Works like validators.
+# - lib.py
+# - generator.py <val>:          uses lib.py. Fine because python will be executed locally.
+# - lib.sh
+# - generator.sh <val>:          uses lib.sh. Fine because shell will be executed locally.
+
+
+data:
+  # Introduce the `sample` directory.
+  sample:
+    type: directory
+    .ans: # empty to disable generating .ans files here
+    data:
+      1.in: stdout.py 1  # prints `1` to stdout, which is piped to 1.in
+
+# Manual cases
+
+      2.in: # empty value to indicate a manual case
+      3.in: /manual_cases/sample/3.in # Key that matches `/*.in` glob is a manual testcase that will be copied from elsewhere.
+     #4.in: # not listing a test is OK for development but will give warnings.
+
+  secret:
+    type: directory
+    data:
+
+# Types of generator programs.
+      01.in: stdout.py  3    
+      02.in: stdout.cpp 4   # c++ is compiled as for validators
+      03.in: dir 5          # directories are OK as for validators
+      04.in: generator.py 5 # python files may include local files. They are executed locally.
+      05.in: generator.py 5 # python files may include local files. They are executed locally.
+
+# The entire value is passed through python shlex.shlex.
+      06-string.in: stdout.py "a b" # gives a single string of length 3 as argument
+
+# {seed.*} anywhere in the argument string will be replaced by a 31-bit integer
+# hash of the entire command. Computed as:
+# int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
+      07-random-1.in:    stdout.py {seed}
+      08-random-1a.in:   stdout.py {seed}    # same seed. May warn for duplicate case.
+      09-random-2.in:    stdout.py {seed:2}  # different seed, because of extra `2`
+      10-random-3.in:    stdout.py seed={seed:2} # different seed, because command isn't the same.
+
+# Multiple commands are piped to each other. The last stdout is used.
+      10.in:
+        - stdout.py 5
+        - double.py     # reads 5 from stdin and writes 10 to stdout
+
+# Commands may write files, but only the final stdout is used.
+      11.in:
+        - tree.py 10 tree.txt           # write tree.txt
+        - path.py 20 path.txt           # write path.txt
+        - combine.py tree.txt path.txt  # read tree.txt and path.txt and write testcase to stdout
+
+# When the key does not end with '.in', stdout will be ignored and instead all
+# files having the key as prefix are stored.
+# All keys must not be prefixes of each other.
+# {prefix} will be substituted by the current key, and *MUST* be used.
+      12: write_in_and_ans.py {prefix}      # writes {prefix}.in and {prefix}.ans
+      13-graphs: write_graphs.py {prefix}   # writes {prefix}-1.in and {prefix}-2.in
+
+# Introduce a testgroup by adding a dictionary with `type: directory` set.
+      testgroup:
+        type: directory # creates a subdirectory
+
+# Directories may contains a testdata.yaml that will be written as specified.
+# Future versions may lift the scoring config directly into the directory scope.
+        testdata.yaml:
+          on_reject: break
+          accept_score: 25
+          range: 0 25
+          grader_flags: min
+
+# A testgroup may include all cases in another testgroup. These will be
+# symlinked. May be a single value or a list of groups. Paths are absolute,
+# starting at data/.
+          include: 
+            - /sample
+        
+        data:
+# Numbering: when that `data` key has a list instead of dictionary, cases will
+# be numbered automatically. Each list item must contain a 1-item dictionary.
+          - a.in: stdout.py a
+          - b.in: stdout.py b
+          # Equivalent to the map:
+          # 1_a.in: stdout.py a
+          # 2_b.in: stdout.py b
+
+# Introduce a configuration scope by adding a dictionary with `type: scope` set.
+      generated_ans_scope:
+        type: scope     # doesn't create a subdirectory
+        .png: # Disable .png generation for ne
+        data:
+          11-large.in: stdout.py 1234
