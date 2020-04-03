@@ -101,10 +101,3 @@ data:
           # Equivalent to the map:
           # 1_a.in: stdout.py a
           # 2_b.in: stdout.py b
-
-# Introduce a configuration scope by adding a dictionary with `type: scope` set.
-      generated_ans_scope:
-        type: scope     # doesn't create a subdirectory
-        .png: # Disable .png generation for ne
-        data:
-          11-large.in: stdout.py 1234
