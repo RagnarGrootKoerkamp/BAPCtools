@@ -90,8 +90,8 @@ data:
 # A testgroup may include all cases in another testgroup. These will be
 # symlinked. May be a single value or a list of groups. Paths are absolute,
 # starting at data/.
-          include: 
-            - /sample
+        include: 
+          - /sample
         
         data:
 # Numbering: when that `data` key has a list instead of dictionary, cases will
@@ -101,3 +101,10 @@ data:
           # Equivalent to the map:
           # 1_a.in: stdout.py a
           # 2_b.in: stdout.py b
+
+# Introduce a configuration scope by adding a dictionary with `type: scope` set.
+      scope:
+        type: scope     # doesn't create a subdirectory
+        .png: # Disable .png generation for ne
+        data:
+          14.in: stdout.py 1234
