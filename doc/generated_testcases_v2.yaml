@@ -50,13 +50,14 @@ data:
       06-string.in: stdout.py "a b" # gives a single string of length 3 as argument
 
 # The regex \{seed(:[0-9]+)\} (e.g. {seed} or {seed:1}) anywhere in the argument
-# string will be replaced by an integer hash # in [0, 2^31) of the entire command.
-# Each match will be replaced by the same value, computed as
+# string will be replaced by an integer hash of the entire command in [0, 2^31).
+# The regex may match at most once.
 # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
       07-random-1.in:    stdout.py {seed}
       08-random-1a.in:   stdout.py {seed}    # same seed. May warn for duplicate case. The comment is ignored.
       09-random-2.in:    stdout.py {seed:2}  # different seed, because of extra `2`
       10-random-3.in:    stdout.py seed={seed:2} # different seed, because command isn't the same.
+     #10-random-4.in:    stdout.py {seed} {seed:2} # Not allowed because the regex matches twice.
 
 # Multiple commands are piped to each other. The last stdout is used.
 # TODO: Should we just drop piping completely? Nobody seems to really want this
