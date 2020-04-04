@@ -2,7 +2,7 @@
 # Any key starting with a dot will be interpreted as an extension generator.
 # .ans will be generated before all others.
 .ans: /solutions/accepted/sol.py
-.png: /visualizers/asy.py # Note that directly calling a shell executable is not allowed
+.png: /visualizers/asy.py # Note that directly calling executables in $PATH is not allowed
 
 
 # Optionally, a salt for generating the {seed} variables. Will be prepended to
@@ -49,20 +49,24 @@ data:
 # The entire value is passed through python shlex.shlex.
       06-string.in: stdout.py "a b" # gives a single string of length 3 as argument
 
-# {seed.*} anywhere in the argument string will be replaced by a 31-bit integer
-# hash of the entire command. Computed as:
+# The regex \{seed(:[0-9]+)\} (e.g. {seed} or {seed:1}) anywhere in the argument
+# string will be replaced by an integer hash # in [0, 2^31) of the entire command.
+# Each match will be replaced by the same value, computed as
 # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
       07-random-1.in:    stdout.py {seed}
-      08-random-1a.in:   stdout.py {seed}    # same seed. May warn for duplicate case.
+      08-random-1a.in:   stdout.py {seed}    # same seed. May warn for duplicate case. The comment is ignored.
       09-random-2.in:    stdout.py {seed:2}  # different seed, because of extra `2`
       10-random-3.in:    stdout.py seed={seed:2} # different seed, because command isn't the same.
 
 # Multiple commands are piped to each other. The last stdout is used.
+# TODO: Should we just drop piping completely? Nobody seems to really want this
+# anyway.
       10.in:
         - stdout.py 5
         - double.py     # reads 5 from stdin and writes 10 to stdout
 
 # Commands may write files, but only the final stdout is used.
+# The list of commands will be executed in a clean (temporary) directory.
       11.in:
         - tree.py 10 tree.txt           # write tree.txt
         - path.py 20 path.txt           # write path.txt
@@ -103,7 +107,9 @@ data:
           # 2_b.in: stdout.py b
 
 # Introduce a configuration scope by adding a dictionary with `type: scope` set.
-      scope:
+# This configuration (partially) overrides the parent configuration and only
+# affects generators inside this scope.
+      no_visualizer_scope:
         type: scope     # doesn't create a subdirectory
         .png: # Disable .png generation for ne
         data:
