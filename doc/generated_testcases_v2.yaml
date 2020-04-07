@@ -74,45 +74,45 @@ data:
     type: directory
     submission: # empty to disable generating .ans files here
     data:
-      1.in: stdout.py 1  # prints `1` to stdout, which is piped to 1.in
+      1: stdout.py 1  # prints `1` to stdout, which is piped to 1.in
 
 # To indicate a manual testcase, specify it with an empty value.
-      2.in: 
+      2: 
 # Any key that matches the glob `*.in` is a manual testcase that will be copied
 # from the given directory into the target testcase. The given directory
 # must not start with a / and will be relative to generators/.
-      3.in: manual_cases/sample/3.in
+      3: manual_cases/sample/3.in
 # Every testcase must be listed.
 # TOOLING: may allow this and print a warning.
-     #4.in:
+     #4:
 
   secret:
     type: directory
     data:
 
 # Types of generator programs.
-      01.in: stdout.py  3   # stdout of the command is written to 01.in.
-      02.in: stdout.cpp 4   # c++ is compiled as for validators
-      03.in: dir 5          # directories are OK as for validators
-      04.in: tree 5         # keys from the global generators: dictionary may also be used.
-      05.in: a 5            # idem
+      01: stdout.py  3   # stdout of the command is written to 01.in.
+      02: stdout.cpp 4   # c++ is compiled as for validators
+      03: dir 5          # directories are OK as for validators
+      04: tree 5         # keys from the global generators: dictionary may also be used.
+      05: a 5            # idem
 
 # The entire command is passed through python shlex.shlex.
-      06-string.in: stdout.py "a b"
+      06-string: stdout.py "a b"
 
 # The regex \{seed(:[0-9]+)?\} (e.g. {seed} or {seed:1}) anywhere in the argument
 # string will be replaced by an integer hash of the entire command in [0, 2^31).
 # The regex may match at most once.
 # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
-      07-random-1.in:    stdout.py {seed}
-     #08-random-1a.in:   stdout.py {seed}           # It's an error to use the exact same command twice.
-      09-random-2.in:    stdout.py {seed:2}         # Different seed, because of extra `2`
-      10-random-3.in:    stdout.py seed={seed:2}    # Different seed, because command isn't the same.
-     #10-random-4.in:    stdout.py {seed} {seed:2}  # Not allowed because the regex matches twice.
+      07-random-1:    stdout.py {seed}
+     #08-random-1a:   stdout.py {seed}           # It's an error to use the exact same command twice.
+      09-random-2:    stdout.py {seed:2}         # Different seed, because of extra `2`
+      10-random-3:    stdout.py seed={seed:2}    # Different seed, because command isn't the same.
+     #10-random-4:    stdout.py {seed} {seed:2}  # Not allowed because the regex matches twice.
 
 # No key (testcase or testgroup) may be a prefix of another key.
-     #01-second.in: stdout.py 6                     # Collision with rule 01.in above.
-     #hard_cases_group-01.in: stdout.py 7           # Collision with hard_cases_group below.
+     #01-second: stdout.py 6                     # Collision with rule 01.in above.
+     #hard_cases_group-01: stdout.py 7           # Collision with hard_cases_group below.
 
 # {name} may be used to reference the current test case name/dictionary key.
 #
@@ -176,26 +176,26 @@ data:
 # testgroups will be numbered lower than testcases specified after the
 # testgroup.
         data:
-          - a.in: stdout.py a
-            b.in: stdout.py b
+          - a: stdout.py a
+            b: stdout.py b
           - testgroup:
               type: directory
               data:
-                - c.in: stdout.py c
+                - c: stdout.py c
 # This is forbidden because data: dictionaries may not appear within data: lists.
              #data:
-             #  c.in: stdout.py c
-          - d.in: stdout.py d
+             #  c: stdout.py c
+          - d: stdout.py d
 
 # The above data: list is equivalent to the map:
        #data:
-       #  1-a.in: stdout.py a
-       #  1-b.in: stdout.py b
+       #  1-a: stdout.py a
+       #  1-b: stdout.py b
        #  2-testgroup:
        #    type: directory
        #    data:
-       #      3-c.in: stdout.py c
-       #  4-d.in: stdout.py d
+       #      3-c: stdout.py c
+       #  4-d: stdout.py d
        
 
 # At the directory level, unknown keys are allowed for tooling-specific
