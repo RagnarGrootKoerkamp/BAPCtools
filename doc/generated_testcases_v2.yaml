@@ -1,6 +1,6 @@
 # Example generators.yaml
 
-# The submission is used to generate a .ans for each generated .in which doesn't
+# The solution is used to generate a .ans for each generated .in which doesn't
 # yet have a corresponding .ans. If there are generators that don't write a .ans
 # file themselves, this must be specified.
 # This should read the input from stdin and write to stdout.
@@ -9,7 +9,7 @@
 # taken relative to the generators directory.
 #
 # TOOLING: may pick a default if not specified, but should raise a warning.
-submission: /solutions/accepted/sol.py
+solution: /submissions/accepted/sol.py
 
 # The visualizer is used when no suitable image was generated already.
 # This should read {name}.in and/or {name}.ans from the current working
@@ -26,7 +26,7 @@ random_salt: abcd
 
 # We support three types of generators:
 # - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
-#   be compiled and run the same way as solutions.
+#   be compiled and run the same way as submissions.
 # - Directories, like 
 #   - generators/gen/tree.cpp
 #   - generators/gen/lib.h
@@ -72,7 +72,7 @@ data:
   # Introduce the `sample` directory.
   sample:
     type: directory
-    submission: # empty to disable generating .ans files here
+    solution: # empty to disable generating .ans files here
     data:
       1: stdout.py 1  # prints `1` to stdout, which is piped to 1.in
 
