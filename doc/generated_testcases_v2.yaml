@@ -1,117 +1,203 @@
-# The following extensions will be created for each .in that's found.
-# Any key starting with a dot will be interpreted as an extension generator.
-# .ans will be generated before all others.
-.ans: /solutions/accepted/sol.py
-.png: /visualizers/asy.py # Note that directly calling executables in $PATH is not allowed
+# Example generators.yaml
 
+# The submission is used to generate a .ans for each generated .in which doesn't
+# yet have a corresponding .ans. If there are generators that don't write a .ans
+# file themselves, this must be specified.
+# This should read the input from stdin and write to stdout.
+#
+# Absolute paths are taken relative to the problem root, relative paths are
+# taken relative to the generators directory.
+#
+# TOOLING: may pick a default if not specified, but should raise a warning.
+submission: /solutions/accepted/sol.py
+
+# The visualizer is used when no suitable image was generated already.
+# This should read {name}.in and/or {name}.ans from the current working
+# directory, and write {name}.ext for an extension in:
+# .png, .jpg, jpeg, .svg
+#
+# TOOLING: may provide a flag to make running this optional, as it can be slow
+# and usually isn't required.
+visualizer: /visualizers/asy.py {name}
 
 # Optionally, a salt for generating the {seed} variables. Will be prepended to
 # the command being run.
 random_salt: abcd
 
-
-## Layout of generators/ directory:
-# - stdout.py <val>:             takes a value and writes it to stdout
-# - stdout.cpp <val>:            idem, but is a c++ file.
-# - dir/lib.h
-# - dir/generator.cpp <val>:     idem, but now includes a header. Works like validators.
-# - lib.py
-# - generator.py <val>:          uses lib.py. Fine because python will be executed locally.
-# - lib.sh
-# - generator.sh <val>:          uses lib.sh. Fine because shell will be executed locally.
-
+# We support three types of generators:
+# - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
+#   be compiled and run the same way as solutions.
+# - Directories, like 
+#   - generators/gen/tree.cpp
+#   - generators/gen/lib.h
+#   This will be compiled and run the same was as directory validators. Build
+#   and run scripts may be used.
+# - 'implicit' generators whose dependencies are specified in the generators:
+#   key below. The dependencies may refer to any files relative to generators/.
+#   The generator will be build and run as if they formed a separate directory.
+#   E.g. the first example would be equivalent to
+#   - generators/tree/lib.py
+#   - generators/tree/tree.py
+#
+# When a generator is used as a command to generate a .in file, we first check
+# if the name is a key in the generators: dictionary below. If that is the case,
+# the corresponding generator is used. If not, we will use the file/directory
+# generator in the generator/ directory directly.
+generators:
+# A generator that depends on two files, lib.py and tree.py, directly in the
+# generators directory.
+  tree:
+    - lib.py
+    - tree.py
+# Another generator that also depends on the same lib.py.
+  graph:
+    - lib.py
+    - graph.py
+# This also works for other languages.
+  a:
+    - a.h
+    - a.cpp
+# Single-file generators may be specified, but can also be referred to as
+# b.cpp directly.
+  b:
+    - b.cpp
+# It is allowed, but not required, to explicitly list single-file generators
+# as well. It is allowed to reuse the same name, but introducing a new name is
+# also fine.
+  c.py:
+    - c.py
+    - lib.py
 
 data:
   # Introduce the `sample` directory.
   sample:
     type: directory
-    .ans: # empty to disable generating .ans files here
+    submission: # empty to disable generating .ans files here
     data:
       1.in: stdout.py 1  # prints `1` to stdout, which is piped to 1.in
 
-# Manual cases
-
-      2.in: # empty value to indicate a manual case
-      3.in: /manual_cases/sample/3.in # Key that matches `/*.in` glob is a manual testcase that will be copied from elsewhere.
-     #4.in: # not listing a test is OK for development but will give warnings.
+# To indicate a manual testcase, specify it with an empty value.
+      2.in: 
+# Any key that matches the glob `*.in` is a manual testcase that will be copied
+# from the given directory into the target testcase. The given directory
+# must not start with a / and will be relative to generators/.
+      3.in: manual_cases/sample/3.in
+# Every testcase must be listed.
+# TOOLING: may allow this and print a warning.
+     #4.in:
 
   secret:
     type: directory
     data:
 
 # Types of generator programs.
-      01.in: stdout.py  3    
+      01.in: stdout.py  3   # stdout of the command is written to 01.in.
       02.in: stdout.cpp 4   # c++ is compiled as for validators
       03.in: dir 5          # directories are OK as for validators
-      04.in: generator.py 5 # python files may include local files. They are executed locally.
-      05.in: generator.py 5 # python files may include local files. They are executed locally.
+      04.in: tree 5         # keys from the global generators: dictionary may also be used.
+      05.in: a 5            # idem
 
-# The entire value is passed through python shlex.shlex.
-      06-string.in: stdout.py "a b" # gives a single string of length 3 as argument
+# The entire command is passed through python shlex.shlex.
+      06-string.in: stdout.py "a b"
 
-# The regex \{seed(:[0-9]+)\} (e.g. {seed} or {seed:1}) anywhere in the argument
+# The regex \{seed(:[0-9]+)?\} (e.g. {seed} or {seed:1}) anywhere in the argument
 # string will be replaced by an integer hash of the entire command in [0, 2^31).
 # The regex may match at most once.
 # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
       07-random-1.in:    stdout.py {seed}
-      08-random-1a.in:   stdout.py {seed}    # same seed. May warn for duplicate case. The comment is ignored.
-      09-random-2.in:    stdout.py {seed:2}  # different seed, because of extra `2`
-      10-random-3.in:    stdout.py seed={seed:2} # different seed, because command isn't the same.
-     #10-random-4.in:    stdout.py {seed} {seed:2} # Not allowed because the regex matches twice.
+     #08-random-1a.in:   stdout.py {seed}           # It's an error to use the exact same command twice.
+      09-random-2.in:    stdout.py {seed:2}         # Different seed, because of extra `2`
+      10-random-3.in:    stdout.py seed={seed:2}    # Different seed, because command isn't the same.
+     #10-random-4.in:    stdout.py {seed} {seed:2}  # Not allowed because the regex matches twice.
 
-# Multiple commands are piped to each other. The last stdout is used.
-# TODO: Should we just drop piping completely? Nobody seems to really want this
-# anyway.
-      10.in:
-        - stdout.py 5
-        - double.py     # reads 5 from stdin and writes 10 to stdout
+# No key (testcase or testgroup) may be a prefix of another key.
+     #01-second.in: stdout.py 6                     # Collision with rule 01.in above.
+     #hard_cases_group-01.in: stdout.py 7           # Collision with hard_cases_group below.
 
-# Commands may write files, but only the final stdout is used.
-# The list of commands will be executed in a clean (temporary) directory.
-      11.in:
-        - tree.py 10 tree.txt           # write tree.txt
-        - path.py 20 path.txt           # write path.txt
-        - combine.py tree.txt path.txt  # read tree.txt and path.txt and write testcase to stdout
+# {name} may be used to reference the current test case name/dictionary key.
+#
+# Commands are allowed to write files in the current working directory as long
+# as they do not overwrite existing files. Files starting with the current
+# {name} may always be written to.
+# Commands may only read files that they have written themselves.
+#
+# Any written files matching {name}.ext where ext is a know extension in
+# .in, .ans, .hint, .desc, .png, .jpg, .jpeg, .svg
+# will be saved.
+#
+# In case a program writes {name}.in, stdout will be ignored.
+# In case {name}.in is not created, stdout will be used as input.
+      12: write_in_and_ans.py {name}
 
-# When the key does not end with '.in', stdout will be ignored and instead all
-# files having the key as prefix are stored.
-# All keys must not be prefixes of each other.
-# {prefix} will be substituted by the current key, and *MUST* be used.
-      12: write_in_and_ans.py {prefix}      # writes {prefix}.in and {prefix}.ans
-      13-graphs: write_graphs.py {prefix}   # writes {prefix}-1.in and {prefix}-2.in
+
+# To override the global/testgroup configuration on a per-testcase basis,
+# a dictionary may be used. This allows the solution: and visualizer: keys,
+# as well as the input: key which contains the command to execute.
+      13_no_visualizer:
+        input: large_case_generator.py 1000000
+        solution: gnu_multi_precision.cpp   # Some local file in generators/.
+        visualizer:                         # Empty to disable the visualizer here.
+
+
 
 # Introduce a testgroup by adding a dictionary with `type: directory` set.
-      testgroup:
-        type: directory # creates a subdirectory
+# The top-level is always assumed to be a directory.
+      hard_cases_group:
+# TODO: We could drop this because testcase dictionaries need the input: key
+# while testgroups need the include: and/or data: keys.
+        type: directory
 
-# Directories may contains a testdata.yaml that will be written as specified.
-# Future versions may lift the scoring config directly into the directory scope.
+# Directories may contain a testdata.yaml that will be written as specified.
         testdata.yaml:
           on_reject: break
           accept_score: 25
           range: 0 25
           grader_flags: min
 
-# A testgroup may include all cases in another testgroup. These will be
-# symlinked. May be a single value or a list of groups. Paths are absolute,
-# starting at data/.
-        include: 
-          - /sample
+# A testgroup may include all cases in another testgroup. All files for each
+# testcase in the other testgroup will be symlinked into the current testgroup.
+# Nested included testcases are also included here.
+#
+# This must be a list of testgroups and/or testcases paths relative to data/.
+# Testcases must be referred to by their {name}.
+        include:
+          - sample
+          - secret/03_no_visualizer
         
+# To enable automatic numbering of testcases, data: may also contain a list of
+# dictionaries instead of a single dictionary. In this case, testcases and/or
+# groups will be numbered in the order they appear. The system will determine
+# the required number of digits to use and numbers will be zero-padded
+# accordingly, using a dash as separator from the given name.
+#
+# Any testgroup inside a list must contain a list object as data:.
+#
+# Numbering is scoped for each outermost data: list. Testcases in (nested)
+# testgroups will be numbered lower than testcases specified after the
+# testgroup.
         data:
-# Numbering: when that `data` key has a list instead of dictionary, cases will
-# be numbered automatically. Each list item must contain a 1-item dictionary.
           - a.in: stdout.py a
-          - b.in: stdout.py b
-          # Equivalent to the map:
-          # 1_a.in: stdout.py a
-          # 2_b.in: stdout.py b
+            b.in: stdout.py b
+          - testgroup:
+              type: directory
+              data:
+                - c.in: stdout.py c
+# This is forbidden because data: dictionaries may not appear within data: lists.
+             #data:
+             #  c.in: stdout.py c
+          - d.in: stdout.py d
 
-# Introduce a configuration scope by adding a dictionary with `type: scope` set.
-# This configuration (partially) overrides the parent configuration and only
-# affects generators inside this scope.
-      no_visualizer_scope:
-        type: scope     # doesn't create a subdirectory
-        .png: # Disable .png generation for ne
-        data:
-          14.in: stdout.py 1234
+# The above data: list is equivalent to the map:
+       #data:
+       #  1-a.in: stdout.py a
+       #  1-b.in: stdout.py b
+       #  2-testgroup:
+       #    type: directory
+       #    data:
+       #      3-c.in: stdout.py c
+       #  4-d.in: stdout.py d
+       
+
+# At the directory level, unknown keys are allowed for tooling-specific
+# extensions.
+unknown_key: tool_specific_config
