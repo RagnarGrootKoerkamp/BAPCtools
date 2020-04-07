@@ -111,7 +111,7 @@ data:
      #10-random-4:    stdout.py {seed} {seed:2}  # Not allowed because the regex matches twice.
 
 # No key (testcase or testgroup) may be a prefix of another key.
-     #01-second: stdout.py 6                     # Collision with rule 01.in above.
+     #01-second: stdout.py 6                     # Collision with rule 01 above.
      #hard_cases_group-01: stdout.py 7           # Collision with hard_cases_group below.
 
 # {name} may be used to reference the current test case name/dictionary key.
