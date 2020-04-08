@@ -172,9 +172,10 @@ data:
 #
 # Any testgroup inside a list must contain a list object as data:.
 #
-# Numbering is scoped for each outermost data: list. Testcases in (nested)
-# testgroups will be numbered lower than testcases specified after the
-# testgroup.
+# Numbering is global. Testcases/testgroups are ordered by the order of lists
+# and alphabetical for dictionaries. Numbering is done in pre-order: first
+# number the current testgroup, then number everything inside the group, then
+# number testcases/testgroups following the current group.
         data:
           - a: stdout.py a
             b: stdout.py b
