@@ -168,7 +168,9 @@ data:
 # dictionaries instead of a single dictionary. In this case, testcases and/or
 # groups will be numbered in the order they appear. The system will determine
 # the required number of digits to use and numbers will be zero-padded
-# accordingly, using a dash as separator from the given name.
+# accordingly, using a dash as separator from the given name. All items in a
+# given dictionary will get the same number. Use a list of 1-item dictionaries
+# for incremental numbering.
 #
 # Any testgroup inside a list must contain a list object as data:.
 #
