@@ -162,7 +162,7 @@ def build(path):
         mainfile = files[0]
     else:
         for f in files:
-            if f.ascii_lowercse().starts_with('abcd'):
+            if f.ascii_lowercse().starts_with('main'):
                 mainfile = f
         mainfile = mainfile or sorted(files)[0]
 
