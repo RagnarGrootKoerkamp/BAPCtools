@@ -26,7 +26,7 @@ random_salt: abcd
 
 # We support three types of generators:
 # - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
-#   be compiled and run the same way as submissions.
+#   be compiled if required and run the same way as submissions.
 # - Directories, like 
 #   - generators/gen/tree.cpp
 #   - generators/gen/lib.h
@@ -34,8 +34,8 @@ random_salt: abcd
 #   and run scripts may be used.
 # - 'implicit' generators whose dependencies are specified in the generators:
 #   key below. The dependencies may refer to any files relative to generators/.
-#   The generator will be build and run as if they formed a separate directory.
-#   E.g. the first example would be equivalent to
+#   The generator will be built and run as if they formed a separate directory.
+#   E.g. the first example below would be equivalent to
 #   - generators/tree/lib.py
 #   - generators/tree/tree.py
 #
@@ -68,6 +68,9 @@ generators:
     - c.py
     - lib.py
 
+# The data: keyword contains the list of test cases and test data groups.
+# Note that this is different from the data/ directory, which is where the keys
+# of this top-level data: dictionary will be written.
 data:
   # Introduce the `sample` directory.
   sample:
@@ -216,6 +219,6 @@ data:
        #  4-d: stdout.py d
        
 
-# At the directory level, unknown keys are allowed for tooling-specific
-# extensions.
+# Unknown keys are allowed inside directory dictionaries for tooling-specific
+# extensions. This includes both the global scope and explicit directories with type: directory.
 unknown_key: tool_specific_config
