@@ -1,64 +1,13 @@
 import hashlib
 import shlex
 import shutil
-import yaml
+import yaml as yamllib
 
 from util import *
+from pathlib import Path
 import build
 import validate
 import run
-
-
-# Return config, generator_runs pair
-def _parse_gen_yaml(problem):
-    yaml_path = problem / 'generators' / 'gen.yaml'
-    if not yaml_path.is_file():
-        return None, {}
-
-    yaml_data = yaml.safe_load(yaml_path.read_text())
-
-    gen_config = None
-    if 'config' in yaml_data:
-        gen_config = yaml_data['config']
-        del yaml_data['config']
-
-    # path -> [commands]
-    generator_runs = {}
-
-    def parse_yaml(prefix, m):
-        for key in m:
-            if prefix / key in generator_runs:
-                warn(f'Duplicate generator key {prefix/key}.')
-            if m[key] is None:
-                # manual testcase
-                continue
-            if isinstance(m[key], dict):
-                parse_yaml(prefix / key, m[key])
-                continue
-            if isinstance(m[key], list):
-                generator_runs[prefix / key] = m[key]
-                continue
-            if isinstance(m[key], str):
-                generator_runs[prefix / key] = [m[key]]
-                continue
-            error(f'Could not parse generator value for key {key}: {m[key]}')
-
-    parse_yaml(Path(''), yaml_data)
-
-    # Filter for the given paths.
-    if hasattr(config.args, 'generators') and config.args.generators != []:
-
-        def drop_data(p):
-            return p[5:] if p.startswith('data/') else p
-
-        prefixes = tuple(drop_data(p) for p in config.args.generators)
-        new_runs = {}
-        for path in generator_runs:
-            if str(path).startswith(prefixes):
-                new_runs[path] = generator_runs[path]
-        generator_runs = new_runs
-
-    return gen_config, generator_runs
 
 
 # Run generators according to the gen.yaml file.
@@ -349,3 +298,216 @@ def clean(problem):
             pass
 
     return True
+
+
+## NEW
+
+
+def is_testcase(yaml):
+    return yaml == '' or isinstance(yaml, str) or (isinstance(yaml, dict) and 'input' in yaml)
+
+
+def is_directory(yaml):
+    return isinstance(yaml, dict) and 'type' in yaml and yaml['type'] == 'directory'
+
+
+# Holds all inheritable configuration options. Currently:
+# - config.solution
+# - config.visualizer
+# - config.random_salt
+class Config:
+    INHERITABLE_KEYS = [
+        ('solution', None),
+        ('visualizer', None),
+        ('random_salt', ''),
+    ]
+
+    def __init__(self, yaml=None, parent_config=None):
+        assert not yaml or isinstance(yaml, dict)
+        for key, default in self.INHERITABLE_KEYS:
+            if yaml and key in yaml:
+                setattr(self, key, yaml[key])
+            elif parent_config is not None:
+                setattr(self, key, vars(parent_config)[key])
+            else:
+                setattr(self, key, default)
+
+
+class Base:
+    def __init__(self, name, yaml, parent):
+        assert parent is not None
+
+        if isinstance(yaml, dict):
+            self.config = Config(yaml, parent.config)
+        else:
+            self.config = parent.config
+
+        self.name = name
+        self.path: Path = parent.path / self.name
+
+
+class Testcase(Base):
+    def __init__(self, name: str, yaml, parent):
+        assert is_testcase(yaml)
+
+        self.manual = False
+
+        if yaml == '':
+            self.manual = True
+            yaml = {'input': None}
+        if isinstance(yaml, str) and yaml.endswith('.in'):
+            self.manual = True
+            assert not yaml.startswith('/')
+        if isinstance(yaml, str):
+            yaml = {'input': yaml}
+
+        assert isinstance(yaml, dict)
+        assert 'input' in yaml
+        assert yaml['input'] is None or isinstance(yaml['input'], str)
+
+        super().__init__(name, yaml, parent)
+
+        self.input = yaml['input']
+
+        # TODO: Should the seed depend on white space? For now it does.
+        if not self.manual:
+            seed_value = self.config.random_salt + self.input
+            self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
+
+            commands = shlex.split(self.input)
+            self.generator = commands[0]
+            assert not self.generator.startswith('/')
+
+            # NOTE: Still need to replace {seed} and {name}.
+            self.arguments = commands[1:]
+
+
+class Directory(Base):
+    # Process yaml object for a directory.
+    def __init__(self, name: str = None, yaml: dict = None, parent=None):
+        if name is None:
+            self.name = ''
+            self.config = Config()
+            self.path = Path('')
+            self.numbered = False
+            return
+
+        assert is_directory(yaml)
+
+        super().__init__(name, yaml, parent)
+
+        if 'testdata.yaml' in yaml:
+            self.testdata_yaml = yaml['testdata.yaml']
+        else:
+            self.testdata_yaml = None
+
+        self.numbered = False
+        # These field will be filled by parse().
+        self.include = []
+        self.data = []
+
+        # Sanity checks for possibly empty data.
+        if 'data' not in yaml: return
+        data = yaml['data']
+        if data is None: return
+        assert isinstance(data, dict) or isinstance(data, list)
+        if len(data) == 0: return
+
+        if isinstance(data, dict):
+            yaml['data'] = [data]
+            assert parent.numbered is False
+
+        if isinstance(data, list):
+            self.numbered = True
+
+
+class GeneratorConfig:
+    ROOT_KEYS = [
+            ('generators', []), ]
+
+    def __init__(self, yaml_path: Path):
+        if not yaml_path.is_file(): exit(1)
+
+        yaml = yamllib.load(yaml_path.read_text(), Loader=yamllib.BaseLoader)
+
+        assert isinstance(yaml, dict)
+        yaml['type'] = 'directory'
+
+        # Read root level configuration
+        for key, default in self.ROOT_KEYS:
+            if yaml and key in yaml:
+                # TODO: Parse generators array to something more usable.
+                setattr(self, key, yaml[key])
+            else:
+                setattr(self, key, default)
+
+        next_number = 1
+        # A map from directory paths `secret/testgroup` to Directory objects, used to resolve testcase
+        # inclusion.
+        data_dict = {}
+
+        self.num_testcases = 0
+
+        # Things that we'll need to build.
+        self.generators_used = set()
+        self.solutions_used = set()
+        self.visualizers_used = set()
+
+        # Main recursive parsing function.
+        def parse(name, yaml, parent):
+            nonlocal next_number, data_dict
+
+            assert is_testcase(yaml) or is_directory(yaml)
+
+            if is_testcase(yaml):
+                t = Testcase(name, yaml, parent)
+                assert t.path not in data_dict
+                data_dict[t.path] = t
+
+                self.num_testcases += 1
+                if not t.manual: self.generators_used.add(t.generator)
+                if t.config.solution: self.solutions_used.add(t.config.solution)
+                if t.config.visualizer: self.visualizers_used.add(t.config.visualizer)
+
+                return t
+
+            assert is_directory(yaml)
+
+            d = Directory(name, yaml, parent)
+            assert d.path not in data_dict
+            data_dict[d.path] = d
+
+            def get_include(path: str) -> Directory:
+                path = Path(path)
+                assert path in data_dict
+                return data_dict[path]
+
+            if 'include' in yaml:
+                self.include = [get_include(include) for include in yaml['include']]
+
+            self.data = []
+
+            if 'data' not in yaml: return d
+
+            for dictionary in yaml['data']:
+                if d.numbered:
+                    number_prefix = str(next_number) + '-'
+                    next_number += 1
+                else:
+                    number_prefix = ''
+
+                for child_name, child_yaml in sorted(dictionary.items()):
+                    if isinstance(child_name, int): child_name = str(child_name)
+                    child_name = number_prefix + child_name
+                    d.data.append(parse(child_name, child_yaml, d))
+
+            return d
+
+        self.root_dir = parse('', yaml, Directory())
+
+        print(self.generators_used)
+
+
+def test_generate(yaml_paths):
+    GeneratorConfig(Path(yaml_paths[0]))
+    exit(0)

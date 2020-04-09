@@ -376,6 +376,11 @@ def main():
                                                     'verbose') and config.args.verbose else 0
     action = config.args.action
 
+    # TODO: Remove this; it's for testing only.
+    if action == 'generate':
+        generate.test_generate(config.args.generators)
+        return
+
     if action in ['new_contest']:
         skel.new_contest(config.args.contestname)
         return
