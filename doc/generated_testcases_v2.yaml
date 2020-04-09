@@ -104,6 +104,8 @@ data:
 # string will be replaced by an integer hash of the entire command in [0, 2^31).
 # The regex may match at most once.
 # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
+# TODO: Should whitespace matter? We could also first shlex the command to
+# remove meaningless whitespace. That's also how we should error on identical commands.
       07-random-1:    stdout.py {seed}
      #08-random-1a:   stdout.py {seed}           # It's an error to use the exact same command twice.
       09-random-2:    stdout.py {seed:2}         # Different seed, because of extra `2`
@@ -137,6 +139,8 @@ data:
         input: large_case_generator.py 1000000
         solution: gnu_multi_precision.cpp   # Some local file in generators/.
         visualizer:                         # Empty to disable the visualizer here.
+# TODO: Adding this because we can.
+        random_salt: 123
 
 
 
@@ -160,9 +164,20 @@ data:
 #
 # This must be a list of testgroups and/or testcases paths relative to data/.
 # Testcases must be referred to by their {name}.
+#
+# You may only include testgroups that come before the current group, either
+# earlier in a list or earlier alphabetically in dictionaries.
+#
+# TODO: How does this interact with numbering? How do we guarantee included
+# cases come first?
+# include numbered into numbered: OK
+# include dict into dict:     error on name collision. How to guarantee they
+# come first?
+# include numbered into dict: error on name collision. Do we allow this?
+# include dict into numbered: error on name collision. Do we allow this?
         include:
           - sample
-          - secret/03_no_visualizer
+          - secret/03
         
 # To enable automatic numbering of testcases, data: may also contain a list of
 # dictionaries instead of a single dictionary. In this case, testcases and/or
