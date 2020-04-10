@@ -5,6 +5,8 @@ import yaml as yamllib
 
 from util import *
 from pathlib import Path
+
+import config
 import build
 import validate
 import run
@@ -349,6 +351,7 @@ class Base:
 class Testcase(Base):
     def __init__(self, name: str, yaml, parent):
         assert is_testcase(yaml)
+        assert config.COMPILED_BASE_NAME_REGEX.fullmatch(name)
 
         self.manual = False
 
@@ -393,6 +396,8 @@ class Directory(Base):
             return
 
         assert is_directory(yaml)
+        if name != '':
+            assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name)
 
         super().__init__(name, yaml, parent)
 

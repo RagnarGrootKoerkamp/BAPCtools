@@ -42,3 +42,7 @@ n_warn = 0
 languages = None
 FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
+
+# doesn't require at least 2 characters
+BASE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*'
+COMPILED_BASE_NAME_REGEX = re.compile(BASE_NAME_REGEX)
