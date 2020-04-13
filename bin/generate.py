@@ -4,6 +4,9 @@ import re
 import shlex
 import shutil
 import yaml as yamllib
+import queue
+import threading
+import distutils.util
 
 from util import *
 from pathlib import Path
@@ -302,7 +305,7 @@ class Testcase(Base):
             self.program = Generator(yaml['input'])
 
     def generate(t, problem, input_validators, output_validators, bar):
-        bar.start(str(t.path))
+        bar = bar.start(str(t.path))
 
         # E.g. bapctmp/problem/data/secret/1.in
         cwd = config.tmpdir / problem.id / 'data' / t.path
@@ -516,7 +519,6 @@ class Directory(Base):
                 if ext_file.is_file():
                     ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
                     files_created.append(dir_path / ext_file.name)
-            bar.done()
 
         # Check for unlisted files.
         for f in dir_path.glob('*'):
@@ -577,6 +579,10 @@ class GeneratorConfig:
 
     ROOT_KEYS = [
         ('generators', [], parse_generators),
+
+        # Non-standard key. When set, run will be parallelized.
+        # Accepts: y/yes/t/true/on/1 and n/no/f/false/off/0 and returns 0 or 1.
+        ('parallel', 1, distutils.util.strtobool),
     ]
 
     # Parse generators.yaml.
@@ -747,11 +753,49 @@ class GeneratorConfig:
 
         bar = ProgressBar('Generate', items=item_names)
 
-        # TODO: Walk in parallel.
-        self.root_dir.walk(
-            lambda t: t.generate(self.problem, self.input_validators, self.output_validators, bar),
-            lambda d: d.generate(self.problem, self.known_cases, bar),
-        )
+        if not self.parallel:
+            self.root_dir.walk(
+                lambda t: t.generate(self.problem, self.input_validators, self.output_validators, bar),
+                lambda d: d.generate(self.problem, self.known_cases, bar),
+            )
+        else:
+            # Parallelize generating test cases.
+            # All testcases are generated in separate threads. Directories are still handled by the
+            # main thread. We only start processing a directory after all preceding test cases have
+            # completed to avoid problems with including cases.
+            q = queue.Queue()
+
+            def worker():
+                while True:
+                    testcase = q.get()
+                    if testcase is None: break
+                    testcase.generate(self.problem, self.input_validators, self.output_validators, bar),
+                    q.task_done()
+
+            # TODO: Make this a command line/generators.yaml option?
+            num_worker_threads = 4
+            threads = []
+            for _ in range(num_worker_threads):
+                t = threading.Thread(target=worker)
+                t.start()
+                threads.append(t)
+
+            def generate_dir(d):
+                q.join()
+                d.generate(self.problem, self.known_cases, bar)
+
+            self.root_dir.walk(
+                lambda t: q.put(t),
+                generate_dir,
+            )
+
+            q.join()
+
+            for _ in range(num_worker_threads):
+                q.put(None)
+            for t in threads:
+                t.join()
+
         bar.finalize()
 
     def clean(self):
