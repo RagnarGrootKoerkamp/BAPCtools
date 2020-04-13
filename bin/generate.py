@@ -108,7 +108,7 @@ class Generator(Program):
 
             assert self.exec is not None
 
-            command = self.exec + self.substitute_args(name=name, seed=seed+retry)
+            command = self.exec + self.substitute_args(name=name, seed=seed + retry)
 
             stdout_file = stdout_path.open('w')
             try_ok, err, out = exec_command(command, stdout=stdout_file, timeout=timeout, cwd=cwd)
@@ -161,7 +161,8 @@ class Solution(Program):
         if ans_path.is_file(): return True
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        ok, duration, err, out = run.run_testcase(self.exec + self.args, in_path, ans_path, timeout)
+        ok, duration, err, out = run.run_testcase(self.exec + self.args, in_path, ans_path,
+                                                  timeout)
         if duration > timeout:
             bar.error('TIMEOUT')
             return False
@@ -180,13 +181,14 @@ class Solution(Program):
         if interaction_path.is_file(): return True
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        verdict, duration, err, out = run.process_interactive_testcase(self.exec + self.args,
-                                                                       in_path,
-                                                                       settings,
-                                                                       output_validators,
-                                                                       validator_error=None,
-                                                                       team_error=None,
-                                                                       interaction=interaction_path)
+        verdict, duration, err, out = run.process_interactive_testcase(
+            self.exec + self.args,
+            in_path,
+            settings,
+            output_validators,
+            validator_error=None,
+            team_error=None,
+            interaction=interaction_path)
         if verdict != 'ACCEPTED':
             if duration > timeout:
                 bar.error('TIMEOUT')
@@ -197,7 +199,6 @@ class Solution(Program):
             return False
 
         return True
-
 
 
 class Visualizer(Program):
@@ -300,6 +301,123 @@ class Testcase(Base):
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
             self.program = Generator(yaml['input'])
 
+    def generate(t, problem, input_validators, output_validators, bar):
+        bar.start(str(t.path))
+
+        # E.g. bapctmp/problem/data/secret/1.in
+        cwd = config.tmpdir / problem.id / 'data' / t.path
+        cwd.mkdir(parents=True, exist_ok=True)
+        infile = cwd / (t.name + '.in')
+        ansfile = cwd / (t.name + '.ans')
+
+        # Generate .in
+        if t.manual:
+            manual_data = problem.path / t.source
+            if not manual_data.is_file():
+                bar.error(f'Manual source {t.source} not found.')
+                return
+
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                ext_file = manual_data.with_suffix(ext)
+                if ext_file.is_file():
+                    ensure_symlink(infile.with_suffix(ext), ext_file)
+        else:
+            if not t.program.run(bar, cwd, t.name, t.seed, t.config.retries):
+                return
+
+        # Validate the manual or generated .in.
+        if not validate.validate_testcase(problem, infile, input_validators, 'input', bar=bar):
+            return
+
+        # Generate .ans and/or .interaction for interactive problems.
+        # TODO: Disable this with a flag.
+        if t.config.solution:
+            if problem.settings.validation != 'custom interactive':
+                if not t.config.solution.run(bar, cwd, t.name):
+                    return
+                if not validate.validate_testcase(
+                        problem, ansfile, output_validators, 'input', bar=bar):
+                    return
+            else:
+                if not t.config.solution.run_interactive(bar, cwd, t.name, output_validators):
+                    return
+
+        # Generate visualization
+        # TODO: Disable this with a flag.
+        if t.config.visualizer:
+            if not t.config.visualizer.run(bar, cwd, t.name):
+                return
+
+        target_dir = problem.path / 'data' / t.path.parent
+        if t.path.parents[0] == Path('sample'):
+            msg = '; supply -f --samples to override'
+            forced = problem.settings.force and problem.settings.samples
+        else:
+            msg = '; supply -f to override'
+            forced = problem.settings.force
+
+        for ext in config.KNOWN_DATA_EXTENSIONS:
+            source = cwd / (t.name + ext)
+            target = target_dir / (t.name + ext)
+
+            if source.is_file():
+                if target.is_file():
+                    if source.read_text() == target.read_text():
+                        # identical -> skip
+                        continue
+                    else:
+                        # different -> overwrite
+                        if not forced:
+                            bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
+                            continue
+                        bar.log(f'CHANGED {target.name}')
+                else:
+                    # new file -> move it
+                    bar.log(f'NEW {target.name}')
+
+                # Symlinks have to be made relative to the problem root again.
+                if source.is_symlink():
+                    source = source.resolve().relative_to(problem.path.parent.resolve())
+                    ensure_symlink(target, source, relative=True)
+                else:
+                    source.rename(target)
+            else:
+                if target.is_file():
+                    # remove old target
+                    if not forced:
+                        bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
+                        continue
+                    else:
+                        bar.warn(f'REMOVED {target.name}')
+                        target.unlink()
+                else:
+                    continue
+
+        for f in cwd.glob('*'):
+            f.unlink()
+
+        bar.done()
+
+    def clean(t, problem, bar):
+        bar.start(str(t.path))
+
+        path = Path('data') / t.path.with_suffix(t.path.suffix + '.in')
+
+        # Skip cleaning manual cases that are their own source.
+        if t.manual and t.source == path:
+            bar.log(f'Keep manual case')
+            bar.done()
+            return
+
+        infile = problem.path / path
+        for ext in config.KNOWN_DATA_EXTENSIONS:
+            ext_file = infile.with_suffix(ext)
+            if ext_file.is_file():
+                bar.log(f'Remove file {ext_file.name}')
+                ext_file.unlink()
+
+        bar.done()
+
 
 class Directory(Base):
     # Process yaml object for a directory.
@@ -342,18 +460,106 @@ class Directory(Base):
             self.numbered = True
 
     # Map a function over all test cases directory tree.
-    def walk(self, testcase_f=None, dir_f=None, *, dir_first=True):
+    # dir_f by default reuses testcase_f
+    def walk(self, testcase_f=None, dir_f=True, *, dir_last=False):
+        if dir_f is True: dir_f = testcase_f
         for d in self.data:
             if isinstance(d, Directory):
-                if dir_first and dir_f:
+                if not dir_last and dir_f:
                     dir_f(d)
-                d.walk(testcase_f, dir_f, dir_first=dir_first)
-                if not dir_first and dir_f:
+                d.walk(testcase_f, dir_f, dir_last=dir_last)
+                if dir_last and dir_f:
                     dir_f(d)
             elif isinstance(d, Testcase):
                 if testcase_f: testcase_f(d)
             else:
                 assert False
+
+    def generate(d, problem, known_cases, bar):
+        # Generate the current directory:
+        # - create the directory
+        # - write testdata.yaml
+        # - include linked testcases
+        # - check for unknown manual cases
+        bar.start(str(d.path))
+
+        dir_path = problem.path / 'data' / d.path
+        dir_path.mkdir(parents=True, exist_ok=True)
+
+        files_created = []
+
+        # Write the testdata.yaml, or remove it when the key is set but empty.
+        testdata_yaml_path = dir_path / 'testdata.yaml'
+        if d.testdata_yaml is not None:
+            if d.testdata_yaml:
+                yaml_text = yamllib.dump(d.testdata_yaml)
+                if not testdata_yaml_path.is_file() or yaml_text != testdata_yaml_path.read_text():
+                    testdata_yaml_path.write_text(yaml_text)
+                files_created.append(testdata_yaml_path)
+            if d.testdata_yaml == '' and testdata_yaml_path.is_file():
+                testdata_yaml_path.unlink()
+
+        # Symlink existing testcases.
+        cases_to_link = []
+        for include in d.includes:
+            include = problem.path / 'data' / include
+            if include.is_dir():
+                cases_to_link += include.glob('*.in')
+            elif include.with_suffix(include.suffix + '.in').is_file():
+                cases_to_link.append(include.with_suffix(include.suffix + '.in'))
+            else:
+                assert False
+
+        for case in cases_to_link:
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                ext_file = case.with_suffix(ext)
+                if ext_file.is_file():
+                    ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
+                    files_created.append(dir_path / ext_file.name)
+            bar.done()
+
+        # Check for unlisted files.
+        for f in dir_path.glob('*'):
+            if f in files_created: continue
+            if f.with_suffix('').relative_to(problem.path / 'data') in known_cases: continue
+            bar.warn(f'Found unlisted file {f.name}')
+
+        bar.done()
+        return True
+
+    def clean(d, problem, bar):
+        # Clean the current directory:
+        # - remove testdata.yaml
+        # - remove linked testcases
+        # - remove the directory if it's empty
+        bar.start(str(d.path))
+
+        dir_path = problem.path / 'data' / d.path
+
+        # Remove the testdata.yaml when the key is present.
+        testdata_yaml_path = dir_path / 'testdata.yaml'
+        if d.testdata_yaml is not None and testdata_yaml_path.is_file():
+            bar.log(f'Remove testdata.yaml')
+            testdata_yaml_path.unlink()
+
+        # Remove all symlinks that correspond to includes.
+        for f in dir_path.glob('*'):
+            if f.is_symlink():
+                target = Path(os.path.normpath(f.parent / os.readlink(f))).relative_to(
+                    problem.path / 'data').with_suffix('')
+
+                if target in d.includes or target.parent in d.includes:
+                    bar.log(f'Remove linked file {f.name}')
+                    f.unlink()
+
+        # Try to remove the directory. Fails if it's not empty.
+        try:
+            dir_path.rmdir()
+            bar.log(f'Remove directory {dir_path.name}')
+        except:
+            pass
+
+        bar.done()
 
 
 class GeneratorConfig:
@@ -387,7 +593,6 @@ class GeneratorConfig:
         # Read root level configuration
         for key, default, func in self.ROOT_KEYS:
             if yaml and key in yaml:
-                # TODO: Parse generators array to something more usable.
                 setattr(self, key, func(yaml[key]))
             else:
                 setattr(self, key, default)
@@ -493,7 +698,7 @@ class GeneratorConfig:
             if t.config.visualizer:
                 visualizers_used.add(t.config.visualizer.command)
 
-        self.root_dir.walk(collect_programs)
+        self.root_dir.walk(collect_programs, dir_f=None)
 
         def build_programs(name, programs, *, allow_generators_dict=False):
             bar = ProgressBar('Build ' + name, items=[prog.name for prog in programs])
@@ -531,241 +736,32 @@ class GeneratorConfig:
             if t.config.visualizer:
                 t.config.visualizer.exec = self.visualizer_commands[t.config.visualizer.command]
 
-        self.root_dir.walk(set_exec)
+        self.root_dir.walk(set_exec, dir_f=None)
 
         self.input_validators = validate.get_validators(self.problem.path, 'input')
         self.output_validators = validate.get_validators(self.problem.path, 'output')
 
-
     def run(self):
         item_names = []
-        self.root_dir.walk(lambda t: item_names.append(t.path),
-                           lambda d: item_names.append(d.path))
+        self.root_dir.walk(lambda x: item_names.append(x.path))
 
         bar = ProgressBar('Generate', items=item_names)
 
-        success = True
-
-        # TODO: Move to Directory class.
-        # Generate the current directory:
-        # - create the directory
-        # - write testdata.yaml
-        # - include linked testcases
-        # - check for unknown manual cases
-        def generate_dir(d):
-            bar.start(str(d.path))
-
-            dir_path = self.problem.path / 'data' / d.path
-            dir_path.mkdir(parents=True, exist_ok=True)
-
-            # Write the testdata.yaml, or remove it when the key is set but empty.
-            testdata_yaml_path = dir_path / 'testdata.yaml'
-            if d.testdata_yaml is not None:
-                if d.testdata_yaml:
-                    # TODO: Only write on file changed?
-                    yamllib.dump(d.testdata_yaml, testdata_yaml_path.open('w'))
-                if d.testdata_yaml == '' and testdata_yaml_path.is_file():
-                    testdata_yaml_path.unlink()
-
-            # Symlink existing testcases.
-            for include in d.includes:
-                include = self.problem.path / 'data' / include
-                if include.is_dir():
-                    # include all cases in the directory
-                    for case in include.glob('*.in'):
-                        for ext in config.KNOWN_DATA_EXTENSIONS:
-                            ext_file = case.with_suffix(ext)
-                            if ext_file.is_file():
-                                ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
-                elif include.with_suffix(include.suffix+'.in').is_file():
-                    # include the testcase
-                    for ext in config.KNOWN_DATA_EXTENSIONS:
-                        ext_file = include.with_suffix(ext)
-                        if ext_file.is_file():
-                            ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
-                else:
-                    assert False
-
-            # TODO: Check for unlisted files.
-
-            bar.done()
-
-        # TODO: Move to Testcase class.
-        # TODO: Support interactive problems again.
-        def generate_testcase(t):
-
-            bar.start(str(t.path))
-
-            # E.g. bapctmp/problem/data/secret/1.in
-            cwd = config.tmpdir / self.problem.id / 'data' / t.path
-            cwd.mkdir(parents=True, exist_ok=True)
-            infile = cwd / (t.name+'.in')
-            ansfile = cwd / (t.name+'.ans')
-
-            nonlocal success
-
-            # Generate .in
-            if t.manual:
-                manual_data = self.problem.path / t.source
-                if not manual_data.is_file():
-                    bar.error(f'Manual source {t.source} not found.')
-                    return
-
-                for ext in config.KNOWN_DATA_EXTENSIONS:
-                    ext_file = manual_data.with_suffix(ext)
-                    if ext_file.is_file():
-                        ensure_symlink(infile.with_suffix(ext), ext_file)
-            else:
-                success &= t.program.run(bar, cwd, t.name, t.seed, t.config.retries)
-
-            if not success: return
-        
-            # Validate the manual or generated .in.
-            if not validate.validate_testcase(self.problem, infile, self.input_validators, 'input', bar=bar):
-                return
-            
-            # Generate .ans and/or .interaction for interactive problems.
-            # TODO: Disable this with a flag.
-            if t.config.solution:
-
-                if self.problem.settings.validation != 'custom interactive':
-                    success &= t.config.solution.run(bar, cwd, t.name)
-                    if not validate.validate_testcase(self.problem, ansfile, self.output_validators, 'input', bar=bar):
-                        return
-                else:
-                    success &= t.config.solution.run_interactive(bar, cwd, t.name, self.output_validators)
-                if not success: return
-
-            # Generate visualization
-            # TODO: Disable this with a flag.
-            if t.config.visualizer:
-                success &= t.config.visualizer.run(bar, cwd, t.name)
-
-                if not success: return
-
-
-            # TODO: Copy files to data.
-            # TODO: Delete tmpfs files.
-            # TODO: Add dry-run flag.
-
-            
-            target_dir = self.problem.path / 'data' / t.path.parent
-            if t.path.parents[0] == Path('sample'):
-                msg = '; supply -f --samples to override'
-                forced = self.problem.settings.force and self.problem.settings.samples
-            else:
-                msg = '; supply -f to override'
-                forced = self.problem.settings.force
-
-            for ext in config.KNOWN_DATA_EXTENSIONS:
-                source = cwd / (t.name + ext)
-                target = target_dir / (t.name+ext)
-
-                if source.is_file():
-                    if target.is_file():
-                        if source.read_text() == target.read_text():
-                            # identical -> skip
-                            continue
-                        else:
-                            # different -> overwrite
-                            if not forced:
-                                bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
-                                continue
-                            bar.log(f'CHANGED {target.name}')
-                    else:
-                        # new file -> move it
-                        bar.log(f'NEW {target.name}')
-
-                    # Symlinks have to be made relative to the problem root again.
-                    if source.is_symlink():
-                        source = source.resolve().relative_to(self.problem.path.parent.resolve())
-                        ensure_symlink(target, source, relative=True)
-                    else:
-                        source.rename(target)
-                else:
-                    if target.is_file():
-                        # remove old target
-                        if not forced:
-                            bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
-                            continue
-                        else:
-                            bar.warn(f'REMOVED {target.name}')
-                            target.unlink()
-                    else:
-                        continue
-
-            for f in cwd.glob('*'):
-                f.unlink()
-
-            bar.done()
-
         # TODO: Walk in parallel.
-        self.root_dir.walk(generate_testcase, generate_dir)
+        self.root_dir.walk(
+            lambda t: t.generate(self.problem, self.input_validators, self.output_validators, bar),
+            lambda d: d.generate(self.problem, self.known_cases, bar),
+        )
         bar.finalize()
 
     def clean(self):
         item_names = []
-        self.root_dir.walk(lambda t: item_names.append(t.path),
-                           lambda d: item_names.append(d.path))
+        self.root_dir.walk(lambda x: item_names.append(x.path))
 
         bar = ProgressBar('Clean', items=item_names)
 
-        # TODO: Move to Directory class.
-        # Clean the current directory:
-        # - remove testdata.yaml
-        # - remove linked testcases
-        # - remove the directory if it's empty
-        def clean_dir(d):
-            bar.start(str(d.path))
-
-            dir_path = self.problem.path / 'data' / d.path
-
-            # Remove the testdata.yaml when the key is present.
-            testdata_yaml_path = dir_path / 'testdata.yaml'
-            if d.testdata_yaml is not None and testdata_yaml_path.is_file():
-                bar.log(f'Remove testdata.yaml')
-                testdata_yaml_path.unlink()
-
-            # Remove all symlinks that correspond to includes.
-            for f in dir_path.glob('*'):
-                if f.is_symlink():
-                    relative_link_target = f.resolve().relative_to(self.problem.path.resolve()/'data')
-                    if relative_link_target in self.known_cases:
-                        bar.log(f'Remove linked file {f.name}')
-                        f.unlink()
-
-            # Try to remove the directory. Fails if it's not empty.
-            try:
-                dir_path.rmdir()
-                bar.log(f'Remove directory {dir_path.name}')
-            except:
-                pass
-
-            bar.done()
-
-        # TODO: Move to Testcase class.
-        # Delete all files associated with a test case.
-        def clean_testcase(t):
-            bar.start(str(t.path))
-
-            path = Path('data') / t.path.with_suffix(t.path.suffix+'.in')
-
-            # Skip cleaning manual cases that are their own source.
-            if t.manual and t.source == path:
-                bar.log(f'Keep manual case')
-                bar.done()
-                return
-
-            infile = self.problem.path / path
-            for ext in config.KNOWN_DATA_EXTENSIONS:
-                ext_file = infile.with_suffix(ext)
-                if ext_file.is_file():
-                    bar.log(f'Remove file {ext_file.name}')
-                    ext_file.unlink()
-
-            bar.done()
-
-        self.root_dir.walk(clean_testcase, clean_dir, dir_first=False)
+        self.root_dir.walk(lambda x: x.clean(self.problem, bar),
+                           dir_last=True)
         bar.finalize()
 
 
@@ -773,9 +769,10 @@ def test_generate(problem):
     config = GeneratorConfig(problem)
     config.build()
     config.run()
-    exit(0)
+    return True
+
 
 def clean(problem):
     config = GeneratorConfig(problem)
     config.clean()
-    exit(0)
+    return True
