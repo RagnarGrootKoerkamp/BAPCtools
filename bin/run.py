@@ -54,7 +54,7 @@ def _get_submissions(problem):
     return submissions
 
 
-# Return (ret, duration)
+# Return (ret, duration, err, out)
 def run_testcase(run_command, testcase, outfile, timeout, crop=True):
     with testcase.with_suffix('.in').open('rb') as inf:
 

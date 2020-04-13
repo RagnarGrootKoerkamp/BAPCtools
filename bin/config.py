@@ -8,7 +8,6 @@ import re
 RTV_AC = 42
 RTV_WA = 43
 
-BUILD_EXTENSIONS = ['.c', '.cc', '.cpp', '.java', '.py', '.py2', '.py3', '.ctd']
 PROBLEM_OUTCOMES = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']
 # Judging stops as soon as a max priority verdict is found.
 PRIORITY = {
@@ -43,6 +42,4 @@ languages = None
 FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
-# doesn't require at least 2 characters
-BASE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*'
-COMPILED_BASE_NAME_REGEX = re.compile(BASE_NAME_REGEX)
+KNOWN_DATA_EXTENSIONS = ['.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.jpeg', '.svg']

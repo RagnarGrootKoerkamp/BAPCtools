@@ -90,6 +90,7 @@ class ProgressBar:
         self.count = count  # The number of items we're processing
         self.i = 0
         self.carriage_return = '\r' if is_windows() else '\033[K'
+        self.global_logged = False
 
     def total_width(self):
         return shutil.get_terminal_size().columns
@@ -151,6 +152,7 @@ class ProgressBar:
         if message is None: message = ''
         self.clearline()
         self.logged = True
+        self.global_logged = True
         print(self.get_prefix(),
               color + message + ProgressBar._format_data(data) + cc.reset,
               flush=True)
@@ -186,6 +188,13 @@ class ProgressBar:
                 self.error(message, data)
             return True
         return False
+
+    # Print a final 'Done' message in case nothing was printed yet.
+    def finalize(self):
+        if self.global_logged: return False
+        if config.verbose: return False
+
+        print(ProgressBar.action(self.prefix, f'{cc.green}Done{cc.reset}'))
 
 
 # Drops the first two path components <problem>/<type>/
@@ -271,7 +280,7 @@ def strip_newline(s):
 
 
 # When output is True, copy the file when args.cp is true.
-def ensure_symlink(link, target, output=False):
+def ensure_symlink(link, target, output=False, relative=False):
     if output and hasattr(config.args, 'cp') and config.args.cp == True:
         if link.exists() or link.is_symlink(): link.unlink()
         shutil.copyfile(target, link)
@@ -279,10 +288,18 @@ def ensure_symlink(link, target, output=False):
 
     # Do nothing if link already points to the right target.
     if link.is_symlink() and link.resolve() == target.resolve():
-        return
+        is_absolute = os.readlink(link)
+        if not relative and is_absolute: return
+        #if relative and not is_absolute: return
 
-    if link.is_symlink() or link.exists(): link.unlink()
-    link.symlink_to(target.resolve())
+    if link.is_symlink() or link.exists():
+        link.unlink()
+    if relative:
+        # Rewrite target to be relative to link.
+        rel_target = os.path.relpath(target, link.parent)
+        os.symlink(rel_target, link)
+    else:
+        link.symlink_to(target.resolve())
 
 
 def substitute(data, variables):
@@ -408,6 +425,7 @@ def get_time_limits(settings):
 
 
 # Return the command line timeout or the default of 30
+# TODO: Make this nicer. Use dict lookup with default.
 def get_timeout():
     if hasattr(config.args, 'timeout') and config.args.timeout:
         return config.args.timeout

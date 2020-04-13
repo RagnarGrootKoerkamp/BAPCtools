@@ -18,8 +18,21 @@ def _is_executable(path):
 # The directory may contain multiple files.
 # This also accepts executable files but will first try to build them anyway using the settings for
 # the language.
-def build(path):
-    # mirror directory structure on tmpfs
+#
+# Supports two way of calling:
+# - build(path): specify an absolute path, or relative path ('problem/generators/gen.py), and build the
+#   file/directory.
+# - build(name, deps): specify a target name ('problem/generators/gen.py') and a list of
+#   dependencies (must be Path objects).
+def build(path, deps=None):
+
+    if deps is not None:
+        assert isinstance(deps, list)
+        assert len(deps) > 0
+
+    # Mirror directory structure on tmpfs.
+    # For a single file/directory: make a new directory in tmpfs and link all files into that dir.
+    # For a given list of dependencies: make a new directory and link the given dependencies.
     if path.is_absolute():
         outdir = config.tmpdir / path.name
     else:
@@ -29,7 +42,10 @@ def build(path):
 
     outdir.mkdir(parents=True, exist_ok=True)
 
-    input_files = list(glob(path, '*')) if path.is_dir() else [path]
+    if deps is None:
+        input_files = list(glob(path, '*')) if path.is_dir() else [path]
+    else:
+        input_files = deps
 
     # Check file names.
     for f in input_files:
@@ -37,13 +53,13 @@ def build(path):
             return (None,
                     f'{cc.red}{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
 
-    linked_files = []
     if len(input_files) == 0:
         config.n_warn += 1
         return (None, f'{cc.red}{str(path)} is an empty directory.{cc.reset}')
 
     # Link all input files
     last_input_update = 0
+    linked_files = []
     for f in input_files:
         ensure_symlink(outdir / f.name, f)
         linked_files.append(outdir / f.name)
@@ -159,18 +175,21 @@ def build(path):
         return (None, f'{cc.red}No file detected for language {lang} at {path}.{cc.reset}')
 
     mainfile = None
-    if len(files) == 1:
-        mainfile = files[0]
+    if deps is None:
+        if len(files) == 1:
+            mainfile = files[0]
+        else:
+            for f in files:
+                if f.ascii_lowercse().starts_with('abcd'):
+                    mainfile = f
+            mainfile = mainfile or sorted(files)[0]
     else:
-        for f in files:
-            if f.ascii_lowercse().starts_with('main'):
-                mainfile = f
-        mainfile = mainfile or sorted(files)[0]
+        mainfile = outdir / deps[0].name
 
     env = {
         'path': str(outdir),
         # NOTE: This only contains files matching the winning language.
-        'files': ''.join(str(f) for f in files),
+        'files': ' '.join(str(f) for f in files),
         'binary': str(runfile),
         'mainfile': str(mainfile),
         'mainclass': str(Path(mainfile).with_suffix('').name),

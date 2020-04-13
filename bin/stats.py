@@ -103,7 +103,7 @@ def stats(problems):
             format_string.format(
                 problem.label + ' ' + problem.id, *[
                     _get_stat(counts[i], True if len(stats[i]) <= 2 else stats[i][2],
-                             None if len(stats[i]) <= 3 else stats[i][3])
+                              None if len(stats[i]) <= 3 else stats[i][3])
                     for i in range(len(stats))
                 ], comment))
 

@@ -376,11 +376,6 @@ def main():
                                                     'verbose') and config.args.verbose else 0
     action = config.args.action
 
-    # TODO: Remove this; it's for testing only.
-    if action == 'generate':
-        generate.test_generate(config.args.generators)
-        return
-
     if action in ['new_contest']:
         skel.new_contest(config.args.contestname)
         return
@@ -447,11 +442,21 @@ def main():
         print(cc.bold, 'PROBLEM ', problem.path, cc.reset, sep='')
 
         # merge problem settings with arguments into one namespace
+        # TODO: Fix the usages of:
+        # - problem.config
+        # - global config
+        # - the merged settings object
         problemsettings = problem.config
         settings = argparse.Namespace(**problemsettings)
         for key in vars(config.args):
             if vars(config.args)[key] is not None:
                 vars(settings)[key] = vars(config.args)[key]
+        problem.settings = settings
+
+        # TODO: Remove this; it's for testing only.
+        if action == 'generate':
+            generate.test_generate(problem)
+            return
 
         if action in ['pdf', 'solutions', 'all']:
             # only build the pdf on the problem level, or on the contest level when
@@ -465,7 +470,7 @@ def main():
             input_validator_ok = validate.validate(problem.path, 'input', settings)
             success &= input_validator_ok
         if action in ['clean']:
-            success &= generate.clean(problem.path)
+            success &= generate.clean(problem)
         if action in ['generate']:
             success &= generate.generate(problem.path, settings)
         if action in ['validate', 'output', 'all']:

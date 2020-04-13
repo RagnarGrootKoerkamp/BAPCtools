@@ -1,4 +1,6 @@
 import hashlib
+import random
+import re
 import shlex
 import shutil
 import yaml as yamllib
@@ -12,299 +14,6 @@ import validate
 import run
 
 
-# Run generators according to the gen.yaml file.
-def generate(problem, settings):
-    gen_config, generator_runs = _parse_gen_yaml(problem)
-
-    generate_ans = settings.validation != 'custom interactive'
-    submission = None
-    retries = 1
-    if gen_config:
-        if 'generate_ans' in gen_config:
-            generate_ans = gen_config['generate_ans']
-        if generate_ans and 'submission' in gen_config and gen_config['submission']:
-            submission = problem / gen_config['submission']
-        if 'retries' in gen_config:
-            retries = max(gen_config['retries'], 1)
-
-    if generate_ans and submission is None:
-        # Use one of the accepted submissions.
-        submissions = list(glob(problem, 'submissions/accepted/*'))
-        if len(submissions) == 0:
-            warn('No submissions found!')
-        else:
-            submissions.sort()
-            # Look for a c++ solution if available.
-            for s in submissions:
-                if s.suffix == '.cpp':
-                    submission = s
-                    break
-                else:
-                    if submission is None:
-                        submission = s
-        if submission is not None:
-            log(f'No submission was specified in generators/gen.yaml. Falling back to {submission}.'
-                )
-
-    if generate_ans and submission is not None:
-        if not (submission.is_file() or submission.is_dir()):
-            error(f'Submission not found: {submission}')
-            submission = None
-        else:
-            bar = ProgressBar('Building', items=[print_name(submission)])
-            bar.start(print_name(submission))
-            submission, msg = build.build(submission)
-            bar.done(submission is not None, msg)
-    if submission is None: generate_ans = False
-
-    input_validators = validate.get_validators(problem, 'input') if len(generator_runs) > 0 else []
-    output_validators = validate.get_validators(problem, 'output') if generate_ans else []
-
-    if len(generator_runs) == 0 and generate_ans is False:
-        return True
-
-    nskip = 0
-    nfail = 0
-
-    timeout = get_timeout()
-
-    # Move source to target but check that --force was passed if target already exists and source is
-    # different. Overwriting samples needs --samples as well.
-    def maybe_move(source, target, tries_msg=''):
-        nonlocal nskip
-
-        # Validate new .in and .ans files
-        if source.suffix == '.in':
-            if not validate.validate_testcase(problem, source, input_validators, 'input', bar=bar):
-                return False
-        if source.suffix == '.ans' and settings.validation != 'custom interactive':
-            if not validate.validate_testcase(
-                    problem, source, output_validators, 'output', bar=bar):
-                return False
-
-        # Ask -f or -f --samples before overwriting files.
-        if target.is_file():
-            if source.read_text() == target.read_text():
-                return True
-
-            if 'sample' in str(target) and (not (hasattr(settings, 'samples') and settings.samples)
-                                            or
-                                            not (hasattr(settings, 'force') and settings.force)):
-                bar.warn('SKIPPED: ' + target.name + cc.reset +
-                         '; supply -f --samples to overwrite')
-                return False
-
-            if not (hasattr(settings, 'force') and settings.force):
-                nskip += 1
-                bar.warn('SKIPPED: ' + target.name + cc.reset + '; supply -f to overwrite')
-                return False
-
-        if target.is_file():
-            bar.log('CHANGED: ' + target.name + tries_msg)
-        else:
-            bar.log('NEW: ' + target.name + tries_msg)
-        shutil.move(source, target)
-        return False
-
-    tmpdir = config.tmpdir / problem.name / 'generate'
-    tmpdir.mkdir(parents=True, exist_ok=True)
-
-    # Generate Input
-    if len(generator_runs) > 0:
-        bar = ProgressBar('Generate', items=generator_runs)
-
-        for file_name in generator_runs:
-            commands = generator_runs[file_name]
-
-            bar.start(str(file_name))
-
-            (problem / 'data' / file_name.parent).mkdir(parents=True, exist_ok=True)
-
-            stdin_path = tmpdir / file_name.name
-            stdout_path = tmpdir / (file_name.name + '.stdout')
-
-            # Try running all commands |retries| times.
-            ok = True
-            for retry in range(retries):
-                # Clean the directory.
-                for f in tmpdir.iterdir():
-                    f.unlink()
-
-                for command in commands:
-                    input_command = shlex.split(command)
-
-                    generator_name = input_command[0]
-                    input_args = input_command[1:]
-
-                    for i in range(len(input_args)):
-                        x = input_args[i]
-                        if x == '$SEED':
-                            val = int(hashlib.sha512(command.encode('utf-8')).hexdigest(),
-                                      16) % (2**31)
-                            input_args[i] = (val + retry) % (2**31)
-
-                    generator_command, msg = build.build(problem / 'generators' / generator_name)
-                    if generator_command is None:
-                        bar.error(msg)
-                        ok = False
-                        break
-
-                    command = generator_command + input_args
-
-                    stdout_file = stdout_path.open('w')
-                    stdin_file = stdin_path.open('r') if stdin_path.is_file() else None
-                    try_ok, err, out = exec_command(command,
-                                                    stdout=stdout_file,
-                                                    stdin=stdin_file,
-                                                    timeout=timeout,
-                                                    cwd=tmpdir)
-                    stdout_file.close()
-                    if stdin_file: stdin_file.close()
-
-                    if stdout_path.is_file():
-                        shutil.move(stdout_path, stdin_path)
-
-                    if try_ok == -9:
-                        # Timeout
-                        bar.error(f'TIMEOUT after {timeout}s')
-                        nfail += 1
-                        ok = False
-                        break
-
-                    if try_ok is not True:
-                        nfail += 1
-                        try_ok = False
-                        break
-
-                if not ok: break
-                if try_ok: break
-
-            if not try_ok:
-                bar.error('FAILED: ' + err)
-                ok = False
-
-            tries_msg = '' if retry == 0 else f' after {retry+1} tries'
-
-            # Copy all generated files back to the data directory.
-            if ok:
-                for f in tmpdir.iterdir():
-                    if f.stat().st_size == 0: continue
-
-                    target = problem / 'data' / file_name.parent / f.name
-                    ok &= maybe_move(f, target, tries_msg)
-
-            bar.done(ok)
-
-        if not config.verbose and nskip == 0 and nfail == 0:
-            print(ProgressBar.action('Generate', f'{cc.green}Done{cc.reset}'))
-
-    if generate_ans is False or submission is None:
-        return nskip == 0 and nfail == 0
-
-    # Generate Answer
-    _, timeout = get_time_limits(settings)
-
-    if settings.validation != 'custom interactive':
-        testcases = get_testcases(problem, needans=False)
-        bar = ProgressBar('Generate ans',
-                          items=[print_name(t.with_suffix('.ans')) for t in testcases])
-
-        for testcase in testcases:
-            bar.start(print_name(testcase.with_suffix('.ans')))
-
-            outfile = tmpdir / testcase.with_suffix('.ans').name
-            try:
-                outfile.unlink()
-            except OSError:
-                pass
-
-            # Ignore stdout and stderr from the program.
-            ok, duration, err, out = run.run_testcase(submission, testcase, outfile, timeout)
-            if ok is not True or duration > timeout:
-                if duration > timeout:
-                    bar.error('TIMEOUT')
-                    nfail += 1
-                else:
-                    bar.error('FAILED')
-                    nfail += 1
-            else:
-                ensure_symlink(outfile.with_suffix('.in'), testcase)
-                ok &= maybe_move(outfile, testcase.with_suffix('.ans'))
-
-            bar.done(ok)
-
-        if not config.verbose and nskip == 0 and nfail == 0:
-            print(ProgressBar.action('Generate ans', f'{cc.green}Done{cc.reset}'))
-
-    else:
-        # For interactive problems:
-        # - create empty .ans files
-        # - create .interaction files for samples only
-        testcases = get_testcases(problem, needans=False, only_sample=True)
-        bar = ProgressBar('Generate interaction',
-                          items=[print_name(t.with_suffix('.interaction')) for t in testcases])
-
-        for testcase in testcases:
-            bar.start(print_name(testcase.with_suffix('.interaction')))
-
-            outfile = tmpdir / testcase.with_suffix('.interaction').name
-            try:
-                outfile.unlink()
-            except OSError:
-                pass
-
-            # Ignore stdout and stderr from the program.
-            verdict, duration, err, out = run.process_interactive_testcase(submission,
-                                                                           testcase,
-                                                                           settings,
-                                                                           output_validators,
-                                                                           validator_error=None,
-                                                                           team_error=None,
-                                                                           interaction=outfile)
-            if verdict != 'ACCEPTED':
-                if duration > timeout:
-                    bar.error('TIMEOUT')
-                    nfail += 1
-                else:
-                    bar.error('FAILED')
-                    nfail += 1
-            else:
-                ok &= maybe_move(outfile, testcase.with_suffix('.interaction'))
-
-            bar.done(ok)
-
-        if not config.verbose and nskip == 0 and nfail == 0:
-            print(ProgressBar.action('Generate ans', f'{cc.green}Done{cc.reset}'))
-
-    return nskip == 0 and nfail == 0
-
-
-# Remove all files mentioned in the gen.yaml file.
-def clean(problem):
-    gen_config, generator_runs = _parse_gen_yaml(problem)
-    for file_path in generator_runs:
-        f = problem / 'data' / file_path
-        if f.is_file():
-            print(ProgressBar.action('REMOVE', str(f)))
-            f.unlink()
-
-        ansfile = f.with_suffix('.ans')
-
-        if ansfile.is_file():
-            print(ProgressBar.action('REMOVE', str(ansfile)))
-            ansfile.unlink()
-
-        try:
-            f.parent.rmdir()
-        except:
-            pass
-
-    return True
-
-
-## NEW
-
-
 def is_testcase(yaml):
     return yaml == '' or isinstance(yaml, str) or (isinstance(yaml, dict) and 'input' in yaml)
 
@@ -313,22 +22,232 @@ def is_directory(yaml):
     return isinstance(yaml, dict) and 'type' in yaml and yaml['type'] == 'directory'
 
 
+def resolve_path(path, *, allow_absolute):
+    assert isinstance(path, str)
+    if not allow_absolute:
+        assert not path.startswith('/')
+        assert not Path(path).is_absolute()
+
+    # Make all paths relative to the problem root.
+    if path.startswith('/'):
+        return Path(path[1:])
+    else:
+        return Path('generators') / path
+
+
+# Return (submission, msg)
+# This function will always raise a warning.
+# Which submission is used is implementation defined. We prefer c++ because it tends to be faster.
+def get_default_solution(problem):
+    # Use one of the accepted submissions.
+    submissions = list(glob(problem.path, 'submissions/accepted/*'))
+    if len(submissions) == 0:
+        return None
+
+    submissions.sort()
+
+    # Look for a (hopefully fast) c++ solution if available.
+    submission = submissions[0]
+    for s in submissions:
+        if s.suffix == '.cpp':
+            submission = s
+            break
+
+    warn(f'No solution specified. Falling back to {submission}.')
+    return submission
+
+
+# Parses a string into command to execute and arguments to give on the command line.
+class Program:
+    SEED_REGEX = re.compile('\{seed(:[0-9]+)?\}')
+    NAME_REGEX = re.compile('\{name\}')
+
+    def __init__(self, string, *, allow_absolute):
+        commands = shlex.split(str(string))
+        command = commands[0]
+        self.args = commands[1:]
+        # Will be set after programs have been built.
+        self.exec = None
+
+        self.command = resolve_path(command, allow_absolute=allow_absolute)
+
+        # Make sure that {seed} occurs at most once.
+        seed_cnt = 0
+        for arg in self.args:
+            seed_cnt += len(self.SEED_REGEX.findall(arg))
+
+        assert seed_cnt <= 1
+
+    def substitute_args(self, *, name=None, seed=None):
+        def sub(arg):
+            if name: arg = self.NAME_REGEX.sub(str(name), arg)
+            if seed: arg = self.SEED_REGEX.sub(str(seed), arg)
+
+        return [sub(arg) for arg in self.args]
+
+
+class Generator(Program):
+    def __init__(self, string):
+        super().__init__(string, allow_absolute=False)
+
+    # Run this program in the given working directory for the given name and seed.
+    # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
+    # Returns True on success, False on failure.
+    def run(self, bar, cwd, name, seed, retries=1):
+        in_path = cwd / (name + '.in')
+        stdout_path = cwd / (name + '.in_')
+
+        timeout = get_timeout()
+
+        # Try running the command |retries| times.
+        ok = False
+        for retry in range(retries):
+            # Clean the directory.
+            for f in cwd.iterdir():
+                f.unlink()
+
+            assert self.exec is not None
+
+            command = self.exec + self.substitute_args(name=name, seed=seed+retry)
+
+            stdout_file = stdout_path.open('w')
+            try_ok, err, out = exec_command(command, stdout=stdout_file, timeout=timeout, cwd=cwd)
+            stdout_file.close()
+
+            if try_ok == -9:
+                # Timeout -> stop retrying and fail.
+                bar.error(f'TIMEOUT after {timeout}s')
+                return False
+
+            if try_ok is not True:
+                # Other error -> try again.
+                continue
+
+            if in_path.is_file():
+                if stdout_path.is_file():
+                    bar.warn(f'Wrote both {name}.in and stdout. Ignoring stdout.')
+            else:
+                if not stdout_path.is_file():
+                    bar.error(f'Did not write {name}.in and stdout is empty!')
+                    return False
+
+            if stdout_path.is_file():
+                stdout_path.rename(in_path)
+            ok = True
+
+        if not ok:
+            if retries > 1:
+                bar.error(f'Failed {retry+1} times', err)
+            else:
+                bar.error(f'Failed', err)
+            return False
+        else:
+            return True
+
+
+class Solution(Program):
+    def __init__(self, string):
+        super().__init__(string, allow_absolute=True)
+
+    # Run the submission, reading {name}.in from stdin and piping stdout to {name}.ans.
+    # If the .ans already exists, nothing is done.
+    def run(self, bar, cwd, name):
+        assert self.exec is not None
+        timeout = get_timeout()
+
+        in_path = cwd / (name + '.in')
+        ans_path = cwd / (name + '.ans')
+
+        if ans_path.is_file(): return True
+
+        # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
+        ok, duration, err, out = run.run_testcase(self.exec + self.args, in_path, ans_path, timeout)
+        if duration > timeout:
+            bar.error('TIMEOUT')
+            return False
+        if ok is not True:
+            bar.error('FAILED')
+            return False
+
+        return True
+
+    def run_interactor(self, bar, cwd, name, output_validators):
+        assert self.exec is not None
+        timeout = get_timeout()
+
+        in_path = cwd / (name + '.in')
+        interaction_path = cwd / (name + '.interaction')
+        if interaction_path.is_file(): return True
+
+        # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
+        verdict, duration, err, out = run.process_interactive_testcase(self.exec + self.args,
+                                                                       in_path,
+                                                                       settings,
+                                                                       output_validators,
+                                                                       validator_error=None,
+                                                                       team_error=None,
+                                                                       interaction=interaction_path)
+        if verdict != 'ACCEPTED':
+            if duration > timeout:
+                bar.error('TIMEOUT')
+                nfail += 1
+            else:
+                bar.error('FAILED')
+                nfail += 1
+            return False
+
+        return True
+
+
+
+class Visualizer(Program):
+    def __init__(self, string):
+        super().__init__(string, allow_absolute=True)
+
+    # Run the visualizer, taking {name} as a command line argument.
+    # Stdin and stdout are not used.
+    def run(self, bar, cwd, name):
+        assert self.exec is not None
+
+        timeout = get_timeout()
+        command = self.exec + self.substitute_args(name=name)
+
+        try_ok, err, out = exec_command(command, timeout=timeout, cwd=cwd)
+
+        if try_ok == -9:
+            bar.error(f'TIMEOUT after {timeout}s')
+            return False
+        if try_ok is not True:
+            bar.error('FAILED')
+            return False
+
+        return True
+
+
 # Holds all inheritable configuration options. Currently:
 # - config.solution
 # - config.visualizer
 # - config.random_salt
 class Config:
     INHERITABLE_KEYS = [
-        ('solution', None),
-        ('visualizer', None),
-        ('random_salt', ''),
+        # True: use an AC submission by default when the solution: key is not present.
+        ('solution', True, lambda x: Solution(x) if x else None),
+        ('visualizer', None, lambda x: Visualizer(x) if x else None),
+        ('random_salt', '', None),
+
+        # Non-portable keys only used by BAPCtools:
+        # The number of retries to run a generator when it fails, each time incrementing the {seed}
+        # by 1.
+        ('retries', 1, int),
     ]
 
     def __init__(self, yaml=None, parent_config=None):
         assert not yaml or isinstance(yaml, dict)
-        for key, default in self.INHERITABLE_KEYS:
+
+        for key, default, func in self.INHERITABLE_KEYS:
+            if func is None: func = lambda x: x
             if yaml and key in yaml:
-                setattr(self, key, yaml[key])
+                setattr(self, key, func(yaml[key]))
             elif parent_config is not None:
                 setattr(self, key, vars(parent_config)[key])
             else:
@@ -344,45 +263,42 @@ class Base:
         else:
             self.config = parent.config
 
+        # Directory key of the current directory/testcase.
         self.name = name
+        # Path of the current directory/testcase relative to data/.
         self.path: Path = parent.path / self.name
 
 
 class Testcase(Base):
     def __init__(self, name: str, yaml, parent):
         assert is_testcase(yaml)
-        assert config.COMPILED_BASE_NAME_REGEX.fullmatch(name)
+        assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
         self.manual = False
 
         if yaml == '':
             self.manual = True
-            yaml = {'input': None}
-        if isinstance(yaml, str) and yaml.endswith('.in'):
+            yaml = {'input': Path('data') / parent.path / (name + '.in')}
+        elif isinstance(yaml, str) and yaml.endswith('.in'):
             self.manual = True
-            assert not yaml.startswith('/')
-        if isinstance(yaml, str):
+            yaml = {'input': resolve_path(yaml, allow_absolute=False)}
+        elif isinstance(yaml, str):
             yaml = {'input': yaml}
-
-        assert isinstance(yaml, dict)
-        assert 'input' in yaml
-        assert yaml['input'] is None or isinstance(yaml['input'], str)
+        elif isinstance(yaml, dict):
+            assert 'input' in yaml
+            assert yaml['input'] is None or isinstance(yaml['input'], str)
+        else:
+            assert False
 
         super().__init__(name, yaml, parent)
 
-        self.input = yaml['input']
-
-        # TODO: Should the seed depend on white space? For now it does.
-        if not self.manual:
-            seed_value = self.config.random_salt + self.input
+        if self.manual:
+            self.source = yaml['input']
+        else:
+            # TODO: Should the seed depend on white space? For now it does.
+            seed_value = self.config.random_salt + yaml['input']
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
-
-            commands = shlex.split(self.input)
-            self.generator = commands[0]
-            assert not self.generator.startswith('/')
-
-            # NOTE: Still need to replace {seed} and {name}.
-            self.arguments = commands[1:]
+            self.program = Generator(yaml['input'])
 
 
 class Directory(Base):
@@ -408,7 +324,7 @@ class Directory(Base):
 
         self.numbered = False
         # These field will be filled by parse().
-        self.include = []
+        self.includes = []
         self.data = []
 
         # Sanity checks for possibly empty data.
@@ -425,12 +341,42 @@ class Directory(Base):
         if isinstance(data, list):
             self.numbered = True
 
+    # Map a function over all test cases directory tree.
+    def walk(self, testcase_f=None, dir_f=None, *, dir_first=True):
+        for d in self.data:
+            if isinstance(d, Directory):
+                if dir_first and dir_f:
+                    dir_f(d)
+                d.walk(testcase_f, dir_f, dir_first=dir_first)
+                if not dir_first and dir_f:
+                    dir_f(d)
+            elif isinstance(d, Testcase):
+                if testcase_f: testcase_f(d)
+            else:
+                assert False
+
 
 class GeneratorConfig:
-    ROOT_KEYS = [
-            ('generators', []), ]
+    def parse_generators(generators_yaml):
+        generators = {}
+        for gen in generators_yaml:
+            assert not gen.startswith('/')
+            assert not Path(gen).is_absolute()
+            assert config.COMPILED_FILE_NAME_REGEX.fullmatch(gen + '.x')
 
-    def __init__(self, yaml_path: Path):
+            deps = generators_yaml[gen]
+
+            generators[Path('generators') / gen] = [Path('generators') / d for d in deps]
+        return generators
+
+    ROOT_KEYS = [
+        ('generators', [], parse_generators),
+    ]
+
+    # Parse generators.yaml.
+    def __init__(self, problem):
+        self.problem = problem
+        yaml_path = self.problem.path / 'generators/generators.yaml'
         if not yaml_path.is_file(): exit(1)
 
         yaml = yamllib.load(yaml_path.read_text(), Loader=yamllib.BaseLoader)
@@ -439,58 +385,44 @@ class GeneratorConfig:
         yaml['type'] = 'directory'
 
         # Read root level configuration
-        for key, default in self.ROOT_KEYS:
+        for key, default, func in self.ROOT_KEYS:
             if yaml and key in yaml:
                 # TODO: Parse generators array to something more usable.
-                setattr(self, key, yaml[key])
+                setattr(self, key, func(yaml[key]))
             else:
                 setattr(self, key, default)
 
         next_number = 1
         # A map from directory paths `secret/testgroup` to Directory objects, used to resolve testcase
         # inclusion.
-        data_dict = {}
-
-        self.num_testcases = 0
-
-        # Things that we'll need to build.
-        self.generators_used = set()
-        self.solutions_used = set()
-        self.visualizers_used = set()
+        self.known_cases = set()
 
         # Main recursive parsing function.
         def parse(name, yaml, parent):
-            nonlocal next_number, data_dict
+            nonlocal next_number
 
             assert is_testcase(yaml) or is_directory(yaml)
 
             if is_testcase(yaml):
                 t = Testcase(name, yaml, parent)
-                assert t.path not in data_dict
-                data_dict[t.path] = t
-
-                self.num_testcases += 1
-                if not t.manual: self.generators_used.add(t.generator)
-                if t.config.solution: self.solutions_used.add(t.config.solution)
-                if t.config.visualizer: self.visualizers_used.add(t.config.visualizer)
-
+                assert t.path not in self.known_cases
+                self.known_cases.add(t.path)
                 return t
 
             assert is_directory(yaml)
 
             d = Directory(name, yaml, parent)
-            assert d.path not in data_dict
-            data_dict[d.path] = d
-
-            def get_include(path: str) -> Directory:
-                path = Path(path)
-                assert path in data_dict
-                return data_dict[path]
+            assert d.path not in self.known_cases
+            self.known_cases.add(d.path)
 
             if 'include' in yaml:
-                self.include = [get_include(include) for include in yaml['include']]
+                assert isinstance(yaml['include'], list)
+                for include in yaml['include']:
+                    assert not include.startswith('/')
+                    assert not Path(include).is_absolute()
+                    assert Path(include) in self.known_cases
 
-            self.data = []
+                d.includes = [Path(include) for include in yaml['include']]
 
             if 'data' not in yaml: return d
 
@@ -510,9 +442,340 @@ class GeneratorConfig:
 
         self.root_dir = parse('', yaml, Directory())
 
-        print(self.generators_used)
+    # Return (submission, msg)
+    # This function will always raise a warning.
+    # Which submission is used is implementation defined. We prefer c++ because it tends to be faster.
+    def get_default_solution(self):
+        # By default don't do anything for interactive problems.
+        if self.problem.config.validation == 'custom interactive':
+            return None
+
+        # Use one of the accepted submissions.
+        submissions = list(glob(problem.path, 'submissions/accepted/*'))
+        if len(submissions) == 0:
+            return None
+
+        # Note: we explicitly random shuffle the submission that's used to generate answers to
+        # encourage setting it in generators.yaml.
+        random.shuffle(submissions)
+
+        # Look for a (hopefully fast) c++ solution if available.
+        submission = submissions[0]
+        for s in submissions:
+            if s.suffix == '.cpp':
+                submission = s
+                break
+
+        warn(f'No solution specified. Using randomly chosen {submission} instead.')
+        return submission
+
+    # TODO: Determine which test cases need updating, and only build required programs.
+
+    def build(self):
+        generators_used = set()
+        solutions_used = set()
+        visualizers_used = set()
+
+        default_solution = None
+
+        # Collect all programs that need building.
+        # Also, convert the default submission into an actual Program.
+        def collect_programs(t):
+            nonlocal default_solution
+            if not t.manual:
+                generators_used.add(t.program.command)
+            if t.config.solution:
+                if t.config.solution is True:
+                    if default_solution is None:
+                        default_solution = Solution(get_default_solution(self.problem))
+                    t.config.solution = default_solution
+                solutions_used.add(t.config.solution.command)
+            if t.config.visualizer:
+                visualizers_used.add(t.config.visualizer.command)
+
+        self.root_dir.walk(collect_programs)
+
+        def build_programs(name, programs, *, allow_generators_dict=False):
+            bar = ProgressBar('Build ' + name, items=[prog.name for prog in programs])
+            commands = {}
+            for prog in programs:
+                bar.start(prog.name)
+
+                path = self.problem.path / prog
+                deps = None
+
+                if allow_generators_dict and prog in self.generators:
+                    deps = [Path(self.problem.path) / d for d in self.generators[prog]]
+
+                run_command, message = build.build(path, deps)
+
+                if run_command is not None:
+                    commands[prog] = run_command
+                if message:
+                    bar.log(message)
+                bar.done()
+
+            return commands
+
+        self.generator_commands = build_programs('generators',
+                                                 generators_used,
+                                                 allow_generators_dict=True)
+        self.solution_commands = build_programs('solutions', solutions_used)
+        self.visualizer_commands = build_programs('visualizers', visualizers_used)
+
+        def set_exec(t):
+            if not t.manual:
+                t.program.exec = self.generator_commands[t.program.command]
+            if t.config.solution:
+                t.config.solution.exec = self.solution_commands[t.config.solution.command]
+            if t.config.visualizer:
+                t.config.visualizer.exec = self.visualizer_commands[t.config.visualizer.command]
+
+        self.root_dir.walk(set_exec)
+
+        self.input_validators = validate.get_validators(self.problem.path, 'input')
+        self.output_validators = validate.get_validators(self.problem.path, 'output')
 
 
-def test_generate(yaml_paths):
-    GeneratorConfig(Path(yaml_paths[0]))
+    def run(self):
+        item_names = []
+        self.root_dir.walk(lambda t: item_names.append(t.path),
+                           lambda d: item_names.append(d.path))
+
+        bar = ProgressBar('Generate', items=item_names)
+
+        success = True
+
+        # TODO: Move to Directory class.
+        # Generate the current directory:
+        # - create the directory
+        # - write testdata.yaml
+        # - include linked testcases
+        # - check for unknown manual cases
+        def generate_dir(d):
+            bar.start(str(d.path))
+
+            dir_path = self.problem.path / 'data' / d.path
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+            # Write the testdata.yaml, or remove it when the key is set but empty.
+            testdata_yaml_path = dir_path / 'testdata.yaml'
+            if d.testdata_yaml is not None:
+                if d.testdata_yaml:
+                    # TODO: Only write on file changed?
+                    yamllib.dump(d.testdata_yaml, testdata_yaml_path.open('w'))
+                if d.testdata_yaml == '' and testdata_yaml_path.is_file():
+                    testdata_yaml_path.unlink()
+
+            # Symlink existing testcases.
+            for include in d.includes:
+                include = self.problem.path / 'data' / include
+                if include.is_dir():
+                    # include all cases in the directory
+                    for case in include.glob('*.in'):
+                        for ext in config.KNOWN_DATA_EXTENSIONS:
+                            ext_file = case.with_suffix(ext)
+                            if ext_file.is_file():
+                                ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
+                elif include.with_suffix(include.suffix+'.in').is_file():
+                    # include the testcase
+                    for ext in config.KNOWN_DATA_EXTENSIONS:
+                        ext_file = include.with_suffix(ext)
+                        if ext_file.is_file():
+                            ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
+                else:
+                    assert False
+
+            # TODO: Check for unlisted files.
+
+            bar.done()
+
+        # TODO: Move to Testcase class.
+        # TODO: Support interactive problems again.
+        def generate_testcase(t):
+
+            bar.start(str(t.path))
+
+            # E.g. bapctmp/problem/data/secret/1.in
+            cwd = config.tmpdir / self.problem.id / 'data' / t.path
+            cwd.mkdir(parents=True, exist_ok=True)
+            infile = cwd / (t.name+'.in')
+            ansfile = cwd / (t.name+'.ans')
+
+            nonlocal success
+
+            # Generate .in
+            if t.manual:
+                manual_data = self.problem.path / t.source
+                if not manual_data.is_file():
+                    bar.error(f'Manual source {t.source} not found.')
+                    return
+
+                for ext in config.KNOWN_DATA_EXTENSIONS:
+                    ext_file = manual_data.with_suffix(ext)
+                    if ext_file.is_file():
+                        ensure_symlink(infile.with_suffix(ext), ext_file)
+            else:
+                success &= t.program.run(bar, cwd, t.name, t.seed, t.config.retries)
+
+            if not success: return
+        
+            # Validate the manual or generated .in.
+            if not validate.validate_testcase(self.problem, infile, self.input_validators, 'input', bar=bar):
+                return
+            
+            # Generate .ans and/or .interaction for interactive problems.
+            # TODO: Disable this with a flag.
+            if t.config.solution:
+
+                if self.problem.settings.validation != 'custom interactive':
+                    success &= t.config.solution.run(bar, cwd, t.name)
+                    if not validate.validate_testcase(self.problem, ansfile, self.output_validators, 'input', bar=bar):
+                        return
+                else:
+                    success &= t.config.solution.run_interactive(bar, cwd, t.name, self.output_validators)
+                if not success: return
+
+            # Generate visualization
+            # TODO: Disable this with a flag.
+            if t.config.visualizer:
+                success &= t.config.visualizer.run(bar, cwd, t.name)
+
+                if not success: return
+
+
+            # TODO: Copy files to data.
+            # TODO: Delete tmpfs files.
+            # TODO: Add dry-run flag.
+
+            
+            target_dir = self.problem.path / 'data' / t.path.parent
+            if t.path.parents[0] == Path('sample'):
+                msg = '; supply -f --samples to override'
+                forced = self.problem.settings.force and self.problem.settings.samples
+            else:
+                msg = '; supply -f to override'
+                forced = self.problem.settings.force
+
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                source = cwd / (t.name + ext)
+                target = target_dir / (t.name+ext)
+
+                if source.is_file():
+                    if target.is_file():
+                        if source.read_text() == target.read_text():
+                            # identical -> skip
+                            continue
+                        else:
+                            # different -> overwrite
+                            if not forced:
+                                bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
+                                continue
+                            bar.log(f'CHANGED {target.name}')
+                    else:
+                        # new file -> move it
+                        bar.log(f'NEW {target.name}')
+
+                    # Symlinks have to be made relative to the problem root again.
+                    if source.is_symlink():
+                        source = source.resolve().relative_to(self.problem.path.parent.resolve())
+                        ensure_symlink(target, source, relative=True)
+                    else:
+                        source.rename(target)
+                else:
+                    if target.is_file():
+                        # remove old target
+                        if not forced:
+                            bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
+                            continue
+                        else:
+                            bar.warn(f'REMOVED {target.name}')
+                            target.unlink()
+                    else:
+                        continue
+
+            for f in cwd.glob('*'):
+                f.unlink()
+
+            bar.done()
+
+        # TODO: Walk in parallel.
+        self.root_dir.walk(generate_testcase, generate_dir)
+        bar.finalize()
+
+    def clean(self):
+        item_names = []
+        self.root_dir.walk(lambda t: item_names.append(t.path),
+                           lambda d: item_names.append(d.path))
+
+        bar = ProgressBar('Clean', items=item_names)
+
+        # TODO: Move to Directory class.
+        # Clean the current directory:
+        # - remove testdata.yaml
+        # - remove linked testcases
+        # - remove the directory if it's empty
+        def clean_dir(d):
+            bar.start(str(d.path))
+
+            dir_path = self.problem.path / 'data' / d.path
+
+            # Remove the testdata.yaml when the key is present.
+            testdata_yaml_path = dir_path / 'testdata.yaml'
+            if d.testdata_yaml is not None and testdata_yaml_path.is_file():
+                bar.log(f'Remove testdata.yaml')
+                testdata_yaml_path.unlink()
+
+            # Remove all symlinks that correspond to includes.
+            for f in dir_path.glob('*'):
+                if f.is_symlink():
+                    relative_link_target = f.resolve().relative_to(self.problem.path.resolve()/'data')
+                    if relative_link_target in self.known_cases:
+                        bar.log(f'Remove linked file {f.name}')
+                        f.unlink()
+
+            # Try to remove the directory. Fails if it's not empty.
+            try:
+                dir_path.rmdir()
+                bar.log(f'Remove directory {dir_path.name}')
+            except:
+                pass
+
+            bar.done()
+
+        # TODO: Move to Testcase class.
+        # Delete all files associated with a test case.
+        def clean_testcase(t):
+            bar.start(str(t.path))
+
+            path = Path('data') / t.path.with_suffix(t.path.suffix+'.in')
+
+            # Skip cleaning manual cases that are their own source.
+            if t.manual and t.source == path:
+                bar.log(f'Keep manual case')
+                bar.done()
+                return
+
+            infile = self.problem.path / path
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                ext_file = infile.with_suffix(ext)
+                if ext_file.is_file():
+                    bar.log(f'Remove file {ext_file.name}')
+                    ext_file.unlink()
+
+            bar.done()
+
+        self.root_dir.walk(clean_testcase, clean_dir, dir_first=False)
+        bar.finalize()
+
+
+def test_generate(problem):
+    config = GeneratorConfig(problem)
+    config.build()
+    config.run()
+    exit(0)
+
+def clean(problem):
+    config = GeneratorConfig(problem)
+    config.clean()
     exit(0)

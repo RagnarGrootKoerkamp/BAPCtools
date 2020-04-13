@@ -16,6 +16,8 @@ class Problem:
         self.path = path
         # Configuration in problem.yaml
         self.config = Problem._read_configs(self.path)
+        # This is a Namespace type copy of settings which also includes command line flags.
+        self.settings = None
 
         # The label for the problem: A, B, A1, A2, X, ...
         if label is None:
@@ -49,8 +51,10 @@ class Problem:
 
         # parse problem.yaml
         yamlpath = problem / 'problem.yaml'
-        for k, v in util.read_yaml(problem / 'problem.yaml').items():
-            settings[k] = v
+        yamldata = util.read_yaml(problem / 'problem.yaml')
+        if yamldata:
+            for k, v in yamldata.items():
+                settings[k] = v
 
         # parse validator_flags
         if 'validator_flags' in settings and settings['validator_flags']:
