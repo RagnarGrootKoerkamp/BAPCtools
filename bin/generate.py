@@ -784,17 +784,24 @@ class GeneratorConfig:
                 q.join()
                 d.generate(self.problem, self.known_cases, bar)
 
-            self.root_dir.walk(
-                lambda t: q.put(t),
-                generate_dir,
-            )
+            try:
+                self.root_dir.walk(
+                    lambda t: q.put(t),
+                    generate_dir,
+                )
 
-            q.join()
+                q.join()
 
-            for _ in range(num_worker_threads):
-                q.put(None)
-            for t in threads:
-                t.join()
+                for _ in range(num_worker_threads):
+                    q.put(None)
+                for t in threads:
+                    t.join()
+            except KeyboardInterrupt:
+                for _ in range(num_worker_threads):
+                    q.put(None)
+                for t in threads:
+                    t.join()
+                exit(1)
 
         bar.finalize()
 

@@ -137,6 +137,13 @@ class ProgressBar:
         if self.count is None or bar_width < 4: return ''
         fill = (self.i - 1) * (bar_width - 2) // self.count
         return '[' + '#' * fill + '-' * (bar_width - 2 - fill) + ']'
+
+    # Remove the current item from in_progress.
+    def _release_item(self):
+        if self.parent:
+            self.parent.in_progress.remove(self.item)
+        else:
+            self.in_progress.remove(self.item)
     
     # Resume the ongoing progress bar after a log/done.
     # Should only be called for the root.
@@ -146,6 +153,7 @@ class ProgressBar:
 
         if len(self.in_progress) > 0:
             if not self.item in self.in_progress:
+                old = self.item
                 self.item = next(iter(self.in_progress))
             bar = self.get_bar()
             if bar is None or bar == '':
@@ -206,9 +214,13 @@ class ProgressBar:
         config.n_warn += 1
         self.log(message, data, cc.orange)
 
+    # Error removes the current item from the in_progress set.
     def error(self, message='', data=''):
+        self.lock.acquire()
         config.n_error += 1
-        self.log(message, data, cc.red)
+        self._release_item()
+        self.log(message, data, cc.red, needs_lock=False)
+        self.lock.release()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     # Return True when something was printed
@@ -216,10 +228,7 @@ class ProgressBar:
         self.lock.acquire()
         self.clearline()
 
-        if self.parent:
-            self.parent.in_progress.remove(self.item)
-        else:
-            self.in_progress.remove(self.item)
+        self._release_item()
 
         if self.logged:
             self.lock.release()
