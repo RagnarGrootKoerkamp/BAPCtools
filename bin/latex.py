@@ -5,7 +5,6 @@ import util
 import re
 import subprocess
 import tempfile
-import shutil
 from pathlib import Path
 
 import config

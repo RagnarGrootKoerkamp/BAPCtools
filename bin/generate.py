@@ -1,5 +1,6 @@
 import hashlib
 import shlex
+import shutil
 import yaml
 
 from util import *

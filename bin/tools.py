@@ -15,11 +15,8 @@ Bommel.
 """
 
 import argparse
-import datetime
 import hashlib
 import os
-import re
-import shutil
 import sys
 import tempfile
 
@@ -121,18 +118,6 @@ def print_sorted(problems):
     prefix = config.args.contest + '/' if config.args.contest else ''
     for problem in problems:
         print(f'{problem.label:<2}: {problem.path}')
-
-
-# Returns the alphanumeric version of a string:
-# This reduces it to a string that follows the regex:
-# [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
-def alpha_num(string):
-    s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '').replace('-', ''))
-    while s.startswith('_.-'):
-        s = s[1:]
-    while s.endswith('_.-'):
-        s = s[:-1]
-    return s
 
 
 def split_submissions(s):

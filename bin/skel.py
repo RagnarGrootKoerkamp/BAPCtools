@@ -1,6 +1,10 @@
 import shutil
 
 import config
+import datetime
+import re
+
+# Local imports
 from util import *
 
 
@@ -19,6 +23,18 @@ def _ask_variable(name, default=None):
         print(f"{name} [{default}]: ", end='')
         val = input()
         return default if val == '' else val
+
+
+# Returns the alphanumeric version of a string:
+# This reduces it to a string that follows the regex:
+# [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
+def alpha_num(string):
+    s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '').replace('-', ''))
+    while s.startswith('_.-'):
+        s = s[1:]
+    while s.endswith('_.-'):
+        s = s[:-1]
+    return s
 
 
 def new_contest(name):

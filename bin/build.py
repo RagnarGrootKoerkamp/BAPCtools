@@ -1,5 +1,6 @@
 import fnmatch
 import re
+import shutil
 import stat
 import subprocess
 

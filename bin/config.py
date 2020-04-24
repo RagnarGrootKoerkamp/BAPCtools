@@ -2,7 +2,6 @@
 # parsed.
 
 from pathlib import Path
-import tempfile
 import re
 
 # return values
