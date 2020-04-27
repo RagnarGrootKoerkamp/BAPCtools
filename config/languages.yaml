@@ -179,7 +179,7 @@ javascript:
     priority: 500
     files: '*.js'
     compile: '/usr/bin/js24 -c {files}'
-    run: '/usr/bin/js24 "{mainfile}"'
+    run: '/usr/bin/js24 {mainfile}'
 
 kotlin:
     name: 'Kotlin'
@@ -192,8 +192,8 @@ lisp:
     name: 'Common Lisp'
     priority: 200
     files: '*.lisp *.cl'
-    compile: '/usr/bin/sbcl --noinform --noprint --non-interactive --eval ''(if (equal (compile-file "{mainfile}") NIL) (sb-ext:exit :code 43) ())'' '
-    run: '/usr/bin/sbcl --noinform --non-interactive --load "{mainfile}"'
+    compile: '/usr/bin/sbcl --noinform --noprint --non-interactive --eval ''(if (equal (compile-file {mainfile}) NIL) (sb-ext:exit :code 43) ())'' '
+    run: '/usr/bin/sbcl --noinform --non-interactive --load {mainfile}'
 
 ocaml:
     name: 'OCaml'
@@ -214,15 +214,15 @@ pascal:
     name: 'Pascal'
     priority: 350
     files: '*.pas'
-    compile: '/usr/bin/fpc -o"{mainfile}.out" -O2 -XS -Xt "{mainfile}"'
-    run: '"{mainfile}.out"'
+    compile: '/usr/bin/fpc -o{mainfile}.out -O2 -XS -Xt {mainfile}'
+    run: '{mainfile}.out'
 
 php:
     name: 'PHP'
     priority: 450
     files: '*.php'
     compile: '/usr/bin/php -n -d display_errors=stderr -d html_errors=0 -l {files}'
-    run: '/usr/bin/php -n -d display_errors=stderr -d html_errors=0 -d memory_limit={memlim}m -f "{mainfile}"'
+    run: '/usr/bin/php -n -d display_errors=stderr -d html_errors=0 -d memory_limit={memlim}m -f {mainfile}'
 
 prolog:
     name: 'Prolog'
@@ -237,14 +237,14 @@ python3:
     files: '*.py'
     shebang: '^#!.*python3\b'
     compile: '/usr/bin/python3 -m py_compile {files}'
-    run: '/usr/bin/python3 "{mainfile}"'
+    run: '/usr/bin/python3 {mainfile}'
 
 python2:
     name: 'Python 2'
     priority: 850
     files: '*.py'
     compile: '/usr/bin/python2 -m py_compile {files}'
-    run: '/usr/bin/python2 "{mainfile}"'
+    run: '/usr/bin/python2 {mainfile}'
 
 ruby:
     name: 'Ruby'
@@ -253,8 +253,8 @@ ruby:
     # Note that this compile command only syntax-checks the main file --
     # unfortunately the ruby -c command does not provide the option to
     # syntax-check multiple files.
-    compile: '/usr/bin/ruby -c "{mainfile}"'
-    run: '/usr/bin/ruby "{mainfile}"'
+    compile: '/usr/bin/ruby -c {mainfile}'
+    run: '/usr/bin/ruby {mainfile}'
 
 rust:
     name: 'Rust'
