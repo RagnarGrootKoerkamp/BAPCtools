@@ -1,6 +1,7 @@
 import build
 from util import *
 
+import re
 
 def _quick_diff(ans, out):
     if ans.count('\n') <= 1 and out.count('\n') <= 1:
