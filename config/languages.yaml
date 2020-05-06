@@ -269,3 +269,12 @@ scala:
     files: '*.sc *.scala'
     compile: '/usr/bin/scalac -encoding UTF-8 -sourcepath {path} -d {path} {files}'
     run: '/usr/bin/scala -J-Xmx{memlim}m -classpath {path} {mainclass}'
+
+# Executes any .sh file directly.
+# File needs to be executable.
+shell:
+    name: 'Shell'
+    priority: 900
+    files: '*.sh'
+    compile:
+    run: '{mainfile}'
