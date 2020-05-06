@@ -61,6 +61,12 @@ def get_default_solution(problem):
 
 
 # A Program is a command line (generator name + arguments) to execute.
+# The following classes inherit from Program:
+# - Generator
+# - Solution
+# - Visualizer
+#
+# TODO: Maybe it's better to rename this to invocation, and make it link to a Program/Executable (see build.py).
 class Program:
     SEED_REGEX = re.compile('\{seed(:[0-9]+)?\}')
     NAME_REGEX = re.compile('\{name\}')
@@ -69,9 +75,8 @@ class Program:
         commands = shlex.split(str(string))
         command = commands[0]
         self.args = commands[1:]
-        # Will be set after programs have been built.
-        self.exec = None
 
+        # The name of the program to be executed.
         self.command = resolve_path(command, allow_absolute=allow_absolute)
 
         # Make sure that {seed} occurs at most once.
@@ -81,13 +86,27 @@ class Program:
 
         assert seed_cnt <= 1
 
-    def substitute_args(self, *, name=None, seed=None):
+        # These will be set after programs have been built, by calling set_executable.
+        # The path of the executable to run.
+        self.executable = None
+        # The timestamp the executable was last modified.
+        self.timestamp = None
+
+    def set_executable(self, executable):
+        self.executable = executable
+        # TODO: Set the timestamp.
+        #self.timestamp = executable.stat().st_ctime
+
+    # Return the full command to be executed.
+    def get_command(self, *, name=None, seed=None):
+        assert self.executable is not None
+
         def sub(arg):
             if name: arg = self.NAME_REGEX.sub(str(name), arg)
             if seed: arg = self.SEED_REGEX.sub(str(seed), arg)
             return arg
 
-        return [sub(arg) for arg in self.args]
+        return self.executable + [sub(arg) for arg in self.args]
 
 
 class Generator(Program):
@@ -110,10 +129,7 @@ class Generator(Program):
             for f in cwd.iterdir():
                 f.unlink()
 
-            assert self.exec is not None
-
-            command = self.exec + self.substitute_args(name=name, seed=seed + retry)
-
+            command = self.get_command(name=name, seed=seed + retry)
             stdout_file = stdout_path.open('w')
             try_ok, err, out = exec_command(command, stdout=stdout_file, timeout=timeout, cwd=cwd)
             stdout_file.close()
@@ -156,7 +172,6 @@ class Solution(Program):
     # Run the submission, reading {name}.in from stdin and piping stdout to {name}.ans.
     # If the .ans already exists, nothing is done.
     def run(self, bar, cwd, name):
-        assert self.exec is not None
         timeout = get_timeout()
 
         in_path = cwd / (name + '.in')
@@ -165,7 +180,7 @@ class Solution(Program):
         if ans_path.is_file(): return True
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        ok, duration, err, out = run.run_testcase(self.exec + self.args, in_path, ans_path,
+        ok, duration, err, out = run.run_testcase(self.get_command(), in_path, ans_path,
                                                   timeout)
         if duration > timeout:
             bar.error('TIMEOUT')
@@ -176,8 +191,8 @@ class Solution(Program):
 
         return True
 
+    # TODO: Test generating .interaction files for interactive problems.
     def run_interactor(self, bar, cwd, name, output_validators):
-        assert self.exec is not None
         timeout = get_timeout()
 
         in_path = cwd / (name + '.in')
@@ -186,7 +201,7 @@ class Solution(Program):
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         verdict, duration, err, out = run.process_interactive_testcase(
-            self.exec + self.args,
+            self.get_command(),
             in_path,
             settings,
             output_validators,
@@ -212,10 +227,8 @@ class Visualizer(Program):
     # Run the visualizer, taking {name} as a command line argument.
     # Stdin and stdout are not used.
     def run(self, bar, cwd, name):
-        assert self.exec is not None
-
         timeout = get_timeout()
-        command = self.exec + self.substitute_args(name=name)
+        command = self.get_command(name=name)
 
         try_ok, err, out = exec_command(command, timeout=timeout, cwd=cwd)
 
@@ -751,15 +764,15 @@ class GeneratorConfig:
         self.visualizer_commands = build_programs('visualizers', visualizers_used)
 
         # Set generator command, solution, and visualizer for each testcase.
-        def set_exec(t):
+        def set_executables(t):
             if not t.manual:
-                t.program.exec = self.generator_commands[t.program.command]
+                t.program.set_executable(self.generator_commands[t.program.command])
             if t.config.solution:
-                t.config.solution.exec = self.solution_commands[t.config.solution.command]
+                t.config.solution.set_executable(self.solution_commands[t.config.solution.command])
             if t.config.visualizer:
-                t.config.visualizer.exec = self.visualizer_commands[t.config.visualizer.command]
+                t.config.visualizer.set_executable(self.visualizer_commands[t.config.visualizer.command])
 
-        self.root_dir.walk(set_exec, dir_f=None)
+        self.root_dir.walk(set_executables, dir_f=None)
 
         self.input_validators = validate.get_validators(self.problem.path, 'input')
         self.output_validators = validate.get_validators(self.problem.path, 'output')

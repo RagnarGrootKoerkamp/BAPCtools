@@ -11,6 +11,8 @@ from util import *
 def _is_executable(path):
     return path.is_file() and (path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
+# TODO: Wrap build() in an Executable/Program class which is constructed using a path to a program and has a .build() method.
+# That way it's also easier to expose metadata like the timestamp of the last change.
 
 # A function to convert c++ or java to something executable.
 # Returns a command to execute and an optional error message.
