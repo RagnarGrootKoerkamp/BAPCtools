@@ -383,7 +383,7 @@ class Testcase(Base):
                     source = source.resolve().relative_to(problem.path.parent.resolve())
                     ensure_symlink(target, source, relative=True)
                 else:
-                    source.rename(target)
+                    shutil.move(source, target)
             else:
                 if target.is_file():
                     # remove old target
