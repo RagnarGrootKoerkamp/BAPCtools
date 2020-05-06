@@ -20,7 +20,7 @@ solution: /submissions/accepted/sol.py
 #
 # TOOLING: may provide a flag to make running this optional, as it can be slow
 # and usually isn't required.
-visualizer: /visualizers/asy.py {name}
+visualizer: /visualizers/asy.sh {name}
 
 # Optionally, a salt for generating the {seed} variables. Will be prepended to
 # the command being run.
@@ -84,7 +84,7 @@ data:
 # To indicate a manual testcase, specify it with an empty value.
       2: 
 # Any key that matches the glob `*.in` is a manual testcase that will be copied
-# from the given directory into the target testcase. The given directory
+# from the given directory into the target testcase. The given path
 # must not start with a / and will be relative to generators/.
       3: manual_cases/sample/3.in
 # Every testcase must be listed.
