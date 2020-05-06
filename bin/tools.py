@@ -471,11 +471,6 @@ def main():
                 vars(settings)[key] = vars(config.args)[key]
         problem.settings = settings
 
-        # TODO: Remove this; it's for testing only.
-        if action == 'generate':
-            generate.test_generate(problem)
-            return
-
         if action in ['pdf', 'solutions', 'all']:
             # only build the pdf on the problem level, or on the contest level when
             # --all is passed.
@@ -490,7 +485,7 @@ def main():
         if action in ['clean']:
             success &= generate.clean(problem)
         if action in ['generate']:
-            success &= generate.generate(problem.path, settings)
+            success &= generate.generate(problem)
         if action in ['validate', 'output', 'all']:
             success &= validate.validate(problem.path, 'output', settings, input_validator_ok)
         if action in ['run', 'all']:

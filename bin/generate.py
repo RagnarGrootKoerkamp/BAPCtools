@@ -25,6 +25,7 @@ def is_directory(yaml):
     return isinstance(yaml, dict) and 'type' in yaml and yaml['type'] == 'directory'
 
 
+# Returns the given path relative to the problem root.
 def resolve_path(path, *, allow_absolute):
     assert isinstance(path, str)
     if not allow_absolute:
@@ -84,27 +85,16 @@ class Invocation:
 
         assert seed_cnt <= 1
 
-        # These will be set after programs have been built, by calling set_executable.
-        # The path of the executable to run.
-        self.executable = None
-        # The timestamp the executable was last modified.
-        self.timestamp = None
-
-    def set_executable(self, executable):
-        self.executable = executable
-        # TODO: Set the timestamp.
-        #self.timestamp = executable.stat().st_ctime
-
     # Return the full command to be executed.
-    def get_command(self, *, name=None, seed=None):
-        assert self.executable is not None
+    def get_command(self, problem, *, name=None, seed=None):
 
         def sub(arg):
             if name: arg = self.NAME_REGEX.sub(str(name), arg)
             if seed: arg = self.SEED_REGEX.sub(str(seed), arg)
             return arg
 
-        return self.executable + [sub(arg) for arg in self.args]
+        return build.Program.get(problem.path / self.command).run_command + [sub(arg) for arg in self.args]
+
 
 
 class Generator(Invocation):
@@ -114,7 +104,7 @@ class Generator(Invocation):
     # Run this program in the given working directory for the given name and seed.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns True on success, False on failu
-    def run(self, bar, cwd, name, seed, retries=1):
+    def run(self, problem, bar, cwd, name, seed, retries=1):
         in_path = cwd / (name + '.in')
         stdout_path = cwd / (name + '.in_')
 
@@ -127,7 +117,7 @@ class Generator(Invocation):
             for f in cwd.iterdir():
                 f.unlink()
 
-            command = self.get_command(name=name, seed=seed + retry)
+            command = self.get_command(problem, name=name, seed=seed + retry)
             stdout_file = stdout_path.open('w')
             try_ok, err, out = exec_command(command, stdout=stdout_file, timeout=timeout, cwd=cwd)
             stdout_file.close()
@@ -169,7 +159,7 @@ class Solution(Invocation):
 
     # Run the submission, reading {name}.in from stdin and piping stdout to {name}.ans.
     # If the .ans already exists, nothing is done
-    def run(self, bar, cwd, name):
+    def run(self, problem, bar, cwd, name):
         timeout = get_timeout()
 
         in_path = cwd / (name + '.in')
@@ -178,7 +168,7 @@ class Solution(Invocation):
         if ans_path.is_file(): return True
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        ok, duration, err, out = run.run_testcase(self.get_command(), in_path, ans_path, timeout)
+        ok, duration, err, out = run.run_testcase(self.get_command(problem), in_path, ans_path, timeout)
         if duration > timeout:
             bar.error('TIMEOUT')
             return False
@@ -189,7 +179,7 @@ class Solution(Invocation):
         return True
 
     # TODO: Test generating .interaction files for interactive problems.
-    def run_interactive(self, bar, cwd, name, output_validators):
+    def run_interactive(self, problem, bar, cwd, name, output_validators):
         timeout = get_timeout()
 
         in_path = cwd / (name + '.in')
@@ -198,7 +188,7 @@ class Solution(Invocation):
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         verdict, duration, err, out = run.process_interactive_testcase(
-            self.get_command(),
+            self.get_command(problem),
             in_path,
             settings,
             output_validators,
@@ -223,9 +213,9 @@ class Visualizer(Invocation):
 
     # Run the visualizer, taking {name} as a command line argument.
     # Stdin and stdout are not used.
-    def run(self, bar, cwd, name):
+    def run(self, problem, bar, cwd, name):
         timeout = get_timeout()
-        command = self.get_command(name=name)
+        command = self.get_command(problem, name=name)
 
         try_ok, err, out = exec_command(command, timeout=timeout, cwd=cwd)
 
@@ -313,8 +303,9 @@ class Testcase(Base):
             # TODO: Should the seed depend on white space? For now it does.
             seed_value = self.config.random_salt + yaml['input']
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
-            self.program = Generator(yaml['input'])
+            self.generator = Generator(yaml['input'])
 
+    # TODO: Skip generating testcases with unchanged program and generator rule.
     def generate(t, problem, input_validators, output_validators, bar):
         bar = bar.start(str(t.path))
 
@@ -336,7 +327,8 @@ class Testcase(Base):
                 if ext_file.is_file():
                     ensure_symlink(infile.with_suffix(ext), ext_file)
         else:
-            if not t.program.run(bar, cwd, t.name, t.seed, t.config.retries):
+            # TODO: Do not run the generator when the dependencies haven't changed since the last run.
+            if not t.generator.run(problem, bar, cwd, t.name, t.seed, t.config.retries):
                 return
 
         # Validate the manual or generated .in.
@@ -345,15 +337,16 @@ class Testcase(Base):
 
         # Generate .ans and/or .interaction for interactive problems.
         # TODO: Disable this with a flag.
+        # TODO: Only run the solution when the .in or the solution have changed since the last run.
         if t.config.solution:
             if problem.settings.validation != 'custom interactive':
-                if not t.config.solution.run(bar, cwd, t.name):
+                if not t.config.solution.run(problem, bar, cwd, t.name):
                     return
                 if not validate.validate_testcase(
                         problem, ansfile, output_validators, 'input', bar=bar):
                     return
             else:
-                if not t.config.solution.run_interactive(bar, cwd, t.name, output_validators):
+                if not t.config.solution.run_interactive(problem, bar, cwd, t.name, output_validators):
                     return
 
         if not ansfile.is_file():
@@ -361,8 +354,9 @@ class Testcase(Base):
 
         # Generate visualization
         # TODO: Disable this with a flag.
+        # TODO: Only run the visualizer when files or the visualizer have changed since the last run.
         if t.config.visualizer:
-            if not t.config.visualizer.run(bar, cwd, t.name):
+            if not t.config.visualizer.run(problem, bar, cwd, t.name):
                 return
 
         target_dir = problem.path / 'data' / t.path.parent
@@ -709,8 +703,6 @@ class GeneratorConfig:
         warn(f'No solution specified. Using randomly chosen {submission} instead.')
         return submission
 
-    # TODO: Determine which test cases need updating, and only build required programs.
-
     def build(self):
         generators_used = set()
         solutions_used = set()
@@ -723,7 +715,7 @@ class GeneratorConfig:
         def collect_programs(t):
             nonlocal default_solution
             if not t.manual:
-                generators_used.add(t.program.command)
+                generators_used.add(t.generator.command)
             if t.config.solution:
                 if t.config.solution is True:
                     if default_solution is None:
@@ -735,43 +727,26 @@ class GeneratorConfig:
 
         self.root_dir.walk(collect_programs, dir_f=None)
 
-        def build_programs(name, programs, *, allow_generators_dict=False):
-            bar = ProgressBar('Build ' + name, items=[prog.name for prog in programs])
-            commands = {}
-            for prog in programs:
-                bar.start(prog.name)
+        def build_programs(name, program_paths, *, allow_generators_dict=False):
+            bar = ProgressBar('Build ' + name, items=[prog.name for prog in program_paths])
+            # TODO: Build multiple programs in parallel.
+            for program_path in program_paths:
+                bar.start(program_path.name)
 
-                path = self.problem.path / prog
+                path = self.problem.path / program_path
                 deps = None
 
-                if allow_generators_dict and prog in self.generators:
-                    deps = [Path(self.problem.path) / d for d in self.generators[prog]]
+                if allow_generators_dict and program_path in self.generators:
+                    deps = [Path(self.problem.path) / d for d in self.generators[program_path]]
 
-                run_command = build.Program(path, deps, bar=bar).build()
-
-                if run_command is not None:
-                    commands[prog] = run_command
+                if build.Program(path, deps, bar=bar).build() is not None:
                     bar.done()
 
-            return commands
+            bar.finalize()
 
-        self.generator_commands = build_programs('generators',
-                                                 generators_used,
-                                                 allow_generators_dict=True)
-        self.solution_commands = build_programs('solutions', solutions_used)
-        self.visualizer_commands = build_programs('visualizers', visualizers_used)
-
-        # Set generator command, solution, and visualizer for each testcase.
-        def set_executables(t):
-            if not t.manual:
-                t.program.set_executable(self.generator_commands[t.program.command])
-            if t.config.solution:
-                t.config.solution.set_executable(self.solution_commands[t.config.solution.command])
-            if t.config.visualizer:
-                t.config.visualizer.set_executable(
-                    self.visualizer_commands[t.config.visualizer.command])
-
-        self.root_dir.walk(set_executables, dir_f=None)
+        build_programs('generators', generators_used, allow_generators_dict=True)
+        build_programs('solutions', solutions_used)
+        build_programs('visualizers', visualizers_used)
 
         self.input_validators = validate.get_validators(self.problem.path, 'input')
         self.output_validators = validate.get_validators(self.problem.path, 'output')
@@ -852,7 +827,7 @@ class GeneratorConfig:
         bar.finalize()
 
 
-def test_generate(problem):
+def generate(problem):
     config = GeneratorConfig(problem)
     config.build()
     config.run()

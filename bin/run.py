@@ -418,6 +418,7 @@ def _run_submission(submission,
     printed = False
     bar = ProgressBar(action, max_testcase_len, len(testcases))
 
+    # TODO: Run multiple testcases in parallel.
     final_verdict = 'ACCEPTED'
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix('')))

@@ -11,14 +11,12 @@ ctd:
     name: 'Checktestdata'
     priority: 1
     files: '*.ctd'
-    #compile: 
     run: 'checktestdata {mainfile}'
 
 viva:
     name: 'Viva'
     priority: 2
     files: '*.viva'
-    #compile: 
     run: 'java -jar {viva_jar} {mainfile}'
 
 manual:
@@ -42,7 +40,7 @@ def languages():
         _languages = read_yaml(config.tools_root / 'config/languages.yaml')
 
     if config.args.cpp_flags:
-        _languages['cpp']['compile'] += args.cpp_flags
+        _languages['cpp']['compile'] += ' ' + config.args.cpp_flags
 
     # Add custom languages.
     extra_langs = yaml.safe_load(EXTRA_LANGUAGES)
@@ -52,6 +50,8 @@ def languages():
 
     return _languages
 
+
+# TODO: Store compile command in the temporary Program directory, so we can detect if the compilation command changes.
 
 # A Program is class that wraps a program (file/directory) on disk. A program is usually one of:
 # - a submission
@@ -77,18 +77,30 @@ def languages():
 #
 # build() will return the (run_command, message) pair.
 class Program:
+    # A map from program paths to Program objects.
+    # Used by Invocations to map from the generator name to the run_command.
+    _cache = dict()
+
+
     def __init__(self, path, deps=None, *, bar):
         if deps is not None:
             assert isinstance(deps, list)
             assert len(deps) > 0
 
+        # Make sure we never try to build the same program twice. That'd be stupid.
+        assert path not in Program._cache
+        Program._cache[path] = self
+
         self.bar = bar
         self.path = path
         self.tmp_dir = Program._get_tmp_dir(path)
+        self.compile_command = None
         self.run_command = None
         self.timestamp = None
-        self.ok = True
         self.env = {}
+
+        self.ok = True
+        self.built = False
 
         # Detect language, dependencies, and main file
         if deps: source_files = deps
@@ -215,60 +227,73 @@ class Program:
                     else:
                         bar.warn(f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h')
 
-    # Return run_command, or None if building failed.
-    def build(self):
-        if not self.ok: return None
+    # Return True on success.
+    def _compile(self):
+        metafile = self.tmp_dir / 'meta_'
 
-        runfile = self.tmp_dir / 'run'
-
-        # Remove all other files.
+        # Remove all non-source files.
         for f in self.tmp_dir.glob('*'):
-            if f not in (self.input_files + [runfile]):
+            if f not in (self.input_files + [metafile]):
                 if f.is_dir() and not f.is_symlink():
                     shutil.rmtree(f)
                 else:
                     f.unlink()
 
-        # If the run file is up to date, no need to rebuild.
-        if runfile.exists() and runfile not in self.input_files:
-            if not config.args.force_build:
-                if runfile.stat().st_ctime >= self.timestamp:
-                    return [runfile]
-            runfile.unlink()
+        # The case where compile_command='{build}' will result in an empty list here.
+        if not self.compile_command: return True
+
+        try:
+            ok, err, out = exec_command(
+                self.compile_command,
+                stdout=subprocess.PIPE,
+                memory=5000000000,
+                cwd=self.tmp_dir,
+                # Compile errors are never cropped.
+                crop=False)
+        except FileNotFoundError as err:
+            self.ok = False
+            self.bar.error('FAILED', str(err))
+            return False
+
+        if ok is not True:
+            data = ''
+            if err is not None: data += strip_newline(err) + '\n'
+            if out is not None: data += strip_newline(out) + '\n'
+            self.ok = False
+            self.bar.error('FAILED', data)
+            return False
+
+        metafile.write_text(' '.join(self.compile_command))
+        return True
+
+
+    # Return run_command, or None if building failed.
+    def build(self):
+        if not self.ok: return None
+        assert not self.built
+        self.built = True
+
+        runfile = self.tmp_dir / 'run'
+        # A file containing the compile command. Timestamp is used as last build time.
+        metafile = self.tmp_dir / 'meta_'
 
         lang_config = languages()[self.language]
-        compile_command = lang_config['compile'] if 'compile' in lang_config else None
+
+        compile_command = lang_config['compile'] if 'compile' in lang_config else ''
+        self.compile_command = compile_command.format(**self.env).split()
         run_command = lang_config['run']
+        self.run_command = run_command.format(**self.env).split()
 
-        # Prevent building something twice in one invocation of tools.py.
-        if compile_command:
-            compile_command = compile_command.format(**self.env).split()
-            # The case where compile_command='{build}' will result in an empty list here.
-            if compile_command:
-                try:
-                    ok, err, out = exec_command(
-                        compile_command,
-                        stdout=subprocess.PIPE,
-                        memory=5000000000,
-                        cwd=self.tmp_dir,
-                        # Compile errors are never cropped.
-                        crop=False)
-                except FileNotFoundError as err:
-                    self.bar.error('FAILED', str(err))
-                    return None
+        # Compare the latest source timestamp (self.timestamp) to the last build.
+        up_to_date = metafile.is_file() and metafile.stat().st_ctime >= self.timestamp and metafile.read_text() == ' '.join(self.compile_command)
 
-                if ok is not True:
-                    data = ''
-                    if err is not None: data += strip_newline(err) + '\n'
-                    if out is not None: data += strip_newline(out) + '\n'
-                    self.bar.error('FAILED', data)
-                    return None
+        if not up_to_date or config.args.force_build:
+            if not self._compile(): return None
 
-        if run_command is not None:
-            run_command = run_command.format(**self.env).split()
+        return self.run_command
 
-        return run_command
-
+    def get(path):
+        return Program._cache[path]
 
 # build all files in a directory; return a list of tuples (program name, command)
 def build_programs(programs, include_dirname=False):
