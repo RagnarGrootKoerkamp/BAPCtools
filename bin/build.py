@@ -137,7 +137,7 @@ def build(path, deps=None):
         with f.open() as o:
             return shebang.search(o.readline())
 
-    best = (None, [], -1)
+    best = (None, [], 0)
     message = None
     for lang in config.languages:
         lang_conf = config.languages[lang]
@@ -149,6 +149,8 @@ def build(path, deps=None):
         for f in linked_files:
             if any(fnmatch.fnmatch(f, glob) for glob in globs) and matches_shebang(f, shebang):
                 matching_files.append(f)
+
+        if len(matching_files) == 0: continue
 
         if (len(matching_files), priority) > (len(best[1]), best[2]):
             best = (lang, matching_files, priority)

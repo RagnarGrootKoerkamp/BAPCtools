@@ -60,7 +60,7 @@ def get_default_solution(problem):
     return submission
 
 
-# Parses a string into command to execute and arguments to give on the command line.
+# A Program is a command line (generator name + arguments) to execute.
 class Program:
     SEED_REGEX = re.compile('\{seed(:[0-9]+)?\}')
     NAME_REGEX = re.compile('\{name\}')
@@ -85,6 +85,7 @@ class Program:
         def sub(arg):
             if name: arg = self.NAME_REGEX.sub(str(name), arg)
             if seed: arg = self.SEED_REGEX.sub(str(seed), arg)
+            return arg
 
         return [sub(arg) for arg in self.args]
 
@@ -127,8 +128,8 @@ class Generator(Program):
                 continue
 
             if in_path.is_file():
-                if stdout_path.is_file():
-                    bar.warn(f'Wrote both {name}.in and stdout. Ignoring stdout.')
+                if stdout_path.read_text():
+                    bar.warn(f'Generator wrote to both {name}.in and stdout. Ignoring stdout.')
             else:
                 if not stdout_path.is_file():
                     bar.error(f'Did not write {name}.in and stdout is empty!')
@@ -462,6 +463,7 @@ class Directory(Base):
         if isinstance(data, list):
             self.numbered = True
 
+
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
     def walk(self, testcase_f=None, dir_f=True, *, dir_last=False):
@@ -632,22 +634,31 @@ class GeneratorConfig:
                     assert not include.startswith('/')
                     assert not Path(include).is_absolute()
                     assert Path(include) in self.known_cases
+                    self.known_cases.add(d.path / Path(include).name)
 
                 d.includes = [Path(include) for include in yaml['include']]
 
-            if 'data' not in yaml: return d
 
-            for dictionary in yaml['data']:
-                if d.numbered:
-                    number_prefix = str(next_number) + '-'
-                    next_number += 1
-                else:
-                    number_prefix = ''
+            # Parse child directories/testcases.
+            if 'data' in yaml:
+                for dictionary in yaml['data']:
+                    if d.numbered:
+                        number_prefix = str(next_number) + '-'
+                        next_number += 1
+                    else:
+                        number_prefix = ''
 
-                for child_name, child_yaml in sorted(dictionary.items()):
-                    if isinstance(child_name, int): child_name = str(child_name)
-                    child_name = number_prefix + child_name
-                    d.data.append(parse(child_name, child_yaml, d))
+                    for child_name, child_yaml in sorted(dictionary.items()):
+                        if isinstance(child_name, int): child_name = str(child_name)
+                        child_name = number_prefix + child_name
+                        d.data.append(parse(child_name, child_yaml, d))
+
+            # Add hardcoded manual cases not mentioned in generators.yaml.
+            dir_path = problem.path / 'data' / d.path
+            for f in dir_path.glob('*.in'):
+                base = f.with_suffix('')
+                if base.relative_to(problem.path / 'data') in self.known_cases: continue
+                d.data.append(parse(base.name, '', d))
 
             return d
 
@@ -734,6 +745,7 @@ class GeneratorConfig:
         self.solution_commands = build_programs('solutions', solutions_used)
         self.visualizer_commands = build_programs('visualizers', visualizers_used)
 
+        # Set generator command, solution, and visualizer for each testcase.
         def set_exec(t):
             if not t.manual:
                 t.program.exec = self.generator_commands[t.program.command]
@@ -752,6 +764,12 @@ class GeneratorConfig:
         self.root_dir.walk(lambda x: item_names.append(x.path))
 
         bar = ProgressBar('Generate', items=item_names)
+
+        if config.args.jobs <= 0:
+            warn('Number of jobs is not positive. Disabling parallelization.')
+
+        if config.args.jobs <= 1:
+            self.parallel = False
 
         if not self.parallel:
             self.root_dir.walk(
@@ -772,8 +790,8 @@ class GeneratorConfig:
                     testcase.generate(self.problem, self.input_validators, self.output_validators, bar),
                     q.task_done()
 
-            # TODO: Make this a command line/generators.yaml option?
-            num_worker_threads = 4
+            # TODO: Make this a generators.yaml option?
+            num_worker_threads = config.args.jobs
             threads = []
             for _ in range(num_worker_threads):
                 t = threading.Thread(target=worker)
