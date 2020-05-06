@@ -148,6 +148,10 @@ data:
         random_salt: 123
 
 
+      20: dir 123
+      21: dir_build 123
+      22: dir_run 123
+      23: dir_build_run 123
 
 # Introduce a testgroup by adding a dictionary with `type: directory` set.
 # The top-level is always assumed to be a directory.
