@@ -148,7 +148,7 @@ class ProgressBar:
             self.parent.in_progress.remove(self.item)
         else:
             self.in_progress.remove(self.item)
-    
+
     # Resume the ongoing progress bar after a log/done.
     # Should only be called for the root.
     def _resume(self):
@@ -516,7 +516,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     command = [str(x) for x in command]
 
     if config.verbose >= 2:
-        print(command, kwargs)
+        print(command, kwargs, 'cwd:', Path.cwd())
 
     timeout = 30
     if 'timeout' in kwargs:

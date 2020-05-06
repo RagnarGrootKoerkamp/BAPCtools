@@ -60,14 +60,12 @@ def get_default_solution(problem):
     return submission
 
 
-# A Program is a command line (generator name + arguments) to execute.
-# The following classes inherit from Program:
+# An Invocation is a command line (generator name + arguments) to execute.
+# The following classes inherit from Invocation:
 # - Generator
 # - Solution
 # - Visualizer
-#
-# TODO: Maybe it's better to rename this to invocation, and make it link to a Program/Executable (see build.py).
-class Program:
+class Invocation:
     SEED_REGEX = re.compile('\{seed(:[0-9]+)?\}')
     NAME_REGEX = re.compile('\{name\}')
 
@@ -109,13 +107,13 @@ class Program:
         return self.executable + [sub(arg) for arg in self.args]
 
 
-class Generator(Program):
+class Generator(Invocation):
     def __init__(self, string):
         super().__init__(string, allow_absolute=False)
 
     # Run this program in the given working directory for the given name and seed.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
-    # Returns True on success, False on failure.
+    # Returns True on success, False on failu
     def run(self, bar, cwd, name, seed, retries=1):
         in_path = cwd / (name + '.in')
         stdout_path = cwd / (name + '.in_')
@@ -165,12 +163,12 @@ class Generator(Program):
             return True
 
 
-class Solution(Program):
+class Solution(Invocation):
     def __init__(self, string):
         super().__init__(string, allow_absolute=True)
 
     # Run the submission, reading {name}.in from stdin and piping stdout to {name}.ans.
-    # If the .ans already exists, nothing is done.
+    # If the .ans already exists, nothing is done
     def run(self, bar, cwd, name):
         timeout = get_timeout()
 
@@ -180,8 +178,7 @@ class Solution(Program):
         if ans_path.is_file(): return True
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        ok, duration, err, out = run.run_testcase(self.get_command(), in_path, ans_path,
-                                                  timeout)
+        ok, duration, err, out = run.run_testcase(self.get_command(), in_path, ans_path, timeout)
         if duration > timeout:
             bar.error('TIMEOUT')
             return False
@@ -192,7 +189,7 @@ class Solution(Program):
         return True
 
     # TODO: Test generating .interaction files for interactive problems.
-    def run_interactor(self, bar, cwd, name, output_validators):
+    def run_interactive(self, bar, cwd, name, output_validators):
         timeout = get_timeout()
 
         in_path = cwd / (name + '.in')
@@ -220,7 +217,7 @@ class Solution(Program):
         return True
 
 
-class Visualizer(Program):
+class Visualizer(Invocation):
     def __init__(self, string):
         super().__init__(string, allow_absolute=True)
 
@@ -359,6 +356,9 @@ class Testcase(Base):
                 if not t.config.solution.run_interactive(bar, cwd, t.name, output_validators):
                     return
 
+        if not ansfile.is_file():
+            bar.warn(f'{ansfile.name} was not generated and solution is disabled here.')
+
         # Generate visualization
         # TODO: Disable this with a flag.
         if t.config.visualizer:
@@ -476,7 +476,6 @@ class Directory(Base):
         if isinstance(data, list):
             self.numbered = True
 
-
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
     def walk(self, testcase_f=None, dir_f=True, *, dir_last=False):
@@ -543,7 +542,9 @@ class Directory(Base):
             if relpath in known_cases: continue
 
             if f.suffix != '.in':
-                if f.suffix in config.KNOWN_DATA_EXTENSIONS and f.with_suffix('.in') in files_created: continue
+                if f.suffix in config.KNOWN_DATA_EXTENSIONS and f.with_suffix(
+                        '.in') in files_created:
+                    continue
                 bar.warn(f'Found unlisted file {f}')
                 continue
 
@@ -663,7 +664,6 @@ class GeneratorConfig:
 
                 d.includes = [Path(include) for include in yaml['include']]
 
-
             # Parse child directories/testcases.
             if 'data' in yaml:
                 for dictionary in yaml['data']:
@@ -719,7 +719,7 @@ class GeneratorConfig:
         default_solution = None
 
         # Collect all programs that need building.
-        # Also, convert the default submission into an actual Program.
+        # Also, convert the default submission into an actual Invocation.
         def collect_programs(t):
             nonlocal default_solution
             if not t.manual:
@@ -747,13 +747,11 @@ class GeneratorConfig:
                 if allow_generators_dict and prog in self.generators:
                     deps = [Path(self.problem.path) / d for d in self.generators[prog]]
 
-                run_command, message = build.build(path, deps)
+                run_command = build.Program(path, deps, bar=bar).build()
 
                 if run_command is not None:
                     commands[prog] = run_command
-                if message:
-                    bar.log(message)
-                bar.done()
+                    bar.done()
 
             return commands
 
@@ -770,7 +768,8 @@ class GeneratorConfig:
             if t.config.solution:
                 t.config.solution.set_executable(self.solution_commands[t.config.solution.command])
             if t.config.visualizer:
-                t.config.visualizer.set_executable(self.visualizer_commands[t.config.visualizer.command])
+                t.config.visualizer.set_executable(
+                    self.visualizer_commands[t.config.visualizer.command])
 
         self.root_dir.walk(set_executables, dir_f=None)
 
@@ -791,7 +790,8 @@ class GeneratorConfig:
 
         if not self.parallel:
             self.root_dir.walk(
-                lambda t: t.generate(self.problem, self.input_validators, self.output_validators, bar),
+                lambda t: t.generate(self.problem, self.input_validators, self.output_validators,
+                                     bar),
                 lambda d: d.generate(self.problem, self.known_cases, bar),
             )
         else:
@@ -805,7 +805,8 @@ class GeneratorConfig:
                 while True:
                     testcase = q.get()
                     if testcase is None: break
-                    testcase.generate(self.problem, self.input_validators, self.output_validators, bar),
+                    testcase.generate(self.problem, self.input_validators, self.output_validators,
+                                      bar),
                     q.task_done()
 
             # TODO: Make this a generators.yaml option?
@@ -847,8 +848,7 @@ class GeneratorConfig:
 
         bar = ProgressBar('Clean', items=item_names)
 
-        self.root_dir.walk(lambda x: x.clean(self.problem, bar),
-                           dir_last=True)
+        self.root_dir.walk(lambda x: x.clean(self.problem, bar), dir_last=True)
         bar.finalize()
 
 

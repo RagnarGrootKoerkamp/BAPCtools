@@ -284,7 +284,11 @@ Run this from one of:
     genparser.add_argument('--samples',
                            action='store_true',
                            help='Overwrite the samples as well, in combination with -f.')
-    genparser.add_argument('-j', '--jobs', type=int, default=4, help='The number of jobs to use. Default is 4.')
+    genparser.add_argument('-j',
+                           '--jobs',
+                           type=int,
+                           default=4,
+                           help='The number of jobs to use. Default is 4.')
 
     # Clean
     cleanparser = subparsers.add_parser('clean',
@@ -362,9 +366,10 @@ Run this from one of:
                           help='Print a list of jobs for the given contest.')
 
     # Print the corresponding temporary directory.
-    tmpparser = subparsers.add_parser('tmp',
-                                      parents=[global_parser],
-                                      help='Print the tmpdir corresponding to the current problem.')
+    tmpparser = subparsers.add_parser(
+        'tmp',
+        parents=[global_parser],
+        help='Print the tmpdir corresponding to the current problem.')
 
     if not is_windows():
         argcomplete.autocomplete(parser)
@@ -401,7 +406,7 @@ def main():
 
     if action == 'tmp':
         if level == 'problem':
-            print(config.tmpdir/problems[0].id)
+            print(config.tmpdir / problems[0].id)
         else:
             print(config.tmpdir)
         return

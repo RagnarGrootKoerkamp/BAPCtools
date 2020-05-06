@@ -6,239 +6,271 @@ import subprocess
 
 from util import *
 
+EXTRA_LANGUAGES = '''
+ctd:
+    name: 'Checktestdata'
+    priority: 1
+    files: '*.ctd'
+    #compile: 
+    run: 'checktestdata {mainfile}'
 
-# is file at path executable
-def _is_executable(path):
-    return path.is_file() and (path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
+viva:
+    name: 'Viva'
+    priority: 2
+    files: '*.viva'
+    #compile: 
+    run: 'java -jar {viva_jar} {mainfile}'
 
-# TODO: Wrap build() in an Executable/Program class which is constructed using a path to a program and has a .build() method.
-# That way it's also easier to expose metadata like the timestamp of the last change.
+manual:
+    name: 'manual'
+    priority: 9999
+    files: 'build run'
+    compile: '{build}'
+    run: '{run}'
+'''
 
-# A function to convert c++ or java to something executable.
-# Returns a command to execute and an optional error message.
-# This can take either a path to a file (c, c++, java, python) or a directory.
-# The directory may contain multiple files.
-# This also accepts executable files but will first try to build them anyway using the settings for
-# the language.
+# The cached languages.yaml for the current contest.
+_languages = None
+
+
+def languages():
+    global _languages
+    if _languages is not None: return _languages
+    if Path('languages.yaml').is_file():
+        _languages = read_yaml(Path('languages.yaml'))
+    else:
+        _languages = read_yaml(config.tools_root / 'config/languages.yaml')
+
+    if config.args.cpp_flags:
+        _languages['cpp']['compile'] += args.cpp_flags
+
+    # Add custom languages.
+    extra_langs = yaml.safe_load(EXTRA_LANGUAGES)
+    for lang in extra_langs:
+        assert lang not in _languages
+        _languages[lang] = extra_langs[lang]
+
+    return _languages
+
+
+# A Program is class that wraps a program (file/directory) on disk. A program is usually one of:
+# - a submission
+# - a validator
+# - a generator
 #
 # Supports two way of calling:
-# - build(path): specify an absolute path, or relative path ('problem/generators/gen.py), and build the
+# - Program(path): specify an absolute path, or relative path ('problem/generators/gen.py), and build the
 #   file/directory.
-# - build(name, deps): specify a target name ('problem/generators/gen.py') and a list of
+# - Program(name, deps): specify a target name ('problem/generators/gen.py') and a list of
 #   dependencies (must be Path objects).
-def build(path, deps=None):
+#
+# Member variables are:
+# - path:           source file/directory
+# - tmp_dir:        the build directory in tmpfs. This is only created when build() is called.
+# - input_files:    list of source files linked into tmp_dir
+# - language:       the detected language
+# - env:            the environment variables used for compile/run command substitution
+# - timestamp:      time of last change to the source files
+#
+# After build() has been called, the following are available:
+# - run_command:    command to be executed. E.g. ['/path/to/run'] or ['python3', '/path/to/main.py']. `None` if something failed.
+#
+# build() will return the (run_command, message) pair.
+class Program:
+    def __init__(self, path, deps=None, *, bar):
+        if deps is not None:
+            assert isinstance(deps, list)
+            assert len(deps) > 0
 
-    if deps is not None:
-        assert isinstance(deps, list)
-        assert len(deps) > 0
+        self.bar = bar
+        self.path = path
+        self.tmp_dir = Program._get_tmp_dir(path)
+        self.run_command = None
+        self.timestamp = None
+        self.ok = True
+        self.env = {}
 
-    # Mirror directory structure on tmpfs.
-    # For a single file/directory: make a new directory in tmpfs and link all files into that dir.
-    # For a given list of dependencies: make a new directory and link the given dependencies.
-    if path.is_absolute():
-        outdir = config.tmpdir / path.name
-    else:
-        outdir = config.tmpdir / path
-        if not str(outdir.resolve()).startswith(str(config.tmpdir)):
-            outdir = config.tmpdir / path.name
+        # Detect language, dependencies, and main file
+        if deps: source_files = deps
+        else: source_files = list(glob(path, '*')) if path.is_dir() else [path]
 
-    outdir.mkdir(parents=True, exist_ok=True)
+        # Check file names.
+        for f in source_files:
+            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
+                self.ok = False
+                self.bar.error(f'{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
+                return
 
-    if deps is None:
-        input_files = list(glob(path, '*')) if path.is_dir() else [path]
-    else:
-        input_files = deps
+        if len(source_files) == 0:
+            self.ok = False
+            self.bar.error('{str(path)} is an empty directory.')
+            return
 
-    # Check file names.
-    for f in input_files:
-        if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
-            return (None,
-                    f'{cc.red}{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
+        # Link all source_files
+        self.tmp_dir.mkdir(parents=True, exist_ok=True)
+        self.timestamp = 0
+        self.input_files = []
+        for f in source_files:
+            ensure_symlink(self.tmp_dir / f.name, f)
+            self.input_files.append(self.tmp_dir / f.name)
+            self.timestamp = max(self.timestamp, f.stat().st_ctime)
 
-    if len(input_files) == 0:
-        config.n_warn += 1
-        return (None, f'{cc.red}{str(path)} is an empty directory.{cc.reset}')
+        self._get_language(deps)
 
-    # Link all input files
-    last_input_update = 0
-    linked_files = []
-    for f in input_files:
-        ensure_symlink(outdir / f.name, f)
-        linked_files.append(outdir / f.name)
-        last_input_update = max(last_input_update, f.stat().st_ctime)
-
-    runfile = outdir / 'run'
-
-    # Remove all other files.
-    for f in outdir.glob('*'):
-        if f not in (linked_files + [runfile]):
-            if f.is_dir() and not f.is_symlink():
-                shutil.rmtree(f)
-            else:
-                f.unlink()
-
-    # If the run file is up to date, no need to rebuild.
-    if runfile.exists() and runfile not in linked_files:
-        if not (hasattr(config.args, 'force_build') and config.args.force_build):
-            if runfile.stat().st_ctime > last_input_update:
-                return ([runfile], None)
-        runfile.unlink()
-
-    # If build or run present, use them:
-    if _is_executable(outdir / 'build'):
-        cur_path = Path.cwd()
-        os.chdir(outdir)
-        if exec_command(['./build'], memory=5000000000)[0] is not True:
-            config.n_error += 1
-            os.chdir(cur_path)
-            return (None, f'{cc.red}FAILED{cc.reset}')
-        os.chdir(cur_path)
-        if not _is_executable(outdir / 'run'):
-            config.n_error += 1
-            return (None, f'{cc.red}FAILED{cc.reset}: {runfile} must be executable')
-
-    # If the run file was provided in the input, just return it.
-    if runfile.exists():
-        return ([runfile], None)
-
-    # Get language config
-    if config.languages is None:
-        # Try both contest and repository level.
-        if Path('languages.yaml').is_file():
-            config.languages = read_yaml(Path('languages.yaml'))
+    # Make a path in tmpfs. Usually this will be e.g. config.tmpdir/problem/submissions/accepted/sol.py.
+    # For absolute paths and weird relative paths, fall back to config.tmpdir/sol.py.
+    def _get_tmp_dir(path):
+        # For a single file/directory: make a new directory in tmpfs and link all files into that dir.
+        # For a given list of dependencies: make a new directory and link the given dependencies.
+        if path.is_absolute():
+            return config.tmpdir / path.name
         else:
-            config.languages = read_yaml(config.tools_root / 'config/languages.yaml')
+            outdir = config.tmpdir / path
+            if not str(outdir.resolve()).startswith(str(config.tmpdir)):
+                return config.tmpdir / path.name
+            return outdir
 
-        if config.args.cpp_flags:
-            config.languages['cpp']['compile'] += config.args.cpp_flags
+    # is file at path executable
+    def _is_executable(path):
+        return path.is_file() and (path.stat().st_mode &
+                                   (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
-        config.languages['ctd'] = {
-            'name': 'Checktestdata',
-            'priority': 1,
-            'files': '*.ctd',
-            'compile': None,
-            'run': 'checktestdata {mainfile}',
-        }
-        config.languages['viva'] = {
-            'name':
-            'Viva',
-            'priority':
-            2,
-            'files':
-            '*.viva',
-            'compile':
-            None,
-            'run':
-            'java -jar {viva_jar} {main_file}'.format(
-                viva_jar=config.tools_root / 'support/viva/viva.jar', main_file='{main_file}')
-        }
-
-    # Find the best matching language.
-    def matches_shebang(f, shebang):
+    # Returns true when file f matches the given shebang regex.
+    def _matches_shebang(f, shebang):
         if shebang is None: return True
         with f.open() as o:
             return shebang.search(o.readline())
 
-    best = (None, [], 0)
-    message = None
-    for lang in config.languages:
-        lang_conf = config.languages[lang]
-        globs = lang_conf['files'].split() or []
-        shebang = re.compile(lang_conf['shebang']) if lang_conf.get('shebang', None) else None
-        priority = int(lang_conf['priority'])
+    # Sets self.language and self.env['mainfile']
+    def _get_language(self, deps=None):
+        # language, matching files, priority
+        best = (None, [], 0)
+        message = None
+        for lang in languages():
+            lang_conf = languages()[lang]
+            globs = lang_conf['files'].split() or []
+            shebang = re.compile(lang_conf['shebang']) if lang_conf.get('shebang', None) else None
+            priority = int(lang_conf['priority'])
 
-        matching_files = []
-        for f in linked_files:
-            if any(fnmatch.fnmatch(f, glob) for glob in globs) and matches_shebang(f, shebang):
-                matching_files.append(f)
+            matching_files = []
+            for f in self.input_files:
+                if any(fnmatch.fnmatch(f.name, glob)
+                       for glob in globs) and Program._matches_shebang(f, shebang):
+                    matching_files.append(f)
 
-        if len(matching_files) == 0: continue
+            if len(matching_files) == 0: continue
 
-        if (len(matching_files), priority) > (len(best[1]), best[2]):
-            best = (lang, matching_files, priority)
+            if (len(matching_files), priority) > (len(best[1]), best[2]):
+                best = (lang, matching_files, priority)
+
+        lang, files, priority = best
+
+        if lang is None:
+            self.ok = False
+            self.bar.error(f'No language detected for {self.path}.')
+            return
+
+        if len(files) == 0:
+            self.ok = False
+            self.bar.error(f'No file detected for language {lang} at {self.path}.')
+            return
+
+        self.language = lang
+        mainfile = None
+        if deps is None:
+            if len(files) == 1:
+                mainfile = files[0]
+            else:
+                for f in files:
+                    if f.name.lower().startswith('main'):
+                        mainfile = f
+                mainfile = mainfile or sorted(files)[0]
+        else:
+            mainfile = self.tmp_dir / deps[0].name
+
+        self.env = {
+            'path': str(self.tmp_dir),
+            # NOTE: This only contains files matching the winning language.
+            'files': ' '.join(str(f) for f in files),
+            'binary': self.tmp_dir / 'run',
+            'mainfile': str(mainfile),
+            'mainclass': str(mainfile.with_suffix('').name),
+            'Mainclass': str(mainfile.with_suffix('').name).capitalize(),
+            'memlim': get_memory_limit() // 1000000,
+
+            # Out-of-spec variables used by 'manual' and 'Viva' languages.
+            'build': self.tmp_dir / 'build' if
+            (self.tmp_dir / 'build') in self.input_files else '',
+            'run': self.tmp_dir / 'run',
+            'viva_jar': config.tools_root / 'support/viva/viva.jar',
+        }
 
         # Make sure c++ does not depend on stdc++.h, because it's not portable.
         if lang == 'cpp':
-            for f in matching_files:
+            for f in files:
                 if f.read_text().find('bits/stdc++.h') != -1:
                     if 'validators/' in str(f):
-                        config.n_error += 1
-                        return (
-                            None,
-                            f'{cc.red}Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{cc.reset}'
-                        )
+                        bar.error(f'Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h.')
+                        return None
                     else:
-                        message = f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h{cc.reset}'
+                        bar.warn(f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h')
 
-    lang, files, priority = best
+    # Return run_command, or None if building failed.
+    def build(self):
+        if not self.ok: return None
 
-    if lang is None:
-        return (None, f'{cc.red}No language detected for {path}.{cc.reset}')
+        runfile = self.tmp_dir / 'run'
 
-    if len(files) == 0:
-        return (None, f'{cc.red}No file detected for language {lang} at {path}.{cc.reset}')
+        # Remove all other files.
+        for f in self.tmp_dir.glob('*'):
+            if f not in (self.input_files + [runfile]):
+                if f.is_dir() and not f.is_symlink():
+                    shutil.rmtree(f)
+                else:
+                    f.unlink()
 
-    mainfile = None
-    if deps is None:
-        if len(files) == 1:
-            mainfile = files[0]
-        else:
-            for f in files:
-                if f.ascii_lowercse().starts_with('abcd'):
-                    mainfile = f
-            mainfile = mainfile or sorted(files)[0]
-    else:
-        mainfile = outdir / deps[0].name
+        # If the run file is up to date, no need to rebuild.
+        if runfile.exists() and runfile not in self.input_files:
+            if not config.args.force_build:
+                if runfile.stat().st_ctime >= self.timestamp:
+                    return [runfile]
+            runfile.unlink()
 
-    env = {
-        'path': str(outdir),
-        # NOTE: This only contains files matching the winning language.
-        'files': ' '.join(str(f) for f in files),
-        'binary': str(runfile),
-        'mainfile': str(mainfile),
-        'mainclass': str(Path(mainfile).with_suffix('').name),
-        'Mainclass': str(Path(mainfile).with_suffix('').name).capitalize(),
-        'memlim': get_memory_limit() // 1000000
-    }
+        lang_config = languages()[self.language]
+        compile_command = lang_config['compile'] if 'compile' in lang_config else None
+        run_command = lang_config['run']
 
-    # TODO: Support executable files?
+        # Prevent building something twice in one invocation of tools.py.
+        if compile_command:
+            compile_command = compile_command.format(**self.env).split()
+            # The case where compile_command='{build}' will result in an empty list here.
+            if compile_command:
+                try:
+                    ok, err, out = exec_command(
+                        compile_command,
+                        stdout=subprocess.PIPE,
+                        memory=5000000000,
+                        cwd=self.tmp_dir,
+                        # Compile errors are never cropped.
+                        crop=False)
+                except FileNotFoundError as err:
+                    self.bar.error('FAILED', str(err))
+                    return None
 
-    compile_command = config.languages[lang]['compile']
-    run_command = config.languages[lang]['run']
+                if ok is not True:
+                    data = ''
+                    if err is not None: data += strip_newline(err) + '\n'
+                    if out is not None: data += strip_newline(out) + '\n'
+                    self.bar.error('FAILED', data)
+                    return None
 
-    # Prevent building something twice in one invocation of tools.py.
-    if compile_command is not None:
-        compile_command = compile_command.format(**env).split()
-        try:
-            ok, err, out = exec_command(
-                compile_command,
-                stdout=subprocess.PIPE,
-                memory=5000000000,
-                # Compile errors are never cropped.
-                crop=False)
-        except FileNotFoundError as err:
-            message = f'{cc.red}FAILED{cc.reset} '
-            message += '\n' + str(err) + cc.reset
-            return (None, message)
+        if run_command is not None:
+            run_command = run_command.format(**self.env).split()
 
-        if ok is not True:
-            config.n_error += 1
-            message = f'{cc.red}FAILED{cc.reset} '
-            if err is not None:
-                message += '\n' + strip_newline(err) + cc.reset
-            if out is not None:
-                message += '\n' + strip_newline(out) + cc.reset
-            return (None, message)
-
-    if run_command is not None:
-        run_command = run_command.format(**env).split()
-
-    return (run_command, message)
+        return run_command
 
 
-# build all files in a directory; return a list of tuples (file, command)
-# When 'build' is found, we execute it, and return 'run' as the executable
-# This recursively calls itself for subdirectories.
+# build all files in a directory; return a list of tuples (program name, command)
 def build_programs(programs, include_dirname=False):
     if len(programs) == 0:
         return []
@@ -254,11 +286,8 @@ def build_programs(programs, include_dirname=False):
         else:
             name = path.name
 
-        run_command, message = build(path)
-        if run_command is not None:
-            commands.append((name, run_command))
-        if message:
-            bar.log(message)
+        run_command = Program(path, bar=bar).build()
+        if run_command is not None: commands.append((name, run_command))
         bar.done()
     if config.verbose:
         print()
