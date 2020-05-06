@@ -117,6 +117,10 @@ class ProgressBar:
         self.count += count
         self.item_width = max(self.item_width, max_len) if self.item_width else max_len
 
+    def add_item(self, item):
+        self.count += 1
+        self.item_width = max(self.item_width, len(str(item)))
+
     def clearline(self):
         if hasattr(config.args, 'no_bar') and config.args.no_bar: return
         print(self.carriage_return, end='', flush=True)
@@ -259,6 +263,8 @@ class ProgressBar:
     # Print a final 'Done' message in case nothing was printed yet.
     def finalize(self):
         assert self.parent is None
+        assert self.count is None or self.i == self.count
+
         if self.global_logged: return False
         if config.verbose: return False
 

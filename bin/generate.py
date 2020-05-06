@@ -522,11 +522,23 @@ class Directory(Base):
                     ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
                     files_created.append(dir_path / ext_file.name)
 
-        # Check for unlisted files.
+        # Add hardcoded manual cases not mentioned in generators.yaml, and warn for other spurious files.
         for f in dir_path.glob('*'):
             if f in files_created: continue
-            if f.with_suffix('').relative_to(problem.path / 'data') in known_cases: continue
-            bar.warn(f'Found unlisted file {f.name}')
+            base = f.with_suffix('')
+            relpath = base.relative_to(problem.path / 'data')
+            if relpath in known_cases: continue
+
+            if f.suffix != '.in':
+                if f.suffix in config.KNOWN_DATA_EXTENSIONS and f.with_suffix('.in') in files_created: continue
+                bar.warn(f'Found unlisted file {f}')
+                continue
+
+            known_cases.add(relpath)
+            bar.warn(f'Found unlisted manual case: {relpath}')
+            t = Testcase(base.name, '', d)
+            d.data.append(t)
+            bar.add_item(t.path)
 
         bar.done()
         return True
@@ -652,13 +664,6 @@ class GeneratorConfig:
                         if isinstance(child_name, int): child_name = str(child_name)
                         child_name = number_prefix + child_name
                         d.data.append(parse(child_name, child_yaml, d))
-
-            # Add hardcoded manual cases not mentioned in generators.yaml.
-            dir_path = problem.path / 'data' / d.path
-            for f in dir_path.glob('*.in'):
-                base = f.with_suffix('')
-                if base.relative_to(problem.path / 'data') in self.known_cases: continue
-                d.data.append(parse(base.name, '', d))
 
             return d
 
