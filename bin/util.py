@@ -155,6 +155,8 @@ class ProgressBar:
         assert self.lock.locked()
         assert self.parent is None
 
+        if config.args.no_bar: return
+
         if len(self.in_progress) > 0:
             if not self.item in self.in_progress:
                 old = self.item
@@ -178,7 +180,7 @@ class ProgressBar:
         bar_copy = copy.copy(self)
         bar_copy.parent = self
 
-        if hasattr(config.args, 'no_bar') and config.args.no_bar:
+        if config.args.no_bar:
             self.lock.release()
             return bar_copy
 
