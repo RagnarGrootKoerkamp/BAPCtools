@@ -289,7 +289,8 @@ class Program:
         if not up_to_date or config.args.force_build:
             if not self._compile(): return None
 
-        for c in Program._callbacks[self.path]: c(self)
+        if self.path in Program._callbacks:
+            for c in Program._callbacks[self.path]: c(self)
         return self.run_command
 
 
