@@ -53,6 +53,7 @@ def languages():
 
 # TODO: Store compile command in the temporary Program directory, so we can detect if the compilation command changes.
 
+
 # A Program is class that wraps a program (file/directory) on disk. A program is usually one of:
 # - a submission
 # - a validator
@@ -222,7 +223,9 @@ class Program:
             for f in files:
                 if f.read_text().find('bits/stdc++.h') != -1:
                     if 'validators/' in str(f):
-                        bar.error(f'Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h.')
+                        bar.error(
+                            f'Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h.'
+                        )
                         return None
                     else:
                         bar.warn(f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h')
@@ -266,7 +269,6 @@ class Program:
         meta_path.write_text(' '.join(self.compile_command))
         return True
 
-
     # Return run_command, or None if building failed.
     def build(self):
         if not self.ok: return None
@@ -284,15 +286,17 @@ class Program:
         self.run_command = run_command.format(**self.env).split()
 
         # Compare the latest source timestamp (self.timestamp) to the last build.
-        up_to_date = meta_path.is_file() and meta_path.stat().st_ctime >= self.timestamp and meta_path.read_text() == ' '.join(self.compile_command)
+        up_to_date = meta_path.is_file(
+        ) and meta_path.stat().st_ctime >= self.timestamp and meta_path.read_text() == ' '.join(
+            self.compile_command)
 
         if not up_to_date or config.args.force_build:
             if not self._compile(): return None
 
         if self.path in Program._callbacks:
-            for c in Program._callbacks[self.path]: c(self)
+            for c in Program._callbacks[self.path]:
+                c(self)
         return self.run_command
-
 
     def add_callback(path, c):
         if path not in Program._callbacks: Program._callbacks[path] = []
@@ -300,6 +304,7 @@ class Program:
 
     def get(path):
         return Program._cache[path]
+
 
 # build all files in a directory; return a list of tuples (program name, command)
 def build_programs(programs, include_dirname=False):

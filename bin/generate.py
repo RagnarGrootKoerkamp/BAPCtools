@@ -89,9 +89,11 @@ class Invocation:
         assert seed_cnt <= 1
 
         self.program = None
-        def callback(program): self.program = program
 
-        build.Program.add_callback(problem.path/self.command, callback)
+        def callback(program):
+            self.program = program
+
+        build.Program.add_callback(problem.path / self.command, callback)
 
     # Return the form of the command used for caching.
     # This is independent of {name} and the actual run_command.
@@ -102,14 +104,12 @@ class Invocation:
 
     # Return the full command to be executed.
     def get_command(self, *, name=None, seed=None):
-
         def sub(arg):
             if name: arg = self.NAME_REGEX.sub(str(name), arg)
             if seed: arg = self.SEED_REGEX.sub(str(seed), arg)
             return arg
 
         return self.program.run_command + [sub(arg) for arg in self.args]
-
 
 
 class Generator(Invocation):
@@ -321,7 +321,6 @@ class Testcase(Base):
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
             self.generator = Generator(problem, yaml['input'])
 
-
     def generate(t, problem, input_validators, output_validators, bar):
         bar = bar.start(str(t.path))
 
@@ -330,7 +329,7 @@ class Testcase(Base):
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / (t.name + '.in')
         ansfile = cwd / (t.name + '.ans')
-        meta_path =  cwd / 'meta_.yaml'
+        meta_path = cwd / 'meta_.yaml'
 
         # The expected contents of the meta_ file.
         def up_to_date():
@@ -340,7 +339,7 @@ class Testcase(Base):
             last_change = 0
             t.cache_data = {}
             if t.manual:
-                last_change = max(last_change, (problem.path/t.source).stat().st_ctime)
+                last_change = max(last_change, (problem.path / t.source).stat().st_ctime)
                 t.cache_data['source'] = str(t.source)
             else:
                 last_change = max(last_change, t.generator.program.timestamp)
@@ -356,7 +355,6 @@ class Testcase(Base):
 
             meta_yaml = yaml.safe_load(meta_path.open())
             return meta_path.stat().st_ctime >= last_change and meta_yaml == t.cache_data
-
 
         if up_to_date():
             bar.log('up to date')
@@ -392,7 +390,8 @@ class Testcase(Base):
                         problem, ansfile, output_validators, 'input', bar=bar):
                     return
             else:
-                if not t.config.solution.run_interactive(problem, bar, cwd, t.name, output_validators):
+                if not t.config.solution.run_interactive(problem, bar, cwd, t.name,
+                                                         output_validators):
                     return
 
         if not ansfile.is_file():
