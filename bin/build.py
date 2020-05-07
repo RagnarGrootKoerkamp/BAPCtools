@@ -77,10 +77,10 @@ def languages():
 #
 # build() will return the (run_command, message) pair.
 class Program:
-    # A map from program paths to Program objects.
-    # Used by Invocations to map from the generator name to the run_command.
+    # A map from program paths to callbacks to be called on build() completion.
+    _callbacks = dict()
+    # A map from program paths to corresponding Program instances.
     _cache = dict()
-
 
     def __init__(self, path, deps=None, *, bar):
         if deps is not None:
@@ -229,11 +229,11 @@ class Program:
 
     # Return True on success.
     def _compile(self):
-        metafile = self.tmp_dir / 'meta_'
+        meta_path = self.tmp_dir / 'meta_'
 
         # Remove all non-source files.
         for f in self.tmp_dir.glob('*'):
-            if f not in (self.input_files + [metafile]):
+            if f not in (self.input_files + [meta_path]):
                 if f.is_dir() and not f.is_symlink():
                     shutil.rmtree(f)
                 else:
@@ -263,7 +263,7 @@ class Program:
             self.bar.error('FAILED', data)
             return False
 
-        metafile.write_text(' '.join(self.compile_command))
+        meta_path.write_text(' '.join(self.compile_command))
         return True
 
 
@@ -273,9 +273,8 @@ class Program:
         assert not self.built
         self.built = True
 
-        runfile = self.tmp_dir / 'run'
         # A file containing the compile command. Timestamp is used as last build time.
-        metafile = self.tmp_dir / 'meta_'
+        meta_path = self.tmp_dir / 'meta_'
 
         lang_config = languages()[self.language]
 
@@ -285,12 +284,18 @@ class Program:
         self.run_command = run_command.format(**self.env).split()
 
         # Compare the latest source timestamp (self.timestamp) to the last build.
-        up_to_date = metafile.is_file() and metafile.stat().st_ctime >= self.timestamp and metafile.read_text() == ' '.join(self.compile_command)
+        up_to_date = meta_path.is_file() and meta_path.stat().st_ctime >= self.timestamp and meta_path.read_text() == ' '.join(self.compile_command)
 
         if not up_to_date or config.args.force_build:
             if not self._compile(): return None
 
+        for c in Program._callbacks[self.path]: c(self)
         return self.run_command
+
+
+    def add_callback(path, c):
+        if path not in Program._callbacks: Program._callbacks[path] = []
+        Program._callbacks[path].append(c)
 
     def get(path):
         return Program._cache[path]

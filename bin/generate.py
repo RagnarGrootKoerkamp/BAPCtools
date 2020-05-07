@@ -70,10 +70,13 @@ class Invocation:
     SEED_REGEX = re.compile('\{seed(:[0-9]+)?\}')
     NAME_REGEX = re.compile('\{name\}')
 
-    def __init__(self, string, *, allow_absolute):
+    def __init__(self, problem, string, *, allow_absolute):
         commands = shlex.split(str(string))
         command = commands[0]
         self.args = commands[1:]
+
+        # The original command string, used for caching.
+        self.command_string = string
 
         # The name of the program to be executed.
         self.command = resolve_path(command, allow_absolute=allow_absolute)
@@ -85,26 +88,39 @@ class Invocation:
 
         assert seed_cnt <= 1
 
+        self.program = None
+        def callback(program): self.program = program
+
+        build.Program.add_callback(problem.path/self.command, callback)
+
+    # Return the form of the command used for caching.
+    # This is independent of {name} and the actual run_command.
+    def cache_command(self, seed=None):
+        command_string = self.command_string
+        if seed: command_string = self.SEED_REGEX.sub(str(seed), command_string)
+        return command_string
+
     # Return the full command to be executed.
-    def get_command(self, problem, *, name=None, seed=None):
+    def get_command(self, *, name=None, seed=None):
 
         def sub(arg):
             if name: arg = self.NAME_REGEX.sub(str(name), arg)
             if seed: arg = self.SEED_REGEX.sub(str(seed), arg)
             return arg
 
-        return build.Program.get(problem.path / self.command).run_command + [sub(arg) for arg in self.args]
+        return self.program.run_command + [sub(arg) for arg in self.args]
 
 
 
 class Generator(Invocation):
-    def __init__(self, string):
-        super().__init__(string, allow_absolute=False)
+    def __init__(self, problem, string):
+        super().__init__(problem, string, allow_absolute=False)
 
     # Run this program in the given working directory for the given name and seed.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns True on success, False on failu
     def run(self, problem, bar, cwd, name, seed, retries=1):
+
         in_path = cwd / (name + '.in')
         stdout_path = cwd / (name + '.in_')
 
@@ -117,7 +133,7 @@ class Generator(Invocation):
             for f in cwd.iterdir():
                 f.unlink()
 
-            command = self.get_command(problem, name=name, seed=seed + retry)
+            command = self.get_command(name=name, seed=seed + retry)
             stdout_file = stdout_path.open('w')
             try_ok, err, out = exec_command(command, stdout=stdout_file, timeout=timeout, cwd=cwd)
             stdout_file.close()
@@ -149,13 +165,13 @@ class Generator(Invocation):
             else:
                 bar.error(f'Failed', err)
             return False
-        else:
-            return True
+
+        return True
 
 
 class Solution(Invocation):
-    def __init__(self, string):
-        super().__init__(string, allow_absolute=True)
+    def __init__(self, problem, string):
+        super().__init__(problem, string, allow_absolute=True)
 
     # Run the submission, reading {name}.in from stdin and piping stdout to {name}.ans.
     # If the .ans already exists, nothing is done
@@ -168,7 +184,7 @@ class Solution(Invocation):
         if ans_path.is_file(): return True
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        ok, duration, err, out = run.run_testcase(self.get_command(problem), in_path, ans_path, timeout)
+        ok, duration, err, out = run.run_testcase(self.get_command(), in_path, ans_path, timeout)
         if duration > timeout:
             bar.error('TIMEOUT')
             return False
@@ -188,7 +204,7 @@ class Solution(Invocation):
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         verdict, duration, err, out = run.process_interactive_testcase(
-            self.get_command(problem),
+            self.get_command(),
             in_path,
             settings,
             output_validators,
@@ -208,14 +224,14 @@ class Solution(Invocation):
 
 
 class Visualizer(Invocation):
-    def __init__(self, string):
-        super().__init__(string, allow_absolute=True)
+    def __init__(self, problem, string):
+        super().__init__(problem, string, allow_absolute=True)
 
     # Run the visualizer, taking {name} as a command line argument.
     # Stdin and stdout are not used.
     def run(self, problem, bar, cwd, name):
         timeout = get_timeout()
-        command = self.get_command(problem, name=name)
+        command = self.get_command(name=name)
 
         try_ok, err, out = exec_command(command, timeout=timeout, cwd=cwd)
 
@@ -236,23 +252,23 @@ class Visualizer(Invocation):
 class Config:
     INHERITABLE_KEYS = [
         # True: use an AC submission by default when the solution: key is not present.
-        ('solution', True, lambda x: Solution(x) if x else None),
-        ('visualizer', None, lambda x: Visualizer(x) if x else None),
+        ('solution', True, lambda p, x: Solution(p, x) if x else None),
+        ('visualizer', None, lambda p, x: Visualizer(p, x) if x else None),
         ('random_salt', '', None),
 
         # Non-portable keys only used by BAPCtools:
         # The number of retries to run a generator when it fails, each time incrementing the {seed}
         # by 1.
-        ('retries', 1, int),
+        ('retries', 1, lambda p, x: int(x)),
     ]
 
-    def __init__(self, yaml=None, parent_config=None):
+    def __init__(self, problem, yaml=None, parent_config=None):
         assert not yaml or isinstance(yaml, dict)
 
         for key, default, func in self.INHERITABLE_KEYS:
-            if func is None: func = lambda x: x
+            if func is None: func = lambda p, x: x
             if yaml and key in yaml:
-                setattr(self, key, func(yaml[key]))
+                setattr(self, key, func(problem, yaml[key]))
             elif parent_config is not None:
                 setattr(self, key, vars(parent_config)[key])
             else:
@@ -260,11 +276,11 @@ class Config:
 
 
 class Base:
-    def __init__(self, name, yaml, parent):
+    def __init__(self, problem, name, yaml, parent):
         assert parent is not None
 
         if isinstance(yaml, dict):
-            self.config = Config(yaml, parent.config)
+            self.config = Config(problem, yaml, parent.config)
         else:
             self.config = parent.config
 
@@ -275,7 +291,7 @@ class Base:
 
 
 class Testcase(Base):
-    def __init__(self, name: str, yaml, parent):
+    def __init__(self, problem, name: str, yaml, parent):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
@@ -295,7 +311,7 @@ class Testcase(Base):
         else:
             assert False
 
-        super().__init__(name, yaml, parent)
+        super().__init__(problem, name, yaml, parent)
 
         if self.manual:
             self.source = yaml['input']
@@ -303,9 +319,9 @@ class Testcase(Base):
             # TODO: Should the seed depend on white space? For now it does.
             seed_value = self.config.random_salt + yaml['input']
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
-            self.generator = Generator(yaml['input'])
+            self.generator = Generator(problem, yaml['input'])
 
-    # TODO: Skip generating testcases with unchanged program and generator rule.
+
     def generate(t, problem, input_validators, output_validators, bar):
         bar = bar.start(str(t.path))
 
@@ -314,6 +330,38 @@ class Testcase(Base):
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / (t.name + '.in')
         ansfile = cwd / (t.name + '.ans')
+        meta_path =  cwd / 'meta_.yaml'
+
+        # The expected contents of the meta_ file.
+        def up_to_date():
+            # The testcase is up to date if:
+            # - meta_ exists with a timestamp newer than the 3 Invocation timestamps (Generator/Submission/Visualizer).
+            # - meta_ contains exactly the right content given by t._cache_string()
+            last_change = 0
+            t.cache_data = {}
+            if t.manual:
+                last_change = max(last_change, (problem.path/t.source).stat().st_ctime)
+                t.cache_data['source'] = str(t.source)
+            else:
+                last_change = max(last_change, t.generator.program.timestamp)
+                t.cache_data['generator'] = t.generator.cache_command(seed=t.seed)
+            if t.config.solution:
+                last_change = max(last_change, t.config.solution.program.timestamp)
+                t.cache_data['solution'] = t.config.solution.cache_command()
+            if t.config.visualizer:
+                last_change = max(last_change, t.config.visualizer.program.timestamp)
+                t.cache_data['visualizer'] = t.config.visualizer.cache_command()
+
+            if not meta_path.is_file(): return False
+
+            meta_yaml = yaml.safe_load(meta_path.open())
+            return meta_path.stat().st_ctime >= last_change and meta_yaml == t.cache_data
+
+
+        if up_to_date():
+            bar.log('up to date')
+            bar.done()
+            return
 
         # Generate .in
         if t.manual:
@@ -327,7 +375,6 @@ class Testcase(Base):
                 if ext_file.is_file():
                     ensure_symlink(infile.with_suffix(ext), ext_file)
         else:
-            # TODO: Do not run the generator when the dependencies haven't changed since the last run.
             if not t.generator.run(problem, bar, cwd, t.name, t.seed, t.config.retries):
                 return
 
@@ -337,7 +384,6 @@ class Testcase(Base):
 
         # Generate .ans and/or .interaction for interactive problems.
         # TODO: Disable this with a flag.
-        # TODO: Only run the solution when the .in or the solution have changed since the last run.
         if t.config.solution:
             if problem.settings.validation != 'custom interactive':
                 if not t.config.solution.run(problem, bar, cwd, t.name):
@@ -354,7 +400,6 @@ class Testcase(Base):
 
         # Generate visualization
         # TODO: Disable this with a flag.
-        # TODO: Only run the visualizer when files or the visualizer have changed since the last run.
         if t.config.visualizer:
             if not t.config.visualizer.run(problem, bar, cwd, t.name):
                 return
@@ -367,6 +412,7 @@ class Testcase(Base):
             msg = '; supply -f to override'
             forced = problem.settings.force
 
+        skipped = False
         for ext in config.KNOWN_DATA_EXTENSIONS:
             source = cwd / (t.name + ext)
             target = target_dir / (t.name + ext)
@@ -380,6 +426,7 @@ class Testcase(Base):
                         # different -> overwrite
                         if not forced:
                             bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
+                            skipped = True
                             continue
                         bar.log(f'CHANGED {target.name}')
                 else:
@@ -404,8 +451,14 @@ class Testcase(Base):
                 else:
                     continue
 
+        # Clean the directory.
         for f in cwd.glob('*'):
+            if f.name == 'meta_': continue
             f.unlink()
+
+        # Update metadata
+        if not skipped:
+            yaml.dump(t.cache_data, meta_path.open('w'))
 
         bar.done()
 
@@ -432,10 +485,10 @@ class Testcase(Base):
 
 class Directory(Base):
     # Process yaml object for a directory.
-    def __init__(self, name: str = None, yaml: dict = None, parent=None):
+    def __init__(self, problem, name: str = None, yaml: dict = None, parent=None):
         if name is None:
             self.name = ''
-            self.config = Config()
+            self.config = Config(problem)
             self.path = Path('')
             self.numbered = False
             return
@@ -444,7 +497,7 @@ class Directory(Base):
         if name != '':
             assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name)
 
-        super().__init__(name, yaml, parent)
+        super().__init__(problem, name, yaml, parent)
 
         if 'testdata.yaml' in yaml:
             self.testdata_yaml = yaml['testdata.yaml']
@@ -544,7 +597,7 @@ class Directory(Base):
 
             known_cases.add(relpath)
             bar.warn(f'Found unlisted manual case: {relpath}')
-            t = Testcase(base.name, '', d)
+            t = Testcase(problem, base.name, '', d)
             d.data.append(t)
             bar.add_item(t.path)
 
@@ -637,14 +690,14 @@ class GeneratorConfig:
             assert is_testcase(yaml) or is_directory(yaml)
 
             if is_testcase(yaml):
-                t = Testcase(name, yaml, parent)
+                t = Testcase(problem, name, yaml, parent)
                 assert t.path not in self.known_cases
                 self.known_cases.add(t.path)
                 return t
 
             assert is_directory(yaml)
 
-            d = Directory(name, yaml, parent)
+            d = Directory(problem, name, yaml, parent)
             assert d.path not in self.known_cases
             self.known_cases.add(d.path)
 
@@ -674,7 +727,7 @@ class GeneratorConfig:
 
             return d
 
-        self.root_dir = parse('', yaml, Directory())
+        self.root_dir = parse('', yaml, Directory(problem))
 
     # Return (submission, msg)
     # This function will always raise a warning.
@@ -691,15 +744,7 @@ class GeneratorConfig:
 
         # Note: we explicitly random shuffle the submission that's used to generate answers to
         # encourage setting it in generators.yaml.
-        random.shuffle(submissions)
-
-        # Look for a (hopefully fast) c++ solution if available.
-        submission = submissions[0]
-        for s in submissions:
-            if s.suffix == '.cpp':
-                submission = s
-                break
-
+        submission = random.sample(submissions, 1)
         warn(f'No solution specified. Using randomly chosen {submission} instead.')
         return submission
 
@@ -758,7 +803,7 @@ class GeneratorConfig:
         bar = ProgressBar('Generate', items=item_names)
 
         if config.args.jobs <= 0:
-            warn('Number of jobs is not positive. Disabling parallelization.')
+            log('Number of jobs is not positive. Disabling parallelization.')
 
         if config.args.jobs <= 1:
             self.parallel = False
