@@ -33,10 +33,8 @@ def resolve_path(path, *, allow_absolute):
         assert not Path(path).is_absolute()
 
     # Make all paths relative to the problem root.
-    if path.startswith('/'):
-        return Path(path[1:])
-    else:
-        return Path('generators') / path
+    if path.startswith('/'): return Path(path[1:])
+    return Path('generators') / path
 
 
 # Return (submission, msg)
@@ -67,8 +65,8 @@ def get_default_solution(problem):
 # - Solution
 # - Visualizer
 class Invocation:
-    SEED_REGEX = re.compile('\{seed(:[0-9]+)?\}')
-    NAME_REGEX = re.compile('\{name\}')
+    SEED_REGEX = re.compile(r'\{seed(:[0-9]+)?\}')
+    NAME_REGEX = re.compile(r'\{name\}')
 
     def __init__(self, problem, string, *, allow_absolute):
         commands = shlex.split(str(string))
@@ -119,7 +117,7 @@ class Generator(Invocation):
     # Run this program in the given working directory for the given name and seed.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns True on success, False on failu
-    def run(self, problem, bar, cwd, name, seed, retries=1):
+    def run(self, bar, cwd, name, seed, retries=1):
 
         in_path = cwd / (name + '.in')
         stdout_path = cwd / (name + '.in_')
@@ -175,7 +173,7 @@ class Solution(Invocation):
 
     # Run the submission, reading {name}.in from stdin and piping stdout to {name}.ans.
     # If the .ans already exists, nothing is done
-    def run(self, problem, bar, cwd, name):
+    def run(self, bar, cwd, name):
         timeout = get_timeout()
 
         in_path = cwd / (name + '.in')
@@ -195,7 +193,7 @@ class Solution(Invocation):
         return True
 
     # TODO: Test generating .interaction files for interactive problems.
-    def run_interactive(self, problem, bar, cwd, name, output_validators):
+    def run_interactive(self, bar, cwd, name, output_validators):
         timeout = get_timeout()
 
         in_path = cwd / (name + '.in')
@@ -229,7 +227,7 @@ class Visualizer(Invocation):
 
     # Run the visualizer, taking {name} as a command line argument.
     # Stdin and stdout are not used.
-    def run(self, problem, bar, cwd, name):
+    def run(self, bar, cwd, name):
         timeout = get_timeout()
         command = self.get_command(name=name)
 
@@ -373,7 +371,7 @@ class Testcase(Base):
                 if ext_file.is_file():
                     ensure_symlink(infile.with_suffix(ext), ext_file)
         else:
-            if not t.generator.run(problem, bar, cwd, t.name, t.seed, t.config.retries):
+            if not t.generator.run(bar, cwd, t.name, t.seed, t.config.retries):
                 return
 
         # Validate the manual or generated .in.
@@ -384,7 +382,7 @@ class Testcase(Base):
         # TODO: Disable this with a flag.
         if t.config.solution:
             if problem.settings.validation != 'custom interactive':
-                if not t.config.solution.run(problem, bar, cwd, t.name):
+                if not t.config.solution.run(bar, cwd, t.name):
                     return
                 if not validate.validate_testcase(
                         problem, ansfile, output_validators, 'input', bar=bar):
@@ -400,7 +398,7 @@ class Testcase(Base):
         # Generate visualization
         # TODO: Disable this with a flag.
         if t.config.visualizer:
-            if not t.config.visualizer.run(problem, bar, cwd, t.name):
+            if not t.config.visualizer.run(bar, cwd, t.name):
                 return
 
         target_dir = problem.path / 'data' / t.path.parent
@@ -737,7 +735,7 @@ class GeneratorConfig:
             return None
 
         # Use one of the accepted submissions.
-        submissions = list(glob(problem.path, 'submissions/accepted/*'))
+        submissions = list(glob(self.problem.path, 'submissions/accepted/*'))
         if len(submissions) == 0:
             return None
 
@@ -763,7 +761,7 @@ class GeneratorConfig:
             if t.config.solution:
                 if t.config.solution is True:
                     if default_solution is None:
-                        default_solution = Solution(get_default_solution(self.problem))
+                        default_solution = Solution(self.get_default_solution())
                     t.config.solution = default_solution
                 solutions_used.add(t.config.solution.command)
             if t.config.visualizer:
