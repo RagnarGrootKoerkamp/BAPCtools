@@ -310,43 +310,6 @@ def glob(path, expression):
     return sorted(p for p in path.glob(expression) if not is_hidden(p) and not is_template(p))
 
 
-# testcases; returns list of basenames
-def get_testcases(problem, needans=True, only_sample=False):
-    # TODO: add a cache so we only have to read these once.
-
-    # Require both in and ans files
-    samplesonly = only_sample or hasattr(config.args, 'samples') and config.args.samples
-    infiles = None
-    if hasattr(config.args, 'testcases') and config.args.testcases:
-        if samplesonly:
-            warn(f'Ignoring the --samples flag because testcases are explicitly listed.')
-        # Deduplicate testcases with both .in and .ans.
-        infiles = []
-        for t in config.args.testcases:
-            if Path(problem / t).is_dir():
-                infiles += glob(Path(problem / t), '**/*.in')
-            else:
-                infiles.append(Path(problem / t))
-
-        infiles = [t.with_suffix('.in') for t in infiles]
-        infiles = list(set(infiles))
-    else:
-        infiles = list(glob(problem, 'data/sample/**/*.in'))
-        if not samplesonly:
-            infiles += list(glob(problem, 'data/secret/**/*.in'))
-
-    testcases = []
-    for f in infiles:
-        if needans and not f.with_suffix('.ans').is_file():
-            warn(f'Found input file {str(f)} without a .ans file.')
-            continue
-        testcases.append(f.with_suffix('.in'))
-    testcases.sort()
-
-    if len(testcases) == 0:
-        warn(f'Didn\'t find any testcases for {str(problem)}')
-    return testcases
-
 
 def strip_newline(s):
     if s.endswith('\n'):
@@ -489,6 +452,7 @@ def get_memory_limit(kwargs=None):
 #
 # Note: This is only suitable for running submissions.
 # Other programs should have a larger default timeout.
+# TODO: Move this to the Problem class.
 def get_time_limits(settings):
     time_limit = settings.timelimit
     if hasattr(config.args, 'timelimit'): time_limit = config.args.timelimit
@@ -502,6 +466,7 @@ def get_time_limits(settings):
 
 # Return the command line timeout or the default of 30
 # TODO: Make this nicer. Use dict lookup with default.
+# TODO: Move this to the config.
 def get_timeout():
     if hasattr(config.args, 'timeout') and config.args.timeout:
         return config.args.timeout

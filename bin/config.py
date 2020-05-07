@@ -31,7 +31,12 @@ tmpdir = None
 
 # This is lifted for convenience.
 args = None
+# TODO: Just use config.args.verbose instead.
 verbose = False
+
+# TODO: Ideally we parse arguments at the beginning so that `default` isn't needed here.
+def arg(name, default = None): return getattr(args, name, default)
+
 
 # The number of warnings and errors encountered.
 # The program will return non-zero when the number of errors is nonzero.

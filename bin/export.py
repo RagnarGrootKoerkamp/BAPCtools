@@ -19,13 +19,13 @@ def build_samples_zip(problems):
                          allowZip64=False)
 
     for problem in problems:
-        samples = util.get_testcases(problem.path, needans=True, only_sample=True)
+        samples = problem.testcases(needans=True, only_sample=True)
         sampledir = Path(problem.label)
         for i in range(0, len(samples)):
             sample = samples[i]
             basename = sampledir / str(i + 1)
-            zf.write(sample.with_suffix('.in'), basename.with_suffix('.in'))
-            zf.write(sample.with_suffix('.ans'), basename.with_suffix('.ans'))
+            zf.write(sample.in_path, basename.with_suffix('.in'))
+            zf.write(sample.ans_path, basename.with_suffix('.ans'))
 
     zf.close()
     print("Wrote zip to samples.zip")

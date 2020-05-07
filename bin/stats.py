@@ -48,7 +48,7 @@ def stats(problems):
         if header in ['problem', 'comment']:
             width = len(header)
             for problem in problems:
-                width = max(width, len(problem.label + ' ' + problem.id))
+                width = max(width, len(problem.label + ' ' + problem.name))
             header_string += '{:<' + str(width) + '}'
             format_string += '{:<' + str(width) + '}'
         else:
@@ -101,7 +101,7 @@ def stats(problems):
 
         print(
             format_string.format(
-                problem.label + ' ' + problem.id, *[
+                problem.label + ' ' + problem.name, *[
                     _get_stat(counts[i], True if len(stats[i]) <= 2 else stats[i][2],
                               None if len(stats[i]) <= 3 else stats[i][3])
                     for i in range(len(stats))

@@ -406,7 +406,7 @@ def main():
 
     if action == 'tmp':
         if level == 'problem':
-            print(config.tmpdir / problems[0].id)
+            print(config.tmpdir / problems[0].name)
         else:
             print(config.tmpdir)
         return
@@ -489,9 +489,9 @@ def main():
         if action in ['validate', 'output', 'all']:
             success &= validate.validate(problem.path, 'output', settings, input_validator_ok)
         if action in ['run', 'all']:
-            success &= run.run_submissions(problem.path, settings)
+            success &= run.run_submissions(problem, settings)
         if action in ['test']:
-            success &= run.test_submissions(problem.path, settings)
+            success &= run.test_submissions(problem, settings)
         if action in ['constraints']:
             success &= constraints.check_constraints(problem.path, settings)
         if action in ['zip']:

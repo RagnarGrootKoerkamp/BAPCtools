@@ -108,8 +108,8 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
             judgeerror = judgepath / 'judgeerror.txt'
             val_ok, err, out = exec_command(
                 output_validator[1] +
-                [testcase.with_suffix('.in'),
-                 testcase.with_suffix('.ans'), judgepath] + flags,
+                [testcase.in_path,
+                 testcase.ans_path, judgepath] + flags,
                 expect=config.RTV_AC,
                 stdin=outf)
             if err is None:
@@ -181,11 +181,10 @@ def validate_testcase(problem,
 
     bad_testcase = False
     if validator_type == 'input':
-        bad_testcase = 'data/bad/' in str(testcase) and not testcase.with_suffix(
-            '.ans').is_file() and not testcase.with_suffix('.out').is_file()
+        bad_testcase = 'data/bad/' in str(testcase.in_path) and not testcase.ans_path.is_file() and not testcase.with_suffix('.out').is_file()
 
     if validator_type == 'output':
-        bad_testcase = 'data/bad/' in str(testcase)
+        bad_testcase = 'data/bad/' in str(testcase.in_path)
 
     main_file = testcase.with_suffix(ext)
     if bad_testcase and validator_type == 'output' and main_file.with_suffix('.out').is_file():
@@ -258,8 +257,7 @@ def validate_testcase(problem,
             # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
             ok, err, out = exec_command(
                 validator[1] +
-                [testcase.with_suffix('.in'),
-                 testcase.with_suffix('.ans'), config.tmpdir] +
+                [testcase.in_path, testcase.ans_path, config.tmpdir] +
                 ['case_sensitive', 'space_change_sensitive'],
                 expect=config.RTV_WA if bad_testcase else config.RTV_AC,
                 stdin=main_file.open())
@@ -286,13 +284,13 @@ def validate_testcase(problem,
         if not ok:
             # Move testcase to destination directory if specified.
             if hasattr(config.args, 'move_to') and config.args.move_to:
-                infile = testcase.with_suffix('.in')
+                infile = testcase.in_path
                 targetdir = problem / config.args.move_to
                 targetdir.mkdir(parents=True, exist_ok=True)
                 intarget = targetdir / infile.name
                 infile.rename(intarget)
                 bar.warn('Moved to ' + print_name(intarget))
-                ansfile = testcase.with_suffix('.ans')
+                ansfile = testcase.ans_path
                 if ansfile.is_file():
                     if validator_type == 'input':
                         ansfile.unlink()
@@ -307,10 +305,10 @@ def validate_testcase(problem,
             elif validator_type == 'input' and hasattr(config.args,
                                                        'remove') and config.args.remove:
                 bar.log(cc.red + 'REMOVING TESTCASE!' + cc.reset)
-                if testcase.exists():
-                    testcase.unlink()
-                if testcase.with_suffix('.ans').exists():
-                    testcase.with_suffix('.ans').unlink()
+                if testcase.in_path.exists():
+                    testcase.in_path.unlink()
+                if testcase.ans_path.exists():
+                    testcase.ans_path.unlink()
                 break
 
     return success
@@ -347,7 +345,7 @@ def validate(problem, validator_type, settings, check_constraints=False):
         error(f'No {validator_type} validators found!')
         return False
 
-    testcases = get_testcases(problem, needans=validator_type == 'output')
+    testcases = problem.testcases(needans=validator_type == 'output')
 
     # Get the bad testcases:
     # For input validation, look for .in files without .ans or .out.
@@ -372,7 +370,7 @@ def validate(problem, validator_type, settings, check_constraints=False):
     constraints = {}
 
     # validate the testcases
-    bar = ProgressBar(action, items=[print_name(t) + ext for t in testcases])
+    bar = ProgressBar(action, items=[t.name for t in testcases])
     for testcase in testcases:
         bar.start(print_name(testcase.with_suffix(ext)))
         success &= validate_testcase(problem,

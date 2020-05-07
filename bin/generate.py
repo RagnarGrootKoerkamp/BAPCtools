@@ -323,7 +323,7 @@ class Testcase(Base):
         bar = bar.start(str(t.path))
 
         # E.g. bapctmp/problem/data/secret/1.in
-        cwd = config.tmpdir / problem.id / 'data' / t.path
+        cwd = config.tmpdir / problem.name / 'data' / t.path
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / (t.name + '.in')
         ansfile = cwd / (t.name + '.ans')
@@ -799,11 +799,7 @@ class GeneratorConfig:
 
         bar = ProgressBar('Generate', items=item_names)
 
-        if config.args.jobs <= 0:
-            log('Number of jobs is not positive. Disabling parallelization.')
-
-        if config.args.jobs <= 1:
-            self.parallel = False
+        if config.args.jobs <= 1: log('Disabling parallelization.')
 
         if not self.parallel:
             self.root_dir.walk(

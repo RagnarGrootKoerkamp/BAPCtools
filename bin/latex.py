@@ -70,7 +70,7 @@ def create_samples_file(problem):
     builddir = config.tmpdir / problem
 
     # create the samples.tex file
-    samples = util.get_testcases(problem, needans=True, only_sample=True)
+    samples = problem.testcases(needans=True, only_sample=True)
     samples_file_path = builddir / 'samples.tex'
     samples_data = ''
 
@@ -100,16 +100,16 @@ def create_samples_file(problem):
             flush()
         else:
             samples_data += '\\begin{Sample}\n'
-            samples_data += tex_escape(sample.with_suffix('.in').read_text())
+            samples_data += tex_escape(sample.in_file.read_text())
             samples_data += '&\n'
-            samples_data += tex_escape(sample.with_suffix('.ans').read_text())
+            samples_data += tex_escape(sample.ans_file.read_text())
             samples_data += '\\\\\n\\end{Sample}\n\n'
     samples_file_path.write_text(samples_data)
 
 
 # Steps needed for both problem and contest compilation.
 def prepare_problem(problem):
-    builddir = config.tmpdir / problem.id
+    builddir = config.tmpdir / problem.name
     builddir.mkdir(exist_ok=True)
     ensure_symlink(builddir / 'problem_statement', problem.path / 'problem_statement')
 
@@ -140,7 +140,7 @@ def get_tl(problem_config):
 def build_problem_pdf(problem):
     prepare_problem(problem)
 
-    builddir = config.tmpdir / problem.id
+    builddir = config.tmpdir / problem.name
 
     util.copy_and_substitute(
         config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
@@ -231,7 +231,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
                 'problemyamlname': problem.config['name'],
                 'problemauthor': problem.config.get('author'),
                 'timelimit': get_tl(problem.config),
-                'problemdir': config.tmpdir / problem.id,
+                'problemdir': config.tmpdir / problem.name,
             })
 
     # include a statistics slide in the solutions PDF

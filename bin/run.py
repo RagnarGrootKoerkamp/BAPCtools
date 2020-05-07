@@ -53,10 +53,20 @@ def _get_submissions(problem):
 
     return submissions
 
+# TODO: Reuse Submission(Invocation) object.
+# TODO: Use new Testcase object.
+# TODO: Introduce new Run object containing a submission and testcase
+# TODO: Parallelize running Runs.
+
+
+
+class Run:
+    def __init__(self, submission, testcase):
+        pass
 
 # Return (ret, duration, err, out)
 def run_testcase(run_command, testcase, outfile, timeout, crop=True):
-    with testcase.with_suffix('.in').open('rb') as inf:
+    with testcase.in_path.open('rb') as inf:
 
         def run(outfile):
             did_timeout = False
@@ -116,8 +126,8 @@ def process_interactive_testcase(
     judgepath = config.tmpdir / 'judge'
     judgepath.mkdir(parents=True, exist_ok=True)
     validator_command = output_validator[1] + [
-        testcase.with_suffix('.in'),
-        testcase.with_suffix('.ans'), judgepath
+        testcase.in_path,
+        testcase.ans_path, judgepath
     ] + flags
 
     if validator_error is False: validator_error = subprocess.PIPE
@@ -377,7 +387,7 @@ def _process_testcase(run_command, testcase, outfile, settings, output_validator
     else:
         assert settings.validation in ['default', 'custom']
         if settings.validation == 'default':
-            ok, err, out = validate.default_output_validator(testcase.with_suffix('.ans'), outfile,
+            ok, err, out = validate.default_output_validator(testcase.ans_path, outfile,
                                                              settings)
         elif settings.validation == 'custom':
             ok, err, out = validate.custom_output_validator(testcase, outfile, settings,
@@ -394,11 +404,12 @@ def _process_testcase(run_command, testcase, outfile, settings, output_validator
     return (verdict, duration, err, out)
 
 
+# TODO: Start using the Submission(Invocation) class from Generate here.
 # program is of the form (name, command)
 # return outcome
 # always: failed submissions
 # -v: all programs and their results (+failed testcases when expected is 'accepted')
-def _run_submission(submission,
+def _run_submission(problem, submission,
                     testcases,
                     settings,
                     output_validators,
@@ -410,9 +421,7 @@ def _run_submission(submission,
     testcase_max_time = None
 
     action = 'Running ' + str(submission[0])
-    max_total_length = max(
-        max([len(print_name(testcase.with_suffix('')))
-             for testcase in testcases]), 15) + max_submission_len
+    max_total_length = max(max([len(t.name) for t in testcases]), 15) + max_submission_len
     max_testcase_len = max_total_length - len(str(submission[0]))
 
     printed = False
@@ -421,8 +430,11 @@ def _run_submission(submission,
     # TODO: Run multiple testcases in parallel.
     final_verdict = 'ACCEPTED'
     for testcase in testcases:
-        bar.start(print_name(testcase.with_suffix('')))
-        outfile = config.tmpdir / 'test.out'
+        bar.start(testcase.name)
+        # TODO: test.out should really depend on the testcase and maybe the submission as well.
+        # This is especially needed when running multiple cases/submissions in parallel.
+        outfile = config.tmpdir / problem.name / 'runs' / submission[0] / testcase.short_path.with_suffix('.out')
+        outfile.parent.mkdir(exist_ok=True, parents=True)
         verdict, runtime, err, out = _process_testcase(submission[1], testcase, outfile, settings,
                                                        output_validators)
 
@@ -433,10 +445,10 @@ def _run_submission(submission,
         time_total += runtime
         if runtime > time_max:
             time_max = runtime
-            testcase_max_time = print_name(testcase.with_suffix(''))
+            testcase_max_time = testcase.name
 
         if table_dict is not None:
-            table_dict[testcase] = verdict == 'ACCEPTED'
+            table_dict[testcase.name] = verdict == 'ACCEPTED'
 
         got_expected = verdict == 'ACCEPTED' or verdict == expected
         color = cc.green if got_expected else cc.red
@@ -494,19 +506,19 @@ def _run_submission(submission,
 def run_submissions(problem, settings):
     needans = True
     if 'interactive' in settings.validation: needans = False
-    testcases = get_testcases(problem, needans=needans)
+    testcases = problem.testcases(needans=needans)
 
     if len(testcases) == 0:
         return False
 
     output_validators = None
     if settings.validation in ['custom', 'custom interactive']:
-        output_validators = validate.get_validators(problem, 'output')
+        output_validators = validate.get_validators(problem.path, 'output')
         if len(output_validators) == 0:
             error(f'No output validators found, but validation type is: {settings.validation}.')
             return False
 
-    submissions = _get_submissions(problem)
+    submissions = _get_submissions(problem.path)
 
     max_submission_len = max([0] +
                              [len(str(x[0])) for cat in submissions for x in submissions[cat]])
@@ -516,7 +528,7 @@ def run_submissions(problem, settings):
     for verdict in submissions:
         for submission in submissions[verdict]:
             verdict_table.append(dict())
-            success &= _run_submission(submission,
+            success &= _run_submission(problem.path, submission,
                                        testcases,
                                        settings,
                                        output_validators,
@@ -528,7 +540,7 @@ def run_submissions(problem, settings):
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
         def single_verdict(row, testcase):
             if testcase in row:
-                if row[testcase]:
+                if row[testcase.name]:
                     return cc.green + '1' + cc.reset
                 else:
                     return cc.red + '0' + cc.reset
@@ -564,17 +576,17 @@ def run_submissions(problem, settings):
               'scores indicate they are critical to break some submissions.')
         for testcase in testcases:
             # Skip all AC testcases
-            if all(map(lambda row: row[testcase], verdict_table)): continue
+            if all(map(lambda row: row[testcase.name], verdict_table)): continue
 
             color = cc.reset
-            if len(scores_list) > 6 and scores[testcase] >= scores_list[-6]:
+            if len(scores_list) > 6 and scores[testcase.name] >= scores_list[-6]:
                 color = cc.orange
-            if len(scores_list) > 3 and scores[testcase] >= scores_list[-3]:
+            if len(scores_list) > 3 and scores[testcase.name] >= scores_list[-3]:
                 color = cc.red
-            print(f'{str(testcase):<60}', end=' ')
+            print(f'{str(testcase.name):<60}', end=' ')
             resultant = make_verdict(testcase)
             print(resultant, end='  ')
-            print(f'{color}{scores[testcase]:0.3f}{cc.reset}  ', end='')
+            print(f'{color}{scores[testcase.name]:0.3f}{cc.reset}  ', end='')
             if resultant in resultant_id:
                 print(str.format('(Type {})', resultant_id[resultant]), end='')
             print(end='\n')
@@ -595,7 +607,7 @@ def _test_submission(problem, submission, testcases, settings):
 
     time_limit, timeout = get_time_limits(settings)
     for testcase in testcases:
-        header = ProgressBar.action('Running ' + str(submission[0]), str(testcase.with_suffix('')))
+        header = ProgressBar.action('Running ' + str(submission[0]), testcase.name)
         print(header)
 
         if 'interactive' not in settings.validation:
@@ -641,16 +653,16 @@ def _test_submission(problem, submission, testcases, settings):
 # terminal.
 # Note: The CLI only accepts one submission.
 def test_submissions(problem, settings):
-    testcases = get_testcases(problem, needans=False)
+    testcases = problem.testcases(needans=False)
 
     if len(testcases) == 0:
         warn('No testcases found!')
         return False
 
-    submissions = _get_submissions(problem)
+    submissions = _get_submissions(problem.path)
 
     verdict_table = []
     for verdict in submissions:
         for submission in submissions[verdict]:
-            _test_submission(problem, submission, testcases, settings)
+            _test_submission(problem.path, submission, testcases, settings)
     return True

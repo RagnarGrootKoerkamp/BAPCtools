@@ -51,9 +51,6 @@ def languages():
     return _languages
 
 
-# TODO: Store compile command in the temporary Program directory, so we can detect if the compilation command changes.
-
-
 # A Program is class that wraps a program (file/directory) on disk. A program is usually one of:
 # - a submission
 # - a validator
@@ -132,6 +129,7 @@ class Program:
 
     # Make a path in tmpfs. Usually this will be e.g. config.tmpdir/problem/submissions/accepted/sol.py.
     # For absolute paths and weird relative paths, fall back to config.tmpdir/sol.py.
+    @staticmethod
     def _get_tmp_dir(path):
         # For a single file/directory: make a new directory in tmpfs and link all files into that dir.
         # For a given list of dependencies: make a new directory and link the given dependencies.
@@ -144,11 +142,13 @@ class Program:
             return outdir
 
     # is file at path executable
+    @staticmethod
     def _is_executable(path):
         return path.is_file() and (path.stat().st_mode &
                                    (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
 
     # Returns true when file f matches the given shebang regex.
+    @staticmethod
     def _matches_shebang(f, shebang):
         if shebang is None: return True
         with f.open() as o:
@@ -298,10 +298,12 @@ class Program:
                 c(self)
         return self.run_command
 
+    @staticmethod
     def add_callback(path, c):
         if path not in Program._callbacks: Program._callbacks[path] = []
         Program._callbacks[path].append(c)
 
+    @staticmethod
     def get(path):
         return Program._cache[path]
 
