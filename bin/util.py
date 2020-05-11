@@ -7,6 +7,7 @@ import yaml
 import subprocess
 import sys
 import os
+import re
 import yaml
 import threading
 
@@ -89,7 +90,7 @@ class ProgressBar:
         assert not (items and (max_len or count))
         if items:
             count = len(items)
-            max_len = max(len(str(x)) for x in items)
+            max_len = max(len(str(x) if isinstance(x, str) else x.name) for x in items)
         self.prefix = prefix  # The prefix to always print
         self.item_width = max_len  # The max length of the items we're processing
         self.count = count  # The number of items we're processing
@@ -105,6 +106,7 @@ class ProgressBar:
         # - items in progress
         self.parent = None
         self.in_progress = set()
+        self.item = None
 
     def total_width(self):
         return shutil.get_terminal_size().columns
@@ -128,6 +130,7 @@ class ProgressBar:
     def action(prefix, item, width=None, total_width=None):
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
+        item = item if isinstance(item, str) else item.name
         if width is not None and len(item) > width: item = item[:width]
         if width is None: width = 0
         s = f'{cc.blue}{prefix}{cc.reset}: {item:<{width}}'
@@ -148,6 +151,7 @@ class ProgressBar:
             self.parent.in_progress.remove(self.item)
         else:
             self.in_progress.remove(self.item)
+        self.item = None
 
     # Resume the ongoing progress bar after a log/done.
     # Should only be called for the root.
@@ -174,6 +178,7 @@ class ProgressBar:
         self.i += 1
         assert self.count is None or self.i <= self.count
 
+        assert self.item is None
         self.item = item
         self.logged = False
         self.in_progress.add(item)
@@ -224,8 +229,8 @@ class ProgressBar:
     def error(self, message='', data=''):
         self.lock.acquire()
         config.n_error += 1
-        self._release_item()
         self.log(message, data, cc.red, needs_lock=False)
+        self._release_item()
         self.lock.release()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
@@ -233,6 +238,10 @@ class ProgressBar:
     def done(self, success=True, message='', data=''):
         self.lock.acquire()
         self.clearline()
+
+        if self.item is None:
+            self.lock.release()
+            return False
 
         self._release_item()
 
@@ -263,12 +272,14 @@ class ProgressBar:
         return False
 
     # Print a final 'Done' message in case nothing was printed yet.
-    def finalize(self):
+    def finalize(self, print_done=True):
         assert self.parent is None
         assert self.count is None or self.i == self.count
+        assert self.item is None
 
-        if self.global_logged: return False
-        if config.verbose: return False
+        if self.global_logged: return
+        if config.verbose: return
+        if not print_done: return
 
         print(ProgressBar.action(self.prefix, f'{cc.green}Done{cc.reset}'))
 
@@ -445,39 +456,14 @@ def get_memory_limit(kwargs=None):
     return memory_limit
 
 
-# Return the time limits: a pair (problem time limit, hard wall timeout)
-# problem time limit: default from problem config; overridden by --timelimit
-# hard wall timeout: default 1.5*timelimit+1, overridden by --timeout
-#   wall timeout will be at least time_limit+1
-#
-# Note: This is only suitable for running submissions.
-# Other programs should have a larger default timeout.
-# TODO: Move this to the Problem class.
-def get_time_limits(settings):
-    time_limit = settings.timelimit
-    if hasattr(config.args, 'timelimit'): time_limit = config.args.timelimit
-    if time_limit is None: time_limit = 1
-
-    timeout = 1.5 * time_limit + 1
-    if hasattr(config.args, 'timeout') and config.args.timeout:
-        timeout = max(config.args.timeout, time_limit + 1)
-    return time_limit, int(timeout)
-
-
-# Return the command line timeout or the default of 30
-# TODO: Make this nicer. Use dict lookup with default.
-# TODO: Move this to the config.
-def get_timeout():
-    if hasattr(config.args, 'timeout') and config.args.timeout:
-        return config.args.timeout
-    return 30
 
 
 # Run `command`, returning stderr if the return code is unexpected.
+# TODO: Make this return an ExecResult object containing the return code/status, the time, and stdout/stderr.
 def exec_command(command, expect=0, crop=True, **kwargs):
     # By default: discard stdout, return stderr
-    if 'stdout' not in kwargs: kwargs['stdout'] = subprocess.PIPE
-    if 'stderr' not in kwargs: kwargs['stderr'] = subprocess.PIPE
+    if 'stdout' not in kwargs or kwargs['stdout'] is True: kwargs['stdout'] = subprocess.PIPE
+    if 'stderr' not in kwargs or kwargs['stderr'] is True: kwargs['stderr'] = subprocess.PIPE
 
     # Convert any Pathlib objects to string.
     command = [str(x) for x in command]
@@ -525,3 +511,18 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     return (True if process.returncode == expect else process.returncode,
             maybe_crop(stderr.decode('utf-8')) if stderr is not None else None,
             maybe_crop(stdout.decode('utf-8')) if stdout is not None else None)
+
+class ExecResult:
+    # TODO: Replace ok by returncode and expected_returncode
+    def __init__(ok , duration, err, out):
+        self.ok = ok
+        self.duration = duration
+        self.err = err
+        self.out = out
+
+# TODO: Replace exec_command by this, which returns ExecResult.
+def exec_command_2(command, expect=0, crop=True, **kwargs):
+    tstart = time.monotonic()
+    ok, err, out = exec_command(command, expect, crop, **kwargs)
+    tend = time.monotonic()
+    return ExecResult(ok, tend-tstart, err, out)

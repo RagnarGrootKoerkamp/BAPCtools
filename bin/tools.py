@@ -33,7 +33,7 @@ import skel
 import stats
 import validate
 
-from objects import Problem
+from problem import Problem
 from util import *
 
 if not is_windows():
@@ -65,6 +65,12 @@ def get_problems():
         os.chdir('..')
     else:
         level = 'problemset'
+
+    # We create one tmpdir per contest.
+    if config.tmpdir is None:
+        h = hashlib.sha256(bytes(Path().cwd())).hexdigest()[-6:]
+        config.tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
+        config.tmpdir.mkdir(parents=True, exist_ok=True)
 
     problems = []
     if level == 'problem':
@@ -103,13 +109,6 @@ def get_problems():
                     label_ord += 1
 
     contest = Path().cwd().name
-
-    # We create one tmpdir per repository, assuming the repository is one level
-    # higher than the contest directory.
-    if config.tmpdir is None:
-        h = hashlib.sha256(bytes(Path().cwd().parent)).hexdigest()[-6:]
-        config.tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
-        config.tmpdir.mkdir(parents=True, exist_ok=True)
 
     return (problems, level, contest)
 
@@ -459,17 +458,8 @@ def main():
             continue
         print(cc.bold, 'PROBLEM ', problem.path, cc.reset, sep='')
 
-        # merge problem settings with arguments into one namespace
-        # TODO: Fix the usages of:
-        # - problem.config
-        # - global config
-        # - the merged settings object
-        problemsettings = problem.config
-        settings = argparse.Namespace(**problemsettings)
-        for key in vars(config.args):
-            if vars(config.args)[key] is not None:
-                vars(settings)[key] = vars(config.args)[key]
-        problem.settings = settings
+        # TODO: Remove usages of settings.
+        settings = problem.settings
 
         if action in ['pdf', 'solutions', 'all']:
             # only build the pdf on the problem level, or on the contest level when

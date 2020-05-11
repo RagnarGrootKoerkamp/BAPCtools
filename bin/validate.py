@@ -1,4 +1,4 @@
-import build
+import program
 import re
 from util import *
 
@@ -140,33 +140,6 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
         ok = False
     return (ok, err, out)
 
-
-# If check_constraints is True, this chooses the first validator that matches
-# contains 'constraints_file' in its source.
-def get_validators(problem, validator_type, check_constraints=False):
-    files = (glob(problem / (validator_type + '_validators'), '*') +
-             glob(problem / (validator_type + '_format_validators'), '*'))
-
-    def has_constraints_checking(f):
-        return 'constraints_file' in f.read_text()
-
-    if check_constraints:
-        for f in files:
-            if f.is_file(): sources = [f]
-            elif f.is_dir(): sources = glob(f, '**/*')
-            has_constraints = False
-            for s in sources:
-                if has_constraints_checking(s):
-                    has_constraints = True
-                    break
-            if has_constraints:
-                files = [f]
-                break
-
-    if hasattr(config.args, 'validator') and config.args.validator:
-        files = [problem / config.args.validator]
-
-    return build.build_programs(files)
 
 
 def validate_testcase(problem,

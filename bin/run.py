@@ -2,7 +2,7 @@ import signal
 import time
 import subprocess
 
-import build
+import program
 import config
 import validate
 
@@ -13,50 +13,27 @@ if not is_windows():
     import resource
 
 
-def _get_submission_type(s):
-    ls = str(s).lower()
-    if 'wrong_answer' in ls:
-        return 'WRONG_ANSWER'
-    if 'time_limit_exceeded' in ls:
-        return 'TIME_LIMIT_EXCEEDED'
-    if 'run_time_error' in ls:
-        return 'RUN_TIME_ERROR'
-    return 'ACCEPTED'
-
-
-# returns a map {answer type -> [(name, command)]}
-def _get_submissions(problem):
-    programs = []
-
-    if hasattr(config.args, 'submissions') and config.args.submissions:
-        for submission in config.args.submissions:
-            if Path(problem / submission).parent == problem / 'submissions':
-                programs += glob(problem / submission, '*')
-            else:
-                programs.append(problem / submission)
-    else:
-        for verdict in config.PROBLEM_OUTCOMES:
-            programs += glob(problem, f'submissions/{verdict.lower()}/*')
-
-    if len(programs) == 0:
-        error('No submissions found!')
-
-    run_commands = build.build_programs(programs, True)
-    submissions = {
-        'ACCEPTED': [],
-        'WRONG_ANSWER': [],
-        'TIME_LIMIT_EXCEEDED': [],
-        'RUN_TIME_ERROR': []
-    }
-    for c in run_commands:
-        submissions[_get_submission_type(c[0])].append(c)
-
-    return submissions
 
 # TODO: Reuse Submission(Invocation) object.
 # TODO: Use new Testcase object.
 # TODO: Introduce new Run object containing a submission and testcase
 # TODO: Parallelize running Runs.
+
+# TODO: Add support for bad testcases here.
+class Testcase:
+    def __init__(self, problem, path):
+        assert path.suffix == '.in'
+
+        self.in_path = path
+        self.ans_path = path.with_suffix('.ans')
+        # Note: Only testcases in problem/data are supported currently.
+        self.short_path = path.relative_to(problem.path / 'data')
+
+        # Display name: everything after data/.
+        self.name = str(self.short_path.with_suffix(''))
+
+    def with_suffix(self, ext):
+        return self.in_path.with_suffix(ext)
 
 
 
@@ -64,37 +41,9 @@ class Run:
     def __init__(self, submission, testcase):
         pass
 
-# Return (ret, duration, err, out)
+# Superseeded by Submission.run()
 def run_testcase(run_command, testcase, outfile, timeout, crop=True):
-    with testcase.in_path.open('rb') as inf:
-
-        def run(outfile):
-            did_timeout = False
-            tstart = time.monotonic()
-            if outfile is None:
-                # Print both stdout and stderr directly to the terminal.
-                ok, err, out = exec_command(run_command,
-                                            expect=0,
-                                            crop=crop,
-                                            stdin=inf,
-                                            stdout=None,
-                                            stderr=None,
-                                            timeout=timeout)
-            else:
-                ok, err, out = exec_command(run_command,
-                                            expect=0,
-                                            crop=crop,
-                                            stdin=inf,
-                                            stdout=outfile,
-                                            timeout=timeout)
-            tend = time.monotonic()
-
-            return ok, tend - tstart, err, out
-
-        if outfile is None:
-            return run(outfile)
-        else:
-            return run(outfile.open('wb'))
+    pass
 
 
 # return (verdict, time, validator error, submission error)
@@ -370,6 +319,7 @@ while True:
 
 
 # return (verdict, time, remark)
+# TODO: This roughly corresponds to the new Run object.
 def _process_testcase(run_command, testcase, outfile, settings, output_validators):
 
     if 'interactive' in settings.validation:
@@ -404,7 +354,7 @@ def _process_testcase(run_command, testcase, outfile, settings, output_validator
     return (verdict, duration, err, out)
 
 
-# TODO: Start using the Submission(Invocation) class from Generate here.
+# TODO: Start using the program.Submission class here.
 # program is of the form (name, command)
 # return outcome
 # always: failed submissions
@@ -420,9 +370,9 @@ def _run_submission(problem, submission,
     time_max = 0
     testcase_max_time = None
 
-    action = 'Running ' + str(submission[0])
+    action = 'Running ' + submission.name
     max_total_length = max(max([len(t.name) for t in testcases]), 15) + max_submission_len
-    max_testcase_len = max_total_length - len(str(submission[0]))
+    max_testcase_len = max_total_length - len(submission.name)
 
     printed = False
     bar = ProgressBar(action, max_testcase_len, len(testcases))
@@ -431,11 +381,9 @@ def _run_submission(problem, submission,
     final_verdict = 'ACCEPTED'
     for testcase in testcases:
         bar.start(testcase.name)
-        # TODO: test.out should really depend on the testcase and maybe the submission as well.
-        # This is especially needed when running multiple cases/submissions in parallel.
-        outfile = config.tmpdir / problem.name / 'runs' / submission[0] / testcase.short_path.with_suffix('.out')
+        outfile = config.tmpdir / problem.name / 'runs' / submission.short_path / testcase.short_path.with_suffix('.out')
         outfile.parent.mkdir(exist_ok=True, parents=True)
-        verdict, runtime, err, out = _process_testcase(submission[1], testcase, outfile, settings,
+        verdict, runtime, err, out = _process_testcase(submission.run_command, testcase, outfile, settings,
                                                        output_validators)
 
         if config.PRIORITY[verdict] > config.PRIORITY[final_verdict]:
@@ -518,10 +466,10 @@ def run_submissions(problem, settings):
             error(f'No output validators found, but validation type is: {settings.validation}.')
             return False
 
-    submissions = _get_submissions(problem.path)
+    submissions = problem.submissions()
 
     max_submission_len = max([0] +
-                             [len(str(x[0])) for cat in submissions for x in submissions[cat]])
+                             [len(x.name) for cat in submissions for x in submissions[cat]])
 
     success = True
     verdict_table = []

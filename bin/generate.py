@@ -8,13 +8,16 @@ import queue
 import threading
 import distutils.util
 
-from util import *
 from pathlib import Path
 
 import config
-import build
+import program
 import validate
 import run
+
+from util import *
+from problem import Problem
+
 
 
 def is_testcase(yaml):
@@ -58,40 +61,38 @@ def get_default_solution(problem):
     warn(f'No solution specified. Falling back to {submission}.')
     return submission
 
-
-# An Invocation is a command line (generator name + arguments) to execute.
+# An Invocation is a program with command line arguments to execute.
 # The following classes inherit from Invocation:
-# - Generator
-# - Solution
-# - Visualizer
+# - GeneratorInvocation
+# - SolutionInvocation
+# - VisualizerInvocation
 class Invocation:
     SEED_REGEX = re.compile(r'\{seed(:[0-9]+)?\}')
     NAME_REGEX = re.compile(r'\{name\}')
 
+    # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
+    # A direct path may also be given.
     def __init__(self, problem, string, *, allow_absolute):
         commands = shlex.split(str(string))
         command = commands[0]
         self.args = commands[1:]
 
-        # The original command string, used for caching.
+        # The original command string, used for caching invocation results.
         self.command_string = string
 
-        # The name of the program to be executed.
-        self.command = resolve_path(command, allow_absolute=allow_absolute)
+        # The name of the program to be executed, relative to the problem root.
+        self.program_path = resolve_path(command, allow_absolute=allow_absolute)
 
         # Make sure that {seed} occurs at most once.
         seed_cnt = 0
         for arg in self.args:
             seed_cnt += len(self.SEED_REGEX.findall(arg))
-
         assert seed_cnt <= 1
 
+        # Automatically set self.program when that program has been built.
         self.program = None
-
-        def callback(program):
-            self.program = program
-
-        build.Program.add_callback(problem.path / self.command, callback)
+        def callback(program): self.program = program
+        problem.add_callback(problem.path / self.program_path, callback)
 
     # Return the form of the command used for caching.
     # This is independent of {name} and the actual run_command.
@@ -101,73 +102,53 @@ class Invocation:
         return command_string
 
     # Return the full command to be executed.
-    def get_command(self, *, name=None, seed=None):
+    def _sub_args(self, *, name=None, seed=None):
         def sub(arg):
             if name: arg = self.NAME_REGEX.sub(str(name), arg)
             if seed: arg = self.SEED_REGEX.sub(str(seed), arg)
             return arg
 
-        return self.program.run_command + [sub(arg) for arg in self.args]
+        return [sub(arg) for arg in self.args]
+
+    # Interface only. Should be implemented by derived class.
+    def run(self, bar, cwd, name, seed): assert False
 
 
-class Generator(Invocation):
+class GeneratorInvocation(Invocation):
     def __init__(self, problem, string):
-        super().__init__(problem, string, allow_absolute=False)
+        super().__init__(self, problem, string, allow_absolute=False)
 
-    # Run this program in the given working directory for the given name and seed.
-    # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
-    # Returns True on success, False on failu
-    def run(self, bar, cwd, name, seed, retries=1):
-
-        in_path = cwd / (name + '.in')
-        stdout_path = cwd / (name + '.in_')
-
-        timeout = get_timeout()
-
-        # Try running the command |retries| times.
-        ok = False
+    # Try running the generator |retries| times, incrementing seed by 1 each time.
+    def run(self, cwd, name, seed, retries=1):
         for retry in range(retries):
-            # Clean the directory.
-            for f in cwd.iterdir():
-                f.unlink()
+            result = self.program.run(cwd, name, args = self._sub_args(name=name, seed=seed+retry))
+            if not result.retry: return result
 
-            command = self.get_command(name=name, seed=seed + retry)
-            stdout_file = stdout_path.open('w')
-            try_ok, err, out = exec_command(command, stdout=stdout_file, timeout=timeout, cwd=cwd)
-            stdout_file.close()
-
-            if try_ok == -9:
-                # Timeout -> stop retrying and fail.
-                bar.error(f'TIMEOUT after {timeout}s')
-                return False
-
-            if try_ok is not True:
-                # Other error -> try again.
-                continue
-
-            if in_path.is_file():
-                if stdout_path.read_text():
-                    bar.warn(f'Generator wrote to both {name}.in and stdout. Ignoring stdout.')
-            else:
-                if not stdout_path.is_file():
-                    bar.error(f'Did not write {name}.in and stdout is empty!')
-                    return False
-
-            if stdout_path.is_file():
-                stdout_path.rename(in_path)
-            ok = True
-
-        if not ok:
-            if retries > 1:
-                bar.error(f'Failed {retry+1} times', err)
-            else:
-                bar.error(f'Failed', err)
-            return False
-
-        return True
+        if retries > 1:
+            self.program.bar.error(f'Failed {retry+1} times', result.err)
+        else:
+            self.program.bar.error(f'Failed', result.err)
+        return result
 
 
-class Solution(Invocation):
+class VisualizerInvocation(Invocation):
+    def __init__(self, problem, string):
+        super().__init__(problem, string, allow_absolute=True)
+
+    # Run the visualizer, taking {name} as a command line argument.
+    # Stdin and stdout are not used.
+    def run(self, bar, cwd, name):
+        result = self.program.run(cwd, args = self._sub_args(name=name))
+
+        if result.ok == -9:
+            bar.error(f'TIMEOUT after {timeout}s')
+        elif result.ok is not True:
+            bar.error('FAILED', result.err)
+        return result
+
+
+
+class SolutionInvocation(Invocation):
     def __init__(self, problem, string):
         super().__init__(problem, string, allow_absolute=True)
 
@@ -179,20 +160,17 @@ class Solution(Invocation):
         in_path = cwd / (name + '.in')
         ans_path = cwd / (name + '.ans')
 
-        if ans_path.is_file(): return True
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        ok, duration, err, out = run.run_testcase(self.get_command(), in_path, ans_path, timeout)
-        if duration > timeout:
-            bar.error('TIMEOUT')
-            return False
-        if ok is not True:
-            bar.error('FAILED')
-            return False
+        result = self.program.run(in_path, ans_path, arg=self.args, cwd=cwd)
 
-        return True
+        if result.ok == -9:
+            bar.error(f'TIMEOUT after {timeout}s')
+        elif result.ok is not True:
+            bar.error('FAILED', result.err)
+        return result
 
-    # TODO: Test generating .interaction files for interactive problems.
+    # TODO: Migrate and test this properly.
     def run_interactive(self, bar, cwd, name, output_validators):
         timeout = get_timeout()
 
@@ -221,27 +199,6 @@ class Solution(Invocation):
         return True
 
 
-class Visualizer(Invocation):
-    def __init__(self, problem, string):
-        super().__init__(problem, string, allow_absolute=True)
-
-    # Run the visualizer, taking {name} as a command line argument.
-    # Stdin and stdout are not used.
-    def run(self, bar, cwd, name):
-        timeout = get_timeout()
-        command = self.get_command(name=name)
-
-        try_ok, err, out = exec_command(command, timeout=timeout, cwd=cwd)
-
-        if try_ok == -9:
-            bar.error(f'TIMEOUT after {timeout}s')
-            return False
-        if try_ok is not True:
-            bar.error('FAILED')
-            return False
-
-        return True
-
 
 # Holds all inheritable configuration options. Currently:
 # - config.solution
@@ -250,8 +207,8 @@ class Visualizer(Invocation):
 class Config:
     INHERITABLE_KEYS = [
         # True: use an AC submission by default when the solution: key is not present.
-        ('solution', True, lambda p, x: Solution(p, x) if x else None),
-        ('visualizer', None, lambda p, x: Visualizer(p, x) if x else None),
+        ('solution', True, lambda p, x: SolutionInvocation(p, x) if x else None),
+        ('visualizer', None, lambda p, x: VisualizerInvocation(p, x) if x else None),
         ('random_salt', '', None),
 
         # Non-portable keys only used by BAPCtools:
@@ -273,7 +230,7 @@ class Config:
                 setattr(self, key, default)
 
 
-class Base:
+class Rule:
     def __init__(self, problem, name, yaml, parent):
         assert parent is not None
 
@@ -288,7 +245,7 @@ class Base:
         self.path: Path = parent.path / self.name
 
 
-class Testcase(Base):
+class TestcaseRule(Rule):
     def __init__(self, problem, name: str, yaml, parent):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
@@ -317,7 +274,7 @@ class Testcase(Base):
             # TODO: Should the seed depend on white space? For now it does.
             seed_value = self.config.random_salt + yaml['input']
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
-            self.generator = Generator(problem, yaml['input'])
+            self.generator = GeneratorInvocation(problem, yaml['input'])
 
     def generate(t, problem, input_validators, output_validators, bar):
         bar = bar.start(str(t.path))
@@ -380,7 +337,7 @@ class Testcase(Base):
 
         # Generate .ans and/or .interaction for interactive problems.
         # TODO: Disable this with a flag.
-        if t.config.solution:
+        if t.config.solution and not ans_path.is_file():
             if problem.settings.validation != 'custom interactive':
                 if not t.config.solution.run(bar, cwd, t.name):
                     return
@@ -480,7 +437,7 @@ class Testcase(Base):
         bar.done()
 
 
-class Directory(Base):
+class Directory(Rule):
     # Process yaml object for a directory.
     def __init__(self, problem, name: str = None, yaml: dict = None, parent=None):
         if name is None:
@@ -531,7 +488,7 @@ class Directory(Base):
                 d.walk(testcase_f, dir_f, dir_last=dir_last)
                 if dir_last and dir_f:
                     dir_f(d)
-            elif isinstance(d, Testcase):
+            elif isinstance(d, TestcaseRule):
                 if testcase_f: testcase_f(d)
             else:
                 assert False
@@ -594,7 +551,7 @@ class Directory(Base):
 
             known_cases.add(relpath)
             bar.warn(f'Found unlisted manual case: {relpath}')
-            t = Testcase(problem, base.name, '', d)
+            t = TestcaseRule(problem, base.name, '', d)
             d.data.append(t)
             bar.add_item(t.path)
 
@@ -687,7 +644,7 @@ class GeneratorConfig:
             assert is_testcase(yaml) or is_directory(yaml)
 
             if is_testcase(yaml):
-                t = Testcase(problem, name, yaml, parent)
+                t = TestcaseRule(problem, name, yaml, parent)
                 assert t.path not in self.known_cases
                 self.known_cases.add(t.path)
                 return t
@@ -728,16 +685,17 @@ class GeneratorConfig:
 
     # Return (submission, msg)
     # This function will always raise a warning.
-    # Which submission is used is implementation defined. We prefer c++ because it tends to be faster.
+    # Which submission is used is implementation defined.
     def get_default_solution(self):
         # By default don't do anything for interactive problems.
         if self.problem.config.validation == 'custom interactive':
-            return None
+            return False
 
         # Use one of the accepted submissions.
         submissions = list(glob(self.problem.path, 'submissions/accepted/*'))
         if len(submissions) == 0:
-            return None
+            warn(f'No solution specified and no accepted submissions found.')
+            return False
 
         # Note: we explicitly random shuffle the submission that's used to generate answers to
         # encourage setting it in generators.yaml.
@@ -757,38 +715,42 @@ class GeneratorConfig:
         def collect_programs(t):
             nonlocal default_solution
             if not t.manual:
-                generators_used.add(t.generator.command)
+                generators_used.add(t.generator.program_path)
             if t.config.solution:
                 if t.config.solution is True:
                     if default_solution is None:
                         default_solution = Solution(self.get_default_solution())
                     t.config.solution = default_solution
-                solutions_used.add(t.config.solution.command)
+                solutions_used.add(t.config.solution.program_path)
             if t.config.visualizer:
-                visualizers_used.add(t.config.visualizer.command)
+                visualizers_used.add(t.config.visualizer.program_path)
 
         self.root_dir.walk(collect_programs, dir_f=None)
 
-        def build_programs(name, program_paths, *, allow_generators_dict=False):
-            bar = ProgressBar('Build ' + name, items=[prog.name for prog in program_paths])
-            # TODO: Build multiple programs in parallel.
-            for program_path in program_paths:
-                bar.start(program_path.name)
-
+        def build_programs(program_type, program_paths):
+            programs = []
+            for path in program_paths:
                 path = self.problem.path / program_path
                 deps = None
-
-                if allow_generators_dict and program_path in self.generators:
+                if program_type is GeneratorInvocation and program_path in self.generators:
                     deps = [Path(self.problem.path) / d for d in self.generators[program_path]]
+                    programs.append(program_type(problem, path, deps=deps))
+                else:
+                    programs.append(program_type(problem, path))
 
-                if build.Program(path, deps, bar=bar).build() is not None:
-                    bar.done()
+            bar = ProgressBar('Build ' + program_type.subdir, items=programs)
 
-            bar.finalize()
+            # TODO: Build multiple programs in parallel.
+            for program in programs:
+                bar.start(program)
+                program.build(bar)
+                bar.done()
 
-        build_programs('generators', generators_used, allow_generators_dict=True)
-        build_programs('solutions', solutions_used)
-        build_programs('visualizers', visualizers_used)
+            bar.finalize(print_done=False)
+
+        build_programs(GeneratorInvocation, generators_used)
+        build_programs(SolutionInvocation, solutions_used)
+        build_programs(VisualizerInvocation, visualizers_used)
 
         self.input_validators = validate.get_validators(self.problem.path, 'input')
         self.output_validators = validate.get_validators(self.problem.path, 'output')

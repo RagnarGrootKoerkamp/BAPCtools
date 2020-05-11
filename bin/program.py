@@ -1,4 +1,3 @@
-import fnmatch
 import re
 import shutil
 import stat
@@ -51,6 +50,9 @@ def languages():
     return _languages
 
 
+# TODO: Migrate Validators to Program class.
+# TODO: Run submissions for interactive problems.
+
 # A Program is class that wraps a program (file/directory) on disk. A program is usually one of:
 # - a submission
 # - a validator
@@ -64,8 +66,9 @@ def languages():
 #
 # Member variables are:
 # - path:           source file/directory
-# - tmp_dir:        the build directory in tmpfs. This is only created when build() is called.
-# - input_files:    list of source files linked into tmp_dir
+# - short_path:     the path relative to problem/subdir/, or None
+# - tmpdir:        the build directory in tmpfs. This is only created when build() is called.
+# - input_files:    list of source files linked into tmpdir
 # - language:       the detected language
 # - env:            the environment variables used for compile/run command substitution
 # - timestamp:      time of last change to the source files
@@ -80,18 +83,35 @@ class Program:
     # A map from program paths to corresponding Program instances.
     _cache = dict()
 
-    def __init__(self, path, deps=None, *, bar):
+    def __init__(self, problem, path, deps=None):
         if deps is not None:
+            print(self, problem, path, deps)
             assert isinstance(deps, list)
             assert len(deps) > 0
 
-        # Make sure we never try to build the same program twice. That'd be stupid.
-        assert path not in Program._cache
-        Program._cache[path] = self
+        assert not self.__class__ is Program
 
-        self.bar = bar
+        # Make sure we never try to build the same program twice. That'd be stupid.
+        assert path not in problem._programs
+        problem._programs[path] = self
+
+        self.bar = None
         self.path = path
-        self.tmp_dir = Program._get_tmp_dir(path)
+        self.problem = problem
+
+        # Set self.name and self.tmpdir.
+        # Ideally they are the same as the path inside the problem, but fallback to just the name.
+        try:
+            relpath = path.resolve().relative_to(problem.path.resolve() / self.subdir)
+            self.short_path = relpath
+            self.name = str(relpath)
+            self.tmpdir = problem.tmpdir / self.subdir / relpath
+        except ValueError as e:
+            self.short_path = path.name
+            self.name = str(path.name)
+            self.tmpdir = problem.tmpdir / self.subdir / path.name
+
+
         self.compile_command = None
         self.run_command = None
         self.timestamp = None
@@ -101,45 +121,8 @@ class Program:
         self.built = False
 
         # Detect language, dependencies, and main file
-        if deps: source_files = deps
-        else: source_files = list(glob(path, '*')) if path.is_dir() else [path]
-
-        # Check file names.
-        for f in source_files:
-            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
-                self.ok = False
-                self.bar.error(f'{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
-                return
-
-        if len(source_files) == 0:
-            self.ok = False
-            self.bar.error('{str(path)} is an empty directory.')
-            return
-
-        # Link all source_files
-        self.tmp_dir.mkdir(parents=True, exist_ok=True)
-        self.timestamp = 0
-        self.input_files = []
-        for f in source_files:
-            ensure_symlink(self.tmp_dir / f.name, f)
-            self.input_files.append(self.tmp_dir / f.name)
-            self.timestamp = max(self.timestamp, f.stat().st_ctime)
-
-        self._get_language(deps)
-
-    # Make a path in tmpfs. Usually this will be e.g. config.tmpdir/problem/submissions/accepted/sol.py.
-    # For absolute paths and weird relative paths, fall back to config.tmpdir/sol.py.
-    @staticmethod
-    def _get_tmp_dir(path):
-        # For a single file/directory: make a new directory in tmpfs and link all files into that dir.
-        # For a given list of dependencies: make a new directory and link the given dependencies.
-        if path.is_absolute():
-            return config.tmpdir / path.name
-        else:
-            outdir = config.tmpdir / path
-            if not str(outdir.resolve()).startswith(str(config.tmpdir)):
-                return config.tmpdir / path.name
-            return outdir
+        if deps: self.source_files = deps
+        else: self.source_files = list(glob(path, '*')) if path.is_dir() else [path]
 
     # is file at path executable
     @staticmethod
@@ -167,8 +150,7 @@ class Program:
 
             matching_files = []
             for f in self.input_files:
-                if any(fnmatch.fnmatch(f.name, glob)
-                       for glob in globs) and Program._matches_shebang(f, shebang):
+                if any(f.match(glob) for glob in globs) and Program._matches_shebang(f, shebang):
                     matching_files.append(f)
 
             if len(matching_files) == 0: continue
@@ -199,22 +181,22 @@ class Program:
                         mainfile = f
                 mainfile = mainfile or sorted(files)[0]
         else:
-            mainfile = self.tmp_dir / deps[0].name
+            mainfile = self.tmpdir / deps[0].name
 
         self.env = {
-            'path': str(self.tmp_dir),
+            'path': str(self.tmpdir),
             # NOTE: This only contains files matching the winning language.
             'files': ' '.join(str(f) for f in files),
-            'binary': self.tmp_dir / 'run',
+            'binary': self.tmpdir / 'run',
             'mainfile': str(mainfile),
             'mainclass': str(mainfile.with_suffix('').name),
             'Mainclass': str(mainfile.with_suffix('').name).capitalize(),
             'memlim': get_memory_limit() // 1000000,
 
             # Out-of-spec variables used by 'manual' and 'Viva' languages.
-            'build': self.tmp_dir / 'build' if
-            (self.tmp_dir / 'build') in self.input_files else '',
-            'run': self.tmp_dir / 'run',
+            'build': self.tmpdir / 'build' if
+            (self.tmpdir / 'build') in self.input_files else '',
+            'run': self.tmpdir / 'run',
             'viva_jar': config.tools_root / 'support/viva/viva.jar',
         }
 
@@ -232,10 +214,10 @@ class Program:
 
     # Return True on success.
     def _compile(self):
-        meta_path = self.tmp_dir / 'meta_'
+        meta_path = self.tmpdir / 'meta_'
 
         # Remove all non-source files.
-        for f in self.tmp_dir.glob('*'):
+        for f in self.tmpdir.glob('*'):
             if f not in (self.input_files + [meta_path]):
                 if f.is_dir() and not f.is_symlink():
                     shutil.rmtree(f)
@@ -250,7 +232,7 @@ class Program:
                 self.compile_command,
                 stdout=subprocess.PIPE,
                 memory=5000000000,
-                cwd=self.tmp_dir,
+                cwd=self.tmpdir,
                 # Compile errors are never cropped.
                 crop=False)
         except FileNotFoundError as err:
@@ -269,14 +251,41 @@ class Program:
         meta_path.write_text(' '.join(self.compile_command))
         return True
 
-    # Return run_command, or None if building failed.
-    def build(self):
-        if not self.ok: return None
+    # Return True on success, False on failure.
+    def build(self, bar):
         assert not self.built
         self.built = True
 
+        if not self.ok: return False
+        self.bar = bar
+
+
+        if len(self.source_files) == 0:
+            self.ok = False
+            self.bar.error('{str(path)} is an empty directory.')
+            return
+
+        # Check file names.
+        for f in self.source_files:
+            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
+                self.ok = False
+                self.bar.error(f'{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
+                return
+
+        # Link all source_files
+        self.tmpdir.mkdir(parents=True, exist_ok=True)
+        self.timestamp = 0
+        self.input_files = []
+        for f in self.source_files:
+            ensure_symlink(self.tmpdir / f.name, f)
+            self.input_files.append(self.tmpdir / f.name)
+            self.timestamp = max(self.timestamp, f.stat().st_ctime)
+
+        self._get_language(self.source_files)
+
+
         # A file containing the compile command. Timestamp is used as last build time.
-        meta_path = self.tmp_dir / 'meta_'
+        meta_path = self.tmpdir / 'meta_'
 
         lang_config = languages()[self.language]
 
@@ -291,42 +300,102 @@ class Program:
             self.compile_command)
 
         if not up_to_date or config.args.force_build:
-            if not self._compile(): return None
+            if not self._compile(): return False
 
-        if self.path in Program._callbacks:
-            for c in Program._callbacks[self.path]:
+        if self.path in self.problem._program_callbacks:
+            for c in self.problem._program_callbacks[self.path]:
                 c(self)
-        return self.run_command
+        return True
 
     @staticmethod
-    def add_callback(path, c):
-        if path not in Program._callbacks: Program._callbacks[path] = []
-        Program._callbacks[path].append(c)
-
-    @staticmethod
-    def get(path):
-        return Program._cache[path]
+    def add_callback(problem, path, c):
+        if path not in problem._programs: problem._program_callbacks[path] = []
+        problem._program_callbacks[path].append(c)
 
 
-# build all files in a directory; return a list of tuples (program name, command)
-def build_programs(programs, include_dirname=False):
-    if len(programs) == 0:
-        return []
-    bar = ProgressBar('Building', items=[print_name(path) for path in programs])
+class Submission(Program):
+    subdir = 'submissions'
+    def __init__(self, problem, path):
+        super().__init__(problem, path)
 
-    commands = []
-    for path in programs:
-        bar.start(print_name(path))
+        subdir = self.short_path.parts[0]
+        self.expected_verdict = subdir.upper() if subdir.upper() in config.VERDICTS else None
 
-        if include_dirname:
-            dirname = path.parent.name
-            name = Path(dirname) / path.name
+    # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
+    # args is used by SubmissionInvocation to pass on additional arguments.
+    # Returns ExecResult
+    def run(self, in_path, out_path, crop=True, args=[], cwd=None):
+        assert self.run_command is not None
+        with testcase.in_path.open('rb') as inf:
+            out_file = out_path.open('wb') if out_path else None
+
+            # Print stderr to terminal is stdout is None, otherwise return its value.
+            result = exec_command_2(self.run_command + args,
+                                            crop=crop,
+                                            stdin=inf,
+                                            stdout=None,
+                                            stderr=None if stdout is None else True,
+                                            timeout=self.problem.settings.timeout,
+                                            cwd=cwd)
+            if out_file: out_file.close()
+            return result
+
+    # TODO: Migrate running interactive submissions as well.
+
+
+class Generator(Program):
+    subdir = 'generators'
+    #def __init__(self, problem, path): super().__init__(problem, path)
+
+    # Run the generator in the given working directory.
+    # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
+    # Returns ExecResult. Success when result.ok is True.
+    def run(self, cwd, name, args=[]):
+        assert self.run_command is not None
+
+        in_path = cwd / (name + '.in')
+        stdout_path = cwd / (name + '.in_')
+
+        # Clean the directory.
+        for f in cwd.iterdir():
+            f.unlink()
+
+        stdout_file = stdout_path.open('w')
+        result = exec_command_2(self.run_command + args, stdout=stdout_file, timeout=config.timeout(), cwd=cwd)
+        stdout_file.close()
+
+        result.retry = False
+
+        if result.ok == -9:
+            # Timeout -> stop retrying and fail.
+            self.bar.error(f'TIMEOUT after {timeout}s')
+            return result
+
+        if result.ok is not True:
+            # Other error -> try again.
+            result.retry = True
+            return result
+
+        if in_path.is_file():
+            if stdout_path.read_text():
+                self.bar.warn(f'Generator wrote to both {name}.in and stdout. Ignoring stdout.')
         else:
-            name = path.name
+            if not stdout_path.is_file():
+                self.bar.error(f'Did not write {name}.in and stdout is empty!')
+                result.ok = False
+                return result
 
-        run_command = Program(path, bar=bar).build()
-        if run_command is not None: commands.append((name, run_command))
-        bar.done()
-    if config.verbose:
-        print()
-    return commands
+        if stdout_path.is_file():
+            stdout_path.rename(in_path)
+
+        return result
+
+class Visualizer(Program):
+    subdir = 'visualizers'
+    #def __init__(self, problem, path): super().__init__(problem, path)
+
+    # Run the visualizer.
+    # Stdin and stdout are not used.
+    def run(self, cwd, args=[]):
+        assert self.run_command is not None
+        return exec_command_2(self.run_command + args, timeout=config.timeout(), cwd=cwd)

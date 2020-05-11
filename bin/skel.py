@@ -8,6 +8,18 @@ import re
 from util import *
 
 
+# Returns the alphanumeric version of a string:
+# This reduces it to a string that follows the regex:
+# [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
+def _alpha_num(string):
+    s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '').replace('-', ''))
+    while s.startswith('_.-'):
+        s = s[1:]
+    while s.endswith('_.-'):
+        s = s[:-1]
+    return s
+
+
 def _ask_variable(name, default=None):
     if default == None:
         val = ''
@@ -41,7 +53,7 @@ def new_contest(name):
     # Ask for all required infos.
     title = _ask_variable('name', name)
     subtitle = _ask_variable('subtitle', '')
-    dirname = _ask_variable('dirname', alpha_num(title))
+    dirname = _ask_variable('dirname', _alpha_num(title))
     author = _ask_variable('author', f'The {title} jury')
     testsession = _ask_variable('testsession?', 'n (y/n)')[0] != 'n'  # boolean
     year = _ask_variable('year', str(datetime.datetime.now().year))
@@ -57,7 +69,7 @@ def new_contest(name):
 def new_problem():
     problemname = config.args.problemname if config.args.problemname else _ask_variable(
         'problem name')
-    dirname = _ask_variable('dirname', alpha_num(problemname))
+    dirname = _ask_variable('dirname', _alpha_num(problemname))
     author = config.args.author if config.args.author else _ask_variable(
         'author', config.args.author)
 

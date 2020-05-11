@@ -8,7 +8,7 @@ import re
 RTV_AC = 42
 RTV_WA = 43
 
-PROBLEM_OUTCOMES = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']
+VERDICTS = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']
 # Judging stops as soon as a max priority verdict is found.
 PRIORITY = {
     'INCONSISTENT_VALIDATORS': -1,
@@ -35,7 +35,10 @@ args = None
 verbose = False
 
 # TODO: Ideally we parse arguments at the beginning so that `default` isn't needed here.
-def arg(name, default = None): return getattr(args, name, default)
+def arg(name, default = None): return getattr(args, name, default) or default
+
+# Return the command line timeout or the default of 30 seconds.
+def timeout(): return arg('timeout', 30)
 
 
 # The number of warnings and errors encountered.
