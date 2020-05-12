@@ -479,7 +479,7 @@ def main():
         if action in ['validate', 'output', 'all']:
             success &= validate.validate(problem.path, 'output', settings, input_validator_ok)
         if action in ['run', 'all']:
-            success &= run.run_submissions(problem, settings)
+            success &= problem.run_submissions()
         if action in ['test']:
             success &= run.test_submissions(problem, settings)
         if action in ['constraints']:

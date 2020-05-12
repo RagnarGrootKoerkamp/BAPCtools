@@ -12,13 +12,6 @@ if not is_windows():
     import fcntl
     import resource
 
-
-
-# TODO: Reuse Submission(Invocation) object.
-# TODO: Use new Testcase object.
-# TODO: Introduce new Run object containing a submission and testcase
-# TODO: Parallelize running Runs.
-
 # TODO: Add support for bad testcases here.
 class Testcase:
     def __init__(self, problem, path):
@@ -36,14 +29,142 @@ class Testcase:
         return self.in_path.with_suffix(ext)
 
 
-
+# Note: Validators are currently taken from the problem. All validators are run for all testcases.
 class Run:
-    def __init__(self, submission, testcase):
-        pass
+    def __init__(self, problem, submission, testcase):
+        self.problem = problem
+        self.submission = submission
+        self.testcase = testcase
+        self.name = self.testcase.name
+        self.result = None
 
-# Superseeded by Submission.run()
-def run_testcase(run_command, testcase, outfile, timeout, crop=True):
-    pass
+    # Return a ExecResult object amended with verdict.
+    def run(self):
+        out_path = config.tmpdir / self.problem.name / 'runs' / self.submission.short_path / self.testcase.short_path.with_suffix('.out')
+        out_path.parent.mkdir(exist_ok=True, parents=True)
+
+        if self.problem.settings.validation == 'custom interactive':
+            # TODO
+            verdict, duration, err, out =  process_interactive_testcase(run_command, testcase, settings, output_validators)
+        else:
+            result = self.submission.run(self.testcase.in_path, out_path)
+            if result.duration > self.problem.settings.timelimit:
+                result.verdict = 'TIME_LIMIT_EXCEEDED'
+            elif result.ok is not True:
+                result.verdict = 'RUN_TIME_ERROR'
+                result.err = 'Exited with code ' + str(ok) + ':\n' + result.err
+            else:
+                if self.problem.settings.validation == 'default':
+                    # TODO: Update validators
+                    ok, err, out = validate.default_output_validator(self.testcase.ans_path, out_path,
+                                                                     self.problem.settings)
+                elif self.problem.settings.validation == 'custom':
+                    # TODO: Update validators
+                    ok, err, out = validate.custom_output_validator(self.testcase.ans_path, out_path, problme.settings,
+                                                                    self.problem.validators('output'))
+                result.ok = ok
+                result.err = err
+                result.out = out
+
+                if result.ok is True:
+                    result.verdict = 'ACCEPTED'
+                elif result.ok is False:
+                    result.verdict = 'WRONG_ANSWER'
+                else:
+                    config.n_error += 1
+                    result.verdict = 'VALIDATOR_CRASH'
+
+        self.result = result
+        return result
+
+
+
+class Submission(program.Program):
+    subdir = 'submissions'
+    def __init__(self, problem, path):
+        super().__init__(problem, path)
+
+        subdir = self.short_path.parts[0]
+        self.expected_verdict = subdir.upper() if subdir.upper() in config.VERDICTS else None
+        self.verdict = None
+        self.duration = None
+
+    # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
+    # args is used by SubmissionInvocation to pass on additional arguments.
+    # Returns ExecResult
+    def run(self, in_path, out_path, crop=True, args=[], cwd=None):
+        assert self.run_command is not None
+        # Just for safety reasons, change the cwd.
+        if cwd is None: cwd = out_path.parent
+        with in_path.open('rb') as inf:
+            out_file = out_path.open('wb') if out_path else None
+
+            # Print stderr to terminal is stdout is None, otherwise return its value.
+            result = exec_command_2(self.run_command + args,
+                                            crop=crop,
+                                            stdin=inf,
+                                            stdout=out_file,
+                                            stderr=None if out_file is None else True,
+                                            timeout=self.problem.settings.timeout,
+                                            cwd=cwd)
+            if out_file: out_file.close()
+            return result
+
+    # Run this submission on all testcases for the current problem.
+    # Returns the final verdict.
+    def run_all_testcases(self, max_submission_name_len=None, table_dict=None):
+        runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
+        bar = ProgressBar('Running ' + self.name, items=runs)
+
+        max_duration = (0, None) # duration, Run
+        verdict = (config.PRIORITY['ACCEPTED'], 'ACCEPTED', 0, None) # priority, verdict, duration, Run
+
+        # TODO: Run multiple runs in parallel.
+        for run in runs:
+            bar.start(run)
+            result = run.run()
+
+            verdict = max(verdict, (config.PRIORITY[result.verdict], result.verdict, result.duration, run))
+            max_duration = max(max_duration, (result.duration, run))
+
+            if table_dict is not None:
+                table_dict[run.name] = result.verdict == 'ACCEPTED'
+
+            got_expected = result.verdict == 'ACCEPTED' or result.verdict == self.expected_verdict
+
+            # Print stderr whenever something is printed
+            if result.out and result.err:
+                output_type = 'PROGRAM STDERR' if self.problem.settings.validation == 'custom interactive' else 'STDOUT'
+                data = f'STDERR:' + util.ProgresBar._format_data(result.err) + '\n{output_type}:' + util.ProgressBar._format_data(result.out) + '\n'
+            else:
+                data = result.err
+
+            bar.done(got_expected, f'{result.duration:6.3f}s {result.verdict}', data)
+
+            # Lazy judging: stop on the first error when not in verbose mode.
+            if not config.verbose and result.verdict in config.MAX_PRIORITY_VERDICT:
+                bar.count = None
+                break
+
+        self.verdict = verdict[1]
+        self.duration = max_duration[0]
+
+        # Use a bold summary line if things were printed before.
+        if bar.logged:
+            color = cc.boldgreen if self.verdict == self.expected_verdict else cc.boldred
+            boldcolor = cc.bold
+        else:
+            color = cc.green if self.verdict == self.expected_verdict else cc.red
+            boldcolor = ''
+
+        bar.finalize(message=f'{max_duration[0]:6.3f}s {color}{verdict[1]:<20}{cc.reset} @ {verdict[3].name}')
+
+        if config.verbose:
+            print()
+
+        return self.verdict == self.expected_verdict
+
+
 
 
 # return (verdict, time, validator error, submission error)
@@ -318,230 +439,10 @@ while True:
     return (verdict, submission_time, val_err, team_err)
 
 
-# return (verdict, time, remark)
-# TODO: This roughly corresponds to the new Run object.
-def _process_testcase(run_command, testcase, outfile, settings, output_validators):
-
-    if 'interactive' in settings.validation:
-        return process_interactive_testcase(run_command, testcase, settings, output_validators)
-
-    timelimit, timeout = get_time_limits(settings)
-    ok, duration, err, out = run_testcase(run_command, testcase, outfile, timeout)
-    did_timeout = duration > timelimit
-    verdict = None
-    if did_timeout:
-        verdict = 'TIME_LIMIT_EXCEEDED'
-    elif ok is not True:
-        verdict = 'RUN_TIME_ERROR'
-        err = 'Exited with code ' + str(ok) + ':\n' + err
-    else:
-        assert settings.validation in ['default', 'custom']
-        if settings.validation == 'default':
-            ok, err, out = validate.default_output_validator(testcase.ans_path, outfile,
-                                                             settings)
-        elif settings.validation == 'custom':
-            ok, err, out = validate.custom_output_validator(testcase, outfile, settings,
-                                                            output_validators)
-
-        if ok is True:
-            verdict = 'ACCEPTED'
-        elif ok is False:
-            verdict = 'WRONG_ANSWER'
-        else:
-            config.n_error += 1
-            verdict = 'VALIDATOR_CRASH'
-
-    return (verdict, duration, err, out)
 
 
-# TODO: Start using the program.Submission class here.
-# program is of the form (name, command)
-# return outcome
-# always: failed submissions
-# -v: all programs and their results (+failed testcases when expected is 'accepted')
-def _run_submission(problem, submission,
-                    testcases,
-                    settings,
-                    output_validators,
-                    max_submission_len,
-                    expected='ACCEPTED',
-                    table_dict=None):
-    time_total = 0
-    time_max = 0
-    testcase_max_time = None
 
-    action = 'Running ' + submission.name
-    max_total_length = max(max([len(t.name) for t in testcases]), 15) + max_submission_len
-    max_testcase_len = max_total_length - len(submission.name)
-
-    printed = False
-    bar = ProgressBar(action, max_testcase_len, len(testcases))
-
-    # TODO: Run multiple testcases in parallel.
-    final_verdict = 'ACCEPTED'
-    for testcase in testcases:
-        bar.start(testcase.name)
-        outfile = config.tmpdir / problem.name / 'runs' / submission.short_path / testcase.short_path.with_suffix('.out')
-        outfile.parent.mkdir(exist_ok=True, parents=True)
-        verdict, runtime, err, out = _process_testcase(submission.run_command, testcase, outfile, settings,
-                                                       output_validators)
-
-        if config.PRIORITY[verdict] > config.PRIORITY[final_verdict]:
-            final_verdict = verdict
-
-        # Manage timings, table data, and print output
-        time_total += runtime
-        if runtime > time_max:
-            time_max = runtime
-            testcase_max_time = testcase.name
-
-        if table_dict is not None:
-            table_dict[testcase.name] = verdict == 'ACCEPTED'
-
-        got_expected = verdict == 'ACCEPTED' or verdict == expected
-        color = cc.green if got_expected else cc.red
-        print_message = config.verbose > 0 or (not got_expected
-                                               and verdict != 'TIME_LIMIT_EXCEEDED')
-        message = '{:6.3f}s '.format(runtime) + color + verdict + cc.reset
-
-        # Print stderr whenever something is printed
-        if err:
-            prefix = '  '
-            if err.count('\n') > 1:
-                prefix = '\n'
-            message += prefix + cc.orange + strip_newline(err) + cc.reset
-
-        # Print stdout when -e is set.
-        if out and (verdict == 'VALIDATOR_CRASH' or config.args.error):
-            prefix = '  '
-            if out.count('\n') > 1:
-                prefix = '\n'
-            output_type = 'STDOUT'
-            if 'interactive' in settings.validation: output_type = 'PROGRAM STDERR'
-            message += f'\n{cc.red}{output_type}{cc.reset}' + prefix + cc.orange + strip_newline(
-                out) + cc.reset
-
-        if print_message:
-            bar.log(message)
-            printed = True
-
-        bar.done()
-
-        if not config.verbose and verdict in config.MAX_PRIORITY_VERDICT:
-            break
-
-    # Use a bold summary line if things were printed before.
-    if printed:
-        color = cc.boldgreen if final_verdict == expected else cc.boldred
-    else:
-        color = cc.green if final_verdict == expected else cc.red
-
-    time_avg = time_total / len(testcases)
-
-    # Print summary line
-    boldcolor = cc.bold if printed else ''
-    print(
-        f'{action:<{max_total_length-6}} {boldcolor}max/avg {time_max:6.3f}s {time_avg:6.3f}s {color}{final_verdict:<20}{cc.reset} @ {testcase_max_time}'
-    )
-
-    if config.verbose:
-        print()
-
-    return final_verdict == expected
-
-
-# return true if all submissions for this problem pass the tests
-def run_submissions(problem, settings):
-    needans = True
-    if 'interactive' in settings.validation: needans = False
-    testcases = problem.testcases(needans=needans)
-
-    if len(testcases) == 0:
-        return False
-
-    output_validators = None
-    if settings.validation in ['custom', 'custom interactive']:
-        output_validators = validate.get_validators(problem.path, 'output')
-        if len(output_validators) == 0:
-            error(f'No output validators found, but validation type is: {settings.validation}.')
-            return False
-
-    submissions = problem.submissions()
-
-    max_submission_len = max([0] +
-                             [len(x.name) for cat in submissions for x in submissions[cat]])
-
-    success = True
-    verdict_table = []
-    for verdict in submissions:
-        for submission in submissions[verdict]:
-            verdict_table.append(dict())
-            success &= _run_submission(problem.path, submission,
-                                       testcases,
-                                       settings,
-                                       output_validators,
-                                       max_submission_len,
-                                       verdict,
-                                       table_dict=verdict_table[-1])
-
-    if hasattr(settings, 'table') and settings.table:
-        # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
-        def single_verdict(row, testcase):
-            if testcase in row:
-                if row[testcase.name]:
-                    return cc.green + '1' + cc.reset
-                else:
-                    return cc.red + '0' + cc.reset
-            else:
-                return '-'
-
-        make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, tc), verdict_table))
-        resultant_count, resultant_id = dict(), dict()
-        special_id = 0
-        for testcase in testcases:
-            resultant = make_verdict(testcase)
-            if resultant not in resultant_count:
-                resultant_count[resultant] = 0
-            resultant_count[resultant] += 1
-            if resultant_count[resultant] == config.TABLE_THRESHOLD:
-                special_id += 1
-                resultant_id[resultant] = special_id
-
-        scores = {}
-        for t in testcases:
-            scores[t] = 0
-        for dct in verdict_table:
-            failures = 0
-            for t in dct:
-                if not dct[t]:
-                    failures += 1
-            for t in dct:
-                if not dct[t]:
-                    scores[t] += 1. / failures
-        scores_list = sorted(scores.values())
-
-        print('\nVerdict analysis table. Submissions are ordered as above. Higher '
-              'scores indicate they are critical to break some submissions.')
-        for testcase in testcases:
-            # Skip all AC testcases
-            if all(map(lambda row: row[testcase.name], verdict_table)): continue
-
-            color = cc.reset
-            if len(scores_list) > 6 and scores[testcase.name] >= scores_list[-6]:
-                color = cc.orange
-            if len(scores_list) > 3 and scores[testcase.name] >= scores_list[-3]:
-                color = cc.red
-            print(f'{str(testcase.name):<60}', end=' ')
-            resultant = make_verdict(testcase)
-            print(resultant, end='  ')
-            print(f'{color}{scores[testcase.name]:0.3f}{cc.reset}  ', end='')
-            if resultant in resultant_id:
-                print(str.format('(Type {})', resultant_id[resultant]), end='')
-            print(end='\n')
-
-    return success
-
-
+# TODO: Migrate these TEST subcommands into submission as well.
 def _test_submission(problem, submission, testcases, settings):
     print(ProgressBar.action('Running', str(submission[0])))
 

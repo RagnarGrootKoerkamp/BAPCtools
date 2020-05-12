@@ -19,6 +19,8 @@ PRIORITY = {
     'RUN_TIME_ERROR': 99,
 }
 
+VALIDATION_MODES = ['default', 'custom', 'custom interactive']
+
 MAX_PRIORITY = max(PRIORITY.values())
 MAX_PRIORITY_VERDICT = [v for v in PRIORITY if PRIORITY[v] == MAX_PRIORITY]
 

@@ -313,35 +313,6 @@ class Program:
         problem._program_callbacks[path].append(c)
 
 
-class Submission(Program):
-    subdir = 'submissions'
-    def __init__(self, problem, path):
-        super().__init__(problem, path)
-
-        subdir = self.short_path.parts[0]
-        self.expected_verdict = subdir.upper() if subdir.upper() in config.VERDICTS else None
-
-    # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
-    # args is used by SubmissionInvocation to pass on additional arguments.
-    # Returns ExecResult
-    def run(self, in_path, out_path, crop=True, args=[], cwd=None):
-        assert self.run_command is not None
-        with testcase.in_path.open('rb') as inf:
-            out_file = out_path.open('wb') if out_path else None
-
-            # Print stderr to terminal is stdout is None, otherwise return its value.
-            result = exec_command_2(self.run_command + args,
-                                            crop=crop,
-                                            stdin=inf,
-                                            stdout=None,
-                                            stderr=None if stdout is None else True,
-                                            timeout=self.problem.settings.timeout,
-                                            cwd=cwd)
-            if out_file: out_file.close()
-            return result
-
-    # TODO: Migrate running interactive submissions as well.
-
 
 class Generator(Program):
     subdir = 'generators'
@@ -360,9 +331,8 @@ class Generator(Program):
         for f in cwd.iterdir():
             f.unlink()
 
-        stdout_file = stdout_path.open('w')
-        result = exec_command_2(self.run_command + args, stdout=stdout_file, timeout=config.timeout(), cwd=cwd)
-        stdout_file.close()
+        with stdout_path.open('w') as stdout_file:
+            result = exec_command_2(self.run_command + args, stdout=stdout_file, timeout=config.timeout(), cwd=cwd)
 
         result.retry = False
 

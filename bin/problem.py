@@ -108,6 +108,9 @@ class Problem:
         if config.arg('timeout'): timeout = max(config.arg('timeout'), self.settings.timelimit+1)
         self.settings.timeout = int(timeout)
 
+        if self.settings.validation not in config.VALIDATION_MODES:
+            fatal(f'Unrecognized validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}')
+
 
     def testcases(p, needans=True, only_sample=False):
         samplesonly = only_sample or config.arg('samples', False)
@@ -147,13 +150,15 @@ class Problem:
 
         if len(testcases) == 0:
             warn(f'Didn\'t find any testcases for {p.name}')
+            testcases = False
+
         p._testcases[key] = testcases
-        return p._testcases[key]
+        return testcases
 
 
     # returns a map {expected verdict -> [(name, command)]}
     def submissions(problem):
-        if problem._submissions: return problem._submissions
+        if problem._submissions is not None: return problem._submissions
 
         paths = []
         if config.arg('submissions'):
@@ -168,8 +173,10 @@ class Problem:
 
         if len(paths) == 0:
             error('No submissions found!')
+            problem._submissions = False
+            return False
 
-        programs = [program.Submission(problem, path) for path in paths]
+        programs = [run.Submission(problem, path) for path in paths]
 
         bar = ProgressBar('Build submissions', items=programs)
 
@@ -187,8 +194,10 @@ class Problem:
         submissions = dict()
         for verdict in config.VERDICTS: submissions[verdict] = []
 
+        # Filter out broken submissions.
         for p in programs:
-            submissions[p.expected_verdict].append(p)
+            if p.ok:
+                submissions[p.expected_verdict].append(p)
 
         problem._submissions = submissions
         return submissions
@@ -203,6 +212,15 @@ class Problem:
 
         paths = (glob(problem / (validator_type + '_validators'), '*') +
                  glob(problem / (validator_type + '_format_validators'), '*'))
+
+        if len(paths) == 0:
+            error(f'No {validator_type} validators found.')
+            problem._validators[validator_type] = False
+            return False
+        if problem.settings.validation == 'custom interactive' and len(paths) > 1:
+            error(f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.')
+            problem._validators[validator_type] = False
+            return False
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
@@ -221,21 +239,110 @@ class Problem:
                     files = [f]
                     break
 
-        programs = [program.Validator(problem, path) for path in paths]
+        validators = [program.Validator(problem, path) for path in paths]
+        bar = ProgressBar('Build validators', items=validators)
 
-        bar = ProgressBar('Build validators', items=programs)
-
-        for p in programs:
+        ok = True
+        for p in validators:
             bar.start(p)
-            p.build(bar)
+            ok &= p.build(bar)
             bar.done()
 
         bar.finalize(print_done=False)
+
+        # All validators must build.
+        if not ok: return False
 
         # TODO: Clean these spurious newlines.
         if config.verbose:
             print()
 
         if not check_constraints:
-            problem._validators = programs
-        return programs
+            problem._validators[validator_type] = validators
+        return validators
+
+
+    def run_submissions(problem):
+        needans = False if problem.settings.validation == 'custom interactive' else True
+        testcases = problem.testcases(needans=needans)
+
+        if len(testcases) == 0:
+            return False
+
+        if problem.settings.validation in ['custom', 'custom interactive']:
+            validators = problem.validators('output')
+            if not validators: return False
+
+        submissions = problem.submissions()
+        if not submissions: return False
+
+        max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
+
+        ok = True
+        verdict_table = []
+        for verdict in submissions:
+            for submission in submissions[verdict]:
+                d = dict()
+                verdict_table.append(d)
+                ok &= submission.run_all_testcases(max_submission_len, table_dict=d)
+
+        if config.arg('table'): Problem._print_table(verdict_table, testcases, submissions)
+
+        return ok
+
+    @staticmethod
+    def _print_table(verdict_table, testcases, submission):
+        # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
+        def single_verdict(row, testcase):
+            if testcase in row:
+                if row[testcase.name]:
+                    return cc.green + '1' + cc.reset
+                else:
+                    return cc.red + '0' + cc.reset
+            else:
+                return '-'
+
+        make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, tc), verdict_table))
+        resultant_count, resultant_id = dict(), dict()
+        special_id = 0
+        for testcase in testcases:
+            resultant = make_verdict(testcase)
+            if resultant not in resultant_count:
+                resultant_count[resultant] = 0
+            resultant_count[resultant] += 1
+            if resultant_count[resultant] == config.TABLE_THRESHOLD:
+                special_id += 1
+                resultant_id[resultant] = special_id
+
+        scores = {}
+        for t in testcases:
+            scores[t] = 0
+        for dct in verdict_table:
+            failures = 0
+            for t in dct:
+                if not dct[t]:
+                    failures += 1
+            for t in dct:
+                if not dct[t]:
+                    scores[t] += 1. / failures
+        scores_list = sorted(scores.values())
+
+        print('\nVerdict analysis table. Submissions are ordered as above. Higher '
+              'scores indicate they are critical to break some submissions.')
+        for testcase in testcases:
+            # Skip all AC testcases
+            if all(map(lambda row: row[testcase.name], verdict_table)): continue
+
+            color = cc.reset
+            if len(scores_list) > 6 and scores[testcase.name] >= scores_list[-6]:
+                color = cc.orange
+            if len(scores_list) > 3 and scores[testcase.name] >= scores_list[-3]:
+                color = cc.red
+            print(f'{str(testcase.name):<60}', end=' ')
+            resultant = make_verdict(testcase)
+            print(resultant, end='  ')
+            print(f'{color}{scores[testcase.name]:0.3f}{cc.reset}  ', end='')
+            if resultant in resultant_id:
+                print(str.format('(Type {})', resultant_id[resultant]), end='')
+            print(end='\n')
+

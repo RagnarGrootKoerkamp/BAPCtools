@@ -2,6 +2,7 @@
 
 import shutil
 import config
+import time
 import copy
 import yaml
 import subprocess
@@ -130,11 +131,10 @@ class ProgressBar:
     def action(prefix, item, width=None, total_width=None):
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
-        item = item if isinstance(item, str) else item.name
+        item = '' if item is None else (item if isinstance(item, str) else item.name)
         if width is not None and len(item) > width: item = item[:width]
         if width is None: width = 0
-        s = f'{cc.blue}{prefix}{cc.reset}: {item:<{width}}'
-        return s
+        return f'{cc.blue}{prefix}{cc.reset}: {item:<{width}}'
 
     def get_prefix(self):
         return ProgressBar.action(self.prefix, self.item, self.item_width, self.total_width())
@@ -198,6 +198,7 @@ class ProgressBar:
         self.lock.release()
         return bar_copy
 
+    @staticmethod
     def _format_data(data):
         if not data: return ''
         prefix = '  ' if data.count('\n') <= 1 else '\n'
@@ -213,7 +214,7 @@ class ProgressBar:
         self.logged = True
         if self.parent: self.parent.global_logged = True
         else: self.global_logged = True
-        print(self.get_prefix(),
+        print(self.get_prefix() +
               color + message + ProgressBar._format_data(data) + cc.reset,
               flush=True)
 
@@ -234,29 +235,30 @@ class ProgressBar:
         self.lock.release()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
-    # Return True when something was printed
     def done(self, success=True, message='', data=''):
         self.lock.acquire()
         self.clearline()
 
         if self.item is None:
             self.lock.release()
-            return False
-
-        self._release_item()
+            return
 
         if self.logged:
+            self._release_item()
             self.lock.release()
-            return False
+            return
+
         if not success: config.n_error += 1
 
         do_print = config.verbose or not success
-        if do_print: self.log(message, data, needs_lock=False)
+        if do_print:
+            self.log(message, data, needs_lock=False, color= cc.green if success else cc.red)
 
+        self._release_item()
         if self.parent: self.parent._resume()
 
         self.lock.release()
-        return do_print
+        return
 
     # Log an intermediate line if it's an error or we're in verbose mode.
     # Return True when something was printed
@@ -272,16 +274,20 @@ class ProgressBar:
         return False
 
     # Print a final 'Done' message in case nothing was printed yet.
-    def finalize(self, print_done=True):
+    # When 'message' is set, always print it.
+    def finalize(self, *, print_done=True, message=None):
         assert self.parent is None
         assert self.count is None or self.i == self.count
         assert self.item is None
 
-        if self.global_logged: return
-        if config.verbose: return
-        if not print_done: return
+        if not print_done and message is None: return
 
-        print(ProgressBar.action(self.prefix, f'{cc.green}Done{cc.reset}'))
+        if message is None:
+            message = f'{cc.green}Done{cc.reset}'
+            if self.global_logged: return
+            if config.verbose: return
+
+        print(self.get_prefix() + message)
 
 
 # Drops the first two path components <problem>/<type>/
@@ -514,7 +520,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
 class ExecResult:
     # TODO: Replace ok by returncode and expected_returncode
-    def __init__(ok , duration, err, out):
+    def __init__(self, ok , duration, err, out):
         self.ok = ok
         self.duration = duration
         self.err = err
