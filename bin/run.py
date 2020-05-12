@@ -443,6 +443,7 @@ while True:
 
 
 # TODO: Migrate these TEST subcommands into submission as well.
+# TODO: Figure out what exactly to do with this. It's somewhat messy.
 def _test_submission(problem, submission, testcases, settings):
     print(ProgressBar.action('Running', str(submission[0])))
 
