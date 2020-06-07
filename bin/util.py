@@ -486,6 +486,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     memory_limit = get_memory_limit(kwargs)
 
     # Disable memory limits for Java.
+    # TODO: Also disable this for Kotlin.
     if command[0] == 'java' or command[0] == 'javac':
         memory_limit = None
 

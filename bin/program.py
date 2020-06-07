@@ -6,7 +6,7 @@ import subprocess
 from util import *
 
 EXTRA_LANGUAGES = '''
-ctd:
+checktestdata:
     name: 'Checktestdata'
     priority: 1
     files: '*.ctd'
@@ -85,7 +85,7 @@ class Program:
 
     def __init__(self, problem, path, deps=None):
         if deps is not None:
-            print(self, problem, path, deps)
+            assert isinstance(self, Generator)
             assert isinstance(deps, list)
             assert len(deps) > 0
 
@@ -107,7 +107,7 @@ class Program:
             self.name = str(relpath)
             self.tmpdir = problem.tmpdir / self.subdir / relpath
         except ValueError as e:
-            self.short_path = path.name
+            self.short_path = Path(path.name)
             self.name = str(path.name)
             self.tmpdir = problem.tmpdir / self.subdir / path.name
 
@@ -316,7 +316,6 @@ class Program:
 
 class Generator(Program):
     subdir = 'generators'
-    #def __init__(self, problem, path): super().__init__(problem, path)
 
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
@@ -362,7 +361,6 @@ class Generator(Program):
 
 class Visualizer(Program):
     subdir = 'visualizers'
-    #def __init__(self, problem, path): super().__init__(problem, path)
 
     # Run the visualizer.
     # Stdin and stdout are not used.

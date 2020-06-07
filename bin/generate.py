@@ -92,7 +92,7 @@ class Invocation:
         # Automatically set self.program when that program has been built.
         self.program = None
         def callback(program): self.program = program
-        problem.add_callback(problem.path / self.program_path, callback)
+        program.Program.add_callback(problem, problem.path / self.program_path, callback)
 
     # Return the form of the command used for caching.
     # This is independent of {name} and the actual run_command.
@@ -116,7 +116,7 @@ class Invocation:
 
 class GeneratorInvocation(Invocation):
     def __init__(self, problem, string):
-        super().__init__(self, problem, string, allow_absolute=False)
+        super().__init__(problem, string, allow_absolute=False)
 
     # Try running the generator |retries| times, incrementing seed by 1 each time.
     def run(self, cwd, name, seed, retries=1):
@@ -669,6 +669,7 @@ class GeneratorConfig:
             if 'data' in yaml:
                 for dictionary in yaml['data']:
                     if d.numbered:
+                        # TODO: Number prefixes should be zero-padded when there are more than 9 cases.
                         number_prefix = str(next_number) + '-'
                         next_number += 1
                     else:
@@ -729,31 +730,31 @@ class GeneratorConfig:
 
         def build_programs(program_type, program_paths):
             programs = []
-            for path in program_paths:
+            for program_path in program_paths:
                 path = self.problem.path / program_path
                 deps = None
-                if program_type is GeneratorInvocation and program_path in self.generators:
+                if program_type is program.Generator and program_path in self.generators:
                     deps = [Path(self.problem.path) / d for d in self.generators[program_path]]
-                    programs.append(program_type(problem, path, deps=deps))
+                    programs.append(program_type(self.problem, path, deps=deps))
                 else:
-                    programs.append(program_type(problem, path))
+                    programs.append(program_type(self.problem, path))
 
             bar = ProgressBar('Build ' + program_type.subdir, items=programs)
 
             # TODO: Build multiple programs in parallel.
-            for program in programs:
-                bar.start(program)
-                program.build(bar)
+            for p in programs:
+                bar.start(p)
+                p.build(bar)
                 bar.done()
 
             bar.finalize(print_done=False)
 
-        build_programs(GeneratorInvocation, generators_used)
-        build_programs(SolutionInvocation, solutions_used)
-        build_programs(VisualizerInvocation, visualizers_used)
+        build_programs(program.Generator, generators_used)
+        build_programs(run.Submission, solutions_used)
+        build_programs(program.Visualizer, visualizers_used)
 
-        self.input_validators = validate.get_validators(self.problem.path, 'input')
-        self.output_validators = validate.get_validators(self.problem.path, 'output')
+        self.input_validators = self.problem.validators('input')
+        self.output_validators = self.problem.validators('output')
 
     def run(self):
         item_names = []

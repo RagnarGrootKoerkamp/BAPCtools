@@ -2,12 +2,152 @@ import program
 import re
 from util import *
 
-import re
+class Validator(program.Program):
+
+    # NOTE: This only works for checktestdata and Viva validators.
+    FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']
+
+    # Return ExecResult
+    def _run_format_validator(self, testcase, cwd):
+        assert self.language in Validator.FORMAT_VALIDATOR_LANGUAGES
+
+        if isinstance(self, InputValidator):
+            main_path = testcase.in_path
+        elif isinstance(self, OutputValidator):
+            main_path = testcase.ans_path
+        else: assert False
+
+        if self.language == 'checktestdata':
+            with main_path.open() as main_file:
+                return exec_command_2(
+                    self.run_command,
+                    expect=1 if testcase.bad else 0,
+                    stdin=main_file,
+                    cwd=cwd)
+
+        if self.language == 'viva':
+            # Called as `viva validator.viva testcase.in`.
+            result = exec_command_2(
+                self.run_command + [main_path],
+                expect=1 if testcase.bad else 0,
+                cwd=cwd)
+            # Slightly hacky: CTD prints testcase errors on stderr while VIVA prints
+            # them on stdout.
+            result.err = out
+            result.out = None
+            return result
+
+
+# .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
+# It may not read/write files.
+class InputValidator(Validator):
+    subdir = 'input_validators'
+
+    # 'constraints': An optional dictionary mapping file locations to extremal values seen so far.
+    # Return ExecResult
+    def run(self, testcase, constraints=None):
+        # NOTE: We reuse the generator directory. Since the input validator isn't supposed to read/write anyway, that's fine.
+        cwd = self.problem.tmpdir / 'data' / testcase.short_path
+        cwd.mkdir(parents=True, exist_ok=True)
+
+        if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
+            return Validator._run_format_validator(self, testcase, cwd)
+
+        run_command = self.run_command + ['case_sensitive', 'space_change_sensitive']
+
+        if constraints:
+            constraints_path = cwd / 'constraints_'
+            if constraints_path.is_file(): constraints_path.unlink()
+            run_command += ['--constraints_file', constraints_path]
+
+        with testcase.in_path.open() as in_file:
+            return = exec_command_2(
+                run_command,
+                expect=config.RTV_WA if testcase.bad else config.RTV_AC,
+                stdin=in_file,
+                cwd=cwd)
+
+        if constraints:
+            self.merge_constraints(constraints_path, constraints)
+
+    @static_method
+    def merge_constraints(constraints_path, constraints):
+        # Merge with previous constraints.
+        if constraints_path.is_file():
+            for line in constraints_path.read_text().splitlines():
+                loc, has_low, has_high, vmin, vmax, low, high = line.split()
+                has_low = bool(int(has_low))
+                has_high = bool(int(has_high))
+                try:
+                    vmin = int(vmin)
+                except:
+                    vmin = float(vmin)
+                try:
+                    vmax = int(vmax)
+                except:
+                    vmax = float(vmax)
+                if loc in constraints:
+                    c = constraints[loc]
+                    has_low |= c[0]
+                    has_high |= c[1]
+                    if c[2] < vmin:
+                        vmin = c[2]
+                        low = c[4]
+                    if c[3] > vmax:
+                        vmax = c[3]
+                        high = c[5]
+                constraints[loc] = (has_low, has_high, vmin, vmax, low, high)
+
+            constraints_path.unlink()
+
+
+# OutputValidators can run in two modes:
+# Team output validation:
+#       called as: ./validator input answer feedbackdir [arguments from problem.yaml] < output.
+# Testcase validation:
+#       called as: ./validator input answer feedbackdir case_sensitive space_change_sensitive < answer.
+#       This mode also supports checktestdata and viva files.
+class OutputValidator(Validator):
+    subdir = 'output_validators'
+
+    # When run is None, validate the testcase. Otherwise, validate the output of the given run.
+    # Return ExecResult
+    def run(self, testcase, run=None):
+        if run is None:
+            assert tmpdir is None
+            cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
+            cwd.mkdir(parents=True, exist_ok=True)
+
+            if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
+                return Validator._run_format_validator(self, testcase, cwd)
+
+            with testcase.in_path.open() as in_file:
+                return exec_command_2(
+                    self.run_command + [testcase.in_path, testcase.ans_path, cwd, 'case_sensitive', 'space_change_sensitive'],
+                    expect=config.RTV_WA if testcase.bad else config.RTV_AC,
+                    stdin=in_file,
+                    cwd=cwd)
+
+        if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
+            return False
+
+
+
+        with run.out_path.open() as out_file:
+            return exec_command_2(
+                self.run_command + [testcase.in_path, testcase.ans_path, run.feedbackdir] + self.problem.settings.validator_flags,
+                expect=config.RTV_AC,
+                stdin=out_file,
+                cwd=run.feedbackdir)
+
+
+
 
 # TODO: Revamp this to new OO style.
 
 # call output validators as ./validator in ans feedbackdir additional_arguments < out
 # return (success, err, out) for the last validator that was run.
+# Move to RUN
 def custom_output_validator(testcase, outfile, settings, output_validators):
     flags = []
     if settings.space_change_sensitive:
@@ -21,29 +161,22 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     err = None
     out = None
     for output_validator in output_validators:
+        # TODO: MOVE TO VALIDATOR PROGRAM
         header = output_validator[0] + ': ' if len(output_validators) > 1 else ''
-        with open(outfile, 'r') as outf:
-            judgepath = config.tmpdir / 'judge'
-            judgepath.mkdir(parents=True, exist_ok=True)
-            judgemessage = judgepath / 'judgemessage.txt'
-            judgeerror = judgepath / 'judgeerror.txt'
-            val_ok, err, out = exec_command(
-                output_validator[1] +
-                [testcase.in_path,
-                 testcase.ans_path, judgepath] + flags,
-                expect=config.RTV_AC,
-                stdin=outf)
-            if err is None:
-                err = ''
-            if judgemessage.is_file():
-                err += judgemessage.read_text()
-                judgemessage.unlink()
-            if judgeerror.is_file():
-                # Remove any std output because it will usually only contain the
-                err = judgeerror.read_text()
-                judgeerror.unlink()
-            if err:
-                err = header + err
+        # TODO: Call OutputValidator.run()
+        judgemessage = judgepath / 'judgemessage.txt'
+        judgeerror = judgepath / 'judgeerror.txt'
+        if err is None:
+            err = ''
+        if judgemessage.is_file():
+            err += judgemessage.read_text()
+            judgemessage.unlink()
+        if judgeerror.is_file():
+            # Remove any std output because it will usually only contain the
+            err = judgeerror.read_text()
+            judgeerror.unlink()
+        if err:
+            err = header + err
 
         if ok == None:
             ok = val_ok
@@ -62,7 +195,7 @@ def custom_output_validator(testcase, outfile, settings, output_validators):
     return (ok, err, out)
 
 
-
+# TODO: Move to TESTCASE.validate()
 def validate_testcase(problem,
                       testcase,
                       validators,
@@ -87,74 +220,10 @@ def validate_testcase(problem,
     success = True
 
     for validator in validators:
-        # simple `program < test.in` for input validation and ctd output validation
-        if Path(validator[0]).suffix == '.ctd':
-            ok, err, out = exec_command(
-                validator[1],
-                # TODO: Can we make this more generic? CTD returning 0 instead of 42
-                # is a bit annoying.
-                expect=1 if bad_testcase else 0,
-                stdin=main_file.open())
-
-        elif Path(validator[0]).suffix == '.viva':
-            # Called as `viva validator.viva testcase.in`.
-            ok, err, out = exec_command(
-                validator[1] + [main_file],
-                # TODO: Can we make this more generic? VIVA returning 0 instead of 42
-                # is a bit annoying.
-                expect=1 if bad_testcase else 0)
-            # Slightly hacky: CTD prints testcase errors on stderr while VIVA prints
-            # them on stdout.
-            err = out
-
-        elif validator_type == 'input':
-            constraints_file = config.tmpdir / 'constraints'
-            if constraints_file.is_file():
-                constraints_file.unlink()
-
-            ok, err, out = exec_command(
-                # TODO: Store constraints per problem.
-                validator[1] +
-                (['--constraints_file', constraints_file] if check_constraints else []),
-                expect=config.RTV_WA if bad_testcase else config.RTV_AC,
-                stdin=main_file.open())
-
-            # Merge with previous constraints.
-            if constraints_file.is_file():
-                for line in constraints_file.read_text().splitlines():
-                    loc, has_low, has_high, vmin, vmax, low, high = line.split()
-                    has_low = bool(int(has_low))
-                    has_high = bool(int(has_high))
-                    try:
-                        vmin = int(vmin)
-                    except:
-                        vmin = float(vmin)
-                    try:
-                        vmax = int(vmax)
-                    except:
-                        vmax = float(vmax)
-                    if loc in constraints:
-                        c = constraints[loc]
-                        has_low |= c[0]
-                        has_high |= c[1]
-                        if c[2] < vmin:
-                            vmin = c[2]
-                            low = c[4]
-                        if c[3] > vmax:
-                            vmax = c[3]
-                            high = c[5]
-                    constraints[loc] = (has_low, has_high, vmin, vmax, low, high)
-
-                constraints_file.unlink()
-
+        if True:
+            pass
+        # TODO Call Validator.run()
         else:
-            # more general `program test.in test.ans feedbackdir < test.in/ans` output validation otherwise
-            ok, err, out = exec_command(
-                validator[1] +
-                [testcase.in_path, testcase.ans_path, config.tmpdir] +
-                ['case_sensitive', 'space_change_sensitive'],
-                expect=config.RTV_WA if bad_testcase else config.RTV_AC,
-                stdin=main_file.open())
 
         ok = ok is True
         success &= ok

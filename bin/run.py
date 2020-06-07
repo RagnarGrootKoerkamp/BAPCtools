@@ -12,7 +12,6 @@ if not is_windows():
     import fcntl
     import resource
 
-# TODO: Add support for bad testcases here.
 class Testcase:
     def __init__(self, problem, path):
         assert path.suffix == '.in'
@@ -24,6 +23,8 @@ class Testcase:
 
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(''))
+
+        self.bad = self.short_path.parts[0] == 'bad'
 
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
@@ -40,14 +41,16 @@ class Run:
 
     # Return a ExecResult object amended with verdict.
     def run(self):
-        out_path = config.tmpdir / self.problem.name / 'runs' / self.submission.short_path / self.testcase.short_path.with_suffix('.out')
-        out_path.parent.mkdir(exist_ok=True, parents=True)
+        tmp_path = config.tmpdir / self.problem.name / 'runs' / self.submission.short_path / self.testcase.short_path
+        self.out_path = tmp_path.with_suffix('.out')
+        self.feedbackdir = tmp_path.with_suffix('.feedbackdir')
+        self.feedbackdir.mkdir(exist_ok=True, parents=True)
 
         if self.problem.settings.validation == 'custom interactive':
             # TODO
             verdict, duration, err, out =  process_interactive_testcase(run_command, testcase, settings, output_validators)
         else:
-            result = self.submission.run(self.testcase.in_path, out_path)
+            result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
             elif result.ok is not True:
@@ -56,11 +59,11 @@ class Run:
             else:
                 if self.problem.settings.validation == 'default':
                     # TODO: Update validators
-                    ok, err, out = validate.default_output_validator(self.testcase.ans_path, out_path,
+                    ok, err, out = validate.default_output_validator(self.testcase.ans_path, self.out_path,
                                                                      self.problem.settings)
                 elif self.problem.settings.validation == 'custom':
                     # TODO: Update validators
-                    ok, err, out = validate.custom_output_validator(self.testcase.ans_path, out_path, problme.settings,
+                    ok, err, out = validate.custom_output_validator(self.testcase.ans_path, self.out_path, problme.settings,
                                                                     self.problem.validators('output'))
                 result.ok = ok
                 result.err = err

@@ -225,7 +225,7 @@ data:
        #      3-c: stdout.py c
        #      3-d: stdout.py d
        #  4-e: stdout.py e
-       
+
 
 # Unknown keys are allowed inside directory dictionaries for tooling-specific
 # extensions. This includes both the global scope and explicit directories with type: directory.

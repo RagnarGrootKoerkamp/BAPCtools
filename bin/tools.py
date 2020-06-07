@@ -119,7 +119,8 @@ def print_sorted(problems):
         print(f'{problem.label:<2}: {problem.path}')
 
 
-def split_submissions(s):
+
+def split_submissions_and_testcases(s):
     # Everything containing data/, .in, or .ans goes into testcases.
     submissions = []
     testcases = []
@@ -420,8 +421,7 @@ def main():
         if config.args.submissions:
             if level != 'problem':
                 fatal('Running a given submission only works from a problem directory.')
-            (config.args.submissions, config.args.testcases) = split_submissions(
-                config.args.submissions)
+            config.args.submissions, config.args.testcases = split_submissions_and_testcases(config.args.submissions)
         else:
             config.args.testcases = []
 

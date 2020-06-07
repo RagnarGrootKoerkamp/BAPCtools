@@ -53,12 +53,8 @@ class Problem:
             'timelimit': 1.0,
             'timeout': 3,
             'name': '',
-            'floatabs': None,
-            'floatrel': None,
             'validation': 'default',
-            'case_sensitive': False,
-            'space_change_sensitive': False,
-            'validator_flags': None,
+            'validator_flags': [],
             'probid': 'A',
         }
 
@@ -68,25 +64,6 @@ class Problem:
         if yamldata:
             for k, v in yamldata.items():
                 self.settings[k] = v
-
-        # parse validator_flags
-        if 'validator_flags' in self.settings and self.settings['validator_flags']:
-            flags = self.settings['validator_flags'].split(' ')
-            i = 0
-            while i < len(flags):
-                if flags[i] in ['case_sensitive', 'space_change_sensitive']:
-                    self.settings[flags[i]] = True
-                elif flags[i] == 'float_absolute_tolerance':
-                    self.settings['floatabs'] = float(flags[i + 1])
-                    i += 1
-                elif flags[i] == 'float_relative_tolerance':
-                    self.settings['floatrel'] = float(flags[i + 1])
-                    i += 1
-                elif flags[i] == 'float_tolerance':
-                    self.settings['floatabs'] = float(flags[i + 1])
-                    self.settings['floatrel'] = float(flags[i + 1])
-                    i += 1
-                i += 1
 
         # TODO: Get rid of domjudge-problem.ini; it's only remaining use is
         # timelimits.
@@ -109,8 +86,10 @@ class Problem:
         self.settings.timeout = int(timeout)
 
         if self.settings.validation not in config.VALIDATION_MODES:
-            fatal(f'Unrecognized validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}')
+            fatal(f'Unrecognised validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}')
 
+        if self.settings.validator_flags:
+            self.settings.validator_flags = shlex.split(self.settings.validator_flags)
 
     def testcases(p, needans=True, only_sample=False):
         samplesonly = only_sample or config.arg('samples', False)
@@ -163,10 +142,10 @@ class Problem:
         paths = []
         if config.arg('submissions'):
             for submission in config.arg('submissions'):
-                if (problem.path / submission).parent == problem / 'submissions':
-                    paths += glob(problem / submission, '*')
+                if (problem.path / submission).parent == problem.path / 'submissions':
+                    paths += glob(problem.path / submission, '*')
                 else:
-                    paths.append(problem / submission)
+                    paths.append(problem.path / submission)
         else:
             for verdict in config.VERDICTS:
                 paths += glob(problem.path / 'submissions' / verdict.lower(), '*')
@@ -210,8 +189,8 @@ class Problem:
         if not check_constraints and validator_type in problem._validators:
             return problem._validators[validator_type]
 
-        paths = (glob(problem / (validator_type + '_validators'), '*') +
-                 glob(problem / (validator_type + '_format_validators'), '*'))
+        paths = (glob(problem.path / (validator_type + '_validators'), '*') +
+                 glob(problem.path / (validator_type + '_format_validators'), '*'))
 
         if len(paths) == 0:
             error(f'No {validator_type} validators found.')
