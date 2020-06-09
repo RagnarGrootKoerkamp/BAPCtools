@@ -111,7 +111,6 @@ class Program:
             self.name = str(path.name)
             self.tmpdir = problem.tmpdir / self.subdir / path.name
 
-
         self.compile_command = None
         self.run_command = None
         self.timestamp = None
@@ -194,8 +193,7 @@ class Program:
             'memlim': get_memory_limit() // 1000000,
 
             # Out-of-spec variables used by 'manual' and 'Viva' languages.
-            'build': self.tmpdir / 'build' if
-            (self.tmpdir / 'build') in self.input_files else '',
+            'build': self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else '',
             'run': self.tmpdir / 'run',
             'viva_jar': config.tools_root / 'support/viva/viva.jar',
         }
@@ -210,7 +208,8 @@ class Program:
                         )
                         return None
                     else:
-                        self.bar.warn(f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h')
+                        self.bar.warn(
+                            f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h')
 
     # Return True on success.
     def _compile(self):
@@ -259,7 +258,6 @@ class Program:
         if not self.ok: return False
         self.bar = bar
 
-
         if len(self.source_files) == 0:
             self.ok = False
             self.bar.error('{str(path)} is an empty directory.')
@@ -282,7 +280,6 @@ class Program:
             self.timestamp = max(self.timestamp, f.stat().st_ctime)
 
         self._get_language(self.source_files)
-
 
         # A file containing the compile command. Timestamp is used as last build time.
         meta_path = self.tmpdir / 'meta_'
@@ -313,7 +310,6 @@ class Program:
         problem._program_callbacks[path].append(c)
 
 
-
 class Generator(Program):
     subdir = 'generators'
 
@@ -331,7 +327,10 @@ class Generator(Program):
             f.unlink()
 
         with stdout_path.open('w') as stdout_file:
-            result = exec_command(self.run_command + args, stdout=stdout_file, timeout=config.timeout(), cwd=cwd)
+            result = exec_command(self.run_command + args,
+                                  stdout=stdout_file,
+                                  timeout=config.timeout(),
+                                  cwd=cwd)
 
         result.retry = False
 
@@ -358,6 +357,7 @@ class Generator(Program):
             stdout_path.rename(in_path)
 
         return result
+
 
 class Visualizer(Program):
     subdir = 'visualizers'

@@ -10,6 +10,7 @@ if not is_windows():
     import fcntl
     import resource
 
+
 # Return a ExecResult object amended with verdict.
 def run_interactive_testcase(
         run,
@@ -22,8 +23,7 @@ def run_interactive_testcase(
         # True: stdout
         # else: path
         interaction=False,
-        submission_args=None
-        ):
+        submission_args=None):
 
     output_validators = run.problem.validators('output')
     assert len(output_validators) == 1
@@ -38,8 +38,7 @@ def run_interactive_testcase(
 
     # Validator command
     validator_command = output_validator.run_command + [
-        run.testcase.in_path,
-        run.testcase.ans_path, run.feedbackdir
+        run.testcase.in_path, run.testcase.ans_path, run.feedbackdir
     ] + run.problem.settings.validator_flags
 
     submission_command = run.submission.run_command
@@ -97,7 +96,7 @@ def run_interactive_testcase(
             verdict = 'ACCEPTED'
 
         # Set result.err to validator error and result.out to team error.
-        return ExecResult(True, tend-start,  validator_err.decode('utf-8'), err, verdict)
+        return ExecResult(True, tend - start, validator_err.decode('utf-8'), err, verdict)
 
     # On Linux:
     # - Create 2 pipes
@@ -286,5 +285,3 @@ while True:
     if team_error is not None: team_err = submission.stderr.read().decode('utf-8')
 
     return ExecResult(True, submission_time, val_err, team_err, verdict)
-
-

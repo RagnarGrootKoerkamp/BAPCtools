@@ -12,8 +12,6 @@ import shlex
 from util import *
 
 
-
-
 # A problem.
 class Problem:
     _shortname_regex_string = '^[a-z0-9]+$'
@@ -88,13 +86,15 @@ class Problem:
         timeout = 1.5 * self.settings.timelimit + 1
         try:
             if config.args.timeout:
-                timeout = max(config.args.timeout, self.settings.timelimit+1)
+                timeout = max(config.args.timeout, self.settings.timelimit + 1)
         except AttributeError:
             pass
         self.settings.timeout = int(timeout)
 
         if self.settings.validation not in config.VALIDATION_MODES:
-            fatal(f'Unrecognised validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}')
+            fatal(
+                f'Unrecognised validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}'
+            )
 
         if self.settings.validator_flags:
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
@@ -122,7 +122,7 @@ class Problem:
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
             for t in config.args.testcases:
-                t = p.path / t;
+                t = p.path / t
                 if t.is_dir():
                     in_paths += glob(t, '**/*.in')
                 else:
@@ -147,7 +147,7 @@ class Problem:
                     warn(f'Found input file {str(f)} without a .ans file. Skipping.')
                 continue
             testcases.append(t)
-        testcases.sort(key = lambda t: t.name)
+        testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
             warn(f'Didn\'t find any testcases for {p.name}')
@@ -155,7 +155,6 @@ class Problem:
 
         p._testcases[key] = testcases
         return testcases
-
 
     # returns a map {expected verdict -> [(name, command)]}
     def submissions(problem):
@@ -193,7 +192,8 @@ class Problem:
             print()
 
         submissions = dict()
-        for verdict in config.VERDICTS: submissions[verdict] = []
+        for verdict in config.VERDICTS:
+            submissions[verdict] = []
 
         # Filter out broken submissions.
         for p in programs:
@@ -202,7 +202,6 @@ class Problem:
 
         problem._submissions = submissions
         return submissions
-
 
     # If check_constraints is True, this chooses the first validator that matches
     # contains 'constraints_file' in its source.
@@ -219,7 +218,10 @@ class Problem:
 
         # For default 'output' validation, use default_output_validator.py.
         if validator_type == 'output' and problem.settings.validation == 'default':
-            validators = [validate.OutputValidator(problem, config.tools_root / 'bin' / 'default_output_validator.py')]
+            validators = [
+                validate.OutputValidator(problem,
+                                         config.tools_root / 'bin' / 'default_output_validator.py')
+            ]
             bar = ProgressBar('Build validators', items=validators)
             ok = True
             for p in validators:
@@ -240,8 +242,10 @@ class Problem:
             error(f'No {validator_type} validators found.')
             problem._validators[validator_type] = False
             return False
-        if validator_type=='output_format' and problem.interactive and len(paths) > 1:
-            error(f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.')
+        if validator_type == 'output_format' and problem.interactive and len(paths) > 1:
+            error(
+                f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.'
+            )
             problem._validators[validator_type] = False
             return False
 
@@ -288,7 +292,6 @@ class Problem:
             problem._validators[validator_type] = validators
         return validators
 
-
     def run_submissions(problem):
         needans = False if problem.interactive else True
         testcases = problem.testcases(needans=needans)
@@ -313,7 +316,7 @@ class Problem:
                 verdict_table.append(d)
                 ok &= submission.run_all_testcases(max_submission_len, table_dict=d)
 
-        if config.args.table : Problem._print_table(verdict_table, testcases, submissions)
+        if config.args.table: Problem._print_table(verdict_table, testcases, submissions)
 
         return ok
 
@@ -385,9 +388,6 @@ class Problem:
                 print(str.format('(Type {})', resultant_id[resultant]), end='')
             print(end='\n')
 
-
-
-
     # Validate the format of the input or output files.
     def validate_format(problem, validator_type, check_constraints=False):
         assert validator_type in ['input_format', 'output_format']
@@ -423,10 +423,7 @@ class Problem:
         bar = ProgressBar(action, items=[t.name for t in testcases])
         for testcase in testcases:
             bar.start(testcase.name)
-            success &= testcase.validate_format(
-                                         validator_type,
-                                         bar=bar,
-                                         constraints=constraints)
+            success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints)
             bar.done()
 
         # Make sure all constraints are satisfied.

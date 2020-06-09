@@ -3,17 +3,20 @@ import re
 import sys
 from pathlib import Path
 
+
 def strip_newline(s):
     if s.endswith('\n'):
         return s[:-1]
     else:
         return s
 
+
 def crop_output(output):
     if len(output) > 200:
         output = output[:200]
         output += ' ...'
     return output
+
 
 def _quick_diff(out, ans):
     if ans.count('\n') <= 1 and out.count('\n') <= 1:
@@ -92,8 +95,10 @@ def default_output_validator(in_path, ans_path, feedback_dir, settings):
 
     return (True, f'float: abs {peakabserr:.2g} rel {peakrelerr:.2g}')
 
+
 class Settings:
     pass
+
 
 def main():
     in_path = Path(sys.argv[1])
@@ -103,13 +108,15 @@ def main():
     settings = Settings()
     bool_flags = ['case_sensitive', 'space_change_sensitive']
     flags = ['float_relative_tolerance', 'float_absolute_tolerance', 'float_tolerance']
-    for flag in bool_flags: setattr(settings, flag, False)
-    for flag in flags: setattr(settings, flag, 0)
+    for flag in bool_flags:
+        setattr(settings, flag, False)
+    for flag in flags:
+        setattr(settings, flag, 0)
 
     args = sys.argv[4:]
     for i in range(len(args)):
         if args[i] in bool_flags: setattr(settings, args[i], True)
-        if args[i] in flags: setattr(settings, args[i], float(args[i+1]))
+        if args[i] in flags: setattr(settings, args[i], float(args[i + 1]))
 
     if settings.float_tolerance != 0:
         assert settings.float_relative_tolerance == 0

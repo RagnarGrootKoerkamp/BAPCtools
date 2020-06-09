@@ -103,7 +103,7 @@ class ProgressBar:
             else:
                 max_len = max(ProgressBar.item_len(x) for x in items)
         self.prefix = prefix  # The prefix to always print
-        self.item_width = max_len+1  # The max length of the items we're processing
+        self.item_width = max_len + 1  # The max length of the items we're processing
         self.count = count  # The number of items we're processing
         self.i = 0
         self.carriage_return = '\r' if is_windows() else '\033[K'
@@ -128,7 +128,7 @@ class ProgressBar:
 
     def update(self, count, max_len):
         self.count += count
-        self.item_width = max(self.item_width, max_len+1) if self.item_width else max_len+1
+        self.item_width = max(self.item_width, max_len + 1) if self.item_width else max_len + 1
 
     def add_item(self, item):
         self.count += 1
@@ -226,8 +226,7 @@ class ProgressBar:
         self.logged = True
         if self.parent: self.parent.global_logged = True
         else: self.global_logged = True
-        print(self.get_prefix() +
-              color + message + ProgressBar._format_data(data) + cc.reset,
+        print(self.get_prefix() + color + message + ProgressBar._format_data(data) + cc.reset,
               flush=True)
 
         if self.parent: self.parent._resume()
@@ -264,7 +263,7 @@ class ProgressBar:
 
         do_print = config.args.verbose or not success
         if do_print:
-            self.log(message, data, needs_lock=False, color= cc.green if success else cc.red)
+            self.log(message, data, needs_lock=False, color=cc.green if success else cc.red)
 
         self._release_item()
         if self.parent: self.parent._resume()
@@ -337,7 +336,6 @@ def is_template(path):
 # glob, but without hidden files
 def glob(path, expression):
     return sorted(p for p in path.glob(expression) if not is_hidden(p) and not is_template(p))
-
 
 
 def strip_newline(s):
@@ -475,9 +473,8 @@ def get_memory_limit(kwargs=None):
     return memory_limit
 
 
-
 class ExecResult:
-    def __init__(self, ok , duration, err, out, verdict = None):
+    def __init__(self, ok, duration, err, out, verdict=None):
         self.ok = ok
         self.duration = duration
         self.err = err
@@ -537,7 +534,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         return crop_output(s) if crop else s
 
     ok = True if process.returncode == expect else process.returncode
-    err =        maybe_crop(stderr.decode('utf-8')) if stderr is not None else None
-    out=        maybe_crop(stdout.decode('utf-8')) if stdout is not None else None
+    err = maybe_crop(stderr.decode('utf-8')) if stderr is not None else None
+    out = maybe_crop(stdout.decode('utf-8')) if stdout is not None else None
 
-    return ExecResult(ok, tend-tstart, err, out)
+    return ExecResult(ok, tend - tstart, err, out)

@@ -124,7 +124,6 @@ def print_sorted(problems):
         print(f'{problem.label:<2}: {problem.path}')
 
 
-
 def split_submissions_and_testcases(s):
     # Everything containing data/, .in, or .ans goes into testcases.
     submissions = []
@@ -157,7 +156,7 @@ Run this from one of:
     global_parser.add_argument(
         '-v',
         '--verbose',
-        default = 0,
+        default=0,
         action='count',
         help='Verbose output; once for what\'s going on, twice for all intermediate output.')
     global_parser.add_argument('-c',
@@ -425,7 +424,8 @@ def main():
         if config.args.submissions:
             if level != 'problem':
                 fatal('Running a given submission only works from a problem directory.')
-            config.args.submissions, config.args.testcases = split_submissions_and_testcases(config.args.submissions)
+            config.args.submissions, config.args.testcases = split_submissions_and_testcases(
+                config.args.submissions)
         else:
             config.args.testcases = []
 
@@ -481,7 +481,7 @@ def main():
         if action in ['generate']:
             success &= generate.generate(problem)
         if action in ['validate', 'output', 'all']:
-            success &= problem.validate_format('output_format' )
+            success &= problem.validate_format('output_format')
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
@@ -500,7 +500,7 @@ def main():
                 success &= latex.build_problem_pdf(problem)
                 if not config.args.force:
                     success &= problem.validate_format('input_format')
-                    success &= problem.validate_format( 'output_format', check_constraints=True)
+                    success &= problem.validate_format('output_format', check_constraints=True)
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.

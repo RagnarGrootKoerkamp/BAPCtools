@@ -5,8 +5,9 @@ import interactive
 
 from util import *
 
+
 class Testcase:
-    def __init__(self, problem, path, *, short_path = None):
+    def __init__(self, problem, path, *, short_path=None):
         assert path.suffix == '.in'
 
         self.problem = problem
@@ -31,10 +32,7 @@ class Testcase:
         return self.in_path.with_suffix(ext)
 
     # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
-    def validate_format(self, validator_type,
-                          *,
-                          bar,
-                          constraints=None):
+    def validate_format(self, validator_type, *, bar, constraints=None):
         assert validator_type in ['input_format', 'output_format']
 
         bad_testcase = self.bad_input if validator_type == 'input_format' else self.bad_output
@@ -64,7 +62,7 @@ class Testcase:
             else:
                 ret.out = ''
 
-            bar.part_done(ret.ok, message, data=ret.err +ret.out)
+            bar.part_done(ret.ok, message, data=ret.err + ret.out)
 
             if not ret.ok:
                 # Move testcase to destination directory if specified.
@@ -115,7 +113,9 @@ class Run:
     # Return an ExecResult object amended with verdict.
     def run(self, *, interaction=None, submission_args=None):
         if self.problem.interactive:
-            result = interactive.run_interactive_testcase(self, interaction=interaction, submission_args=submission_args)
+            result = interactive.run_interactive_testcase(self,
+                                                          interaction=interaction,
+                                                          submission_args=submission_args)
         else:
             result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:
@@ -136,7 +136,6 @@ class Run:
 
         self.result = result
         return result
-
 
     def _validate_output(self):
         flags = self.problem.settings.validator_flags
@@ -175,6 +174,7 @@ class Run:
 
 class Submission(program.Program):
     subdir = 'submissions'
+
     def __init__(self, problem, path):
         super().__init__(problem, path)
 
@@ -195,12 +195,12 @@ class Submission(program.Program):
 
             # Print stderr to terminal is stdout is None, otherwise return its value.
             result = exec_command(self.run_command + args,
-                                            crop=crop,
-                                            stdin=inf,
-                                            stdout=out_file,
-                                            stderr=None if out_file is None else True,
-                                            timeout=self.problem.settings.timeout,
-                                            cwd=cwd)
+                                  crop=crop,
+                                  stdin=inf,
+                                  stdout=out_file,
+                                  stderr=None if out_file is None else True,
+                                  timeout=self.problem.settings.timeout,
+                                  cwd=cwd)
             if out_file: out_file.close()
             return result
 
@@ -208,12 +208,13 @@ class Submission(program.Program):
     # Returns the final verdict.
     def run_all_testcases(self, max_submission_name_len=None, table_dict=None):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
-        max_item_len = max(len(run.name) for run in runs) + max_submission_name_len - len(self.name) - 1
-        bar = ProgressBar('Running ' + self.name, max_len = max_item_len)
+        max_item_len = max(len(run.name)
+                           for run in runs) + max_submission_name_len - len(self.name) - 1
+        bar = ProgressBar('Running ' + self.name, max_len=max_item_len)
 
         max_duration = 0
 
-        verdict = (config.PRIORITY['ACCEPTED'], 'ACCEPTED', 0) # priority, verdict, duration
+        verdict = (config.PRIORITY['ACCEPTED'], 'ACCEPTED', 0)  # priority, verdict, duration
         verdict_run = None
 
         # TODO: Run multiple runs in parallel.
@@ -222,8 +223,8 @@ class Submission(program.Program):
             result = run.run()
 
             new_verdict = (config.PRIORITY[result.verdict], result.verdict, result.duration)
-            if  new_verdict > verdict:
-                verdict= new_verdict
+            if new_verdict > verdict:
+                verdict = new_verdict
                 verdict_run = run
             max_duration = max(max_duration, result.duration)
 
@@ -235,7 +236,9 @@ class Submission(program.Program):
             # Print stderr whenever something is printed
             if result.out and result.err:
                 output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
-                data = f'STDERR:' + util.ProgresBar._format_data(result.err) + '\n{output_type}:' + util.ProgressBar._format_data(result.out) + '\n'
+                data = f'STDERR:' + util.ProgresBar._format_data(
+                    result.err) + '\n{output_type}:' + util.ProgressBar._format_data(
+                        result.out) + '\n'
             else:
                 data = result.err
 
@@ -257,13 +260,15 @@ class Submission(program.Program):
             color = cc.green if self.verdict == self.expected_verdict else cc.red
             boldcolor = ''
 
-        bar.finalize(message=f'{max_duration:6.3f}s {color}{verdict[1]:<20}{cc.reset} @ {verdict_run.testcase.name}')
+        bar.finalize(
+            message=
+            f'{max_duration:6.3f}s {color}{verdict[1]:<20}{cc.reset} @ {verdict_run.testcase.name}'
+        )
 
         if config.args.verbose:
             print()
 
         return self.verdict == self.expected_verdict
-
 
     def test(self):
         print(ProgressBar.action('Running', str(self.name)))
@@ -283,11 +288,11 @@ class Submission(program.Program):
                 assert self.run_command is not None
                 with testcase.in_path.open('rb') as inf:
                     result = exec_command(self.run_command,
-                                                    crop=False,
-                                                    stdin=inf,
-                                                    stdout=None,
-                                                    stderr=None,
-                                                    timeout=self.problem.settings.timeout)
+                                          crop=False,
+                                          stdin=inf,
+                                          stdout=None,
+                                          stderr=None,
+                                          timeout=self.problem.settings.timeout)
 
                 did_timeout = result.duration > self.problem.settings.timelimit
                 assert result.err is None and result.out is None
@@ -306,10 +311,16 @@ class Submission(program.Program):
             else:
                 # Interactive problem.
                 run = Run(self.problem, self, testcase)
-                result = interactive.run_interactive_testcase( run, interaction=True, validator_error=None, team_error=None)
+                result = interactive.run_interactive_testcase(run,
+                                                              interaction=True,
+                                                              validator_error=None,
+                                                              team_error=None)
                 if result.verdict != 'ACCEPTED':
                     config.n_error += 1
-                    print(f'{cc.red}{result.verdict}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
+                    print(
+                        f'{cc.red}{result.verdict}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}'
+                    )
                 else:
-                    print(f'{cc.green}{result.verdict}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
-
+                    print(
+                        f'{cc.green}{result.verdict}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}'
+                    )

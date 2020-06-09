@@ -19,7 +19,6 @@ from util import *
 from problem import Problem
 
 
-
 def is_testcase(yaml):
     return yaml == '' or isinstance(yaml, str) or (isinstance(yaml, dict) and 'input' in yaml)
 
@@ -70,7 +69,10 @@ class Invocation:
 
         # Automatically set self.program when that program has been built.
         self.program = None
-        def callback(program): self.program = program
+
+        def callback(program):
+            self.program = program
+
         program.Program.add_callback(problem, problem.path / self.program_path, callback)
 
     # Return the form of the command used for caching.
@@ -90,7 +92,8 @@ class Invocation:
         return [sub(arg) for arg in self.args]
 
     # Interface only. Should be implemented by derived class.
-    def run(self, bar, cwd, name, seed): assert False
+    def run(self, bar, cwd, name, seed):
+        assert False
 
 
 class GeneratorInvocation(Invocation):
@@ -100,7 +103,10 @@ class GeneratorInvocation(Invocation):
     # Try running the generator |retries| times, incrementing seed by 1 each time.
     def run(self, bar, cwd, name, seed, retries=1):
         for retry in range(retries):
-            result = self.program.run(bar, cwd, name, args = self._sub_args(name=name, seed=seed+retry))
+            result = self.program.run(bar,
+                                      cwd,
+                                      name,
+                                      args=self._sub_args(name=name, seed=seed + retry))
             if not result.retry: return result
 
         if retries > 1:
@@ -117,14 +123,13 @@ class VisualizerInvocation(Invocation):
     # Run the visualizer, taking {name} as a command line argument.
     # Stdin and stdout are not used.
     def run(self, bar, cwd, name):
-        result = self.program.run(cwd, args = self._sub_args(name=name))
+        result = self.program.run(cwd, args=self._sub_args(name=name))
 
         if result.ok == -9:
             bar.error(f'TIMEOUT after {timeout}s')
         elif result.ok is not True:
             bar.error('FAILED', result.err)
         return result
-
 
 
 class SolutionInvocation(Invocation):
@@ -136,7 +141,6 @@ class SolutionInvocation(Invocation):
     def run(self, bar, cwd, name):
         in_path = cwd / (name + '.in')
         ans_path = cwd / (name + '.ans')
-
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd)
@@ -152,7 +156,7 @@ class SolutionInvocation(Invocation):
         interaction_path = cwd / (t.name + '.interaction')
         if interaction_path.is_file(): return True
 
-        testcase = run.Testcase(problem, in_path, short_path = t.path / t.name)
+        testcase = run.Testcase(problem, in_path, short_path=t.path / t.name)
         r = run.Run(problem, self.program, testcase)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
@@ -163,9 +167,13 @@ class SolutionInvocation(Invocation):
 
         return True
 
+
 KNOWN_TESTCASE_KEYS = ['type', 'input', 'solution', 'visualizer', 'random_salt', 'retries']
-KNOWN_DIRECTORY_KEYS = ['type' , 'data', 'testdata.yaml',  'solution', 'visualizer', 'random_salt', 'retries']
+KNOWN_DIRECTORY_KEYS = [
+    'type', 'data', 'testdata.yaml', 'solution', 'visualizer', 'random_salt', 'retries'
+]
 KNOWN_ROOT_KEYS = ['generators', 'parallel']
+
 
 # Holds all inheritable configuration options. Currently:
 # - config.solution
@@ -312,14 +320,13 @@ class TestcaseRule(Rule):
             if not t.generator.run(bar, cwd, t.name, t.seed, t.config.retries):
                 return
 
-        testcase = run.Testcase(problem, infile, short_path = Path(t.name+'.in'))
+        testcase = run.Testcase(problem, infile, short_path=Path(t.name + '.in'))
 
         # Validate the manual or generated .in.
         if not testcase.validate_format('input_format', bar=bar, constraints=None):
             return
 
-        is_sample =  t.path.parents[0] == Path('sample')
-
+        is_sample = t.path.parents[0] == Path('sample')
 
         # Generate .ans and .interaction if needed.
         # TODO: Disable this with a flag.
@@ -613,7 +620,6 @@ class GeneratorConfig:
         ('parallel', 1, distutils.util.strtobool),
     ]
 
-
     # Parse generators.yaml.
     def __init__(self, problem):
         self.problem = problem
@@ -729,7 +735,8 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
             if t.config.solution:
                 if t.config.solution is True:
                     if default_solution is None:
-                        default_solution = SolutionInvocation(self.problem, self.get_default_solution())
+                        default_solution = SolutionInvocation(self.problem,
+                                                              self.get_default_solution())
                         print('Get default solution: ', default_solution)
                     t.config.solution = default_solution
                 solutions_used.add(t.config.solution.program_path)
@@ -783,8 +790,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
 
         if not parallel:
             self.root_dir.walk(
-                lambda t: t.generate(self.problem,
-                                     bar),
+                lambda t: t.generate(self.problem, bar),
                 lambda d: d.generate(self.problem, self.known_cases, bar),
             )
         else:

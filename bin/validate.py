@@ -2,6 +2,7 @@ import program
 import re
 from util import *
 
+
 class Validator(program.Program):
 
     # NOTE: This only works for checktestdata and Viva validators.
@@ -15,27 +16,27 @@ class Validator(program.Program):
             main_path = testcase.in_path
         elif isinstance(self, OutputValidator):
             main_path = testcase.ans_path
-        else: assert False
+        else:
+            assert False
 
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
-                return exec_command(
-                    self.run_command,
-                    expect=1 if testcase.bad else 0,
-                    stdin=main_file,
-                    cwd=cwd)
+                return exec_command(self.run_command,
+                                    expect=1 if testcase.bad else 0,
+                                    stdin=main_file,
+                                    cwd=cwd)
 
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
-            result = exec_command(
-                self.run_command + [main_path],
-                expect=1 if testcase.bad else 0,
-                cwd=cwd)
+            result = exec_command(self.run_command + [main_path],
+                                  expect=1 if testcase.bad else 0,
+                                  cwd=cwd)
             # Slightly hacky: CTD prints testcase errors on stderr while VIVA prints
             # them on stdout.
             result.err = out
             result.out = None
             return result
+
 
 def _merge_constraints(constraints_path, constraints):
     # Merge with previous constraints.
@@ -66,6 +67,7 @@ def _merge_constraints(constraints_path, constraints):
 
         constraints_path.unlink()
 
+
 # .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
 # It may not read/write files.
 class InputValidator(Validator):
@@ -88,11 +90,10 @@ class InputValidator(Validator):
             run_command += ['--constraints_file', constraints_path]
 
         with testcase.in_path.open() as in_file:
-            ret = exec_command(
-                run_command,
-                expect=config.RTV_WA if testcase.bad_input else config.RTV_AC,
-                stdin=in_file,
-                cwd=cwd)
+            ret = exec_command(run_command,
+                               expect=config.RTV_WA if testcase.bad_input else config.RTV_AC,
+                               stdin=in_file,
+                               cwd=cwd)
 
         if constraints: _merge_constraints(constraints_path, constraints)
 
@@ -119,7 +120,10 @@ class OutputValidator(Validator):
             if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
                 return Validator._run_format_validator(self, testcase, cwd)
 
-            run_command = self.run_command+ [testcase.in_path, testcase.ans_path, cwd, 'case_sensitive', 'space_change_sensitive']
+            run_command = self.run_command + [
+                testcase.in_path, testcase.ans_path, cwd, 'case_sensitive',
+                'space_change_sensitive'
+            ]
 
             if constraints:
                 constraints_path = cwd / 'constraints_'
@@ -127,11 +131,10 @@ class OutputValidator(Validator):
                 run_command += ['--constraints_file', constraints_path]
 
             with testcase.ans_path.open() as ans_file:
-                ret = exec_command(
-                    run_command,
-                    expect=config.RTV_WA if testcase.bad_output else config.RTV_AC,
-                    stdin=ans_file,
-                    cwd=cwd)
+                ret = exec_command(run_command,
+                                   expect=config.RTV_WA if testcase.bad_output else config.RTV_AC,
+                                   stdin=ans_file,
+                                   cwd=cwd)
 
             if constraints: _merge_constraints(constraints_path, constraints)
 
@@ -144,8 +147,8 @@ class OutputValidator(Validator):
 
         with run.out_path.open() as out_file:
             return exec_command(
-                self.run_command + [testcase.in_path, testcase.ans_path, run.feedbackdir] + self.problem.settings.validator_flags,
+                self.run_command + [testcase.in_path, testcase.ans_path, run.feedbackdir] +
+                self.problem.settings.validator_flags,
                 expect=config.RTV_AC,
                 stdin=out_file,
                 cwd=run.feedbackdir)
-
