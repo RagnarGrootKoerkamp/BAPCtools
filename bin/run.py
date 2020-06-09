@@ -265,82 +265,51 @@ class Submission(program.Program):
         return self.verdict == self.expected_verdict
 
 
+    def test(self):
+        print(ProgressBar.action('Running', str(self.name)))
 
+        testcases = self.problem.testcases(needans=False)
 
+        if self.problem.interactive:
+            output_validators = self.problem.validators('output')
+            if output_validators is False:
+                return
 
+        for testcase in testcases:
+            header = ProgressBar.action('Running ' + str(self.name), testcase.name)
+            print(header)
 
+            if not self.problem.interactive:
+                assert self.run_command is not None
+                with testcase.in_path.open('rb') as inf:
+                    result = exec_command(self.run_command,
+                                                    crop=False,
+                                                    stdin=inf,
+                                                    stdout=None,
+                                                    stderr=None,
+                                                    timeout=self.problem.settings.timeout)
 
-# TODO: Migrate these TEST subcommands into submission as well.
-# TODO: Figure out what exactly to do with this. It's somewhat messy.
-def _test_submission(problem, submission, testcases, settings):
-    print(ProgressBar.action('Running', str(submission[0])))
+                did_timeout = result.duration > self.problem.settings.timelimit
+                assert result.err is None and result.out is None
+                if result.ok is not True:
+                    config.n_error += 1
+                    print(
+                        f'{cc.red}Run time error!{cc.reset} exit code {result.ok} {cc.bold}{result.duration:6.3f}s{cc.reset}'
+                    )
+                elif did_timeout:
+                    config.n_error += 1
+                    print(f'{cc.red}Aborted!{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
+                else:
+                    print(f'{cc.green}Done:{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
+                print()
 
-    if problem.interactive:
-        output_validators = validate.get_validators(problem, 'output')
-        if len(output_validators) != 1:
-            error(
-                'Interactive problems need exactly one output validator. Found {len(output_validators)}.'
-            )
-            return False
-
-    time_limit, timeout = get_time_limits(settings)
-    for testcase in testcases:
-        header = ProgressBar.action('Running ' + str(submission[0]), testcase.name)
-        print(header)
-
-        if not problem.interactive:
-            # err and out should be None because they go to the terminal.
-            ok, duration, err, out = run_testcase(submission[1],
-                                                  testcase,
-                                                  outfile=None,
-                                                  timeout=timeout,
-                                                  crop=False)
-            did_timeout = duration > time_limit
-            assert err is None and out is None
-            if ok is not True:
-                config.n_error += 1
-                print(
-                    f'{cc.red}Run time error!{cc.reset} exit code {ok} {cc.bold}{duration:6.3f}s{cc.reset}'
-                )
-            elif did_timeout:
-                config.n_error += 1
-                print(f'{cc.red}Aborted!{cc.reset} {cc.bold}{duration:6.3f}s{cc.reset}')
             else:
-                print(f'{cc.green}Done:{cc.reset} {cc.bold}{duration:6.3f}s{cc.reset}')
-            print()
+                # Interactive problem.
+                run = Run(self.problem, self, testcase)
+                result = interactive.run_interactive_testcase( run, interaction=True, validator_error=None, team_error=None)
+                if result.verdict != 'ACCEPTED':
+                    config.n_error += 1
+                    print(f'{cc.red}{result.verdict}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
+                else:
+                    print(f'{cc.green}{result.verdict}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
 
-        else:
-            # Interactive problem.
-            verdict, duration, val_err, team_err = process_interactive_testcase(
-                submission[1],
-                testcase,
-                settings,
-                output_validators,
-                interaction=True,
-                validator_error=None,
-                team_error=None)
-            if verdict != 'ACCEPTED':
-                config.n_error += 1
-                print(f'{cc.red}{verdict}{cc.reset} {cc.bold}{duration:6.3f}s{cc.reset}')
-            else:
-                print(f'{cc.green}{verdict}{cc.reset} {cc.bold}{duration:6.3f}s{cc.reset}')
-
-
-# Takes a list of submissions and runs them against the chosen testcases.
-# Instead of validating the output, this function just prints all output to the
-# terminal.
-# Note: The CLI only accepts one submission.
-def test_submissions(problem, settings):
-    testcases = problem.testcases(needans=False)
-
-    if len(testcases) == 0:
-        warn('No testcases found!')
-        return False
-
-    submissions = _get_submissions(problem.path)
-
-    verdict_table = []
-    for verdict in submissions:
-        for submission in submissions[verdict]:
-            _test_submission(problem.path, submission, testcases, settings)
-    return True

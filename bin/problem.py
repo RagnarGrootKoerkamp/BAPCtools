@@ -316,6 +316,18 @@ class Problem:
 
         return ok
 
+    # Takes a list of submissions and runs them against the chosen testcases.
+    # Instead of validating the output, this function just prints all output to the
+    # terminal.
+    # Note: The CLI only accepts one submission.
+    def test_submissions(problem):
+        submissions = problem.submissions()
+
+        for verdict in submissions:
+            for submission in submissions[verdict]:
+                submission.test()
+        return True
+
     @staticmethod
     def _print_table(verdict_table, testcases, submission):
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
