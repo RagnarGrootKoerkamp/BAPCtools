@@ -124,7 +124,7 @@ class Run:
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
 
         if self.problem.settings.validation == 'custom interactive':
-            # TODO
+            # TODO: migrate interactive stuff
             verdict, duration, err, out =  process_interactive_testcase(run_command, testcase, settings, output_validators)
         else:
             result = self.submission.run(self.testcase.in_path, self.out_path)
@@ -134,7 +134,6 @@ class Run:
                 result.verdict = 'RUN_TIME_ERROR'
                 result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
             else:
-                # TODO: Update validators
                 result = self._validate_output()
 
                 if result.ok is True:

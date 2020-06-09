@@ -455,7 +455,7 @@ def main():
         if level == 'problemset' and action == 'pdf' and not (hasattr(config.args, 'all')
                                                               and config.args.all):
             continue
-        print(cc.bold, 'PROBLEM ', problem.path, cc.reset, sep='')
+        print(cc.bold, 'PROBLEM ', problem.name, cc.reset, sep='')
 
         # TODO: Remove usages of settings.
         settings = problem.settings

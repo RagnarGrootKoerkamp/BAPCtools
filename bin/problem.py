@@ -47,7 +47,6 @@ class Problem:
                 f'Problem has a bad shortname: {self.name} does not match {self._shortname_regex_string}'
             )
 
-    # TODO: This should be overridden by command line flags.
     def _read_settings(self):
         # some defaults
         self.settings = {

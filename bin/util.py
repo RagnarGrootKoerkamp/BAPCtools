@@ -472,7 +472,6 @@ def get_memory_limit(kwargs=None):
 
 
 class ExecResult:
-    # TODO: Replace ok by returncode and expected_returncode
     def __init__(self, ok , duration, err, out):
         self.ok = ok
         self.duration = duration
@@ -481,7 +480,6 @@ class ExecResult:
 
 
 # Run `command`, returning stderr if the return code is unexpected.
-# TODO: Make this return an ExecResult object containing the return code/status, the time, and stdout/stderr.
 def exec_command(command, expect=0, crop=True, **kwargs):
     # By default: discard stdout, return stderr
     if 'stdout' not in kwargs or kwargs['stdout'] is True: kwargs['stdout'] = subprocess.PIPE
@@ -501,8 +499,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     memory_limit = get_memory_limit(kwargs)
 
-    # Disable memory limits for Java.
-    # TODO: Also disable this for Kotlin.
+    # Disable memory limits for Java and Kotlin, because they run in a JVM.
     if command[0] in ['java', 'javac', 'kotlin', 'kotlinc']:
         memory_limit = None
 
