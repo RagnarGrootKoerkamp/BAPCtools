@@ -650,14 +650,12 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
             else:
                 setattr(self, key, default)
 
-        next_number = 1
         # A map from directory paths `secret/testgroup` to Directory objects, used to resolve testcase
         # inclusion.
         self.known_cases = set()
 
         # Main recursive parsing function.
         def parse(name, yaml, parent):
-            nonlocal next_number
 
             assert is_testcase(yaml) or is_directory(yaml)
 
@@ -685,17 +683,20 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
 
             # Parse child directories/testcases.
             if 'data' in yaml:
+                number_width = len(str(len(yaml['data'])))
+                next_number = 1
+
                 for dictionary in yaml['data']:
                     if d.numbered:
-                        # TODO: Number prefixes should be zero-padded when there are more than 9 cases.
-                        number_prefix = str(next_number) + '-'
+                        number_prefix = f'{next_number:0{number_width}}'
                         next_number += 1
                     else:
                         number_prefix = ''
 
                     for child_name, child_yaml in sorted(dictionary.items()):
                         if isinstance(child_name, int): child_name = str(child_name)
-                        child_name = number_prefix + child_name
+                        if number_prefix:
+                            child_name = number_prefix + '-' + child_name
                         d.data.append(parse(child_name, child_yaml, d))
 
             return d
