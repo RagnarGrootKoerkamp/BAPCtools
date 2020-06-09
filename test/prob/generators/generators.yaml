@@ -29,7 +29,7 @@ random_salt: abcd
 # We support three types of generators:
 # - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
 #   be compiled if required and run the same way as submissions.
-# - Directories, like 
+# - Directories, like
 #   - generators/gen/tree.cpp
 #   - generators/gen/lib.h
 #   This will be compiled and run the same was as directory validators. Build
@@ -82,7 +82,7 @@ data:
       1: stdout.py 1  # prints `1` to stdout, which is piped to 1.in
 
 # To indicate a manual testcase, specify it with an empty value.
-      2: 
+      2:
 # Any key that matches the glob `*.in` is a manual testcase that will be copied
 # from the given directory into the target testcase. The given path
 # must not start with a / and will be relative to generators/.
@@ -187,18 +187,18 @@ data:
         include:
           - sample
           - secret/03
-        
+
 # To enable automatic numbering of testcases, data: may also contain a list of
 # dictionaries instead of a single dictionary. In this case, testcases and/or
-# groups will be numbered in the order they appear. The system will determine
-# the required number of digits to use and numbers will be zero-padded
-# accordingly, using a dash as separator from the given name. All items in a
-# given dictionary will get the same number. Use a list of 1-item dictionaries
-# for incremental numbering.
+# groups will be numbered in the order they appear, starting at 1. The system
+# will determine the required number of digits to use and numbers will be
+# zero-padded accordingly, using a dash as separator from the given name (when
+# the given name is not empty). All items in a given dictionary will get the
+# same number. Use a list of 1-item dictionaries for incremental numbering.
 #
 # Any testgroup inside a list must contain a list object as data:.
 #
-# Numbering is global. Testcases/testgroups are ordered by the order of lists
+# Numbering is per directory. Testcases/testgroups are ordered by the order of lists
 # and alphabetical for dictionaries. Numbering is done in pre-order: first
 # number the current testgroup, then number everything inside the group, then
 # number testcases/testgroups following the current group.
@@ -214,17 +214,31 @@ data:
              #data:
              #  c: stdout.py c
           - e: stdout.py e
+          - f: stdout.py f
+          - g: stdout.py g
+          - h: stdout.py h
+          - i: stdout.py i
+          - j: stdout.py j
+          - k: stdout.py k
+          - l: stdout.py l
 
 # The above data: list is equivalent to the map:
        #data:
-       #  1-a: stdout.py a
-       #  1-b: stdout.py b
-       #  2-testgroup:
+       #  01-a: stdout.py a
+       #  01-b: stdout.py b
+       #  02-testgroup:
        #    type: directory
        #    data:
-       #      3-c: stdout.py c
-       #      3-d: stdout.py d
-       #  4-e: stdout.py e
+       #      1-c: stdout.py c
+       #      1-d: stdout.py d
+       #  03-e: stdout.py e
+       #  04-e: stdout.py f
+       #  05-e: stdout.py g
+       #  06-e: stdout.py h
+       #  07-e: stdout.py i
+       #  08-e: stdout.py j
+       #  09-e: stdout.py k
+       #  10-e: stdout.py l
 
 
 # Unknown keys are allowed inside directory dictionaries for tooling-specific
