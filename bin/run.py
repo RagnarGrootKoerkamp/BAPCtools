@@ -248,7 +248,7 @@ class Submission(program.Program):
             bar.done(got_expected, f'{result.duration:6.3f}s {result.verdict}', data)
 
             # Lazy judging: stop on the first error when not in verbose mode.
-            if not config.verbose and result.verdict in config.MAX_PRIORITY_VERDICT:
+            if not config.args.verbose and result.verdict in config.MAX_PRIORITY_VERDICT:
                 bar.count = None
                 break
 
@@ -265,7 +265,7 @@ class Submission(program.Program):
 
         bar.finalize(message=f'{max_duration[0]:6.3f}s {color}{verdict[1]:<20}{cc.reset} @ {verdict[3].name}')
 
-        if config.verbose:
+        if config.args.verbose:
             print()
 
         return self.verdict == self.expected_verdict

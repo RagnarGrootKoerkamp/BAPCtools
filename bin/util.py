@@ -258,7 +258,7 @@ class ProgressBar:
 
         if not success: config.n_error += 1
 
-        do_print = config.verbose or not success
+        do_print = config.args.verbose or not success
         if do_print:
             self.log(message, data, needs_lock=False, color= cc.green if success else cc.red)
 
@@ -273,7 +273,7 @@ class ProgressBar:
     def part_done(self, success=True, message='', data=''):
         self.clearline()
         if not success: config.n_error += 1
-        if config.verbose or not success:
+        if config.args.verbose or not success:
             if success:
                 self.log(message, data)
             else:
@@ -293,7 +293,7 @@ class ProgressBar:
         if message is None:
             message = f'{cc.green}Done{cc.reset}'
             if self.global_logged: return
-            if config.verbose: return
+            if config.args.verbose: return
 
         print(self.get_prefix() + message)
 
@@ -490,7 +490,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     # Convert any Pathlib objects to string.
     command = [str(x) for x in command]
 
-    if config.verbose >= 2:
+    if config.args.verbose >= 2:
         print(command, kwargs, 'cwd:', Path.cwd())
 
     timeout = 30

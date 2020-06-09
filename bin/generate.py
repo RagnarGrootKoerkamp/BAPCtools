@@ -361,10 +361,10 @@ class TestcaseRule(Rule):
         target_dir = problem.path / 'data' / t.path.parent
         if t.path.parents[0] == Path('sample'):
             msg = '; supply -f --samples to override'
-            forced = config.arg('force') and config.arg('samples')
+            forced = config.args.force and config.args.samples
         else:
             msg = '; supply -f to override'
-            forced = config.arg('force')
+            forced = config.args.force
 
         skipped = False
         for ext in config.KNOWN_DATA_EXTENSIONS:

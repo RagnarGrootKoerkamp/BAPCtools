@@ -81,10 +81,17 @@ class Problem:
         self.settings = argparse.Namespace(**self.settings)
 
         # Override settings by command line arguments.
-        self.settings.timelimit = config.arg('timelimit', self.settings.timelimit)
+        try:
+            self.settings.timelimit = config.args.timelimit or self.settings.timelimit
+        except AttributeError:
+            pass
 
         timeout = 1.5 * self.settings.timelimit + 1
-        if config.arg('timeout'): timeout = max(config.arg('timeout'), self.settings.timelimit+1)
+        try:
+            if config.args.timeout:
+                timeout = max(config.args.timeout, self.settings.timelimit+1)
+        except AttributeError:
+            pass
         self.settings.timeout = int(timeout)
 
         if self.settings.validation not in config.VALIDATION_MODES:
@@ -94,14 +101,14 @@ class Problem:
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
 
     def testcases(p, needans=True, only_sample=False, include_bad=False):
-        samplesonly = only_sample or config.arg('samples', False)
+        samplesonly = only_sample or config.args.samples
 
         key = (needans, samplesonly)
         if key in p._testcases is not None: return p._testcases[key]
 
         in_paths = None
         # NOTE: Testcases must be specified relative to the problem root.
-        if config.arg('testcases'):
+        if config.args.testcases:
             if samplesonly:
                 warn(f'Ignoring the --samples flag because testcases are explicitly listed.')
             # Deduplicate testcases with both .in and .ans.
@@ -146,8 +153,8 @@ class Problem:
         if problem._submissions is not None: return problem._submissions
 
         paths = []
-        if config.arg('submissions'):
-            for submission in config.arg('submissions'):
+        if config.args.submissions:
+            for submission in config.args.submissions:
                 if (problem.path / submission).parent == problem.path / 'submissions':
                     paths += glob(problem.path / submission, '*')
                 else:
@@ -173,7 +180,7 @@ class Problem:
         bar.finalize(print_done=False)
 
         # TODO: Clean these spurious newlines.
-        if config.verbose:
+        if config.args.verbose:
             print()
 
         submissions = dict()
@@ -266,7 +273,7 @@ class Problem:
         if not ok: validators = False
 
         # TODO: Clean these spurious newlines.
-        if config.verbose:
+        if config.args.verbose:
             print()
 
         if not check_constraints:
@@ -299,7 +306,7 @@ class Problem:
                 ok &= submission.run_all_testcases(max_submission_len, table_dict=d)
                 print()
 
-        if config.arg('table'): Problem._print_table(verdict_table, testcases, submissions)
+        if config.args.table : Problem._print_table(verdict_table, testcases, submissions)
 
         return ok
 
@@ -418,7 +425,7 @@ class Problem:
                     )
                 success = False
 
-        if not config.verbose and success:
+        if not config.args.verbose and success:
             print(ProgressBar.action(action, f'{cc.green}Done{cc.reset}'))
             if validator_type == 'output':
                 print()

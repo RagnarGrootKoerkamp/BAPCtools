@@ -152,6 +152,7 @@ Run this from one of:
     global_parser.add_argument(
         '-v',
         '--verbose',
+        default = 0,
         action='count',
         help='Verbose output; once for what\'s going on, twice for all intermediate output.')
     global_parser.add_argument('-c',
@@ -383,8 +384,6 @@ def main():
 
     # Process arguments
     config.args = parser.parse_args()
-    config.verbose = config.args.verbose if hasattr(config.args,
-                                                    'verbose') and config.args.verbose else 0
     action = config.args.action
 
     if action in ['new_contest']:

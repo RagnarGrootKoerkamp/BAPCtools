@@ -50,7 +50,6 @@ def languages():
     return _languages
 
 
-# TODO: Migrate Validators to Program class.
 # TODO: Run submissions for interactive problems.
 
 # A Program is class that wraps a program (file/directory) on disk. A program is usually one of:

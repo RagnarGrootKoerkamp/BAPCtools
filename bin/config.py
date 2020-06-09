@@ -35,11 +35,6 @@ tmpdir = None
 
 # This is lifted for convenience.
 args = None
-# TODO: Just use config.args.verbose instead.
-verbose = False
-
-# TODO: Ideally we parse arguments at the beginning so that `default` isn't needed here.
-def arg(name, default=None): return getattr(args, name, default) or default
 
 # Return the command line timeout or the default of 30 seconds.
 def timeout(): return arg('timeout', 30)
