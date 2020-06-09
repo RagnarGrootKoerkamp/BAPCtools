@@ -155,7 +155,7 @@ def build_problem_pdf(problem):
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
     for i in range(3):
-        ret = util.exec_command_2(
+        ret = util.exec_command(
             PDFLATEX + ['-output-directory', builddir, builddir / 'problem.tex'],
             0,
             False,
@@ -243,7 +243,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
     for i in range(3):
-        ret = util.exec_command_2(
+        ret = util.exec_command(
             PDFLATEX + ['-output-directory', builddir, (builddir / main_file).with_suffix('.tex')],
             0,
             False,

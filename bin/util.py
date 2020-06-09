@@ -471,6 +471,14 @@ def get_memory_limit(kwargs=None):
 
 
 
+class ExecResult:
+    # TODO: Replace ok by returncode and expected_returncode
+    def __init__(self, ok , duration, err, out):
+        self.ok = ok
+        self.duration = duration
+        self.err = err
+        self.out = out
+
 
 # Run `command`, returning stderr if the return code is unexpected.
 # TODO: Make this return an ExecResult object containing the return code/status, the time, and stdout/stderr.
@@ -508,6 +516,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         if memory_limit:
             resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
+    tstart = time.monotonic()
     if not is_windows():
         process = subprocess.Popen(command, preexec_fn=setlimits, **kwargs)
     else:
@@ -519,25 +528,13 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         (stdout, stderr) = process.communicate()
     except KeyboardInterrupt:
         fatal('Running interrupted.')
+    tend = time.monotonic()
 
     def maybe_crop(s):
         return crop_output(s) if crop else s
 
-    return (True if process.returncode == expect else process.returncode,
-            maybe_crop(stderr.decode('utf-8')) if stderr is not None else None,
-            maybe_crop(stdout.decode('utf-8')) if stdout is not None else None)
+    ok = True if process.returncode == expect else process.returncode
+    err =        maybe_crop(stderr.decode('utf-8')) if stderr is not None else None
+    out=        maybe_crop(stdout.decode('utf-8')) if stdout is not None else None
 
-class ExecResult:
-    # TODO: Replace ok by returncode and expected_returncode
-    def __init__(self, ok , duration, err, out):
-        self.ok = ok
-        self.duration = duration
-        self.err = err
-        self.out = out
-
-# TODO: Replace exec_command by this, which returns ExecResult.
-def exec_command_2(command, expect=0, crop=True, **kwargs):
-    tstart = time.monotonic()
-    ok, err, out = exec_command(command, expect, crop, **kwargs)
-    tend = time.monotonic()
     return ExecResult(ok, tend-tstart, err, out)

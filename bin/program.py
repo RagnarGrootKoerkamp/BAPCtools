@@ -230,7 +230,7 @@ class Program:
         if not self.compile_command: return True
 
         try:
-            ret = exec_command_2(
+            ret = exec_command(
                 self.compile_command,
                 stdout=subprocess.PIPE,
                 memory=5000000000,
@@ -333,7 +333,7 @@ class Generator(Program):
             f.unlink()
 
         with stdout_path.open('w') as stdout_file:
-            result = exec_command_2(self.run_command + args, stdout=stdout_file, timeout=config.timeout(), cwd=cwd)
+            result = exec_command(self.run_command + args, stdout=stdout_file, timeout=config.timeout(), cwd=cwd)
 
         result.retry = False
 
@@ -368,4 +368,4 @@ class Visualizer(Program):
     # Stdin and stdout are not used.
     def run(self, cwd, args=[]):
         assert self.run_command is not None
-        return exec_command_2(self.run_command + args, timeout=config.timeout(), cwd=cwd)
+        return exec_command(self.run_command + args, timeout=config.timeout(), cwd=cwd)

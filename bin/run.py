@@ -205,7 +205,7 @@ class Submission(program.Program):
             out_file = out_path.open('wb') if out_path else None
 
             # Print stderr to terminal is stdout is None, otherwise return its value.
-            result = exec_command_2(self.run_command + args,
+            result = exec_command(self.run_command + args,
                                             crop=crop,
                                             stdin=inf,
                                             stdout=out_file,

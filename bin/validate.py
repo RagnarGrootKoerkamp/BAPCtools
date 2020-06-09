@@ -19,7 +19,7 @@ class Validator(program.Program):
 
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
-                return exec_command_2(
+                return exec_command(
                     self.run_command,
                     expect=1 if testcase.bad else 0,
                     stdin=main_file,
@@ -27,7 +27,7 @@ class Validator(program.Program):
 
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
-            result = exec_command_2(
+            result = exec_command(
                 self.run_command + [main_path],
                 expect=1 if testcase.bad else 0,
                 cwd=cwd)
@@ -88,7 +88,7 @@ class InputValidator(Validator):
             run_command += ['--constraints_file', constraints_path]
 
         with testcase.in_path.open() as in_file:
-            ret = exec_command_2(
+            ret = exec_command(
                 run_command,
                 expect=config.RTV_WA if testcase.bad_input else config.RTV_AC,
                 stdin=in_file,
@@ -127,7 +127,7 @@ class OutputValidator(Validator):
                 run_command += ['--constraints_file', constraints_path]
 
             with testcase.ans_path.open() as ans_file:
-                ret = exec_command_2(
+                ret = exec_command(
                     run_command,
                     expect=config.RTV_WA if testcase.bad_output else config.RTV_AC,
                     stdin=ans_file,
@@ -143,7 +143,7 @@ class OutputValidator(Validator):
             return False
 
         with run.out_path.open() as out_file:
-            return exec_command_2(
+            return exec_command(
                 self.run_command + [testcase.in_path, testcase.ans_path, run.feedbackdir] + self.problem.settings.validator_flags,
                 expect=config.RTV_AC,
                 stdin=out_file,
