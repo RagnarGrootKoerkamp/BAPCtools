@@ -470,14 +470,14 @@ def main():
 
         input_validator_ok = False
         if action in ['validate', 'input', 'all']:
-            input_validator_ok = validate.validate(problem.path, 'input', settings)
+            input_validator_ok = problem.validate_format('input_format')
             success &= input_validator_ok
         if action in ['clean']:
             success &= generate.clean(problem)
         if action in ['generate']:
             success &= generate.generate(problem)
         if action in ['validate', 'output', 'all']:
-            success &= validate.validate(problem.path, 'output', settings, input_validator_ok)
+            success &= problem.validate_format('output_format' )
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
@@ -495,11 +495,8 @@ def main():
             if not config.args.skip:
                 success &= latex.build_problem_pdf(problem)
                 if not config.args.force:
-                    success &= validate.validate(problem.path, 'input', settings)
-                    success &= validate.validate(problem.path,
-                                                 'output',
-                                                 settings,
-                                                 check_constraints=True)
+                    success &= problem.validate_format('input_format')
+                    success &= problem.validate_format( 'output_format', check_constraints=True)
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.

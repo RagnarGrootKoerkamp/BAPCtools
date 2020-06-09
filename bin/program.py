@@ -92,7 +92,9 @@ class Program:
         assert not self.__class__ is Program
 
         # Make sure we never try to build the same program twice. That'd be stupid.
-        assert path not in problem._programs
+        if path in problem._programs:
+            error(f'Why would you build {path} twice?')
+            assert path not in problem._programs
         problem._programs[path] = self
 
         self.bar = None
@@ -210,7 +212,7 @@ class Program:
                         )
                         return None
                     else:
-                        bar.warn(f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h')
+                        self.bar.warn(f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h')
 
     # Return True on success.
     def _compile(self):
@@ -309,7 +311,7 @@ class Program:
 
     @staticmethod
     def add_callback(problem, path, c):
-        if path not in problem._programs: problem._program_callbacks[path] = []
+        if path not in problem._program_callbacks: problem._program_callbacks[path] = []
         problem._program_callbacks[path].append(c)
 
 
@@ -320,7 +322,7 @@ class Generator(Program):
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns ExecResult. Success when result.ok is True.
-    def run(self, cwd, name, args=[]):
+    def run(self, bar, cwd, name, args=[]):
         assert self.run_command is not None
 
         in_path = cwd / (name + '.in')
@@ -337,7 +339,7 @@ class Generator(Program):
 
         if result.ok == -9:
             # Timeout -> stop retrying and fail.
-            self.bar.error(f'TIMEOUT after {timeout}s')
+            bar.error(f'TIMEOUT after {timeout}s')
             return result
 
         if result.ok is not True:
@@ -347,10 +349,10 @@ class Generator(Program):
 
         if in_path.is_file():
             if stdout_path.read_text():
-                self.bar.warn(f'Generator wrote to both {name}.in and stdout. Ignoring stdout.')
+                bar.warn(f'Generator wrote to both {name}.in and stdout. Ignoring stdout.')
         else:
             if not stdout_path.is_file():
-                self.bar.error(f'Did not write {name}.in and stdout is empty!')
+                bar.error(f'Did not write {name}.in and stdout is empty!')
                 result.ok = False
                 return result
 

@@ -7,6 +7,7 @@ from pathlib import Path
 import config
 import program
 import run
+import validate
 from util import *
 
 
@@ -70,7 +71,7 @@ class Problem:
         # parse domjudge-problem.ini
         domjudge_path = self.path / 'domjudge-problem.ini'
         if domjudge_path.is_file():
-            for line in domjudge_path.read_text():
+            for line in domjudge_path.read_text().splitlines():
                 key, var = line.strip().split('=')
                 var = var[1:-1]
                 self.settings[key] = float(var) if key == 'timelimit' else var
@@ -91,7 +92,7 @@ class Problem:
         if self.settings.validator_flags:
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
 
-    def testcases(p, needans=True, only_sample=False):
+    def testcases(p, needans=True, only_sample=False, include_bad=False):
         samplesonly = only_sample or config.arg('samples', False)
 
         key = (needans, samplesonly)
@@ -117,14 +118,18 @@ class Problem:
             in_paths = list(glob(p.path, 'data/sample/**/*.in'))
             if not samplesonly:
                 in_paths += list(glob(p.path, 'data/secret/**/*.in'))
+            if include_bad:
+                in_paths += list(glob(p.path, 'data/bad/**/*.in'))
 
         testcases = []
         for f in in_paths:
+            t = run.Testcase(p, f)
             # Require both in and ans files
-            if needans and not f.with_suffix('.ans').is_file():
-                warn(f'Found input file {str(f)} without a .ans file. Skipping.')
+            if needans and not t.ans_path.is_file():
+                if not t.bad_input:
+                    warn(f'Found input file {str(f)} without a .ans file. Skipping.')
                 continue
-            testcases.append(run.Testcase(p, f))
+            testcases.append(t)
         testcases.sort(key = lambda t: t.name)
 
         if len(testcases) == 0:
@@ -186,11 +191,34 @@ class Problem:
     # contains 'constraints_file' in its source.
     # _validators maps from input/output to the list of validators.
     def validators(problem, validator_type, check_constraints=False):
+        assert validator_type in ['input_format', 'output_format', 'output']
+
+        # For custom validation, treat 'output' and 'output_format' validators the same.
+        if problem.settings.validation == 'custom' and validator_type == 'output':
+            validator_type = 'output_format'
+
         if not check_constraints and validator_type in problem._validators:
             return problem._validators[validator_type]
 
-        paths = (glob(problem.path / (validator_type + '_validators'), '*') +
-                 glob(problem.path / (validator_type + '_format_validators'), '*'))
+        # For default 'output' validation, use default_output_validator.py.
+        if validator_type == 'output' and problem.settings.validation == 'default':
+            validators = [validate.OutputValidator(problem, config.tools_root / 'bin' / 'default_output_validator.py')]
+            bar = ProgressBar('Build validators', items=validators)
+            ok = True
+            for p in validators:
+                bar.start(p)
+                ok &= p.build(bar)
+                bar.done()
+            bar.finalize(print_done=False)
+            if not ok: validators = False
+            problem._validators[validator_type] = validators
+            return validators
+
+
+        validator_dir = 'input' if validator_type == 'input_format' else 'output'
+
+        paths = (glob(problem.path / (validator_dir + '_validators'), '*') +
+                 glob(problem.path / (validator_dir + '_format_validators'), '*'))
 
         if len(paths) == 0:
             error(f'No {validator_type} validators found.')
@@ -218,7 +246,11 @@ class Problem:
                     files = [f]
                     break
 
-        validators = [program.Validator(problem, path) for path in paths]
+        if validator_type == 'input_format':
+            validators = [validate.InputValidator(problem, path) for path in paths]
+        else:
+            validators = [validate.OutputValidator(problem, path) for path in paths]
+
         bar = ProgressBar('Build validators', items=validators)
 
         ok = True
@@ -230,7 +262,7 @@ class Problem:
         bar.finalize(print_done=False)
 
         # All validators must build.
-        if not ok: return False
+        if not ok: validators = False
 
         # TODO: Clean these spurious newlines.
         if config.verbose:
@@ -264,6 +296,7 @@ class Problem:
                 d = dict()
                 verdict_table.append(d)
                 ok &= submission.run_all_testcases(max_submission_len, table_dict=d)
+                print()
 
         if config.arg('table'): Problem._print_table(verdict_table, testcases, submissions)
 
@@ -325,3 +358,70 @@ class Problem:
                 print(str.format('(Type {})', resultant_id[resultant]), end='')
             print(end='\n')
 
+
+
+
+    # Validate the format of the input or output files.
+    def validate_format(problem, validator_type, check_constraints=False):
+        assert validator_type in ['input_format', 'output_format']
+
+        if check_constraints:
+            if not config.args.cpp_flags:
+                config.args.cpp_flags = ''
+            config.args.cpp_flags += ' -Duse_source_location'
+
+            validators = problem.validators(validator_type, check_constraints=True)
+        else:
+            validators = problem.validators(validator_type)
+
+        if problem.settings.validation == 'custom interactive' and validator_type == 'output':
+            log('Not validating .ans for interactive problem.')
+            return True
+
+        if not validators:
+            return False
+
+        testcases = problem.testcases(needans=validator_type == 'output_format', include_bad=True)
+
+        if len(testcases) == 0:
+            return True
+
+        action = 'Validating ' + validator_type
+
+        success = True
+
+        constraints = {} if check_constraints else None
+
+        # validate the testcases
+        bar = ProgressBar(action, items=[t.name for t in testcases])
+        for testcase in testcases:
+            bar.start(testcase.name)
+            success &= testcase.validate_format(
+                                         validator_type,
+                                         bar=bar,
+                                         constraints=constraints)
+            bar.done()
+
+        # Make sure all constraints are satisfied.
+        if check_constraints:
+            for loc, value in sorted(constraints.items()):
+                loc = Path(loc).name
+                has_low, has_high, vmin, vmax, low, high = value
+                if not has_low:
+                    warn(
+                        f'BOUND NOT REACHED: The value at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}'
+                    )
+                if not has_high:
+                    warn(
+                        f'BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}'
+                    )
+                success = False
+
+        if not config.verbose and success:
+            print(ProgressBar.action(action, f'{cc.green}Done{cc.reset}'))
+            if validator_type == 'output':
+                print()
+        else:
+            print()
+
+        return success

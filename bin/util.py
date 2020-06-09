@@ -87,13 +87,19 @@ class ProgressBar:
     # Lock on all IO via this class.
     lock = threading.Lock()
 
+    @staticmethod
+    def item_len(item):
+        if isinstance(item, str): return len(item)
+        if isinstance(item, Path): return len(str(item))
+        return len(item.name)
+
     def __init__(self, prefix, max_len=None, count=None, *, items=None):
         assert not (items and (max_len or count))
         if items:
             count = len(items)
-            max_len = max(len(str(x) if isinstance(x, str) else x.name) for x in items)
+            max_len = max(ProgressBar.item_len(x) for x in items)
         self.prefix = prefix  # The prefix to always print
-        self.item_width = max_len  # The max length of the items we're processing
+        self.item_width = max_len+1  # The max length of the items we're processing
         self.count = count  # The number of items we're processing
         self.i = 0
         self.carriage_return = '\r' if is_windows() else '\033[K'
@@ -118,11 +124,11 @@ class ProgressBar:
 
     def update(self, count, max_len):
         self.count += count
-        self.item_width = max(self.item_width, max_len) if self.item_width else max_len
+        self.item_width = max(self.item_width, max_len+1) if self.item_width else max_len+1
 
     def add_item(self, item):
         self.count += 1
-        self.item_width = max(self.item_width, len(str(item)))
+        self.item_width = max(self.item_width, ProgressBar.item_len(item))
 
     def clearline(self):
         if hasattr(config.args, 'no_bar') and config.args.no_bar: return
@@ -149,6 +155,8 @@ class ProgressBar:
     def _release_item(self):
         if self.parent:
             self.parent.in_progress.remove(self.item)
+            if self.parent.item is self.item:
+                self.parent.item = None
         else:
             self.in_progress.remove(self.item)
         self.item = None
@@ -178,7 +186,7 @@ class ProgressBar:
         self.i += 1
         assert self.count is None or self.i <= self.count
 
-        assert self.item is None
+        #assert self.item is None
         self.item = item
         self.logged = False
         self.in_progress.add(item)

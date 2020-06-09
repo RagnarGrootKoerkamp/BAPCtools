@@ -13,21 +13,99 @@ if not is_windows():
     import resource
 
 class Testcase:
-    def __init__(self, problem, path):
+    def __init__(self, problem, path, *, short_path = None):
         assert path.suffix == '.in'
+
+        path = path.resolve()
+
+        self.problem = problem
 
         self.in_path = path
         self.ans_path = path.with_suffix('.ans')
-        # Note: Only testcases in problem/data are supported currently.
-        self.short_path = path.relative_to(problem.path / 'data')
+        # Note: testcases outside problem/data must pass in the short_path explicitly.
+        if short_path is None:
+            self.short_path = path.relative_to(problem.path.resolve() / 'data')
+        else:
+            assert short_path is not None
+            self.short_path = short_path
 
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(''))
 
-        self.bad = self.short_path.parts[0] == 'bad'
+        bad = self.short_path.parts[0] == 'bad'
+        self.bad_input = bad and not self.ans_path.is_file()
+        self.bad_output = bad and self.ans_path.is_file()
 
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
+
+    # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
+    def validate_format(self, validator_type,
+                          *,
+                          bar,
+                          constraints=None):
+        assert validator_type in ['input_format', 'output_format']
+
+        bad_testcase = self.bad_input if validator_type == 'input_format' else self.bad_output
+
+        success = True
+
+        validators = self.problem.validators(validator_type, check_constraints=constraints != None)
+        if validators == False:
+            return True
+
+        for validator in validators:
+            ret = validator.run(self, constraints)
+
+            success &= ret.ok
+            message = ''
+
+            # Failure?
+            if ret.ok:
+                message = 'PASSED ' + validator.name
+            else:
+                message = 'FAILED ' + validator.name
+
+            # Print stdout and stderr whenever something is printed
+            if not ret.err: err = ''
+            if ret.out and config.args.error:
+                ret.out = f'\n{cc.red}VALIDATOR STDOUT{cc.reset}\n' + cc.orange + ret.out
+            else:
+                ret.out = ''
+
+            bar.part_done(ret.ok, message, data=ret.err +ret.out)
+
+            if not ret.ok:
+                # Move testcase to destination directory if specified.
+                if hasattr(config.args, 'move_to') and config.args.move_to:
+                    infile = testcase.in_path
+                    targetdir = problem / config.args.move_to
+                    targetdir.mkdir(parents=True, exist_ok=True)
+                    intarget = targetdir / infile.name
+                    infile.rename(intarget)
+                    bar.warn('Moved to ' + print_name(intarget))
+                    ansfile = testcase.ans_path
+                    if ansfile.is_file():
+                        if validator_type == 'input':
+                            ansfile.unlink()
+                            bar.warn('Deleted ' + print_name(ansfile))
+                        if validator_type == 'output':
+                            anstarget = intarget.with_suffix('.ans')
+                            ansfile.rename(anstarget)
+                            bar.warn('Moved to ' + print_name(anstarget))
+                    break
+
+                # Remove testcase if specified.
+                elif validator_type == 'input' and hasattr(config.args,
+                                                           'remove') and config.args.remove:
+                    bar.log(cc.red + 'REMOVING TESTCASE!' + cc.reset)
+                    if testcase.in_path.exists():
+                        testcase.in_path.unlink()
+                    if testcase.ans_path.exists():
+                        testcase.ans_path.unlink()
+                    break
+
+        return success
 
 
 # Note: Validators are currently taken from the problem. All validators are run for all testcases.
@@ -39,11 +117,12 @@ class Run:
         self.name = self.testcase.name
         self.result = None
 
-    # Return a ExecResult object amended with verdict.
-    def run(self):
         tmp_path = config.tmpdir / self.problem.name / 'runs' / self.submission.short_path / self.testcase.short_path
         self.out_path = tmp_path.with_suffix('.out')
         self.feedbackdir = tmp_path.with_suffix('.feedbackdir')
+
+    # Return a ExecResult object amended with verdict.
+    def run(self):
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
 
         if self.problem.settings.validation == 'custom interactive':
@@ -55,19 +134,10 @@ class Run:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
             elif result.ok is not True:
                 result.verdict = 'RUN_TIME_ERROR'
-                result.err = 'Exited with code ' + str(ok) + ':\n' + result.err
+                result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
             else:
-                if self.problem.settings.validation == 'default':
-                    # TODO: Update validators
-                    ok, err, out = validate.default_output_validator(self.testcase.ans_path, self.out_path,
-                                                                     self.problem.settings)
-                elif self.problem.settings.validation == 'custom':
-                    # TODO: Update validators
-                    ok, err, out = validate.custom_output_validator(self.testcase.ans_path, self.out_path, problme.settings,
-                                                                    self.problem.validators('output'))
-                result.ok = ok
-                result.err = err
-                result.out = out
+                # TODO: Update validators
+                result = self._validate_output()
 
                 if result.ok is True:
                     result.verdict = 'ACCEPTED'
@@ -80,6 +150,40 @@ class Run:
         self.result = result
         return result
 
+
+    def _validate_output(self):
+        flags = self.problem.settings.validator_flags
+
+        output_validators = self.problem.validators('output')
+
+        last_result = None
+        for output_validator in output_validators:
+            ret = output_validator.run(self.testcase, self)
+
+            judgemessage = self.feedbackdir / 'judgemessage.txt'
+            judgeerror = self.feedbackdir / 'judgeerror.txt'
+            if ret.err is None:
+                ret.err = ''
+            if judgemessage.is_file():
+                ret.err += judgemessage.read_text()
+                judgemessage.unlink()
+            if judgeerror.is_file():
+                # Remove any std output because it will usually only contain the
+                ret.err = judgeerror.read_text()
+                judgeerror.unlink()
+            if ret.err:
+                header = output_validator.name + ': ' if len(output_validators) > 1 else ''
+                ret.err = header + ret.err
+
+            if ret.ok == config.RTV_WA:
+                ret.ok = False
+
+            if ret.ok != True:
+                return ret
+
+            last_result = ret
+
+        return last_result
 
 
 class Submission(program.Program):
@@ -117,7 +221,8 @@ class Submission(program.Program):
     # Returns the final verdict.
     def run_all_testcases(self, max_submission_name_len=None, table_dict=None):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
-        bar = ProgressBar('Running ' + self.name, items=runs)
+        max_item_len = max(len(run.name) for run in runs) + max_submission_name_len - len(self.name) - 1
+        bar = ProgressBar('Running ' + self.name, max_len = max_item_len)
 
         max_duration = (0, None) # duration, Run
         verdict = (config.PRIORITY['ACCEPTED'], 'ACCEPTED', 0, None) # priority, verdict, duration, Run

@@ -21,7 +21,7 @@ PRIORITY = {
 
 VALIDATION_MODES = ['default', 'custom', 'custom interactive']
 
-VALIDATOR_FLAGS = ['
+#VALIDATOR_FLAGS = ['
 
 MAX_PRIORITY = max(PRIORITY.values())
 MAX_PRIORITY_VERDICT = [v for v in PRIORITY if PRIORITY[v] == MAX_PRIORITY]
@@ -39,7 +39,7 @@ args = None
 verbose = False
 
 # TODO: Ideally we parse arguments at the beginning so that `default` isn't needed here.
-def arg(name, default = None): return getattr(args, name, default) or default
+def arg(name, default=None): return getattr(args, name, default) or default
 
 # Return the command line timeout or the default of 30 seconds.
 def timeout(): return arg('timeout', 30)

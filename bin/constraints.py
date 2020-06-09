@@ -14,7 +14,7 @@ from util import *
 
 
 def check_constraints(problem, settings):
-    validate.validate(problem, 'input', settings, check_constraints=True)
+    problem.validate_format(problem, 'input_format', check_constraints=True)
 
     vinput = problem / 'input_validators/input_validator/input_validator.cpp'
     voutput = problem / 'output_validators/output_validator/output_validator.cpp'

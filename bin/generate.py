@@ -119,9 +119,9 @@ class GeneratorInvocation(Invocation):
         super().__init__(problem, string, allow_absolute=False)
 
     # Try running the generator |retries| times, incrementing seed by 1 each time.
-    def run(self, cwd, name, seed, retries=1):
+    def run(self, bar, cwd, name, seed, retries=1):
         for retry in range(retries):
-            result = self.program.run(cwd, name, args = self._sub_args(name=name, seed=seed+retry))
+            result = self.program.run(bar, cwd, name, args = self._sub_args(name=name, seed=seed+retry))
             if not result.retry: return result
 
         if retries > 1:
@@ -155,17 +155,15 @@ class SolutionInvocation(Invocation):
     # Run the submission, reading {name}.in from stdin and piping stdout to {name}.ans.
     # If the .ans already exists, nothing is done
     def run(self, bar, cwd, name):
-        timeout = get_timeout()
-
         in_path = cwd / (name + '.in')
         ans_path = cwd / (name + '.ans')
 
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        result = self.program.run(in_path, ans_path, arg=self.args, cwd=cwd)
+        result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd)
 
         if result.ok == -9:
-            bar.error(f'TIMEOUT after {timeout}s')
+            bar.error(f'TIMEOUT after {result.duration}s')
         elif result.ok is not True:
             bar.error('FAILED', result.err)
         return result
@@ -276,8 +274,8 @@ class TestcaseRule(Rule):
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
             self.generator = GeneratorInvocation(problem, yaml['input'])
 
-    def generate(t, problem, input_validators, output_validators, bar):
-        bar = bar.start(str(t.path))
+    def generate(t, problem, parent_bar):
+        bar = parent_bar.start(str(t.path))
 
         # E.g. bapctmp/problem/data/secret/1.in
         cwd = config.tmpdir / problem.name / 'data' / t.path
@@ -331,20 +329,22 @@ class TestcaseRule(Rule):
             if not t.generator.run(bar, cwd, t.name, t.seed, t.config.retries):
                 return
 
+        testcase = run.Testcase(problem, infile, short_path = Path(t.name+'.in'))
+
         # Validate the manual or generated .in.
-        if not validate.validate_testcase(problem, infile, input_validators, 'input', bar=bar):
+        if not testcase.validate_format('input_format', bar=bar, constraints=None):
             return
 
         # Generate .ans and/or .interaction for interactive problems.
         # TODO: Disable this with a flag.
-        if t.config.solution and not ans_path.is_file():
+        if t.config.solution and not testcase.ans_path.is_file():
             if problem.settings.validation != 'custom interactive':
                 if not t.config.solution.run(bar, cwd, t.name):
                     return
-                if not validate.validate_testcase(
-                        problem, ansfile, output_validators, 'input', bar=bar):
+                if not testcase.validate_format('output_format', bar=bar):
                     return
             else:
+                # TODO: Fix interactive problem validation.
                 if not t.config.solution.run_interactive(problem, bar, cwd, t.name,
                                                          output_validators):
                     return
@@ -361,10 +361,10 @@ class TestcaseRule(Rule):
         target_dir = problem.path / 'data' / t.path.parent
         if t.path.parents[0] == Path('sample'):
             msg = '; supply -f --samples to override'
-            forced = problem.settings.force and problem.settings.samples
+            forced = config.arg('force') and config.arg('samples')
         else:
             msg = '; supply -f to override'
-            forced = problem.settings.force
+            forced = config.arg('force')
 
         skipped = False
         for ext in config.KNOWN_DATA_EXTENSIONS:
@@ -753,8 +753,8 @@ class GeneratorConfig:
         build_programs(run.Submission, solutions_used)
         build_programs(program.Visualizer, visualizers_used)
 
-        self.input_validators = self.problem.validators('input')
-        self.output_validators = self.problem.validators('output')
+        self.problem.validators('input_format')
+        self.problem.validators('output_format')
 
     def run(self):
         item_names = []
@@ -762,11 +762,11 @@ class GeneratorConfig:
 
         bar = ProgressBar('Generate', items=item_names)
 
-        if config.args.jobs <= 1: log('Disabling parallelization.')
 
-        if not self.parallel:
+        if not self.parallel or config.args.jobs <= 1:
+            log('Disabling parallelization.')
             self.root_dir.walk(
-                lambda t: t.generate(self.problem, self.input_validators, self.output_validators,
+                lambda t: t.generate(self.problem,
                                      bar),
                 lambda d: d.generate(self.problem, self.known_cases, bar),
             )
@@ -781,7 +781,7 @@ class GeneratorConfig:
                 while True:
                     testcase = q.get()
                     if testcase is None: break
-                    testcase.generate(self.problem, self.input_validators, self.output_validators,
+                    testcase.generate(self.problem,
                                       bar),
                     q.task_done()
 
