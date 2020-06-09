@@ -116,7 +116,7 @@ class Problem:
 
         in_paths = None
         # NOTE: Testcases must be specified relative to the problem root.
-        if config.args.testcases:
+        if hasattr(config.args, 'testcases') and config.args.testcases:
             if samplesonly:
                 warn(f'Ignoring the --samples flag because testcases are explicitly listed.')
             # Deduplicate testcases with both .in and .ans.
@@ -161,7 +161,7 @@ class Problem:
         if problem._submissions is not None: return problem._submissions
 
         paths = []
-        if config.args.submissions:
+        if hasattr(config.args, 'submissions') and config.args.submissions:
             for submission in config.args.submissions:
                 if (problem.path / submission).parent == problem.path / 'submissions':
                     paths += glob(problem.path / submission, '*')
@@ -316,7 +316,7 @@ class Problem:
                 verdict_table.append(d)
                 ok &= submission.run_all_testcases(max_submission_len, table_dict=d)
 
-        if config.args.table: Problem._print_table(verdict_table, testcases, submissions)
+        if hasattr(config.args,'table') and config.args.table: Problem._print_table(verdict_table, testcases, submissions)
 
         return ok
 

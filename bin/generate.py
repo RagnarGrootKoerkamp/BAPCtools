@@ -170,7 +170,7 @@ class SolutionInvocation(Invocation):
 
 KNOWN_TESTCASE_KEYS = ['type', 'input', 'solution', 'visualizer', 'random_salt', 'retries']
 KNOWN_DIRECTORY_KEYS = [
-    'type', 'data', 'testdata.yaml', 'solution', 'visualizer', 'random_salt', 'retries'
+    'type', 'data', 'testdata.yaml', 'solution', 'visualizer', 'random_salt', 'retries', 'include'
 ]
 KNOWN_ROOT_KEYS = ['generators', 'parallel']
 
@@ -598,7 +598,6 @@ class Directory(Rule):
 
 
 class GeneratorConfig:
-    @staticmethod
     def parse_generators(generators_yaml):
         generators = {}
         for gen in generators_yaml:
