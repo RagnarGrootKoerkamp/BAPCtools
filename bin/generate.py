@@ -338,7 +338,7 @@ class TestcaseRule(Rule):
         # Generate .ans and/or .interaction for interactive problems.
         # TODO: Disable this with a flag.
         if t.config.solution and not testcase.ans_path.is_file():
-            if problem.settings.validation != 'custom interactive':
+            if not problem.interactive:
                 if not t.config.solution.run(bar, cwd, t.name):
                     return
                 if not testcase.validate_format('output_format', bar=bar):
@@ -689,7 +689,7 @@ class GeneratorConfig:
     # Which submission is used is implementation defined.
     def get_default_solution(self):
         # By default don't do anything for interactive problems.
-        if self.problem.config.validation == 'custom interactive':
+        if self.problem.interactive:
             return False
 
         # Use one of the accepted submissions.

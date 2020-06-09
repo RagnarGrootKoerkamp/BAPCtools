@@ -95,12 +95,18 @@ class Problem:
 
         if self.settings.validation not in config.VALIDATION_MODES:
             fatal(f'Unrecognised validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}')
+        self.interactive = self.settings.validation == 'custom interactive'
 
         if self.settings.validator_flags:
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
 
     def testcases(p, needans=True, only_sample=False, include_bad=False):
-        samplesonly = only_sample or config.args.samples
+        samplesonly = only_sample
+        try:
+            if config.args.samples:
+                sampleonly = True
+        except AttributeError:
+            pass
 
         key = (needans, samplesonly)
         if key in p._testcases is not None: return p._testcases[key]
@@ -113,12 +119,13 @@ class Problem:
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
             for t in config.args.testcases:
-                if Path(p.path / t).is_dir():
-                    in_paths += glob(p.path / t, '**/*.in')
+                t = p.path / t;
+                if t.is_dir():
+                    in_paths += glob(t, '**/*.in')
                 else:
                     t = t.with_suffix('.in')
-                    if not t.is_path(): warn(f'Testcase {t} not found.')
-                    in_paths.append(p.path / t)
+                    if not t.is_file(): warn(f'Testcase {t} not found.')
+                    in_paths.append(t)
 
             in_paths = list(set(in_paths))
         else:
@@ -231,7 +238,7 @@ class Problem:
             error(f'No {validator_type} validators found.')
             problem._validators[validator_type] = False
             return False
-        if problem.settings.validation == 'custom interactive' and len(paths) > 1:
+        if problem.interactive and len(paths) > 1:
             error(f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.')
             problem._validators[validator_type] = False
             return False
@@ -281,13 +288,13 @@ class Problem:
 
 
     def run_submissions(problem):
-        needans = False if problem.settings.validation == 'custom interactive' else True
+        needans = False if problem.interactive else True
         testcases = problem.testcases(needans=needans)
 
         if len(testcases) == 0:
             return False
 
-        if problem.settings.validation in ['custom', 'custom interactive']:
+        if problem.settings.interactive:
             validators = problem.validators('output')
             if not validators: return False
 
@@ -381,7 +388,7 @@ class Problem:
         else:
             validators = problem.validators(validator_type)
 
-        if problem.settings.validation == 'custom interactive' and validator_type == 'output':
+        if problem.settings.interactive and validator_type == 'output':
             log('Not validating .ans for interactive problem.')
             return True
 

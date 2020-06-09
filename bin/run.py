@@ -123,7 +123,7 @@ class Run:
     def run(self):
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
 
-        if self.problem.settings.validation == 'custom interactive':
+        if self.problem.interactive:
             # TODO: migrate interactive stuff
             verdict, duration, err, out =  process_interactive_testcase(run_command, testcase, settings, output_validators)
         else:
@@ -239,7 +239,7 @@ class Submission(program.Program):
 
             # Print stderr whenever something is printed
             if result.out and result.err:
-                output_type = 'PROGRAM STDERR' if self.problem.settings.validation == 'custom interactive' else 'STDOUT'
+                output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
                 data = f'STDERR:' + util.ProgresBar._format_data(result.err) + '\n{output_type}:' + util.ProgressBar._format_data(result.out) + '\n'
             else:
                 data = result.err
@@ -552,7 +552,7 @@ while True:
 def _test_submission(problem, submission, testcases, settings):
     print(ProgressBar.action('Running', str(submission[0])))
 
-    if 'interactive' in settings.validation:
+    if problem.interactive:
         output_validators = validate.get_validators(problem, 'output')
         if len(output_validators) != 1:
             error(
@@ -565,7 +565,7 @@ def _test_submission(problem, submission, testcases, settings):
         header = ProgressBar.action('Running ' + str(submission[0]), testcase.name)
         print(header)
 
-        if 'interactive' not in settings.validation:
+        if not problem.interactive:
             # err and out should be None because they go to the terminal.
             ok, duration, err, out = run_testcase(submission[1],
                                                   testcase,
