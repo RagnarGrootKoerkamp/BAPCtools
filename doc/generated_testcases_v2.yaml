@@ -27,7 +27,7 @@ random_salt: abcd
 # We support three types of generators:
 # - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
 #   be compiled if required and run the same way as submissions.
-# - Directories, like 
+# - Directories, like
 #   - generators/gen/tree.cpp
 #   - generators/gen/lib.h
 #   This will be compiled and run the same was as directory validators. Build
@@ -80,7 +80,7 @@ data:
       1: stdout.py 1  # prints `1` to stdout, which is piped to 1.in
 
 # To indicate a manual testcase, specify it with an empty value.
-      2: 
+      2:
 # Any key that matches the glob `*.in` is a manual testcase that will be copied
 # from the given directory into the target testcase. The given directory
 # must not start with a / and will be relative to generators/.
@@ -181,7 +181,7 @@ data:
         include:
           - sample
           - secret/03
-        
+
 # To enable automatic numbering of testcases, data: may also contain a list of
 # dictionaries instead of a single dictionary. In this case, testcases and/or
 # groups will be numbered in the order they appear. The system will determine
@@ -217,7 +217,6 @@ data:
        #    data:
        #      3-c: stdout.py c
        #  4-d: stdout.py d
-       
 
 # Unknown keys are allowed inside directory dictionaries for tooling-specific
 # extensions. This includes both the global scope and explicit directories with type: directory.

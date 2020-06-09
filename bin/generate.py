@@ -40,27 +40,6 @@ def resolve_path(path, *, allow_absolute):
     return Path('generators') / path
 
 
-# Return (submission, msg)
-# This function will always raise a warning.
-# Which submission is used is implementation defined. We prefer c++ because it tends to be faster.
-def get_default_solution(problem):
-    # Use one of the accepted submissions.
-    submissions = list(glob(problem.path, 'submissions/accepted/*'))
-    if len(submissions) == 0:
-        return None
-
-    submissions.sort()
-
-    # Look for a (hopefully fast) c++ solution if available.
-    submission = submissions[0]
-    for s in submissions:
-        if s.suffix == '.cpp':
-            submission = s
-            break
-
-    warn(f'No solution specified. Falling back to {submission}.')
-    return submission
-
 # An Invocation is a program with command line arguments to execute.
 # The following classes inherit from Invocation:
 # - GeneratorInvocation
@@ -168,41 +147,32 @@ class SolutionInvocation(Invocation):
             bar.error('FAILED', result.err)
         return result
 
-    # TODO: Migrate and test this properly.
-    def run_interactive(self, bar, cwd, name, output_validators):
-        timeout = get_timeout()
-
-        in_path = cwd / (name + '.in')
-        interaction_path = cwd / (name + '.interaction')
+    def run_interactive(self, problem, bar, cwd, t):
+        in_path = cwd / (t.name + '.in')
+        interaction_path = cwd / (t.name + '.interaction')
         if interaction_path.is_file(): return True
 
+        testcase = run.Testcase(problem, in_path, short_path = t.path / t.name)
+        r = run.Run(problem, self.program, testcase)
+
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        verdict, duration, err, out = run.process_interactive_testcase(
-            self.get_command(),
-            in_path,
-            settings,
-            output_validators,
-            validator_error=None,
-            team_error=None,
-            interaction=interaction_path)
-        if verdict != 'ACCEPTED':
-            if duration > timeout:
-                bar.error('TIMEOUT')
-                nfail += 1
-            else:
-                bar.error('FAILED')
-                nfail += 1
+        ret = r.run(interaction=interaction_path, submission_args=self.args)
+        if ret.verdict != 'ACCEPTED':
+            bar.error(ret.verdict)
             return False
 
         return True
 
-
+KNOWN_TESTCASE_KEYS = ['type', 'input', 'solution', 'visualizer', 'random_salt', 'retries']
+KNOWN_DIRECTORY_KEYS = ['type' , 'data', 'testdata.yaml',  'solution', 'visualizer', 'random_salt', 'retries']
+KNOWN_ROOT_KEYS = ['generators', 'parallel']
 
 # Holds all inheritable configuration options. Currently:
 # - config.solution
 # - config.visualizer
 # - config.random_salt
 class Config:
+    # Used at each directory or testcase level.
     INHERITABLE_KEYS = [
         # True: use an AC submission by default when the solution: key is not present.
         ('solution', True, lambda p, x: SolutionInvocation(p, x) if x else None),
@@ -218,7 +188,7 @@ class Config:
     def __init__(self, problem, yaml=None, parent_config=None):
         assert not yaml or isinstance(yaml, dict)
 
-        for key, default, func in self.INHERITABLE_KEYS:
+        for key, default, func in Config.INHERITABLE_KEYS:
             if func is None: func = lambda p, x: x
             if yaml and key in yaml:
                 setattr(self, key, func(problem, yaml[key]))
@@ -248,6 +218,10 @@ class TestcaseRule(Rule):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
+        if name.endswith('.in'):
+            error(f'Testcase names should not end with \'.in\': {parent.path / name}')
+            name = name[:-3]
+
         self.manual = False
 
         if yaml == '':
@@ -265,6 +239,10 @@ class TestcaseRule(Rule):
             assert False
 
         super().__init__(problem, name, yaml, parent)
+
+        for key in yaml:
+            if key not in KNOWN_TESTCASE_KEYS:
+                log(f'Unknown testcase level key: {key} in {self.path}')
 
         if self.manual:
             self.source = yaml['input']
@@ -287,8 +265,10 @@ class TestcaseRule(Rule):
         # The expected contents of the meta_ file.
         def up_to_date():
             # The testcase is up to date if:
+            # - both infile ans ansfile exist
             # - meta_ exists with a timestamp newer than the 3 Invocation timestamps (Generator/Submission/Visualizer).
             # - meta_ contains exactly the right content given by t._cache_string()
+
             last_change = 0
             t.cache_data = {}
             if t.manual:
@@ -303,6 +283,9 @@ class TestcaseRule(Rule):
             if t.config.visualizer:
                 last_change = max(last_change, t.config.visualizer.program.timestamp)
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
+
+            if not infile.is_file(): return False
+            if not ansfile.is_file(): return False
 
             if not meta_path.is_file(): return False
 
@@ -335,18 +318,23 @@ class TestcaseRule(Rule):
         if not testcase.validate_format('input_format', bar=bar, constraints=None):
             return
 
-        # Generate .ans and/or .interaction for interactive problems.
+        is_sample =  t.path.parents[0] == Path('sample')
+
+
+        # Generate .ans and .interaction if needed.
         # TODO: Disable this with a flag.
-        if t.config.solution and not testcase.ans_path.is_file():
-            if not problem.interactive:
+        if not problem.interactive:
+            if t.config.solution and not testcase.ans_path.is_file():
+                # Run the solution and validate the generated .ans.
                 if not t.config.solution.run(bar, cwd, t.name):
                     return
                 if not testcase.validate_format('output_format', bar=bar):
                     return
-            else:
-                # TODO: Fix interactive problem validation.
-                if not t.config.solution.run_interactive(problem, bar, cwd, t.name,
-                                                         output_validators):
+        else:
+            if not testcase.ans_path.is_file(): testcase.ans_path.write_text('')
+            # For interactive problems, run the interactive solution and generate a .interaction.
+            if t.config.solution:
+                if not t.config.solution.run_interactive(problem, bar, cwd, t):
                     return
 
         if not ansfile.is_file():
@@ -359,7 +347,7 @@ class TestcaseRule(Rule):
                 return
 
         target_dir = problem.path / 'data' / t.path.parent
-        if t.path.parents[0] == Path('sample'):
+        if is_sample:
             msg = '; supply -f --samples to override'
             forced = config.args.force and config.args.samples
         else:
@@ -452,6 +440,15 @@ class Directory(Rule):
             assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name)
 
         super().__init__(problem, name, yaml, parent)
+
+        if name == '':
+            for key in yaml:
+                if key not in KNOWN_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
+                    log(f'Unknown root level key: {key}')
+        else:
+            for key in yaml:
+                if key not in KNOWN_DIRECTORY_KEYS:
+                    log(f'Unknown directory level key: {key} in {self.path}')
 
         if 'testdata.yaml' in yaml:
             self.testdata_yaml = yaml['testdata.yaml']
@@ -594,6 +591,7 @@ class Directory(Rule):
 
 
 class GeneratorConfig:
+    @staticmethod
     def parse_generators(generators_yaml):
         generators = {}
         for gen in generators_yaml:
@@ -606,6 +604,7 @@ class GeneratorConfig:
             generators[Path('generators') / gen] = [Path('generators') / d for d in deps]
         return generators
 
+    # Only used at the root directory level.
     ROOT_KEYS = [
         ('generators', [], parse_generators),
 
@@ -614,11 +613,25 @@ class GeneratorConfig:
         ('parallel', 1, distutils.util.strtobool),
     ]
 
+
     # Parse generators.yaml.
     def __init__(self, problem):
         self.problem = problem
         yaml_path = self.problem.path / 'generators/generators.yaml'
-        if not yaml_path.is_file(): exit(1)
+        if not yaml_path.is_file():
+
+            # TODO: Remove this migration from the old to the new path.
+            old_yaml_path = self.problem.path / 'generators/gen.yaml'
+            if not old_yaml_path.is_file():
+                log('Did not find generators/generators.yaml')
+                return
+
+            # Move the old to the new path.
+            old_yaml_path.rename(yaml_path)
+            log('''Renamed generators/gen.yaml to generators/generators.yaml.
+You probably want to migrate to the new format as well: add a top level data: key around sample: and secret:.
+See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/doc/generated_testcases_v2.yaml for an example.
+''')
 
         yaml = yamllib.load(yaml_path.read_text(), Loader=yamllib.BaseLoader)
 
@@ -626,7 +639,7 @@ class GeneratorConfig:
         yaml['type'] = 'directory'
 
         # Read root level configuration
-        for key, default, func in self.ROOT_KEYS:
+        for key, default, func in GeneratorConfig.ROOT_KEYS:
             if yaml and key in yaml:
                 setattr(self, key, func(yaml[key]))
             else:
@@ -684,14 +697,10 @@ class GeneratorConfig:
 
         self.root_dir = parse('', yaml, Directory(problem))
 
-    # Return (submission, msg)
+    # Return submission
     # This function will always raise a warning.
     # Which submission is used is implementation defined.
     def get_default_solution(self):
-        # By default don't do anything for interactive problems.
-        if self.problem.interactive:
-            return False
-
         # Use one of the accepted submissions.
         submissions = list(glob(self.problem.path, 'submissions/accepted/*'))
         if len(submissions) == 0:
@@ -700,9 +709,9 @@ class GeneratorConfig:
 
         # Note: we explicitly random shuffle the submission that's used to generate answers to
         # encourage setting it in generators.yaml.
-        submission = random.sample(submissions, 1)
+        submission = random.choice(submissions)
         warn(f'No solution specified. Using randomly chosen {submission} instead.')
-        return submission
+        return Path('/') / submission.relative_to(self.problem.path)
 
     def build(self):
         generators_used = set()
@@ -720,7 +729,8 @@ class GeneratorConfig:
             if t.config.solution:
                 if t.config.solution is True:
                     if default_solution is None:
-                        default_solution = Solution(self.get_default_solution())
+                        default_solution = SolutionInvocation(self.problem, self.get_default_solution())
+                        print('Get default solution: ', default_solution)
                     t.config.solution = default_solution
                 solutions_used.add(t.config.solution.program_path)
             if t.config.visualizer:
@@ -762,9 +772,16 @@ class GeneratorConfig:
 
         bar = ProgressBar('Generate', items=item_names)
 
+        parallel = True
+        if self.parallel and config.args.jobs > 1:
+            parallel = False
+            log('Disabling parallelization for interactive problem.')
 
         if not self.parallel or config.args.jobs <= 1:
+            parallel = False
             log('Disabling parallelization.')
+
+        if not parallel:
             self.root_dir.walk(
                 lambda t: t.generate(self.problem,
                                      bar),

@@ -39,6 +39,12 @@ from util import *
 if not is_windows():
     import argcomplete  # For automatic shell completions
 
+# List of high level todos:
+# TODO: Fix and improve 'test' subcommand.
+# TODO: Do more things in parallel (running testcases, building submissions)
+# TODO: Get rid of old problem.path and settings objects in tools.py.
+#       This mostly needs changes in the less frequently used subcommands.
+
 
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort

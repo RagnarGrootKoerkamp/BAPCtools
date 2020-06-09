@@ -60,8 +60,7 @@ class Problem:
         }
 
         # parse problem.yaml
-        yamlpath = self.path / 'problem.yaml'
-        yamldata = read_yaml(yamlpath / 'problem.yaml')
+        yamldata = read_yaml(self.path / 'problem.yaml')
         if yamldata:
             for k, v in yamldata.items():
                 self.settings[k] = v
@@ -95,10 +94,11 @@ class Problem:
 
         if self.settings.validation not in config.VALIDATION_MODES:
             fatal(f'Unrecognised validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}')
-        self.interactive = self.settings.validation == 'custom interactive'
 
         if self.settings.validator_flags:
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
+
+        self.interactive = self.settings.validation == 'custom interactive'
 
     def testcases(p, needans=True, only_sample=False, include_bad=False):
         samplesonly = only_sample
@@ -107,6 +107,8 @@ class Problem:
                 sampleonly = True
         except AttributeError:
             pass
+
+        if p.interactive: needans = False
 
         key = (needans, samplesonly)
         if key in p._testcases is not None: return p._testcases[key]
@@ -208,7 +210,7 @@ class Problem:
         assert validator_type in ['input_format', 'output_format', 'output']
 
         # For custom validation, treat 'output' and 'output_format' validators the same.
-        if problem.settings.validation == 'custom' and validator_type == 'output':
+        if problem.settings.validation != 'default' and validator_type == 'output':
             validator_type = 'output_format'
 
         if not check_constraints and validator_type in problem._validators:
@@ -228,7 +230,6 @@ class Problem:
             problem._validators[validator_type] = validators
             return validators
 
-
         validator_dir = 'input' if validator_type == 'input_format' else 'output'
 
         paths = (glob(problem.path / (validator_dir + '_validators'), '*') +
@@ -238,7 +239,7 @@ class Problem:
             error(f'No {validator_type} validators found.')
             problem._validators[validator_type] = False
             return False
-        if problem.interactive and len(paths) > 1:
+        if validator_type=='output_format' and problem.interactive and len(paths) > 1:
             error(f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.')
             problem._validators[validator_type] = False
             return False
@@ -294,7 +295,7 @@ class Problem:
         if len(testcases) == 0:
             return False
 
-        if problem.settings.interactive:
+        if problem.interactive:
             validators = problem.validators('output')
             if not validators: return False
 
@@ -310,7 +311,6 @@ class Problem:
                 d = dict()
                 verdict_table.append(d)
                 ok &= submission.run_all_testcases(max_submission_len, table_dict=d)
-                print()
 
         if config.args.table : Problem._print_table(verdict_table, testcases, submissions)
 
@@ -388,7 +388,7 @@ class Problem:
         else:
             validators = problem.validators(validator_type)
 
-        if problem.settings.interactive and validator_type == 'output':
+        if problem.interactive and validator_type == 'output':
             log('Not validating .ans for interactive problem.')
             return True
 

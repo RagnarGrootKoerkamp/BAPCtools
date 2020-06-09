@@ -95,9 +95,13 @@ class ProgressBar:
 
     def __init__(self, prefix, max_len=None, count=None, *, items=None):
         assert not (items and (max_len or count))
-        if items:
+        assert items is not None or max_len
+        if items is not None:
             count = len(items)
-            max_len = max(ProgressBar.item_len(x) for x in items)
+            if count == 0:
+                max_len = 0
+            else:
+                max_len = max(ProgressBar.item_len(x) for x in items)
         self.prefix = prefix  # The prefix to always print
         self.item_width = max_len+1  # The max length of the items we're processing
         self.count = count  # The number of items we're processing
@@ -458,6 +462,7 @@ def crop_output(output):
     return output
 
 
+# TODO: Move this to Problem.settings and read limits.memory variable from problem.yaml.
 # Return memory limit in bytes.
 def get_memory_limit(kwargs=None):
     memory_limit = 4000000000  # 4GB
@@ -472,11 +477,12 @@ def get_memory_limit(kwargs=None):
 
 
 class ExecResult:
-    def __init__(self, ok , duration, err, out):
+    def __init__(self, ok , duration, err, out, verdict = None):
         self.ok = ok
         self.duration = duration
         self.err = err
         self.out = out
+        self.verdict = verdict
 
 
 # Run `command`, returning stderr if the return code is unexpected.

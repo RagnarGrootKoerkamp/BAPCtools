@@ -50,12 +50,11 @@ def languages():
     return _languages
 
 
-# TODO: Run submissions for interactive problems.
-
 # A Program is class that wraps a program (file/directory) on disk. A program is usually one of:
 # - a submission
 # - a validator
 # - a generator
+# - a visualizer
 #
 # Supports two way of calling:
 # - Program(path): specify an absolute path, or relative path ('problem/generators/gen.py), and build the

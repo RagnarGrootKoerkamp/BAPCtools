@@ -37,7 +37,9 @@ tmpdir = None
 args = None
 
 # Return the command line timeout or the default of 30 seconds.
-def timeout(): return arg('timeout', 30)
+def timeout():
+    if hasattr(args, 'timeout'): return args.timeout
+    return 30
 
 
 # The number of warnings and errors encountered.
