@@ -16,15 +16,13 @@ class Testcase:
     def __init__(self, problem, path, *, short_path = None):
         assert path.suffix == '.in'
 
-        path = path.resolve()
-
         self.problem = problem
 
-        self.in_path = path
-        self.ans_path = path.with_suffix('.ans')
+        self.in_path = path.resolve()
+        self.ans_path = path.resolve().with_suffix('.ans')
         # Note: testcases outside problem/data must pass in the short_path explicitly.
         if short_path is None:
-            self.short_path = path.relative_to(problem.path.resolve() / 'data')
+            self.short_path = path.relative_to(problem.path / 'data')
         else:
             assert short_path is not None
             self.short_path = short_path

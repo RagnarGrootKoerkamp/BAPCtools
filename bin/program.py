@@ -230,7 +230,7 @@ class Program:
         if not self.compile_command: return True
 
         try:
-            ok, err, out = exec_command(
+            ret = exec_command_2(
                 self.compile_command,
                 stdout=subprocess.PIPE,
                 memory=5000000000,
@@ -242,10 +242,10 @@ class Program:
             self.bar.error('FAILED', str(err))
             return False
 
-        if ok is not True:
+        if ret.ok is not True:
             data = ''
-            if err is not None: data += strip_newline(err) + '\n'
-            if out is not None: data += strip_newline(out) + '\n'
+            if ret.err is not None: data += strip_newline(ret.err) + '\n'
+            if ret.out is not None: data += strip_newline(ret.out) + '\n'
             self.ok = False
             self.bar.error('FAILED', data)
             return False

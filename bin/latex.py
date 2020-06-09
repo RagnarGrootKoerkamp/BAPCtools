@@ -67,10 +67,11 @@ def tex_escape(text):
 
 
 def create_samples_file(problem):
-    builddir = config.tmpdir / problem
+    builddir = problem.tmpdir
 
     # create the samples.tex file
     samples = problem.testcases(needans=True, only_sample=True)
+    if samples is False: return
     samples_file_path = builddir / 'samples.tex'
     samples_data = ''
 
@@ -113,7 +114,7 @@ def prepare_problem(problem):
     builddir.mkdir(exist_ok=True)
     ensure_symlink(builddir / 'problem_statement', problem.path / 'problem_statement')
 
-    create_samples_file(problem.path)
+    create_samples_file(problem)
 
 
 def get_tl(problem_config):
@@ -145,23 +146,23 @@ def build_problem_pdf(problem):
     util.copy_and_substitute(
         config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
             'problemlabel': problem.label,
-            'problemyamlname': problem.config['name'],
-            'problemauthor': problem.config.get('author'),
-            'timelimit': get_tl(problem.config),
+            'problemyamlname': problem.settings.name,
+            'problemauthor': problem.settings.author,
+            'timelimit': problem.settings.timelimit,
             'problemdir': builddir,
         })
 
     ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
     for i in range(3):
-        ok, err, out = util.exec_command(
+        ret = util.exec_command_2(
             PDFLATEX + ['-output-directory', builddir, builddir / 'problem.tex'],
             0,
             False,
             cwd=builddir,
             stdout=subprocess.PIPE)
-        if ok is not True:
-            print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{out}')
+        if ret.ok is not True:
+            print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{ret.out}')
             return False
 
     # link the output pdf
@@ -242,14 +243,14 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
     for i in range(3):
-        ok, err, out = util.exec_command(
+        ret = util.exec_command_2(
             PDFLATEX + ['-output-directory', builddir, (builddir / main_file).with_suffix('.tex')],
             0,
             False,
             cwd=builddir,
             stdout=subprocess.PIPE)
-        if ok is not True:
-            print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{out}')
+        if ret.ok is not True:
+            print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{ret.out}')
             return False
 
     # link the output pdf

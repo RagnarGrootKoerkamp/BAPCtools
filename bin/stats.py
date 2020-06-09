@@ -78,7 +78,7 @@ def stats(problems):
                         if f.is_file():
                             with f.open() as file:
                                 data = file.read()
-                                if data.find('TODO') != -1:
+                                if data.find('TODO: Remove') != -1:
                                     ok = False
                                     break
                     if ok:

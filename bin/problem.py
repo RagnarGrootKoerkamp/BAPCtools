@@ -57,6 +57,7 @@ class Problem:
             'validation': 'default',
             'validator_flags': [],
             'probid': 'A',
+            'author': ''
         }
 
         # parse problem.yaml
