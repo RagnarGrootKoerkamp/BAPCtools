@@ -798,8 +798,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                 while True:
                     testcase = q.get()
                     if testcase is None: break
-                    testcase.generate(self.problem,
-                                      bar),
+                    testcase.generate(self.problem, bar)
                     q.task_done()
 
             # TODO: Make this a generators.yaml option?

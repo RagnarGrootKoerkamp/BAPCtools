@@ -246,6 +246,13 @@ python2:
     compile: '/usr/bin/python2 -m py_compile {files}'
     run: '/usr/bin/python2 {mainfile}'
 
+python2:
+    name: 'Python 2'
+    priority: 850
+    files: '*.py2'
+    compile: '/usr/bin/python2 -m py_compile {files}'
+    run: '/usr/bin/python2 {mainfile}'
+
 ruby:
     name: 'Ruby'
     priority: 650

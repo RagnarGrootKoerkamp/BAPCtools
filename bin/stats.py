@@ -91,10 +91,10 @@ def stats(problems):
 
         verified = False
         comment = ''
-        if 'verified' in problem.config:
-            verified = bool(problem.config['verified'])
-        if 'comment' in problem.config:
-            comment = problem.config['comment']
+        if 'verified' in problem.settings:
+            verified = bool(problem.settings['verified'])
+        if 'comment' in problem.settings:
+            comment = problem.settings['comment']
 
         if verified: comment = cc.green + comment + cc.reset
         else: comment = cc.orange + comment + cc.reset
