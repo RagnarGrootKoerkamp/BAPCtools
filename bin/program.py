@@ -182,14 +182,15 @@ class Program:
         else:
             mainfile = self.tmpdir / deps[0].name
 
+        mainclass = str(mainfile.with_suffix('').name)
         self.env = {
             'path': str(self.tmpdir),
             # NOTE: This only contains files matching the winning language.
             'files': ' '.join(str(f) for f in files),
             'binary': self.tmpdir / 'run',
             'mainfile': str(mainfile),
-            'mainclass': str(mainfile.with_suffix('').name),
-            'Mainclass': str(mainfile.with_suffix('').name).capitalize(),
+            'mainclass': mainclass,
+            'Mainclass': mainclass[0].upper() + mainclass[1:],
             'memlim': (get_memory_limit() or 10000000000) // 1000000,
 
             # Out-of-spec variables used by 'manual' and 'Viva' languages.
