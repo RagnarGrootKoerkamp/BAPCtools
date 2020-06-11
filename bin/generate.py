@@ -51,7 +51,8 @@ class Invocation:
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
     def __init__(self, problem, string, *, allow_absolute):
-        commands = shlex.split(str(string))
+        string = str(string)
+        commands = shlex.split(string)
         command = commands[0]
         self.args = commands[1:]
 
@@ -201,7 +202,7 @@ class Config:
             if yaml and key in yaml:
                 setattr(self, key, func(problem, yaml[key]))
             elif parent_config is not None:
-                setattr(self, key, vars(parent_config)[key])
+                setattr(self, key, getattr(parent_config, key))
             else:
                 setattr(self, key, default)
 
@@ -320,7 +321,7 @@ class TestcaseRule(Rule):
             if not t.generator.run(bar, cwd, t.name, t.seed, t.config.retries):
                 return
 
-        testcase = run.Testcase(problem, infile, short_path=Path(t.name + '.in'))
+        testcase = run.Testcase(problem, infile, short_path=Path(t.path.parent/(t.name+ '.in')))
 
         # Validate the manual or generated .in.
         if not testcase.validate_format('input_format', bar=bar, constraints=None):
@@ -411,7 +412,7 @@ class TestcaseRule(Rule):
 
         bar.done()
 
-    def clean(t, problem, bar):
+    def clean(t, problem, known_cases, bar):
         bar.start(str(t.path))
 
         path = Path('data') / t.path.with_suffix(t.path.suffix + '.in')
@@ -550,7 +551,13 @@ class Directory(Rule):
                 if f.suffix in config.KNOWN_DATA_EXTENSIONS and f.with_suffix(
                         '.in') in files_created:
                     continue
-                bar.warn(f'Found unlisted file {f}')
+
+                if f.with_suffix('.in').is_file():
+                    continue
+
+                if f.name[0] != '.':
+                    name = f.relative_to(problem.path / 'data')
+                    bar.warn(f'Found unlisted file {name}')
                 continue
 
             known_cases.add(relpath)
@@ -562,7 +569,7 @@ class Directory(Rule):
         bar.done()
         return True
 
-    def clean(d, problem, bar):
+    def clean(d, problem, known_cases, bar):
         # Clean the current directory:
         # - remove testdata.yaml
         # - remove linked testcases
@@ -586,6 +593,20 @@ class Directory(Rule):
                 if target in d.includes or target.parent in d.includes:
                     bar.log(f'Remove linked file {f.name}')
                     f.unlink()
+                    continue
+
+            if f.name[0] == '.': continue
+
+            # If --force/-f is passed, also clean unknown files.
+            relpath = f.relative_to(problem.path / 'data')
+            if relpath.with_suffix('') in known_cases: continue
+
+            if config.args.force:
+                bar.log(f'Delete untracked file: {relpath}')
+                f.unlink()
+            else:
+                bar.warn(f'Found untracked file. Delete with clean --force: {relpath}')
+
 
         # Try to remove the directory. Fails if it's not empty.
         try:
@@ -716,7 +737,8 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         # Note: we explicitly random shuffle the submission that's used to generate answers to
         # encourage setting it in generators.yaml.
         submission = random.choice(submissions)
-        warn(f'No solution specified. Using randomly chosen {submission} instead.')
+        submission_short_path = submission.relative_to(self.problem.path /'submissions')
+        warn(f'No solution specified. Using randomly chosen {submission_short_path} instead.')
         return Path('/') / submission.relative_to(self.problem.path)
 
     def build(self):
@@ -730,20 +752,24 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         # Also, convert the default submission into an actual Invocation.
         def collect_programs(t):
             nonlocal default_solution
-            if not t.manual:
-                generators_used.add(t.generator.program_path)
+            if isinstance(t, TestcaseRule):
+                if not t.manual:
+                    generators_used.add(t.generator.program_path)
             if t.config.solution:
                 if t.config.solution is True:
                     if default_solution is None:
-                        default_solution = SolutionInvocation(self.problem,
-                                                              self.get_default_solution())
-                        print('Get default solution: ', default_solution)
+                        default_solution_path = self.get_default_solution()
+                        if default_solution_path:
+                            default_solution = SolutionInvocation(self.problem, default_solution_path)
+                        else:
+                            default_solution = False
                     t.config.solution = default_solution
-                solutions_used.add(t.config.solution.program_path)
+                if t.config.solution:
+                    solutions_used.add(t.config.solution.program_path)
             if t.config.visualizer:
                 visualizers_used.add(t.config.visualizer.program_path)
 
-        self.root_dir.walk(collect_programs, dir_f=None)
+        self.root_dir.walk(collect_programs)
 
         def build_programs(program_type, program_paths):
             programs = []
@@ -780,7 +806,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         bar = ProgressBar('Generate', items=item_names)
 
         parallel = True
-        if self.parallel and config.args.jobs > 1:
+        if self.parallel and config.args.jobs > 1 and self.problem.interactive:
             parallel = False
             log('Disabling parallelization for interactive problem.')
 
@@ -846,7 +872,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
 
         bar = ProgressBar('Clean', items=item_names)
 
-        self.root_dir.walk(lambda x: x.clean(self.problem, bar), dir_last=True)
+        self.root_dir.walk(lambda x: x.clean(self.problem, self.known_cases, bar), dir_last=True)
         bar.finalize()
 
 

@@ -299,6 +299,10 @@ Run this from one of:
     cleanparser = subparsers.add_parser('clean',
                                         parents=[global_parser],
                                         help='Delete all .in and .ans corresponding to .gen.')
+    cleanparser.add_argument('-f',
+                           '--force',
+                           action='store_true',
+                           help='Delete all untracked files.')
 
     # Run
     runparser = subparsers.add_parser('run',

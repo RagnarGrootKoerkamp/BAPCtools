@@ -57,6 +57,11 @@ class Colorcodes(object):
 cc = Colorcodes()
 
 
+def debug(*msg):
+    print(cc.blue, end='')
+    print('DEBUG:', *msg, end='')
+    print(cc.reset)
+
 def log(msg):
     print(cc.green + 'LOG: ' + msg + cc.reset)
 

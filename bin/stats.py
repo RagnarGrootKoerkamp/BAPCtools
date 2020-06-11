@@ -92,9 +92,9 @@ def stats(problems):
         verified = False
         comment = ''
         if 'verified' in problem.settings:
-            verified = bool(problem.settings['verified'])
+            verified = bool(problem.settings.verified)
         if 'comment' in problem.settings:
-            comment = problem.settings['comment']
+            comment = problem.settings.comment
 
         if verified: comment = cc.green + comment + cc.reset
         else: comment = cc.orange + comment + cc.reset

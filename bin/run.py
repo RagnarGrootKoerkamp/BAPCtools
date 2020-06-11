@@ -12,8 +12,8 @@ class Testcase:
 
         self.problem = problem
 
-        self.in_path = path.resolve()
-        self.ans_path = path.resolve().with_suffix('.ans')
+        self.in_path = path
+        self.ans_path = self.in_path.with_suffix('.ans')
         # Note: testcases outside problem/data must pass in the short_path explicitly.
         if short_path is None:
             self.short_path = path.relative_to(problem.path / 'data')
