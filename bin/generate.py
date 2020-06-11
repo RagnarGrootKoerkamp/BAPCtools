@@ -317,8 +317,7 @@ class TestcaseRule(Rule):
             return meta_path.stat().st_ctime >= last_change and meta_yaml == t.cache_data
 
         if up_to_date():
-            bar.log('up to date')
-            bar.done()
+            bar.done(message='up to date')
             return
 
         # Generate .in
