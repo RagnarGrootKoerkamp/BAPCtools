@@ -271,6 +271,11 @@ class TestcaseRule(Rule):
         ansfile = cwd / (t.name + '.ans')
         meta_path = cwd / 'meta_.yaml'
 
+        if not t.manual and t.generator.program is None:
+            bar.error(f'Generator didn\'t build.')
+            bar.done()
+            return
+
         # The expected contents of the meta_ file.
         def up_to_date():
             # The testcase is up to date if:
