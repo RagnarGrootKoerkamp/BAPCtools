@@ -1,0 +1,16 @@
+#solution: /submissions/accepted/submission.py
+#visualizer: /visualizers/asy.sh {name}
+
+data:
+  sample:
+    type: directory
+    solution:
+    data:
+      #1:
+
+  secret:
+    type: directory
+    data:
+      #<name>: <generator> [args] [{seed:1}]
+      # or for numbered cases:
+      #- <name>: <generator> [args] [{seed:1}]
