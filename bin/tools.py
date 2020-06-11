@@ -112,6 +112,8 @@ def get_problems():
                     label = chr(ord('A') + label_ord)
                     problems.append(Problem(path, label))
                     label_ord += 1
+            if len(problems) == 0:
+                fatal('Did not find problem.yaml. Are you running this from a problem directory?')
 
     contest = Path().cwd().name
 
