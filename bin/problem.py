@@ -296,7 +296,7 @@ class Problem:
         needans = False if problem.interactive else True
         testcases = problem.testcases(needans=needans)
 
-        if len(testcases) == 0:
+        if testcases is False:
             return False
 
         if problem.interactive:

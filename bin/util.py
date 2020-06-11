@@ -497,7 +497,10 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     command = [str(x) for x in command]
 
     if config.args.verbose >= 2:
-        print(command, kwargs, 'cwd:', Path.cwd())
+        print('cd', Path.cwd(), '; ', *command, end ='')
+        if 'stdin' in kwargs:
+            print(' < ', kwargs['stdin'].name, end='')
+        print()
 
     timeout = 30
     if 'timeout' in kwargs:
