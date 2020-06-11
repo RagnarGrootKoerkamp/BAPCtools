@@ -46,11 +46,11 @@ class Testcase:
         for validator in validators:
             ret = validator.run(self, constraints)
 
-            success &= ret.ok
+            success &= ret.ok is True
             message = ''
 
             # Failure?
-            if ret.ok:
+            if ret.ok is True:
                 message = 'PASSED ' + validator.name
             else:
                 message = 'FAILED ' + validator.name
@@ -62,9 +62,9 @@ class Testcase:
             else:
                 ret.out = ''
 
-            bar.part_done(ret.ok, message, data=ret.err + ret.out)
+            bar.part_done(ret.ok is True, message, data=ret.err + ret.out)
 
-            if not ret.ok:
+            if ret.ok is not True:
                 # Move testcase to destination directory if specified.
                 if hasattr(config.args, 'move_to') and config.args.move_to:
                     infile = testcase.in_path
@@ -164,7 +164,7 @@ class Run:
             if ret.ok == config.RTV_WA:
                 ret.ok = False
 
-            if ret.ok != True:
+            if ret.ok is not True:
                 return ret
 
             last_result = ret
