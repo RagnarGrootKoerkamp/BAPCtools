@@ -258,9 +258,14 @@ class Program:
         if not self.ok: return False
         self.bar = bar
 
+        if not self.path.is_file() and not self.path.is_dir():
+            self.ok = False
+            self.bar.error(f'{self.short_path} was not found.')
+            return
+
         if len(self.source_files) == 0:
             self.ok = False
-            self.bar.error('{str(path)} is an empty directory.')
+            self.bar.error(f'{self.short_path} is an empty directory.')
             return
 
         # Check file names.

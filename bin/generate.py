@@ -277,8 +277,11 @@ class TestcaseRule(Rule):
         target_ansfile = problem.path / 'data' / t.path.parent / (t.name + '.ans')
 
         if not t.manual and t.generator.program is None:
-            bar.error(f'Generator didn\'t build.')
-            bar.done()
+            bar.done(False, f'Generator didn\'t build.')
+            return
+
+        if t.manual and not (problem.path/t.source).is_file():
+            bar.done(False, f'Source for manual case not found: {t.source}')
             return
 
         # The expected contents of the meta_ file.
@@ -364,7 +367,7 @@ class TestcaseRule(Rule):
                     return
 
         if not ansfile.is_file():
-            bar.warn(f'{ansfile.name} was not generated and solution is disabled here.')
+            bar.warn(f'{ansfile.name} was not generated.')
 
         # Generate visualization
         # TODO: Disable this with a flag.
@@ -814,6 +817,14 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         build_programs(program.Generator, generators_used)
         build_programs(run.Submission, solutions_used)
         build_programs(program.Visualizer, visualizers_used)
+
+        def unset_build_failures(t):
+            if t.config.solution and t.config.solution.program is None:
+                t.config.solution = None
+            if t.config.visualizer and t.config.visualizer.program is None:
+                t.config.visualizer = None
+
+        self.root_dir.walk(unset_build_failures)
 
         self.problem.validators('input_format')
         self.problem.validators('output_format')
