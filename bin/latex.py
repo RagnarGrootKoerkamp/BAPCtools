@@ -71,8 +71,12 @@ def create_samples_file(problem):
 
     # create the samples.tex file
     samples = problem.testcases(needans=True, only_sample=True)
-    if samples is False: return
     samples_file_path = builddir / 'samples.tex'
+
+    if samples is False:
+        samples_file_path.write_text('')
+        return
+
     samples_data = ''
 
     for sample in samples:
