@@ -111,9 +111,9 @@ class GeneratorInvocation(Invocation):
             if not result.retry: return result
 
         if retries > 1:
-            self.program.bar.error(f'Failed {retry+1} times', result.err)
+            bar.error(f'Failed {retry+1} times', result.err)
         else:
-            self.program.bar.error(f'Failed', result.err)
+            bar.error(f'Failed', result.err)
         return result
 
 
@@ -232,9 +232,11 @@ class TestcaseRule(Rule):
             name = name[:-3]
 
         self.manual = False
+        self.manual_inline = False
 
         if yaml == '':
             self.manual = True
+            self.manual_inline = True
             yaml = {'input': Path('data') / parent.path / (name + '.in')}
         elif isinstance(yaml, str) and yaml.endswith('.in'):
             self.manual = True
@@ -271,6 +273,9 @@ class TestcaseRule(Rule):
         ansfile = cwd / (t.name + '.ans')
         meta_path = cwd / 'meta_.yaml'
 
+        target_infile = problem.path / 'data' / t.path.parent / (t.name + '.in')
+        target_ansfile = problem.path / 'data' / t.path.parent / (t.name + '.ans')
+
         if not t.manual and t.generator.program is None:
             bar.error(f'Generator didn\'t build.')
             bar.done()
@@ -279,9 +284,11 @@ class TestcaseRule(Rule):
         # The expected contents of the meta_ file.
         def up_to_date():
             # The testcase is up to date if:
-            # - both infile ans ansfile exist
+            # - both target infile ans ansfile exist
             # - meta_ exists with a timestamp newer than the 3 Invocation timestamps (Generator/Submission/Visualizer).
+            # - meta_ exists with a timestamp newer than target infile ans ansfile
             # - meta_ contains exactly the right content given by t._cache_string()
+
 
             last_change = 0
             t.cache_data = {}
@@ -298,8 +305,11 @@ class TestcaseRule(Rule):
                 last_change = max(last_change, t.config.visualizer.program.timestamp)
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
-            if not infile.is_file(): return False
-            if not ansfile.is_file(): return False
+            if not target_infile.is_file(): return False
+            if not target_ansfile.is_file(): return False
+
+            last_change = max(last_change, target_infile.stat().st_ctime)
+            last_change = max(last_change, target_ansfile.stat().st_ctime)
 
             if not meta_path.is_file(): return False
 
@@ -318,12 +328,14 @@ class TestcaseRule(Rule):
                 bar.error(f'Manual source {t.source} not found.')
                 return
 
+            # For manual cases outside of the data/ directory, copy all related files.
+            # Inside data/, only use the .in.
             for ext in config.KNOWN_DATA_EXTENSIONS:
                 ext_file = manual_data.with_suffix(ext)
                 if ext_file.is_file():
                     ensure_symlink(infile.with_suffix(ext), ext_file)
         else:
-            if not t.generator.run(bar, cwd, t.name, t.seed, t.config.retries):
+            if t.generator.run(bar, cwd, t.name, t.seed, t.config.retries).ok is not True:
                 return
 
         testcase = run.Testcase(problem, infile, short_path=Path(t.path.parent/(t.name+ '.in')))
@@ -337,9 +349,11 @@ class TestcaseRule(Rule):
         # Generate .ans and .interaction if needed.
         # TODO: Disable this with a flag.
         if not problem.interactive:
-            if t.config.solution and not testcase.ans_path.is_file():
+            if t.config.solution and (not testcase.ans_path.is_file() or t.manual_inline):
+                if testcase.ans_path.is_file():
+                    testcase.ans_path.unlink()
                 # Run the solution and validate the generated .ans.
-                if not t.config.solution.run(bar, cwd, t.name):
+                if t.config.solution.run(bar, cwd, t.name).ok is not True:
                     return
                 if not testcase.validate_format('output_format', bar=bar):
                     return
@@ -356,7 +370,7 @@ class TestcaseRule(Rule):
         # Generate visualization
         # TODO: Disable this with a flag.
         if t.config.visualizer:
-            if not t.config.visualizer.run(bar, cwd, t.name):
+            if t.config.visualizer.run(bar, cwd, t.name).ok is not True:
                 return
 
         target_dir = problem.path / 'data' / t.path.parent
@@ -477,6 +491,7 @@ class Directory(Rule):
         if 'data' not in yaml: return
         data = yaml['data']
         if data is None: return
+        if data == '': return
         assert isinstance(data, dict) or isinstance(data, list)
         if len(data) == 0: return
 
