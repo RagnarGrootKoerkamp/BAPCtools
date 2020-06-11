@@ -124,7 +124,10 @@ class Run:
                 result.verdict = 'RUN_TIME_ERROR'
                 result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
             else:
+                # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
+                duration = result.duration
                 result = self._validate_output()
+                result.duration = duration
 
                 if result.ok is True:
                     result.verdict = 'ACCEPTED'
