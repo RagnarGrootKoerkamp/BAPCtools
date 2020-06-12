@@ -329,7 +329,7 @@ Run this from one of:
                             nargs='*',
                             help='Optionally a list of testcases to run on.')
     testparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
-    testparser.add_argument('-t', '--timeout', help='Override the default timeout.')
+    testparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
 
     # Sort
     subparsers.add_parser('sort',
