@@ -161,11 +161,9 @@ Run this from one of:
         default=0,
         action='count',
         help='Verbose output; once for what\'s going on, twice for all intermediate output.')
-    global_parser.add_argument('-c',
-                               '--contest',
+    global_parser.add_argument('--contest',
                                help='The contest to use, when running from repository root.')
-    global_parser.add_argument('-p',
-                               '--problem',
+    global_parser.add_argument('--problem',
                                help='The problem to use, when running from repository root.')
     global_parser.add_argument('--no-bar',
                                action='store_true',
@@ -281,11 +279,16 @@ Run this from one of:
                            '--force',
                            action='store_true',
                            help='Overwrite existing input flies.')
+    genparser.add_argument('-c',
+                           '--clean',
+                           action='store_true',
+                           help='Clean untracked files.')
+    # TODO: This is not actually used.
     genparser.add_argument(
         'generators',
         nargs='*',
         help=
-        'The generators to run. Everything which has one of these as a prefix will be run. Leading `data/` will be dropped. Empty to generate everything.'
+        '[NOT IMPLEMENTED] The generators to run. Everything which has one of these as a prefix will be run. Leading `data/` will be dropped. Empty to generate everything.'
     )
     genparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
     genparser.add_argument('--samples',

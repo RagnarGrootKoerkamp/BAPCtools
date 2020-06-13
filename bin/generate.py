@@ -579,14 +579,23 @@ class Directory(Rule):
 
                 if f.name[0] != '.':
                     name = f.relative_to(problem.path / 'data')
-                    bar.warn(f'Found unlisted file {name}')
+
+                    if config.args.clean:
+                        f.unlink()
+                        bar.log(f'Deleted untracked file {name}')
+                    else:
+                        bar.warn(f'Found untracked file. Delete with generate --clean: {name}. ')
                 continue
 
-            known_cases.add(relpath)
-            bar.warn(f'Found unlisted manual case: {relpath}')
-            t = TestcaseRule(problem, base.name, '', d)
-            d.data.append(t)
-            bar.add_item(t.path)
+            if config.args.clean:
+                f.unlink()
+                bar.log(f'Deleted untracked manual case: {relpath}')
+            else:
+                known_cases.add(relpath)
+                bar.warn(f'Found untracked manual case. Delete with generate --clean: {relpath}')
+                t = TestcaseRule(problem, base.name, '', d)
+                d.data.append(t)
+                bar.add_item(t.path)
 
         bar.done()
         return True
@@ -627,7 +636,7 @@ class Directory(Rule):
             if relpath.with_suffix('') in known_cases: continue
 
             if config.args.force:
-                bar.log(f'Delete untracked file: {relpath}')
+                bar.log(f'Deleted untracked file: {relpath}')
                 f.unlink()
             else:
                 bar.warn(f'Found untracked file. Delete with clean --force: {relpath}')
