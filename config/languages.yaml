@@ -122,14 +122,14 @@ c:
     name: 'C'
     priority: 950
     files: '*.c'
-    compile: '/usr/bin/gcc -g -O2 -std=gnu11 -static -o {binary} {files} -lm -Wall -Wfatal-errors -fdiagnostics-color=always'
+    compile: '/usr/bin/gcc -g -O2 -std=gnu11 -o {binary} {files} -lm -Wall -Wfatal-errors -fdiagnostics-color=always'
     run: '{binary}'
 
 cpp:
     name: 'C++'
     priority: 1000
     files: '*.cc *.C *.cpp *.cxx *.c++'
-    compile: '/usr/bin/g++ -g -O2 -std=gnu++17 -static -o {binary} {files} -Wall -Wfatal-errors -fdiagnostics-color=always'
+    compile: '/usr/bin/g++ -g -O2 -std=gnu++17 -o {binary} {files} -Wall -Wfatal-errors -fdiagnostics-color=always'
     run: '{binary}'
 
 csharp:
