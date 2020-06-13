@@ -297,18 +297,23 @@ class Submission(program.Program):
                                           stderr=None,
                                           timeout=self.problem.settings.timeout)
 
-                did_timeout = result.duration > self.problem.settings.timelimit
                 assert result.err is None and result.out is None
-                if result.ok is not True:
+                if result.ok is not True and result.ok != -9:
                     config.n_error += 1
                     print(
                         f'{cc.red}Run time error!{cc.reset} exit code {result.ok} {cc.bold}{result.duration:6.3f}s{cc.reset}'
                     )
-                elif did_timeout:
-                    config.n_error += 1
-                    print(f'{cc.red}Aborted!{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
                 else:
-                    print(f'{cc.green}Done:{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
+                    if result.duration > self.problem.settings.timeout:
+                        status = f'{cc.red}Aborted!'
+                        config.n_error += 1
+                    elif result.duration > self.problem.settings.timelimit:
+                        status = f'{cc.orange}Done (TLE):'
+                        config.n_warn += 1
+                    else:
+                        status = f'{cc.green}Done:'
+
+                    print(f'{status}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
                 print()
 
             else:

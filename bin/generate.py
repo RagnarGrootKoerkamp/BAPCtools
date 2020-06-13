@@ -147,7 +147,7 @@ class SolutionInvocation(Invocation):
         result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd)
 
         if result.ok == -9:
-            bar.error(f'TIMEOUT after {result.duration}s')
+            bar.error(f'solution TIMEOUT after {result.duration}s')
         elif result.ok is not True:
             bar.error('FAILED', result.err)
         return result
@@ -609,13 +609,16 @@ class Directory(Rule):
         # Remove all symlinks that correspond to includes.
         for f in dir_path.glob('*'):
             if f.is_symlink():
-                target = Path(os.path.normpath(f.parent / os.readlink(f))).relative_to(
-                    problem.path / 'data').with_suffix('')
+                try:
+                    target = Path(os.path.normpath(f.parent / os.readlink(f))).relative_to(
+                        problem.path / 'data').with_suffix('')
 
-                if target in d.includes or target.parent in d.includes:
-                    bar.log(f'Remove linked file {f.name}')
-                    f.unlink()
-                    continue
+                    if target in d.includes or target.parent in d.includes:
+                        bar.log(f'Remove linked file {f.name}')
+                        f.unlink()
+                        continue
+                except ValueError:
+                    pass
 
             if f.name[0] == '.': continue
 
