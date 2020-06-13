@@ -470,8 +470,11 @@ def crop_output(output):
 def get_memory_limit(kwargs=None):
     memory_limit = 4000000000  # 4GB
     if hasattr(config.args, 'memory'):
-        if config.args.memory and config.args.memory != 'unlimited':
-            memory_limit = int(config.args.memory)
+        if config.args.memory:
+            if config.args.memory != 'unlimited':
+                memory_limit = int(config.args.memory)
+            else:
+                memory_limit = None # disabled
     if kwargs and 'memory' in kwargs:
         memory_limit = kwargs['memory']
         kwargs.pop('memory')
