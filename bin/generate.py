@@ -678,12 +678,14 @@ class GeneratorConfig:
     def __init__(self, problem):
         self.problem = problem
         yaml_path = self.problem.path / 'generators/generators.yaml'
+        self.ok = True
         if not yaml_path.is_file():
 
             # TODO: Remove this migration from the old to the new path.
             old_yaml_path = self.problem.path / 'generators/gen.yaml'
             if not old_yaml_path.is_file():
                 log('Did not find generators/generators.yaml')
+                self.ok = False
                 return
 
             # Move the old to the new path.
@@ -933,12 +935,14 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
 
 def generate(problem):
     config = GeneratorConfig(problem)
-    config.build()
-    config.run()
+    if config.ok:
+        config.build()
+        config.run()
     return True
 
 
 def clean(problem):
     config = GeneratorConfig(problem)
-    config.clean()
+    if config.ok:
+        config.clean()
     return True
