@@ -63,7 +63,8 @@ def new_contest(name):
     rights_owner = _ask_variable('rights owner', 'author')
 
     skeldir = config.tools_root / 'skel/contest'
-    copytree_and_substitute(skeldir, Path(dirname), locals(), exist_ok=False)
+    log(f'Copying files from {skeldir} to {dirname}...')
+    copytree_and_substitute(skeldir, Path(dirname), locals(), exist_ok=False, preserve_symlinks=False)
 
 
 def new_problem():

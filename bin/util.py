@@ -406,7 +406,7 @@ def substitute_dir_variables(dirname, variables):
 
 # copies a directory recursively and substitutes {%key%} by their value in text files
 # reference: https://docs.python.org/3/library/shutil.html#copytree-example
-def copytree_and_substitute(src, dst, variables, exist_ok=True):
+def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_symlinks=True):
     names = os.listdir(src)
     os.makedirs(dst, exist_ok=exist_ok)
     errors = []
@@ -415,10 +415,10 @@ def copytree_and_substitute(src, dst, variables, exist_ok=True):
             srcFile = src / name
             dstFile = dst / name
 
-            if os.path.islink(srcFile):
+            if preserve_symlinks and os.path.islink(srcFile):
                 shutil.copy(srcFile, dstFile, follow_symlinks=False)
             elif (os.path.isdir(srcFile)):
-                copytree_and_substitute(srcFile, dstFile, variables, exist_ok)
+                copytree_and_substitute(srcFile, dstFile, variables, exist_ok, preserve_symlinks=preserve_symlinks)
             elif (dstFile.exists()):
                 warn(f'File "{dstFile}" already exists, skipping...')
                 continue
@@ -428,8 +428,7 @@ def copytree_and_substitute(src, dst, variables, exist_ok=True):
                     data = substitute(data, variables)
                     dstFile.write_text(data)
                 except UnicodeDecodeError:
-                    # skip this file
-                    warn(f'File "{srcFile}" has no unicode encoding.')
+                    # Do not substitute for binary files.
                     dstFile.write_bytes(srcFile.read_bytes())
         except OSError as why:
             errors.append((srcFile, dstFile, str(why)))

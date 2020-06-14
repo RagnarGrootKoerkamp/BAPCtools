@@ -89,7 +89,8 @@ def get_problems():
         if problemsyaml.is_file():
             # TODO: Implement label default value
             problemlist = read_yaml(problemsyaml)
-            assert problemlist is not None
+            if problemlist is None:
+                fatal(f'Did not find any problem in {problemsyaml}.')
             labels = dict()
             nextlabel = 'A'
             problems = []
