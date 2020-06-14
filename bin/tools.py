@@ -156,32 +156,30 @@ Run this from one of:
     # Global options
     global_parser = argparse.ArgumentParser(add_help=False)
     global_parser.add_argument(
-        '-v',
         '--verbose',
+        '-v',
         default=0,
         action='count',
         help='Verbose output; once for what\'s going on, twice for all intermediate output.')
-    global_parser.add_argument('--contest',
+    group = global_parser.add_mutually_exclusive_group()
+    group.add_argument('--contest',
                                help='The contest to use, when running from repository root.')
-    global_parser.add_argument('--problem',
+    group.add_argument('--problem',
                                help='The problem to use, when running from repository root.')
+
     global_parser.add_argument('--no-bar',
                                action='store_true',
                                help='Do not show progress bars in non-interactive environments.')
-    global_parser.add_argument('-e',
-                               '--error',
+    global_parser.add_argument('--error',
+                               '-e',
                                action='store_true',
                                help='Print full output of failing commands')
-    global_parser.add_argument('-E',
-                               '--noerror',
+    global_parser.add_argument('--no-error',
+                               '-E',
                                action='store_true',
                                help='Hide output of failing commands')
     global_parser.add_argument('--cpp_flags',
                                help='Additional compiler flags used for all c++ compilations.')
-    global_parser.add_argument(
-        '-m',
-        '--memory',
-        help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
     global_parser.add_argument('--force_build',
                                action='store_true',
                                help='Force rebuild instead of only on changed files.')
@@ -220,8 +218,8 @@ Run this from one of:
     pdfparser = subparsers.add_parser('pdf',
                                       parents=[global_parser],
                                       help='Build the problem statement pdf.')
-    pdfparser.add_argument('-a',
-                           '--all',
+    pdfparser.add_argument('--all',
+                           '-a',
                            action='store_true',
                            help='Create problem statements for individual problems as well.')
     pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
@@ -234,10 +232,10 @@ Run this from one of:
     solparser = subparsers.add_parser('solutions',
                                       parents=[global_parser],
                                       help='Build the solution slides pdf.')
-    solparser.add_argument('-a',
-                           '--all',
+    solparser.add_argument('--all',
+                           '-a',
                            action='store_true',
-                           help='Create problem statements for individual problems as well.')
+                           help='Create solution slides for individual problems as well.')
     solparser.add_argument('--cp',
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
@@ -275,20 +273,20 @@ Run this from one of:
     genparser = subparsers.add_parser('generate',
                                       parents=[global_parser],
                                       help='Generate testcases according to .gen files.')
-    genparser.add_argument('-f',
-                           '--force',
+    genparser.add_argument('--force',
+                           '-f',
                            action='store_true',
                            help='Overwrite existing input flies.')
-    genparser.add_argument('-c',
-                           '--clean',
+    genparser.add_argument('--clean',
+                           '-c',
                            action='store_true',
                            help='Clean untracked files.')
-    genparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
+    genparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     genparser.add_argument('--samples',
                            action='store_true',
                            help='Overwrite the samples as well, in combination with -f.')
-    genparser.add_argument('-j',
-                           '--jobs',
+    genparser.add_argument('--jobs',
+                           '-j',
                            type=int,
                            default=4,
                            help='The number of jobs to use. Default is 4.')
@@ -297,8 +295,8 @@ Run this from one of:
     cleanparser = subparsers.add_parser('clean',
                                         parents=[global_parser],
                                         help='Delete all .in and .ans corresponding to .gen.')
-    cleanparser.add_argument('-f',
-                           '--force',
+    cleanparser.add_argument('--force',
+                           '-f',
                            action='store_true',
                            help='Delete all untracked files.')
 
@@ -312,10 +310,11 @@ Run this from one of:
     runparser.add_argument('submissions',
                            nargs='*',
                            help='optionally supply a list of programs and testcases to run')
-    runparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
+    runparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     runparser.add_argument('--timelimit', type=int, help='Override the default timelimit.')
+    runparser.add_argument( '--memory', '-m', help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
     runparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
-    runparser.add_argument('-G', '--no-generate', action='store_true', help='Do not run `generate` before running submissions.')
+    runparser.add_argument('--no-generate', '-G', action='store_true', help='Do not run `generate` before running submissions.')
 
     # Test
     testparser = subparsers.add_parser('test',
@@ -326,7 +325,8 @@ Run this from one of:
                             nargs='*',
                             help='Optionally a list of testcases to run on.')
     testparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
-    testparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
+    testparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
+    testparser.add_argument( '--memory', '-m', help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
 
     # Sort
     subparsers.add_parser('sort',
@@ -347,8 +347,8 @@ Run this from one of:
                                       parents=[global_parser],
                                       help='Create zip file that can be imported into DomJudge')
     zipparser.add_argument('--skip', action='store_true', help='Skip recreation of problem zips.')
-    zipparser.add_argument('-f',
-                           '--force',
+    zipparser.add_argument('--force',
+                           '-f',
                            action='store_true',
                            help='Skip validation of input and output files.')
     zipparser.add_argument('--tex',
@@ -363,11 +363,6 @@ Run this from one of:
     subparsers.add_parser('samplezip',
                           parents=[global_parser],
                           help='Create zip file of all samples.')
-
-    # Build a directory for verification with the kattis format
-    subparsers.add_parser('kattis',
-                          parents=[global_parser],
-                          help='Build a directory for verification with the kattis format')
 
     subparsers.add_parser('gitlabci',
                           parents=[global_parser],
@@ -444,13 +439,6 @@ def main():
         export.build_samples_zip(problems)
         return
 
-    if action == 'kattis':
-        if level != 'new_contest':
-            print('Only contest level is currently supported...')
-            return
-        prepare_kattis_directory()
-        return
-
     if action == 'gitlabci':
         skel.create_gitlab_jobs(contest, problem_paths)
         return
@@ -495,9 +483,9 @@ def main():
         if action in ['test']:
             success &= problem.test_submissions()
         if action in ['constraints']:
-            success &= constraints.check_constraints(problem.path, settings)
+            success &= constraints.check_constraints(problem, settings)
         if action in ['zip']:
-            # For DJ: export to A.zip
+            # For DOMjudge: export to A.zip
             output = problem.label + '.zip'
             # For Kattis: export to shortname.zip
             if hasattr(config.args, 'kattis') and config.args.kattis:
@@ -507,14 +495,12 @@ def main():
             if not config.args.skip:
                 success &= latex.build_problem_pdf(problem)
                 if not config.args.force:
-                    success &= problem.validate_format('input_format')
+                    success &= problem.validate_format('input_format', check_constraints=True)
                     success &= problem.validate_format('output_format', check_constraints=True)
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
                 success &= export.build_problem_zip(problem.path, output, settings)
-        if action == 'kattis':
-            export.prepare_kattis_problem(problem.path, settings)
 
         if len(problems) > 1:
             print()
