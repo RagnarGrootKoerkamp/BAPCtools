@@ -105,24 +105,20 @@ def new_problem():
     copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True)
 
 
-def new_cfp_problem(name):
-    shutil.copytree(config.tools_root / 'skel/problem_cfp', name, symlinks=True)
-
-
 def create_gitlab_jobs(contest, problems):
     def problem_source_dir(problem):
         return problem.resolve().relative_to(Path('..').resolve())
 
-    header_yml = (config.tools_root / 'skel/gitlab-ci-header.yml').read_text()
+    header_yml = (config.tools_root / 'skel/gitlab_ci/header.yaml').read_text()
     print(substitute(header_yml, locals()))
 
-    contest_yml = (config.tools_root / 'skel/gitlab-ci-contest.yml').read_text()
+    contest_yml = (config.tools_root / 'skel/gitlab_ci/contest.yaml').read_text()
     changes = ''
     for problem in problems:
         changes += '      - ' + str(problem_source_dir(problem)) + '/problem_statement/**/*\n'
     print(substitute(contest_yml, locals()))
 
-    problem_yml = (config.tools_root / 'skel/gitlab-ci-problem.yml').read_text()
+    problem_yml = (config.tools_root / 'skel/gitlab_ci/problem.yaml').read_text()
     for problem in problems:
         changesdir = problem_source_dir(problem)
         print('\n')

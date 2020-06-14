@@ -208,12 +208,6 @@ Run this from one of:
                                help='Use default validation for this problem.')
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
-    # New CfP problem
-    cfpproblemparser = subparsers.add_parser('new_cfp_problem',
-                                             help='Stub for minimal cfp problem.')
-    cfpproblemparser.add_argument('shortname',
-                                  action='store',
-                                  help='The shortname/directory name of the problem.')
 
     # Problem statements
     pdfparser = subparsers.add_parser('pdf',
