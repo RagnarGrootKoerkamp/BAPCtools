@@ -84,8 +84,8 @@ class InputValidator(Validator):
 
         run_command = self.run_command + ['case_sensitive', 'space_change_sensitive']
 
-        if constraints:
-            constraints_path = cwd / 'constraints_'
+        if constraints is not None:
+            constraints_path = cwd / 'input_constraints_'
             if constraints_path.is_file(): constraints_path.unlink()
             run_command += ['--constraints_file', constraints_path]
 
@@ -95,7 +95,8 @@ class InputValidator(Validator):
                                stdin=in_file,
                                cwd=cwd)
 
-        if constraints: _merge_constraints(constraints_path, constraints)
+        if constraints is not None:
+            _merge_constraints(constraints_path, constraints)
 
         return ret
 
@@ -125,8 +126,8 @@ class OutputValidator(Validator):
                 'space_change_sensitive'
             ]
 
-            if constraints:
-                constraints_path = cwd / 'constraints_'
+            if constraints is not None:
+                constraints_path = cwd / 'output_constraints_'
                 if constraints_path.is_file(): constraints_path.unlink()
                 run_command += ['--constraints_file', constraints_path]
 
@@ -136,7 +137,7 @@ class OutputValidator(Validator):
                                    stdin=ans_file,
                                    cwd=cwd)
 
-            if constraints: _merge_constraints(constraints_path, constraints)
+            if constraints is not None: _merge_constraints(constraints_path, constraints)
 
             return ret
 

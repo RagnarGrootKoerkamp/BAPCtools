@@ -214,8 +214,8 @@ class Problem:
         if problem.settings.validation != 'default' and validator_type == 'output':
             validator_type = 'output_format'
 
-        if not check_constraints and validator_type in problem._validators:
-            return problem._validators[validator_type]
+        if (validator_type, check_constraints) in problem._validators:
+            return problem._validators[(validator_type, check_constraints)]
 
         # For default 'output' validation, use default_output_validator.py.
         if validator_type == 'output' and problem.settings.validation == 'default':
@@ -252,7 +252,10 @@ class Problem:
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
-            return 'constraints_file' in f.read_text()
+            try:
+                return 'constraints_file' in f.read_text()
+            except UnicodeDecodeError:
+                return False
 
         if check_constraints:
             constraint_validators = []
@@ -265,7 +268,7 @@ class Problem:
                         has_constraints = True
                         break
                 if has_constraints:
-                    constraints_validators.append(f)
+                    constraint_validators.append(f)
             if len(constraint_validators) == 0:
                 error('No {validator_type} constraint validators found: No matches for \'constraints_file\'.')
                 return False
@@ -296,8 +299,7 @@ class Problem:
         if config.args.verbose:
             print()
 
-        if not check_constraints:
-            problem._validators[validator_type] = validators
+        problem._validators[(validator_type, check_constraints)] = validators
         return validators
 
     def run_submissions(problem):
@@ -404,7 +406,8 @@ class Problem:
         if check_constraints:
             if not config.args.cpp_flags:
                 config.args.cpp_flags = ''
-            config.args.cpp_flags += ' -Duse_source_location'
+            if not '-Duse_source_location' in config.args.cpp_flags:
+                config.args.cpp_flags += ' -Duse_source_location'
 
             validators = problem.validators(validator_type, check_constraints=True)
         else:
