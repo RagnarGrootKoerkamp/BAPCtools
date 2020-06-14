@@ -222,7 +222,7 @@ class Problem:
                 validate.OutputValidator(problem,
                                          config.tools_root / 'bin' / 'default_output_validator.py')
             ]
-            bar = ProgressBar('Build validators', items=validators)
+            bar = ProgressBar('Build output validators', items=validators)
             ok = True
             for p in validators:
                 bar.start(p)
@@ -278,10 +278,12 @@ class Problem:
 
         if validator_type == 'input_format':
             validators = [validate.InputValidator(problem, path, skip_double_build_warning=check_constraints) for path in paths]
+            validator_name = 'input'
         else:
             validators = [validate.OutputValidator(problem, path, skip_double_build_warning=check_constraints) for path in paths]
+            validator_name = 'output'
 
-        bar = ProgressBar('Build validators', items=validators)
+        bar = ProgressBar(f'Build {validator_name} validators', items=validators)
 
         ok = True
         for p in validators:
@@ -315,11 +317,15 @@ class Problem:
 
         ok = True
         verdict_table = []
+        # When true, the ProgressBar will print a newline before the first error log.
+        needs_leading_newline = False if config.args.verbose else True
         for verdict in submissions:
             for submission in submissions[verdict]:
                 d = dict()
                 verdict_table.append(d)
-                ok &= submission.run_all_testcases(max_submission_len, table_dict=d)
+                submission_ok, printed_newline = submission.run_all_testcases(max_submission_len, table_dict=d, needs_leading_newline=needs_leading_newline)
+                needs_leading_newline = not printed_newline
+                ok &= submission_ok
 
         if hasattr(config.args,'table') and config.args.table: Problem._print_table(verdict_table, testcases, submissions)
 

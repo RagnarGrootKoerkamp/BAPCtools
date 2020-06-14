@@ -222,12 +222,12 @@ class Submission(program.Program):
             return result
 
     # Run this submission on all testcases for the current problem.
-    # Returns the final verdict.
-    def run_all_testcases(self, max_submission_name_len=None, table_dict=None):
+    # Returns (OK verdict, printed newline)
+    def run_all_testcases(self, max_submission_name_len=None, table_dict=None, *, needs_leading_newline):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_item_len = max(len(run.name)
                            for run in runs) + max_submission_name_len - len(self.name) - 1
-        bar = ProgressBar('Running ' + self.name, count=len(runs), max_len=max_item_len)
+        bar = ProgressBar('Running ' + self.name, count=len(runs), max_len=max_item_len, needs_leading_newline=needs_leading_newline)
 
         max_duration = 0
 
@@ -277,12 +277,12 @@ class Submission(program.Program):
             color = cc.green if self.verdict == self.expected_verdict else cc.red
             boldcolor = ''
 
-        bar.finalize(
+        printed_newline = bar.finalize(
             message=
             f'{max_duration:6.3f}s {color}{verdict[1]:<20}{cc.reset} @ {verdict_run.testcase.name}'
         )
 
-        return self.verdict == self.expected_verdict
+        return (self.verdict == self.expected_verdict, printed_newline)
 
     def test(self):
         print(ProgressBar.action('Running', str(self.name)))

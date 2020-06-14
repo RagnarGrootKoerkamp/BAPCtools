@@ -98,6 +98,7 @@ class ProgressBar:
         if isinstance(item, Path): return len(str(item))
         return len(item.name)
 
+    # When needs_leading_newline is True, this will print an additional empty line before the first log message.
     def __init__(self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False):
         assert not (items and (max_len or count))
         assert items is not None or max_len
@@ -321,14 +322,13 @@ class ProgressBar:
         if message:
             print(self.get_prefix() , message, sep='')
 
-        print_newline = config.args.verbose or self.global_logged
-        # In verbose mode: print newlines between parts.
-        if print_newline:
+        # When something was printed, add a newline between parts.
+        if self.global_logged:
             print()
 
         self.lock.release()
 
-        return print_newline
+        return self.global_logged
 
 
 # Drops the first two path components <problem>/<type>/
