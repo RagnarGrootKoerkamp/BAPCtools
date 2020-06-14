@@ -23,6 +23,3 @@ validation: {%validation%}
 #     time_multiplier: 2
 # Warning for submissions within 1 second of limit:
 #     time_safety_margin: 1
-
-verified: false
-comment:
