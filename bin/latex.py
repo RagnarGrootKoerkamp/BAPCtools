@@ -213,15 +213,23 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
 
     problems_data = ''
 
-    # Link the solve stats directory if it exists.
-    solve_stats = Path('solve_stats')
-    if solve_stats.exists():
-        ensure_symlink(builddir / 'solve_stats', solve_stats)
+    if solutions:
+        # Link the solve stats directory if it exists.
+        solve_stats = Path('solve_stats')
+        if solve_stats.exists():
+            ensure_symlink(builddir / 'solve_stats', solve_stats)
 
-    # include a header slide in the solutions PDF
-    headertex = Path('solution_header.tex')
-    if headertex.exists(): ensure_symlink(builddir / 'solution_header.tex', headertex)
-    if solutions and headertex.exists(): problems_data += f'\\input{{{headertex}}}\n'
+        # include a header slide in the solutions PDF
+        headertex = Path('solution_header.tex')
+        if headertex.exists():
+            ensure_symlink(builddir / 'solution_header.tex', headertex)
+            problems_data += f'\\input{{{headertex}}}\n'
+
+        # include a statistics slide in the solutions PDF
+        footer_tex = Path('solution_footer.tex')
+        if footer_tex.exists():
+            ensure_symlink(builddir / 'solution_footer.tex', footer_tex)
+            problems_data += f'\\input{{{footer_tex}}}\n'
 
     per_problem_data = (config.tools_root / 'latex' / f'contest-{build_type}.tex').read_text()
 
@@ -238,11 +246,6 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
                 'timelimit': problem.settings.timelimit,
                 'problemdir': config.tmpdir / problem.name,
             })
-
-    # include a statistics slide in the solutions PDF
-    footer_tex = Path('solution_footer.tex')
-    if footer_tex.exists(): ensure_symlink(builddir / 'solution_footer.tex', footer_tex)
-    if solutions and footer_tex.exists(): problems_data += f'\\input{{{footer_tex}}}\n'
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
