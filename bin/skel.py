@@ -63,23 +63,22 @@ def new_contest(name):
     rights_owner = _ask_variable('rights owner', 'author')
 
     skeldir = config.tools_root / 'skel/contest'
-    log(f'Copying files from {skeldir} to {dirname}...')
+    log(f'Copying {skeldir} to {dirname}.')
     copytree_and_substitute(skeldir, Path(dirname), locals(), exist_ok=False, preserve_symlinks=False)
 
 
 def new_problem():
     problemname = config.args.problemname if config.args.problemname else _ask_variable(
         'problem name')
-    dirname = _ask_variable('dirname', _alpha_num(problemname))
+    dirname = _alpha_num(problemname) if config.args.problemname else _ask_variable('dirname', _alpha_num(problemname))
     author = config.args.author if config.args.author else _ask_variable(
         'author', config.args.author)
 
-    if config.args.custom_validation:
-        validation = 'custom'
-    elif config.args.default_validation:
-        validation = 'default'
+    if config.args.validation_default: validation = 'default'
+    elif config.args.validation_custom: validation = 'custom'
+    elif config.args.validation_interactive: validation = 'custom interactive'
     else:
-        validation = _ask_variable('validation', 'default')
+        validation = _ask_variable('validation (default/custom/custom interactive)', 'default')
 
     # Read settings from the contest-level yaml file.
     variables = read_yaml(Path('contest.yaml'))
@@ -100,7 +99,7 @@ def new_problem():
     if Path('skel/problem').is_dir(): skeldir = Path('skel/problem')
     if Path('../skel/problem').is_dir(): skeldir = Path('../skel/problem')
     if config.args.skel: skeldir = Path(config.args.skel)
-    print(f'Copying {skeldir} to {dirname}.')
+    log(f'Copying {skeldir} to {dirname}.')
 
     copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True)
 

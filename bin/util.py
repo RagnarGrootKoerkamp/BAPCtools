@@ -441,7 +441,6 @@ def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_syml
 
 
 def crop_output(output):
-    if config.args.noerror: return None
     if config.args.error: return output
 
     lines = output.split('\n')

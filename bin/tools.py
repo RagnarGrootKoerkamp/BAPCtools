@@ -175,10 +175,6 @@ Run this from one of:
                                '-e',
                                action='store_true',
                                help='Print full output of failing commands')
-    global_parser.add_argument('--no-error',
-                               '-E',
-                               action='store_true',
-                               help='Hide output of failing commands')
     global_parser.add_argument('--cpp_flags',
                                help='Additional compiler flags used for all c++ compilations.')
     global_parser.add_argument('--force_build',
@@ -200,12 +196,17 @@ Run this from one of:
                                           help='Add a new problem to the current directory.')
     problemparser.add_argument('problemname', nargs='?', help='The name of the problem,')
     problemparser.add_argument('--author', help='The author of the problem,')
-    problemparser.add_argument('--custom_validation',
+
+    validation_mode_parser = problemparser.add_mutually_exclusive_group()
+    validation_mode_parser.add_argument('--validation_custom',
                                action='store_true',
                                help='Use custom validation for this problem.')
-    problemparser.add_argument('--default_validation',
+    validation_mode_parser.add_argument('--validation_default',
                                action='store_true',
                                help='Use default validation for this problem.')
+    validation_mode_parser.add_argument('--validation_interactive',
+                               action='store_true',
+                               help='This is an interactive problem.')
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
 
