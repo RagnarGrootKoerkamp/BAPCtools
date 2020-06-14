@@ -715,6 +715,11 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
             assert is_testcase(yaml) or is_directory(yaml)
 
             if is_testcase(yaml):
+
+                if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
+                    error(f'Testcase \'{parent.path}/{name}.in\' has an invalid name.')
+                    return None
+
                 t = TestcaseRule(problem, name, yaml, parent)
                 assert t.path not in self.known_cases
                 self.known_cases.add(t.path)
@@ -751,8 +756,13 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                     for child_name, child_yaml in sorted(dictionary.items()):
                         if isinstance(child_name, int): child_name = str(child_name)
                         if number_prefix:
-                            child_name = number_prefix + '-' + child_name
-                        d.data.append(parse(child_name, child_yaml, d))
+                            if child_name:
+                                child_name = number_prefix + '-' + child_name
+                            else:
+                                child_name = number_prefix
+                        c = parse(child_name, child_yaml, d)
+                        if c is not None:
+                            d.data.append(c)
 
             return d
 
