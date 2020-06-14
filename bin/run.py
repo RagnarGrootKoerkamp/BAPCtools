@@ -17,7 +17,10 @@ class Testcase:
         self.ans_path = self.in_path.with_suffix('.ans')
         # Note: testcases outside problem/data must pass in the short_path explicitly.
         if short_path is None:
-            self.short_path = path.relative_to(problem.path / 'data')
+            try:
+                self.short_path = path.relative_to(problem.path / 'data')
+            except ValueError:
+                fatal(f"Testcase {path} is not inside {problem.path / 'data'}.")
         else:
             assert short_path is not None
             self.short_path = short_path

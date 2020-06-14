@@ -74,9 +74,9 @@ def new_problem():
     author = config.args.author if config.args.author else _ask_variable(
         'author', config.args.author)
 
-    if config.args.validation_default: validation = 'default'
-    elif config.args.validation_custom: validation = 'custom'
-    elif config.args.validation_interactive: validation = 'custom interactive'
+    if config.args.validation:
+        assert config.args.validation in ['default', 'custom', 'custom interactive']
+        validation = config.args.validation
     else:
         validation = _ask_variable('validation (default/custom/custom interactive)', 'default')
 

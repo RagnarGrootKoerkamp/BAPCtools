@@ -106,7 +106,7 @@ class Problem:
         samplesonly = only_sample
         try:
             if config.args.samples:
-                sampleonly = True
+                samplesonly = True
         except AttributeError:
             pass
 

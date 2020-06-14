@@ -207,17 +207,10 @@ Run this from one of:
                                           help='Add a new problem to the current directory.')
     problemparser.add_argument('problemname', nargs='?', help='The name of the problem,')
     problemparser.add_argument('--author', help='The author of the problem,')
-
-    validation_mode_parser = problemparser.add_mutually_exclusive_group()
-    validation_mode_parser.add_argument('--validation_custom',
-                               action='store_true',
-                               help='Use custom validation for this problem.')
-    validation_mode_parser.add_argument('--validation_default',
-                               action='store_true',
-                               help='Use default validation for this problem.')
-    validation_mode_parser.add_argument('--validation_interactive',
-                               action='store_true',
-                               help='This is an interactive problem.')
+    problemparser.add_argument('--validation',
+                               help='Use validation to use for this problem.',
+                               choices = ['default', 'custom', 'custom interactive']
+                               )
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
 
@@ -329,10 +322,12 @@ Run this from one of:
                                        parents=[global_parser],
                                        help='Run a single program and print the output.')
     testparser.add_argument('submissions', nargs=1, help='A single submission to run')
-    testparser.add_argument('testcases',
+    testcasesgroup = testparser.add_mutually_exclusive_group()
+    testcasesgroup.add_argument('testcases',
                             nargs='*',
+                            default = [],
                             help='Optionally a list of testcases to run on.')
-    testparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
+    testcasesgroup.add_argument('--samples', action='store_true', help='Only run on the samples.')
     testparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     testparser.add_argument( '--memory', '-m', help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
 
