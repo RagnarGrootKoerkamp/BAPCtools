@@ -262,7 +262,7 @@ class Program:
 
         if not self.path.is_file() and not self.path.is_dir():
             self.ok = False
-            self.bar.error(f'{self.short_path} was not found.')
+            self.bar.error(f'Submission does not exist.')
             return
 
         if len(self.source_files) == 0:
