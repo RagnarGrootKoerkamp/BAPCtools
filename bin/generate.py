@@ -562,8 +562,11 @@ class Directory(Rule):
                     ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
                     files_created.append(dir_path / ext_file.name)
 
-        # Add hardcoded manual cases not mentioned in generators.yaml, and warn for other spurious files.
-        for f in dir_path.glob('*'):
+        # Add hardcoded manual cases not mentioned in generators.yaml, and warn for or delete other spurious files.
+        # We sort files with .in preceding other extensions.
+        files = list(dir_path.glob('*'))
+        files.sort(key=lambda f: f.with_suffix('') if f.suffix == '.in' else f)
+        for f in files:
             if f in files_created: continue
             base = f.with_suffix('')
             relpath = base.relative_to(problem.path / 'data')
@@ -589,10 +592,10 @@ class Directory(Rule):
 
             if config.args.clean:
                 f.unlink()
-                bar.log(f'Deleted untracked manual case: {relpath}')
+                bar.log(f'Deleted untracked file {relpath}.in')
             else:
                 known_cases.add(relpath)
-                bar.warn(f'Found untracked manual case. Delete with generate --clean: {relpath}')
+                bar.warn(f'Found untracked manual case. Delete with generate --clean: {relpath}.in')
                 t = TestcaseRule(problem, base.name, '', d)
                 d.data.append(t)
                 bar.add_item(t.path)
