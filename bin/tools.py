@@ -283,13 +283,6 @@ Run this from one of:
                            '--clean',
                            action='store_true',
                            help='Clean untracked files.')
-    # TODO: This is not actually used.
-    genparser.add_argument(
-        'generators',
-        nargs='*',
-        help=
-        '[NOT IMPLEMENTED] The generators to run. Everything which has one of these as a prefix will be run. Leading `data/` will be dropped. Empty to generate everything.'
-    )
     genparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
     genparser.add_argument('--samples',
                            action='store_true',
@@ -322,6 +315,7 @@ Run this from one of:
     runparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
     runparser.add_argument('--timelimit', type=int, help='Override the default timelimit.')
     runparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
+    runparser.add_argument('-G', '--no-generate', action='store_true', help='Do not run `generate` before running submissions.')
 
     # Test
     testparser = subparsers.add_parser('test',
@@ -488,6 +482,11 @@ def main():
         if action in ['clean']:
             success &= generate.clean(problem)
         if action in ['generate']:
+            success &= generate.generate(problem)
+        if action in ['all'] or ( action in ['run'] and not config.args.no_generate):
+            config.args.force = False
+            config.args.clean = False
+            config.args.jobs = 4
             success &= generate.generate(problem)
         if action in ['validate', 'output', 'all']:
             success &= problem.validate_format('output_format')

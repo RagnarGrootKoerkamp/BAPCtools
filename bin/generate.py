@@ -814,7 +814,10 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                     deps = [Path(self.problem.path) / d for d in self.generators[program_path]]
                     programs.append(program_type(self.problem, path, deps=deps))
                 else:
-                    programs.append(program_type(self.problem, path))
+                    if program_type is run.Submission:
+                        programs.append(program_type(self.problem, path, skip_double_build_warning = True))
+                    else:
+                        programs.append(program_type(self.problem, path))
 
             bar = ProgressBar('Build ' + program_type.subdir, items=programs)
 

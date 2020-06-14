@@ -81,7 +81,7 @@ class Program:
     # A map from program paths to corresponding Program instances.
     _cache = dict()
 
-    def __init__(self, problem, path, deps=None):
+    def __init__(self, problem, path, deps=None, *, skip_double_build_warning=False):
         if deps is not None:
             assert isinstance(self, Generator)
             assert isinstance(deps, list)
@@ -90,10 +90,11 @@ class Program:
         assert not self.__class__ is Program
 
         # Make sure we never try to build the same program twice. That'd be stupid.
-        if path in problem._programs:
-            error(f'Why would you build {path} twice?')
-            assert path not in problem._programs
-        problem._programs[path] = self
+        if not skip_double_build_warning:
+            if path in problem._programs:
+                error(f'Why would you build {path} twice?')
+                assert path not in problem._programs
+            problem._programs[path] = self
 
         self.bar = None
         self.path = path

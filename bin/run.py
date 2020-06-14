@@ -178,8 +178,8 @@ class Run:
 class Submission(program.Program):
     subdir = 'submissions'
 
-    def __init__(self, problem, path):
-        super().__init__(problem, path)
+    def __init__(self, problem, path, skip_double_build_warning=False):
+        super().__init__(problem, path, skip_double_build_warning=skip_double_build_warning)
 
         subdir = self.short_path.parts[0]
         self.expected_verdict = subdir.upper() if subdir.upper() in config.VERDICTS else None
