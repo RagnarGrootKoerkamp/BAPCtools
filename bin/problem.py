@@ -255,6 +255,7 @@ class Problem:
             return 'constraints_file' in f.read_text()
 
         if check_constraints:
+            constraint_validators = []
             for f in paths:
                 if f.is_file(): sources = [f]
                 elif f.is_dir(): sources = glob(f, '**/*')
@@ -264,8 +265,14 @@ class Problem:
                         has_constraints = True
                         break
                 if has_constraints:
-                    files = [f]
-                    break
+                    constraints_validators.append(f)
+            if len(constraint_validators) == 0:
+                error('No {validator_type} constraint validators found: No matches for \'constraints_file\'.')
+                return False
+
+            paths = constraint_validators
+
+
 
         if validator_type == 'input_format':
             validators = [validate.InputValidator(problem, path, skip_double_build_warning=check_constraints) for path in paths]
