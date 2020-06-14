@@ -214,8 +214,9 @@ class Problem:
         if problem.settings.validation != 'default' and validator_type == 'output':
             validator_type = 'output_format'
 
-        if (validator_type, check_constraints) in problem._validators:
-            return problem._validators[(validator_type, check_constraints)]
+        key = (validator_type, check_constraints)
+        if key in problem._validators:
+            return problem._validators[key]
 
         # For default 'output' validation, use default_output_validator.py.
         if validator_type == 'output' and problem.settings.validation == 'default':
@@ -231,7 +232,7 @@ class Problem:
                 bar.done()
             bar.finalize(print_done=False)
             if not ok: validators = False
-            problem._validators[validator_type] = validators
+            problem._validators[key] = validators
             return validators
 
         validator_dir = 'input' if validator_type == 'input_format' else 'output'
@@ -299,7 +300,7 @@ class Problem:
         if config.args.verbose:
             print()
 
-        problem._validators[(validator_type, check_constraints)] = validators
+        problem._validators[key] = validators
         return validators
 
     def run_submissions(problem):

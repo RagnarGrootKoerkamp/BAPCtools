@@ -129,7 +129,7 @@ class ProgressBar:
 
     def bar_width(self):
         if self.item_width is None: return None
-        return self.total_width() - len(self.prefix) - 2 - self.item_width - 1
+        return self.total_width() - len(self.prefix) - 2 - self.item_width
 
     def update(self, count, max_len):
         self.count += count
@@ -210,7 +210,7 @@ class ProgressBar:
         if bar is None or bar == '':
             print(self.get_prefix(), end='\r', flush=True)
         else:
-            print(self.get_prefix(), bar, end='\r', flush=True)
+            print(self.get_prefix(), bar, sep='', end='\r', flush=True)
 
         self.lock.release()
         return bar_copy
@@ -231,7 +231,7 @@ class ProgressBar:
         self.logged = True
         if self.parent: self.parent.global_logged = True
         else: self.global_logged = True
-        print(self.get_prefix() + color + message + ProgressBar._format_data(data) + cc.reset,
+        print(self.get_prefix() , color , message , ProgressBar._format_data(data) , cc.reset, sep='',
               flush=True)
 
         if self.parent: self.parent._resume()
@@ -303,7 +303,7 @@ class ProgressBar:
             if self.global_logged: return
             if config.args.verbose: return
 
-        print(self.get_prefix() + message)
+        print(self.get_prefix() , message, sep='')
 
 
 # Drops the first two path components <problem>/<type>/
