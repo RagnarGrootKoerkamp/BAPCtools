@@ -1,0 +1,3 @@
+# Override prompt for consistent screenshots.
+PROMPT="${BOLD}${YELLOW}%3~ ${NO_COLOR}${GREEN}%# ${NO_COLOR}${PLAIN}"
+RPROMPT=""
