@@ -1,8 +1,8 @@
 # An array of id (shortname) -> label mappings
-- id: exampleproblem
-  # optional. Previous label +1 if not present.
-  label: A
-  # optional
-  rgb: '#ff0000'
-  color: red
+#- id: exampleproblem
+#  # optional. Previous label +1 if not present.
+#  label: A
+#  # optional
+#  rgb: '#ff0000'
+#  color: red
 
