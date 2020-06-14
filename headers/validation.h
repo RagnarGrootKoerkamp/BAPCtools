@@ -34,16 +34,21 @@
 
 #ifdef use_source_location
 #include <experimental/source_location>
+constexpr bool has_source_location = true;
 using std::experimental::source_location;
+namespace std {
+bool operator<(const source_location& l, const source_location& r) { return l.line() < r.line(); }
+} // namespace std
 #else
+constexpr bool has_source_location = false;
 struct source_location {
 	static source_location current() { return {}; }
 	int line() const { return 0; }
 	std::string file_name() const { return ""; }
 };
+bool operator<(const source_location& l, const source_location& r) { return l.line() < r.line(); }
 #endif
 
-bool operator<(const source_location& l, const source_location& r) { return l.line() < r.line(); }
 std::string to_string(source_location loc) {
 	return std::string(loc.file_name()) + ":" + std::to_string(loc.line());
 }
@@ -95,14 +100,16 @@ struct StrictlyDecreasingTag {
 class Validator {
   protected:
 	Validator(bool ws_, bool case_, istream& in_, string constraints_file_path_ = "",
-	          bool gen_ = false, std::optional<unsigned int> seed = std::nullopt)
+	          std::optional<unsigned int> seed = std::nullopt)
 	    : in(in_), ws(ws_), case_sensitive(case_), constraints_file_path(constraints_file_path_),
-	      gen(gen_), rng(seed.value_or(std::random_device()())) {
+	      gen(bool(seed)), rng(seed.value_or(std::random_device()())) {
 		if(gen) return;
 		if(ws)
 			in >> noskipws;
 		else
 			in >> skipws;
+
+		if(!constraints_file_path.empty()) { assert(has_source_location); }
 	}
 
   public:
@@ -649,16 +656,8 @@ class Validator {
 	bool gen = false;
 
 	std::mt19937_64 rng;
-};
 
-class InputValidator : public Validator {
-  public:
-	// An InputValidator is always both whitespace and case sensitive.
-	InputValidator(int argc = 0, char** argv = nullptr)
-	    : Validator(true, true, std::cin, get_constraints_file(argc, argv),
-	                is_generator_mode(argc, argv), get_seed(argc, argv)) {}
-
-  private:
+  protected:
 	static string get_constraints_file(int argc, char** argv) {
 		for(int i = 1; i < argc; ++i) {
 			if(argv[i] == constraints_file_flag) {
@@ -669,14 +668,15 @@ class InputValidator : public Validator {
 		}
 		return {};
 	}
+};
 
-	static bool is_generator_mode(int argc, char** argv) {
-		for(int i = 1; i < argc; ++i) {
-			if(argv[i] == generate_flag) { return true; }
-		}
-		return false;
-	}
+class InputValidator : public Validator {
+  public:
+	// An InputValidator is always both whitespace and case sensitive.
+	InputValidator(int argc = 0, char** argv = nullptr)
+	    : Validator(true, true, std::cin, get_constraints_file(argc, argv), get_seed(argc, argv)) {}
 
+  private:
 	static std::optional<unsigned int> get_seed(int argc, char** argv) {
 		for(int i = 1; i < argc - 1; ++i) {
 			if(argv[i] == generate_flag) { return stol(argv[i + 1]); }
@@ -689,7 +689,8 @@ class OutputValidator : public Validator {
   public:
 	// An OutputValidator can be run in different modes.
 	OutputValidator(int argc, char** argv, istream& in_ = std::cin)
-	    : Validator(is_ws_sensitive(argc, argv), is_case_sensitive(argc, argv), in_) {}
+	    : Validator(is_ws_sensitive(argc, argv), is_case_sensitive(argc, argv), in_,
+	                get_constraints_file(argc, argv)) {}
 
   private:
 	static bool is_ws_sensitive(int argc, char** argv) {
