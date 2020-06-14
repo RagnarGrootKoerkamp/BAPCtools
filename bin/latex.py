@@ -233,9 +233,9 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
         problems_data += util.substitute(
             per_problem_data, {
                 'problemlabel': problem.label,
-                'problemyamlname': problem.config['name'],
-                'problemauthor': problem.config.get('author'),
-                'timelimit': get_tl(problem.config),
+                'problemyamlname': problem.name,
+                'problemauthor': problem.settings.author,
+                'timelimit': problem.settings.timelimit,
                 'problemdir': config.tmpdir / problem.name,
             })
 
