@@ -111,7 +111,7 @@ def new_problem():
 
 def create_gitlab_jobs(contest, problems):
     def problem_source_dir(problem):
-        return problem.resolve().relative_to(Path('..').resolve())
+        return problem.path.resolve().relative_to(Path('..').resolve())
 
     header_yml = (config.tools_root / 'skel/gitlab_ci/header.yaml').read_text()
     print(substitute(header_yml, locals()))

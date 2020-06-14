@@ -226,16 +226,12 @@ Run this from one of:
     pdfparser.add_argument('--cp',
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
-    pdfparser.add_argument('--no_timelimit', action='store_true', help='Do not print timelimits.')
+    pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
 
     # Solution slides
     solparser = subparsers.add_parser('solutions',
                                       parents=[global_parser],
                                       help='Build the solution slides pdf.')
-    solparser.add_argument('--all',
-                           '-a',
-                           action='store_true',
-                           help='Create solution slides for individual problems as well.')
     solparser.add_argument('--cp',
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
@@ -345,7 +341,7 @@ Run this from one of:
     allparser.add_argument('--cp',
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
-    allparser.add_argument('--no_timelimit', action='store_true', help='Do not print timelimits.')
+    allparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser('zip',
@@ -362,7 +358,7 @@ Run this from one of:
     zipparser.add_argument('--kattis',
                            action='store_true',
                            help='Make a zip more following the kattis problemarchive.com format.')
-    zipparser.add_argument('--no_solutions', action='store_true', help='Do not compile solutions')
+    zipparser.add_argument('--no-solutions', action='store_true', help='Do not compile solutions')
 
     # Build a zip with all samples.
     subparsers.add_parser('samplezip',
@@ -393,6 +389,7 @@ def main():
     config.args = parser.parse_args()
     action = config.args.action
 
+    # Skel commands.
     if action in ['new_contest']:
         skel.new_contest(config.args.contestname)
         return
@@ -401,27 +398,27 @@ def main():
         skel.new_problem()
         return
 
-    if action in ['new_cfp_problem']:
-        skel.new_cfp_problem(config.args.shortname)
-        return
-
     # Get problem_paths and cd to contest
-    # TODO: Migrate from plain problem paths to Problem objects.
     problems, level, contest = get_problems()
-    problem_paths = [p.path for p in problems]
 
+    # Check for incompatible actions/arguments at the problem/problemset level.
+    if level != 'problem':
+        if action == 'generate':
+            fatal('Generating testcases only works for a single problem.')
+        if action == 'test':
+            fatal('Testing a submission only works for a single problem.')
+
+    if level != 'problemset':
+        if action == 'solutions':
+            fatal('Generating solution slides only works for a contest.')
+
+    # Handle one-off subcommands.
     if action == 'tmp':
         if level == 'problem':
             print(config.tmpdir / problems[0].name)
         else:
             print(config.tmpdir)
         return
-
-    if level != 'problem' and action in ['generate', 'test']:
-        if action == 'generate':
-            fatal('Generating testcases only works for a single problem.')
-        if action == 'test':
-            fatal('Testing a submission only works for a single problem.')
 
     if action == 'run':
         if config.args.submissions:
@@ -445,7 +442,7 @@ def main():
         return
 
     if action == 'gitlabci':
-        skel.create_gitlab_jobs(contest, problem_paths)
+        skel.create_gitlab_jobs(contest, problems)
         return
 
     problem_zips = []
@@ -461,7 +458,7 @@ def main():
         # TODO: Remove usages of settings.
         settings = problem.settings
 
-        if action in ['pdf', 'solutions', 'all']:
+        if action in ['pdf', 'all']:
             # only build the pdf on the problem level, or on the contest level when
             # --all is passed.
             if level == 'problem' or (level == 'problemset' and hasattr(config.args, 'all')
