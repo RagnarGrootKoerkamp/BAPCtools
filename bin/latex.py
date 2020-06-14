@@ -225,12 +225,6 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
             ensure_symlink(builddir / 'solution_header.tex', headertex)
             problems_data += f'\\input{{{headertex}}}\n'
 
-        # include a statistics slide in the solutions PDF
-        footer_tex = Path('solution_footer.tex')
-        if footer_tex.exists():
-            ensure_symlink(builddir / 'solution_footer.tex', footer_tex)
-            problems_data += f'\\input{{{footer_tex}}}\n'
-
     per_problem_data = (config.tools_root / 'latex' / f'contest-{build_type}.tex').read_text()
 
     # Some logic to prevent duplicate problem IDs.
@@ -246,6 +240,13 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
                 'timelimit': problem.settings.timelimit,
                 'problemdir': config.tmpdir / problem.name,
             })
+
+    if solutions:
+        # include a statistics slide in the solutions PDF
+        footer_tex = Path('solution_footer.tex')
+        if footer_tex.exists():
+            ensure_symlink(builddir / 'solution_footer.tex', footer_tex)
+            problems_data += f'\\input{{{footer_tex}}}\n'
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 

@@ -120,6 +120,13 @@ def get_problems():
             if len(problems) == 0:
                 fatal('Did not find problem.yaml. Are you running this from a problem directory?')
 
+        if hasattr(config.args, 'order') and config.args.order is not None:
+            # Sort by position of id in order
+            def get_pos(id):
+                if id in config.args.order: return config.args.order.index(id)
+                else: return len(config.args.order)+1
+            problems.sort(key=lambda p: (get_pos(p.label), p.name))
+
     contest = Path().cwd().name
 
     return (problems, level, contest)
