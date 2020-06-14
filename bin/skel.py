@@ -101,6 +101,11 @@ def new_problem():
     if config.args.skel: skeldir = Path(config.args.skel)
     log(f'Copying {skeldir} to {dirname}.')
 
+    problems_yaml = Path('problems.yaml')
+
+    if problems_yaml.is_file():
+        problems_yaml.write_text(problems_yaml.read_text() + '- id: ' + dirname + '\n')
+
     copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True)
 
 

@@ -96,13 +96,17 @@ def get_problems():
             problems = []
             for p in problemlist:
                 label = nextlabel
+                shortname = p['id']
                 if 'label' in p: label = p['label']
-                if label == '': fatal(f'Found empty label for problem {p["id"]}')
+                if label == '': fatal(f'Found empty label for problem {shortname}')
                 nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
                 if label in labels:
-                    fatal(f'label {label} found twice for problem {p["id"]} and {labels[label]}.')
-                labels[label] = p['id']
-                problems.append(Problem(Path(p['id']), label))
+                    fatal(f'label {label} found twice for problem {shortname} and {labels[label]}.')
+                labels[label] = shortname
+                if Path(shortname).is_dir():
+                    problems.append(Problem(Path(shortname), label))
+                else:
+                    error(f'No directory found for problem {shortname} mentioned in problems.yaml.')
         else:
             # Otherwise, fallback to all directories with a problem.yaml and sort by
             # shortname.
@@ -247,15 +251,20 @@ Run this from one of:
     validate_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
     validate_parser.add_argument('--remove', action='store_true', help='Remove failing testcsaes.')
     validate_parser.add_argument('--move_to', help='Move failing testcases to this directory.')
+
+    # input validations
     input_parser = subparsers.add_parser('input',
                                          parents=[global_parser],
                                          help='validate input grammar')
     input_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
+
+    # output validation
     output_parser = subparsers.add_parser('output',
                                           parents=[global_parser],
                                           help='validate output grammar')
     output_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
 
+    # constraints validation
     subparsers.add_parser('constraints',
                           parents=[global_parser],
                           help='prints all the constraints found in problemset and validators')
@@ -460,20 +469,19 @@ def main():
                 success &= latex.build_problem_pdf(problem)
 
         input_validator_ok = False
-        if action in ['validate', 'input', 'all']:
-            input_validator_ok = problem.validate_format('input_format')
-            success &= input_validator_ok
-        if action in ['clean']:
-            success &= generate.clean(problem)
         if action in ['generate']:
             success &= generate.generate(problem)
+        if action in ['clean']:
+            success &= generate.clean(problem)
+        if action in ['validate', 'input', 'all']:
+            success &= problem.validate_format('input_format')
+        if action in ['validate', 'output', 'all']:
+            success &= problem.validate_format('output_format')
         if action in ['all'] or ( action in ['run'] and not config.args.no_generate):
             config.args.force = False
             config.args.clean = False
             config.args.jobs = 4
             success &= generate.generate(problem)
-        if action in ['validate', 'output', 'all']:
-            success &= problem.validate_format('output_format')
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
