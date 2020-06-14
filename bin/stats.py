@@ -96,7 +96,10 @@ def stats(problems):
         if 'comment' in problem.settings:
             comment = problem.settings.comment
 
-        if verified: comment = cc.green + comment + cc.reset
+        if verified:
+            if not comment:
+                comment = 'DONE'
+            comment = cc.green + comment + cc.reset
         else: comment = cc.orange + comment + cc.reset
 
         print(
