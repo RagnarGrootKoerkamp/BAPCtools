@@ -2,6 +2,7 @@ import program
 import config
 import validate
 import interactive
+import os
 
 from util import *
 
@@ -27,6 +28,16 @@ class Testcase:
         bad = self.short_path.parts[0] == 'bad'
         self.bad_input = bad and not self.ans_path.is_file()
         self.bad_output = bad and self.ans_path.is_file()
+
+        self.included = False
+        if path.is_symlink():
+            include_target = Path(os.path.normpath(path.parent / os.readlink(path)))
+            try:
+                include_target.relative_to(problem.path / 'data')
+                self.included = True
+            except ValueError:
+                # The case is a manual cases included from generators/.
+                pass
 
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)

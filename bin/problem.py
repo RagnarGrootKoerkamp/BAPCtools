@@ -1,6 +1,7 @@
 import re
 import glob
 import argparse
+import hashlib
 
 from pathlib import Path
 
@@ -389,6 +390,7 @@ class Problem:
             print(end='\n')
 
     # Validate the format of the input or output files.
+    # For input_format validation, also make sure all testcases are different.
     def validate_format(problem, validator_type, check_constraints=False):
         assert validator_type in ['input_format', 'output_format']
 
@@ -419,10 +421,31 @@ class Problem:
 
         constraints = {} if check_constraints else None
 
+        hashes = {}
+
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
         for testcase in testcases:
             bar.start(testcase.name)
+
+            if validator_type == 'input_format' and not testcase.included:
+                data = testcase.in_path.read_text()
+                h = hashlib.sha512(data.encode('utf-8')).hexdigest()
+                if h in hashes:
+                    ok = True
+                    for t2 in hashes[h]:
+                        if data == t2.in_path.read_text():
+                            bar.error(f'Duplicate testcase: identical to {t2.name}')
+                            ok = False
+                            break
+
+                    if ok:
+                        hashes[h].append(testcase)
+                    else:
+                        continue
+                else:
+                    hashes[h] = [testcase]
+
             success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints)
             bar.done()
 
