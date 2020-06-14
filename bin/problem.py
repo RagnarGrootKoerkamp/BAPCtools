@@ -188,10 +188,6 @@ class Problem:
 
         bar.finalize(print_done=False)
 
-        # TODO: Clean these spurious newlines.
-        if config.args.verbose:
-            print()
-
         submissions = dict()
         for verdict in config.VERDICTS:
             submissions[verdict] = []
@@ -201,6 +197,8 @@ class Problem:
             if p.ok:
                 submissions[p.expected_verdict].append(p)
 
+        if sum(len(submissions[x]) for x in submissions) == 0:
+            submissions = False
         problem._submissions = submissions
         return submissions
 
@@ -295,10 +293,6 @@ class Problem:
 
         # All validators must build.
         if not ok: validators = False
-
-        # TODO: Clean these spurious newlines.
-        if config.args.verbose:
-            print()
 
         problem._validators[key] = validators
         return validators
