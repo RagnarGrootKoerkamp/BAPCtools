@@ -19,7 +19,29 @@ The flags below work for any subcommand:
 ## Problem development
 
 ### `run`
+
+
+
 ### `test`
+
+`bt test` only works for a single problem, and must be called as
+```
+bt test <submission> [<testcases>].
+```
+
+It runs the given submission against the specified testcases (or all testcases if not set) and prints the submission `stdout` and `stderr` to the terminal. The submission output is not validated or checked for correctness. However, time limits and timeouts will be reported. For interactive problems, the interaction is shown.
+
+This is useful for running submissions without having to compile them manually. Also, it doesn't give away whether the submission is ACCEPTED or WRONG_ANSWER, which may be useful when trying to solve a problem before looking at the solutions.
+
+**Flags**
+
+- `<submission>`: The path to the submission to run.
+- `[<testcases>]`: Paths to the testcases (`.in`, `.ans`, basename, or directory) to run the submission on. Can not be used together with `--samples`.
+- `--samples`: Run the submission on the samples only. Can not be used together with explicitly listed testcases.
+- `--timeout <second>`/`-t <second>`: The timeout to use for the submission.
+- `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
+
+
 ### `generate`
 
 Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. The syntax of this file is described [here](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/doc/generated_testcases_v2.yaml). This should become part of the problem archive spec as well.
@@ -35,7 +57,7 @@ Any files in `data/` that are not tracked in `generators.yaml` will raise a warn
 - `--clean`/`-c`: Clean untracked files instead of warning about them. WARNING: This may delete manually created testcases that are not (yet) mentioned in `generators.yaml`.
   One time where this is useful, is when automatically numbered testcases get renumbered. In this case, the `generate` command will complain about the old numbered testcases, and `clean` can be used to remove those.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to `4`. Set to `0` or `1` to disable parallelization.
-- `--timeout <number>`/`-t <number>`: Override the default timeout for generators (`30s`) and submissions (`1.5*timelimit+1`).
+- `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
 
 
 ### `clean`
@@ -133,7 +155,7 @@ This table contains:
 
 ### `input`
 
-Use `bt input <testcases>` to validate the `.in` files for the given testcases. When running for a single problem, testcases can be given as one of:
+Use `bt input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified. When running for a single problem, testcases can be given as one of:
 - A `.in` file: `data/sample/1.in`
 - A `.ans` file: `data/sample/1.ans`
 - A testcase name: `data/sample/1`
@@ -150,7 +172,7 @@ Use `bt input <testcases>` to validate the `.in` files for the given testcases. 
 **Flags**
 
 It supports the following flags when run for a single problem:
-- `testcases`: a list of testcases and/or directories to validate.
+- `[testcases]`: a list of testcases and/or directories to validate. See `input` above for allowed formats. When not set, all testcases are validated.
 - `--remove`: when passed, all invalid testcases are deleted.
 - `--move_to <directory>`: when passed, all invalid testcases are moved to the given directory.
 
@@ -240,7 +262,7 @@ LOG: Copying /home/philae/git/bapc/BAPCtools/skel/problem to testproblem.
 ```
 
 ```
-~nwerc2020 % bt new_problem 'Test Problem 2' --author 'Ragnar Groot Koerkamp' --validation_interactive
+~nwerc2020 % bt new_problem 'Test Problem 2' --author 'Ragnar Groot Koerkamp' --validation interactive
 LOG: Copying /home/philae/git/bapc/BAPCtools/skel/problem to testproblem2.
 ```
 
@@ -248,6 +270,12 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 
 - If the `--skel <directory>` flag is specified, that directory is used instead.
 - If either the current (contest) directory or the parent directory contains a `skel/problem` directory, that is used instead. This can be used to override the default problem template on a per-contest basis.
+
+**Flags**
+
+- `[<problem name>]`: The name of the problem. Will be asked interactively if not specified.
+- `--author`: The author of the problem. Will be asked interactively if not specified.
+- `--validation`: The validation mode to use. Must be one of `default`, `custom`, `custom interactive`.
 
 ### `gitlabci`
 
