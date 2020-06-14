@@ -227,7 +227,7 @@ class Submission(program.Program):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_item_len = max(len(run.name)
                            for run in runs) + max_submission_name_len - len(self.name) - 1
-        bar = ProgressBar('Running ' + self.name, max_len=max_item_len)
+        bar = ProgressBar('Running ' + self.name, count=len(runs), max_len=max_item_len)
 
         max_duration = 0
 
@@ -281,9 +281,6 @@ class Submission(program.Program):
             message=
             f'{max_duration:6.3f}s {color}{verdict[1]:<20}{cc.reset} @ {verdict_run.testcase.name}'
         )
-
-        if config.args.verbose:
-            print()
 
         return self.verdict == self.expected_verdict
 
