@@ -55,7 +55,7 @@ class Testcase:
             return True
 
         for validator in validators:
-            ret = validator.run(self, constraints)
+            ret = validator.run(self, constraints=constraints)
 
             success &= ret.ok is True
             message = ''

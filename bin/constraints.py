@@ -14,10 +14,11 @@ from util import *
 
 
 def check_constraints(problem, settings):
-    problem.validate_format(problem, 'input_format', check_constraints=True)
+    problem.validate_format('input_format', check_constraints=True)
+    problem.validate_format('output_format', check_constraints=True)
 
-    vinput = problem / 'input_validators/input_validator/input_validator.cpp'
-    voutput = problem / 'output_validators/output_validator/output_validator.cpp'
+    vinput = problem.path / 'input_validators/input_validator/input_validator.cpp'
+    voutput = problem.path / 'output_validators/output_validator/output_validator.cpp'
 
     cpp_statement = [
         (re.compile(
@@ -44,7 +45,7 @@ def check_constraints(problem, settings):
                         if v2 is not None and mo.group(v2) is not None:
                             defs_validators.append([mo.group(name) or '', mo.group(v2)])
 
-    statement = problem / 'problem_statement/problem.en.tex'
+    statement = problem.path / 'problem_statement/problem.en.tex'
     #latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$')
     latex_defines = [
         (re.compile('{\\\\(\w+)}{(.*)}'), 1, 2, False),

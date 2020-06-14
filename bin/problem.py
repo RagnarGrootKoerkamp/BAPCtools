@@ -268,9 +268,9 @@ class Problem:
                     break
 
         if validator_type == 'input_format':
-            validators = [validate.InputValidator(problem, path) for path in paths]
+            validators = [validate.InputValidator(problem, path, skip_double_build_warning=check_constraints) for path in paths]
         else:
-            validators = [validate.OutputValidator(problem, path) for path in paths]
+            validators = [validate.OutputValidator(problem, path, skip_double_build_warning=check_constraints) for path in paths]
 
         bar = ProgressBar('Build validators', items=validators)
 
