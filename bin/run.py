@@ -12,8 +12,8 @@ class Testcase:
 
         self.problem = problem
 
-        self.in_path = path.resolve()
-        self.ans_path = path.resolve().with_suffix('.ans')
+        self.in_path = path
+        self.ans_path = self.in_path.with_suffix('.ans')
         # Note: testcases outside problem/data must pass in the short_path explicitly.
         if short_path is None:
             self.short_path = path.relative_to(problem.path / 'data')
@@ -46,11 +46,11 @@ class Testcase:
         for validator in validators:
             ret = validator.run(self, constraints)
 
-            success &= ret.ok
+            success &= ret.ok is True
             message = ''
 
             # Failure?
-            if ret.ok:
+            if ret.ok is True:
                 message = 'PASSED ' + validator.name
             else:
                 message = 'FAILED ' + validator.name
@@ -62,9 +62,9 @@ class Testcase:
             else:
                 ret.out = ''
 
-            bar.part_done(ret.ok, message, data=ret.err + ret.out)
+            bar.part_done(ret.ok is True, message, data=ret.err + ret.out)
 
-            if not ret.ok:
+            if ret.ok is not True:
                 # Move testcase to destination directory if specified.
                 if hasattr(config.args, 'move_to') and config.args.move_to:
                     infile = testcase.in_path
@@ -124,7 +124,10 @@ class Run:
                 result.verdict = 'RUN_TIME_ERROR'
                 result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
             else:
+                # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
+                duration = result.duration
                 result = self._validate_output()
+                result.duration = duration
 
                 if result.ok is True:
                     result.verdict = 'ACCEPTED'
@@ -164,7 +167,7 @@ class Run:
             if ret.ok == config.RTV_WA:
                 ret.ok = False
 
-            if ret.ok != True:
+            if ret.ok is not True:
                 return ret
 
             last_result = ret
@@ -294,18 +297,23 @@ class Submission(program.Program):
                                           stderr=None,
                                           timeout=self.problem.settings.timeout)
 
-                did_timeout = result.duration > self.problem.settings.timelimit
                 assert result.err is None and result.out is None
-                if result.ok is not True:
+                if result.ok is not True and result.ok != -9:
                     config.n_error += 1
                     print(
                         f'{cc.red}Run time error!{cc.reset} exit code {result.ok} {cc.bold}{result.duration:6.3f}s{cc.reset}'
                     )
-                elif did_timeout:
-                    config.n_error += 1
-                    print(f'{cc.red}Aborted!{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
                 else:
-                    print(f'{cc.green}Done:{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
+                    if result.duration > self.problem.settings.timeout:
+                        status = f'{cc.red}Aborted!'
+                        config.n_error += 1
+                    elif result.duration > self.problem.settings.timelimit:
+                        status = f'{cc.orange}Done (TLE):'
+                        config.n_warn += 1
+                    else:
+                        status = f'{cc.green}Done:'
+
+                    print(f'{status}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
                 print()
 
             else:

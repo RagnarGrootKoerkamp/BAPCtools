@@ -112,6 +112,8 @@ def get_problems():
                     label = chr(ord('A') + label_ord)
                     problems.append(Problem(path, label))
                     label_ord += 1
+            if len(problems) == 0:
+                fatal('Did not find problem.yaml. Are you running this from a problem directory?')
 
     contest = Path().cwd().name
 
@@ -159,11 +161,9 @@ Run this from one of:
         default=0,
         action='count',
         help='Verbose output; once for what\'s going on, twice for all intermediate output.')
-    global_parser.add_argument('-c',
-                               '--contest',
+    global_parser.add_argument('--contest',
                                help='The contest to use, when running from repository root.')
-    global_parser.add_argument('-p',
-                               '--problem',
+    global_parser.add_argument('--problem',
                                help='The problem to use, when running from repository root.')
     global_parser.add_argument('--no-bar',
                                action='store_true',
@@ -279,11 +279,16 @@ Run this from one of:
                            '--force',
                            action='store_true',
                            help='Overwrite existing input flies.')
+    genparser.add_argument('-c',
+                           '--clean',
+                           action='store_true',
+                           help='Clean untracked files.')
+    # TODO: This is not actually used.
     genparser.add_argument(
         'generators',
         nargs='*',
         help=
-        'The generators to run. Everything which has one of these as a prefix will be run. Leading `data/` will be dropped. Empty to generate everything.'
+        '[NOT IMPLEMENTED] The generators to run. Everything which has one of these as a prefix will be run. Leading `data/` will be dropped. Empty to generate everything.'
     )
     genparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
     genparser.add_argument('--samples',
@@ -299,6 +304,10 @@ Run this from one of:
     cleanparser = subparsers.add_parser('clean',
                                         parents=[global_parser],
                                         help='Delete all .in and .ans corresponding to .gen.')
+    cleanparser.add_argument('-f',
+                           '--force',
+                           action='store_true',
+                           help='Delete all untracked files.')
 
     # Run
     runparser = subparsers.add_parser('run',
@@ -323,7 +332,7 @@ Run this from one of:
                             nargs='*',
                             help='Optionally a list of testcases to run on.')
     testparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
-    testparser.add_argument('-t', '--timeout', help='Override the default timeout.')
+    testparser.add_argument('-t', '--timeout', type=int, help='Override the default timeout.')
 
     # Sort
     subparsers.add_parser('sort',

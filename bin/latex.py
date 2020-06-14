@@ -71,8 +71,12 @@ def create_samples_file(problem):
 
     # create the samples.tex file
     samples = problem.testcases(needans=True, only_sample=True)
-    if samples is False: return
     samples_file_path = builddir / 'samples.tex'
+
+    if samples is False:
+        samples_file_path.write_text('')
+        return
+
     samples_data = ''
 
     for sample in samples:
@@ -101,9 +105,9 @@ def create_samples_file(problem):
             flush()
         else:
             samples_data += '\\begin{Sample}\n'
-            samples_data += tex_escape(sample.in_file.read_text())
+            samples_data += tex_escape(sample.in_path.read_text())
             samples_data += '&\n'
-            samples_data += tex_escape(sample.ans_file.read_text())
+            samples_data += tex_escape(sample.ans_path.read_text())
             samples_data += '\\\\\n\\end{Sample}\n\n'
     samples_file_path.write_text(samples_data)
 
@@ -146,7 +150,7 @@ def build_problem_pdf(problem):
     util.copy_and_substitute(
         config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
             'problemlabel': problem.label,
-            'problemyamlname': problem.settings.name,
+            'problemyamlname': problem.settings.name.replace('_', ' '),
             'problemauthor': problem.settings.author,
             'timelimit': problem.settings.timelimit,
             'problemdir': builddir,
@@ -229,9 +233,9 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
         problems_data += util.substitute(
             per_problem_data, {
                 'problemlabel': problem.label,
-                'problemyamlname': problem.config['name'],
-                'problemauthor': problem.config.get('author'),
-                'timelimit': get_tl(problem.config),
+                'problemyamlname': problem.name,
+                'problemauthor': problem.settings.author,
+                'timelimit': problem.settings.timelimit,
                 'problemdir': config.tmpdir / problem.name,
             })
 

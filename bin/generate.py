@@ -51,7 +51,8 @@ class Invocation:
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
     def __init__(self, problem, string, *, allow_absolute):
-        commands = shlex.split(str(string))
+        string = str(string)
+        commands = shlex.split(string)
         command = commands[0]
         self.args = commands[1:]
 
@@ -110,9 +111,9 @@ class GeneratorInvocation(Invocation):
             if not result.retry: return result
 
         if retries > 1:
-            self.program.bar.error(f'Failed {retry+1} times', result.err)
+            bar.error(f'Failed {retry+1} times', result.err)
         else:
-            self.program.bar.error(f'Failed', result.err)
+            bar.error(f'Failed', result.err)
         return result
 
 
@@ -146,7 +147,7 @@ class SolutionInvocation(Invocation):
         result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd)
 
         if result.ok == -9:
-            bar.error(f'TIMEOUT after {result.duration}s')
+            bar.error(f'solution TIMEOUT after {result.duration}s')
         elif result.ok is not True:
             bar.error('FAILED', result.err)
         return result
@@ -201,7 +202,7 @@ class Config:
             if yaml and key in yaml:
                 setattr(self, key, func(problem, yaml[key]))
             elif parent_config is not None:
-                setattr(self, key, vars(parent_config)[key])
+                setattr(self, key, getattr(parent_config, key))
             else:
                 setattr(self, key, default)
 
@@ -231,9 +232,11 @@ class TestcaseRule(Rule):
             name = name[:-3]
 
         self.manual = False
+        self.manual_inline = False
 
         if yaml == '':
             self.manual = True
+            self.manual_inline = True
             yaml = {'input': Path('data') / parent.path / (name + '.in')}
         elif isinstance(yaml, str) and yaml.endswith('.in'):
             self.manual = True
@@ -270,12 +273,25 @@ class TestcaseRule(Rule):
         ansfile = cwd / (t.name + '.ans')
         meta_path = cwd / 'meta_.yaml'
 
+        target_infile = problem.path / 'data' / t.path.parent / (t.name + '.in')
+        target_ansfile = problem.path / 'data' / t.path.parent / (t.name + '.ans')
+
+        if not t.manual and t.generator.program is None:
+            bar.done(False, f'Generator didn\'t build.')
+            return
+
+        if t.manual and not (problem.path/t.source).is_file():
+            bar.done(False, f'Source for manual case not found: {t.source}')
+            return
+
         # The expected contents of the meta_ file.
         def up_to_date():
             # The testcase is up to date if:
-            # - both infile ans ansfile exist
+            # - both target infile ans ansfile exist
             # - meta_ exists with a timestamp newer than the 3 Invocation timestamps (Generator/Submission/Visualizer).
+            # - meta_ exists with a timestamp newer than target infile ans ansfile
             # - meta_ contains exactly the right content given by t._cache_string()
+
 
             last_change = 0
             t.cache_data = {}
@@ -292,8 +308,11 @@ class TestcaseRule(Rule):
                 last_change = max(last_change, t.config.visualizer.program.timestamp)
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
-            if not infile.is_file(): return False
-            if not ansfile.is_file(): return False
+            if not target_infile.is_file(): return False
+            if not target_ansfile.is_file(): return False
+
+            last_change = max(last_change, target_infile.stat().st_ctime)
+            last_change = max(last_change, target_ansfile.stat().st_ctime)
 
             if not meta_path.is_file(): return False
 
@@ -301,8 +320,7 @@ class TestcaseRule(Rule):
             return meta_path.stat().st_ctime >= last_change and meta_yaml == t.cache_data
 
         if up_to_date():
-            bar.log('up to date')
-            bar.done()
+            bar.done(message='up to date')
             return
 
         # Generate .in
@@ -312,15 +330,17 @@ class TestcaseRule(Rule):
                 bar.error(f'Manual source {t.source} not found.')
                 return
 
+            # For manual cases outside of the data/ directory, copy all related files.
+            # Inside data/, only use the .in.
             for ext in config.KNOWN_DATA_EXTENSIONS:
                 ext_file = manual_data.with_suffix(ext)
                 if ext_file.is_file():
                     ensure_symlink(infile.with_suffix(ext), ext_file)
         else:
-            if not t.generator.run(bar, cwd, t.name, t.seed, t.config.retries):
+            if t.generator.run(bar, cwd, t.name, t.seed, t.config.retries).ok is not True:
                 return
 
-        testcase = run.Testcase(problem, infile, short_path=Path(t.name + '.in'))
+        testcase = run.Testcase(problem, infile, short_path=Path(t.path.parent/(t.name+ '.in')))
 
         # Validate the manual or generated .in.
         if not testcase.validate_format('input_format', bar=bar, constraints=None):
@@ -331,9 +351,11 @@ class TestcaseRule(Rule):
         # Generate .ans and .interaction if needed.
         # TODO: Disable this with a flag.
         if not problem.interactive:
-            if t.config.solution and not testcase.ans_path.is_file():
+            if t.config.solution and (not testcase.ans_path.is_file() or t.manual_inline):
+                if testcase.ans_path.is_file():
+                    testcase.ans_path.unlink()
                 # Run the solution and validate the generated .ans.
-                if not t.config.solution.run(bar, cwd, t.name):
+                if t.config.solution.run(bar, cwd, t.name).ok is not True:
                     return
                 if not testcase.validate_format('output_format', bar=bar):
                     return
@@ -345,12 +367,12 @@ class TestcaseRule(Rule):
                     return
 
         if not ansfile.is_file():
-            bar.warn(f'{ansfile.name} was not generated and solution is disabled here.')
+            bar.warn(f'{ansfile.name} was not generated.')
 
         # Generate visualization
         # TODO: Disable this with a flag.
         if t.config.visualizer:
-            if not t.config.visualizer.run(bar, cwd, t.name):
+            if t.config.visualizer.run(bar, cwd, t.name).ok is not True:
                 return
 
         target_dir = problem.path / 'data' / t.path.parent
@@ -411,7 +433,7 @@ class TestcaseRule(Rule):
 
         bar.done()
 
-    def clean(t, problem, bar):
+    def clean(t, problem, known_cases, bar):
         bar.start(str(t.path))
 
         path = Path('data') / t.path.with_suffix(t.path.suffix + '.in')
@@ -471,6 +493,7 @@ class Directory(Rule):
         if 'data' not in yaml: return
         data = yaml['data']
         if data is None: return
+        if data == '': return
         assert isinstance(data, dict) or isinstance(data, list)
         if len(data) == 0: return
 
@@ -550,19 +573,34 @@ class Directory(Rule):
                 if f.suffix in config.KNOWN_DATA_EXTENSIONS and f.with_suffix(
                         '.in') in files_created:
                     continue
-                bar.warn(f'Found unlisted file {f}')
+
+                if f.with_suffix('.in').is_file():
+                    continue
+
+                if f.name[0] != '.':
+                    name = f.relative_to(problem.path / 'data')
+
+                    if config.args.clean:
+                        f.unlink()
+                        bar.log(f'Deleted untracked file {name}')
+                    else:
+                        bar.warn(f'Found untracked file. Delete with generate --clean: {name}. ')
                 continue
 
-            known_cases.add(relpath)
-            bar.warn(f'Found unlisted manual case: {relpath}')
-            t = TestcaseRule(problem, base.name, '', d)
-            d.data.append(t)
-            bar.add_item(t.path)
+            if config.args.clean:
+                f.unlink()
+                bar.log(f'Deleted untracked manual case: {relpath}')
+            else:
+                known_cases.add(relpath)
+                bar.warn(f'Found untracked manual case. Delete with generate --clean: {relpath}')
+                t = TestcaseRule(problem, base.name, '', d)
+                d.data.append(t)
+                bar.add_item(t.path)
 
         bar.done()
         return True
 
-    def clean(d, problem, bar):
+    def clean(d, problem, known_cases, bar):
         # Clean the current directory:
         # - remove testdata.yaml
         # - remove linked testcases
@@ -580,12 +618,29 @@ class Directory(Rule):
         # Remove all symlinks that correspond to includes.
         for f in dir_path.glob('*'):
             if f.is_symlink():
-                target = Path(os.path.normpath(f.parent / os.readlink(f))).relative_to(
-                    problem.path / 'data').with_suffix('')
+                try:
+                    target = Path(os.path.normpath(f.parent / os.readlink(f))).relative_to(
+                        problem.path / 'data').with_suffix('')
 
-                if target in d.includes or target.parent in d.includes:
-                    bar.log(f'Remove linked file {f.name}')
-                    f.unlink()
+                    if target in d.includes or target.parent in d.includes:
+                        bar.log(f'Remove linked file {f.name}')
+                        f.unlink()
+                        continue
+                except ValueError:
+                    pass
+
+            if f.name[0] == '.': continue
+
+            # If --force/-f is passed, also clean unknown files.
+            relpath = f.relative_to(problem.path / 'data')
+            if relpath.with_suffix('') in known_cases: continue
+
+            if config.args.force:
+                bar.log(f'Deleted untracked file: {relpath}')
+                f.unlink()
+            else:
+                bar.warn(f'Found untracked file. Delete with clean --force: {relpath}')
+
 
         # Try to remove the directory. Fails if it's not empty.
         try:
@@ -650,14 +705,12 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
             else:
                 setattr(self, key, default)
 
-        next_number = 1
         # A map from directory paths `secret/testgroup` to Directory objects, used to resolve testcase
         # inclusion.
         self.known_cases = set()
 
         # Main recursive parsing function.
         def parse(name, yaml, parent):
-            nonlocal next_number
 
             assert is_testcase(yaml) or is_directory(yaml)
 
@@ -685,17 +738,20 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
 
             # Parse child directories/testcases.
             if 'data' in yaml:
+                number_width = len(str(len(yaml['data'])))
+                next_number = 1
+
                 for dictionary in yaml['data']:
                     if d.numbered:
-                        # TODO: Number prefixes should be zero-padded when there are more than 9 cases.
-                        number_prefix = str(next_number) + '-'
+                        number_prefix = f'{next_number:0{number_width}}'
                         next_number += 1
                     else:
                         number_prefix = ''
 
                     for child_name, child_yaml in sorted(dictionary.items()):
                         if isinstance(child_name, int): child_name = str(child_name)
-                        child_name = number_prefix + child_name
+                        if number_prefix:
+                            child_name = number_prefix + '-' + child_name
                         d.data.append(parse(child_name, child_yaml, d))
 
             return d
@@ -715,7 +771,8 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         # Note: we explicitly random shuffle the submission that's used to generate answers to
         # encourage setting it in generators.yaml.
         submission = random.choice(submissions)
-        warn(f'No solution specified. Using randomly chosen {submission} instead.')
+        submission_short_path = submission.relative_to(self.problem.path /'submissions')
+        warn(f'No solution specified. Using randomly chosen {submission_short_path} instead.')
         return Path('/') / submission.relative_to(self.problem.path)
 
     def build(self):
@@ -729,20 +786,24 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         # Also, convert the default submission into an actual Invocation.
         def collect_programs(t):
             nonlocal default_solution
-            if not t.manual:
-                generators_used.add(t.generator.program_path)
+            if isinstance(t, TestcaseRule):
+                if not t.manual:
+                    generators_used.add(t.generator.program_path)
             if t.config.solution:
                 if t.config.solution is True:
                     if default_solution is None:
-                        default_solution = SolutionInvocation(self.problem,
-                                                              self.get_default_solution())
-                        print('Get default solution: ', default_solution)
+                        default_solution_path = self.get_default_solution()
+                        if default_solution_path:
+                            default_solution = SolutionInvocation(self.problem, default_solution_path)
+                        else:
+                            default_solution = False
                     t.config.solution = default_solution
-                solutions_used.add(t.config.solution.program_path)
+                if t.config.solution:
+                    solutions_used.add(t.config.solution.program_path)
             if t.config.visualizer:
                 visualizers_used.add(t.config.visualizer.program_path)
 
-        self.root_dir.walk(collect_programs, dir_f=None)
+        self.root_dir.walk(collect_programs)
 
         def build_programs(program_type, program_paths):
             programs = []
@@ -769,6 +830,14 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         build_programs(run.Submission, solutions_used)
         build_programs(program.Visualizer, visualizers_used)
 
+        def unset_build_failures(t):
+            if t.config.solution and t.config.solution.program is None:
+                t.config.solution = None
+            if t.config.visualizer and t.config.visualizer.program is None:
+                t.config.visualizer = None
+
+        self.root_dir.walk(unset_build_failures)
+
         self.problem.validators('input_format')
         self.problem.validators('output_format')
 
@@ -779,7 +848,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         bar = ProgressBar('Generate', items=item_names)
 
         parallel = True
-        if self.parallel and config.args.jobs > 1:
+        if self.parallel and config.args.jobs > 1 and self.problem.interactive:
             parallel = False
             log('Disabling parallelization for interactive problem.')
 
@@ -845,7 +914,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
 
         bar = ProgressBar('Clean', items=item_names)
 
-        self.root_dir.walk(lambda x: x.clean(self.problem, bar), dir_last=True)
+        self.root_dir.walk(lambda x: x.clean(self.problem, self.known_cases, bar), dir_last=True)
         bar.finalize()
 
 

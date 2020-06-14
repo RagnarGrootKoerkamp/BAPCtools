@@ -190,7 +190,7 @@ class Program:
             'mainfile': str(mainfile),
             'mainclass': str(mainfile.with_suffix('').name),
             'Mainclass': str(mainfile.with_suffix('').name).capitalize(),
-            'memlim': get_memory_limit() // 1000000,
+            'memlim': (get_memory_limit() or 10000000000) // 1000000,
 
             # Out-of-spec variables used by 'manual' and 'Viva' languages.
             'build': self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else '',
@@ -258,9 +258,14 @@ class Program:
         if not self.ok: return False
         self.bar = bar
 
+        if not self.path.is_file() and not self.path.is_dir():
+            self.ok = False
+            self.bar.error(f'{self.short_path} was not found.')
+            return
+
         if len(self.source_files) == 0:
             self.ok = False
-            self.bar.error('{str(path)} is an empty directory.')
+            self.bar.error(f'{self.short_path} is an empty directory.')
             return
 
         # Check file names.
