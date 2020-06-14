@@ -98,9 +98,10 @@ class ProgressBar:
         if isinstance(item, Path): return len(str(item))
         return len(item.name)
 
-    def __init__(self, prefix, max_len=None, count=None, *, items=None):
+    def __init__(self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False):
         assert not (items and (max_len or count))
         assert items is not None or max_len
+        assert items is not None or count is not None
         if items is not None:
             count = len(items)
             if count == 0:
@@ -124,6 +125,8 @@ class ProgressBar:
         self.in_progress = set()
         self.item = None
 
+        self.needs_leading_newline = needs_leading_newline
+
     def total_width(self):
         return shutil.get_terminal_size().columns
 
@@ -141,6 +144,7 @@ class ProgressBar:
 
     def clearline(self):
         if hasattr(config.args, 'no_bar') and config.args.no_bar: return
+        assert self.lock.locked()
         print(self.carriage_return, end='', flush=True)
 
     def action(prefix, item, width=None, total_width=None):
@@ -179,14 +183,17 @@ class ProgressBar:
         if config.args.no_bar: return
 
         if len(self.in_progress) > 0:
+            p = None
             if not self.item in self.in_progress:
                 old = self.item
                 self.item = next(iter(self.in_progress))
+                p = self.item
             bar = self.get_bar()
             if bar is None or bar == '':
                 print(self.get_prefix(), end='\r', flush=True)
             else:
-                print(self.get_prefix(), bar, end='\r', flush=True)
+                print(self.get_prefix(), bar, sep='', end='\r', flush=True)
+
 
     def start(self, item=''):
         self.lock.acquire()
@@ -231,10 +238,16 @@ class ProgressBar:
         self.logged = True
         if self.parent: self.parent.global_logged = True
         else: self.global_logged = True
+
+        if self.needs_leading_newline:
+            print()
+            self.needs_leading_newline = False
+
         print(self.get_prefix() , color , message , ProgressBar._format_data(data) , cc.reset, sep='',
               flush=True)
 
-        if self.parent: self.parent._resume()
+        if self.parent:
+            self.parent._resume()
 
         if needs_lock: self.lock.release()
 
@@ -259,19 +272,14 @@ class ProgressBar:
             self.lock.release()
             return
 
-        if self.logged:
-            self._release_item()
-            self.lock.release()
-            return
-
-        if not success: config.n_error += 1
-
-        do_print = config.args.verbose or not success
-        if do_print:
-            self.log(message, data, needs_lock=False, color=cc.green if success else cc.red)
+        if not self.logged:
+            if not success: config.n_error += 1
+            if config.args.verbose or not success:
+                self.log(message, data, needs_lock=False, color=cc.green if success else cc.red)
 
         self._release_item()
-        if self.parent: self.parent._resume()
+        if self.parent:
+            self.parent._resume()
 
         self.lock.release()
         return
@@ -279,31 +287,48 @@ class ProgressBar:
     # Log an intermediate line if it's an error or we're in verbose mode.
     # Return True when something was printed
     def part_done(self, success=True, message='', data=''):
-        self.clearline()
         if not success: config.n_error += 1
         if config.args.verbose or not success:
+            self.lock.acquire()
             if success:
-                self.log(message, data)
+                self.log(message, data, needs_lock = False)
             else:
-                self.error(message, data)
+                self.error(message, data, needs_lock = False)
+            self._resume()
+            self.lock.release()
             return True
         return False
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
     def finalize(self, *, print_done=True, message=None):
+        self.lock.acquire()
+        self.clearline()
         assert self.parent is None
         assert self.count is None or self.i == self.count
         assert self.item is None
+        # At most one of print_done and message may be passed.
+        if message: assert print_done is True
 
-        if not print_done and message is None: return
+        # If nothing was logged, we don't need the super wide spacing before the final 'DONE'.
+        if not self.global_logged and not message:
+            self.item_width = 0
 
-        if message is None:
+        # Print 'DONE' when nothing was printed yet but a summary was requested.
+        if print_done and not self.global_logged and not message:
             message = f'{cc.green}Done{cc.reset}'
-            if self.global_logged: return
-            if config.args.verbose: return
 
-        print(self.get_prefix() , message, sep='')
+        if message:
+            print(self.get_prefix() , message, sep='')
+
+        print_newline = config.args.verbose or self.global_logged
+        # In verbose mode: print newlines between parts.
+        if print_newline:
+            print()
+
+        self.lock.release()
+
+        return print_newline
 
 
 # Drops the first two path components <problem>/<type>/
