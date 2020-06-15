@@ -42,17 +42,17 @@ Testcases are only re-generated when changes were made. This is done with the fo
     - `~testcase/meta_.yaml` must exist
     - `testcase.in` and `testcase.ans` must exist.
     - `~testcase/meta_.yaml` must be newer than the last modification to
-      - the generator (or testcase source for manual cases)
-      - the solution
-      - the visualizer
-      - the `testcase.in` file
-      - the `testcase.ans` file.
+        - the generator (or testcase source for manual cases)
+        - the solution
+        - the visualizer
+        - the `testcase.in` file
+        - the `testcase.ans` file.
     - the current generator invocation, solution invocation, and visualizer invocation must match the invocations stored in `~testcase/meta_.yaml`.
 1. For manual testcases, symlink the given file to `~testcase/<testcase>.in`
 1. For other cases, run the given generator with current working directory `~testcase`.
 1. Validate the generated `~testcase/<testcase>.in` file.
 1. If `~testcase/<testcase>.ans` was not generated and a solution was provided, run the solution to generate `~testcase/<testcase>.ans`.
-  - For interactive problems, create an empty `~testcase/<testcase>.ans` and run the given submission to create a `~testcase/<testcase>.interaction`.
+    - For interactive problems, create an empty `~testcase/<testcase>.ans` and run the given submission to create a `~testcase/<testcase>.interaction`.
 1. Validate the generated `~testcase/<testcase>.ans` file.
 1. Copy generated files to the `data/` directory. For changed files, `--force` is needed to overwrite them.
 1. Update the `~testcase/meta_.yaml` file with the invocations of the generator, solution, and visualizer.

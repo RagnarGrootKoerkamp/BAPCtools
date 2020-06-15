@@ -190,7 +190,7 @@ See `run <testcases>` for a description of how to pass testcases.
 **Flags**
 
 It supports the following flags when run for a single problem:
-- `[testcases]`: a list of testcases and/or directories to validate. See `input` above for allowed formats. When not set, all testcases are validated.
+- `[testcases]`: a list of testcases and/or directories to validate. See `run <testcases>` for allowed formats. When not set, all testcases are validated.
 - `--remove`: when passed, all invalid testcases are deleted.
 - `--move_to <directory>`: when passed, all invalid testcases are moved to the given directory.
 
