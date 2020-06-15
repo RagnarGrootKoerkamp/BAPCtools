@@ -169,12 +169,12 @@ class Program:
         if lang is None:
             self.ok = False
             self.bar.error(f'No language detected for {self.path}.')
-            return
+            return False
 
         if len(files) == 0:
             self.ok = False
             self.bar.error(f'No file detected for language {lang} at {self.path}.')
-            return
+            return False
 
         self.language = lang
         mainfile = None
@@ -214,10 +214,12 @@ class Program:
                         bar.error(
                             f'Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h.'
                         )
-                        return None
+                        self.ok = False
+                        return False
                     else:
                         self.bar.warn(
                             f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h')
+        return True
 
     # Return True on success.
     def _compile(self):
@@ -290,7 +292,7 @@ class Program:
             self.input_files.append(self.tmpdir / f.name)
             self.timestamp = max(self.timestamp, f.stat().st_ctime)
 
-        self._get_language(self.source_files)
+        if not self._get_language(self.source_files): return False
 
         # A file containing the compile command. Timestamp is used as last build time.
         meta_path = self.tmpdir / 'meta_'
