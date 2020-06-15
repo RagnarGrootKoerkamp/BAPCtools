@@ -345,8 +345,6 @@ class TestcaseRule(Rule):
         if not testcase.validate_format('input_format', bar=bar, constraints=None):
             return
 
-        is_sample = t.path.parents[0] == Path('sample')
-
         # Generate .ans and .interaction if needed.
         # TODO: Disable this with a flag.
         if not problem.interactive:
@@ -356,17 +354,17 @@ class TestcaseRule(Rule):
                 # Run the solution and validate the generated .ans.
                 if t.config.solution.run(bar, cwd, t.name).ok is not True:
                     return
-                if not testcase.validate_format('output_format', bar=bar):
-                    return
+
+            if not ansfile.is_file():
+                bar.warn(f'{ansfile.name} was not generated.')
+            if not testcase.validate_format('output_format', bar=bar):
+                return
         else:
             if not testcase.ans_path.is_file(): testcase.ans_path.write_text('')
             # For interactive problems, run the interactive solution and generate a .interaction.
             if t.config.solution:
                 if not t.config.solution.run_interactive(problem, bar, cwd, t):
                     return
-
-        if not ansfile.is_file():
-            bar.warn(f'{ansfile.name} was not generated.')
 
         # Generate visualization
         # TODO: Disable this with a flag.
@@ -375,7 +373,7 @@ class TestcaseRule(Rule):
                 return
 
         target_dir = problem.path / 'data' / t.path.parent
-        if is_sample:
+        if t.path.parents[0] == Path('sample'):
             msg = '; supply -f --samples to override'
             forced = config.args.force and config.args.samples
         else:
