@@ -362,9 +362,6 @@ Run this from one of:
                            '-f',
                            action='store_true',
                            help='Skip validation of input and output files.')
-    zipparser.add_argument('--tex',
-                           action='store_true',
-                           help='Store all relevant files in the problem statement directory.')
     zipparser.add_argument('--kattis',
                            action='store_true',
                            help='Make a zip more following the kattis problemarchive.com format.')
