@@ -14,15 +14,17 @@ class Validator(program.Program):
 
         if isinstance(self, InputValidator):
             main_path = testcase.in_path
+            bad = testcase.bad_input
         elif isinstance(self, OutputValidator):
             main_path = testcase.ans_path
+            bad = testcase.bad_output
         else:
             assert False
 
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
                 return exec_command(self.run_command,
-                                    expect=1 if testcase.bad else 0,
+                                    expect=1 if bad else 0,
                                     stdin=main_file,
                                     cwd=cwd)
 
