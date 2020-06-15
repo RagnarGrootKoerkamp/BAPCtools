@@ -64,6 +64,17 @@ The list of all available commands and options is at [doc/commands.md#synopsis](
 and more information regarding the implementation is at [doc/implementation_notes.md](doc/implementation_notes.md).
 
 ### Run
+
+* `bt run [-v] [submissions [submissions ...]] [testcases [testcases ...]]`
+
+Without arguments, the `run` command runs all submissions against all testcases.
+Specify one or more submissions and one or more testcases to only run the given submissions against the given testcases.
+
+By default, it only prints one summary line per submission, and one additional line for each testcase with an unexpected result. Use `-v` to print one line for each testcase.
+
+Before running the given submissions, this command first makes sure that all generated testcases are up to date.
+
+
 ### Test
 ### Generate
 ### Validate
