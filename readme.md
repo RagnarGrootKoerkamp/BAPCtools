@@ -213,12 +213,6 @@ Note that to keep the latex code a bit simpler, we create a new directory for
 each problem/contest, but symlink it to 'problem' or 'contest' so that the exact
 location of the relevant files is known.
 
-### TikZ pictures
-
-[headers/tikz.h](./headers/tikz.h) is a small helper class for writing TikZ
-pictures from a list of points. This can be used to create images of input and
-output of testcases.
-
 ## Notes on validation
 
 We use our own small C++ validator library
