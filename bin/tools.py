@@ -32,6 +32,7 @@ import run
 import skel
 import stats
 import validate
+import signal
 
 from problem import Problem
 from util import *
@@ -555,4 +556,6 @@ def main():
 
 
 if __name__ == '__main__':
+    def interrupt_handler(sig, frame): fatal('Running interrupted')
+    signal.signal(signal.SIGINT, interrupt_handler)
     main()

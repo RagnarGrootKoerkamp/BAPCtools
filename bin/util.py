@@ -576,8 +576,10 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     except subprocess.TimeoutExpired:
         process.kill()
         (stdout, stderr) = process.communicate()
-    except KeyboardInterrupt:
-        fatal('Running interrupted.')
+
+    if process.returncode == -2:
+        fatal('Child process interrupted.')
+
     tend = time.monotonic()
 
     def maybe_crop(s):

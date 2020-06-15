@@ -7,6 +7,7 @@ import yaml as yamllib
 import queue
 import threading
 import distutils.util
+import signal
 
 from pathlib import Path
 
@@ -885,44 +886,61 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
             # main thread. We only start processing a directory after all preceding test cases have
             # completed to avoid problems with including cases.
             q = queue.Queue()
-
-            def worker():
-                while True:
-                    testcase = q.get()
-                    if testcase is None: break
-                    testcase.generate(self.problem, bar)
-                    q.task_done()
+            error = False
 
             # TODO: Make this a generators.yaml option?
             num_worker_threads = config.args.jobs
+
+            def clear_queue():
+                nonlocal num_worker_threads, error
+                if error: return
+                error = True
+                try:
+                    while True:
+                        q.get(block=False)
+                        q.task_done()
+                except queue.Empty:
+                    pass
+                for _ in range(num_worker_threads):
+                    q.put(None)
+
+
+            def worker():
+                try:
+                    while True:
+                        testcase = q.get()
+                        if testcase is None: break
+                        testcase.generate(self.problem, bar)
+                        q.task_done()
+                except:
+                    q.task_done()
+
             threads = []
             for _ in range(num_worker_threads):
                 t = threading.Thread(target=worker)
                 t.start()
                 threads.append(t)
 
+            def interrupt_handler(sig, frame):
+                clear_queue()
+                fatal('Running interrupted')
+            signal.signal(signal.SIGINT, interrupt_handler)
+
             def generate_dir(d):
                 q.join()
                 d.generate(self.problem, self.known_cases, bar)
 
-            try:
-                self.root_dir.walk(
-                    lambda t: q.put(t),
-                    generate_dir,
-                )
+            self.root_dir.walk(
+                lambda t: q.put(t),
+                generate_dir,
+            )
 
-                q.join()
+            q.join()
 
-                for _ in range(num_worker_threads):
-                    q.put(None)
-                for t in threads:
-                    t.join()
-            except KeyboardInterrupt:
-                for _ in range(num_worker_threads):
-                    q.put(None)
-                for t in threads:
-                    t.join()
-                exit(1)
+            for _ in range(num_worker_threads):
+                q.put(None)
+            for t in threads:
+                t.join()
 
         bar.finalize()
 
