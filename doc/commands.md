@@ -1,6 +1,7 @@
 # Documentation for subcommands
 
 This document explains all subcommands and their flags, sorted per category.
+The [implementation notes](implementation_notes.md) contain more information about various topic not covered here.
 
 Unless otherwise specified, commands work both on the problem and contest level.
 
@@ -35,6 +36,7 @@ If the submission failed, it also prints the testcases for which it failed.
 Use `bt run -v` to show results for all testcases.
 
 **FLAGS**
+
 - `[<submissions and/or testcases>]`: Submissions and testcases may be freely mixed. The arguments containing `data/` or having `.in` or `.ans` as extension will be treated as testcases. All other arguments are interpreted as submissions. This argument is only allowed when running directly from a problem directory, and does not work with `--problem` and `--contest`.
 
   Testcases and submissions should be passed as a relative or absolute path to the testcase/submission.
@@ -125,7 +127,7 @@ Furthermore, it removes generated `testdata.yaml`.
 Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively.
 
 - Note 1: `pdflatex` is called exactly once usually. You may need to call it multiple times after big changes to the problem/contest. `bt zip` *does* run `pdflatex` multiple times.
-- Note 2: All LaTeX compilation is done in tmpfs (`/tmp/` on linux). The resulting pdfs will be symlinks into the temporary directory.
+- Note 2: All LaTeX compilation is done in tmpfs (`/tmp/` on linux). The resulting pdfs will be symlinks into the temporary directory. See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
 
 
 **Flags**
@@ -135,28 +137,11 @@ Renders a pdf for the current problem or contest. The pdf is written to `problem
 - `--cp`: Instead of symlinking the final pdf, copy it into the problem/contest directory.
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
 
-**LaTeX setup**
-
-The per-problem pdfs are created inside `<tmpdir>/<problemname>`:
-- Copy [problem.tex](../latex/problem.tex) and substitute the values (label, name, timelimit, author, ...) for the current problem.
-- Symlink the `problem_statement/` directory.
-- Build the `samples.tex` file from the files in `data/samples/`.
-- Symlink [bapc.cls](../latex/bapc.cls).
-- Compile `problem.tex` using `pdflatex -interaction=nonstopmode -halt-on-error -output-directory <tmpdir>/<problemname>`.
-
-The contest pdf is created in `<tmpdir>/<contestname>` like this:
-- Symlink `<problem>/problem_statement/` for each problem.
-- Create the `<problem>/samples.tex` for each problem.
-- Symlink [contest.tex](../latex/contest.tex) (or [contest-web.tex](../latex/contest-web.tex)), [bapc.cls](../latex/bapc.cls), and [images/](../latex/images).
-- Look for a `logo.{pdf,png,jpg}` in the contest directory or the directory above it, and symlink it. Fall back to a default `logo.pdf`.
-- Create a simple [contest_data.tex](../latex/contest-data.tex) containing variables with the name, subtitle, year, and authors of the contest. This is included by `contest.tex`.
-- Create `contest-problems.tex`, containing the per-problem information and includes. It contains one filled in copy of [contest-problem.tex](../latex/contest-problem.tex) for each problem.
-- Compile `contest.tex` using `pdflatex -interaction=nonstopmode -halt-on-error -output-directory <tmpdir>/<contestname>`.
-
 
 ## `solutions`
 
 Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
+See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
 
 **Flags**
 
@@ -164,34 +149,11 @@ Renders a pdf for the current problem or contest. The pdf is written to `problem
 - `--cp`: Instead of symlinking the final pdf, copy it into the contest directory.
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages.
 
-
-**LaTeX setup**
-
-Solutions are rendered in a similar way to the contest pdf. It uses all `problem_statement/solution.tex` files as input. The main difference is the inclusion of
-- `solutions_header.tex`
-- `solutions_footer.tex`
-
-**Solve stats**
-
-Apart from this, there is some special support for handling _solve stats_. To use this, create the following directory layout:
-- `<contest>/solve_stats/problem_stats.tex`: Contains one line for each problem label:
-  ```
-  \newcommand{\solvestatsA}{\printsolvestats{<number submissions>}{<number accepted>}{<number unknown>}}
-  ```
-  When this file is present, each `solution.tex` may use `\solvestats` to print a line like:
-  ```
-  Statistics: 15 submissions, 3 accepted, 8 unknown
-  ```
-- `<contest>/solve_stats/languages.tex`: a (standalone) plot of the language distribution of all submission. This may be included by the `solution_header.tex` or `solution_footer.tex`.
-
-- `<contest>/solve_stats/activity/<label>.tex`: One file per problem, containing a (standalone) plot of the submissions over time. These will automatically be included on the solution slides for each problem when available.
-
-All the files in the `solve_stats` directory can be generated using https://github.com/hex539/scoreboard and also [this issue](https://github.com/hex539/scoreboard/issues/7).
-
 ## `stats`
 
 `bt stats` prints a table of statistics for the current problem or the problems in the current contest.
 This table contains:
+
 - The problem label and shortname.
 - Whether `problem.yaml` and `domjudge.ini` are found.
 - Whether `problem_statement/problem.en.tex` and `problem_statement/solution.tex` are found.
@@ -203,6 +165,7 @@ This table contains:
 - When `verified:` is set to `true` in `problem.yaml`, the comment will be shown in green.
 
 This may look like:
+
 ```
 problem               yaml ini tex sol    Ival Oval    sample secret    AC  WA TLE    cpp java py2 py3   comment
 A appealtotheaudience    Y   Y   Y   N       Y    Y         2     30     4   4   2      2    0   0   2
@@ -233,34 +196,28 @@ It supports the following flags when run for a single problem:
 
 ## `constraints`
 
-Validators based on [headers/validation.h](../headers/validation.h) can take a `--constraints_file <file_path>` flag.
-After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output. Each line in the output file should look like:
-```
-<source_location> <bool reached minimum> <bool reached maximum> <minimum allowed> <maximum allowed> <minimum seen> <maximum seen>
-```
+`bt constraints` has two purposes:
+1. Verify that the bounds in the input/output validators match the bounds in the testcases.
+2. Verify that the bounds in the problem statement match the bounds in the input/output validators.
 
-For example, the code `v.read_integer("a", 1, 1000)` could generate the line:
-```
-/tmp/bapctools_abcdef/findmyfamily/input_validators/input_validator/input_validator.cpp:7 0 0 999 999 1 1000
-```
+See the [implementation notes](implementation_notes.md#constraints-checking) for more info.
 
-Note that everything up to and including `:7` is the file and line of the `read_integer` statement. The two zeros indicate that the minimum and maximum value were not reached. The `999 999` indicate that we read `a` only once, and it was equal to `999`. The final `1 1000` indicate the valid range of `a`.
+NOTE: Validators based on [headers/validation.h](../headers/validation.h) require C++20 to compile `std::source_location`.
 
-BAPCtools will accumulate these values over all testcases, and print a warning when the minimum or maximum value of a `read` statement was never reached, like so:
+**Verify testcase**
+
+Validators that accept the `--constraints_file <path>` option are run on all testcases to check whether the bounds specified in the validator are actually reached by the testdata. A warning is raised when this is not the case.
+E.g. when an `input_validator` based on [headers/validation.h](../headers/validation.h) does `v.read_integer("n", 1, 1000)` (on line `7`) and the maximum value of `n` over all testcases is `999`, the following warning will be raised:
 
 ```
 WARNING: BOUND NOT REACHED: The value at input_validator.cpp:7 was never equal to the upper bound of 1000. Max value found: 999
 ```
 
-This system works for any validator that accepts the `--constraints_file` flag. This is determined by searching all sources for `constraints_file`.
+**Verify problem statement**
 
-Note: `validation.h` requires `std::source_location`, which is available since C++20. BAPCtools will automatically add this as an additional C++ flag when needed. This may not work on systems not supported C++20.
+The command also runs some regexes over the input validator, output validator, and LaTeX sources to look for numeric bounds. These are then displayed next to each other to make it easy to **manually verify** that the bounds used in the statement match the bounds used in the validators.
 
-**Parsing the LaTeX statement**
-
-Besides checking the testdata for the allowed minimum and maximum values, `bt constraints` also runs some regexes over the input validator, output validator, and LaTeX sources to look for numeric bounds. These are then displayed next to each other to make it easy to manually check that the bounds used in the statement match the bounds used in the validators.
-
-This output may look like:
+This output will look like:
 ```
            VALIDATORS         |         PROBLEM STATEMENT
               t  1            |           maxn  3\cdot10^5
