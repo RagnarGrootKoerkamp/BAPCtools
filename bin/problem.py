@@ -163,11 +163,17 @@ class Problem:
 
         paths = []
         if hasattr(config.args, 'submissions') and config.args.submissions:
+            def add(s):
+                if s in paths:
+                    warn(f'Ignoring duplicate submission: {s}')
+                    return
+                paths.append(s)
             for submission in config.args.submissions:
                 if (problem.path / submission).parent == problem.path / 'submissions':
-                    paths += glob(problem.path / submission, '*')
+                    for s in glob(problem.path / submission, '*'):
+                        add(s)
                 else:
-                    paths.append(problem.path / submission)
+                    add(problem.path / submission)
         else:
             for verdict in config.VERDICTS:
                 paths += glob(problem.path / 'submissions' / verdict.lower(), '*')
