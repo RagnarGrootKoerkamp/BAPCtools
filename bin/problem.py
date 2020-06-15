@@ -269,17 +269,25 @@ class Problem:
                 if has_constraints:
                     constraint_validators.append(f)
             if len(constraint_validators) == 0:
-                error('No {validator_type} constraint validators found: No matches for \'constraints_file\'.')
+                error(
+                    'No {validator_type} constraint validators found: No matches for \'constraints_file\'.'
+                )
                 return False
 
             paths = constraint_validators
 
-
-
         if validator_type == 'input_format':
-            validators = [validate.InputValidator(problem, path, skip_double_build_warning=check_constraints) for path in paths]
+            validators = [
+                validate.InputValidator(problem, path, skip_double_build_warning=check_constraints)
+                for path in paths
+            ]
         else:
-            validators = [validate.OutputValidator(problem, path, skip_double_build_warning=check_constraints) for path in paths]
+            validators = [
+                validate.OutputValidator(problem,
+                                         path,
+                                         skip_double_build_warning=check_constraints)
+                for path in paths
+            ]
 
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
 
@@ -321,11 +329,13 @@ class Problem:
             for submission in submissions[verdict]:
                 d = dict()
                 verdict_table.append(d)
-                submission_ok, printed_newline = submission.run_all_testcases(max_submission_len, table_dict=d, needs_leading_newline=needs_leading_newline)
+                submission_ok, printed_newline = submission.run_all_testcases(
+                    max_submission_len, table_dict=d, needs_leading_newline=needs_leading_newline)
                 needs_leading_newline = not printed_newline
                 ok &= submission_ok
 
-        if hasattr(config.args,'table') and config.args.table: Problem._print_table(verdict_table, testcases, submissions)
+        if hasattr(config.args, 'table') and config.args.table:
+            Problem._print_table(verdict_table, testcases, submissions)
 
         return ok
 

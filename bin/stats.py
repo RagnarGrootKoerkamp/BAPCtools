@@ -100,7 +100,8 @@ def stats(problems):
             if not comment:
                 comment = 'DONE'
             comment = cc.green + comment + cc.reset
-        else: comment = cc.orange + comment + cc.reset
+        else:
+            comment = cc.orange + comment + cc.reset
 
         print(
             format_string.format(

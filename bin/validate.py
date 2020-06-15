@@ -122,8 +122,8 @@ class OutputValidator(Validator):
                 return Validator._run_format_validator(self, testcase, cwd)
 
             run_command = self.run_command + [
-                testcase.in_path.resolve(), testcase.ans_path.resolve(), cwd, 'case_sensitive',
-                'space_change_sensitive'
+                testcase.in_path.resolve(),
+                testcase.ans_path.resolve(), cwd, 'case_sensitive', 'space_change_sensitive'
             ]
 
             if constraints is not None:
@@ -148,7 +148,9 @@ class OutputValidator(Validator):
 
         with run.out_path.open() as out_file:
             return exec_command(
-                self.run_command + [testcase.in_path.resolve(), testcase.ans_path.resolve(), run.feedbackdir] +
+                self.run_command +
+                [testcase.in_path.resolve(),
+                 testcase.ans_path.resolve(), run.feedbackdir] +
                 self.problem.settings.validator_flags,
                 expect=config.RTV_AC,
                 stdin=out_file,

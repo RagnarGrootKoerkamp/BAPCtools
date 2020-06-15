@@ -64,13 +64,18 @@ def new_contest(name):
 
     skeldir = config.tools_root / 'skel/contest'
     log(f'Copying {skeldir} to {dirname}.')
-    copytree_and_substitute(skeldir, Path(dirname), locals(), exist_ok=False, preserve_symlinks=False)
+    copytree_and_substitute(skeldir,
+                            Path(dirname),
+                            locals(),
+                            exist_ok=False,
+                            preserve_symlinks=False)
 
 
 def new_problem():
     problemname = config.args.problemname if config.args.problemname else _ask_variable(
         'problem name')
-    dirname = _alpha_num(problemname) if config.args.problemname else _ask_variable('dirname', _alpha_num(problemname))
+    dirname = _alpha_num(problemname) if config.args.problemname else _ask_variable(
+        'dirname', _alpha_num(problemname))
     author = config.args.author if config.args.author else _ask_variable(
         'author', config.args.author)
 

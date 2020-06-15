@@ -101,12 +101,14 @@ def get_problems():
                 if label == '': fatal(f'Found empty label for problem {shortname}')
                 nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
                 if label in labels:
-                    fatal(f'label {label} found twice for problem {shortname} and {labels[label]}.')
+                    fatal(
+                        f'label {label} found twice for problem {shortname} and {labels[label]}.')
                 labels[label] = shortname
                 if Path(shortname).is_dir():
                     problems.append(Problem(Path(shortname), label))
                 else:
-                    error(f'No directory found for problem {shortname} mentioned in problems.yaml.')
+                    error(
+                        f'No directory found for problem {shortname} mentioned in problems.yaml.')
         else:
             # Otherwise, fallback to all directories with a problem.yaml and sort by
             # shortname.
@@ -124,7 +126,8 @@ def get_problems():
             # Sort by position of id in order
             def get_pos(id):
                 if id in config.args.order: return config.args.order.index(id)
-                else: return len(config.args.order)+1
+                else: return len(config.args.order) + 1
+
             problems.sort(key=lambda p: (get_pos(p.label), p.name))
 
     contest = Path().cwd().name
@@ -174,10 +177,8 @@ Run this from one of:
         action='count',
         help='Verbose output; once for what\'s going on, twice for all intermediate output.')
     group = global_parser.add_mutually_exclusive_group()
-    group.add_argument('--contest',
-                               help='The contest to use, when running from repository root.')
-    group.add_argument('--problem',
-                               help='The problem to use, when running from repository root.')
+    group.add_argument('--contest', help='The contest to use, when running from repository root.')
+    group.add_argument('--problem', help='The problem to use, when running from repository root.')
 
     global_parser.add_argument('--no-bar',
                                action='store_true',
@@ -209,10 +210,8 @@ Run this from one of:
     problemparser.add_argument('--author', help='The author of the problem,')
     problemparser.add_argument('--validation',
                                help='Use validation to use for this problem.',
-                               choices = ['default', 'custom', 'custom interactive']
-                               )
+                               choices=['default', 'custom', 'custom interactive'])
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
-
 
     # Problem statements
     pdfparser = subparsers.add_parser('pdf',
@@ -278,10 +277,7 @@ Run this from one of:
                            '-f',
                            action='store_true',
                            help='Overwrite existing input flies.')
-    genparser.add_argument('--clean',
-                           '-c',
-                           action='store_true',
-                           help='Clean untracked files.')
+    genparser.add_argument('--clean', '-c', action='store_true', help='Clean untracked files.')
     genparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     genparser.add_argument('--samples',
                            action='store_true',
@@ -297,9 +293,9 @@ Run this from one of:
                                         parents=[global_parser],
                                         help='Delete all .in and .ans corresponding to .gen.')
     cleanparser.add_argument('--force',
-                           '-f',
-                           action='store_true',
-                           help='Delete all untracked files.')
+                             '-f',
+                             action='store_true',
+                             help='Delete all untracked files.')
 
     # Run
     runparser = subparsers.add_parser('run',
@@ -309,13 +305,19 @@ Run this from one of:
                            nargs='*',
                            help='optionally supply a list of programs and testcases to run')
     runparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
-    runparser.add_argument('--no-generate', '-G', action='store_true', help='Do not run `generate` before running submissions.')
+    runparser.add_argument('--no-generate',
+                           '-G',
+                           action='store_true',
+                           help='Do not run `generate` before running submissions.')
     runparser.add_argument('--table',
                            action='store_true',
                            help='Print a submissions x testcases table for analysis.')
     runparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     runparser.add_argument('--timelimit', type=int, help='Override the default timelimit.')
-    runparser.add_argument( '--memory', '-m', help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
+    runparser.add_argument(
+        '--memory',
+        '-m',
+        help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
 
     # Test
     testparser = subparsers.add_parser('test',
@@ -324,12 +326,15 @@ Run this from one of:
     testparser.add_argument('submissions', nargs=1, help='A single submission to run')
     testcasesgroup = testparser.add_mutually_exclusive_group()
     testcasesgroup.add_argument('testcases',
-                            nargs='*',
-                            default = [],
-                            help='Optionally a list of testcases to run on.')
+                                nargs='*',
+                                default=[],
+                                help='Optionally a list of testcases to run on.')
     testcasesgroup.add_argument('--samples', action='store_true', help='Only run on the samples.')
     testparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
-    testparser.add_argument( '--memory', '-m', help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
+    testparser.add_argument(
+        '--memory',
+        '-m',
+        help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
 
     # Sort
     subparsers.add_parser('sort',
@@ -476,7 +481,7 @@ def main():
             success &= problem.validate_format('input_format')
         if action in ['validate', 'output', 'all']:
             success &= problem.validate_format('output_format')
-        if action in ['all'] or ( action in ['run'] and not config.args.no_generate):
+        if action in ['all'] or (action in ['run'] and not config.args.no_generate):
             config.args.force = False
             config.args.clean = False
             config.args.jobs = 4

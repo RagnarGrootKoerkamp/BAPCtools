@@ -62,6 +62,7 @@ def debug(*msg):
     print('DEBUG:', *msg, end='')
     print(cc.reset)
 
+
 def log(msg):
     print(cc.green + 'LOG: ' + msg + cc.reset)
 
@@ -99,7 +100,13 @@ class ProgressBar:
         return len(item.name)
 
     # When needs_leading_newline is True, this will print an additional empty line before the first log message.
-    def __init__(self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False):
+    def __init__(self,
+                 prefix,
+                 max_len=None,
+                 count=None,
+                 *,
+                 items=None,
+                 needs_leading_newline=False):
         assert not (items and (max_len or count))
         assert items is not None or max_len
         assert items is not None or count is not None
@@ -195,7 +202,6 @@ class ProgressBar:
             else:
                 print(self.get_prefix(), bar, sep='', end='\r', flush=True)
 
-
     def start(self, item=''):
         self.lock.acquire()
         # start may only be called on the root bar.
@@ -244,7 +250,12 @@ class ProgressBar:
             print()
             self.needs_leading_newline = False
 
-        print(self.get_prefix() , color , message , ProgressBar._format_data(data) , cc.reset, sep='',
+        print(self.get_prefix(),
+              color,
+              message,
+              ProgressBar._format_data(data),
+              cc.reset,
+              sep='',
               flush=True)
 
         if self.parent:
@@ -292,9 +303,9 @@ class ProgressBar:
         if config.args.verbose or not success:
             self.lock.acquire()
             if success:
-                self.log(message, data, needs_lock = False)
+                self.log(message, data, needs_lock=False)
             else:
-                self.error(message, data, needs_lock = False)
+                self.error(message, data, needs_lock=False)
             self._resume()
             self.lock.release()
             return True
@@ -320,7 +331,7 @@ class ProgressBar:
             message = f'{cc.green}Done{cc.reset}'
 
         if message:
-            print(self.get_prefix() , message, sep='')
+            print(self.get_prefix(), message, sep='')
 
         # When something was printed, add a newline between parts.
         if self.global_logged:
@@ -443,7 +454,11 @@ def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_syml
             if preserve_symlinks and os.path.islink(srcFile):
                 shutil.copy(srcFile, dstFile, follow_symlinks=False)
             elif (os.path.isdir(srcFile)):
-                copytree_and_substitute(srcFile, dstFile, variables, exist_ok, preserve_symlinks=preserve_symlinks)
+                copytree_and_substitute(srcFile,
+                                        dstFile,
+                                        variables,
+                                        exist_ok,
+                                        preserve_symlinks=preserve_symlinks)
             elif (dstFile.exists()):
                 warn(f'File "{dstFile}" already exists, skipping...')
                 continue
@@ -497,7 +512,7 @@ def get_memory_limit(kwargs=None):
             if config.args.memory != 'unlimited':
                 memory_limit = int(config.args.memory)
             else:
-                memory_limit = None # disabled
+                memory_limit = None  # disabled
     if kwargs and 'memory' in kwargs:
         memory_limit = kwargs['memory']
         kwargs.pop('memory')
@@ -523,7 +538,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     command = [str(x) for x in command]
 
     if config.args.verbose >= 2:
-        print('cd', Path.cwd(), '; ', *command, end ='')
+        print('cd', Path.cwd(), '; ', *command, end='')
         if 'stdin' in kwargs:
             print(' < ', kwargs['stdin'].name, end='')
         print()

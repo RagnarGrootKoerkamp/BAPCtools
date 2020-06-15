@@ -280,7 +280,7 @@ class TestcaseRule(Rule):
             bar.done(False, f'Generator didn\'t build.')
             return
 
-        if t.manual and not (problem.path/t.source).is_file():
+        if t.manual and not (problem.path / t.source).is_file():
             bar.done(False, f'Source for manual case not found: {t.source}')
             return
 
@@ -291,7 +291,6 @@ class TestcaseRule(Rule):
             # - meta_ exists with a timestamp newer than the 3 Invocation timestamps (Generator/Submission/Visualizer).
             # - meta_ exists with a timestamp newer than target infile ans ansfile
             # - meta_ contains exactly the right content given by t._cache_string()
-
 
             last_change = 0
             t.cache_data = {}
@@ -340,7 +339,7 @@ class TestcaseRule(Rule):
             if t.generator.run(bar, cwd, t.name, t.seed, t.config.retries).ok is not True:
                 return
 
-        testcase = run.Testcase(problem, infile, short_path=Path(t.path.parent/(t.name+ '.in')))
+        testcase = run.Testcase(problem, infile, short_path=Path(t.path.parent / (t.name + '.in')))
 
         # Validate the manual or generated .in.
         if not testcase.validate_format('input_format', bar=bar, constraints=None):
@@ -595,7 +594,8 @@ class Directory(Rule):
                 bar.log(f'Deleted untracked file {relpath}.in')
             else:
                 known_cases.add(relpath)
-                bar.warn(f'Found untracked manual case. Delete with generate --clean: {relpath}.in')
+                bar.warn(
+                    f'Found untracked manual case. Delete with generate --clean: {relpath}.in')
                 t = TestcaseRule(problem, base.name, '', d)
                 d.data.append(t)
                 bar.add_item(t.path)
@@ -643,7 +643,6 @@ class Directory(Rule):
                 f.unlink()
             else:
                 bar.warn(f'Found untracked file. Delete with clean --force: {relpath}')
-
 
         # Try to remove the directory. Fails if it's not empty.
         try:
@@ -786,7 +785,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         # Note: we explicitly random shuffle the submission that's used to generate answers to
         # encourage setting it in generators.yaml.
         submission = random.choice(submissions)
-        submission_short_path = submission.relative_to(self.problem.path /'submissions')
+        submission_short_path = submission.relative_to(self.problem.path / 'submissions')
         warn(f'No solution specified. Using randomly chosen {submission_short_path} instead.')
         return Path('/') / submission.relative_to(self.problem.path)
 
@@ -809,7 +808,8 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                     if default_solution is None:
                         default_solution_path = self.get_default_solution()
                         if default_solution_path:
-                            default_solution = SolutionInvocation(self.problem, default_solution_path)
+                            default_solution = SolutionInvocation(self.problem,
+                                                                  default_solution_path)
                         else:
                             default_solution = False
                     t.config.solution = default_solution
@@ -830,7 +830,8 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                     programs.append(program_type(self.problem, path, deps=deps))
                 else:
                     if program_type is run.Submission:
-                        programs.append(program_type(self.problem, path, skip_double_build_warning = True))
+                        programs.append(
+                            program_type(self.problem, path, skip_double_build_warning=True))
                     else:
                         programs.append(program_type(self.problem, path))
 

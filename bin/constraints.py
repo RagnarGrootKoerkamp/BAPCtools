@@ -4,7 +4,6 @@ import validate
 
 # Local imports
 from util import *
-
 """DISCLAIMER:
 
   This tool was only made to check constraints faster.

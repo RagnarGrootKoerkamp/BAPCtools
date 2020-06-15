@@ -223,11 +223,18 @@ class Submission(program.Program):
 
     # Run this submission on all testcases for the current problem.
     # Returns (OK verdict, printed newline)
-    def run_all_testcases(self, max_submission_name_len=None, table_dict=None, *, needs_leading_newline):
+    def run_all_testcases(self,
+                          max_submission_name_len=None,
+                          table_dict=None,
+                          *,
+                          needs_leading_newline):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_item_len = max(len(run.name)
                            for run in runs) + max_submission_name_len - len(self.name) - 1
-        bar = ProgressBar('Running ' + self.name, count=len(runs), max_len=max_item_len, needs_leading_newline=needs_leading_newline)
+        bar = ProgressBar('Running ' + self.name,
+                          count=len(runs),
+                          max_len=max_item_len,
+                          needs_leading_newline=needs_leading_newline)
 
         max_duration = 0
 
