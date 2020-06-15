@@ -171,6 +171,12 @@ This table contains:
 - An optional comment, as specified by the `comment:` field in `problem.yaml`.
 - When `verified:` is set to `true` in `problem.yaml`, the comment will be shown in green.
 
+This may look like:
+```
+problem               yaml ini tex sol    Ival Oval    sample secret    AC  WA TLE    cpp java py2 py3   comment
+A appealtotheaudience    Y   Y   Y   N       Y    Y         2     30     4   4   2      2    0   0   2
+```
+
 # Problem validation
 
 ## `input`
@@ -227,10 +233,6 @@ Besides checking the testdata for the allowed minimum and maximum values, `bt co
 
 This output may look like:
 ```
-~bapc/findmyfamily % bt constraints
-PROBLEM findmyfamily
-findmyfamily/input_validators/input_validator/input_validator.cpp
-findmyfamily/output_validators/output_validator/output_validator.cpp
            VALIDATORS         |         PROBLEM STATEMENT
               t  1            |           maxn  3\cdot10^5
               t  1000         |              k  1
@@ -325,8 +327,6 @@ contest_pdf_nwerc2020:
       - nwerc2020/contest.pdf
       - nwerc2020/solutions.pdf
 
-
-
 verify_testproblem:
   script:
       - ./bt all --cp --no-bar --problem nwerc2020/testproblem
@@ -391,10 +391,6 @@ Archive:  samples.zip
         4  2020-05-06 20:36   A/2.ans
         2  2020-05-06 20:36   B/1.in
         8  2020-05-06 20:36   B/1.ans
-        2  2020-05-06 20:36   B/2.in
-        4  2020-05-06 20:36   B/2.ans
-        8  2020-05-06 20:36   C/1.in
-        8  2020-05-06 20:36   C/1.ans
 ...
 ```
 
@@ -450,16 +446,7 @@ Prints a list of all problems in the current contest (or single problem), togeth
 ~bapc % bt sort
 A : appealtotheaudience
 B : breakingbranches
-C : conveyorbelts
-D : deckrandomisation
-E : efficientexchange
-F : findmyfamily
-G : gluttonousgoop
-H : historicexhibition
-I : inquiryii
-J : jazzitup
-K : keephiminside
-L : luckydraw
+...
 ```
 
 ## `tmp`
