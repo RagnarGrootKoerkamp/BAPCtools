@@ -35,7 +35,32 @@ If the submission failed, it also prints the testcases for which it failed.
 Use `bt run -v` to show results for all testcases.
 
 **FLAGS**
-- `[<submissions and/or testcases>]`: Submissions and testcases may be freely mixed. The arguments containing `data/` or having `.in` or `.ans` as extension will be treated as testcases. All other arguments are interpreted as submissions. This argument is only allowed when running for a single problem.
+- `[<submissions and/or testcases>]`: Submissions and testcases may be freely mixed. The arguments containing `data/` or having `.in` or `.ans` as extension will be treated as testcases. All other arguments are interpreted as submissions. This argument is only allowed when running directly from a problem directory, and does not work with `--problem` and `--contest`.
+
+  Testcases and submissions should be passed as a relative or absolute path to the testcase/submission.
+
+  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret,bad}` respectively.
+
+  **Submission** paths can take a few forms:
+
+  - The path of the single file: `submissions/accepted/submission.py`
+  - The path of the submission directory (when it contains multiple files): `submissions/accepted/directory_submission/`
+  - One of the directories inside `submissions/`: `submissions/time_limit_exceeded`. This will add all solutions in the given directory.
+  - Any file/directory outside `submission` is also allowed. Directories will be interpreted as a single multi-file submission.
+
+  Duplicate submissions will deduplicated.
+
+  **Testcases** may be referred to in a few ways:
+
+  - The path of the `.in` file: `data/secret/1.in`
+  - The path of the `.ans` file: `data/secret/1.ans` (any other extension also works, even if the file doesn't exist)
+  - The basename of the testcase: `data/secret/1`
+  - A directory: `data/secret`. In this case, all `.in` files that are (nested) in this directory will be used.
+
+  Testcases must always be inside the `data` directory. Anything outside `data/` will raise an error.
+
+  Duplicate testcases will deduplicated. Hence, you may pass `data/secret/*` and `1.in` and `1.ans` will not trigger the testcase twice.
+
 - `--samples`: Run the given submissions against the sample data only. Not allowed in combination with passing in testcases directly.
 - `--no-generate`/`-G`: Do not generate testcases before running the submissions. This usually won't be needed since checking that generated testcases are up to date is fast.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
@@ -57,8 +82,8 @@ This is useful for running submissions without having to compile them manually. 
 
 **Flags**
 
-- `<submission>`: The path to the submission to run.
-- `[<testcases>]`: Paths to the testcases (`.in`, `.ans`, basename, or directory) to run the submission on. Can not be used together with `--samples`.
+- `<submission>`: The path to the submission to run. See `run <submissions>` for more.
+- `[<testcases>]`: The testcases to run the submission on. See `run <testcases>` for more. Can not be used together with `--samples`.
 - `--samples`: Run the submission on the samples only. Can not be used together with explicitly listed testcases.
 - `--timeout <second>`/`-t <second>`: The timeout to use for the submission.
 - `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
@@ -187,11 +212,9 @@ A appealtotheaudience    Y   Y   Y   N       Y    Y         2     30     4   4  
 
 ## `input`
 
-Use `bt input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified. When running for a single problem, testcases can be given as one of:
-- A `.in` file: `data/sample/1.in`
-- A `.ans` file: `data/sample/1.ans`
-- A testcase name: `data/sample/1`
-- A directory: `data/sample`. All `.in` files under the given directory will be validated.
+Use `bt input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified.
+
+See `run <testcases>` for a description of how to pass testcases.
 
 ## `output`
 
