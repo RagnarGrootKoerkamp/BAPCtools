@@ -7,6 +7,36 @@ Unless otherwise specified, commands work both on the problem and contest level.
 
 **Allowed subcommands and options are also available with `bt --help` and `bt <command> --help`.**
 
+# Synopsis
+
+This lists all subcommands and their most important options.
+
+* Problem development:
+    - [`bt run [-v] [-t TIMEOUT] [-m MEMORY] [submissions [submissions ...]] [testcases [testcases ...]]`](/doc/commands.md#run)
+    - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--samples | [testcases [testcases ...]]]`](#test)
+    - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--clean] [--jobs JOBS]`](#generate)
+    - [`bt clean [-v] [--force]`](#clean)
+    - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
+    - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
+    - [`bt stats`](#stats)
+* Problem validation
+    - [`bt input [-v] [testcases [testcases ...]]`](#input)
+    - [`bt output [-v] [testcases [testcases ...]]`](#output)
+    - [`bt validate [-v] [--remove | --move_to DIR] [testcases [testcases ...]]`](#validate)
+    - [`bt constraints [-v]`](#constraints)
+* Creating new contest/problems
+    - [`bt new_contest [contestname]`](#new_contest)
+    - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--skel SKEL]`](#new_problem)
+    - [`bt gitlabci`](#gitlabci)
+* Exporting
+    - [`bt samplezip`](#samplezip)
+    - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
+* Misc
+    - [`bt all [-v] [--cp] [--no-timelimit]`](#all)
+    - [`bt sort`](#sort)
+    - [`bt tmp`](#tmp)
+
+
 # Global flags
 
 The flags below work for any subcommand:
@@ -197,6 +227,7 @@ It supports the following flags when run for a single problem:
 ## `constraints`
 
 `bt constraints` has two purposes:
+
 1. Verify that the bounds in the input/output validators match the bounds in the testcases.
 2. Verify that the bounds in the problem statement match the bounds in the input/output validators.
 
