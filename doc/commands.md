@@ -22,7 +22,7 @@ This lists all subcommands and their most important options.
 * Problem validation
     - [`bt input [-v] [testcases [testcases ...]]`](#input)
     - [`bt output [-v] [testcases [testcases ...]]`](#output)
-    - [`bt validate [-v] [--remove | --move_to DIR] [testcases [testcases ...]]`](#validate)
+    - [`bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
     - [`bt constraints [-v]`](#constraints)
 * Creating new contest/problems
     - [`bt new_contest [contestname]`](#new_contest)
@@ -222,7 +222,7 @@ See `run <testcases>` for a description of how to pass testcases.
 It supports the following flags when run for a single problem:
 - `[testcases]`: a list of testcases and/or directories to validate. See `run <testcases>` for allowed formats. When not set, all testcases are validated.
 - `--remove`: when passed, all invalid testcases are deleted.
-- `--move_to <directory>`: when passed, all invalid testcases are moved to the given directory.
+- `--move-to <directory>`: when passed, all invalid testcases are moved to the given directory.
 
 ## `constraints`
 

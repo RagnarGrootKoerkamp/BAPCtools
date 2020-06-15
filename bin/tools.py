@@ -246,7 +246,7 @@ Run this from one of:
     validate_parser.add_argument('testcases', nargs='*', type=Path,help='The testcases to run on.')
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
     move_or_remove_group.add_argument('--remove', action='store_true', help='Remove failing testcsaes.')
-    move_or_remove_group.add_argument('--move_to', help='Move failing testcases to this directory.')
+    move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
 
     # input validations
     input_parser = subparsers.add_parser('input',
