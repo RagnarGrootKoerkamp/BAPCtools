@@ -122,7 +122,13 @@ class Program:
 
         # Detect language, dependencies, and main file
         if deps: self.source_files = deps
-        else: self.source_files = list(glob(path, '*')) if path.is_dir() else [path]
+        else:
+            if path.is_dir():
+                self.source_files = list(glob(path, '*'))
+            elif path.is_file():
+                self.source_files = [path]
+            else:
+                self.source_files = []
 
     # is file at path executable
     @staticmethod
@@ -260,14 +266,12 @@ class Program:
         if not self.ok: return False
         self.bar = bar
 
-        if not self.path.is_file() and not self.path.is_dir():
-            self.ok = False
-            self.bar.error(f'Submission does not exist.')
-            return
-
         if len(self.source_files) == 0:
             self.ok = False
-            self.bar.error(f'{self.short_path} is an empty directory.')
+            if self.path.is_dir():
+                self.bar.error(f'{self.short_path} is an empty directory.')
+            else:
+                self.bar.error(f'{self.path} does not exist.')
             return
 
         # Check file names.

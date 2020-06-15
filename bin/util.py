@@ -78,7 +78,7 @@ def error(msg):
 
 
 def fatal(msg):
-    print(cc.red + 'FATAL: ' + msg + cc.reset)
+    print(cc.red + 'FATAL ERROR: ' + msg + cc.reset)
     exit(1)
 
 

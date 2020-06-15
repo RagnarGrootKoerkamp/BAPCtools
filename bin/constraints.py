@@ -12,6 +12,7 @@ from util import *
 """
 
 
+# TODO: Instead of grepping the input validator, we should just store the variable names in the constraints output file directly.
 def check_constraints(problem, settings):
     problem.validate_format('input_format', check_constraints=True)
     problem.validate_format('output_format', check_constraints=True)

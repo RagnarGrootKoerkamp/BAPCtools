@@ -246,13 +246,13 @@ class Problem:
 
         if len(paths) == 0:
             warn(f'No {validator_type} validators found.')
-            problem._validators[validator_type] = False
+            problem._validators[key] = False
             return False
         if validator_type == 'output_format' and problem.interactive and len(paths) > 1:
             error(
                 f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.'
             )
-            problem._validators[validator_type] = False
+            problem._validators[key] = False
             return False
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?

@@ -355,10 +355,11 @@ class TestcaseRule(Rule):
                 if t.config.solution.run(bar, cwd, t.name).ok is not True:
                     return
 
-            if not ansfile.is_file():
-                bar.warn(f'{ansfile.name} was not generated.')
-            if not testcase.validate_format('output_format', bar=bar):
-                return
+                if not ansfile.is_file():
+                    bar.warn(f'{ansfile.name} was not generated.')
+            if ansfile.is_file():
+                if not testcase.validate_format('output_format', bar=bar):
+                    return
         else:
             if not testcase.ans_path.is_file(): testcase.ans_path.write_text('')
             # For interactive problems, run the interactive solution and generate a .interaction.
