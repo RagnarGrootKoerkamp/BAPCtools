@@ -222,7 +222,7 @@ class Problem:
                 validate.OutputValidator(problem,
                                          config.tools_root / 'bin' / 'default_output_validator.py')
             ]
-            bar = ProgressBar('Build output validators', items=validators)
+            bar = ProgressBar(f'Build {validator_type} validators', items=validators)
             ok = True
             for p in validators:
                 bar.start(p)
@@ -278,12 +278,10 @@ class Problem:
 
         if validator_type == 'input_format':
             validators = [validate.InputValidator(problem, path, skip_double_build_warning=check_constraints) for path in paths]
-            validator_name = 'input'
         else:
             validators = [validate.OutputValidator(problem, path, skip_double_build_warning=check_constraints) for path in paths]
-            validator_name = 'output'
 
-        bar = ProgressBar(f'Build {validator_name} validators', items=validators)
+        bar = ProgressBar(f'Build {validator_type} validators', items=validators)
 
         ok = True
         for p in validators:

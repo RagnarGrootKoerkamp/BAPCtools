@@ -305,17 +305,17 @@ Run this from one of:
     runparser = subparsers.add_parser('run',
                                       parents=[global_parser],
                                       help='Run multiple programs against some or all input.')
-    runparser.add_argument('--table',
-                           action='store_true',
-                           help='Print a submissions x testcases table for analysis.')
     runparser.add_argument('submissions',
                            nargs='*',
                            help='optionally supply a list of programs and testcases to run')
+    runparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
+    runparser.add_argument('--no-generate', '-G', action='store_true', help='Do not run `generate` before running submissions.')
+    runparser.add_argument('--table',
+                           action='store_true',
+                           help='Print a submissions x testcases table for analysis.')
     runparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     runparser.add_argument('--timelimit', type=int, help='Override the default timelimit.')
     runparser.add_argument( '--memory', '-m', help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
-    runparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
-    runparser.add_argument('--no-generate', '-G', action='store_true', help='Do not run `generate` before running submissions.')
 
     # Test
     testparser = subparsers.add_parser('test',
