@@ -101,9 +101,16 @@ def new_problem():
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir = config.tools_root / 'skel/problem'
-    if Path('skel/problem').is_dir(): skeldir = Path('skel/problem')
-    if Path('../skel/problem').is_dir(): skeldir = Path('../skel/problem')
-    if config.args.skel: skeldir = Path(config.args.skel)
+    preserve_symlinks = False
+    if Path('skel/problem').is_dir():
+        skeldir = Path('skel/problem')
+        preserve_symlinks = True
+    if Path('../skel/problem').is_dir():
+        skeldir = Path('../skel/problem')
+        preserve_symlinks = True
+    if config.args.skel:
+        skeldir = Path(config.args.skel)
+        preserve_symlinks = True
     log(f'Copying {skeldir} to {dirname}.')
 
     problems_yaml = Path('problems.yaml')
@@ -111,7 +118,7 @@ def new_problem():
     if problems_yaml.is_file():
         problems_yaml.write_text(problems_yaml.read_text() + '- id: ' + dirname + '\n')
 
-    copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True)
+    copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True, preserve_symlinks=preserve_symlinks)
 
 
 def create_gitlab_jobs(contest, problems):
