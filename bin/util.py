@@ -268,12 +268,12 @@ class ProgressBar:
         self.log(message, data, cc.orange)
 
     # Error removes the current item from the in_progress set.
-    def error(self, message='', data=''):
-        self.lock.acquire()
+    def error(self, message='', data='', needs_lock=True):
+        if needs_lock: self.lock.acquire()
         config.n_error += 1
         self.log(message, data, cc.red, needs_lock=False)
         self._release_item()
-        self.lock.release()
+        if needs_lock: self.lock.release()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(self, success=True, message='', data=''):
@@ -306,7 +306,8 @@ class ProgressBar:
                 self.log(message, data, needs_lock=False)
             else:
                 self.error(message, data, needs_lock=False)
-            self._resume()
+            if self.parent:
+                self.parent._resume()
             self.lock.release()
             return True
         return False
