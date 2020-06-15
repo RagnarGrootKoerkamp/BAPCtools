@@ -95,14 +95,18 @@ Furthermore, it removes generated `testdata.yaml`.
 
 ## `pdf`
 
-Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
+Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively.
+
+- Note 1: `pdflatex` is called exactly once usually. You may need to call it multiple times after big changes to the problem/contest. `bt zip` *does* run `pdflatex` multiple times.
+- Note 2: All LaTeX compilation is done in tmpfs (`/tmp/` on linux). The resulting pdfs will be symlinks into the temporary directory.
+
 
 **Flags**
 
 - `--no-timelimit`: When passed, time limits will not be shown in the problem/contest pdfs.
 - `--all`/`-a`: When run from the contest level, this enables building pdfs for all problems in the contest as well.
 - `--cp`: Instead of symlinking the final pdf, copy it into the problem/contest directory.
-- `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages.
+- `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
 
 **LaTeX setup**
 
