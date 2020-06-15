@@ -196,7 +196,7 @@ class Submission(program.Program):
         super().__init__(problem, path, skip_double_build_warning=skip_double_build_warning)
 
         subdir = self.short_path.parts[0]
-        self.expected_verdict = subdir.upper() if subdir.upper() in config.VERDICTS else None
+        self.expected_verdict = subdir.upper() if subdir.upper() in config.VERDICTS else 'ACCEPTED'
         self.verdict = None
         self.duration = None
 
