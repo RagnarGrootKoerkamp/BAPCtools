@@ -24,7 +24,7 @@ def check_constraints(problem, settings):
             '^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);'),
          3, 4, None),
         (re.compile(
-            '(?:(\w*)\s*=\s*.*)?\.read_(?:string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'
+            '(?:(\w*)\s*=\s*.*)?\.read_(?:number|integer|float|string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'
         ), 1, 2, 3),
     ]
 
