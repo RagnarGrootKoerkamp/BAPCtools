@@ -12,7 +12,7 @@ Unless otherwise specified, commands work both on the problem and contest level.
 This lists all subcommands and their most important options.
 
 * Problem development:
-    - [`bt run [-v] [-t TIMEOUT] [-m MEMORY] [submissions [submissions ...]] [testcases [testcases ...]]`](/doc/commands.md#run)
+    - [`bt run [-v] [-t TIMEOUT] [-m MEMORY] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
     - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--samples | [testcases [testcases ...]]]`](#test)
     - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--clean] [--jobs JOBS]`](#generate)
     - [`bt clean [-v] [--force]`](#clean)
