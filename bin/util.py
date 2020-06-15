@@ -539,7 +539,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     command = [str(x) for x in command]
 
     if config.args.verbose >= 2:
-        print('cd', Path.cwd(), '; ', *command, end='')
+        if 'cwd' in kwargs: print('cd', kwargs['cwd'], '; ', end='')
+        else: print('cd', Path.cwd(), '; ', end='')
+        print(*command, end='')
         if 'stdin' in kwargs:
             print(' < ', kwargs['stdin'].name, end='')
         print()
@@ -553,7 +555,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     memory_limit = get_memory_limit(kwargs)
 
     # Disable memory limits for Java and Kotlin, because they run in a JVM.
-    if command[0] in ['java', 'javac', 'kotlin', 'kotlinc']:
+    if Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']:
         memory_limit = None
 
     # Note: Resource limits do not work on windows.
