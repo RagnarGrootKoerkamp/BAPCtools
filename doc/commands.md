@@ -4,7 +4,7 @@ This document explains all subcommands and their flags, sorted per category.
 
 Unless otherwise specified, command work both on the problem and contest level.
 
-## Global flags
+# Global flags
 
 The flags below work for any subcommand:
 
@@ -16,13 +16,33 @@ The flags below work for any subcommand:
 * `--cpp_flags`: Additional flags to pass to any C++ compilation rule. Useful for e.g. `--cpp_flags=-fsanitize=undefined`.
 * `--force_build`: Force rebuilding binaries instead of reusing cached version.
 
-## Problem development
+# Problem development
 
-### `run`
+## `run`
+
+The `run` command is used to run some or all submissions against some or all testcases.
+The syntax is:
+```
+bt run [<submissions and/or testcases>]
+```
+
+This first makes sure all generated testcases are up to date and then runs the given submissions (or all submissions by default) against the given testcases (or all testcases by default).
+
+By default this prints one summary line per submission containing the slowest testcase.
+If the submission failed, it also prints the testcases for which it failed.
+Use `bt run -v` to show results for all testcases.
+
+**FLAGS**
+- `[<submissions and/or testcases>]`: Submissions and testcases may be freely mixed. The arguments containing `data/` or having `.in` or `.ans` as extension will be treated as testcases. All other arguments are interpreted as submissions. This argument is only allowed when running for a single problem.
+- `--samples`: Run the given submissions against the sample data only. Not allowed in combination with passing in testcases directly.
+- `--no-generate`/`-G`: Do not generate testcases before running the submissions. This usually won't be needed since checking that generated testcases are up to date is fast.
+- `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
+- `--timelimit <second>`: The timelimit to use for the submission.
+- `--timeout <second>`/`-t <second>`: The timeout to use for the submission.
+- `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
 
 
-
-### `test`
+## `test`
 
 `bt test` only works for a single problem, and must be called as
 ```
@@ -42,7 +62,7 @@ This is useful for running submissions without having to compile them manually. 
 - `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
 
 
-### `generate`
+## `generate`
 
 Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. The syntax of this file is described [here](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/doc/generated_testcases_v2.yaml). This should become part of the problem archive spec as well.
 
@@ -60,7 +80,7 @@ Any files in `data/` that are not tracked in `generators.yaml` will raise a warn
 - `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
 
 
-### `clean`
+## `clean`
 
 The `clean` command deletes all generated testdata from the `data/` directory. It only removes files that satisfy both these conditions:
 - The `.in` corresponding to the current file was generated.
@@ -73,7 +93,7 @@ Furthermore, it removes generated `testdata.yaml`.
 - `--force`/`-f`: When this is passed, all untracked files (i.e. files not matching any rule in `generators/generators.yaml`) are deleted. Without `--force`, such files raise a warning.
 
 
-### `pdf`
+## `pdf`
 
 Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
 
@@ -103,7 +123,7 @@ The contest pdf is created in `<tmpdir>/<contestname>` like this:
 - Compile `contest.tex` using `pdflatex -interaction=nonstopmode -halt-on-error -output-directory <tmpdir>/<contestname>`.
 
 
-### `solutions`
+## `solutions`
 
 Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
 
@@ -137,7 +157,7 @@ Apart from this, there is some special support for handling _solve stats_. To us
 
 All the files in the `solve_stats` directory can be generated using https://github.com/hex539/scoreboard and also [this issue](https://github.com/hex539/scoreboard/issues/7).
 
-### `stats`
+## `stats`
 
 `bt stats` prints a table of statistics for the current problem or the problems in the current contest.
 This table contains:
@@ -151,9 +171,9 @@ This table contains:
 - An optional comment, as specified by the `comment:` field in `problem.yaml`.
 - When `verified:` is set to `true` in `problem.yaml`, the comment will be shown in green.
 
-## Problem validation
+# Problem validation
 
-### `input`
+## `input`
 
 Use `bt input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified. When running for a single problem, testcases can be given as one of:
 - A `.in` file: `data/sample/1.in`
@@ -161,11 +181,11 @@ Use `bt input [<testcases>]` to validate the `.in` files for the given testcases
 - A testcase name: `data/sample/1`
 - A directory: `data/sample`. All `.in` files under the given directory will be validated.
 
-### `output`
+## `output`
 
 `bt output <testcases>` is similar to `bt input` but validates `.ans` files instead of `.in` files.
 
-### `validate`
+## `validate`
 
 `bt validate` is a convenience command that validates both input and output files.
 
@@ -176,7 +196,7 @@ It supports the following flags when run for a single problem:
 - `--remove`: when passed, all invalid testcases are deleted.
 - `--move_to <directory>`: when passed, all invalid testcases are moved to the given directory.
 
-### `constraints`
+## `constraints`
 
 Validators based on [headers/validation.h](../headers/validation.h) can take a `--constraints_file <file_path>` flag.
 After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output. Each line in the output file should look like:
@@ -222,9 +242,9 @@ findmyfamily/output_validators/output_validator/output_validator.cpp
                               |            a_i  1
 ```
 
-## Creating a new contest/problem
+# Creating a new contest/problem
 
-### `new_contest`
+## `new_contest`
 
 This command creates a new contest. Can be called as `bt new_contest` or `bt new_contest <contest name>`.
 Settings for this contest will be asked for interactively. The following files are copied from [skel/contest](../skel/contest):
@@ -249,7 +269,7 @@ license [cc by-sa]:
 rights owner [author]:
 ```
 
-### `new_problem`
+## `new_problem`
 
 Create a new problem directory and fill it with skel files. If `problems.yaml` is present, also add the problem to it. Information can be passed in either interactively or via command line arguments:
 ```
@@ -277,7 +297,7 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 - `--author`: The author of the problem. Will be asked interactively if not specified.
 - `--validation`: The validation mode to use. Must be one of `default`, `custom`, `custom interactive`.
 
-### `gitlabci`
+## `gitlabci`
 
 `bt gitlabici` prints configuration for Gitlab Continuous Integration to the terminal. This can be piped into the `.gitlab-ci.yml` file in the root of the repository. When there are multiple contests, just append the `bt gitlabci` of each of them, but deduplicate the top level `image:` and `default:` keys.
 
@@ -352,9 +372,9 @@ We use the following configuration for the gitlab runners:
     "/tmp" = "rw,exec"
 ```
 
-## Exporting
+# Exporting
 
-### `samplezip`
+## `samplezip`
 
 Create `contest/samples.zip` containing the sample `.in` and `.ans` files for all samples in the current problem or contest. Samples are always numbered starting at `1`:
 
@@ -379,7 +399,7 @@ Archive:  samples.zip
 ```
 
 
-### `zip`
+## `zip`
 
 This creates a problem or contest zip that can be directly imported into DOMjudge.
 Specify the `--kattis` flag for a zip compatible with `problemtools`. Differences are explained below.
@@ -408,9 +428,9 @@ When run for a contest:
   - Kattis problem zips get an additional top level directory named after the problem shortname.
 
 
-## Misc
+# Misc
 
-### `all`
+## `all`
 
 This is a convenience command (mostly for use in CI) that runs the following subcommands in sequence for the current problem or each problem in the current contest:
 - Build the problem pdf
@@ -422,7 +442,7 @@ This is a convenience command (mostly for use in CI) that runs the following sub
 This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand.
 
 
-### `sort`
+## `sort`
 
 Prints a list of all problems in the current contest (or single problem), together with their letter/ID:
 
@@ -442,7 +462,7 @@ K : keephiminside
 L : luckydraw
 ```
 
-### `tmp`
+## `tmp`
 
 `bt tmp` prints the temporary directory that's used for all compilation output, run results, etc for the current problem or contest:
 
