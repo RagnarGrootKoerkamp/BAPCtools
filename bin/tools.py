@@ -146,15 +146,15 @@ def split_submissions_and_testcases(s):
     submissions = []
     testcases = []
     for p in s:
-        pp = Path(p)
-        if 'data/' in p or '.in' in p or '.ans' in p:
+        ps = str(p)
+        if 'data/' in ps or '.in' in ps or '.ans' in ps:
             # Strip potential .ans and .in
-            if pp.suffix in ['.ans', '.in']:
-                testcases.append(pp.with_suffix(''))
+            if p.suffix in ['.ans', '.in']:
+                testcases.append(p.with_suffix(''))
             else:
-                testcases.append(pp)
+                testcases.append(p)
         else:
-            submissions.append(pp)
+            submissions.append(p)
     return (submissions, testcases)
 
 
@@ -243,7 +243,7 @@ Run this from one of:
     validate_parser = subparsers.add_parser('validate',
                                             parents=[global_parser],
                                             help='validate all grammar')
-    validate_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
+    validate_parser.add_argument('testcases', nargs='*', type=Path,help='The testcases to run on.')
     validate_parser.add_argument('--remove', action='store_true', help='Remove failing testcsaes.')
     validate_parser.add_argument('--move_to', help='Move failing testcases to this directory.')
 
@@ -251,13 +251,13 @@ Run this from one of:
     input_parser = subparsers.add_parser('input',
                                          parents=[global_parser],
                                          help='validate input grammar')
-    input_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
+    input_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
 
     # output validation
     output_parser = subparsers.add_parser('output',
                                           parents=[global_parser],
                                           help='validate output grammar')
-    output_parser.add_argument('testcases', nargs='*', help='The testcases to run on.')
+    output_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
 
     # constraints validation
     subparsers.add_parser('constraints',
@@ -303,6 +303,7 @@ Run this from one of:
                                       help='Run multiple programs against some or all input.')
     runparser.add_argument('submissions',
                            nargs='*',
+                           type=Path,
                            help='optionally supply a list of programs and testcases to run')
     runparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
     runparser.add_argument('--no-generate',
@@ -323,11 +324,12 @@ Run this from one of:
     testparser = subparsers.add_parser('test',
                                        parents=[global_parser],
                                        help='Run a single program and print the output.')
-    testparser.add_argument('submissions', nargs=1, help='A single submission to run')
+    testparser.add_argument('submissions', nargs=1, type=Path,help='A single submission to run')
     testcasesgroup = testparser.add_mutually_exclusive_group()
     testcasesgroup.add_argument('testcases',
                                 nargs='*',
                                 default=[],
+                                type=Path,
                                 help='Optionally a list of testcases to run on.')
     testcasesgroup.add_argument('--samples', action='store_true', help='Only run on the samples.')
     testparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
@@ -396,6 +398,14 @@ def main():
     config.args = parser.parse_args()
     action = config.args.action
 
+    # Parse arguments for 'run' command.
+    if action == 'run':
+        if config.args.submissions:
+            config.args.submissions, config.args.testcases = split_submissions_and_testcases(
+                config.args.submissions)
+        else:
+            config.args.testcases = []
+
     # Skel commands.
     if action in ['new_contest']:
         skel.new_contest(config.args.contestname)
@@ -408,7 +418,7 @@ def main():
     # Get problem_paths and cd to contest
     problems, level, contest = get_problems()
 
-    # Check for incompatible actions/arguments at the problem/problemset level.
+    # Check for incompatible actions at the problem/problemset level.
     if level != 'problem':
         if action == 'generate':
             fatal('Generating testcases only works for a single problem.')
@@ -419,6 +429,18 @@ def main():
         if action == 'solutions':
             fatal('Generating solution slides only works for a contest.')
 
+    # 'submissions' and 'testcases' are only allowed at the problem level, and only when --problem is not specified.
+    if level != 'problem' or config.args.problem is not None:
+        if hasattr(config.args, 'submissions') and config.args.submissions:
+            fatal('Passing in a list of submissions only works when running from a problem directory.')
+        if hasattr(config.args, 'testcases') and config.args.testcases:
+            fatal('Passing in a list of testcases only works when running from a problem directory.')
+
+    if hasattr(config.args, 'testcases') and config.args.testcases and hasattr(config.args, 'samples') and config.args.samples:
+        fatal('--samples can not go together with an explicit list of testcases.')
+
+
+
     # Handle one-off subcommands.
     if action == 'tmp':
         if level == 'problem':
@@ -427,14 +449,6 @@ def main():
             print(config.tmpdir)
         return
 
-    if action == 'run':
-        if config.args.submissions:
-            if level != 'problem':
-                fatal('Running a given submission only works from a problem directory.')
-            config.args.submissions, config.args.testcases = split_submissions_and_testcases(
-                config.args.submissions)
-        else:
-            config.args.testcases = []
 
     if action in ['stats']:
         stats.stats(problems)
