@@ -2,11 +2,10 @@
 
 BAPCtools is a tool for creating and developing problems following the
 CLICS (DOMjudge/Kattis) problem format specified [here](https://clics.ecs.baylor.edu/index.php?title=Problem_format).
-It aims to implement the entire spec, but some parts may not yet work.
 
 The aim of this tool is to run all necessary compilation, validation, and
 testing commands while working on an ICPC-style problem.
-Ideally I should never have to manually run any compilation or testing command myself.
+Ideally one should never have to manually run any compilation or testing command themselves.
 
 I'm interested to know who's using this, so feel free to inform me (e.g. via an issue) if so ;)
 The current state is relatively stable, but things do change from time to
@@ -15,10 +14,9 @@ time since I'm not aware of usage outside of BAPC yet.
 ## Installation
 
 For now the only way to use this is to clone the repository and install the
-required dependencies manually:
+required dependencies manually.
 
--   Python 3 with the `yaml`
-    [library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install
+-   Python 3 with the [yaml library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install
     pyyaml` or the `python-yaml` Arch Linux package.
 -   The `argcomplete` library for command line argument completion. Install via
     `python[3]-argcomplete`.
@@ -58,7 +56,6 @@ The most important subcommands it supports are (see `--help` for a few more and 
 	* Viva is supported.
 	* CheckTestdata is also supported when found in the Path.
 * `generate`: Use a submission to create `.ans` files for all `.in` files.
-* `generate_input`: Use an input validator to generate random `.in` files.
 * `constraints` searches for `const int <name> = <value>;` numeric values in the validator file and `\newcommand{<name>}{<number>}` definitions in the latex statement and prints the values side by side for easy manual verification. 
 * `pdf`, `solutions`: Build a (solutions) pdf for either a problem or entire contest.
 * `stats`: Print statistics on the number of testcases and submissions per problem.
@@ -71,7 +68,7 @@ Please try the `-v` flag for more verbose output especially for `run` and `valid
 Specify it twice to print all external compile/run/validate commands being executed.
 
 The tool prints the first few lines of compile errors and wrong answer diffs.
-`-e` enables full output and `-E` hides it completely.
+`-e` enables full output.
 
 **Please use `bt --help` and `bt <command> --help` to see all optional arguments.
 There are quite a few that are not documented here.**

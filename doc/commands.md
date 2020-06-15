@@ -2,7 +2,9 @@
 
 This document explains all subcommands and their flags, sorted per category.
 
-Unless otherwise specified, command work both on the problem and contest level.
+Unless otherwise specified, commands work both on the problem and contest level.
+
+**Allowed subcommands and options are also available with `bt --help` and `bt <command> --help`.**
 
 # Global flags
 
