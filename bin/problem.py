@@ -330,7 +330,7 @@ class Problem:
         max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
 
         # Pre build all output validators to prevent nested ProgressBars.
-        self.problem.validators('output')
+        problem.validators('output')
 
         ok = True
         verdict_table = []

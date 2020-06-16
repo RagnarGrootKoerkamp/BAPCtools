@@ -1,4 +1,4 @@
-# Implementation notes
+u Implementation notes
 
 This document explains some miscellaneous parts of the implementation of BAPCtools that did not fit in the [Subcommand documentation](commands.md).
 
@@ -51,9 +51,10 @@ Testcases are only re-generated when changes were made. This is done with the fo
 1. For manual testcases, symlink the given file to `~testcase/<testcase>.in`
 1. For other cases, run the given generator with current working directory `~testcase`.
 1. Validate the generated `~testcase/<testcase>.in` file.
-1. If `~testcase/<testcase>.ans` was not generated and a solution was provided, run the solution to generate `~testcase/<testcase>.ans`.
+1. If `~testcase/<testcase>.ans` was not generated and a solution was provided, run the solution with working directory `~testcase` to generate `~testcase/<testcase>.ans`.
     - For interactive problems, create an empty `~testcase/<testcase>.ans` and run the given submission to create a `~testcase/<testcase>.interaction`.
 1. Validate the generated `~testcase/<testcase>.ans` file.
+1. If provided, run the visualizer with working directory `~testcase`.
 1. Copy generated files to the `data/` directory. For changed files, `--force` is needed to overwrite them.
 1. Update the `~testcase/meta_.yaml` file with the invocations of the generator, solution, and visualizer.
 
