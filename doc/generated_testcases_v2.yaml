@@ -30,7 +30,7 @@ random_salt: abcd
 # - Directories, like
 #   - generators/gen/tree.cpp
 #   - generators/gen/lib.h
-#   This will be compiled and run the same was as directory validators. Build
+#   This will be compiled and run the same way as directory validators. Build
 #   and run scripts may be used.
 # - 'implicit' generators whose dependencies are specified in the generators:
 #   key below. The dependencies may refer to any files relative to generators/.
