@@ -74,10 +74,10 @@ def get_problems():
         level = 'problemset'
 
     # We create one tmpdir per contest.
-    if config.tmpdir is None:
-        h = hashlib.sha256(bytes(Path().cwd())).hexdigest()[-6:]
-        config.tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
-        config.tmpdir.mkdir(parents=True, exist_ok=True)
+    assert config.tmpdir is None
+    h = hashlib.sha256(bytes(Path().cwd())).hexdigest()[-6:]
+    config.tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
+    config.tmpdir.mkdir(parents=True, exist_ok=True)
 
     problems = []
     if level == 'problem':
@@ -392,12 +392,12 @@ Run this from one of:
     return parser
 
 
-def main():
+def main(args):
     # Build Parser
     parser = build_parser()
 
     # Process arguments
-    config.args = parser.parse_args()
+    config.args = parser.parse_args(args)
     action = config.args.action
 
     # Parse arguments for 'run' command.
@@ -567,4 +567,4 @@ def main():
 if __name__ == '__main__':
     def interrupt_handler(sig, frame): fatal('Running interrupted')
     signal.signal(signal.SIGINT, interrupt_handler)
-    main()
+    main(sys.argv[1:])

@@ -76,11 +76,6 @@ def languages():
 #
 # build() will return the (run_command, message) pair.
 class Program:
-    # A map from program paths to callbacks to be called on build() completion.
-    _callbacks = dict()
-    # A map from program paths to corresponding Program instances.
-    _cache = dict()
-
     def __init__(self, problem, path, deps=None, *, skip_double_build_warning=False):
         if deps is not None:
             assert isinstance(self, Generator)

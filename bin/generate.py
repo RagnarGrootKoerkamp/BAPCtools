@@ -291,7 +291,7 @@ class TestcaseRule(Rule):
             # - both target infile ans ansfile exist
             # - meta_ exists with a timestamp newer than the 3 Invocation timestamps (Generator/Submission/Visualizer).
             # - meta_ exists with a timestamp newer than target infile ans ansfile
-            # - meta_ contains exactly the right content given by t._cache_string()
+            # - meta_ contains exactly the right content
 
             last_change = 0
             t.cache_data = {}
