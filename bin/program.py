@@ -116,7 +116,9 @@ class Program:
         self.built = False
 
         # Detect language, dependencies, and main file
-        if deps: self.source_files = deps
+        if deps:
+            self.source_files = deps
+            self.has_deps = True
         else:
             if path.is_dir():
                 self.source_files = list(glob(path, '*'))
@@ -124,6 +126,7 @@ class Program:
                 self.source_files = [path]
             else:
                 self.source_files = []
+            self.has_deps = False
 
     # is file at path executable
     @staticmethod
@@ -173,7 +176,7 @@ class Program:
 
         self.language = lang
         mainfile = None
-        if deps is None:
+        if not self.has_deps:
             if len(files) == 1:
                 mainfile = files[0]
             else:
