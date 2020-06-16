@@ -65,9 +65,9 @@ class Testcase:
 
             # Failure?
             if ret.ok is True:
-                message = 'PASSED ' + validator.name
+                message = 'Passed ' + validator.name
             else:
-                message = 'FAILED ' + validator.name
+                message = 'Failed ' + validator.name
 
             # Print stdout and stderr whenever something is printed
             if not ret.err: err = ''
@@ -232,6 +232,7 @@ class Submission(program.Program):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_item_len = max(len(run.name)
                            for run in runs) + max_submission_name_len - len(self.name)
+
         bar = ProgressBar('Running ' + self.name,
                           count=len(runs),
                           max_len=max_item_len,
@@ -256,6 +257,7 @@ class Submission(program.Program):
             if table_dict is not None:
                 table_dict[run.name] = result.verdict == 'ACCEPTED'
 
+            # TODO: Use @EXPECTED_RESULT@ annotations as used in DOMjudge here.
             got_expected = result.verdict == 'ACCEPTED' or result.verdict == self.expected_verdict
 
             # Print stderr whenever something is printed
@@ -265,7 +267,11 @@ class Submission(program.Program):
                     result.err) + '\n{output_type}:' + util.ProgressBar._format_data(
                         result.out) + '\n'
             else:
-                data = result.err
+                data = ''
+                if result.err:
+                    data = result.err
+                if result.out:
+                    data = result.out
 
             bar.done(got_expected, f'{result.duration:6.3f}s {result.verdict}', data)
 
