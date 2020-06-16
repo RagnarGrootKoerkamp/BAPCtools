@@ -268,7 +268,7 @@ class TestcaseRule(Rule):
         bar = parent_bar.start(str(t.path))
 
         # E.g. bapctmp/problem/data/secret/1.in
-        cwd = config.tmpdir / problem.name / 'data' / t.path
+        cwd = problem.tmpdir / 'data' / t.path
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / (t.name + '.in')
         ansfile = cwd / (t.name + '.ans')

@@ -18,12 +18,12 @@ class Problem:
     _SHORTNAME_REGEX_STRING = '^[a-z0-9]+$'
     _SHORTNAME_REGEX = re.compile(_SHORTNAME_REGEX_STRING)
 
-    def __init__(self, path, label=None):
+    def __init__(self, path, tmpdir, label=None):
         # The problem name/shortname, which is the name of the directory and used as a display name.
         self.name = path.resolve().name
         # The Path of the problem directory.
         self.path = path
-        self.tmpdir = config.tmpdir / self.name
+        self.tmpdir = tmpdir / self.name
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
         self._read_settings()
 
@@ -119,7 +119,7 @@ class Problem:
         # NOTE: Testcases must be specified relative to the problem root.
         if hasattr(config.args, 'testcases') and config.args.testcases:
             if samplesonly:
-                warn(f'Ignoring the --samples flag because testcases are explicitly listed.')
+                assert False
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
             for t in config.args.testcases:
@@ -128,8 +128,10 @@ class Problem:
                     in_paths += glob(t, '**/*.in')
                 else:
                     t = t.with_suffix('.in')
-                    if not t.is_file(): warn(f'Testcase {t} not found.')
-                    in_paths.append(t)
+                    if t.is_file():
+                        in_paths.append(t)
+                    else:
+                        warn(f'Testcase {t} not found.')
 
             in_paths = list(set(in_paths))
         else:

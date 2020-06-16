@@ -86,16 +86,16 @@ class Testcase:
                     targetdir.mkdir(parents=True, exist_ok=True)
                     intarget = targetdir / infile.name
                     infile.rename(intarget)
-                    bar.warn('Moved to ' + print_name(intarget))
+                    bar.log('Moved to ' + print_name(intarget))
                     ansfile = testcase.ans_path
                     if ansfile.is_file():
                         if validator_type == 'input':
                             ansfile.unlink()
-                            bar.warn('Deleted ' + print_name(ansfile))
+                            bar.log('Deleted ' + print_name(ansfile))
                         if validator_type == 'output':
                             anstarget = intarget.with_suffix('.ans')
                             ansfile.rename(anstarget)
-                            bar.warn('Moved to ' + print_name(anstarget))
+                            bar.log('Moved to ' + print_name(anstarget))
                     break
 
                 # Remove testcase if specified.
@@ -119,7 +119,7 @@ class Run:
         self.name = self.testcase.name
         self.result = None
 
-        tmp_path = config.tmpdir / self.problem.name / 'runs' / self.submission.short_path / self.testcase.short_path
+        tmp_path = self.problem.tmpdir / 'runs' / self.submission.short_path / self.testcase.short_path
         self.out_path = tmp_path.with_suffix('.out')
         self.feedbackdir = tmp_path.with_suffix('.feedbackdir')
         self.feedbackdir.mkdir(exist_ok=True, parents=True)

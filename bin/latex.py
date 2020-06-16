@@ -114,7 +114,7 @@ def create_samples_file(problem):
 
 # Steps needed for both problem and contest compilation.
 def prepare_problem(problem):
-    builddir = config.tmpdir / problem.name
+    builddir = problem.tmpdir
     builddir.mkdir(exist_ok=True)
     ensure_symlink(builddir / 'problem_statement', problem.path / 'problem_statement')
 
@@ -145,7 +145,7 @@ def get_tl(problem_config):
 def build_problem_pdf(problem):
     prepare_problem(problem)
 
-    builddir = config.tmpdir / problem.name
+    builddir = problem.tmpdir
 
     util.copy_and_substitute(
         config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
@@ -188,8 +188,8 @@ def find_logo():
 # Build a pdf for an entire problemset. Explanation in latex/readme.md
 # Specify `order` to order the problems by e.g. difficulty.
 # TODO: Extract data from DomJudge API using RGL tools.
-def build_contest_pdf(contest, problems, solutions=False, web=False):
-    builddir = config.tmpdir / contest
+def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
+    builddir = tmpdir / contest
     builddir.mkdir(parents=True, exist_ok=True)
     build_type = 'solution' if solutions else 'problem'
 
@@ -238,7 +238,7 @@ def build_contest_pdf(contest, problems, solutions=False, web=False):
                 'problemyamlname': problem.name,
                 'problemauthor': problem.settings.author,
                 'timelimit': problem.settings.timelimit,
-                'problemdir': config.tmpdir / problem.name,
+                'problemdir': problem.tmpdir,
             })
 
     if solutions:

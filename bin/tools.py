@@ -74,16 +74,15 @@ def get_problems():
         level = 'problemset'
 
     # We create one tmpdir per contest.
-    assert config.tmpdir is None
     h = hashlib.sha256(bytes(Path().cwd())).hexdigest()[-6:]
-    config.tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
-    config.tmpdir.mkdir(parents=True, exist_ok=True)
+    tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
+    tmpdir.mkdir(parents=True, exist_ok=True)
 
     problems = []
     if level == 'problem':
         # TODO: provide a label from a problems.yaml from dir above?
         # Currently, the label is parsed from the domjudge-problem.ini probid field.
-        problems = [Problem(Path(problem.name))]
+        problems = [Problem(Path(problem.name), tmpdir)]
     else:
         level = 'problemset'
         # If problemset.yaml is available, use it.
@@ -107,7 +106,7 @@ def get_problems():
                         f'label {label} found twice for problem {shortname} and {labels[label]}.')
                 labels[label] = shortname
                 if Path(shortname).is_dir():
-                    problems.append(Problem(Path(shortname), label))
+                    problems.append(Problem(Path(shortname), tmpdir, label))
                 else:
                     error(
                         f'No directory found for problem {shortname} mentioned in problems.yaml.')
@@ -119,7 +118,7 @@ def get_problems():
             for path in glob(Path('.'), '*/'):
                 if is_problem_directory(path):
                     label = chr(ord('A') + label_ord)
-                    problems.append(Problem(path, label))
+                    problems.append(Problem(path, label, tmpdir))
                     label_ord += 1
             if len(problems) == 0:
                 fatal('Did not find problem.yaml. Are you running this from a problem directory?')
@@ -134,7 +133,7 @@ def get_problems():
 
     contest = Path().cwd().name
 
-    return (problems, level, contest)
+    return (problems, level, contest, tmpdir)
 
 
 def print_sorted(problems):
@@ -392,12 +391,12 @@ Run this from one of:
     return parser
 
 
-def main(args):
-    # Build Parser
-    parser = build_parser()
+# Takes a Namespace object returned by argparse.parse_args().
+def run_parsed_arguments(args):
+    config.reset()
 
     # Process arguments
-    config.args = parser.parse_args(args)
+    config.args = args
     action = config.args.action
 
     # Parse arguments for 'run' command.
@@ -418,7 +417,7 @@ def main(args):
         return
 
     # Get problem_paths and cd to contest
-    problems, level, contest = get_problems()
+    problems, level, contest, tmpdir = get_problems()
 
     # Check for incompatible actions at the problem/problemset level.
     if level != 'problem':
@@ -445,15 +444,16 @@ def main(args):
 
     # Handle one-off subcommands.
     if action == 'tmp':
-        tmpdir = config.tmpdir
         if level == 'problem':
-            tmpdir = tmpdir / problems[0].name
+            level_tmpdir = tmpdir / problems[0].name
+        else:
+            level_tmpdir = tmpdir
 
         if config.args.clean:
             log(f'Deleting {tmpdir}!')
-            shutil.rmtree(tmpdir)
+            shutil.rmtree(level_tmpdir)
         else:
-            print(tmpdir)
+            print(level_tmpdir)
 
         return
 
@@ -540,21 +540,22 @@ def main(args):
 
         # build pdf for the entire contest
         if action in ['pdf']:
-            success &= latex.build_contest_pdf(contest, problems, web=config.args.web)
+            success &= latex.build_contest_pdf(contest, problems, tmpdir, web=config.args.web)
 
         if action in ['solutions']:
             success &= latex.build_contest_pdf(contest,
                                                problems,
+                                               tmpdir,
                                                solutions=True,
                                                web=config.args.web)
 
         if action in ['zip']:
             if not config.args.kattis:
-                success &= latex.build_contest_pdf(contest, problems)
-                success &= latex.build_contest_pdf(contest, problems, web=True)
+                success &= latex.build_contest_pdf(contest, problems, tmpdir)
+                success &= latex.build_contest_pdf(contest, problems, tmpdir, web=True)
                 if not config.args.no_solutions:
-                    success &= latex.build_contest_pdf(contest, problems, solutions=True)
-                    success &= latex.build_contest_pdf(contest, problems, solutions=True, web=True)
+                    success &= latex.build_contest_pdf(contest, problems, tmpdir, solutions=True)
+                    success &= latex.build_contest_pdf(contest, problems, tmpdir, solutions=True, web=True)
 
             outfile = contest + '.zip'
             if config.args.kattis: outfile = contest + '-kattis.zip'
@@ -563,6 +564,10 @@ def main(args):
     if not success or config.n_error > 0 or config.n_warn > 0:
         sys.exit(1)
 
+# Takes command line arguments
+def main(args):
+    parser = build_parser()
+    run_parsed_arguments(parser.parse_args(args))
 
 if __name__ == '__main__':
     def interrupt_handler(sig, frame): fatal('Running interrupted')
