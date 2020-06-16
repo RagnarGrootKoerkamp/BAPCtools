@@ -55,9 +55,9 @@ is automatically detected by searching for the `problem.yaml` file.
 The most common commands and options to use on an existing repository are:
 
 - [`bt run [-v] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
-- [`bt test [-v] submission [--samples | [testcases [testcases ...]]]`](#test)
+- [`bt test <submission> [--samples | [testcases [testcases ...]]]`](#test)
 - [`bt generate [-v] [--jobs JOBS]`](#generate)
-- [`bt validate [-v] [testcases [testcases ...]]`](#validate)
+- [`bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
 - [`bt pdf [-v]`](#pdf)
 
 The list of all available commands and options is at [doc/commands.md#synopsis](doc/commands.md#synopsis),
@@ -69,79 +69,56 @@ and more information regarding the implementation is at [doc/implementation_note
 
 Without arguments, the `run` command runs all submissions against all testcases.
 Specify one or more submissions and one or more testcases to only run the given submissions against the given testcases.
+okjjkjjk
 
-By default, it only prints one summary line per submission, and one additional line for each testcase with an unexpected result. Use `-v` to print one line for each testcase.
+Before running the given submissions, this command first makes sure that all generated testcases are up to date (in case `generators/generators.yaml` was found).
 
-Before running the given submissions, this command first makes sure that all generated testcases are up to date.
+![run](doc/images/run.gif)
+
+By default, `bt run` only prints one summary line per submission, and one additional line for each testcase with an unexpected result. Use `-v` to print one line per testcase instead.
+
+![run -v](doc/images/run-v.gif)
 
 
 ### Test
+
+- `bt test <submission> [--samples | [testcases [testcases ...]]]`
+
+Use the `test` command to run a single submission on some testcases. The submission `stdout` and `stderr` are printed to the terminal instead of verified as an answer file.
+
+![test](doc/images/test.png)
+
 ### Generate
+
+- `bt generate [-v] [--jobs JOBS]`
+
+Use the `generate` command to generate the testcases specified in `generators/generators.yaml`.
+Use `-j 0` to disable running multiple jobs in parallel (the default is `4`).
+
+![generate](./doc/images/generate.gif)
+
 ### Validate
-### Pdf
 
-### Run submissions
+- `bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`
 
-From inside either a problem or contest directory: `tools.py run [-v] [-v]
-[submissions] [testcases]`
-
-This runs all submissions in the problem/contest on all testdata for the
-problem. Use `-v` to make it print testcases where submissions fail.
-
-![run](./doc/images/02_run.gif)
-
-You can also run one (or multiple) given submissions and see the status with
-`-v`. Note that the wrong answer verdict is green here because the submission is
-expected to get wrong answer. Unexpected outcomes are always printed, even
-without `-v`. If the given and expected answer are a single line only, the diff
-is given inline. Otherwise a small snippet is printed on the lines below.
-
-![run single submission](./doc/images/03_run_submission.gif)
-
-### Generating output files
-
-`tools.py generate [-f] [submission]` chooses a submission or uses the given
-submission to generate a `.ans` file for every `.in` file. Supply `-f` to
-overwrite changed answer files.
-
-![generate ans files](./doc/images/04_generate.gif)
-
-### Validating input/answer/output files
-
-`tools.py validate` runs all validator files in the `input_validator` and
-`output_validator` directories against all testcases.
+Validate all the `.in` and `.ans` for all (given) testcases. It runs all validators from `input_validators` and `output_validators`.
 
 Validators can be one of
- - an executable,
- - a c++ program,
- - a .ctd CheckTestData file (this needs the `checktestdata` executable in the
-   PATH).
+ - a single-file program.
+ - a multi-file program with all files in a common directory.
+ - a .ctd CheckTestData file (this needs the `checktestdata` executable in your `$PATH`).
 - a .viva file.
 
-See the Notes on Validation section further down for more info.
-
-You can use `--remove` to delete all failing testdata or `--move <dir>` to move
+You can use `--remove` to delete all failing testcases or `--move <dir>` to move
 them to a separate directory.
 
-![validator](./doc/images/05_validate.png)
+![validator](./doc/images/validate.png)
 
-### Building problem PDF
+### Pdf
 
-`tools.py pdf [--web]` creates a PDF of the problem statement or entire contest,
-depending on where you run it. The `--web` flag removes empty pages and makes it
-single sided. The output file is a `example_problem/problem.pdf` like
-[this](./doc/images/problem.pdf) symlink to a build directory. (See the Notes on LaTeX
-further down.)
+- `bt pdf [-v]`
 
-Running it from a contest directory creates a `contest.pdf` like
-[this](./doc/images/contest.pdf) file in the contest directory.
+Use this command to compile the `problem.pdf` from the `problem_statement/problem.en.tex` LaTeX statement.
+`problem.pdf` is written to the problem directory itself.
 
-*   The problem letter and time limit are extracted from `domjudge-problem.ini`.
-*   Samples are automatically included from the `data/sample` directory.
-*   The `problem_statement/problem.en.tex`
-    [file](skel/problem/problem_statement/problem.en.tex) consists of:
-    -   `\problemname{<name>}`
-    -   (optionally) a figure
-    -   the problem statement
-    -   an `Input` section or environment
-    -   an `Output` section or environment
+This can also be used to create the contest pdf by running it from the contest directory.
