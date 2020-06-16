@@ -93,6 +93,8 @@ class ProgressBar:
     # Lock on all IO via this class.
     lock = threading.Lock()
 
+    current_bar = None
+
     @staticmethod
     def item_len(item):
         if isinstance(item, str): return len(item)
@@ -107,6 +109,9 @@ class ProgressBar:
                  *,
                  items=None,
                  needs_leading_newline=False):
+        assert self.current_bar is None
+        self.current_bar = self
+
         assert not (items and (max_len or count))
         assert items is not None or max_len
         assert items is not None or count is not None
@@ -343,6 +348,9 @@ class ProgressBar:
 
         self.lock.release()
 
+        assert self.current_bar is not None
+        self.current_bar = None
+
         return self.global_logged
 
 
@@ -503,7 +511,7 @@ def crop_output(output):
         cropped = True
 
     if cropped:
-        output += cc.orange + 'Use -e to show more or -E to hide it.' + cc.reset
+        output += cc.orange + 'Use -e to show more.' + cc.reset
     return output
 
 
