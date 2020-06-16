@@ -35,9 +35,10 @@ random_salt: abcd
 # - 'implicit' generators whose dependencies are specified in the generators:
 #   key below. The dependencies may refer to any files relative to generators/.
 #   The generator will be built and run as if they formed a separate directory.
+#   The first item in the list will be used as entry point.
 #   E.g. the first example below would be equivalent to
-#   - generators/tree/lib.py
 #   - generators/tree/tree.py
+#   - generators/tree/lib.py
 #
 # When a generator is used as a command to generate a .in file, we first check
 # if the name is a key in the generators: dictionary below. If that is the case,
@@ -47,16 +48,16 @@ generators:
 # A generator that depends on two files, lib.py and tree.py, directly in the
 # generators directory.
   tree:
-    - lib.py
     - tree.py
+    - lib.py
 # Another generator that also depends on the same lib.py.
   graph:
-    - lib.py
     - graph.py
+    - lib.py
 # This also works for other languages.
   a:
-    - a.h
     - a.cpp
+    - a.h
 # Single-file generators may be specified, but can also be referred to as
 # b.cpp directly.
   b:
@@ -107,8 +108,6 @@ data:
 # string will be replaced by an integer hash of the entire command in [0, 2^31).
 # The regex may match at most once.
 # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
-# TODO: Should whitespace matter? We could also first shlex the command to
-# remove meaningless whitespace. That's also how we should error on identical commands.
       07-random-1:    stdout.py {seed}
      #08-random-1a:   stdout.py {seed}           # It's an error to use the exact same command twice.
       09-random-2:    stdout.py {seed:2}         # Different seed, because of extra `2`
@@ -142,7 +141,6 @@ data:
         input: large_case_generator.py 1000000
         solution: gnu_multi_precision.cpp   # Some local file in generators/.
         visualizer:                         # Empty to disable the visualizer here.
-# TODO: Adding this because we can.
         random_salt: 123
 
 
@@ -226,13 +224,13 @@ data:
        #      1-c: stdout.py c
        #      1-d: stdout.py d
        #  03-e: stdout.py e
-       #  04-e: stdout.py f
-       #  05-e: stdout.py g
-       #  06-e: stdout.py h
-       #  07-e: stdout.py i
-       #  08-e: stdout.py j
-       #  09-e: stdout.py k
-       #  10-e: stdout.py l
+       #  04-f: stdout.py f
+       #  05-g: stdout.py g
+       #  06-h: stdout.py h
+       #  07-i: stdout.py i
+       #  08-j: stdout.py j
+       #  09-k: stdout.py k
+       #  10-l: stdout.py l
 
 # Unknown keys are allowed inside directory dictionaries for tooling-specific
 # extensions. This includes both the global scope and explicit directories with type: directory.
