@@ -78,35 +78,36 @@ class Testcase:
 
             bar.part_done(ret.ok is True, message, data=ret.err + ret.out)
 
-            if ret.ok is not True:
-                # Move testcase to destination directory if specified.
-                if hasattr(config.args, 'move_to') and config.args.move_to:
-                    infile = testcase.in_path
-                    targetdir = problem / config.args.move_to
-                    targetdir.mkdir(parents=True, exist_ok=True)
-                    intarget = targetdir / infile.name
-                    infile.rename(intarget)
-                    bar.log('Moved to ' + print_name(intarget))
-                    ansfile = testcase.ans_path
-                    if ansfile.is_file():
-                        if validator_type == 'input':
-                            ansfile.unlink()
-                            bar.log('Deleted ' + print_name(ansfile))
-                        if validator_type == 'output':
-                            anstarget = intarget.with_suffix('.ans')
-                            ansfile.rename(anstarget)
-                            bar.log('Moved to ' + print_name(anstarget))
-                    break
+            if ret.ok is True: continue
 
-                # Remove testcase if specified.
-                elif validator_type == 'input' and hasattr(config.args,
-                                                           'remove') and config.args.remove:
-                    bar.log(cc.red + 'REMOVING TESTCASE!' + cc.reset)
-                    if testcase.in_path.exists():
-                        testcase.in_path.unlink()
-                    if testcase.ans_path.exists():
-                        testcase.ans_path.unlink()
-                    break
+            # Move testcase to destination directory if specified.
+            if hasattr(config.args, 'move_to') and config.args.move_to:
+                infile = testcase.in_path
+                targetdir = problem / config.args.move_to
+                targetdir.mkdir(parents=True, exist_ok=True)
+                intarget = targetdir / infile.name
+                infile.rename(intarget)
+                bar.log('Moved to ' + print_name(intarget))
+                ansfile = testcase.ans_path
+                if ansfile.is_file():
+                    if validator_type == 'input':
+                        ansfile.unlink()
+                        bar.log('Deleted ' + print_name(ansfile))
+                    if validator_type == 'output':
+                        anstarget = intarget.with_suffix('.ans')
+                        ansfile.rename(anstarget)
+                        bar.log('Moved to ' + print_name(anstarget))
+
+            # Remove testcase if specified.
+            elif validator_type == 'input' and hasattr(config.args,
+                                                       'remove') and config.args.remove:
+                bar.log(cc.red + 'REMOVING TESTCASE!' + cc.reset)
+                if testcase.in_path.exists():
+                    testcase.in_path.unlink()
+                if testcase.ans_path.exists():
+                    testcase.ans_path.unlink()
+
+            break
 
         return success
 
