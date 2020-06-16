@@ -125,7 +125,7 @@ def main():
         settings.float_absolute_tolerance = settings.float_tolerance
 
     ok, message = default_output_validator(in_path, ans_path, feedback_dir, settings)
-    print(message)
+    sys.stderr.write(message + '\n')
     if ok is True: return exit(42)
     return exit(43)
 
