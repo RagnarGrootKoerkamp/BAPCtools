@@ -187,7 +187,7 @@ Run this from one of:
     global_parser.add_argument('--error',
                                '-e',
                                action='store_true',
-                               help='Print full output of failing commands')
+                               help='Print full error of failing commands and some succeeding commands.')
     global_parser.add_argument('--cpp_flags',
                                help='Additional compiler flags used for all c++ compilations.')
     global_parser.add_argument('--force_build',
@@ -500,15 +500,15 @@ def run_parsed_arguments(args):
             success &= generate.generate(problem)
         if action in ['clean']:
             success &= generate.clean(problem)
-        if action in ['validate', 'input', 'all']:
-            success &= problem.validate_format('input_format')
-        if action in ['validate', 'output', 'all']:
-            success &= problem.validate_format('output_format')
         if action in ['all'] or (action in ['run'] and not config.args.no_generate):
             config.args.force = False
             config.args.clean = False
             config.args.jobs = 4
             success &= generate.generate(problem)
+        if action in ['validate', 'input', 'all']:
+            success &= problem.validate_format('input_format')
+        if action in ['validate', 'output', 'all']:
+            success &= problem.validate_format('output_format')
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
