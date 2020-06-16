@@ -212,13 +212,13 @@ class Program:
                 if f.read_text().find('bits/stdc++.h') != -1:
                     if 'validators/' in str(f):
                         bar.error(
-                            f'Validator {str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h.'
+                            f'Must not depend on bits/stdc++.h.'
                         )
                         self.ok = False
                         return False
                     else:
                         self.bar.warn(
-                            f'{str(Path(*f.parts[-2:]))} should not depend on bits/stdc++.h')
+                            f'Should not depend on bits/stdc++.h')
         return True
 
     # Return True on success.
