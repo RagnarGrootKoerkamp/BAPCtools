@@ -42,7 +42,7 @@ The two main object types are `directory` and `generator`. The root of `generato
 
 ## CUE specification.
 
-Below is a formal CUE specification for the `generators.yaml` file. Note that the `...` in `generator` and `directory` indicate that additional keys unknown to the spec are allowed. The `generator_reserved` and `directory_reserved` objects indicate keys that work only for `generator`/`directory` and should not be reused in other places.
+Below is a formal CUE specification for the `generators.yaml` file with a root object `Generators`. Note that the `...` in `generator` and `directory` indicate that additional keys unknown to the spec are allowed. The `generator_reserved` and `directory_reserved` objects indicate keys that work only for `generator`/`directory` and should not be reused in other places.
 
 ```
 command :: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
