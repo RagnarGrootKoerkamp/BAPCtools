@@ -168,9 +168,7 @@ data:
 # Any testgroup inside a list must contain a list object as data:.
 #
 # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
-# and alphabetical for dictionaries. Numbering is done in pre-order: first
-# number the current testgroup, then number everything inside the group, then
-# number testcases/testgroups following the current group.
+# and alphabetical for dictionaries.
         data:
           - a: stdout.py a
             b: stdout.py b
