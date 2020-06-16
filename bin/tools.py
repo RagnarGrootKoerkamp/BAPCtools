@@ -118,7 +118,7 @@ def get_problems():
             for path in glob(Path('.'), '*/'):
                 if is_problem_directory(path):
                     label = chr(ord('A') + label_ord)
-                    problems.append(Problem(path, label, tmpdir))
+                    problems.append(Problem(path, tmpdir, label))
                     label_ord += 1
             if len(problems) == 0:
                 fatal('Did not find problem.yaml. Are you running this from a problem directory?')
@@ -393,6 +393,7 @@ Run this from one of:
 
 # Takes a Namespace object returned by argparse.parse_args().
 def run_parsed_arguments(args):
+    # Reset the global settings, in case this is run from a test.
     config.reset()
 
     # Process arguments
