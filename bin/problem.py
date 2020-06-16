@@ -415,6 +415,16 @@ class Problem:
                 print(str.format('(Type {})', resultant_id[resultant]), end='')
             print(end='\n')
 
+    def reset_testcase_hashes(self):
+        self._testcase_hashes = {}
+
+    # Returns None for new testcases or the Testcase object it equals.
+    def matches_existing_testcase(self, t):
+        d = t.in_path.read_text()
+        if d in self._testcase_hashes: return self._testcase_hashes[d]
+        self._testcase_hashes[d] = t
+        return None
+
     # Validate the format of the input or output files.
     # For input_format validation, also make sure all testcases are different.
     def validate_format(problem, validator_type, check_constraints=False):
@@ -448,7 +458,7 @@ class Problem:
 
         constraints = {} if check_constraints else None
 
-        hashes = {}
+        self.reset_testcase_hashes()
 
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
@@ -456,22 +466,11 @@ class Problem:
             bar.start(testcase.name)
 
             if validator_type == 'input_format' and not testcase.included:
-                data = testcase.in_path.read_text()
-                h = hashlib.sha512(data.encode('utf-8')).hexdigest()
-                if h in hashes:
-                    ok = True
-                    for t2 in hashes[h]:
-                        if data == t2.in_path.read_text():
-                            bar.error(f'Duplicate testcase: identical to {t2.name}')
-                            ok = False
-                            break
-
-                    if ok:
-                        hashes[h].append(testcase)
-                    else:
-                        continue
-                else:
-                    hashes[h] = [testcase]
+                t2 = self.matches_existing_testcase(testcase)
+                if t2 is not None:
+                    bar.error(f'Duplicate testcase: identical to {t2.name}')
+                    ok = False
+                    break
 
             success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints)
             bar.done()

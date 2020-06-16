@@ -751,6 +751,8 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                 next_number = 1
 
                 for dictionary in yaml['data']:
+                    if not isinstance(dictionary, dict):
+                        fatal('Elements of a data list must be dictionaries.')
                     if d.numbered:
                         number_prefix = f'{next_number:0{number_width}}'
                         next_number += 1
@@ -863,6 +865,8 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
     def run(self):
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
+
+        self.problem.reset_testcase_hashes()
 
         bar = ProgressBar('Generate', items=item_names)
 
