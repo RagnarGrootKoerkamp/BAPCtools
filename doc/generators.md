@@ -11,7 +11,9 @@ When `generators/generators.yaml` is present, _all_ test cases in
 some testcases while not mentioning others. Testcases should be explicitly
 listed as manually created to prevent this issue.
 
-What follows is a quick overview of the syntax of `generators.yaml`.
+Below are an explanation of the specification and a formal [CUE specification](#cue-specification).
+
+## Specification
 
 The two main object types are `directory` and `generator`. The root of `generators.yaml` is a `directory` which corresponds to the `data/` directory.
 
@@ -40,7 +42,7 @@ The two main object types are `directory` and `generator`. The root of `generato
 
 ## CUE specification.
 
-Below is a formal CUE specification for the `generators.yaml` file. Note that the `...` in `generator` and `directory` indicate that additional keys unknown to the spec are allowed. The `generator_reserver` and `directory_reserved` objects indicate keys that work only for `generator`/`directory` and should not be reused in other places.
+Below is a formal CUE specification for the `generators.yaml` file. Note that the `...` in `generator` and `directory` indicate that additional keys unknown to the spec are allowed. The `generator_reserved` and `directory_reserved` objects indicate keys that work only for `generator`/`directory` and should not be reused in other places.
 
 ```
 command :: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
