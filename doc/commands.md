@@ -123,7 +123,7 @@ This is useful for running submissions without having to compile them manually. 
 
 ## `generate`
 
-Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. The syntax of this file is described [here](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/doc/generated_testcases_v2.yaml). This should become part of the problem archive spec as well.
+Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. The syntax of this file is described in [generators.yaml](generators.yaml).
 
 This command tries to be smart about not regenerating testcases that are up to date. When the generator and its invocation haven't changed, nothing will be done.
 
