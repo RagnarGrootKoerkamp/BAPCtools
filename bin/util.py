@@ -109,8 +109,8 @@ class ProgressBar:
                  *,
                  items=None,
                  needs_leading_newline=False):
-        assert self.current_bar is None
-        self.current_bar = self
+        assert ProgressBar.current_bar is None
+        ProgressBar.current_bar = self
 
         assert not (items and (max_len or count))
         assert items is not None or max_len
@@ -348,8 +348,8 @@ class ProgressBar:
 
         self.lock.release()
 
-        assert self.current_bar is not None
-        self.current_bar = None
+        assert ProgressBar.current_bar is not None
+        ProgressBar.current_bar = None
 
         return self.global_logged
 
@@ -412,7 +412,10 @@ def ensure_symlink(link, target, output=False, relative=False):
         #if relative and not is_absolute: return
 
     if link.is_symlink() or link.exists():
-        link.unlink()
+        if link.is_dir():
+            shutil.rmtree(link)
+        else:
+            link.unlink()
     if relative:
         # Rewrite target to be relative to link.
         rel_target = os.path.relpath(target, link.parent)
@@ -434,7 +437,7 @@ def copy_and_substitute(inpath, outpath, variables):
         data = inpath.read_text()
     except UnicodeDecodeError:
         # skip this file
-        warn(f'File "{inpath}" has no unicode encoding.')
+        log(f'File "{inpath}" is not a text file.')
         return
     data = substitute(data, variables)
     if outpath.is_symlink():
