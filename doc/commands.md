@@ -143,7 +143,7 @@ Any files in `data/` that are not tracked in `generators.yaml` will raise a warn
 
 The `clean` command deletes all generated testdata from the `data/` directory. It only removes files that satisfy both these conditions:
 - The `.in` corresponding to the current file was generated.
-- The extension of the current file is handled by the problem archive format: `.in`, `.ans`, `.interaction`, `.hint`, `.desc`, `.png`, `.jpg`, `.jpeg`, `.svg`.
+- The extension of the current file is handled by the problem archive format: `.in`, `.ans`, `.interaction`, `.hint`, `.desc`, `.png`, `.jpg`, `.svg`.
 
 Furthermore, it removes generated `testdata.yaml`.
 

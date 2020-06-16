@@ -16,7 +16,7 @@ solution: /submissions/accepted/sol.py
 # The visualizer is used when no suitable image was generated already.
 # This should read {name}.in and/or {name}.ans from the current working
 # directory, and write {name}.ext for an extension in:
-# .png, .jpg, jpeg, .svg
+# .png, .jpg, .svg
 #
 # TOOLING: may provide a flag to make running this optional, as it can be slow
 # and usually isn't required.
@@ -129,7 +129,7 @@ data:
 # Commands may only read files that they have written themselves.
 #
 # Any written files matching {name}.ext where ext is a know extension in
-# .in, .ans, .hint, .desc, .png, .jpg, .jpeg, .svg
+# .in, .ans, .hint, .desc, .png, .jpg, .svg
 # will be saved.
 #
 # In case a program writes {name}.in, stdout will be ignored.

@@ -52,5 +52,5 @@ FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
 KNOWN_DATA_EXTENSIONS = [
-    '.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.jpeg', '.svg'
+    '.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.svg'
 ]
