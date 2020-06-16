@@ -148,8 +148,6 @@ data:
 # Introduce a testgroup by adding a dictionary with `type: directory` set.
 # The top-level is always assumed to be a directory.
       hard_cases_group:
-# TODO: We could drop this because testcase dictionaries need the input: key
-# while testgroups need the include: and/or data: keys.
         type: directory
 
 # Directories may contain a testdata.yaml that will be written as specified.
@@ -158,27 +156,6 @@ data:
           accept_score: 25
           range: 0 25
           grader_flags: min
-
-# A testgroup may include all cases in another testgroup. All files for each
-# testcase in the other testgroup will be symlinked into the current testgroup.
-# Nested included testcases are also included here.
-#
-# This must be a list of testgroups and/or testcases paths relative to data/.
-# Testcases must be referred to by their {name}.
-#
-# You may only include testgroups that come before the current group, either
-# earlier in a list or earlier alphabetically in dictionaries.
-#
-# TODO: How does this interact with numbering? How do we guarantee included
-# cases come first?
-# include numbered into numbered: OK
-# include dict into dict:     error on name collision. How to guarantee they
-# come first?
-# include numbered into dict: error on name collision. Do we allow this?
-# include dict into numbered: error on name collision. Do we allow this?
-        include:
-          - sample
-          - secret/03
 
 # To enable automatic numbering of testcases, data: may also contain a list of
 # dictionaries instead of a single dictionary. In this case, testcases and/or
