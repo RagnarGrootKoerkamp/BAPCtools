@@ -30,12 +30,12 @@ class Validator(program.Program):
 
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
-            result = exec_command(self.run_command + [main_path],
-                                  expect=1 if testcase.bad else 0,
+            result = exec_command(self.run_command,
+                                  expect=1 if bad else 0,
                                   cwd=cwd)
             # Slightly hacky: CTD prints testcase errors on stderr while VIVA prints
             # them on stdout.
-            result.err = out
+            result.err = result.out
             result.out = None
             return result
 
