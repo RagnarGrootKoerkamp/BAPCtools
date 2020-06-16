@@ -67,7 +67,8 @@ class Invocation:
         seed_cnt = 0
         for arg in self.args:
             seed_cnt += len(self.SEED_REGEX.findall(arg))
-        assert seed_cnt <= 1
+        if seed_cnt > 1:
+            fatal('{seed(:[0-9]+)} may appear at most once.')
 
         # Automatically set self.program when that program has been built.
         self.program = None
@@ -109,12 +110,20 @@ class GeneratorInvocation(Invocation):
                                       cwd,
                                       name,
                                       args=self._sub_args(name=name, seed=seed + retry))
-            if not result.retry: return result
+            if result.ok is True:
+                break
+            if not result.retry:
+                break
 
-        if retries > 1:
-            bar.error(f'Failed {retry+1} times', result.err)
-        else:
-            bar.error(f'Failed', result.err)
+        if result.ok is not True:
+            if retries > 1:
+                bar.error(f'Failed {retry+1} times', result.err)
+            else:
+                bar.error(f'Failed', result.err)
+
+        if result.ok is True and config.args.error:
+            bar.log('stderr', result.err)
+
         return result
 
 
@@ -130,7 +139,10 @@ class VisualizerInvocation(Invocation):
         if result.ok == -9:
             bar.error(f'TIMEOUT after {timeout}s')
         elif result.ok is not True:
-            bar.error('FAILED', result.err)
+            bar.error('Failed', result.err)
+
+        if result.ok is True and config.args.error:
+            bar.log('stderr', result.err)
         return result
 
 
@@ -150,7 +162,10 @@ class SolutionInvocation(Invocation):
         if result.ok == -9:
             bar.error(f'solution TIMEOUT after {result.duration}s')
         elif result.ok is not True:
-            bar.error('FAILED', result.err)
+            bar.error('Failed', result.err)
+
+        if result.ok is True and config.args.error:
+            bar.log('stderr', result.err)
         return result
 
     def run_interactive(self, problem, bar, cwd, t):
@@ -337,7 +352,8 @@ class TestcaseRule(Rule):
                 if ext_file.is_file():
                     ensure_symlink(infile.with_suffix(ext), ext_file)
         else:
-            if t.generator.run(bar, cwd, t.name, t.seed, t.config.retries).ok is not True:
+            result = t.generator.run(bar, cwd, t.name, t.seed, t.config.retries)
+            if result.ok is not True:
                 return
 
         testcase = run.Testcase(problem, infile, short_path=Path(t.path.parent / (t.name + '.in')))
@@ -356,11 +372,12 @@ class TestcaseRule(Rule):
                 if t.config.solution.run(bar, cwd, t.name).ok is not True:
                     return
 
-                if not ansfile.is_file():
-                    bar.warn(f'{ansfile.name} was not generated.')
             if ansfile.is_file():
                 if not testcase.validate_format('output_format', bar=bar):
                     return
+            else:
+                if not target_ansfile.is_file():
+                    bar.warn(f'{ansfile.name} does not exist and was not generated.')
         else:
             if not testcase.ans_path.is_file(): testcase.ans_path.write_text('')
             # For interactive problems, run the interactive solution and generate a .interaction.
@@ -389,7 +406,7 @@ class TestcaseRule(Rule):
 
             if source.is_file():
                 if target.is_file():
-                    if source.read_text() == target.read_text():
+                    if source.read_bytes() == target.read_bytes():
                         # identical -> skip
                         continue
                     else:
@@ -411,12 +428,18 @@ class TestcaseRule(Rule):
                     shutil.move(source, target)
             else:
                 if target.is_file():
+                    # Target exists but source wasn't generated. Only remove the target with -f.
+                    # When solution is disabled, this is fine for the .ans file.
+                    if ext == '.ans' and t.config.solution is None:
+                        continue
+
                     # remove old target
                     if not forced:
                         bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
+                        skipped = True
                         continue
                     else:
-                        bar.warn(f'REMOVED {target.name}')
+                        bar.log(f'REMOVED {target.name}')
                         target.unlink()
                 else:
                     continue
@@ -447,6 +470,10 @@ class TestcaseRule(Rule):
         for ext in config.KNOWN_DATA_EXTENSIONS:
             ext_file = infile.with_suffix(ext)
             if ext_file.is_file():
+                if ext == '.ans' and t.config.solution is None:
+                    bar.log(f'Keep {ext_file.name} since solution is disabled.')
+                    continue
+
                 bar.log(f'Remove file {ext_file.name}')
                 ext_file.unlink()
 

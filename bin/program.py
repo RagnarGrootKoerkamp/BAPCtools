@@ -122,6 +122,8 @@ class Program:
         else:
             if path.is_dir():
                 self.source_files = list(glob(path, '*'))
+                # Filter out __pycache__ files.
+                self.source_files = list(filter(lambda f: f.name != '__pycache__', self.source_files))
             elif path.is_file():
                 self.source_files = [path]
             else:
@@ -244,7 +246,7 @@ class Program:
                 crop=False)
         except FileNotFoundError as err:
             self.ok = False
-            self.bar.error('FAILED', str(err))
+            self.bar.error('Failed', str(err))
             return False
 
         if ret.ok is not True:
@@ -252,7 +254,7 @@ class Program:
             if ret.err is not None: data += strip_newline(ret.err) + '\n'
             if ret.out is not None: data += strip_newline(ret.out) + '\n'
             self.ok = False
-            self.bar.error('FAILED', data)
+            self.bar.error('Failed', data)
             return False
 
         meta_path.write_text(' '.join(self.compile_command))
@@ -282,6 +284,8 @@ class Program:
                 return
 
         # Link all source_files
+        if self.tmpdir.is_file():
+            self.tmpdir.unlink()
         self.tmpdir.mkdir(parents=True, exist_ok=True)
         self.timestamp = 0
         self.input_files = []
