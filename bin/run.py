@@ -230,7 +230,7 @@ class Submission(program.Program):
                           needs_leading_newline):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_item_len = max(len(run.name)
-                           for run in runs) + max_submission_name_len - len(self.name) - 1
+                           for run in runs) + max_submission_name_len - len(self.name)
         bar = ProgressBar('Running ' + self.name,
                           count=len(runs),
                           max_len=max_item_len,

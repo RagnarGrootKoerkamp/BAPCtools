@@ -237,7 +237,7 @@ class ProgressBar:
 
     # Done can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message='', data='', color=cc.green, *, needs_lock=True):
+    def log(self, message='', data='', color=cc.green, *, needs_lock=True, resume=True):
         if needs_lock: self.lock.acquire()
 
         if message is None: message = ''
@@ -258,8 +258,11 @@ class ProgressBar:
               sep='',
               flush=True)
 
-        if self.parent:
-            self.parent._resume()
+        if resume:
+            if self.parent:
+                self.parent._resume()
+            else:
+                self._resume()
 
         if needs_lock: self.lock.release()
 
@@ -271,7 +274,7 @@ class ProgressBar:
     def error(self, message='', data='', needs_lock=True):
         if needs_lock: self.lock.acquire()
         config.n_error += 1
-        self.log(message, data, cc.red, needs_lock=False)
+        self.log(message, data, cc.red, needs_lock=False, resume=False)
         self._release_item()
         if needs_lock: self.lock.release()
 
