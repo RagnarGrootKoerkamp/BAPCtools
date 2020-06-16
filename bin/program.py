@@ -198,7 +198,7 @@ class Program:
             # Out-of-spec variables used by 'manual' and 'Viva' languages.
             'build': self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else '',
             'run': self.tmpdir / 'run',
-            'viva_jar': config.tools_root / 'support/viva/viva.jar',
+            'viva_jar': config.tools_root / 'third_party/viva/viva.jar',
         }
 
         # Make sure c++ does not depend on stdc++.h, because it's not portable.
@@ -352,17 +352,16 @@ class Generator(Program):
             result.retry = True
             return result
 
-        if in_path.is_file():
-            if stdout_path.read_text():
+        if stdout_path.read_text():
+            if in_path.is_file():
                 bar.warn(f'Generator wrote to both {name}.in and stdout. Ignoring stdout.')
+            else:
+                stdout_path.rename(in_path)
         else:
-            if not stdout_path.is_file():
+            if not in_path.is_file():
                 bar.error(f'Did not write {name}.in and stdout is empty!')
                 result.ok = False
                 return result
-
-        if stdout_path.is_file():
-            stdout_path.rename(in_path)
 
         return result
 
