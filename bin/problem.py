@@ -458,7 +458,7 @@ class Problem:
 
         constraints = {} if check_constraints else None
 
-        self.reset_testcase_hashes()
+        problem.reset_testcase_hashes()
 
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
@@ -466,14 +466,16 @@ class Problem:
             bar.start(testcase.name)
 
             if validator_type == 'input_format' and not testcase.included:
-                t2 = self.matches_existing_testcase(testcase)
+                t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')
                     ok = False
-                    break
+                    continue
 
             success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints)
             bar.done()
+
+        bar.finalize(print_done=True)
 
         # Make sure all constraints are satisfied.
         if check_constraints:
@@ -489,12 +491,5 @@ class Problem:
                         f'BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}'
                     )
                 success = False
-
-        if not config.args.verbose and success:
-            print(ProgressBar.action(action, f'{cc.green}Done{cc.reset}'))
-            if validator_type == 'output':
-                print()
-        else:
-            print()
 
         return success
