@@ -123,7 +123,7 @@ This is useful for running submissions without having to compile them manually. 
 
 ## `generate`
 
-Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. The syntax of this file is described in [generators.yaml](generators.yaml).
+Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. The syntax of this file is described in [generators.md](generators.md) and [generators.yaml](generators.yaml) is an example.
 
 This command tries to be smart about not regenerating testcases that are up to date. When the generator and its invocation haven't changed, nothing will be done.
 

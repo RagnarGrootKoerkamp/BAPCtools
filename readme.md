@@ -92,7 +92,7 @@ Use the `test` command to run a single submission on some testcases. The submiss
 
 - `bt generate [-v] [--jobs JOBS]`
 
-Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. See [doc/generators.yaml](doc/generators.yaml) for an example configuration with explanations.
+Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. See [doc/generators.md](doc/generators.md) for documentation on this.
 Use `-j 0` to disable running multiple jobs in parallel (the default is `4`).
 
 ![generate](./doc/images/generate.gif)
