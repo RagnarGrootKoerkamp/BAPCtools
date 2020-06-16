@@ -34,7 +34,7 @@ This lists all subcommands and their most important options.
 * Misc
     - [`bt all [-v] [--cp] [--no-timelimit]`](#all)
     - [`bt sort`](#sort)
-    - [`bt tmp`](#tmp)
+    - [`bt tmp [--clean]`](#tmp)
 
 
 # Global flags
@@ -479,3 +479,6 @@ This is useful for development/debugging in combination with `cd`:
 ```
 cd `bt tmp`
 ```
+
+**Flags**
+* `--clean`: deletes the entire temporary (cache) directory for the current problem/contest.

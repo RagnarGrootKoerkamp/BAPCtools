@@ -19,6 +19,7 @@ import hashlib
 import os
 import sys
 import tempfile
+import shutil
 
 from pathlib import Path
 
@@ -382,6 +383,8 @@ Run this from one of:
         'tmp',
         parents=[global_parser],
         help='Print the tmpdir corresponding to the current problem.')
+    tmpparser.add_argument('--clean', action='store_true', help='Delete the temporary cache directory for the current problem/contest.')
+
 
     if not is_windows():
         argcomplete.autocomplete(parser)
@@ -442,10 +445,16 @@ def main():
 
     # Handle one-off subcommands.
     if action == 'tmp':
+        tmpdir = config.tmpdir
         if level == 'problem':
-            print(config.tmpdir / problems[0].name)
+            tmpdir = tmpdir / problems[0].name
+
+        if config.args.clean:
+            log(f'Deleting {tmpdir}!')
+            shutil.rmtree(tmpdir)
         else:
-            print(config.tmpdir)
+            print(tmpdir)
+
         return
 
 
