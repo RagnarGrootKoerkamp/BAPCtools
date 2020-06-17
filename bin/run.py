@@ -137,7 +137,10 @@ class Run:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
             elif result.ok is not True:
                 result.verdict = 'RUN_TIME_ERROR'
-                result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
+                if config.args.error:
+                    result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
+                else:
+                    result.err = 'Exited with code ' + str(result.ok)
             else:
                 # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
                 duration = result.duration
