@@ -28,7 +28,10 @@ def _quick_diff(out, ans):
 # return: (success, message)
 def default_output_validator(in_path, ans_path, feedback_dir, settings):
     # settings: floatabs, floatrel, case_sensitive, space_change_sensitive
-    out = sys.stdin.read()
+    try:
+        out = sys.stdin.read()
+    except UnicodeDecodeError:
+        return (False, 'Team output is not valid utf-8.')
     ans = ans_path.read_text()
 
     if out == ans:
@@ -52,8 +55,8 @@ def default_output_validator(in_path, ans_path, feedback_dir, settings):
         words1 = re.split(r'\b(\S+)\b', out)
         words2 = re.split(r'\b(\S+)\b', ans)
     else:
-        words1 = re.split(r'[ \n]+', out)
-        words2 = re.split(r'[ \n]+', ans)
+        words1 = re.split(r'[ \t\r\n]+', out)
+        words2 = re.split(r'[ \t\r\n]+', ans)
         if len(words1) > 0 and words1[-1] == '':
             words1.pop()
         if len(words2) > 0 and words2[-1] == '':
