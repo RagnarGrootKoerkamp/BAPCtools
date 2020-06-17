@@ -1,0 +1,14 @@
+#!/bin/sh
+TESTIN="$1";  shift
+TESTANS="$1"; shift
+FEEDBACKDIR="$1"; shift
+
+outfile="$FEEDBACKDIR/out"
+touch $outfile
+
+echo "COMMAND: " ./jury "$TESTIN" "$outfile" >&2
+./jury "$TESTIN" "$outfile"
+ret=$?
+
+echo "$outfile" >&2
+exit $ret
