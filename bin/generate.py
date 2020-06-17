@@ -534,17 +534,20 @@ class Directory(Rule):
     # dir_f by default reuses testcase_f
     def walk(self, testcase_f=None, dir_f=True, *, dir_last=False):
         if dir_f is True: dir_f = testcase_f
+
+        if not dir_last and dir_f:
+            dir_f(self)
+
         for d in self.data:
             if isinstance(d, Directory):
-                if not dir_last and dir_f:
-                    dir_f(d)
                 d.walk(testcase_f, dir_f, dir_last=dir_last)
-                if dir_last and dir_f:
-                    dir_f(d)
             elif isinstance(d, TestcaseRule):
                 if testcase_f: testcase_f(d)
             else:
                 assert False
+
+        if dir_last and dir_f:
+            dir_f(self)
 
     def generate(d, problem, known_cases, bar):
         # Generate the current directory:
@@ -606,14 +609,21 @@ class Directory(Rule):
                 if f.with_suffix('.in').is_file():
                     continue
 
+                if d.path == Path('.') and f.name == 'bad':
+                    continue
+
                 if f.name[0] != '.':
                     name = f.relative_to(problem.path / 'data')
 
+                    ft = 'directory' if f.is_dir() else 'file'
                     if config.args.clean:
-                        f.unlink()
-                        bar.log(f'Deleted untracked file {name}')
+                        if f.is_dir():
+                            shutil.rmtree(f)
+                        else:
+                            f.unlink()
+                        bar.log(f'Deleted untracked {ft} {name}')
                     else:
-                        bar.warn(f'Found untracked file. Delete with generate --clean: {name}. ')
+                        bar.warn(f'Found untracked {ft}. Delete with generate --clean: {name}. ')
                 continue
 
             if config.args.clean:
