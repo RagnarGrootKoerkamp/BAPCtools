@@ -330,7 +330,8 @@ class Problem:
         max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
 
         # Pre build all output validators to prevent nested ProgressBars.
-        problem.validators('output')
+        if problem.validators('output') is False:
+            return False
 
         ok = True
         verdict_table = []
@@ -356,6 +357,8 @@ class Problem:
     # Note: The CLI only accepts one submission.
     def test_submissions(problem):
         submissions = problem.submissions()
+        if submissions is False:
+            return False
 
         for verdict in submissions:
             for submission in submissions[verdict]:
