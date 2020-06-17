@@ -98,7 +98,8 @@ class Program:
         # Set self.name and self.tmpdir.
         # Ideally they are the same as the path inside the problem, but fallback to just the name.
         try:
-            relpath = path.resolve().relative_to(problem.path.resolve() / self.subdir)
+            # Only resolve the parent of the program. This preserves programs that are symlinks to other directories.
+            relpath = (path.parent.resolve()/path.name).relative_to(problem.path.resolve() / self.subdir)
             self.short_path = relpath
             self.name = str(relpath)
             self.tmpdir = problem.tmpdir / self.subdir / relpath
