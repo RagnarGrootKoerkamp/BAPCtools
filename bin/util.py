@@ -366,8 +366,7 @@ def read_yaml(path):
             try:
                 config = yaml.safe_load(yamlfile)
             except:
-                warn(f'Failed to parse {path}. Using defaults.')
-                return {}
+                fatal(f'Failed to parse {path}.')
             if config is None: return None
             if isinstance(config, list): return config
             for key, value in config.items():
@@ -386,9 +385,13 @@ def is_template(path):
     return path.suffix == '.template'
 
 
+def is_disabled(path):
+    return path.suffix == '.disabled'
+
+
 # glob, but without hidden files
 def glob(path, expression):
-    return sorted(p for p in path.glob(expression) if not is_hidden(p) and not is_template(p))
+    return sorted(p for p in path.glob(expression) if not is_hidden(p) and not is_template(p) and not is_disabled(p))
 
 
 def strip_newline(s):
@@ -521,7 +524,7 @@ def crop_output(output):
 # TODO: Move this to Problem.settings and read limits.memory variable from problem.yaml.
 # Return memory limit in bytes.
 def get_memory_limit(kwargs=None):
-    memory_limit = 4000000000  # 4GB
+    memory_limit = 2048000000  # 2GB
     if hasattr(config.args, 'memory'):
         if config.args.memory:
             if config.args.memory != 'unlimited':
@@ -542,6 +545,20 @@ class ExecResult:
         self.out = out
         self.verdict = verdict
 
+def limit_setter(command, timeout, memory_limit):
+    def setlimits():
+        if timeout:
+            resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
+
+        # Increase the max stack size from default to the max available.
+        if sys.platform != 'darwin':
+            resource.setrlimit(resource.RLIMIT_STACK,
+                               (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+
+        if memory_limit and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']:
+            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+
+    return setlimits
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
@@ -566,33 +583,26 @@ def exec_command(command, expect=0, crop=True, **kwargs):
             timeout = kwargs['timeout']
         kwargs.pop('timeout')
 
-    memory_limit = get_memory_limit(kwargs)
-
-    # Disable memory limits for Java and Kotlin, because they run in a JVM.
-    if Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']:
-        memory_limit = None
-
-    # Note: Resource limits do not work on windows.
-    def setlimits():
-        resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
-        # Increase the max stack size from default to the max available.
-        if sys.platform != 'darwin':
-            resource.setrlimit(resource.RLIMIT_STACK,
-                               (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
-        if memory_limit:
-            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
-
     tstart = time.monotonic()
-    if not is_windows():
-        process = subprocess.Popen(command, preexec_fn=setlimits, **kwargs)
-    else:
-        process = subprocess.Popen(command, **kwargs)
     try:
+        if not is_windows():
+            process = subprocess.Popen(command, preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs)), **kwargs)
+        else:
+            process = subprocess.Popen(command, **kwargs)
         (stdout, stderr) = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         process.kill()
         (stdout, stderr) = process.communicate()
+    except PermissionError as e:
+        stdout = None
+        stderr = str(e)
+        return ExecResult(-1, 0, stderr, stdout)
+    except OSError as e:
+        stdout = None
+        stderr = str(e)
+        return ExecResult(-1, 0, stderr, stdout)
 
+    # -2 corresponds to SIGINT
     if process.returncode == -2:
         fatal('Child process interrupted.')
 
