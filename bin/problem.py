@@ -153,7 +153,7 @@ class Problem:
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            warn(f'Didn\'t find any testcases for {p.name}')
+            warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
             testcases = False
 
         p._testcases[key] = testcases
@@ -423,6 +423,7 @@ class Problem:
 
     # Returns None for new testcases or the Testcase object it equals.
     def matches_existing_testcase(self, t):
+        if t.bad_input or t.bad_output: return None
         d = t.in_path.read_text()
         if d in self._testcase_hashes: return self._testcase_hashes[d]
         self._testcase_hashes[d] = t
@@ -451,6 +452,8 @@ class Problem:
             return False
 
         testcases = problem.testcases(needans=validator_type == 'output_format', include_bad=True)
+
+        if testcases is False: return True
 
         if len(testcases) == 0:
             return True

@@ -70,13 +70,16 @@ class Testcase:
                 message = 'Failed ' + validator.name
 
             # Print stdout and stderr whenever something is printed
-            if not ret.err: err = ''
-            if ret.out and config.args.error:
-                ret.out = f'\n{cc.red}VALIDATOR STDOUT{cc.reset}\n' + cc.orange + ret.out
+            data = ''
+            if ret.ok is not True or config.args.error:
+                if ret.err and ret.out:
+                    ret.out = ret.err + f'\n{cc.red}VALIDATOR STDOUT{cc.reset}\n' + cc.orange + ret.out
+                elif ret.err: data = ret.err
+                elif ret.out: data = ret.out
             else:
-                ret.out = ''
+                data = ret.err
 
-            bar.part_done(ret.ok is True, message, data=ret.err + ret.out)
+            bar.part_done(ret.ok is True, message, data=data)
 
             if ret.ok is True: continue
 
