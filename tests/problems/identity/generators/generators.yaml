@@ -31,6 +31,7 @@ data:
           stdoutpy: stdout.py 200
           stdoutcpp: stdout.cpp 201
           inans: write_in_and_ans.py {name} 202
+          hintdesc: hint_desc.py {name} 203
           main.py: main.py 204
           main.c: main.c 205
           main.cpp: main.cpp 206
@@ -38,10 +39,11 @@ data:
         type: directory
         data:
           - dir: dir 300
-          - dir: dir/ 301
-          - dir_run: dir_run 302
-          - dir_build: dir_build 303
-          - dir_build_run: dir_build_run 304
+            dir2: dir 301
+          - dir: dir/ 302
+          - dir_run: dir_run 303
+          - dir_build: dir_build 304
+          - dir_build_run: dir_build_run 305
       zero_prefix_group:
         type: directory
         data:
@@ -125,7 +127,28 @@ data:
         solution: false
         input: f
         unknown_key:
-
+      empty_group_1:
+        type: directory
+      empty_group_2:
+        type: directory
+        data:
+      empty_group_3:
+        type: directory
+        data: []
+      empty_group_4:
+        type: directory
+        data: {}
+      empty_group_5:
+        type: directory
+        data:
+          - {}
+          - a: stdout.py 500 # 2-a
+            a: stdout.py 501 # 2-a
+      empty_group_4:
+        type: directory
+        data:
+          - '': stdout.py 502
+      json: {type: directory, data: [{'': stdout.py 600, 1: stdout.py 601}, {'': stdout.py 602}]}
     unknown_key:
 
 unknown_key:
