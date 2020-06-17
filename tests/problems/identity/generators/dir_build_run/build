@@ -1,0 +1,10 @@
+#!/usr/bin/sh
+
+cat > main.py <<DOC
+#!/usr/bin/env python3
+import sys
+import time
+import random
+
+print(sys.argv[1])
+DOC

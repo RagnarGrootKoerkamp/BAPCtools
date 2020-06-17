@@ -1,0 +1,131 @@
+solution: /submissions/accepted/author.py
+visualizer: /visualizers {name}
+random_salt: 'abc'
+
+generators:
+  main.py:
+    - main.py
+    - lib.py
+  main.cpp:
+    - main.cpp
+    - lib.h
+  main.c:
+    - main.c
+    - lib.h
+
+data:
+  sample:
+    type: directory
+    solution:
+    data:
+      1:
+      2: manual/sample.in
+      3: manual/inans.in
+
+  secret:
+    type: directory
+    data:
+      named_group:
+        type: directory
+        data:
+          stdoutpy: stdout.py 200
+          stdoutcpp: stdout.cpp 201
+          inans: write_in_and_ans.py {name} 202
+          main.py: main.py 204
+          main.c: main.c 205
+          main.cpp: main.cpp 206
+      numbered_group:
+        type: directory
+        data:
+          - dir: dir 300
+          - dir: dir/ 301
+          - dir_run: dir_run 302
+          - dir_build: dir_build 303
+          - dir_build_run: dir_build_run 304
+      zero_prefix_group:
+        type: directory
+        data:
+          - '': stdout.py 123 # 01.in
+          - '': stdout.py 124
+          - '': stdout.py 125
+          - '': stdout.py 126
+          - '': stdout.py 127
+          - '': stdout.py 128
+          - '': stdout.py 129
+          - '': stdout.py 130
+          - '': stdout.py 131
+          - '': stdout.py 132 # 10.in
+      seeding:
+        type: directory
+        testdata.yaml:
+          arbitrary_key: some_value
+        solution: /submissions/accepted/author.cpp
+        random_salt: 'def'
+        data:
+          - '': random_gen.py {seed}
+          - '': random_gen.py  {seed} # the entire argument is hashed, so the double space matters.
+          - '': random_gen.py {seed:1}
+          - '': random_gen.py {seed:01} # :01 is read as a string, so different from :1.
+          - '':
+              random_salt: 1.0
+              input: random_gen.py {seed}
+          - '':
+              # TODO: Maybe we should require explicit quoting instead and forbid non-string values?
+              random_salt: 1.00 # Should be read as a string, so is different from 1.0 above.
+              input: random_gen.py {seed}
+          - '':
+              random_salt: yes
+              input: random_gen.py {seed}
+          - '':
+              random_salt: true # Should be read as a string, so is different from yes above.
+              input: random_gen.py {seed}
+      testcase_dict_1:
+        input: random_gen.py {seed:6}
+      testcase_dict_2:
+        solution: solution.c
+        input: random_gen.py {seed:7}
+      testcase_dict_3:
+        visualizer:
+        input: random_gen.py {seed:8}
+      testcase_dict_4:
+        solution:
+        visualizer:
+        random_salt: xyz
+        input: random_gen.py {seed:9}
+      unused_args_1: > # Spread arguments over multiple lines. 
+        random_gen.py
+        {seed}
+        extra
+        unused
+        arg
+      unused_args_2: | # Include newlines in the string value.
+        random_gen.py
+        {seed}
+        extra
+        unused
+        arg
+      # These all have different seeds.
+      space_in_seed_1: random_gen.py 'a b' # equivalent to "a b" and a\ b
+      space_in_seed_2: random_gen.py "a\ b"
+      space_in_seed_3: random_gen.py "a b "
+      space_in_seed_4: random_gen.py \ a\ b
+
+      # Boolean values should be parsed as strings.
+      # TODO: Maybe we should require explicit quoting instead and forbid non-string values?
+      boolean_generator_yes:
+        solution: yes
+        input: y
+      boolean_generator_no:
+        solution: no
+        input: n
+      boolean_generator_true:
+        solution: true
+        input: t
+      boolean_generator_false:
+        solution: false
+        input: f
+        unknown_key:
+
+    unknown_key:
+
+unknown_key:
