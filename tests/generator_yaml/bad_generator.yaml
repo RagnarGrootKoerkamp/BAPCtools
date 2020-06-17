@@ -1,0 +1,229 @@
+# This file contains multiple yaml documents. Each of them should fail to parse as a generators.yaml file.
+
+# solution must be null or string
+solution: 0
+---
+solution: 0.0
+---
+solution: []
+---
+solution: {}
+---
+solution: true
+---
+solution: false
+---
+# visualizer must be null or string
+visualizer: 0
+---
+# random_salt must be null or string
+random_salt: 0
+---
+random_salt: 0.0
+---
+random_salt: []
+---
+random_salt: {}
+---
+random_salt: true
+---
+random_salt: false
+---
+# generators must be a dictionary of non-empty list of string
+generators: str
+---
+generators: []
+---
+generators: [str]
+---
+generators:
+  g: a
+---
+generators:
+  g: 1
+---
+generators:
+  g:
+---
+generators:
+  g: []
+---
+generators:
+  g:
+    - true
+---
+# data: must be a dictionary or list of dictionaries
+data: str
+---
+# Note: We could actually decide to make this work in the future, but for now this is an error.
+data:
+  - str
+---
+data: 1
+---
+data: [1]
+---
+data: {1: 2}
+---
+data: [{}]
+---
+data:
+  - true
+---
+# Unnumbered keys must not be empty.
+data:
+  '': str
+---
+data:
+  - :
+    - a
+---
+data:
+  a :
+    - a
+---
+data:
+  a : []
+---
+data:
+  - a:
+      type: testcase
+      data: x
+---
+data:
+  - a:
+      type: directory
+      input: x
+---
+data:
+  - a:
+      type: scrambled
+---
+data:
+  a:
+    type: scrambled
+---
+# Command must not contain {seed} twice.
+data:
+  a: gen {seed} {seed}
+---
+data:
+  a: gen {seed} {seed:1}
+---
+data:
+  a: gen {seed:1} {seed}
+---
+data:
+  a: gen {seed:1} {seed:1}
+---
+data:
+  a: gen {seed:1} {seed:2}
+---
+# Manual cases should be null, not empty string
+data:
+  a: ''
+---
+# All commands must be different
+data:
+  a: gen
+  b: gen
+---
+data:
+  a: gen {seed}
+  b: gen {seed}
+---
+data:
+  a: gen {seed:1}
+  b: gen {seed:1}
+---
+data:
+  a:
+    input: gen {seed}
+  b: gen {seed}
+---
+data:
+  - a:
+      input: gen {seed}
+  - b:
+      type: directory
+      data:
+        c: gen {seed}
+---
+# Testcase object must be command string or contain input.
+data:
+  a: true
+---
+data:
+  a: 1
+---
+data:
+  a: {}
+---
+data:
+  a: []
+---
+data:
+  a:
+    input: true
+---
+data:
+  a:
+    input: 1
+---
+data:
+  a:
+    input: {}
+---
+data:
+  a:
+    input: []
+---
+data:
+  a:
+    type: not_testcase
+    input: abc
+---
+data:
+  a:
+    type: directory
+    input: abc
+---
+# Manual cases must not have an absolute path.
+data:
+  a: /a/b/c.in
+---
+data:
+  a: /c.in
+---
+data:
+  a: /generators/c.in
+---
+# Generator invocations must not have an absolute path.
+data:
+  a: /gen
+---
+data:
+  a: /generators/gen
+---
+data:
+  a: /generators/dir/gen.py
+---
+# Directories may not have input:.
+input: xyz
+---
+data:
+  a:
+    type: directory
+    input: x
+---
+# Testcases may not have data:.
+data:
+  a:
+    type: testcase
+    data:
+---
+data:
+  a:
+    input: abc
+    data: {}
+---
