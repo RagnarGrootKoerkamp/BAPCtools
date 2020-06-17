@@ -743,10 +743,10 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
         # Main recursive parsing function.
         def parse(name, yaml, parent):
 
-            assert is_testcase(yaml) or is_directory(yaml)
+            if not is_testcase(yaml) and not is_directory(yaml):
+                fatal(f'Could not parse {parent.path/name} as a testcase or directory. Try setting the type: key.')
 
             if is_testcase(yaml):
-
                 if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
                     error(f'Testcase \'{parent.path}/{name}.in\' has an invalid name.')
                     return None
@@ -793,6 +793,9 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                                 child_name = number_prefix + '-' + child_name
                             else:
                                 child_name = number_prefix
+                        else:
+                            if not child_name:
+                                fatal(f'Unnumbered testcases must not have an empty key: {d.path/child_name}/\'\'')
                         c = parse(child_name, child_yaml, d)
                         if c is not None:
                             d.data.append(c)
