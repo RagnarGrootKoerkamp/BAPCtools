@@ -15,7 +15,7 @@ class MockGeneratorConfig(generate.GeneratorConfig):
         self.problem=problem
 
 def test_bad_generators_yamls():
-    docs = yaml.load_all(Path('test/generator_yaml/bad_generator.yaml').read_text(), Loader=yaml.SafeLoader)
+    docs = yaml.load_all(Path('test/generator_yaml/bad_generators.yaml').read_text(), Loader=yaml.SafeLoader)
     for doc in docs:
         print(doc)
         with pytest.raises(SystemExit) as e:
