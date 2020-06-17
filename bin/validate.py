@@ -30,7 +30,7 @@ class Validator(program.Program):
 
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
-            result = exec_command(self.run_command + [testcase.in_path.resolve()],
+            result = exec_command(self.run_command + [main_path.resolve()],
                                   expect=1 if bad else 0,
                                   cwd=cwd)
             return result
