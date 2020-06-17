@@ -19,9 +19,21 @@ import run
 from util import *
 from problem import Problem
 
+def check_type(name, obj, types, path = None):
+    if not isinstance(types, list): types = [types]
+    if obj is None:
+        if obj in types: return
+    else:
+        if obj.__class__ in types: return
+    named_types = " or ".join(str(t) if t is None else t.__name__ for t in types)
+    if path:
+        fatal(f'{name} must be of type {named_types}, found {obj.__class__.__name__} at {path}: {obj}')
+    else:
+        fatal(f'{name} must be of type {named_types}, found {obj.__class__.__name__}: {obj}')
+
 
 def is_testcase(yaml):
-    return yaml == '' or isinstance(yaml, str) or (isinstance(yaml, dict) and 'input' in yaml)
+    return yaml == None or isinstance(yaml, str) or (isinstance(yaml, dict) and 'input' in yaml and not ('type' in yaml and yaml['type'] != 'testcase'))
 
 
 def is_directory(yaml):
@@ -32,7 +44,8 @@ def is_directory(yaml):
 def resolve_path(path, *, allow_absolute):
     assert isinstance(path, str)
     if not allow_absolute:
-        assert not path.startswith('/')
+        if path.startswith('/'):
+            fatal(f'Path should not be absolute: {path}')
         assert not Path(path).is_absolute()
 
     # Make all paths relative to the problem root.
@@ -186,9 +199,11 @@ class SolutionInvocation(Invocation):
 
 
 KNOWN_TESTCASE_KEYS = ['type', 'input', 'solution', 'visualizer', 'random_salt', 'retries']
+RESERVED_TESTCASE_KEYS = ['data', 'testdata.yaml', 'include']
 KNOWN_DIRECTORY_KEYS = [
-    'type', 'data', 'testdata.yaml', 'solution', 'visualizer', 'random_salt', 'retries', 'include'
+    'type', 'data', 'testdata.yaml', 'include', 'solution', 'visualizer', 'random_salt', 'retries'
 ]
+RESERVED_DIRECTORY_KEYS = [ 'input' ]
 KNOWN_ROOT_KEYS = ['generators', 'parallel']
 
 
@@ -198,25 +213,38 @@ KNOWN_ROOT_KEYS = ['generators', 'parallel']
 # - config.random_salt
 class Config:
     # Used at each directory or testcase level.
+    def parse_solution(p, x, path):
+        check_type('Solution', x, [None, str], path)
+        if x is None: return None
+        return SolutionInvocation(p, x)
+    def parse_visualizer(p, x, path):
+        check_type('Visualizer', x, [None, str], path)
+        if x is None: return None
+        return VisualizerInvocation(p, x)
+    def parse_random_salt(p, x, path):
+        check_type('Random_salt', x, [None, str], path)
+        if x is None: return ''
+        return x
+
     INHERITABLE_KEYS = [
         # True: use an AC submission by default when the solution: key is not present.
-        ('solution', True, lambda p, x: SolutionInvocation(p, x) if x else None),
-        ('visualizer', None, lambda p, x: VisualizerInvocation(p, x) if x else None),
-        ('random_salt', '', None),
+        ('solution', True, parse_solution),
+        ('visualizer', None, parse_visualizer),
+        ('random_salt', '', parse_random_salt),
 
         # Non-portable keys only used by BAPCtools:
         # The number of retries to run a generator when it fails, each time incrementing the {seed}
         # by 1.
-        ('retries', 1, lambda p, x: int(x)),
+        ('retries', 1, lambda p, x, path: int(x)),
     ]
 
-    def __init__(self, problem, yaml=None, parent_config=None):
+    def __init__(self, problem, path, yaml=None, parent_config=None):
         assert not yaml or isinstance(yaml, dict)
 
         for key, default, func in Config.INHERITABLE_KEYS:
-            if func is None: func = lambda p, x: x
+            if func is None: func = lambda p, x, path: x
             if yaml and key in yaml:
-                setattr(self, key, func(problem, yaml[key]))
+                setattr(self, key, func(problem, yaml[key], path))
             elif parent_config is not None:
                 setattr(self, key, getattr(parent_config, key))
             else:
@@ -228,7 +256,7 @@ class Rule:
         assert parent is not None
 
         if isinstance(yaml, dict):
-            self.config = Config(problem, yaml, parent.config)
+            self.config = Config(problem, parent.path/name, yaml, parent_config = parent.config)
         else:
             self.config = parent.config
 
@@ -250,7 +278,10 @@ class TestcaseRule(Rule):
         self.manual = False
         self.manual_inline = False
 
-        if yaml == '':
+        if isinstance(yaml, str) and len(yaml) == 0:
+            fatal(f'Manual testcase should be None or a relative path, not empty string at {parent.path/name}.')
+
+        if yaml is None:
             self.manual = True
             self.manual_inline = True
             yaml = {'input': Path('data') / parent.path / (name + '.in')}
@@ -261,7 +292,7 @@ class TestcaseRule(Rule):
             yaml = {'input': yaml}
         elif isinstance(yaml, dict):
             assert 'input' in yaml
-            assert yaml['input'] is None or isinstance(yaml['input'], str)
+            check_type('Input', yaml['input'], [None, str])
         else:
             assert False
 
@@ -270,14 +301,23 @@ class TestcaseRule(Rule):
         for key in yaml:
             if key not in KNOWN_TESTCASE_KEYS:
                 log(f'Unknown testcase level key: {key} in {self.path}')
+            if key in RESERVED_TESTCASE_KEYS:
+                fatal('Testcase must not contain reserved key {key}.')
+
+        inpt = yaml['input']
 
         if self.manual:
-            self.source = yaml['input']
+            self.source = inpt
         else:
             # TODO: Should the seed depend on white space? For now it does.
-            seed_value = self.config.random_salt + yaml['input']
+            seed_value = self.config.random_salt + inpt
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
-            self.generator = GeneratorInvocation(problem, yaml['input'])
+            self.generator = GeneratorInvocation(problem, inpt)
+
+        key = (inpt, self.config.random_salt)
+        if key in problem._rules_cache:
+            fatal(f'Found duplicate rule "{inpt}" at {problem._rules_cache[key]} and {self.path}')
+        problem._rules_cache[key] = self.path
 
     def generate(t, problem, parent_bar):
         bar = parent_bar.start(str(t.path))
@@ -485,14 +525,15 @@ class Directory(Rule):
     def __init__(self, problem, name: str = None, yaml: dict = None, parent=None):
         if name is None:
             self.name = ''
-            self.config = Config(problem)
+            self.config = Config(problem, Path('/'))
             self.path = Path('')
             self.numbered = False
             return
 
         assert is_directory(yaml)
         if name != '':
-            assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name)
+            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
+                fatal(f'Directory "{name}" does not have a valid name.')
 
         super().__init__(problem, name, yaml, parent)
 
@@ -500,10 +541,15 @@ class Directory(Rule):
             for key in yaml:
                 if key not in KNOWN_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
                     log(f'Unknown root level key: {key}')
+                if key in RESERVED_DIRECTORY_KEYS:
+                    fatal(f'Directory must not contain reserved key {key}.')
         else:
             for key in yaml:
                 if key not in KNOWN_DIRECTORY_KEYS:
                     log(f'Unknown directory level key: {key} in {self.path}')
+            if key in RESERVED_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
+                fatal(f'Directory must not contain reserved key {key}.')
+
 
         if 'testdata.yaml' in yaml:
             self.testdata_yaml = yaml['testdata.yaml']
@@ -520,15 +566,21 @@ class Directory(Rule):
         data = yaml['data']
         if data is None: return
         if data == '': return
-        assert isinstance(data, dict) or isinstance(data, list)
-        if len(data) == 0: return
+        check_type('Data', data, [dict, list])
 
         if isinstance(data, dict):
             yaml['data'] = [data]
-            assert parent.numbered is False
-
-        if isinstance(data, list):
+            data = yaml['data']
+            if parent.numbered is True:
+                fatal('Unnumbered data dictionaries may not appear inside numbered data lists at {self.path}.')
+        else:
             self.numbered = True
+            if len(data) == 0: return
+
+        for d in data:
+            if isinstance(d, dict):
+                if len(d) == 0:
+                    fatal(f'Dictionaries in data should not be empty: {self.path}')
 
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
@@ -633,7 +685,7 @@ class Directory(Rule):
                 known_cases.add(relpath)
                 bar.warn(
                     f'Found untracked manual case. Delete with generate --clean: {relpath}.in')
-                t = TestcaseRule(problem, base.name, '', d)
+                t = TestcaseRule(problem, base.name, None, d)
                 d.data.append(t)
                 bar.add_item(t.path)
 
@@ -693,6 +745,7 @@ class Directory(Rule):
 
 class GeneratorConfig:
     def parse_generators(generators_yaml):
+        check_type('Generators', generators_yaml, dict)
         generators = {}
         for gen in generators_yaml:
             assert not gen.startswith('/')
@@ -700,6 +753,11 @@ class GeneratorConfig:
             assert config.COMPILED_FILE_NAME_REGEX.fullmatch(gen + '.x')
 
             deps = generators_yaml[gen]
+            check_type('Generator dependencies', deps, list)
+            if len(deps) == 0:
+                fatal('Generator dependencies must not be empty.')
+            for d in deps:
+                check_type('Generator dependencies', d, str)
 
             generators[Path('generators') / gen] = [Path('generators') / d for d in deps]
         return generators
@@ -734,9 +792,12 @@ You probably want to migrate to the new format as well: add a top level data: ke
 See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/doc/generated_testcases_v2.yaml for an example.
 ''')
 
-        yaml = yamllib.load(yaml_path.read_text(), Loader=yamllib.BaseLoader)
+        yaml = yamllib.load(yaml_path.read_text(), Loader=yamllib.SafeLoader)
+        self.parse_yaml(yaml)
 
-        assert isinstance(yaml, dict)
+    def parse_yaml(self, yaml):
+        check_type('Root yaml', yaml, [dict, None])
+        if yaml is None: yaml = dict()
         yaml['type'] = 'directory'
 
         # Read root level configuration
@@ -752,7 +813,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
 
         # Main recursive parsing function.
         def parse(name, yaml, parent):
-
+            check_type('Testcase/directory', yaml, [None, str, dict])
             if not is_testcase(yaml) and not is_directory(yaml):
                 fatal(f'Could not parse {parent.path/name} as a testcase or directory. Try setting the type: key.')
 
@@ -761,14 +822,14 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                     error(f'Testcase \'{parent.path}/{name}.in\' has an invalid name.')
                     return None
 
-                t = TestcaseRule(problem, name, yaml, parent)
+                t = TestcaseRule(self.problem, name, yaml, parent)
                 assert t.path not in self.known_cases
                 self.known_cases.add(t.path)
                 return t
 
             assert is_directory(yaml)
 
-            d = Directory(problem, name, yaml, parent)
+            d = Directory(self.problem, name, yaml, parent)
             assert d.path not in self.known_cases
             self.known_cases.add(d.path)
 
@@ -783,21 +844,29 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                 d.includes = [Path(include) for include in yaml['include']]
 
             # Parse child directories/testcases.
-            if 'data' in yaml:
+            if 'data' in yaml and yaml['data']:
                 number_width = len(str(len(yaml['data'])))
                 next_number = 1
 
                 for dictionary in yaml['data']:
-                    if not isinstance(dictionary, dict):
-                        fatal('Elements of a data list must be dictionaries.')
+                    check_type('Elements of data', dictionary, dict, d.path)
                     if d.numbered:
                         number_prefix = f'{next_number:0{number_width}}'
                         next_number += 1
                     else:
                         number_prefix = ''
 
+                    keys = list(dictionary.keys())
+                    for name in keys:
+                        check_type('Testcase/directory name', name, [int, str])
+                        if isinstance(name, int):
+                            str_name = str(name)
+                            if str_name in dictionary:
+                                fatal(f'Duplicate key in data dictionary: "{str_name}" and {name}')
+                            dictionary[str_name] = dictionary[name]
+                            del dictionary[name]
+
                     for child_name, child_yaml in sorted(dictionary.items()):
-                        if isinstance(child_name, int): child_name = str(child_name)
                         if number_prefix:
                             if child_name:
                                 child_name = number_prefix + '-' + child_name
@@ -805,14 +874,14 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                                 child_name = number_prefix
                         else:
                             if not child_name:
-                                fatal(f'Unnumbered testcases must not have an empty key: {d.path/child_name}/\'\'')
+                                fatal(f'Unnumbered testcases must not have an empty key: {Path("data")/d.path/child_name}/\'\'')
                         c = parse(child_name, child_yaml, d)
                         if c is not None:
                             d.data.append(c)
 
             return d
 
-        self.root_dir = parse('', yaml, Directory(problem))
+        self.root_dir = parse('', yaml, Directory(self.problem))
 
     # Return submission
     # This function will always raise a warning.

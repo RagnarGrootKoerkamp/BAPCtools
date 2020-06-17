@@ -33,6 +33,7 @@ class Problem:
         self._validators = dict()
         self._programs = dict()
         self._program_callbacks = dict()
+        self._rules_cache = dict()
 
         # The label for the problem: A, B, A1, A2, X, ...
         if label is None:
