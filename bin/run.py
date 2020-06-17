@@ -158,6 +158,10 @@ class Run:
                     config.n_error += 1
                     result.verdict = 'VALIDATOR_CRASH'
 
+            # Delete .out files larger than 1MB.
+            if not config.args.error and self.out_path.is_file() and self.out_path.stat().st_size > 1000000000:
+                self.out_path.unlink()
+
         self.result = result
         return result
 
@@ -165,6 +169,7 @@ class Run:
         flags = self.problem.settings.validator_flags
 
         output_validators = self.problem.validators('output')
+        if output_validators is False: return False
 
         last_result = None
         for output_validator in output_validators:
@@ -213,7 +218,7 @@ class Submission(program.Program):
     def run(self, in_path, out_path, crop=True, args=[], cwd=None):
         assert self.run_command is not None
         # Just for safety reasons, change the cwd.
-        if cwd is None: cwd = out_path.parent
+        if cwd is None: cwd = self.tmpdir
         with in_path.open('rb') as inf:
             out_file = out_path.open('wb') if out_path else None
 
@@ -244,9 +249,9 @@ class Submission(program.Program):
                           max_len=max_item_len,
                           needs_leading_newline=needs_leading_newline)
 
-        max_duration = 0
+        max_duration = -1
 
-        verdict = (config.PRIORITY['ACCEPTED'], 'ACCEPTED', 0)  # priority, verdict, duration
+        verdict = (-100, 'ACCEPTED', 0)  # priority, verdict, duration
         verdict_run = None
 
         # TODO: Run multiple runs in parallel.
@@ -269,8 +274,8 @@ class Submission(program.Program):
             # Print stderr whenever something is printed
             if result.out and result.err:
                 output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
-                data = f'STDERR:' + util.ProgresBar._format_data(
-                    result.err) + '\n{output_type}:' + util.ProgressBar._format_data(
+                data = f'STDERR:' + bar._format_data(
+                    result.err) + f'\n{output_type}:' + bar._format_data(
                         result.out) + '\n'
             else:
                 data = ''
