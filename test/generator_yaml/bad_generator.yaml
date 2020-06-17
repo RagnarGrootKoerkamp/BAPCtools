@@ -1,5 +1,15 @@
 # This file contains multiple yaml documents. Each of them should fail to parse as a generators.yaml file.
 
+---
+# Wrong top level type
+abc
+---
+0
+---
+true
+---
+[{data:[]}]
+---
 # solution must be null or string
 solution: 0
 ---
@@ -67,6 +77,8 @@ data: {1: 2}
 ---
 data: [{}]
 ---
+data: {}
+---
 data:
   - true
 ---
@@ -75,7 +87,7 @@ data:
   '': str
 ---
 data:
-  - :
+  - '':
     - a
 ---
 data:
@@ -86,144 +98,167 @@ data:
   a : []
 ---
 data:
-  - a:
+  - ab:
       type: testcase
       data: x
 ---
 data:
-  - a:
+  - ab:
       type: directory
       input: x
 ---
 data:
-  - a:
+  - ab:
       type: scrambled
 ---
 data:
-  a:
+  ab:
     type: scrambled
 ---
 # Command must not contain {seed} twice.
 data:
-  a: gen {seed} {seed}
+  ab: gen {seed} {seed}
 ---
 data:
-  a: gen {seed} {seed:1}
+  ab: gen {seed} {seed:1}
 ---
 data:
-  a: gen {seed:1} {seed}
+  ab: gen {seed:1} {seed}
 ---
 data:
-  a: gen {seed:1} {seed:1}
+  ab: gen {seed:1} {seed:1}
 ---
 data:
-  a: gen {seed:1} {seed:2}
+  ab: gen {seed:1} {seed:2}
 ---
 # Manual cases should be null, not empty string
 data:
-  a: ''
+  ab: ''
 ---
 # All commands must be different
 data:
-  a: gen
+  ab: gen
   b: gen
 ---
 data:
-  a: gen {seed}
+  ab: gen {seed}
   b: gen {seed}
 ---
 data:
-  a: gen {seed:1}
+  ab: gen {seed:1}
   b: gen {seed:1}
 ---
 data:
-  a:
+  ab:
     input: gen {seed}
   b: gen {seed}
 ---
 data:
-  - a:
+  - ab:
       input: gen {seed}
-  - b:
+  - bb:
       type: directory
       data:
-        c: gen {seed}
+        cc: gen {seed}
 ---
 # Testcase object must be command string or contain input.
 data:
-  a: true
+  ab: true
 ---
 data:
-  a: 1
+  ab: 1
 ---
 data:
-  a: {}
+  ab: {}
 ---
 data:
-  a: []
+  ab: []
 ---
 data:
-  a:
+  ab:
     input: true
 ---
 data:
-  a:
+  ab:
     input: 1
 ---
 data:
-  a:
+  ab:
     input: {}
 ---
 data:
-  a:
+  ab:
     input: []
 ---
 data:
-  a:
+  ab:
     type: not_testcase
     input: abc
 ---
 data:
-  a:
+  ab:
     type: directory
     input: abc
 ---
 # Manual cases must not have an absolute path.
 data:
-  a: /a/b/c.in
+  ab: /a/b/c.in
 ---
 data:
-  a: /c.in
+  ab: /c.in
 ---
 data:
-  a: /generators/c.in
+  ab: /generators/c.in
 ---
 # Generator invocations must not have an absolute path.
 data:
-  a: /gen
+  ab: /gen
 ---
 data:
-  a: /generators/gen
+  ab: /generators/gen
 ---
 data:
-  a: /generators/dir/gen.py
+  ab: /generators/dir/gen.py
 ---
 # Directories may not have input:.
 input: xyz
 ---
 data:
-  a:
+  ab:
     type: directory
     input: x
 ---
 # Testcases may not have data:.
 data:
-  a:
+  ab:
     type: testcase
     data:
 ---
 data:
-  a:
+  ab:
     input: abc
     data: {}
 ---
+# File names must be >= 2 letters
+data:
+  a:
+    type: directory
+---
+# Keys are strings
+data:
+  1.: hi
+---
+data:
+  true: hi
+---
+data:
+  1: hi
+  '1': hi
+---
+data:
+  01: hia
+  '1': hib
+---
+data:
+  01: hi
+  '1': hi
