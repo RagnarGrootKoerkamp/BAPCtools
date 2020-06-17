@@ -38,15 +38,23 @@ def run_interactive_testcase(
 
     # Validator command
     validator_command = output_validator.run_command + [
-        run.testcase.in_path, run.testcase.ans_path, run.feedbackdir
+        run.testcase.in_path.resolve(), run.testcase.ans_path.resolve(), run.feedbackdir.resolve()
     ] + run.problem.settings.validator_flags
 
     submission_command = run.submission.run_command
     if submission_args:
         submission_command += submission_args
 
+    # Both validator and submission run in their own directory.
+    validator_dir = output_validator.tmpdir
+    submission_dir = run.submission.tmpdir
+
     if validator_error is False: validator_error = subprocess.PIPE
     if team_error is False: team_error = subprocess.PIPE
+
+    if config.args.verbose >= 2:
+        print('Validator:  ', *validator_command)
+        print('Submission: ', *submission_command)
 
     # On Windows:
     # - Start the validator
@@ -62,6 +70,7 @@ def run_interactive_testcase(
                                              stdin=subprocess.PIPE,
                                              stdout=subprocess.PIPE,
                                              stderr=validator_error,
+                                             cwd=validator_dir,
                                              bufsize=2**20)
 
         # Start and time the submission.
@@ -72,6 +81,7 @@ def run_interactive_testcase(
                                     stdin=validator_process.stdout,
                                     stdout=validator_process.stdin,
                                     stderr=team_error,
+                                    cwd=submission_dir,
                                     timeout=timeout)
 
         # Wait
@@ -158,36 +168,20 @@ while True:
                                    stderr=interaction_file)
         val_tee_pid = val_tee.pid
 
-    # Run Validator
-    def set_validator_limits():
-        resource.setrlimit(resource.RLIMIT_CPU, (validator_timeout, validator_timeout))
-        # Increase the max stack size from default to the max available.
-        if sys.platform != 'darwin':
-            resource.setrlimit(resource.RLIMIT_STACK,
-                               (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
-
     validator = subprocess.Popen(validator_command,
                                  stdin=val_in,
                                  stdout=val_out,
                                  stderr=validator_error,
-                                 preexec_fn=set_validator_limits)
+                                 cwd=validator_dir,
+                                 preexec_fn=limit_setter(validator_command, validator_timeout, None))
     validator_pid = validator.pid
-
-    # Run Submission
-    def set_submission_limits():
-        resource.setrlimit(resource.RLIMIT_CPU, (timeout, timeout))
-        # Increase the max stack size from default to the max available.
-        if sys.platform != 'darwin':
-            resource.setrlimit(resource.RLIMIT_STACK,
-                               (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
-        if memory_limit:
-            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
     submission = subprocess.Popen(submission_command,
                                   stdin=team_in,
                                   stdout=team_out,
                                   stderr=team_error,
-                                  preexec_fn=set_submission_limits)
+                                  cwd=submission_dir,
+                                  preexec_fn=limit_setter(submission_command, timeout, memory_limit))
     submission_pid = submission.pid
 
     os.close(team_out)
@@ -196,21 +190,26 @@ while True:
         os.close(team_log_out)
         os.close(val_log_out)
 
-    # To be filled
+    # Will be filled in the loop below.
     validator_status = None
     submission_status = None
     submission_time = None
     first = None
 
-    # Raise alarm after timeout reached
-    signal.alarm(timeout)
-
     def kill_submission(signal, frame):
-        submission.kill()
         nonlocal submission_time
         submission_time = timeout
+        submission.kill()
+        validator.kill()
+        if interaction:
+            team_tee.kill()
+            val_tee.kill()
+
 
     signal.signal(signal.SIGALRM, kill_submission)
+
+    # Raise alarm after timeout reached
+    signal.alarm(timeout)
 
     # Wait for first to finish
     for i in range(4 if interaction else 2):
@@ -239,6 +238,7 @@ while True:
 
         assert False
 
+
     os.close(team_in)
     os.close(val_in)
     if interaction:
@@ -247,6 +247,7 @@ while True:
 
     did_timeout = submission_time > timelimit
 
+    # If submission timed out: TLE
     # If team exists first with TLE/RTE -> TLE/RTE
     # If team exists first nicely -> validator result
     # If validator exits first with WA -> WA
@@ -255,7 +256,9 @@ while True:
     # - more team output -> WA
     # - no more team output -> AC
 
-    if validator_status != config.RTV_AC and validator_status != config.RTV_WA:
+    if submission_time >= timeout:
+        verdict = 'TIME_LIMIT_EXCEEDED'
+    elif validator_status != config.RTV_AC and validator_status != config.RTV_WA:
         config.n_error += 1
         verdict = 'VALIDATOR_CRASH'
     elif first == 'validator':
