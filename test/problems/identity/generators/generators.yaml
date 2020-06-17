@@ -69,17 +69,17 @@ data:
           - '': random_gen.py {seed:1}
           - '': random_gen.py {seed:01} # :01 is read as a string, so different from :1.
           - '':
-              random_salt: 1.0
+              random_salt: '1.0'
               input: random_gen.py {seed}
           - '':
               # TODO: Maybe we should require explicit quoting instead and forbid non-string values?
-              random_salt: 1.00 # Should be read as a string, so is different from 1.0 above.
+              random_salt: '1.00' # Should be read as a string, so is different from 1.0 above.
               input: random_gen.py {seed}
           - '':
-              random_salt: yes
+              random_salt: 'yes'
               input: random_gen.py {seed}
           - '':
-              random_salt: true # Should be read as a string, so is different from yes above.
+              random_salt: 'true' # Should be read as a string, so is different from yes above.
               input: random_gen.py {seed}
       testcase_dict_1:
         input: random_gen.py {seed:6}
@@ -115,16 +115,16 @@ data:
       # Boolean values should be parsed as strings.
       # TODO: Maybe we should require explicit quoting instead and forbid non-string values?
       boolean_generator_yes:
-        solution: yes
+        solution: 'yes'
         input: y
       boolean_generator_no:
-        solution: no
+        solution: 'no'
         input: n
       boolean_generator_true:
-        solution: true
+        solution: 'true'
         input: t
       boolean_generator_false:
-        solution: false
+        solution: 'false'
         input: f
         unknown_key:
       empty_group_1:
@@ -137,14 +137,13 @@ data:
         data: []
       empty_group_4:
         type: directory
-        data: {}
+        data:
       empty_group_5:
         type: directory
         data:
-          - {}
-          - a: stdout.py 500 # 2-a
-            a: stdout.py 501 # 2-a
-      empty_group_4:
+          - a: stdout.py 500 # 1-a
+            a: stdout.py 501 # 1-a
+      empty_group_6:
         type: directory
         data:
           - '': stdout.py 502
