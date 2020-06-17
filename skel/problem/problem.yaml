@@ -1,8 +1,8 @@
 name: {%problemname%}
 author: {%author%}
-# BAPC 2020
+# Contest name and year
 source: {%source%}
-# 2020.bapc.eu
+# contest.region.eu
 source_url: {%source_url%}
 license: {%license%}
 rights_owner: {%rights_owner%}
