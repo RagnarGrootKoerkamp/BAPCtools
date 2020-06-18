@@ -299,10 +299,10 @@ class TestcaseRule(Rule):
         super().__init__(problem, name, yaml, parent)
 
         for key in yaml:
-            if key not in KNOWN_TESTCASE_KEYS:
-                log(f'Unknown testcase level key: {key} in {self.path}')
             if key in RESERVED_TESTCASE_KEYS:
                 fatal('Testcase must not contain reserved key {key}.')
+            if key not in KNOWN_TESTCASE_KEYS:
+                log(f'Unknown testcase level key: {key} in {self.path}')
 
         inpt = yaml['input']
 
@@ -539,16 +539,16 @@ class Directory(Rule):
 
         if name == '':
             for key in yaml:
-                if key not in KNOWN_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
-                    log(f'Unknown root level key: {key}')
                 if key in RESERVED_DIRECTORY_KEYS:
                     fatal(f'Directory must not contain reserved key {key}.')
+                if key not in KNOWN_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
+                    log(f'Unknown root level key: {key}')
         else:
             for key in yaml:
+                if key in RESERVED_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
+                    fatal(f'Directory must not contain reserved key {key}.')
                 if key not in KNOWN_DIRECTORY_KEYS:
                     log(f'Unknown directory level key: {key} in {self.path}')
-            if key in RESERVED_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
-                fatal(f'Directory must not contain reserved key {key}.')
 
 
         if 'testdata.yaml' in yaml:
