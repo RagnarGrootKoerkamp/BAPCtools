@@ -113,7 +113,7 @@ class Problem:
 
         if p.interactive: needans = False
 
-        key = (needans, samplesonly)
+        key = (needans, samplesonly, include_bad)
         if key in p._testcases is not None: return p._testcases[key]
 
         in_paths = None
@@ -287,14 +287,15 @@ class Problem:
 
         if validator_type == 'input_format':
             validators = [
-                validate.InputValidator(problem, path, skip_double_build_warning=check_constraints)
+                validate.InputValidator(problem, path,skip_double_build_warning=check_constraints, check_constraints=check_constraints)
                 for path in paths
             ]
         else:
             validators = [
                 validate.OutputValidator(problem,
                                          path,
-                                         skip_double_build_warning=check_constraints)
+                                         skip_double_build_warning=check_constraints,
+                                         check_constraints=check_constraints)
                 for path in paths
             ]
 
@@ -438,17 +439,9 @@ class Problem:
     def validate_format(problem, validator_type, check_constraints=False):
         assert validator_type in ['input_format', 'output_format']
 
-        if check_constraints:
-            if not config.args.cpp_flags:
-                config.args.cpp_flags = ''
-            if not '-Duse_source_location' in config.args.cpp_flags:
-                config.args.cpp_flags += ' -Duse_source_location'
+        validators = problem.validators(validator_type, check_constraints=check_constraints)
 
-            validators = problem.validators(validator_type, check_constraints=True)
-        else:
-            validators = problem.validators(validator_type)
-
-        if problem.interactive and validator_type == 'output':
+        if problem.interactive and validator_type == 'output_format':
             log('Not validating .ans for interactive problem.')
             return True
 

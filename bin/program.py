@@ -76,7 +76,7 @@ def languages():
 #
 # build() will return the (run_command, message) pair.
 class Program:
-    def __init__(self, problem, path, deps=None, *, skip_double_build_warning=False):
+    def __init__(self, problem, path, deps=None, *, skip_double_build_warning=False, check_constraints=False):
         if deps is not None:
             assert isinstance(self, Generator)
             assert isinstance(deps, list)
@@ -85,7 +85,7 @@ class Program:
         assert not self.__class__ is Program
 
         # Make sure we never try to build the same program twice. That'd be stupid.
-        if not skip_double_build_warning:
+        if not skip_double_build_warning :
             if path in problem._programs:
                 error(f'Why would you build {path} twice?')
                 assert path not in problem._programs
@@ -108,7 +108,11 @@ class Program:
             self.name = str(path.name)
             self.tmpdir = problem.tmpdir / self.subdir / path.name
 
+        if check_constraints:
+            self.tmpdir = self.tmpdir.parent / (self.tmpdir.name+ '_check_constraints')
+
         self.compile_command = None
+        self.check_constraints = check_constraints
         self.run_command = None
         self.timestamp = None
         self.env = {}
@@ -303,6 +307,8 @@ class Program:
         lang_config = languages()[self.language]
 
         compile_command = lang_config['compile'] if 'compile' in lang_config else ''
+        if self.check_constraints and self.language == 'cpp':
+            compile_command += ' -Duse_source_location'
         self.compile_command = compile_command.format(**self.env).split()
         run_command = lang_config['run']
         self.run_command = run_command.format(**self.env).split()
