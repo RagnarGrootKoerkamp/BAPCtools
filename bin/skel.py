@@ -50,17 +50,23 @@ def alpha_num(string):
 
 
 def new_contest(name):
+    if config.args.contest:
+        fatal('--contest does not work for new_contest.')
+    if config.args.problem:
+        fatal('--problem does not work for new_contest.')
+
     # Ask for all required infos.
     title = _ask_variable('name', name)
-    subtitle = _ask_variable('subtitle', '')
+    subtitle = _ask_variable('subtitle', '').replace('_', '-')
     dirname = _ask_variable('dirname', _alpha_num(title))
-    author = _ask_variable('author', f'The {title} jury')
+    author = _ask_variable('author', f'The {title} jury').replace('_', '-')
     testsession = _ask_variable('testsession?', 'n (y/n)')[0] != 'n'  # boolean
     year = _ask_variable('year', str(datetime.datetime.now().year))
     source = _ask_variable('source', title)
     source_url = _ask_variable('source url', '')
     license = _ask_variable('license', 'cc by-sa')
     rights_owner = _ask_variable('rights owner', 'author')
+    title = title.replace('_', '-')
 
     skeldir = config.tools_root / 'skel/contest'
     log(f'Copying {skeldir} to {dirname}.')
@@ -72,6 +78,12 @@ def new_contest(name):
 
 
 def new_problem():
+    target_dir = Path('.')
+    if config.args.contest:
+        target_dir = Path(config.args.contest)
+    if config.args.problem:
+        fatal('--problem does not work for new_problem.')
+
     problemname = config.args.problemname if config.args.problemname else _ask_variable(
         'problem name')
     dirname = _alpha_num(problemname) if config.args.problemname else _ask_variable(
@@ -102,23 +114,23 @@ def new_problem():
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir = config.tools_root / 'skel/problem'
     preserve_symlinks = False
-    if Path('skel/problem').is_dir():
-        skeldir = Path('skel/problem')
+    if (target_dir/'skel/problem').is_dir():
+        skeldir = target_dir/'skel/problem'
         preserve_symlinks = True
-    if Path('../skel/problem').is_dir():
-        skeldir = Path('../skel/problem')
+    if (target_dir/'../skel/problem').is_dir():
+        skeldir = target_dir/'../skel/problem'
         preserve_symlinks = True
     if config.args.skel:
         skeldir = Path(config.args.skel)
         preserve_symlinks = True
-    log(f'Copying {skeldir} to {dirname}.')
+    log(f'Copying {skeldir} to {target_dir/dirname}.')
 
-    problems_yaml = Path('problems.yaml')
+    problems_yaml = target_dir/'problems.yaml'
 
     if problems_yaml.is_file():
         problems_yaml.write_text(problems_yaml.read_text() + '- id: ' + dirname + '\n')
 
-    copytree_and_substitute(skeldir, Path(dirname), variables, exist_ok=True, preserve_symlinks=preserve_symlinks)
+    copytree_and_substitute(skeldir, target_dir/dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks)
 
 
 def create_gitlab_jobs(contest, problems):
