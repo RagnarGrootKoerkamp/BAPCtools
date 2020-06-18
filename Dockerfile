@@ -13,6 +13,7 @@ RUN pacman -Syu --noconfirm \
 	pypy3 \
 	python-yaml \
 	python-argcomplete \
+	python-pytest \
 	python2 \
 	jdk8-openjdk \
 	kotlin \
