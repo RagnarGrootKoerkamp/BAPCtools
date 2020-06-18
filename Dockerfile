@@ -21,6 +21,9 @@ RUN pacman -Syu --noconfirm \
 	texlive-latexextra \
 	texlive-pictures \
 	texlive-science \
+	boost-libs \
+	asymptote \
+	ghostscript \
 	&& \
 	pacman -Scc --noconfirm
 COPY third_party/checktestdata /usr/bin/checktestdata
