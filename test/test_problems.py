@@ -147,4 +147,4 @@ class TestNewContestProblem:
         assert config.n_warn == 2
         assert Path('contest_name/contest.pdf').is_file()
         tools.test(['solutions', '--contest', 'contest_name'])
-        tools.test(['tmp', '--clean'])
+        tools.test(['tmp', '--clean', '--contest', 'contest_name'])
