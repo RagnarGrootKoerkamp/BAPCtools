@@ -1,3 +1,5 @@
+image: ragnargrootkoerkamp/bapctools
+
 stages:
   - test
 
