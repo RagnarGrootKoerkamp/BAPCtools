@@ -23,3 +23,4 @@ RUN pacman -Syu --noconfirm \
 	texlive-science \
 	&& \
 	pacman -Scc --noconfirm
+COPY third_party/checktestdata /usr/bin/checktestdata
