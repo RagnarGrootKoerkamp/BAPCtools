@@ -393,9 +393,6 @@ Run this from one of:
 
 # Takes a Namespace object returned by argparse.parse_args().
 def run_parsed_arguments(args):
-    # Reset the global settings, in case this is run from a test.
-    config.reset()
-
     # Process arguments
     config.args = args
     action = config.args.action
@@ -452,7 +449,10 @@ def run_parsed_arguments(args):
 
         if config.args.clean:
             log(f'Deleting {tmpdir}!')
-            shutil.rmtree(level_tmpdir)
+            if level_tmpdir.is_dir():
+                shutil.rmtree(level_tmpdir)
+            if level_tmpdir.is_file():
+                level_tmpdir.unlink()
         else:
             print(level_tmpdir)
 
@@ -565,12 +565,29 @@ def run_parsed_arguments(args):
     if not success or config.n_error > 0 or config.n_warn > 0:
         sys.exit(1)
 
+
 # Takes command line arguments
-def main(args):
+def main():
     parser = build_parser()
-    run_parsed_arguments(parser.parse_args(args))
+    run_parsed_arguments(parser.parse_args())
+
 
 if __name__ == '__main__':
     def interrupt_handler(sig, frame): fatal('Running interrupted')
     signal.signal(signal.SIGINT, interrupt_handler)
-    main(sys.argv[1:])
+    main()
+
+def test(args):
+    config.RUNNING_TEST = True
+
+    # Make sure to cd back to the original directory before returning.
+    # Needed to stay in the same directory in tests.
+    original_directory = Path().cwd()
+    config.n_warn = 0
+    config.n_error = 0
+    try:
+        parser = build_parser()
+        run_parsed_arguments(parser.parse_args(args))
+    finally:
+        os.chdir(original_directory)
+
