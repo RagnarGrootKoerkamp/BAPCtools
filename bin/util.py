@@ -374,24 +374,25 @@ def read_yaml(path):
     return settings
 
 
-def is_hidden(path):
-    for d in path.parts:
-        if d[0] == '.':
-            return True
-    return False
-
-
-def is_template(path):
-    return path.suffix == '.template'
-
-
-def is_disabled(path):
-    return path.suffix == '.disabled'
-
 
 # glob, but without hidden files
 def glob(path, expression):
-    return sorted(p for p in path.glob(expression) if not is_hidden(p) and not is_template(p) and not is_disabled(p))
+    def keep(p):
+        for d in p.parts:
+            if d[0] == '.':
+                return False
+
+        if p.suffix in ['.template', '.disabled']:
+            return False
+
+        if config.RUNNING_TEST:
+            suffixes = p.suffixes
+            if len(suffixes) >= 1 and suffixes[-1] == '.bad': return False
+            if len(suffixes) >= 2 and suffixes[-2] == '.bad': return False
+
+        return True
+
+    return sorted(p for p in path.glob(expression) if keep(p))
 
 
 def strip_newline(s):

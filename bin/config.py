@@ -49,14 +49,10 @@ args = None
 n_error = 0
 n_warn = 0
 
-# Reset the global state. Needed to run multiple tests in one execution.
-def reset():
-    args = None
-    n_error = 0
-    n_warn = 0
-
 # Return the command line timeout or the default of 30 seconds.
 def timeout():
     if hasattr(args, 'timeout'): return args.timeout
     return 30
 
+
+RUNNING_TEST = False
