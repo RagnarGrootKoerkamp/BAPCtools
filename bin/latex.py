@@ -229,8 +229,8 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
 
     # Some logic to prevent duplicate problem IDs.
     for problem in problems:
-        prepare_problem(problem)
-        id_ok = True
+        if build_type == 'problem':
+            prepare_problem(problem)
 
         problems_data += util.substitute(
             per_problem_data, {
