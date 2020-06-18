@@ -14,10 +14,11 @@ class MockGeneratorConfig(generate.GeneratorConfig):
     def __init__(self, problem):
         self.problem=problem
 
-def test_bad_generators_yamls():
-    docs = yaml.load_all(Path('test/generator_yaml/bad_generators.yaml').read_text(), Loader=yaml.SafeLoader)
-    for doc in docs:
-        print(doc)
-        with pytest.raises(SystemExit) as e:
-            MockGeneratorConfig(MockProblem()).parse_yaml(doc)
 
+class TestGeneratorConfig:
+    @pytest.mark.parametrize(
+        'yamldoc', yaml.load_all(Path('test/generator_yaml/bad_generators.yaml').read_text(), Loader=yaml.SafeLoader)
+    )
+    def test_bad_generators_yamls(self, yamldoc):
+        with pytest.raises(SystemExit) as e:
+            MockGeneratorConfig(MockProblem()).parse_yaml(yamldoc)
