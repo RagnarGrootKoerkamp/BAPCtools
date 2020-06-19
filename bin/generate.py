@@ -501,6 +501,9 @@ class TestcaseRule(Rule):
                     source = source.resolve().relative_to(problem.path.parent.resolve())
                     ensure_symlink(target, source, relative=True)
                 else:
+                    if target.is_symlink():
+                        # Make sure that we write to target, and not to the file pointed to by target.
+                        target.unlink()
                     shutil.move(source, target)
             else:
                 if target.is_file():
@@ -866,7 +869,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
 
         # Main recursive parsing function.
         def parse(name, yaml, parent):
-            check_type('Testcase/directory', yaml, [None, str, dict])
+            check_type('Testcase/directory', yaml, [None, str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
                 fatal(f'Could not parse {parent.path/name} as a testcase or directory. Try setting the type: key.')
 
@@ -911,7 +914,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
 
                     keys = list(dictionary.keys())
                     for name in keys:
-                        check_type('Testcase/directory name', name, [int, str])
+                        check_type('Testcase/directory name', name, [int, str, None], d.path)
                         if isinstance(name, int):
                             str_name = str(name)
                             if str_name in dictionary:
@@ -924,6 +927,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                             if child_name:
                                 child_name = number_prefix + '-' + child_name
                             else:
+                                assert child_name is None or child_name == ''
                                 child_name = number_prefix
                         else:
                             if not child_name:
@@ -1080,7 +1084,6 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                         testcase.generate(self.problem, bar)
                         q.task_done()
                 except Exception as e:
-                    debug(f'{e}')
                     q.task_done()
                     clear_queue(e)
 
