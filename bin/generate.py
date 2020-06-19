@@ -658,8 +658,16 @@ class Directory(Rule):
         if d.testdata_yaml is not None:
             if d.testdata_yaml:
                 yaml_text = yamllib.dump(d.testdata_yaml)
-                if not testdata_yaml_path.is_file() or yaml_text != testdata_yaml_path.read_text():
+                if not testdata_yaml_path.is_file():
                     testdata_yaml_path.write_text(yaml_text)
+                else:
+                    if yaml_text != testdata_yaml_path.read_text():
+                        if config.args.force:
+                            bar.log(f'CHANGED testdata.yaml')
+                            testdata_yaml_path.write_text(yaml_text)
+                        else:
+                            bar.warn(f'SKIPPED: testdata.yaml')
+
                 files_created.append(testdata_yaml_path)
             if d.testdata_yaml == '' and testdata_yaml_path.is_file():
                 testdata_yaml_path.unlink()
