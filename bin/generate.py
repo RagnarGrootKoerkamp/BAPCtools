@@ -1010,15 +1010,15 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
             # main thread. We only start processing a directory after all preceding test cases have
             # completed to avoid problems with including cases.
             q = queue.Queue()
-            error = False
+            error = None
 
             # TODO: Make this a generators.yaml option?
             num_worker_threads = config.args.jobs
 
-            def clear_queue():
+            def clear_queue(e=True):
                 nonlocal num_worker_threads, error
-                if error: return
-                error = True
+                if error is not None: return
+                error = e
                 try:
                     while True:
                         q.get(block=False)
@@ -1027,6 +1027,7 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                     pass
                 for _ in range(num_worker_threads):
                     q.put(None)
+                    q.task_done()
 
 
             def worker():
@@ -1036,8 +1037,10 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                         if testcase is None: break
                         testcase.generate(self.problem, bar)
                         q.task_done()
-                except:
+                except Exception as e:
+                    debug(f'{e}')
                     q.task_done()
+                    clear_queue(e)
 
             threads = []
             for _ in range(num_worker_threads):
@@ -1050,16 +1053,18 @@ See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/do
                 fatal('Running interrupted')
             signal.signal(signal.SIGINT, interrupt_handler)
 
-            def generate_dir(d):
+            def maybe_join():
+                if error is not None:
+                    raise error
                 q.join()
+
+            def generate_dir(d):
+                maybe_join()
                 d.generate(self.problem, self.known_cases, bar)
 
-            self.root_dir.walk(
-                lambda t: q.put(t),
-                generate_dir,
-            )
+            self.root_dir.walk( q.put, generate_dir,)
 
-            q.join()
+            maybe_join()
 
             for _ in range(num_worker_threads):
                 q.put(None)
