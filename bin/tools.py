@@ -280,6 +280,10 @@ Run this from one of:
                            action='store_true',
                            help='Overwrite existing input flies.')
     genparser.add_argument('--clean', '-c', action='store_true', help='Clean untracked files.')
+    genparser.add_argument('--all',
+                           '-a',
+                           action='store_true',
+                           help='Regenerate all data, including up to date test cases. ')
     genparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     genparser.add_argument('--samples',
                            action='store_true',

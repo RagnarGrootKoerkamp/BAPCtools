@@ -347,6 +347,8 @@ class TestcaseRule(Rule):
             # - meta_ exists with a timestamp newer than the 3 Invocation timestamps (Generator/Submission/Visualizer).
             # - meta_ exists with a timestamp newer than target infile ans ansfile
             # - meta_ contains exactly the right content
+            #
+            # Use generate --all to skip this check.
 
             last_change = 0
             t.cache_data = {}
@@ -362,6 +364,9 @@ class TestcaseRule(Rule):
             if t.config.visualizer:
                 last_change = max(last_change, t.config.visualizer.program.timestamp)
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
+
+            if hasattr(config.args, 'all') and config.args.all is True:
+                return False
 
             if not target_infile.is_file(): return False
             if not target_ansfile.is_file(): return False
@@ -723,15 +728,21 @@ class Directory(Rule):
 
             if f.name[0] == '.': continue
 
+            if d.path == Path('.') and f.name == 'bad':
+                continue
+
+
             # If --force/-f is passed, also clean unknown files.
             relpath = f.relative_to(problem.path / 'data')
             if relpath.with_suffix('') in known_cases: continue
 
+            ft = 'directory' if f.is_dir() else 'file'
+
             if config.args.force:
-                bar.log(f'Deleted untracked file: {relpath}')
+                bar.log(f'Deleted untracked {ft}: {relpath}')
                 f.unlink()
             else:
-                bar.warn(f'Found untracked file. Delete with clean --force: {relpath}')
+                bar.warn(f'Found untracked {ft}. Delete with clean --force: {relpath}')
 
         # Try to remove the directory. Fails if it's not empty.
         try:
