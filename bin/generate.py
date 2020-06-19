@@ -329,8 +329,9 @@ class TestcaseRule(Rule):
         ansfile = cwd / (t.name + '.ans')
         meta_path = cwd / 'meta_.yaml'
 
-        target_infile = problem.path / 'data' / t.path.parent / (t.name + '.in')
-        target_ansfile = problem.path / 'data' / t.path.parent / (t.name + '.ans')
+        target_dir = problem.path / 'data' / t.path.parent
+        target_infile = target_dir / (t.name + '.in')
+        target_ansfile = target_dir / (t.name + '.ans')
 
         if not t.manual and t.generator.program is None:
             bar.done(False, f'Generator didn\'t build.')
@@ -339,6 +340,33 @@ class TestcaseRule(Rule):
         if t.manual and not (problem.path / t.source).is_file():
             bar.done(False, f'Source for manual case not found: {t.source}')
             return
+
+        # For each generated .in file, both new and up to date, check that they use a deterministic generator.
+        # This is run When --check-deterministic is passed, which is also set to True when running `bt all`,
+        # This doesn't do anything for manual cases.
+        def check_deterministic():
+            if not(hasattr(config.args,'check_deterministic') and config.args.check_deterministic is True):
+                return
+
+            if t.manual:
+                return
+
+            result = t.generator.run(bar, cwd, t.name, t.seed, t.config.retries)
+            if result.ok is not True:
+                return
+
+            # This is checked when running the generator.
+            assert infile.is_file()
+
+            # If this doesn't exist, the testcase wasn't up to date, so must have been generated already.
+            assert target_infile.is_file()
+
+            # Now check that the source and target are equal.
+            if infile.read_bytes() == target_infile.read_bytes():
+                bar.part_done(True, 'Generator is deterministic.')
+            else:
+                bar.part_done(False, f'Generator is not deterministic.')
+
 
         # The expected contents of the meta_ file.
         def up_to_date():
@@ -380,6 +408,7 @@ class TestcaseRule(Rule):
             return meta_path.stat().st_ctime >= last_change and meta_yaml == t.cache_data
 
         if up_to_date():
+            check_deterministic()
             bar.done(message='up to date')
             return
 
@@ -436,7 +465,6 @@ class TestcaseRule(Rule):
             if t.config.visualizer.run(bar, cwd, t.name).ok is not True:
                 return
 
-        target_dir = problem.path / 'data' / t.path.parent
         if t.path.parents[0] == Path('sample'):
             msg = '; supply -f --samples to override'
             forced = config.args.force and config.args.samples
@@ -445,6 +473,7 @@ class TestcaseRule(Rule):
             forced = config.args.force
 
         skipped = False
+        skipped_in = False
         for ext in config.KNOWN_DATA_EXTENSIONS:
             source = cwd / (t.name + ext)
             target = target_dir / (t.name + ext)
@@ -459,6 +488,8 @@ class TestcaseRule(Rule):
                         if not forced:
                             bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
                             skipped = True
+                            if ext == '.in':
+                                skipped_in = True
                             continue
                         bar.log(f'CHANGED {target.name}')
                 else:
@@ -498,6 +529,9 @@ class TestcaseRule(Rule):
         if not skipped:
             yaml.dump(t.cache_data, meta_path.open('w'))
 
+        # If the .in was changed but not overwritten, check_deterministic will surely fail.
+        if not skipped_in:
+            check_deterministic()
         bar.done()
 
     def clean(t, problem, known_cases, bar):

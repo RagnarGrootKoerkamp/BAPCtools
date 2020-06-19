@@ -14,7 +14,7 @@ This lists all subcommands and their most important options.
 * Problem development:
     - [`bt run [-v] [-t TIMEOUT] [-m MEMORY] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
     - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--samples | [testcases [testcases ...]]]`](#test)
-    - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--clean] [--all] [--jobs JOBS]`](#generate)
+    - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--clean] [--all] [--check_deterministic] [--jobs JOBS]`](#generate)
     - [`bt clean [-v] [--force]`](#clean)
     - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
     - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
@@ -135,7 +135,8 @@ Any files in `data/` that are not tracked in `generators.yaml` will raise a warn
 - `--samples`: Even with `--force`, samples won't be overwritten by default. `--force --samples` also overwrites samples. (Samples usually have a manually curated input and output that should not be overwritten easily.)
 - `--clean`/`-c`: Clean untracked files instead of warning about them. WARNING: This may delete manually created testcases that are not (yet) mentioned in `generators.yaml`.
   One time where this is useful, is when automatically numbered testcases get renumbered. In this case, the `generate` command will complain about the old numbered testcases, and `clean` can be used to remove those.
-- `--all`/`-a`: Regenerate all test cases, skipping the up-to-date check.
+- `--all`/`-a`: Fully regenerate all test cases, skipping the up-to-date check.
+- `--check_deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check. This is implicitly set to true for `bt all`.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to `4`. Set to `0` or `1` to disable parallelization.
 - `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
 
@@ -447,8 +448,8 @@ When run for a contest:
 ## `all`
 
 This is a convenience command (mostly for use in CI) that runs the following subcommands in sequence for the current problem or each problem in the current contest:
-- Build the problem pdf
-- Generate testcases
+- Build the problem pdf.
+- Generate testcases, and check they are generated deterministically
 - Validate input
 - Validate output
 - Run all submissions

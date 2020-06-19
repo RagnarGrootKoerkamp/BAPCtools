@@ -344,8 +344,9 @@ class Generator(Program):
         in_path = cwd / (name + '.in')
         stdout_path = cwd / (name + '.in_')
 
-        # Clean the directory.
+        # Clean the directory, but not the meta_ file.
         for f in cwd.iterdir():
+            if f.name in ['meta_', 'meta_.yaml']: continue
             f.unlink()
 
         with stdout_path.open('w') as stdout_file:

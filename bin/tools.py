@@ -284,6 +284,9 @@ Run this from one of:
                            '-a',
                            action='store_true',
                            help='Regenerate all data, including up to date test cases. ')
+    genparser.add_argument('--check_deterministic',
+                           action='store_true',
+                           help='Rerun all generators to make sure generators are deterministic.')
     genparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     genparser.add_argument('--samples',
                            action='store_true',
@@ -507,6 +510,8 @@ def run_parsed_arguments(args):
         if action in ['all'] or (action in ['run'] and not config.args.no_generate):
             config.args.force = False
             config.args.clean = False
+            if action == 'all':
+                config.args.check_deterministic = True
             config.args.jobs = 4
             success &= generate.generate(problem)
         if action in ['validate', 'input', 'all']:
