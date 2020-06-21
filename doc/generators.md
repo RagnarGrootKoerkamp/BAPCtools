@@ -8,7 +8,7 @@ configuration with comments explaining all the valid keys.
 
 When `generators/generators.yaml` is present, _all_ test cases in
 `data/{sample,secret}` must be mentioned by it. It is not allowed to generate
-some testcases while not mentioning others. Testcases should be explicitly
+some testcases while not mentioning others. Testcases must be explicitly
 listed as manually created to prevent this issue.
 
 Below are an explanation of the specification and a formal [CUE specification](#cue-specification).
@@ -33,7 +33,7 @@ The two main object types are `directory` and `generator`. The root of `generato
 * `generators`: The root directory may contain a dictionary listing generators and their dependencies. This may be used when using non-directory programs as generators which depend on other files in the `generators/` directory. Each key of the dictionary is the name of a generator, and values must be lists of file paths relative to `generators/`.
 
 **Generator objects** have one of the following forms:
-- `null`: An empty generator means that the testcase is a manual case and should be kept.
+- `null`: An empty generator means that the testcase is a manual case and must not be modified or deleted by generator tooling.
 - `command`: A command can take two forms:
     - A path to a `.in` file which must be relative to `generators/`. The `.in` file and corresponding files with known extensions will be copied to the specified location.
     - An invocation of a generator: `<generator_name> <arguments>`. `<generator_name>` must either be a program (file/directory) in `generators/` or else a name in the top level `generators` dictionary (see below). Arguments may contain `{name}` to refer to the name of the testcase and `{seed}` or `{seed:(0-9)+}` to add a random seed.
