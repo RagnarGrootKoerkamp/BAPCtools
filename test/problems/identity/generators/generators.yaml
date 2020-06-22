@@ -16,11 +16,13 @@ generators:
 data:
   sample:
     type: directory
-    solution:
+    #solution:
     data:
+      # Both the empty value and ~ parse as None.
       1:
-      2: manual/sample.in
-      3: manual/inans.in
+      2: ~
+      3: manual/sample.in
+      4: manual/inans.in
 
   secret:
     type: directory
@@ -47,7 +49,8 @@ data:
       zero_prefix_group:
         type: directory
         data:
-          - '': stdout.py 123 # 01.in
+          # Both ~ (None) and the empty string can be used to have only numbers as testcase names.
+          - ~: stdout.py 123 # 01.in
           - '': stdout.py 124
           - '': stdout.py 125
           - '': stdout.py 126
@@ -67,19 +70,19 @@ data:
           - '': random_gen.py {seed}
           - '': random_gen.py  {seed} # the entire argument is hashed, so the double space matters.
           - '': random_gen.py {seed:1}
-          - '': random_gen.py {seed:01} # :01 is read as a string, so different from :1.
+          - '': random_gen.py {seed:01} # :01 is part of the command string, so the hash is different.
+          # Random_salt must be a string.
           - '':
               random_salt: '1.0'
               input: random_gen.py {seed}
           - '':
-              # TODO: Maybe we should require explicit quoting instead and forbid non-string values?
-              random_salt: '1.00' # Should be read as a string, so is different from 1.0 above.
+              random_salt: '1.00'
               input: random_gen.py {seed}
           - '':
               random_salt: 'yes'
               input: random_gen.py {seed}
           - '':
-              random_salt: 'true' # Should be read as a string, so is different from yes above.
+              random_salt: 'true'
               input: random_gen.py {seed}
       testcase_dict_1:
         input: random_gen.py {seed:6}
@@ -108,12 +111,11 @@ data:
         arg
       # These all have different seeds.
       space_in_seed_1: random_gen.py 'a b' # equivalent to "a b" and a\ b
-      space_in_seed_2: random_gen.py "a\ b"
+      space_in_seed_2: random_gen.py "a\ b" # Space doesn't need escaping so the \ is literal.
       space_in_seed_3: random_gen.py "a b "
-      space_in_seed_4: random_gen.py \ a\ b
+      space_in_seed_4: random_gen.py \ a\ b # Escape leading and intermediate space.
 
-      # Boolean values should be parsed as strings.
-      # TODO: Maybe we should require explicit quoting instead and forbid non-string values?
+      # Commands should always be strings.
       boolean_generator_yes:
         solution: 'yes'
         input: y
