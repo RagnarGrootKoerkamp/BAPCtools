@@ -105,18 +105,23 @@ data:
       '04': tree 5         # keys from the global generators: dictionary may also be used.
       '05': a 5            # idem
 
-# Quoting arguments doesn't work: this will pass two arguments: `"a` and `b"`.
+# Arguments are split on white space: this will pass two arguments: `"a` and `b"`.
       06-string: stdout.py "a b"
+# This will pass two arguments: a and b
+      07-string: |
+        stdout.py
+        a
+        b
 
 # The regex \{seed(:[0-9]+)?\} (e.g. {seed} or {seed:1}) anywhere in the argument
 # string will be replaced by an integer hash of the entire command in [0, 2^31).
 # The regex may match at most once.
 # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
-      07-random-1:    stdout.py {seed}
-     #08-random-1a:   stdout.py {seed}           # It's an error to use the exact same command twice.
-      09-random-2:    stdout.py {seed:2}         # Different seed, because of extra `2`
-      10-random-3:    stdout.py seed={seed:2}    # Different seed, because command isn't the same.
-     #10-random-4:    stdout.py {seed} {seed:2}  # Not allowed because the regex matches twice.
+      08-random-1:    stdout.py {seed}
+     #09-random-1a:   stdout.py {seed}           # It's an error to use the exact same command twice.
+      10-random-2:    stdout.py {seed:2}         # Different seed, because of extra `2`
+      11-random-3:    stdout.py seed={seed:2}    # Different seed, because command isn't the same.
+     #11-random-4:    stdout.py {seed} {seed:2}  # Not allowed because the regex matches twice.
 
 # No key (testcase or testgroup) may be a prefix of another key.
      #01-second: stdout.py 6                     # Collision with rule 01 above.
