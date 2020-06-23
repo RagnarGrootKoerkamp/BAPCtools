@@ -42,7 +42,7 @@ data:
         data:
           - dir: dir 300
             dir2: dir 301
-          - dir: dir/ 302
+          - dir: dir/ 306
           - dir_run: dir_run 303
           - dir_build: dir_build 304
           - dir_build_run: dir_build_run 305
@@ -109,11 +109,11 @@ data:
         extra
         unused
         arg
-      # These all have different seeds.
-      space_in_seed_1: random_gen.py 'a b' # equivalent to "a b" and a\ b
-      space_in_seed_2: random_gen.py "a\ b" # Space doesn't need escaping so the \ is literal.
-      space_in_seed_3: random_gen.py "a b "
-      space_in_seed_4: random_gen.py \ a\ b # Escape leading and intermediate space.
+      # Arguments are split on white space.
+      space_in_seed_1: random_gen.py 'a b' # 'a and b'
+      space_in_seed_2: random_gen.py "a\ b" # "a\ and b"
+      space_in_seed_3: random_gen.py "a b " # "a and b and "
+      space_in_seed_4: random_gen.py \ a\ b # \ and a\ and b
 
       # Commands should always be strings.
       boolean_generator_yes:
