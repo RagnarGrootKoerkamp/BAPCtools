@@ -22,10 +22,10 @@ def check_constraints(problem, settings):
 
     cpp_statement = [
         (re.compile(
-            '^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);'),
+            r'^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);'),
          3, 4, None),
         (re.compile(
-            '(?:(\w*)\s*=\s*.*)?\.read_(?:number|integer|float|string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'
+            r'(?:(\w*)\s*=\s*.*)?\.read_(?:number|integer|float|string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'
         ), 1, 2, 3),
     ]
 
@@ -46,12 +46,12 @@ def check_constraints(problem, settings):
                             defs_validators.append([mo.group(name) or '', mo.group(v2)])
 
     statement = problem.path / 'problem_statement/problem.en.tex'
-    #latex_define = re.compile('^\\newcommand{\\\\(\w+)}{(.*)}$')
+    #latex_define = re.compile(r'^\\newcommand{\\\\(\w+)}{(.*)}$')
     latex_defines = [
-        (re.compile('{\\\\(\w+)}{(.*)}'), 1, 2, False),
-        (re.compile('([0-9-e,.^]+)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*(\w*)'), 2, 1,
+        (re.compile(r'{\\\\(\w+)}{(.*)}'), 1, 2, False),
+        (re.compile(r'([0-9-e,.^]+)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*(\w*)'), 2, 1,
          True),
-        (re.compile('(\w*)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*([0-9-e,.^]+)'), 1, 2,
+        (re.compile(r'(\w*)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*([0-9-e,.^]+)'), 1, 2,
          True),
     ]
 
