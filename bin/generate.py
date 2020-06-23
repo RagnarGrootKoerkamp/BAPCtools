@@ -40,12 +40,17 @@ def is_directory(yaml):
 
 
 # Returns the given path relative to the problem root.
-def resolve_path(path, *, allow_absolute):
+def resolve_path(path, *, allow_absolute, allow_relative):
     assert isinstance(path, str)
     if not allow_absolute:
         if path.startswith('/'):
-            fatal(f'Path should not be absolute: {path}')
+            fatal(f'Path must not be absolute: {path}')
         assert not Path(path).is_absolute()
+
+    if not allow_relative:
+        if not path.startswith('/'):
+            fatal(f'Path must be absolute: {path}')
+        assert Path(path).is_absolute()
 
     # Make all paths relative to the problem root.
     if path.startswith('/'): return Path(path[1:])
@@ -63,7 +68,7 @@ class Invocation:
 
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
-    def __init__(self, problem, string, *, allow_absolute):
+    def __init__(self, problem, string, *, allow_absolute, allow_relative=True):
         string = str(string)
         commands = shlex.split(string)
         command = commands[0]
@@ -73,7 +78,7 @@ class Invocation:
         self.command_string = string
 
         # The name of the program to be executed, relative to the problem root.
-        self.program_path = resolve_path(command, allow_absolute=allow_absolute)
+        self.program_path = resolve_path(command, allow_absolute=allow_absolute, allow_relative=allow_relative)
 
         # Make sure that {seed} occurs at most once.
         seed_cnt = 0
@@ -141,7 +146,7 @@ class GeneratorInvocation(Invocation):
 
 class VisualizerInvocation(Invocation):
     def __init__(self, problem, string):
-        super().__init__(problem, string, allow_absolute=True)
+        super().__init__(problem, string, allow_absolute=True, allow_relative=False)
 
     # Run the visualizer, taking {name} as a command line argument.
     # Stdin and stdout are not used.
@@ -160,7 +165,7 @@ class VisualizerInvocation(Invocation):
 
 class SolutionInvocation(Invocation):
     def __init__(self, problem, string):
-        super().__init__(problem, string, allow_absolute=True)
+        super().__init__(problem, string, allow_absolute=True, allow_relative=False)
 
     # Run the submission, reading {name}.in from stdin and piping stdout to {name}.ans.
     # If the .ans already exists, nothing is done
@@ -286,7 +291,7 @@ class TestcaseRule(Rule):
             yaml = {'input': Path('data') / parent.path / (name + '.in')}
         elif isinstance(yaml, str) and yaml.endswith('.in'):
             self.manual = True
-            yaml = {'input': resolve_path(yaml, allow_absolute=False)}
+            yaml = {'input': resolve_path(yaml, allow_absolute=False, allow_relative=True)}
         elif isinstance(yaml, str):
             yaml = {'input': yaml}
         elif isinstance(yaml, dict):
@@ -918,15 +923,8 @@ class GeneratorConfig:
                     else:
                         number_prefix = ''
 
-                    keys = list(dictionary.keys())
-                    for name in keys:
-                        check_type('Testcase/directory name', name, [int, str, None], d.path)
-                        if isinstance(name, int):
-                            str_name = str(name)
-                            if str_name in dictionary:
-                                fatal(f'Duplicate key in data dictionary: "{str_name}" and {name}')
-                            dictionary[str_name] = dictionary[name]
-                            del dictionary[name]
+                    for key in dictionary:
+                        check_type('Testcase/directory name', key, [str, None], d.path)
 
                     for child_name, child_yaml in sorted(dictionary.items()):
                         if number_prefix:
