@@ -220,6 +220,21 @@ data:
 data:
   ab: /generators/dir/gen.py
 ---
+# Solution ans visualizer must have an absolute path:
+solution: a
+---
+solution: a/b
+---
+solution: a 1 2
+---
+visualizer: a
+---
+visualizer: a/b
+---
+visualizer: a 1 2
+---
+visualizer: a {name}
+---
 # Directories may not have input:.
 input: xyz
 ---
@@ -262,3 +277,9 @@ data:
 data:
   01: hi
   '1': hi
+---
+data:
+  0: x
+---
+data:
+  1: x
