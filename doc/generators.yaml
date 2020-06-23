@@ -5,8 +5,7 @@
 # file themselves, this must be specified.
 # This should read the input from stdin and write to stdout.
 #
-# Absolute paths are taken relative to the problem root, relative paths are
-# taken relative to the generators directory.
+# This must be the absolute path to the solution, starting in the problem root.
 #
 # TOOLING: may pick a default if not specified, but should raise a warning.
 solution: /submissions/accepted/sol.py
@@ -15,6 +14,8 @@ solution: /submissions/accepted/sol.py
 # This should read {name}.in and/or {name}.ans from the current working
 # directory, and write {name}.ext for an extension in:
 # .png, .jpg, .svg
+#
+# This must be the absolute path, starting in the problem root.
 #
 # TOOLING: may provide a flag to make running this optional, as it can be slow
 # and usually isn't required.
@@ -36,7 +37,7 @@ random_salt: abcd
 #   key below. The dependencies may refer to any files relative to generators/.
 #   The generator will be built and run as if they formed a separate directory.
 #   The first item in the list will be used as entry point.
-#   E.g. the first example below would be equivalent to
+#   E.g. the first example below would be equivalent to the two files
 #   - generators/tree/tree.py
 #   - generators/tree/lib.py
 #
@@ -78,30 +79,33 @@ data:
     type: directory
     solution: # empty to disable generating .ans files here
     data:
-      1: stdout.py 1  # prints `1` to stdout, which is piped to 1.in
+      '1': stdout.py 1  # prints `1` to stdout, which is piped to 1.in
 
 # To indicate a manual testcase, specify it with an empty value.
-      2:
+# Prefer specifying a path to a .in file as below.
+      '2':
 # Any key that matches the glob `*.in` is a manual testcase that will be copied
 # from the given directory into the target testcase. The given directory
 # must not start with a / and will be relative to generators/.
-      3: manual_cases/sample/3.in
+# If a solution is specified, .ans files will be generated for manual cases
+# that don't provide a .ans.
+      '3': manual_cases/sample/3.in
 # Every testcase must be listed.
 # TOOLING: may allow this and print a warning.
-     #4:
+     #'4':
 
   secret:
     type: directory
     data:
 
 # Types of generator programs.
-      01: stdout.py  3   # stdout of the command is written to 01.in.
-      02: stdout.cpp 4   # c++ is compiled as for validators
-      03: dir 5          # directories are OK as for validators
-      04: tree 5         # keys from the global generators: dictionary may also be used.
-      05: a 5            # idem
+      '01': stdout.py  3   # stdout of the command is written to 01.in.
+      '02': stdout.cpp 4   # c++ is compiled as for validators
+      '03': dir 5          # directories are OK as for validators
+      '04': tree 5         # keys from the global generators: dictionary may also be used.
+      '05': a 5            # idem
 
-# The entire command is passed through python shlex.shlex.
+# Quoting arguments doesn't work: this will pass two arguments: `"a` and `b"`.
       06-string: stdout.py "a b"
 
 # The regex \{seed(:[0-9]+)?\} (e.g. {seed} or {seed:1}) anywhere in the argument
@@ -131,7 +135,7 @@ data:
 #
 # In case a program writes {name}.in, stdout will be ignored.
 # In case {name}.in is not created, stdout will be used as input.
-      12: write_in_and_ans.py {name}
+      '12': write_in_and_ans.py {name}
 
 
 # To override the global/testgroup configuration on a per-testcase basis,
@@ -139,9 +143,9 @@ data:
 # as well as the input: key which contains the command to execute.
       13_no_visualizer:
         input: large_case_generator.py 1000000
-        solution: gnu_multi_precision.cpp   # Some local file in generators/.
+        solution: /generators/gnu_multi_precision.cpp
         visualizer:                         # Empty to disable the visualizer here.
-        random_salt: 123
+        random_salt: '123'
 
 
 
