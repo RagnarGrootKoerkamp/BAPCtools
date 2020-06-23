@@ -19,10 +19,10 @@ data:
     #solution:
     data:
       # Both the empty value and ~ parse as None.
-      1:
-      2: ~
-      3: manual/sample.in
-      4: manual/inans.in
+      '1':
+      '2': ~
+      '3': manual/sample.in
+      '4': manual/inans.in
 
   secret:
     type: directory
@@ -87,7 +87,7 @@ data:
       testcase_dict_1:
         input: random_gen.py {seed:6}
       testcase_dict_2:
-        solution: solution.c
+        solution: /generators/solution.c
         input: random_gen.py {seed:7}
       testcase_dict_3:
         visualizer:
@@ -117,16 +117,16 @@ data:
 
       # Commands should always be strings.
       boolean_generator_yes:
-        solution: 'yes'
+        solution: /generators/yes
         input: y
       boolean_generator_no:
-        solution: 'no'
+        solution: /generators/no
         input: n
       boolean_generator_true:
-        solution: 'true'
+        solution: /generators/true
         input: t
       boolean_generator_false:
-        solution: 'false'
+        solution: /generators/false
         input: f
         unknown_key:
       empty_group_1:
@@ -143,13 +143,13 @@ data:
       empty_group_5:
         type: directory
         data:
-          - a: stdout.py 500 # 1-a
-            a: stdout.py 501 # 1-a
+          - a: stdout.py 501 # 1-a
+            b: stdout.py 502 # 1-b
       empty_group_6:
         type: directory
         data:
-          - '': stdout.py 502
-      json: {type: directory, data: [{'': stdout.py 600, 1: stdout.py 601}, {'': stdout.py 602}]}
+          - '': stdout.py 503
+      json: {type: directory, data: [{'': stdout.py 600, '1': stdout.py 601}, {'': stdout.py 602}]}
     unknown_key:
 
 unknown_key:
