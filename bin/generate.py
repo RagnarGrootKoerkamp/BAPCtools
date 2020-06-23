@@ -1,7 +1,6 @@
 import hashlib
 import random
 import re
-import shlex
 import shutil
 import yaml as yamllib
 import queue
@@ -70,7 +69,7 @@ class Invocation:
     # A direct path may also be given.
     def __init__(self, problem, string, *, allow_absolute, allow_relative=True):
         string = str(string)
-        commands = shlex.split(string)
+        commands = string.split()
         command = commands[0]
         self.args = commands[1:]
 
