@@ -35,8 +35,8 @@ def stats(problems):
             'submissions/accepted/*.c', 'submissions/accepted/*.cpp', 'submissions/accepted/*.cc'
         ], 1),
         ('java', 'submissions/accepted/*.java', 1),
-        ('py2', ['submissions/accepted/*.py', 'submissions/accepted/*.py2'], 1),
-        ('py3', 'submissions/accepted/*.py3', 1),
+        ('py2', 'submissions/accepted/*.py2', 1),
+        ('py3', ['submissions/accepted/*.py','submissions/accepted/*.py3'], 1),
     ]
 
     headers = ['problem'] + [h[0] for h in stats] + ['  comment']
@@ -76,11 +76,14 @@ def stats(problems):
                     ok = True
                     for f in glob(p, '*'):
                         if f.is_file():
-                            with f.open() as file:
-                                data = file.read()
+                            try:
+                                data = f.read_text()
                                 if data.find('TODO: Remove') != -1:
                                     ok = False
                                     break
+                            except UnicodeDecodeError:
+                                ok = False
+                                pass
                     if ok:
                         cnt += 1
             return cnt
