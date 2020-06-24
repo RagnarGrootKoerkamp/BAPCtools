@@ -414,6 +414,11 @@ class TestcaseRule(Rule):
 
         # Generate .in
         if t.manual:
+            # Clean the directory, but not the meta_ file.
+            for f in cwd.iterdir():
+                if f.name in ['meta_', 'meta_.yaml']: continue
+                f.unlink()
+
             manual_data = problem.path / t.source
             if not manual_data.is_file():
                 bar.error(f'Manual source {t.source} not found.')
@@ -725,7 +730,7 @@ class Directory(Rule):
                             f.unlink()
                         bar.log(f'Deleted untracked {ft} {name}')
                     else:
-                        bar.warn(f'Found untracked {ft}. Delete with generate --clean: {name}. ')
+                        bar.warn(f'Untracked {ft} {name}. Delete with generate --clean.')
                 continue
 
             if config.args.clean:
@@ -734,7 +739,7 @@ class Directory(Rule):
             else:
                 known_cases.add(relpath)
                 bar.warn(
-                    f'Found untracked manual case. Delete with generate --clean: {relpath}.in')
+                    f'Untracked manual case {relpath}.in. Delete with generate --clean.')
                 t = TestcaseRule(problem, base.name, None, d)
                 d.data.append(t)
                 bar.add_item(t.path)
