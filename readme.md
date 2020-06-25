@@ -26,7 +26,7 @@ required dependencies manually.
 	- Note that actually using `argcomplete` is optional, but recommended.
 	  Detailed instructions are [here](https://argcomplete.readthedocs.io/en/latest/).
 	 
-      TL;DR: Put `eval "$(register-python-argcomplete tools.py)"` in your `.bashrc` or `.zshrc`.
+      TL;DR: Put `eval "$(register-python-argcomplete[3] tools.py)"` in your `.bashrc` or `.zshrc`.
 -   The `pdflatex` command, provided by `texlive-bin` on Arch Linux and
     potentially some specific LaTeX packages (like tikz) provided by
 	`texlive-extra`.
