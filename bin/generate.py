@@ -6,7 +6,6 @@ import shutil
 import yaml as yamllib
 import queue
 import threading
-import distutils.util
 import signal
 
 from pathlib import Path
@@ -829,7 +828,7 @@ class GeneratorConfig:
 
         # Non-standard key. When set, run will be parallelized.
         # Accepts: y/yes/t/true/on/1 and n/no/f/false/off/0 and returns 0 or 1.
-        ('parallel', 1, distutils.util.strtobool),
+        ('parallel', 1, lambda x: 1 if x else 0),
     ]
 
     # Parse generators.yaml.
