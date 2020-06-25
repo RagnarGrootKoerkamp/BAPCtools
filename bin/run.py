@@ -32,6 +32,8 @@ class Testcase:
         self.bad_input = bad and not self.ans_path.is_file()
         self.bad_output = bad and self.ans_path.is_file()
 
+        self.sample = self.short_path.parts[0] == 'sample'
+
         self.included = False
         if path.is_symlink():
             include_target = Path(os.path.normpath(path.parent / os.readlink(path)))

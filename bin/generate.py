@@ -459,7 +459,7 @@ class TestcaseRule(Rule):
         else:
             if not testcase.ans_path.is_file(): testcase.ans_path.write_text('')
             # For interactive problems, run the interactive solution and generate a .interaction.
-            if t.config.solution:
+            if t.config.solution and testcase.sample:
                 if not t.config.solution.run_interactive(problem, bar, cwd, t):
                     return
 
@@ -837,20 +837,9 @@ class GeneratorConfig:
         yaml_path = self.problem.path / 'generators/generators.yaml'
         self.ok = True
         if not yaml_path.is_file():
-
-            # TODO: Remove this migration from the old to the new path.
-            old_yaml_path = self.problem.path / 'generators/gen.yaml'
-            if not old_yaml_path.is_file():
-                log('Did not find generators/generators.yaml')
-                self.ok = False
-                return
-
-            # Move the old to the new path.
-            old_yaml_path.rename(yaml_path)
-            log('''Renamed generators/gen.yaml to generators/generators.yaml.
-You probably want to migrate to the new format as well: add a top level data: key around sample: and secret:.
-See https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/generated_testcases/doc/generated_testcases_v2.yaml for an example.
-''')
+            log('Did not find generators/generators.yaml')
+            self.ok = False
+            return
 
         yaml = yamllib.load(yaml_path.read_text(), Loader=yamllib.SafeLoader)
         self.parse_yaml(yaml)
