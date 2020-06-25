@@ -1,4 +1,4 @@
-image: bapctools
+image: ragnargrootkoerkamp/bapctools
 
 default:
   before_script:
