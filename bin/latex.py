@@ -9,7 +9,7 @@ from pathlib import Path
 
 import config
 import util
-from util import cc, ensure_symlink
+from util import *
 
 PDFLATEX = ['pdflatex', '-interaction=nonstopmode', '-halt-on-error']
 
@@ -235,7 +235,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
         problems_data += util.substitute(
             per_problem_data, {
                 'problemlabel': problem.label,
-                'problemyamlname': problem.name,
+                'problemyamlname': problem.settings.name.replace('_', ' '),
                 'problemauthor': problem.settings.author,
                 'timelimit': problem.settings.timelimit,
                 'problemdir': problem.tmpdir,
