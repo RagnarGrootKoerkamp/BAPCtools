@@ -3,7 +3,7 @@
 Generators are provided in the `generators/` directory and may be used to
 generate test cases.  If it is present, the file `generators/generators.yaml`
 specifies which testcases should be generated and which commands should be run
-to generate them. See [generators.yaml](generators.yaml) for an full example
+to generate them. See [generators.yaml](generators.yaml) for a full example
 configuration with comments explaining all the valid keys.
 
 When `generators/generators.yaml` is present, _all_ test cases in
