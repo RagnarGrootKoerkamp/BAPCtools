@@ -393,7 +393,7 @@ class Problem:
 
         scores = {}
         for t in testcases:
-            scores[t] = 0
+            scores[t.name] = 0
         for dct in verdict_table:
             failures = 0
             for t in dct:
@@ -406,9 +406,10 @@ class Problem:
 
         print('\nVerdict analysis table. Submissions are ordered as above. Higher '
               'scores indicate they are critical to break some submissions.')
+
         for testcase in testcases:
             # Skip all AC testcases
-            if all(map(lambda row: row[testcase.name], verdict_table)): continue
+            if all(map(lambda row: testcase.name in row and row[testcase.name], verdict_table)): continue
 
             color = cc.reset
             if len(scores_list) > 6 and scores[testcase.name] >= scores_list[-6]:
