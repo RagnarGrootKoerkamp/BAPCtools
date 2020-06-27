@@ -88,7 +88,7 @@ class Problem:
         timeout = 1.5 * self.settings.timelimit + 1
         try:
             if config.args.timeout:
-                timeout = max(config.args.timeout, self.settings.timelimit + 1)
+                timeout = config.args.timeout
         except AttributeError:
             pass
         self.settings.timeout = int(timeout)
