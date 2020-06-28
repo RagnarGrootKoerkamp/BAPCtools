@@ -168,8 +168,6 @@ class Run:
         return result
 
     def _validate_output(self):
-        flags = self.problem.settings.validator_flags
-
         output_validators = self.problem.validators('output')
         if output_validators is False: return False
 
