@@ -222,7 +222,7 @@
 	\ttfamily
 	\frenchspacing% to prevent extra spaces after punctuation. https://tex.stackexchange.com/q/118455/43242
 	\hfill\framebox[0.55\textwidth][l]{%
-		\parbox[t]{\textwidth}{
+		\parbox[t]{\dimexpr0.55\textwidth-2\fboxsep-2\fboxrule\relax}{
 			\vspace{-.4em}%
 			\strut%
 			\BODY
@@ -239,7 +239,7 @@
 	\ttfamily
 	\frenchspacing% to prevent extra spaces after punctuation. https://tex.stackexchange.com/q/118455/43242
 	\framebox[0.55\textwidth][l]{%
-		\parbox[t]{\textwidth}{
+		\parbox[t]{\dimexpr0.55\textwidth-2\fboxsep-2\fboxrule\relax}{
 			\vspace{-.4em}%
 			\strut%
 			\BODY
