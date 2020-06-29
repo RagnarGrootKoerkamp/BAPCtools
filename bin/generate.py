@@ -701,6 +701,19 @@ class Directory(Rule):
         # We sort files with .in preceding other extensions.
         files = list(dir_path.glob('*'))
         files.sort(key=lambda f: f.with_suffix('') if f.suffix == '.in' else f)
+
+        # First do a loop to find untracked manual .in files.
+        for f in files:
+            if f in files_created: continue
+            base = f.with_suffix('')
+            relpath = base.relative_to(problem.path / 'data')
+            if relpath in known_cases: continue
+            if f.suffix != '.in': continue
+            if config.args.clean: continue
+            t = TestcaseRule(problem, base.name, None, d)
+            d.data.append(t)
+            bar.add_item(t.path)
+
         for f in files:
             if f in files_created: continue
             base = f.with_suffix('')
@@ -737,11 +750,8 @@ class Directory(Rule):
                 bar.log(f'Deleted untracked file {relpath}.in')
             else:
                 known_cases.add(relpath)
-                bar.warn(
+                bar.log(
                     f'Untracked manual case {relpath}.in. Delete with generate --clean.')
-                t = TestcaseRule(problem, base.name, None, d)
-                d.data.append(t)
-                bar.add_item(t.path)
 
         bar.done()
         return True
