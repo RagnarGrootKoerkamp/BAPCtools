@@ -260,7 +260,7 @@ class Submission(program.Program):
                 error(f'Submission {self.short_path} must have implicit verdict {subdir} listed in @EXPECTED_RESULTS@.')
                 verdicts = [subdir] + verdicts
             elif len(verdicts) == 0:
-                verdicts = [subdir, 'ACCEPTED']
+                verdicts = [subdir]
 
         if len(verdicts) == 0:
             verdicts = ['ACCEPTED']
@@ -322,7 +322,7 @@ class Submission(program.Program):
             if table_dict is not None:
                 table_dict[run.name] = result.verdict == 'ACCEPTED'
 
-            got_expected = result.verdict in self.expected_verdicts
+            got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
 
             # Print stderr whenever something is printed
             if result.out and result.err:
