@@ -23,7 +23,9 @@ Additionally, the following DOMjudge equivalents may be used:
 - `WRONG-ANSWER` / `NO-OUTPUT`,
 - `TIMELIMIT`,
 - `RUN-ERROR`,
-- `CHECK-MANUALLY` (note that this will just be ignored).
+- `CHECK-MANUALLY`: this is not supported and will be ignored,
+- `COMPILER-ERROR`: this is not supported and will be ignored.
+
 
 Matching is case insensitive and extra white space is allowed. Examples:
 - `// @EXPECTED_RESULTS@: WRONG_ANSWER`

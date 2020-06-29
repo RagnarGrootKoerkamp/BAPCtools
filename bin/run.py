@@ -223,7 +223,7 @@ class Submission(program.Program):
         # - WRONG_ANSWER / WRONG-ANSWER / NO-OUTPUT
         # - TIME_LIMIT_EXCEEDED / TIMELIMIT
         # - RUN_TIME_ERROR / RUN-ERROR
-        domjudge_verdict_map = {'CORRECT': 'ACCEPTED', 'WRONG-ANSWER': 'WRONG_ANSWER', 'TIMELIMIT': 'TIME_LIMIT_EXCEEDED', 'RUN-ERROR': 'RUN_TIME_ERROR', 'NO-OUTPUT': 'WRONG_ANSWER', 'CHECK-MANUALLY': None}
+        domjudge_verdict_map = {'CORRECT': 'ACCEPTED', 'WRONG-ANSWER': 'WRONG_ANSWER', 'TIMELIMIT': 'TIME_LIMIT_EXCEEDED', 'RUN-ERROR': 'RUN_TIME_ERROR', 'NO-OUTPUT': 'WRONG_ANSWER', 'CHECK-MANUALLY': None, 'COMPILER-ERROR': None}
         # Matching is case insensitive and all source files are checked.
         key = '@EXPECTED_RESULTS@: '
         if self.path.is_file():
