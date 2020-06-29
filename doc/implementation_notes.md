@@ -13,6 +13,13 @@ This should be followed by a list of comma separated verdicts from
 - `TIME_LIMIT_EXCEEDED`,
 - `RUN_TIME_ERROR`.
 
+Additionally, the following DOMjudge equivalents may be used:
+- `CORRECT`,
+- `WRONG-ANSWER` / `NO-OUTPUT`,
+- `TIMELIMIT`,
+- `RUN-ERROR`,
+- `CHECK-MANUALLY` (note that this will just be ignored).
+
 Matching is case insensitive and extra white space is allowed. Examples:
 - `// @EXPECTED_RESULTS@: WRONG_ANSWER`
 - `# @EXPECTED_RESULTS@: ACCEPTED, TIME_LIMIT_EXCEEDED`

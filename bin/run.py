@@ -219,10 +219,11 @@ class Submission(program.Program):
         verdicts = []
 
         # Look for '@EXPECTED_RESULTS@: ' in all source files. This should be followed by a comma separated list of the following:
-        # - ACCEPTED
-        # - WRONG_ANSWER
-        # - TIME_LIMIT_EXCEEDED
-        # - RUN_TIME_ERROR
+        # - ACCEPTED / CORRECT
+        # - WRONG_ANSWER / WRONG-ANSWER / NO-OUTPUT
+        # - TIME_LIMIT_EXCEEDED / TIMELIMIT
+        # - RUN_TIME_ERROR / RUN-ERROR
+        domjudge_verdict_map = {'CORRECT': 'ACCEPTED', 'WRONG-ANSWER': 'WRONG_ANSWER', 'TIMELIMIT': 'TIME_LIMIT_EXCEEDED', 'RUN-ERROR': 'RUN_TIME_ERROR', 'NO-OUTPUT': 'WRONG_ANSWER', 'CHECK-MANUALLY': None}
         # Matching is case insensitive and all source files are checked.
         key = '@EXPECTED_RESULTS@: '
         if self.path.is_file:
@@ -232,12 +233,17 @@ class Submission(program.Program):
         else:
             files = []
         for f in files:
+            if not f.is_file(): continue
             try:
                 text = f.read_text().upper()
                 beginpos = text.index(key) + len(key)
                 endpos = text.find('\n', beginpos)
                 arguments = map(str.strip, text[beginpos:endpos].split(','))
                 for arg in arguments:
+                    if arg in domjudge_verdict_map:
+                        arg = domjudge_verdict_map[arg]
+                        if arg is None:
+                            continue
                     if arg not in config.VERDICTS:
                         error(f'@EXPECTED_RESULT@ {arg} for submission {self.short_path} is not valid')
                         continue
