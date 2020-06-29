@@ -1,4 +1,4 @@
-u Implementation notes
+# Implementation notes
 
 This document explains some miscellaneous parts of the implementation of BAPCtools that did not fit in the [Subcommand documentation](commands.md).
 
