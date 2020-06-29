@@ -334,7 +334,6 @@ class Submission(program.Program):
                                           timeout=self.problem.settings.timeout)
 
                 assert result.err is None and result.out is None
-                debug(result.duration, self.problem.settings.timeout)
                 if result.duration > self.problem.settings.timeout:
                     status = f'{cc.red}Aborted!'
                     config.n_error += 1

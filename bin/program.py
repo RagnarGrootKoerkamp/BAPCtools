@@ -279,14 +279,14 @@ class Program:
                 self.bar.error(f'{self.short_path} is an empty directory.')
             else:
                 self.bar.error(f'{self.path} does not exist.')
-            return
+            return False
 
         # Check file names.
         for f in self.source_files:
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
                 self.ok = False
                 self.bar.error(f'{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
-                return
+                return False
 
         # Link all source_files
         if self.tmpdir.is_file():
