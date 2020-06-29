@@ -93,11 +93,14 @@ def run_interactive_testcase(
 
         validator_ok = validator_process.returncode
 
+        print_verdict = None
         if validator_ok != config.RTV_AC and validator_ok != config.RTV_WA:
             config.n_error += 1
             verdict = 'VALIDATOR_CRASH'
         elif did_timeout:
             verdict = 'TIME_LIMIT_EXCEEDED'
+            if tend-tstart > timeout:
+                print_verdict = 'TLE (aborted)'
         elif ok is not True:
             verdict = 'RUN_TIME_ERROR'
         elif validator_ok == config.RTV_WA:
@@ -106,7 +109,7 @@ def run_interactive_testcase(
             verdict = 'ACCEPTED'
 
         # Set result.err to validator error and result.out to team error.
-        return ExecResult(True, tend - start, validator_err.decode('utf-8'), err, verdict)
+        return ExecResult(True, tend - start, validator_err.decode('utf-8'), err, verdict, print_verdict)
 
     # On Linux:
     # - Create 2 pipes
@@ -246,6 +249,7 @@ while True:
         os.close(val_log_in)
 
     did_timeout = submission_time > timelimit
+    aborted = submission_time > timeout
 
     # If submission timed out: TLE
     # If team exists first with TLE/RTE -> TLE/RTE
@@ -256,8 +260,10 @@ while True:
     # - more team output -> WA
     # - no more team output -> AC
 
-    if submission_time >= timeout:
+    print_verdict = None
+    if aborted:
         verdict = 'TIME_LIMIT_EXCEEDED'
+        print_verdict = 'TLE (aborted)'
     elif validator_status != config.RTV_AC and validator_status != config.RTV_WA:
         config.n_error += 1
         verdict = 'VALIDATOR_CRASH'
@@ -287,4 +293,4 @@ while True:
     team_err = None
     if team_error is not None: team_err = submission.stderr.read().decode('utf-8')
 
-    return ExecResult(True, submission_time, val_err, team_err, verdict)
+    return ExecResult(True, submission_time, val_err, team_err, verdict, print_verdict)

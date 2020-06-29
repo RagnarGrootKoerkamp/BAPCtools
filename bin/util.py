@@ -539,12 +539,17 @@ def get_memory_limit(kwargs=None):
 
 
 class ExecResult:
-    def __init__(self, ok, duration, err, out, verdict=None):
+    def __init__(self, ok, duration, err, out, verdict=None, print_verdict=None):
         self.ok = ok
         self.duration = duration
         self.err = err
         self.out = out
         self.verdict = verdict
+        self.print_verdict_ = print_verdict
+
+    def print_verdict(self):
+        if self.print_verdict_: return self.print_verdict_
+        return self.verdict
 
 def limit_setter(command, timeout, memory_limit):
     def setlimits():

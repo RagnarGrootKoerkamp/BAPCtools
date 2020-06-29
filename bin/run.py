@@ -140,6 +140,8 @@ class Run:
             result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
+                if result.duration >= self.problem.settings.timeout:
+                    result.print_verdict_ = 'TLE (aborted)'
             elif result.ok is not True:
                 result.verdict = 'RUN_TIME_ERROR'
                 if config.args.error:
@@ -251,7 +253,7 @@ class Submission(program.Program):
 
         max_duration = -1
 
-        verdict = (-100, 'ACCEPTED', 0)  # priority, verdict, duration
+        verdict = (-100, 'ACCEPTED', 'ACCEPTED', 0)  # priority, verdict, print_verdict, duration
         verdict_run = None
 
         # TODO: Run multiple runs in parallel.
@@ -259,7 +261,7 @@ class Submission(program.Program):
             bar.start(run)
             result = run.run()
 
-            new_verdict = (config.PRIORITY[result.verdict], result.verdict, result.duration)
+            new_verdict = (config.PRIORITY[result.verdict], result.verdict, result.print_verdict(), result.duration)
             if new_verdict > verdict:
                 verdict = new_verdict
                 verdict_run = run
@@ -284,7 +286,7 @@ class Submission(program.Program):
                 if result.out:
                     data = result.out
 
-            bar.done(got_expected, f'{result.duration:6.3f}s {result.verdict}', data)
+            bar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
             # Lazy judging: stop on the first error when not in verbose mode.
             if not config.args.verbose and result.verdict in config.MAX_PRIORITY_VERDICT:
@@ -292,6 +294,7 @@ class Submission(program.Program):
                 break
 
         self.verdict = verdict[1]
+        self.print_verdict = verdict[2]
         self.duration = max_duration
 
         # Use a bold summary line if things were printed before.
@@ -304,7 +307,7 @@ class Submission(program.Program):
 
         printed_newline = bar.finalize(
             message=
-            f'{max_duration:6.3f}s {color}{verdict[1]:<20}{cc.reset} @ {verdict_run.testcase.name}'
+            f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{cc.reset} @ {verdict_run.testcase.name}'
         )
 
         return (self.verdict == self.expected_verdict, printed_newline)
