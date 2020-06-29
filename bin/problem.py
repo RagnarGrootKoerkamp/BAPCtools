@@ -204,7 +204,7 @@ class Problem:
         # Filter out broken submissions.
         for p in programs:
             if p.ok:
-                submissions[p.expected_verdict].append(p)
+                submissions[p.expected_verdicts[0]].append(p)
 
         if sum(len(submissions[x]) for x in submissions) == 0:
             submissions = False

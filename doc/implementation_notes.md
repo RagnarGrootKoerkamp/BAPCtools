@@ -2,6 +2,30 @@ u Implementation notes
 
 This document explains some miscellaneous parts of the implementation of BAPCtools that did not fit in the [Subcommand documentation](commands.md).
 
+# Extensions of problem format
+
+## `@EXPECTED_RESULTS@: `
+Submissions may contain the string `@EXPECTED_RESULTS@: ` anywhere in their source to indicate which verdicts are allowed for this submission.
+This should be followed by a list of comma separated verdicts from
+
+- `ACCEPTED`,
+- `WRONG_ANSWER`,
+- `TIME_LIMIT_EXCEEDED`,
+- `RUN_TIME_ERROR`.
+
+Matching is case insensitive and extra white space is allowed. Examples:
+- `// @EXPECTED_RESULTS@: WRONG_ANSWER`
+- `# @EXPECTED_RESULTS@: ACCEPTED, TIME_LIMIT_EXCEEDED`
+
+Note that `ACCEPTED` must be explicitly listed in case this submission is expected to successfully solve some testcases.
+
+## Non-standard `generators.yaml` keys
+
+The following non-standard top-level `generators/generators.yaml` keys are supported:
+- `parallel` (default `True`): Can be used to disable parallelization when generating testcases.
+- `gitignore_generatred` (default `False`): Can be used to automatically write a `data/.gitignore` containing a single gitignore line like `secret/testcase.*` for each generated testcase.
+  This file should not be modified manually as it will be overwritten each time testcases are regenerated.
+
 # Building and running in tmpfs
 
 For efficiency, BAPCtools tries to minimize the number of disk writes. This means that it will do as many things as possible in RAM. In practice, `tmpfs` (temporary file system in RAM) is used for this.
@@ -57,13 +81,6 @@ Testcases are only re-generated when changes were made. This is done with the fo
 1. If provided, run the visualizer with working directory `~testcase`.
 1. Copy generated files to the `data/` directory. For changed files, `--force` is needed to overwrite them.
 1. Update the `~testcase/meta_.yaml` file with the invocations of the generator, solution, and visualizer.
-
-### Non-standard `generators.yaml` keys
-
-The following non-standard top-level `generators/generators.yaml` keys are supported:
-- `parallel` (default `True`): Can be used to disable parallelization when generating testcases.
-- `gitignore_generatred` (default `False`): Can be used to automatically write a `data/.gitignore` containing a single gitignore line like `secret/testcase.*` for each generated testcase.
-  This file should not be modified manually as it will be overwritten each time testcases are regenerated.
 
 # Building LaTeX files
 

@@ -209,10 +209,54 @@ class Submission(program.Program):
     def __init__(self, problem, path, skip_double_build_warning=False):
         super().__init__(problem, path, skip_double_build_warning=skip_double_build_warning)
 
-        subdir = self.short_path.parts[0]
-        self.expected_verdict = subdir.upper() if subdir.upper() in config.VERDICTS else 'ACCEPTED'
         self.verdict = None
         self.duration = None
+
+        # The first element will match the directory the file is in, if possible.
+        self.expected_verdicts = self._get_expected_verdicts()
+
+    def _get_expected_verdicts(self):
+        verdicts = []
+
+        # Look for '@EXPECTED_RESULTS@: ' in all source files. This should be followed by a comma separated list of the following:
+        # - ACCEPTED
+        # - WRONG_ANSWER
+        # - TIME_LIMIT_EXCEEDED
+        # - RUN_TIME_ERROR
+        # Matching is case insensitive and all source files are checked.
+        key = '@EXPECTED_RESULTS@: '
+        if self.path.is_file:
+            files = [self.path]
+        elif self.path.is_dir:
+            files = [self.path.glob('**/*')]
+        else:
+            files = []
+        for f in files:
+            try:
+                text = f.read_text().upper()
+                beginpos = text.index(key) + len(key)
+                endpos = text.find('\n', beginpos)
+                arguments = map(str.strip, text[beginpos:endpos].split(','))
+                for arg in arguments:
+                    if arg not in config.VERDICTS:
+                        error(f'@EXPECTED_RESULT@ {arg} for submission {self.short_path} is not valid')
+                        continue
+                    verdicts.append(arg)
+                break
+            except (UnicodeDecodeError, ValueError):
+                # Skip binary files.
+                # Skip files where the key does not occur.
+                pass
+
+        subdir = self.short_path.parts[0].upper()
+        if subdir in config.VERDICTS:
+            if len(verdicts) > 0 and subdir not in verdicts:
+                error(f'Submission {self.short_path} must have implicit verdict {subdir} listed in @EXPECTED_RESULTS@.')
+            verdicts = [subdir] + verdicts
+
+        if len(verdicts) == 0:
+            verdicts = ['ACCEPTED']
+        return verdicts
 
     # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
     # args is used by SubmissionInvocation to pass on additional arguments.
@@ -271,7 +315,7 @@ class Submission(program.Program):
                 table_dict[run.name] = result.verdict == 'ACCEPTED'
 
             # TODO: Use @EXPECTED_RESULT@ annotations as used in DOMjudge here.
-            got_expected = result.verdict == 'ACCEPTED' or result.verdict == self.expected_verdict
+            got_expected = result.verdict in self.expected_verdicts
 
             # Print stderr whenever something is printed
             if result.out and result.err:
@@ -299,10 +343,10 @@ class Submission(program.Program):
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
-            color = cc.boldgreen if self.verdict == self.expected_verdict else cc.boldred
+            color = cc.boldgreen if self.verdict in self.expected_verdicts else cc.boldred
             boldcolor = cc.bold
         else:
-            color = cc.green if self.verdict == self.expected_verdict else cc.red
+            color = cc.green if self.verdict in self.expected_verdicts else cc.red
             boldcolor = ''
 
         printed_newline = bar.finalize(
@@ -310,7 +354,7 @@ class Submission(program.Program):
             f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{cc.reset} @ {verdict_run.testcase.name}'
         )
 
-        return (self.verdict == self.expected_verdict, printed_newline)
+        return (self.verdict in self.expected_verdicts, printed_newline)
 
     def test(self):
         print(ProgressBar.action('Running', str(self.name)))
