@@ -742,7 +742,7 @@ class Directory(Rule):
                             f.unlink()
                         bar.log(f'Deleted untracked {ft} {name}')
                     else:
-                        bar.warn(f'Untracked {ft} {name}. Delete with generate --clean.')
+                        bar.log(f'Untracked {ft} {name}. Delete with generate --clean.')
                 continue
 
             if config.args.clean:
