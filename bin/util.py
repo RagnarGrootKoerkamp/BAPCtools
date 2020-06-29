@@ -559,6 +559,9 @@ def limit_setter(command, timeout, memory_limit):
         if memory_limit and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']:
             resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
+        # Disable coredumps.
+        resource.setrlimit(resource.RLIMIT_CORE, (0,0))
+
     return setlimits
 
 # Run `command`, returning stderr if the return code is unexpected.
