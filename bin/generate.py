@@ -133,7 +133,7 @@ class GeneratorInvocation(Invocation):
             else:
                 bar.error(f'Failed', result.err)
 
-        if result.ok is True and config.args.error:
+        if result.ok is True and config.args.error and result.err:
             bar.log('stderr', result.err)
 
         return result
@@ -153,7 +153,7 @@ class VisualizerInvocation(Invocation):
         elif result.ok is not True:
             bar.error('Failed', result.err)
 
-        if result.ok is True and config.args.error:
+        if result.ok is True and config.args.error and result.err:
             bar.log('stderr', result.err)
         return result
 
@@ -176,7 +176,7 @@ class SolutionInvocation(Invocation):
         elif result.ok is not True:
             bar.error('Failed', result.err)
 
-        if result.ok is True and config.args.error:
+        if result.ok is True and config.args.error and result.err:
             bar.log('stderr', result.err)
         return result
 
