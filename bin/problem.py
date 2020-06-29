@@ -98,7 +98,7 @@ class Problem:
                 f'Unrecognised validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}'
             )
 
-        if self.settings.validator_flags is not None:
+        if isinstance(self.settings.validator_flags, str):
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
 
         self.interactive = self.settings.validation == 'custom interactive'
