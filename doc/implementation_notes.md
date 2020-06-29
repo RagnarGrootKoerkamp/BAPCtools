@@ -6,7 +6,12 @@ This document explains some miscellaneous parts of the implementation of BAPCtoo
 
 ## `@EXPECTED_RESULTS@: `
 Submissions may contain the string `@EXPECTED_RESULTS@: ` anywhere in their source to indicate which verdicts are allowed for this submission.
-This should be followed by a list of comma separated verdicts from
+
+- The final verdict of the submission must be in this list.
+- Each testcase must either be accepted or have a verdict in this list. (This is to prevent issues with lazy judging/changing verdict priorities where the first non accepted testcase will be the final verdict.)
+
+
+The `@EXPECTED_RESULTS@: ` tag should be followed by a comma separated list of verdicts from
 
 - `ACCEPTED`,
 - `WRONG_ANSWER`,
@@ -22,9 +27,7 @@ Additionally, the following DOMjudge equivalents may be used:
 
 Matching is case insensitive and extra white space is allowed. Examples:
 - `// @EXPECTED_RESULTS@: WRONG_ANSWER`
-- `# @EXPECTED_RESULTS@: ACCEPTED, TIME_LIMIT_EXCEEDED`
-
-Note that `ACCEPTED` must be explicitly listed in case this submission is expected to successfully solve some testcases.
+- `# @expected_results@: accepted,time_limit_exceeded, no-output`
 
 ## Non-standard `generators.yaml` keys
 

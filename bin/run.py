@@ -226,10 +226,10 @@ class Submission(program.Program):
         domjudge_verdict_map = {'CORRECT': 'ACCEPTED', 'WRONG-ANSWER': 'WRONG_ANSWER', 'TIMELIMIT': 'TIME_LIMIT_EXCEEDED', 'RUN-ERROR': 'RUN_TIME_ERROR', 'NO-OUTPUT': 'WRONG_ANSWER', 'CHECK-MANUALLY': None}
         # Matching is case insensitive and all source files are checked.
         key = '@EXPECTED_RESULTS@: '
-        if self.path.is_file:
+        if self.path.is_file():
             files = [self.path]
-        elif self.path.is_dir:
-            files = [self.path.glob('**/*')]
+        elif self.path.is_dir():
+            files = self.path.glob('**/*')
         else:
             files = []
         for f in files:
