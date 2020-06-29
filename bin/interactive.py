@@ -99,7 +99,7 @@ def run_interactive_testcase(
             verdict = 'VALIDATOR_CRASH'
         elif did_timeout:
             verdict = 'TIME_LIMIT_EXCEEDED'
-            if tend-tstart > timeout:
+            if tend-tstart >= timeout:
                 print_verdict = 'TLE (aborted)'
         elif ok is not True:
             verdict = 'RUN_TIME_ERROR'
@@ -249,7 +249,7 @@ while True:
         os.close(val_log_in)
 
     did_timeout = submission_time > timelimit
-    aborted = submission_time > timeout
+    aborted = submission_time >= timeout
 
     # If submission timed out: TLE
     # If team exists first with TLE/RTE -> TLE/RTE
