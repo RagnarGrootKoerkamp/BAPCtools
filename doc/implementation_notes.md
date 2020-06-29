@@ -58,6 +58,13 @@ Testcases are only re-generated when changes were made. This is done with the fo
 1. Copy generated files to the `data/` directory. For changed files, `--force` is needed to overwrite them.
 1. Update the `~testcase/meta_.yaml` file with the invocations of the generator, solution, and visualizer.
 
+### Non-standard `generators.yaml` keys
+
+The following non-standard top-level `generators/generators.yaml` keys are supported:
+- `parallel` (default `True`): Can be used to disable parallelization when generating testcases.
+- `gitignore_generatred` (default `False`): Can be used to automatically write a `data/.gitignore` containing a single gitignore line like `secret/testcase.*` for each generated testcase.
+  This file should not be modified manually as it will be overwritten each time testcases are regenerated.
+
 # Building LaTeX files
 
 ## Problem/contest pdf
