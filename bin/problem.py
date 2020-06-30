@@ -437,10 +437,10 @@ class Problem:
 
     # Validate the format of the input or output files.
     # For input_format validation, also make sure all testcases are different.
-    def validate_format(problem, validator_type, check_constraints=False):
+    def validate_format(problem, validator_type, constraints=None):
         assert validator_type in ['input_format', 'output_format']
 
-        validators = problem.validators(validator_type, check_constraints=check_constraints)
+        validators = problem.validators(validator_type, check_constraints=constraints is not None)
 
         if problem.interactive and validator_type == 'output_format':
             log('Not validating .ans for interactive problem.')
@@ -459,8 +459,6 @@ class Problem:
         action = 'Validating ' + validator_type
 
         success = True
-
-        constraints = {} if check_constraints else None
 
         problem.reset_testcase_hashes()
 
@@ -482,17 +480,17 @@ class Problem:
         bar.finalize(print_done=True)
 
         # Make sure all constraints are satisfied.
-        if check_constraints:
+        if constraints:
             for loc, value in sorted(constraints.items()):
                 loc = Path(loc).name
-                has_low, has_high, vmin, vmax, low, high = value
+                name, has_low, has_high, vmin, vmax, low, high = value
                 if not has_low:
                     warn(
-                        f'BOUND NOT REACHED: The value at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}'
+                        f'BOUND NOT REACHED: The value of `{name}` at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}'
                     )
                 if not has_high:
                     warn(
-                        f'BOUND NOT REACHED: The value at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}'
+                        f'BOUND NOT REACHED: The value of `{name}` at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}'
                     )
                 success = False
 

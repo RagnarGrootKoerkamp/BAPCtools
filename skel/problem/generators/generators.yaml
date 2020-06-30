@@ -6,7 +6,7 @@ data:
     type: directory
     solution:
     data:
-      #1:
+      #'1':
 
   secret:
     type: directory

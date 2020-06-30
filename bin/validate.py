@@ -40,7 +40,7 @@ def _merge_constraints(constraints_path, constraints):
     # Merge with previous constraints.
     if constraints_path.is_file():
         for line in constraints_path.read_text().splitlines():
-            loc, has_low, has_high, vmin, vmax, low, high = line.split()
+            loc, name, has_low, has_high, vmin, vmax, low, high = line.split()
             has_low = bool(int(has_low))
             has_high = bool(int(has_high))
             try:
@@ -53,15 +53,15 @@ def _merge_constraints(constraints_path, constraints):
                 vmax = float(vmax)
             if loc in constraints:
                 c = constraints[loc]
-                has_low |= c[0]
-                has_high |= c[1]
-                if c[2] < vmin:
-                    vmin = c[2]
-                    low = c[4]
-                if c[3] > vmax:
-                    vmax = c[3]
-                    high = c[5]
-            constraints[loc] = (has_low, has_high, vmin, vmax, low, high)
+                has_low |= c[1]
+                has_high |= c[2]
+                if c[3] < vmin:
+                    vmin = c[3]
+                    low = c[5]
+                if c[4] > vmax:
+                    vmax = c[4]
+                    high = c[6]
+            constraints[loc] = (name, has_low, has_high, vmin, vmax, low, high)
 
         constraints_path.unlink()
 

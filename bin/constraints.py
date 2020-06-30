@@ -1,4 +1,5 @@
 import re
+import itertools
 
 import validate
 
@@ -12,10 +13,12 @@ from util import *
 """
 
 
-# TODO: Instead of grepping the input validator, we should just store the variable names in the constraints output file directly.
 def check_constraints(problem, settings):
-    problem.validate_format('input_format', check_constraints=True)
-    problem.validate_format('output_format', check_constraints=True)
+    in_constraints = {}
+    ans_constraints = {}
+    problem.validate_format('input_format', constraints=in_constraints)
+    problem.validate_format('output_format', constraints=ans_constraints)
+    print()
 
     vinput = problem.path / 'input_validators/input_validator/input_validator.cpp'
     voutput = problem.path / 'output_validators/output_validator/output_validator.cpp'
@@ -29,32 +32,29 @@ def check_constraints(problem, settings):
         ), 1, 2, 3),
     ]
 
+    validator_values = set()
     defs_validators = []
-    for validator in [vinput, voutput]:
-        print(validator)
-        if not validator.is_file():
-            warn(f'{print_name(validator)} does not exist.')
-            continue
-        with open(validator) as file:
-            for line in file:
-                for r, name, v1, v2 in cpp_statement:
-                    mo = r.search(line)
-                    if mo is not None:
-                        if mo.group(v1) is not None:
-                            defs_validators.append([mo.group(name) or '', mo.group(v1)])
-                        if v2 is not None and mo.group(v2) is not None:
-                            defs_validators.append([mo.group(name) or '', mo.group(v2)])
+    def f(cs):
+        for loc, value in sorted(cs.items()):
+            name, has_low, has_high, vmin, vmax, low, high = value
+            defs_validators.append([low, name, high])
+            validator_values.add(eval(low))
+            validator_values.add(eval(high))
+
+    f(in_constraints)
+    defs_validators.append('')
+    defs_validators.append('OUTPUT')
+    f(ans_constraints)
+
 
     statement = problem.path / 'problem_statement/problem.en.tex'
-    #latex_define = re.compile(r'^\\newcommand{\\\\(\w+)}{(.*)}$')
     latex_defines = [
-        (re.compile(r'{\\\\(\w+)}{(.*)}'), 1, 2, False),
-        (re.compile(r'([0-9-e,.^]+)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*(\w*)'), 2, 1,
-         True),
-        (re.compile(r'(\w*)\s*(?:\\\\leq|\\\\geq|\\\\le|\\\\ge|<|>|=)\s*([0-9-e,.^]+)'), 1, 2,
-         True),
+        (re.compile(r'(?:new|command|define).*{\\(\w+)}{(.*)}'), 1, 2, False),
+        (re.compile(r'\$(.*(?:\\leq|\\geq|\\le|\\ge|<|>|=).*)\$'), 1, None, True),
+        (re.compile(r'(-?\d[{}\d,.\-^]*)'), None, 1, True),
     ]
 
+    statement_values = set()
     defs_statement = []
     input_output = False
     with open(statement) as file:
@@ -75,28 +75,71 @@ def check_constraints(problem, settings):
                 if mo is not None:
                     mo = r.search(line)
                     if mo is not None:
-                        if mo.group(value) is not None:
-                            defs_statement.append([mo.group(name) or '', mo.group(value)])
+                        name_string = None
+                        if name: name_string = mo.group(name) or ''
+
+                        value_string = None
+                        if value is not None and mo.group(value) is not None:
+                            value_string = mo.group(value)
+                            eval_string = value_string
+                            eval_string = re.sub(r'\\frac{(.*)}{(.*)}', r'(\1)/(\2)', eval_string)
+                            eval_string = eval_string.replace('^', '**')
+                            eval_string = eval_string.replace('{,}', '')
+                            eval_string = eval_string.replace('\,', '')
+                            eval_string = eval_string.replace(',', '')
+                            eval_string = eval_string.replace('{', '(')
+                            eval_string = eval_string.replace('}', ')')
+                            eval_string = eval_string.replace('\cdot', '*')
+                            try:
+                                val = eval(eval_string)
+                                statement_values.add(eval(eval_string))
+                            except (SyntaxError, NameError) as e:
+                                log(f'SyntaxError for {value_string} when trying to evaluate {eval_string} ')
+                                log(str(e))
+
+                        l = []
+                        if name_string: l.append(name_string)
+                        if value_string: l.append(value_string)
+                        defs_statement.append(l)
+    defs_statement.sort()
 
     # print all the definitions.
-    nl = len(defs_validators)
-    nr = len(defs_statement)
+    value_len = 12
+    name_len = 8
+    left_width = 8 + name_len + 2*value_len
 
-    print('{:^30}|{:^30}'.format('  VALIDATORS', '      PROBLEM STATEMENT'), sep='')
-    for i in range(0, max(nl, nr)):
-        if i < nl:
-            print('{:>15}  {:<13}'.format(defs_validators[i][0], defs_validators[i][1]),
+    print('{:^{width}}|{:^30}'.format('VALIDATORS', '      PROBLEM STATEMENT', width=left_width), sep='')
+    for val, st in itertools.zip_longest(defs_validators, defs_statement):
+        if val is not None:
+            if isinstance(val, str):
+                print('{:^{width}}'.format(val, width=left_width), sep='',end='')
+            else:
+                print('{:>{value_len}} <= {:^{name_len}} <= {:<{value_len}}'.format(*val, name_len=name_len,value_len=value_len),
                   sep='',
                   end='')
         else:
-            print('{:^30}'.format(''), sep='', end='')
+            print('{:^{width}}'.format('', width=left_width), sep='', end='')
         print('|', end='')
-        if i < nr:
-            print('{:>15}  {:<13}'.format(defs_statement[i][0], defs_statement[i][1]),
-                  sep='',
-                  end='')
+        if st is not None:
+            if len(st) == 2:
+                print('{:>15}  {:<13}'.format(*st), sep='', end='')
+            else:
+                print('{:^30}'.format(*st), sep='', end='')
         else:
             print('{:^30}'.format(''), sep='', end='')
         print()
+
+    print()
+
+    extra_in_validator = validator_values.difference(statement_values)
+    if extra_in_validator:
+        warn('Values in validators but not in statement:')
+        for v in extra_in_validator:
+            print(v)
+    extra_in_statement = statement_values.difference(validator_values)
+    if extra_in_validator:
+        warn('Values in statement but not in input validators:')
+        for v in extra_in_statement:
+            print(v)
 
     return True
