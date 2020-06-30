@@ -12,6 +12,7 @@ if not is_windows():
 
 BUFFER_SIZE = 2**20
 
+
 # Return a ExecResult object amended with verdict.
 def run_interactive_testcase(
         run,
@@ -39,7 +40,9 @@ def run_interactive_testcase(
 
     # Validator command
     validator_command = output_validator.run_command + [
-        run.testcase.in_path.resolve(), run.testcase.ans_path.resolve(), run.feedbackdir.resolve()
+        run.testcase.in_path.resolve(),
+        run.testcase.ans_path.resolve(),
+        run.feedbackdir.resolve()
     ] + run.problem.settings.validator_flags
 
     submission_command = run.submission.run_command
@@ -100,7 +103,7 @@ def run_interactive_testcase(
             verdict = 'VALIDATOR_CRASH'
         elif did_timeout:
             verdict = 'TIME_LIMIT_EXCEEDED'
-            if tend-tstart >= timeout:
+            if tend - tstart >= timeout:
                 print_verdict = 'TLE (aborted)'
         elif ok is not True:
             verdict = 'RUN_TIME_ERROR'
@@ -110,7 +113,8 @@ def run_interactive_testcase(
             verdict = 'ACCEPTED'
 
         # Set result.err to validator error and result.out to team error.
-        return ExecResult(True, tend - start, validator_err.decode('utf-8'), err, verdict, print_verdict)
+        return ExecResult(True, tend - start, validator_err.decode('utf-8'), err, verdict,
+                          print_verdict)
 
     # On Linux:
     # - Create 2 pipes
@@ -172,7 +176,6 @@ while True:
                                    stderr=interaction_file)
         val_tee_pid = val_tee.pid
 
-
     # Use manual pipes with a large buffer instead of subprocess.PIPE for validator and team output.
     if validator_error is False:
         validator_error_in, validator_error_out = mkpipe()
@@ -188,7 +191,8 @@ while True:
                                  stdout=val_out,
                                  stderr=validator_error_out,
                                  cwd=validator_dir,
-                                 preexec_fn=limit_setter(validator_command, validator_timeout, None))
+                                 preexec_fn=limit_setter(validator_command, validator_timeout,
+                                                         None))
     validator_pid = validator.pid
 
     submission = subprocess.Popen(submission_command,
@@ -196,7 +200,8 @@ while True:
                                   stdout=team_out,
                                   stderr=team_error_out,
                                   cwd=submission_dir,
-                                  preexec_fn=limit_setter(submission_command, timeout, memory_limit))
+                                  preexec_fn=limit_setter(submission_command, timeout,
+                                                          memory_limit))
     submission_pid = submission.pid
 
     os.close(team_out)
@@ -219,7 +224,6 @@ while True:
         if interaction:
             team_tee.kill()
             val_tee.kill()
-
 
     signal.signal(signal.SIGALRM, kill_submission)
 
@@ -252,7 +256,6 @@ while True:
         if pid == val_tee_pid: continue
 
         assert False
-
 
     os.close(team_in)
     os.close(val_in)

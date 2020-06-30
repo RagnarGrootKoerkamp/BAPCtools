@@ -76,7 +76,13 @@ def languages():
 #
 # build() will return the (run_command, message) pair.
 class Program:
-    def __init__(self, problem, path, deps=None, *, skip_double_build_warning=False, check_constraints=False):
+    def __init__(self,
+                 problem,
+                 path,
+                 deps=None,
+                 *,
+                 skip_double_build_warning=False,
+                 check_constraints=False):
         if deps is not None:
             assert isinstance(self, Generator)
             assert isinstance(deps, list)
@@ -85,7 +91,7 @@ class Program:
         assert not self.__class__ is Program
 
         # Make sure we never try to build the same program twice. That'd be stupid.
-        if not skip_double_build_warning :
+        if not skip_double_build_warning:
             if path in problem._programs:
                 error(f'Why would you build {path} twice?')
                 assert path not in problem._programs
@@ -99,7 +105,8 @@ class Program:
         # Ideally they are the same as the path inside the problem, but fallback to just the name.
         try:
             # Only resolve the parent of the program. This preserves programs that are symlinks to other directories.
-            relpath = (path.parent.resolve()/path.name).relative_to(problem.path.resolve() / self.subdir)
+            relpath = (path.parent.resolve() / path.name).relative_to(
+                problem.path.resolve() / self.subdir)
             self.short_path = relpath
             self.name = str(relpath)
             self.tmpdir = problem.tmpdir / self.subdir / relpath
@@ -109,7 +116,7 @@ class Program:
             self.tmpdir = problem.tmpdir / self.subdir / path.name
 
         if check_constraints:
-            self.tmpdir = self.tmpdir.parent / (self.tmpdir.name+ '_check_constraints')
+            self.tmpdir = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
 
         self.compile_command = None
         self.check_constraints = check_constraints
@@ -128,7 +135,8 @@ class Program:
             if path.is_dir():
                 self.source_files = list(glob(path, '*'))
                 # Filter out __pycache__ files.
-                self.source_files = list(filter(lambda f: f.name != '__pycache__', self.source_files))
+                self.source_files = list(
+                    filter(lambda f: f.name != '__pycache__', self.source_files))
             elif path.is_file():
                 self.source_files = [path]
             else:
@@ -216,14 +224,11 @@ class Program:
             for f in files:
                 if f.read_text().find('bits/stdc++.h') != -1:
                     if 'validators/' in str(f):
-                        bar.error(
-                            f'Must not depend on bits/stdc++.h.'
-                        )
+                        bar.error(f'Must not depend on bits/stdc++.h.')
                         self.ok = False
                         return False
                     else:
-                        self.bar.warn(
-                            f'Should not depend on bits/stdc++.h')
+                        self.bar.warn(f'Should not depend on bits/stdc++.h')
         return True
 
     # Return True on success.

@@ -76,8 +76,10 @@ class Testcase:
             if ret.ok is not True or config.args.error:
                 if ret.err and ret.out:
                     ret.out = ret.err + f'\n{cc.red}VALIDATOR STDOUT{cc.reset}\n' + cc.orange + ret.out
-                elif ret.err: data = ret.err
-                elif ret.out: data = ret.out
+                elif ret.err:
+                    data = ret.err
+                elif ret.out:
+                    data = ret.out
             else:
                 data = ret.err
 
@@ -163,7 +165,8 @@ class Run:
                     result.verdict = 'VALIDATOR_CRASH'
 
             # Delete .out files larger than 1MB.
-            if not config.args.error and self.out_path.is_file() and self.out_path.stat().st_size > 1000000000:
+            if not config.args.error and self.out_path.is_file(
+            ) and self.out_path.stat().st_size > 1000000000:
                 self.out_path.unlink()
 
         self.result = result
@@ -223,7 +226,15 @@ class Submission(program.Program):
         # - WRONG_ANSWER / WRONG-ANSWER / NO-OUTPUT
         # - TIME_LIMIT_EXCEEDED / TIMELIMIT
         # - RUN_TIME_ERROR / RUN-ERROR
-        domjudge_verdict_map = {'CORRECT': 'ACCEPTED', 'WRONG-ANSWER': 'WRONG_ANSWER', 'TIMELIMIT': 'TIME_LIMIT_EXCEEDED', 'RUN-ERROR': 'RUN_TIME_ERROR', 'NO-OUTPUT': 'WRONG_ANSWER', 'CHECK-MANUALLY': None, 'COMPILER-ERROR': None}
+        domjudge_verdict_map = {
+            'CORRECT': 'ACCEPTED',
+            'WRONG-ANSWER': 'WRONG_ANSWER',
+            'TIMELIMIT': 'TIME_LIMIT_EXCEEDED',
+            'RUN-ERROR': 'RUN_TIME_ERROR',
+            'NO-OUTPUT': 'WRONG_ANSWER',
+            'CHECK-MANUALLY': None,
+            'COMPILER-ERROR': None
+        }
         # Matching is case insensitive and all source files are checked.
         key = '@EXPECTED_RESULTS@: '
         if self.path.is_file():
@@ -245,7 +256,9 @@ class Submission(program.Program):
                         if arg is None:
                             continue
                     if arg not in config.VERDICTS:
-                        error(f'@EXPECTED_RESULT@ {arg} for submission {self.short_path} is not valid')
+                        error(
+                            f'@EXPECTED_RESULT@ {arg} for submission {self.short_path} is not valid'
+                        )
                         continue
                     verdicts.append(arg)
                 break
@@ -257,7 +270,9 @@ class Submission(program.Program):
         subdir = self.short_path.parts[0].upper()
         if subdir in config.VERDICTS:
             if len(verdicts) > 0 and subdir not in verdicts:
-                error(f'Submission {self.short_path} must have implicit verdict {subdir} listed in @EXPECTED_RESULTS@.')
+                error(
+                    f'Submission {self.short_path} must have implicit verdict {subdir} listed in @EXPECTED_RESULTS@.'
+                )
                 verdicts = [subdir] + verdicts
             elif len(verdicts) == 0:
                 verdicts = [subdir]
@@ -313,7 +328,8 @@ class Submission(program.Program):
             bar.start(run)
             result = run.run()
 
-            new_verdict = (config.PRIORITY[result.verdict], result.verdict, result.print_verdict(), result.duration)
+            new_verdict = (config.PRIORITY[result.verdict], result.verdict, result.print_verdict(),
+                           result.duration)
             if new_verdict > verdict:
                 verdict = new_verdict
                 verdict_run = run
@@ -328,8 +344,7 @@ class Submission(program.Program):
             if result.out and result.err:
                 output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
                 data = f'STDERR:' + bar._format_data(
-                    result.err) + f'\n{output_type}:' + bar._format_data(
-                        result.out) + '\n'
+                    result.err) + f'\n{output_type}:' + bar._format_data(result.out) + '\n'
             else:
                 data = ''
                 if result.err:

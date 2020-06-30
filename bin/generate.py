@@ -17,7 +17,8 @@ import run
 from util import *
 from problem import Problem
 
-def check_type(name, obj, types, path = None):
+
+def check_type(name, obj, types, path=None):
     if not isinstance(types, list): types = [types]
     if obj is None:
         if obj in types: return
@@ -25,13 +26,17 @@ def check_type(name, obj, types, path = None):
         if obj.__class__ in types: return
     named_types = " or ".join(str(t) if t is None else t.__name__ for t in types)
     if path:
-        fatal(f'{name} must be of type {named_types}, found {obj.__class__.__name__} at {path}: {obj}')
+        fatal(
+            f'{name} must be of type {named_types}, found {obj.__class__.__name__} at {path}: {obj}'
+        )
     else:
         fatal(f'{name} must be of type {named_types}, found {obj.__class__.__name__}: {obj}')
 
 
 def is_testcase(yaml):
-    return yaml == None or isinstance(yaml, str) or (isinstance(yaml, dict) and 'input' in yaml and not ('type' in yaml and yaml['type'] != 'testcase'))
+    return yaml == None or isinstance(
+        yaml, str) or (isinstance(yaml, dict) and 'input' in yaml
+                       and not ('type' in yaml and yaml['type'] != 'testcase'))
 
 
 def is_directory(yaml):
@@ -77,7 +82,9 @@ class Invocation:
         self.command_string = string
 
         # The name of the program to be executed, relative to the problem root.
-        self.program_path = resolve_path(command, allow_absolute=allow_absolute, allow_relative=allow_relative)
+        self.program_path = resolve_path(command,
+                                         allow_absolute=allow_absolute,
+                                         allow_relative=allow_relative)
 
         # Make sure that {seed} occurs at most once.
         seed_cnt = 0
@@ -206,7 +213,7 @@ RESERVED_TESTCASE_KEYS = ['data', 'testdata.yaml', 'include']
 KNOWN_DIRECTORY_KEYS = [
     'type', 'data', 'testdata.yaml', 'include', 'solution', 'visualizer', 'random_salt', 'retries'
 ]
-RESERVED_DIRECTORY_KEYS = [ 'input' ]
+RESERVED_DIRECTORY_KEYS = ['input']
 KNOWN_ROOT_KEYS = ['generators', 'parallel', 'gitignore_generated']
 
 
@@ -220,10 +227,12 @@ class Config:
         check_type('Solution', x, [None, str], path)
         if x is None: return None
         return SolutionInvocation(p, x)
+
     def parse_visualizer(p, x, path):
         check_type('Visualizer', x, [None, str], path)
         if x is None: return None
         return VisualizerInvocation(p, x)
+
     def parse_random_salt(p, x, path):
         check_type('Random_salt', x, [None, str], path)
         if x is None: return ''
@@ -259,7 +268,7 @@ class Rule:
         assert parent is not None
 
         if isinstance(yaml, dict):
-            self.config = Config(problem, parent.path/name, yaml, parent_config = parent.config)
+            self.config = Config(problem, parent.path / name, yaml, parent_config=parent.config)
         else:
             self.config = parent.config
 
@@ -282,7 +291,9 @@ class TestcaseRule(Rule):
         self.manual_inline = False
 
         if isinstance(yaml, str) and len(yaml) == 0:
-            fatal(f'Manual testcase should be None or a relative path, not empty string at {parent.path/name}.')
+            fatal(
+                f'Manual testcase should be None or a relative path, not empty string at {parent.path/name}.'
+            )
 
         if yaml is None:
             self.manual = True
@@ -348,7 +359,8 @@ class TestcaseRule(Rule):
         # This is run When --check-deterministic is passed, which is also set to True when running `bt all`,
         # This doesn't do anything for manual cases.
         def check_deterministic():
-            if not(hasattr(config.args,'check_deterministic') and config.args.check_deterministic is True):
+            if not (hasattr(config.args, 'check_deterministic')
+                    and config.args.check_deterministic is True):
                 return
 
             if t.manual:
@@ -369,7 +381,6 @@ class TestcaseRule(Rule):
                 bar.part_done(True, 'Generator is deterministic.')
             else:
                 bar.part_done(False, f'Generator is not deterministic.')
-
 
         # The expected contents of the meta_ file.
         def up_to_date():
@@ -600,7 +611,6 @@ class Directory(Rule):
                 if key not in KNOWN_DIRECTORY_KEYS:
                     log(f'Unknown directory level key: {key} in {self.path}')
 
-
         if 'testdata.yaml' in yaml:
             self.testdata_yaml = yaml['testdata.yaml']
         else:
@@ -622,7 +632,9 @@ class Directory(Rule):
             yaml['data'] = [data]
             data = yaml['data']
             if parent.numbered is True:
-                fatal('Unnumbered data dictionaries may not appear inside numbered data lists at {self.path}.')
+                fatal(
+                    'Unnumbered data dictionaries may not appear inside numbered data lists at {self.path}.'
+                )
         else:
             self.numbered = True
             if len(data) == 0: return
@@ -752,7 +764,9 @@ class Directory(Rule):
                                 bar.log(f'Adding directory {name} to generators.yaml')
                                 generator_config.untracked_directory.add(relpath)
                             else:
-                                bar.log(f'Track {ft} {name} using --add-manual or delete using --clean.')
+                                bar.log(
+                                    f'Track {ft} {name} using --add-manual or delete using --clean.'
+                                )
                         else:
                             bar.log(f'Untracked {ft} {name}. Delete with generate --clean.')
                 continue
@@ -766,7 +780,9 @@ class Directory(Rule):
                     bar.log(f'Adding {relpath.name}.in to generators.yaml')
                     generator_config.untracked_inline_manual.add(relpath)
                 else:
-                    bar.log(f'Track manual case {relpath}.in using --add-manual or delete using --clean.')
+                    bar.log(
+                        f'Track manual case {relpath}.in using --add-manual or delete using --clean.'
+                    )
 
         bar.done()
         return True
@@ -804,7 +820,6 @@ class Directory(Rule):
 
             if d.path == Path('.') and f.name == 'bad':
                 continue
-
 
             # If --force/-f is passed, also clean unknown files.
             relpath = f.relative_to(problem.path / 'data')
@@ -893,7 +908,9 @@ class GeneratorConfig:
         def parse(name, yaml, parent):
             check_type('Testcase/directory', yaml, [None, str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
-                fatal(f'Could not parse {parent.path/name} as a testcase or directory. Try setting the type: key.')
+                fatal(
+                    f'Could not parse {parent.path/name} as a testcase or directory. Try setting the type: key.'
+                )
 
             if is_testcase(yaml):
                 if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
@@ -946,7 +963,9 @@ class GeneratorConfig:
                                 child_name = number_prefix
                         else:
                             if not child_name:
-                                fatal(f'Unnumbered testcases must not have an empty key: {Path("data")/d.path/child_name}/\'\'')
+                                fatal(
+                                    f'Unnumbered testcases must not have an empty key: {Path("data")/d.path/child_name}/\'\''
+                                )
                         c = parse(child_name, child_yaml, d)
                         if c is not None:
                             d.data.append(c)
@@ -1090,7 +1109,6 @@ class GeneratorConfig:
                     q.put(None)
                     q.task_done()
 
-
             def worker():
                 try:
                     while True:
@@ -1111,6 +1129,7 @@ class GeneratorConfig:
             def interrupt_handler(sig, frame):
                 clear_queue()
                 fatal('Running interrupted')
+
             signal.signal(signal.SIGINT, interrupt_handler)
 
             def maybe_join():
@@ -1122,7 +1141,10 @@ class GeneratorConfig:
                 maybe_join()
                 d.generate(self.problem, self, bar)
 
-            self.root_dir.walk( q.put, generate_dir,)
+            self.root_dir.walk(
+                q.put,
+                generate_dir,
+            )
 
             maybe_join()
 
@@ -1163,7 +1185,7 @@ class GeneratorConfig:
 
                 content = '# GENERATED BY BAPCtools\n# Do not modify.\n.gitignore\n'
                 for path in cases_to_ignore:
-                    content += str(path) + '.*\n';
+                    content += str(path) + '.*\n'
                 if content != text:
                     gitignorefile.write_text(content)
                     if config.args.verbose:
@@ -1181,7 +1203,9 @@ class GeneratorConfig:
         try:
             import ruamel.yaml
         except:
-            error('generate --add-manual needs the ruamel.yaml python3 library. Install python3-ruamel.yaml or python-ruamel-yaml.')
+            error(
+                'generate --add-manual needs the ruamel.yaml python3 library. Install python3-ruamel.yaml or python-ruamel-yaml.'
+            )
             return
 
         if len(self.untracked_inline_manual) == 0 and len(self.untracked_directory) == 0:
@@ -1212,7 +1236,6 @@ class GeneratorConfig:
             else:
                 assert False
 
-
         # Add missing testcases.
         for path in sorted(self.untracked_inline_manual):
             d = data
@@ -1231,10 +1254,6 @@ class GeneratorConfig:
         # Overwrite generators.yaml.
         yaml.dump(data, generators_yaml)
         log('Updated generators.yaml')
-
-
-
-
 
     def clean(self):
         item_names = []

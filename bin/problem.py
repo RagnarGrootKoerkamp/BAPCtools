@@ -166,11 +166,13 @@ class Problem:
 
         paths = []
         if hasattr(config.args, 'submissions') and config.args.submissions:
+
             def add(s):
                 if s in paths:
                     warn(f'Ignoring duplicate submission: {s}')
                     return
                 paths.append(s)
+
             for submission in config.args.submissions:
                 if (problem.path / submission).parent == problem.path / 'submissions':
                     for s in glob(problem.path / submission, '*'):
@@ -287,16 +289,17 @@ class Problem:
 
         if validator_type == 'input_format':
             validators = [
-                validate.InputValidator(problem, path,skip_double_build_warning=check_constraints, check_constraints=check_constraints)
-                for path in paths
+                validate.InputValidator(problem,
+                                        path,
+                                        skip_double_build_warning=check_constraints,
+                                        check_constraints=check_constraints) for path in paths
             ]
         else:
             validators = [
                 validate.OutputValidator(problem,
                                          path,
                                          skip_double_build_warning=check_constraints,
-                                         check_constraints=check_constraints)
-                for path in paths
+                                         check_constraints=check_constraints) for path in paths
             ]
 
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
@@ -409,7 +412,8 @@ class Problem:
 
         for testcase in testcases:
             # Skip all AC testcases
-            if all(map(lambda row: testcase.name in row and row[testcase.name], verdict_table)): continue
+            if all(map(lambda row: testcase.name in row and row[testcase.name], verdict_table)):
+                continue
 
             color = cc.reset
             if len(scores_list) > 6 and scores[testcase.name] >= scores_list[-6]:

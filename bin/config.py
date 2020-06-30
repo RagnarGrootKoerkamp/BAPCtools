@@ -30,10 +30,7 @@ TABLE_THRESHOLD = 4
 FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
-KNOWN_DATA_EXTENSIONS = [
-    '.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.svg'
-]
-
+KNOWN_DATA_EXTENSIONS = ['.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.svg']
 
 # The root directory of the BAPCtools repository.
 tools_root = Path(__file__).resolve().parent.parent
@@ -46,6 +43,7 @@ args = None
 # The program will return non-zero when the number of errors is nonzero.
 n_error = 0
 n_warn = 0
+
 
 # Return the command line timeout or the default of 30 seconds.
 def timeout():

@@ -374,7 +374,6 @@ def read_yaml(path):
     return settings
 
 
-
 # glob, but without hidden files
 def glob(path, expression):
     def keep(p):
@@ -551,6 +550,7 @@ class ExecResult:
         if self.print_verdict_: return self.print_verdict_
         return self.verdict
 
+
 def limit_setter(command, timeout, memory_limit):
     def setlimits():
         if timeout:
@@ -565,9 +565,10 @@ def limit_setter(command, timeout, memory_limit):
             resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
         # Disable coredumps.
-        resource.setrlimit(resource.RLIMIT_CORE, (0,0))
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 
     return setlimits
+
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
@@ -595,7 +596,10 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     tstart = time.monotonic()
     try:
         if not is_windows():
-            process = subprocess.Popen(command, preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs)), **kwargs)
+            process = subprocess.Popen(command,
+                                       preexec_fn=limit_setter(command, timeout,
+                                                               get_memory_limit(kwargs)),
+                                       **kwargs)
         else:
             process = subprocess.Popen(command, **kwargs)
         (stdout, stderr) = process.communicate(timeout=timeout)

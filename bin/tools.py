@@ -184,10 +184,11 @@ Run this from one of:
     global_parser.add_argument('--no-bar',
                                action='store_true',
                                help='Do not show progress bars in non-interactive environments.')
-    global_parser.add_argument('--error',
-                               '-e',
-                               action='store_true',
-                               help='Print full error of failing commands and some succeeding commands.')
+    global_parser.add_argument(
+        '--error',
+        '-e',
+        action='store_true',
+        help='Print full error of failing commands and some succeeding commands.')
     global_parser.add_argument('--cpp_flags',
                                help='Additional compiler flags used for all c++ compilations.')
     global_parser.add_argument('--force_build',
@@ -244,10 +245,16 @@ Run this from one of:
     validate_parser = subparsers.add_parser('validate',
                                             parents=[global_parser],
                                             help='validate all grammar')
-    validate_parser.add_argument('testcases', nargs='*', type=Path,help='The testcases to run on.')
+    validate_parser.add_argument('testcases',
+                                 nargs='*',
+                                 type=Path,
+                                 help='The testcases to run on.')
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
-    move_or_remove_group.add_argument('--remove', action='store_true', help='Remove failing testcsaes.')
-    move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
+    move_or_remove_group.add_argument('--remove',
+                                      action='store_true',
+                                      help='Remove failing testcsaes.')
+    move_or_remove_group.add_argument('--move-to',
+                                      help='Move failing testcases to this directory.')
 
     # input validations
     input_parser = subparsers.add_parser('input',
@@ -336,7 +343,7 @@ Run this from one of:
     testparser = subparsers.add_parser('test',
                                        parents=[global_parser],
                                        help='Run a single program and print the output.')
-    testparser.add_argument('submissions', nargs=1, type=Path,help='A single submission to run')
+    testparser.add_argument('submissions', nargs=1, type=Path, help='A single submission to run')
     testcasesgroup = testparser.add_mutually_exclusive_group()
     testcasesgroup.add_argument('testcases',
                                 nargs='*',
@@ -392,8 +399,10 @@ Run this from one of:
         'tmp',
         parents=[global_parser],
         help='Print the tmpdir corresponding to the current problem.')
-    tmpparser.add_argument('--clean', action='store_true', help='Delete the temporary cache directory for the current problem/contest.')
-
+    tmpparser.add_argument(
+        '--clean',
+        action='store_true',
+        help='Delete the temporary cache directory for the current problem/contest.')
 
     if not is_windows():
         argcomplete.autocomplete(parser)
@@ -441,14 +450,16 @@ def run_parsed_arguments(args):
     # 'submissions' and 'testcases' are only allowed at the problem level, and only when --problem is not specified.
     if level != 'problem' or config.args.problem is not None:
         if hasattr(config.args, 'submissions') and config.args.submissions:
-            fatal('Passing in a list of submissions only works when running from a problem directory.')
+            fatal(
+                'Passing in a list of submissions only works when running from a problem directory.'
+            )
         if hasattr(config.args, 'testcases') and config.args.testcases:
-            fatal('Passing in a list of testcases only works when running from a problem directory.')
+            fatal(
+                'Passing in a list of testcases only works when running from a problem directory.')
 
-    if hasattr(config.args, 'testcases') and config.args.testcases and hasattr(config.args, 'samples') and config.args.samples:
+    if hasattr(config.args, 'testcases') and config.args.testcases and hasattr(
+            config.args, 'samples') and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
-
-
 
     # Handle one-off subcommands.
     if action == 'tmp':
@@ -467,7 +478,6 @@ def run_parsed_arguments(args):
             print(level_tmpdir)
 
         return
-
 
     if action in ['stats']:
         stats.stats(problems)
@@ -568,7 +578,11 @@ def run_parsed_arguments(args):
                 success &= latex.build_contest_pdf(contest, problems, tmpdir, web=True)
                 if not config.args.no_solutions:
                     success &= latex.build_contest_pdf(contest, problems, tmpdir, solutions=True)
-                    success &= latex.build_contest_pdf(contest, problems, tmpdir, solutions=True, web=True)
+                    success &= latex.build_contest_pdf(contest,
+                                                       problems,
+                                                       tmpdir,
+                                                       solutions=True,
+                                                       web=True)
 
             outfile = contest + '.zip'
             if config.args.kattis: outfile = contest + '-kattis.zip'
@@ -585,9 +599,13 @@ def main():
 
 
 if __name__ == '__main__':
-    def interrupt_handler(sig, frame): fatal('Running interrupted')
+
+    def interrupt_handler(sig, frame):
+        fatal('Running interrupted')
+
     signal.signal(signal.SIGINT, interrupt_handler)
     main()
+
 
 def test(args):
     config.RUNNING_TEST = True
@@ -602,4 +620,3 @@ def test(args):
         run_parsed_arguments(parser.parse_args(args))
     finally:
         os.chdir(original_directory)
-

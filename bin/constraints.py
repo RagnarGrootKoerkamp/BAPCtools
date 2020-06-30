@@ -34,6 +34,7 @@ def check_constraints(problem, settings):
 
     validator_values = set()
     defs_validators = []
+
     def f(cs):
         for loc, value in sorted(cs.items()):
             name, has_low, has_high, vmin, vmax, low, high = value
@@ -45,7 +46,6 @@ def check_constraints(problem, settings):
     defs_validators.append('')
     defs_validators.append('OUTPUT')
     f(ans_constraints)
-
 
     statement = problem.path / 'problem_statement/problem.en.tex'
     latex_defines = [
@@ -94,7 +94,8 @@ def check_constraints(problem, settings):
                                 val = eval(eval_string)
                                 statement_values.add(eval(eval_string))
                             except (SyntaxError, NameError) as e:
-                                log(f'SyntaxError for {value_string} when trying to evaluate {eval_string} ')
+                                log(f'SyntaxError for {value_string} when trying to evaluate {eval_string} '
+                                    )
                                 log(str(e))
 
                         l = []
@@ -106,17 +107,19 @@ def check_constraints(problem, settings):
     # print all the definitions.
     value_len = 12
     name_len = 8
-    left_width = 8 + name_len + 2*value_len
+    left_width = 8 + name_len + 2 * value_len
 
-    print('{:^{width}}|{:^30}'.format('VALIDATORS', '      PROBLEM STATEMENT', width=left_width), sep='')
+    print('{:^{width}}|{:^30}'.format('VALIDATORS', '      PROBLEM STATEMENT', width=left_width),
+          sep='')
     for val, st in itertools.zip_longest(defs_validators, defs_statement):
         if val is not None:
             if isinstance(val, str):
-                print('{:^{width}}'.format(val, width=left_width), sep='',end='')
+                print('{:^{width}}'.format(val, width=left_width), sep='', end='')
             else:
-                print('{:>{value_len}} <= {:^{name_len}} <= {:<{value_len}}'.format(*val, name_len=name_len,value_len=value_len),
-                  sep='',
-                  end='')
+                print('{:>{value_len}} <= {:^{name_len}} <= {:<{value_len}}'.format(
+                    *val, name_len=name_len, value_len=value_len),
+                      sep='',
+                      end='')
         else:
             print('{:^{width}}'.format('', width=left_width), sep='', end='')
         print('|', end='')
