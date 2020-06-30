@@ -507,10 +507,10 @@ def run_parsed_arguments(args):
             success &= generate.generate(problem)
         if action in ['clean']:
             success &= generate.clean(problem)
-        if action in ['all'] or (action in ['run'] and not config.args.no_generate):
+        if action in ['all', 'constraints'] or (action in ['run'] and not config.args.no_generate):
             config.args.force = False
             config.args.clean = False
-            if action == 'all':
+            if action in ['all', 'constraints']:
                 config.args.check_deterministic = True
             config.args.jobs = 4
             success &= generate.generate(problem)
