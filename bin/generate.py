@@ -545,7 +545,7 @@ class TestcaseRule(Rule):
             check_deterministic()
         bar.done()
 
-    def clean(t, problem, known_cases, bar):
+    def clean(t, problem, generator_config, bar):
         bar.start(str(t.path))
 
         path = Path('data') / t.path.with_suffix(t.path.suffix + '.in')
@@ -651,7 +651,7 @@ class Directory(Rule):
         if dir_last and dir_f:
             dir_f(self)
 
-    def generate(d, problem, known_cases, bar):
+    def generate(d, problem, generator_config, bar):
         # Generate the current directory:
         # - create the directory
         # - write testdata.yaml
@@ -711,7 +711,7 @@ class Directory(Rule):
             if f in files_created: continue
             base = f.with_suffix('')
             relpath = base.relative_to(problem.path / 'data')
-            if relpath in known_cases: continue
+            if relpath in generator_config.known_cases: continue
             if f.suffix != '.in': continue
             if config.args.clean: continue
             t = TestcaseRule(problem, base.name, None, d)
@@ -723,7 +723,7 @@ class Directory(Rule):
             if f in files_created: continue
             base = f.with_suffix('')
             relpath = base.relative_to(problem.path / 'data')
-            if relpath in known_cases: continue
+            if relpath in generator_config.known_cases: continue
 
             if f.suffix != '.in':
                 if f.suffix in config.KNOWN_DATA_EXTENSIONS and f.with_suffix(
@@ -754,14 +754,15 @@ class Directory(Rule):
                 f.unlink()
                 bar.log(f'Deleted untracked file {relpath}.in')
             else:
-                known_cases.add(relpath)
+                generator_config.known_cases.add(relpath)
+                generator_config.untracked_inline_manual.add(relpath)
                 bar.log(
                     f'Untracked manual case {relpath}.in. Delete with generate --clean.')
 
         bar.done()
         return True
 
-    def clean(d, problem, known_cases, bar):
+    def clean(d, problem, generator_config, bar):
         # Clean the current directory:
         # - remove testdata.yaml
         # - remove linked testcases
@@ -798,7 +799,7 @@ class Directory(Rule):
 
             # If --force/-f is passed, also clean unknown files.
             relpath = f.relative_to(problem.path / 'data')
-            if relpath.with_suffix('') in known_cases: continue
+            if relpath.with_suffix('') in generator_config.known_cases: continue
 
             ft = 'directory' if f.is_dir() else 'file'
 
@@ -876,6 +877,7 @@ class GeneratorConfig:
         # A map from directory paths `secret/testgroup` to Directory objects, used to resolve testcase
         # inclusion.
         self.known_cases = set()
+        self.untracked_inline_manual = set()
 
         # Main recursive parsing function.
         def parse(name, yaml, parent):
@@ -1051,7 +1053,7 @@ class GeneratorConfig:
         if not parallel:
             self.root_dir.walk(
                 lambda t: t.generate(self.problem, bar),
-                lambda d: d.generate(self.problem, self.known_cases, bar),
+                lambda d: d.generate(self.problem, self, bar),
             )
         else:
             # Parallelize generating test cases.
@@ -1108,7 +1110,7 @@ class GeneratorConfig:
 
             def generate_dir(d):
                 maybe_join()
-                d.generate(self.problem, self.known_cases, bar)
+                d.generate(self.problem, self, bar)
 
             self.root_dir.walk( q.put, generate_dir,)
 
@@ -1167,7 +1169,7 @@ class GeneratorConfig:
 
         bar = ProgressBar('Clean', items=item_names)
 
-        self.root_dir.walk(lambda x: x.clean(self.problem, self.known_cases, bar), dir_last=True)
+        self.root_dir.walk(lambda x: x.clean(self.problem, self, bar), dir_last=True)
         bar.finalize()
 
 
