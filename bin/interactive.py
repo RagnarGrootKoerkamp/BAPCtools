@@ -10,6 +10,7 @@ if not is_windows():
     import fcntl
     import resource
 
+BUFFER_SIZE = 2**20
 
 # Return a ExecResult object amended with verdict.
 def run_interactive_testcase(
@@ -49,9 +50,6 @@ def run_interactive_testcase(
     validator_dir = output_validator.tmpdir
     submission_dir = run.submission.tmpdir
 
-    if validator_error is False: validator_error = subprocess.PIPE
-    if team_error is False: team_error = subprocess.PIPE
-
     if config.args.verbose >= 2:
         print('Validator:  ', *validator_command)
         print('Submission: ', *submission_command)
@@ -65,13 +63,16 @@ def run_interactive_testcase(
     # afterwards.
     if is_windows():
 
+        if validator_error is False: validator_error = subprocess.PIPE
+        if team_error is False: team_error = subprocess.PIPE
+
         # Start the validator.
         validator_process = subprocess.Popen(validator_command,
                                              stdin=subprocess.PIPE,
                                              stdout=subprocess.PIPE,
                                              stderr=validator_error,
                                              cwd=validator_dir,
-                                             bufsize=2**20)
+                                             bufsize=BUFFER_SIZE)
 
         # Start and time the submission.
         # TODO: use rusage instead
@@ -126,7 +127,7 @@ def run_interactive_testcase(
         # TODO: is os.O_CLOEXEC needed here?
         r, w = os.pipe2(os.O_CLOEXEC)
         F_SETPIPE_SZ = 1031
-        fcntl.fcntl(w, F_SETPIPE_SZ, 2**20)
+        fcntl.fcntl(w, F_SETPIPE_SZ, BUFFER_SIZE)
         return r, w
 
     interaction_file = None
@@ -171,10 +172,21 @@ while True:
                                    stderr=interaction_file)
         val_tee_pid = val_tee.pid
 
+
+    # Use manual pipes with a large buffer instead of subprocess.PIPE for validator and team output.
+    if validator_error is False:
+        validator_error_in, validator_error_out = mkpipe()
+    else:
+        validator_error_in, validator_error_out = None, validator_error
+    if team_error is False:
+        team_error_in, team_error_out = mkpipe()
+    else:
+        team_error_in, team_error_out = None, team_error
+
     validator = subprocess.Popen(validator_command,
                                  stdin=val_in,
                                  stdout=val_out,
-                                 stderr=validator_error,
+                                 stderr=validator_error_out,
                                  cwd=validator_dir,
                                  preexec_fn=limit_setter(validator_command, validator_timeout, None))
     validator_pid = validator.pid
@@ -182,7 +194,7 @@ while True:
     submission = subprocess.Popen(submission_command,
                                   stdin=team_in,
                                   stdout=team_out,
-                                  stderr=team_error,
+                                  stderr=team_error_out,
                                   cwd=submission_dir,
                                   preexec_fn=limit_setter(submission_command, timeout, memory_limit))
     submission_pid = submission.pid
@@ -289,8 +301,16 @@ while True:
             verdict = 'ACCEPTED'
 
     val_err = None
-    if validator_error is not None: val_err = validator.stderr.read().decode('utf-8')
+    if validator_error is False:
+        os.close(validator_error_out)
+        val_err = os.fdopen(validator_error_in).read()
+    elif validator_error is not None:
+        val_err = validator.stderr.read().decode('utf-8')
     team_err = None
-    if team_error is not None: team_err = submission.stderr.read().decode('utf-8')
+    if team_error is False:
+        os.close(team_error_out)
+        team_err = os.fdopen(team_error_in).read()
+    elif team_error is not None:
+        team_err = submission.stderr.read().decode('utf-8')
 
     return ExecResult(True, submission_time, val_err, team_err, verdict, print_verdict)
