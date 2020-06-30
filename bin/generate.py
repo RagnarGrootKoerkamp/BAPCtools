@@ -423,6 +423,8 @@ class TestcaseRule(Rule):
 
         if up_to_date():
             check_deterministic()
+            if config.args.action != 'generate':
+                bar.logged = True # Disable redundant 'up to date' message in run mode.
             bar.done(message='up to date')
             return
 
