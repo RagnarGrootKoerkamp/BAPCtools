@@ -85,11 +85,11 @@ def check_constraints(problem, settings):
                             eval_string = re.sub(r'\\frac{(.*)}{(.*)}', r'(\1)/(\2)', eval_string)
                             eval_string = eval_string.replace('^', '**')
                             eval_string = eval_string.replace('{,}', '')
-                            eval_string = eval_string.replace('\,', '')
+                            eval_string = eval_string.replace('\\,', '')
                             eval_string = eval_string.replace(',', '')
                             eval_string = eval_string.replace('{', '(')
                             eval_string = eval_string.replace('}', ')')
-                            eval_string = eval_string.replace('\cdot', '*')
+                            eval_string = eval_string.replace('\\cdot', '*')
                             try:
                                 val = eval(eval_string)
                                 statement_values.add(eval(eval_string))
