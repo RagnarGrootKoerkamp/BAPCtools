@@ -1220,6 +1220,9 @@ class GeneratorConfig:
         yaml.indent(mapping=2, sequence=4, offset=2)
         data = yaml.load(generators_yaml)
 
+        if data is None:
+            data = ruamel.yaml.comments.CommentedMap()
+
         # Add missing directories.
         for path in sorted(self.untracked_directory):
             d = data
