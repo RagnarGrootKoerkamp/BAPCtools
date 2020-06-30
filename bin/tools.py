@@ -296,6 +296,9 @@ Run this from one of:
                            type=int,
                            default=4,
                            help='The number of jobs to use. Default is 4.')
+    genparser.add_argument('--add-manual',
+                           action='store_true',
+                           help='Add manual cases to generators.yaml.')
 
     # Clean
     cleanparser = subparsers.add_parser('clean',
