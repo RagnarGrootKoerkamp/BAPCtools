@@ -1,6 +1,6 @@
 verify_{%problem%}:
   script:
-      - ./bt all --cp --no-bar --problem {%contest%}/{%problem%}
+      - ./bt all --cp --error --no-bar --problem {%contest%}/{%problem%}
   only:
     changes:
       - {%changesdir%}/**/*

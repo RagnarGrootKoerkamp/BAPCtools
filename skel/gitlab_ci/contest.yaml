@@ -1,7 +1,7 @@
 contest_pdf_{%contest%}:
   script:
-      - ./bt pdf --cp --no-bar --contest {%contest%}
-      - ./bt solutions --cp --no-bar --contest {%contest%}
+      - ./bt pdf --cp --error --no-bar --contest {%contest%}
+      - ./bt solutions --cp --error --no-bar --contest {%contest%}
   only:
     changes:
 {%changes%}
