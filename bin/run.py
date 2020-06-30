@@ -343,14 +343,13 @@ class Submission(program.Program):
             # Print stderr whenever something is printed
             if result.out and result.err:
                 output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
-                data = f'STDERR:' + bar._format_data(
-                    result.err) + f'\n{output_type}:' + bar._format_data(result.out) + '\n'
+                data = f'STDERR:' + bar._format_data(result.err) + f'\n{output_type}:' + bar._format_data(result.out) + '\n'
             else:
                 data = ''
                 if result.err:
-                    data = result.err
+                    data = crop_output(result.err)
                 if result.out:
-                    data = result.out
+                    data = crop_output(result.out)
 
             bar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 

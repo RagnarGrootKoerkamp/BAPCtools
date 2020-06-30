@@ -238,7 +238,7 @@ class ProgressBar:
     def _format_data(data):
         if not data: return ''
         prefix = '  ' if data.count('\n') <= 1 else '\n'
-        return prefix + cc.orange + strip_newline(data) + cc.reset
+        return prefix + cc.orange + strip_newline(crop_output(data)) + cc.reset
 
     # Done can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
