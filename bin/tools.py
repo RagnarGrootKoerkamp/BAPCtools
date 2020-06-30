@@ -526,6 +526,7 @@ def run_parsed_arguments(args):
             if action in ['all', 'constraints']:
                 config.args.check_deterministic = True
             config.args.jobs = 4
+            config.args.add_manual = False
             success &= generate.generate(problem)
         if action in ['validate', 'input', 'all']:
             success &= problem.validate_format('input_format')

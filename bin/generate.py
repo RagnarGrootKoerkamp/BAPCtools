@@ -1156,7 +1156,7 @@ class GeneratorConfig:
         bar.finalize()
 
         self.update_gitignore_file()
-        if hasattr(config.args, 'add_manual') and config.args.add_manual:
+        if config.args.add_manual:
             self.add_untracked_manual_to_generators_yaml()
 
     def update_gitignore_file(self):
