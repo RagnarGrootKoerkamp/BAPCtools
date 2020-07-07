@@ -1233,6 +1233,8 @@ class GeneratorConfig:
 
             if 'data' not in d:
                 d['data'] = ruamel.yaml.comments.CommentedMap()
+            if d['data'] is None:
+                d['data'] = ruamel.yaml.comments.CommentedMap()
 
             if isinstance(d['data'], ruamel.yaml.comments.CommentedMap):
                 d['data'][path.name] = {'type': 'directory', 'data': None}
