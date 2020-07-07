@@ -57,7 +57,7 @@ is automatically detected by searching for the `problem.yaml` file.
 The most common commands and options to use on an existing repository are:
 
 - [`bt run [-v] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
-- [`bt test <submission> [--samples | [testcases [testcases ...]]]`](#test)
+- [`bt test <submission> [--interactive | --samples | [testcases [testcases ...]]]`](#test)
 - [`bt generate [-v] [--jobs JOBS]`](#generate)
 - [`bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
 - [`bt pdf [-v]`](#pdf)
@@ -87,6 +87,8 @@ By default, `bt run` only prints one summary line per submission, and one additi
 - `bt test <submission> [--samples | [testcases [testcases ...]]]`
 
 Use the `test` command to run a single submission on some testcases. The submission `stdout` and `stderr` are printed to the terminal instead of verified as an answer file.
+Use `--samples` to run on the samples, or pass a list of testcases or directories containing testcases. Use `--interactive`/`-i` to run in interactive mode, where console input is forwarded to the submission.
+This rebuilds and reruns the program until either `control-C` or `control-D` is pressed. It's also possible to supply the test case on the command line directly using e.g. `< /path/to/file.in` or `<<< "10 20"`.
 
 ![test](doc/images/test.png)
 

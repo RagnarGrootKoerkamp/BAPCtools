@@ -13,7 +13,7 @@ This lists all subcommands and their most important options.
 
 * Problem development:
     - [`bt run [-v] [-t TIMEOUT] [-m MEMORY] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
-    - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--samples | [testcases [testcases ...]]]`](#test)
+    - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
     - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--clean] [--all] [--check_deterministic] [--add-manual] [--jobs JOBS]`](#generate)
     - [`bt clean [-v] [--force]`](#clean)
     - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
@@ -115,6 +115,17 @@ This is useful for running submissions without having to compile them manually. 
 **Flags**
 
 - `<submission>`: The path to the submission to run. See `run <submissions>` for more.
+- `--interactive`/`-i`: Use terminal input as test data. `stdin` is forwarded directly to the submission. This rebuilds and reruns the submission until either the end of the input (`control-D`) or till BAPCtools is terminated (`control-C`).
+
+    It is also possible to pipe in testcases using e.g.
+    ```
+    bt test submissions/accepted/author.py --interactive < data/samples/1.in
+    ```
+    or
+    ```
+    bt test submissions/accepted/author.py -i <<< "10 20"
+    ```
+    in this case, the submission is only run once instead of repeatedly.
 - `[<testcases>]`: The testcases to run the submission on. See `run <testcases>` for more. Can not be used together with `--samples`.
 - `--samples`: Run the submission on the samples only. Can not be used together with explicitly listed testcases.
 - `--timeout <second>`/`-t <second>`: The timeout to use for the submission.

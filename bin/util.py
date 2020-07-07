@@ -11,6 +11,7 @@ import os
 import re
 import yaml
 import threading
+import signal
 
 from pathlib import Path
 
@@ -589,9 +590,18 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     timeout = 30
     if 'timeout' in kwargs:
-        if kwargs['timeout']:
+        if kwargs['timeout'] is None:
+            timeout = None
+        elif kwargs['timeout']:
             timeout = kwargs['timeout']
         kwargs.pop('timeout')
+
+    process = None
+    def interrupt_handler(sig, frame):
+        nonlocal process
+        process.kill()
+        fatal('Running interrupted')
+    old_handler = signal.signal(signal.SIGINT, interrupt_handler)
 
     tstart = time.monotonic()
     try:
@@ -614,6 +624,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         stdout = None
         stderr = str(e)
         return ExecResult(-1, 0, stderr, stdout)
+    signal.signal(signal.SIGINT, old_handler)
+
+
 
     # -2 corresponds to SIGINT
     if process.returncode == -2:

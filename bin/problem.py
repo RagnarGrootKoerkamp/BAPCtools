@@ -174,7 +174,10 @@ class Problem:
                 paths.append(s)
 
             for submission in config.args.submissions:
-                if (problem.path / submission).parent == problem.path / 'submissions':
+                if problem.path / submission == problem.path / 'submissions':
+                    for verdict in config.VERDICTS:
+                        paths += glob(problem.path / 'submissions' / verdict.lower(), '*')
+                elif (problem.path / submission).parent == problem.path / 'submissions':
                     for s in glob(problem.path / submission, '*'):
                         add(s)
                 else:
@@ -367,7 +370,10 @@ class Problem:
 
         for verdict in submissions:
             for submission in submissions[verdict]:
-                submission.test()
+                if config.args.interactive:
+                    submission.test_interactive()
+                else:
+                    submission.test()
         return True
 
     @staticmethod

@@ -437,3 +437,85 @@ class Submission(program.Program):
                     print(
                         f'{cc.green}{result.verdict}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}'
                     )
+
+    # Run the submission using stdin as input.
+    def test_interactive(self):
+        bar = ProgressBar('Running ' + str(self.name), max_len=1, count=1)
+        bar.start()
+        #print(ProgressBar.action('Running', str(self.name)))
+
+        if self.problem.interactive:
+            output_validators = self.problem.validators('output')
+            if output_validators is False:
+                return
+
+        is_tty = sys.stdin.isatty()
+
+        tc = 0
+        while True:
+            tc += 1
+            name = f'run {tc}'
+            bar.update(1, len(name))
+            bar.start(name)
+            super().__init__(self.problem, self.path, skip_double_build_warning=True)
+            bar.log('from stdin' if is_tty else 'from file')
+
+
+            # Launch a separate thread to pass stdin to a pipe.
+            r, w = os.pipe()
+            ok = True
+            eof = False
+
+            TEE_CODE = R'''
+import sys
+while True:
+    l = sys.stdin.read(1)
+    if l=='': break
+    sys.stdout.write(l)
+    sys.stdout.flush()
+'''
+            writer = None
+
+            # Wait for first input
+            try:
+                read = False
+                for l in sys.stdin:
+                    read = True
+                    if not self.build(bar):
+                        return
+                    os.write(w, bytes(l, 'utf8'))
+                    break
+                if not read:
+                    return
+
+                writer = subprocess.Popen(['python3', '-c', TEE_CODE], stdin=None, stdout=w)
+
+                assert self.run_command is not None
+                result = exec_command(self.run_command,
+                                      crop=False,
+                                      stdin=r,
+                                      stdout=None,
+                                      stderr=None,
+                                      timeout=None)
+
+                assert result.err is None and result.out is None
+                if result.ok is not True:
+                    config.n_error += 1
+                    status = None
+                    print(
+                        f'{cc.red}Run time error!{cc.reset} exit code {result.ok} {cc.bold}{result.duration:6.3f}s{cc.reset}'
+                    )
+                else:
+                    status = f'{cc.green}Done:'
+
+                if status:
+                    print(f'{status}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
+                print()
+            finally:
+                os.close(r)
+                os.close(w)
+                if writer:
+                    writer.kill()
+            bar.done()
+
+            if not is_tty: break

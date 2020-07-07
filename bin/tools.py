@@ -351,6 +351,7 @@ Run this from one of:
                                 type=Path,
                                 help='Optionally a list of testcases to run on.')
     testcasesgroup.add_argument('--samples', action='store_true', help='Only run on the samples.')
+    testcasesgroup.add_argument('--interactive', '-i', action='store_true', help='Run submission in interactive mode: stdin is from the command line.')
     testparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     testparser.add_argument(
         '--memory',
@@ -535,6 +536,7 @@ def run_parsed_arguments(args):
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
+            config.args.no_bar = True
             success &= problem.test_submissions()
         if action in ['constraints']:
             success &= constraints.check_constraints(problem, settings)
