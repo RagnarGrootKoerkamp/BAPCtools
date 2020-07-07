@@ -601,7 +601,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         nonlocal process
         process.kill()
         fatal('Running interrupted')
-    old_handler = signal.signal(signal.SIGINT, interrupt_handler)
+
+    if threading.current_thread() is threading.main_thread():
+        old_handler = signal.signal(signal.SIGINT, interrupt_handler)
 
     tstart = time.monotonic()
     try:
@@ -624,7 +626,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         stdout = None
         stderr = str(e)
         return ExecResult(-1, 0, stderr, stdout)
-    signal.signal(signal.SIGINT, old_handler)
+
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signal.SIGINT, old_handler)
 
 
 
