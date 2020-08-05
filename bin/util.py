@@ -570,6 +570,37 @@ def limit_setter(command, timeout, memory_limit):
 
     return setlimits
 
+# Subclass Popen to get rusage information.
+class ResourcePopen(subprocess.Popen):
+    # If wait4 is available, store resource usage information.
+    if 'wait4' in dir(os):
+        def _try_wait(self, wait_flags):
+            """All callers to this function MUST hold self._waitpid_lock."""
+            try:
+                (pid, sts, res) = os.wait4(self.pid, wait_flags)
+            except ChildProcessError:
+                # This happens if SIGCLD is set to be ignored or waiting
+                # for child processes has otherwise been disabled for our
+                # process.  This child is dead, we can't get the status.
+                pid = self.pid
+                sts = 0
+            else:
+                self.rusage = res
+            return (pid, sts)
+    else:
+        def _try_wait(self, wait_flags):
+            """All callers to this function MUST hold self._waitpid_lock."""
+            try:
+                (pid, sts) = os.waitpid(self.pid, wait_flags)
+            except ChildProcessError:
+                # This happens if SIGCLD is set to be ignored or waiting
+                # for child processes has otherwise been disabled for our
+                # process.  This child is dead, we can't get the status.
+                pid = self.pid
+                sts = 0
+            else:
+                self.rusage = None
+            return (pid, sts)
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
@@ -608,12 +639,12 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     tstart = time.monotonic()
     try:
         if not is_windows():
-            process = subprocess.Popen(command,
+            process = ResourcePopen(command,
                                        preexec_fn=limit_setter(command, timeout,
                                                                get_memory_limit(kwargs)),
                                        **kwargs)
         else:
-            process = subprocess.Popen(command, **kwargs)
+            process = ResourcePopen(command, **kwargs)
         (stdout, stderr) = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         process.kill()
@@ -626,17 +657,14 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         stdout = None
         stderr = str(e)
         return ExecResult(-1, 0, stderr, stdout)
+    tend = time.monotonic()
 
     if threading.current_thread() is threading.main_thread():
         signal.signal(signal.SIGINT, old_handler)
 
-
-
     # -2 corresponds to SIGINT
     if process.returncode == -2:
         fatal('Child process interrupted.')
-
-    tend = time.monotonic()
 
     def maybe_crop(s):
         return crop_output(s) if crop else s
@@ -645,4 +673,10 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     err = maybe_crop(stderr.decode('utf-8')) if stderr is not None else None
     out = maybe_crop(stdout.decode('utf-8')) if stdout is not None else None
 
-    return ExecResult(ok, tend - tstart, err, out)
+    print(tend-tstart, 'Rusage: ', process.rusage)
+    if process.rusage:
+        duration = process.rusage.ru_utime + process.rusage.ru_stime
+    else:
+        duration = tend - tstart
+
+    return ExecResult(ok, duration, err, out)
