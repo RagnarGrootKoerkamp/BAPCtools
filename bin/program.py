@@ -174,7 +174,7 @@ class Program:
 
             if len(matching_files) == 0: continue
 
-            if (len(matching_files), priority) > (len(best[1]), best[2]):
+            if (priority//1000, len(matching_files), priority) > (best[2]//1000, len(best[1]), best[2]):
                 best = (lang, matching_files, priority)
 
         lang, files, priority = best
@@ -224,9 +224,7 @@ class Program:
             for f in files:
                 if f.read_text().find('bits/stdc++.h') != -1:
                     if 'validators/' in str(f):
-                        bar.error(f'Must not depend on bits/stdc++.h.')
-                        self.ok = False
-                        return False
+                        self.bar.error(f'Must not depend on bits/stdc++.h.')
                     else:
                         self.bar.warn(f'Should not depend on bits/stdc++.h')
         return True
