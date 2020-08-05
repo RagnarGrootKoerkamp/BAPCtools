@@ -5,6 +5,7 @@ import io
 from pathlib import Path
 
 import tools
+import problem
 import config
 
 DOMJUDGE_PROBLEMS = ['hello', 'fltcmp', 'boolfind']
@@ -148,3 +149,12 @@ class TestNewContestProblem:
         assert Path('contest_name/contest.pdf').is_file()
         tools.test(['solutions', '--contest', 'contest_name'])
         tools.test(['tmp', '--clean', '--contest', 'contest_name'])
+
+
+class TestReadProblemConfig:
+    def test_read_problem_config(self):
+        p = problem.Problem(RUN_DIR/'test/problems/test_problem_config', Path('/tmp/xyz'))
+        assert p.settings.name == 'ABC XYZ'
+        assert p.settings.validation == 'custom'
+        assert p.settings.timelimit == 3.0
+

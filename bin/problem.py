@@ -72,7 +72,7 @@ class Problem:
         domjudge_path = self.path / 'domjudge-problem.ini'
         if domjudge_path.is_file():
             for line in domjudge_path.read_text().splitlines():
-                key, var = line.strip().split('=')
+                key, var = map(str.strip, line.strip().split('='))
                 var = var[1:-1]
                 self.settings[key] = float(var) if key == 'timelimit' else var
 
