@@ -440,14 +440,14 @@ class Submission(program.Program):
 
     # Run the submission using stdin as input.
     def test_interactive(self):
-        bar = ProgressBar('Running ' + str(self.name), max_len=1, count=1)
-        bar.start()
-        #print(ProgressBar.action('Running', str(self.name)))
-
         if self.problem.interactive:
             output_validators = self.problem.validators('output')
             if output_validators is False:
                 return
+
+        bar = ProgressBar('Running ' + str(self.name), max_len=1, count=1)
+        bar.start()
+        #print(ProgressBar.action('Running', str(self.name)))
 
         is_tty = sys.stdin.isatty()
 
