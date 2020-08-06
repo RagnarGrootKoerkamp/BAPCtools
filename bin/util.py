@@ -636,6 +636,8 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     if threading.current_thread() is threading.main_thread():
         old_handler = signal.signal(signal.SIGINT, interrupt_handler)
 
+    did_timeout = False
+
     tstart = time.monotonic()
     try:
         if not is_windows():
@@ -647,13 +649,17 @@ def exec_command(command, expect=0, crop=True, **kwargs):
             process = ResourcePopen(command, **kwargs)
         (stdout, stderr) = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        # Timeout expired.
+        did_timeout = True
         process.kill()
         (stdout, stderr) = process.communicate()
     except PermissionError as e:
+        # File is likely not executable.
         stdout = None
         stderr = str(e)
         return ExecResult(-1, 0, stderr, stdout)
     except OSError as e:
+        # File probably doesn't exist.
         stdout = None
         stderr = str(e)
         return ExecResult(-1, 0, stderr, stdout)
@@ -662,7 +668,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     if threading.current_thread() is threading.main_thread():
         signal.signal(signal.SIGINT, old_handler)
 
-    # -2 corresponds to SIGINT
+    # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
     if process.returncode == -2:
         fatal('Child process interrupted.')
 
@@ -675,6 +681,10 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     if process.rusage:
         duration = process.rusage.ru_utime + process.rusage.ru_stime
+        # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
+        # To prevent under-reporting the duration, we take the max with wall time in this case.
+        if did_timeout:
+            duration = max(tend-tstart, duration)
     else:
         duration = tend - tstart
 
