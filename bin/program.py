@@ -211,7 +211,8 @@ class Program:
             'mainfile': str(mainfile),
             'mainclass': mainclass,
             'Mainclass': mainclass[0].upper() + mainclass[1:],
-            'memlim': (get_memory_limit() or 10000000000) // 1000000,
+            # Memory limit in MB.
+            'memlim': (get_memory_limit() or 1024),
 
             # Out-of-spec variables used by 'manual' and 'Viva' languages.
             'build': self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else '',

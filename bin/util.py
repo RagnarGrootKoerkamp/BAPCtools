@@ -525,7 +525,7 @@ def crop_output(output):
 # TODO: Move this to Problem.settings and read limits.memory variable from problem.yaml.
 # Return memory limit in bytes.
 def get_memory_limit(kwargs=None):
-    memory_limit = 2048000000  # 2GB
+    memory_limit = 1024  # 1GB
     if hasattr(config.args, 'memory'):
         if config.args.memory:
             if config.args.memory != 'unlimited':
@@ -563,7 +563,7 @@ def limit_setter(command, timeout, memory_limit):
                                (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
         if memory_limit and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']:
-            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+            resource.setrlimit(resource.RLIMIT_AS, (memory_limit*1024*1024, memory_limit*1024*1024))
 
         # Disable coredumps.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
