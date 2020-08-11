@@ -284,12 +284,12 @@ while True:
         verdict = 'VALIDATOR_CRASH'
     elif first == 'validator':
         # WA has priority because validator reported it first.
-        if validator_status == config.RTV_WA:
+        if did_timeout:
+            verdict = 'TIME_LIMIT_EXCEEDED'
+        elif validator_status == config.RTV_WA:
             verdict = 'WRONG_ANSWER'
         elif submission_status != 0:
             verdict = 'RUN_TIME_ERROR'
-        elif did_timeout:
-            verdict = 'TIME_LIMIT_EXCEEDED'
         else:
             verdict = 'ACCEPTED'
     else:
