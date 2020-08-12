@@ -380,7 +380,7 @@ class Problem:
     def _print_table(verdict_table, testcases, submission):
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
         def single_verdict(row, testcase):
-            if testcase in row:
+            if testcase.name in row:
                 if row[testcase.name]:
                     return cc.green + '1' + cc.reset
                 else:
@@ -413,8 +413,11 @@ class Problem:
                     scores[t] += 1. / failures
         scores_list = sorted(scores.values())
 
-        print('\nVerdict analysis table. Submissions are ordered as above. Higher '
-              'scores indicate they are critical to break some submissions.')
+        print('\nVerdict analysis table. Submissions are ordered per column as above. Higher '
+              'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.')
+        print(f'{cc.red}0{cc.reset}: submission fails testcase')
+        print(f'{cc.green}1{cc.reset}: submission passes testcase\n')
+
 
         for testcase in testcases:
             # Skip all AC testcases
