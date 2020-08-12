@@ -35,8 +35,7 @@ def stats(problems):
             'submissions/accepted/*.c', 'submissions/accepted/*.cpp', 'submissions/accepted/*.cc'
         ], 1),
         ('java', 'submissions/accepted/*.java', 1),
-        ('py2', 'submissions/accepted/*.py2', 1),
-        ('py3', ['submissions/accepted/*.py', 'submissions/accepted/*.py3'], 1),
+        ('py', ['submissions/accepted/*.py[23]', 'submissions/accepted/*.py'], 1),
     ]
 
     headers = ['problem'] + [h[0] for h in stats] + ['  comment']
