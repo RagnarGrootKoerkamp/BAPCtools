@@ -354,7 +354,7 @@ class Submission(program.Program):
             bar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
             # Lazy judging: stop on the first error when not in verbose mode.
-            if (not config.args.verbose and not config.args.table) and result.verdict in config.MAX_PRIORITY_VERDICT:
+            if (not config.args.verbose and not getattr(config.args, 'table', False)) and result.verdict in config.MAX_PRIORITY_VERDICT:
                 bar.count = None
                 break
 
