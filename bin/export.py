@@ -19,6 +19,10 @@ def build_samples_zip(problems):
                          allowZip64=False)
 
     for problem in problems:
+        # Sample data is not included for interactive problems.
+        # TODO: We could include a sample interactor instead.
+        if problem.interactive: continue
+
         samples = problem.testcases(needans=True, only_sample=True)
         sampledir = Path(problem.label)
         for i in range(0, len(samples)):
