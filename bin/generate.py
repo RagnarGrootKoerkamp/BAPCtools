@@ -436,12 +436,13 @@ class TestcaseRule(Rule):
                 f.unlink()
 
             manual_data = problem.path / t.source
-            if not manual_data.is_file():
-                bar.error(f'Manual source {t.source} not found.')
-                return
+            assert manual_data.is_file()
 
             # For manual cases outside of the data/ directory, copy all related files.
             # Inside data/, only use the .in.
+
+            # We make sure to not silently overwrite changes to files in data/
+            # that are copied from generators/.
             for ext in config.KNOWN_DATA_EXTENSIONS:
                 ext_file = manual_data.with_suffix(ext)
                 if ext_file.is_file():
@@ -517,14 +518,16 @@ class TestcaseRule(Rule):
                     # new file -> move it
                     bar.log(f'NEW {target.name}')
 
-                # Symlinks have to be made relative to the problem root again.
+                if target.is_symlink():
+                    # Make sure that we write to target, and not to the file pointed to by target.
+                    target.unlink()
+
+                # We always copy file contents. Manual cases are copied as well.
                 if source.is_symlink():
-                    source = source.resolve().relative_to(problem.path.parent.resolve())
-                    ensure_symlink(target, source, relative=True)
+                    shutil.copy(source, target, follow_symlinks = True)
+                    #source = source.resolve().relative_to(problem.path.parent.resolve())
+                    #ensure_symlink(target, source, relative=True)
                 else:
-                    if target.is_symlink():
-                        # Make sure that we write to target, and not to the file pointed to by target.
-                        target.unlink()
                     shutil.move(source, target)
             else:
                 if target.is_file():
