@@ -231,10 +231,34 @@ prolog:
     compile: '/usr/bin/swipl -O -q -g main -t halt -o {binary} -c {files}'
     run: '{binary}'
 
+# Pypy2 with shebang comes before default python3.
+pypy2_with_shebang:
+    name: 'pypy 2'
+    priority: 860
+    files: '*.py *.py2'
+    shebang: '^#!.*pypy2\b'
+    compile: '/usr/bin/pypy2 -m py_compile {files}'
+    run: '/usr/bin/pypy2 {mainfile}'
+
+pypy3:
+    name: 'pypy 3'
+    priority: 850
+    files: '*.py *.py3'
+    compile: '/usr/bin/pypy3 -m py_compile {files}'
+    run: '/usr/bin/pypy3 {mainfile}'
+
+pypy2:
+    name: 'pypy 2'
+    priority: 850
+    files: '*.py2'
+    compile: '/usr/bin/pypy2 -m py_compile {files}'
+    run: '/usr/bin/pypy2 {mainfile}'
+
+# Set of fallbacks to CPython in case pypy isn't supported.
 # Python2 with shebang comes before default python3.
 python2_with_shebang:
     name: 'Python 2'
-    priority: 860
+    priority: 840
     files: '*.py *.py2'
     shebang: '^#!.*python2\b'
     compile: '/usr/bin/python2 -m py_compile {files}'
@@ -242,15 +266,14 @@ python2_with_shebang:
 
 python3:
     name: 'Python 3'
-    priority: 850
+    priority: 830
     files: '*.py *.py3'
     compile: '/usr/bin/python3 -m py_compile {files}'
     run: '/usr/bin/python3 {mainfile}'
 
-# Python2 without shebang comes after python3.
 python2:
     name: 'Python 2'
-    priority: 840
+    priority: 830
     files: '*.py2'
     compile: '/usr/bin/python2 -m py_compile {files}'
     run: '/usr/bin/python2 {mainfile}'
