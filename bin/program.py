@@ -163,6 +163,7 @@ class Program:
         message = None
         for lang in languages():
             lang_conf = languages()[lang]
+            name = lang_conf['name']
             globs = lang_conf['files'].split() or []
             shebang = re.compile(lang_conf['shebang']) if lang_conf.get('shebang', None) else None
             priority = int(lang_conf['priority'])
@@ -174,19 +175,36 @@ class Program:
 
             if len(matching_files) == 0: continue
 
+            # Make sure we can run programs for this language.
+            if 'compile' in lang_conf:
+                exe = lang_conf['compile'].split()[0]
+                if exe[0] != '{' and shutil.which(exe) == None:
+                    self.bar.warn(f'Compile program {exe} not found for language {name}')
+                    continue
+            assert 'run' in lang_conf
+            exe = lang_conf['run'].split()[0]
+            if exe[0] != '{' and shutil.which(exe) == None:
+                self.bar.warn(f'Run program {exe} not found for language {name}')
+                continue
+
             if (priority//1000, len(matching_files), priority) > (best[2]//1000, len(best[1]), best[2]):
                 best = (lang, matching_files, priority)
 
         lang, files, priority = best
+        name = languages()[lang]['name']
 
         if lang is None:
             self.ok = False
             self.bar.error(f'No language detected for {self.path}.')
             return False
 
+        if self.bar.logged:
+            self.bar.log(f'Falling back to {name}.')
+
+
         if len(files) == 0:
             self.ok = False
-            self.bar.error(f'No file detected for language {lang} at {self.path}.')
+            self.bar.error(f'No file detected for language {name} at {self.path}.')
             return False
 
         self.language = lang
