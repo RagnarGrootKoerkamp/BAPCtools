@@ -237,8 +237,8 @@ pypy2_with_shebang:
     priority: 860
     files: '*.py *.py2'
     shebang: '^#!.*pypy2\b'
-    compile: '/usr/bin/pypy2 -m py_compile {files}'
-    run: '/usr/bin/pypy2 {mainfile}'
+    compile: '/usr/bin/pypy -m py_compile {files}'
+    run: '/usr/bin/pypy {mainfile}'
 
 pypy3:
     name: 'pypy 3'
@@ -251,8 +251,8 @@ pypy2:
     name: 'pypy 2'
     priority: 850
     files: '*.py2'
-    compile: '/usr/bin/pypy2 -m py_compile {files}'
-    run: '/usr/bin/pypy2 {mainfile}'
+    compile: '/usr/bin/pypy -m py_compile {files}'
+    run: '/usr/bin/pypy {mainfile}'
 
 # Set of fallbacks to CPython in case pypy isn't supported.
 # Python2 with shebang comes before default python3.
