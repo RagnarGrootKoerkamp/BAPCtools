@@ -546,6 +546,7 @@ def run_parsed_arguments(args):
             config.args.jobs = 4
             config.args.add_manual = False
             config.args.move_manual = False
+            config.args.testcases = None
             success &= generate.generate(problem)
         if action in ['validate', 'input', 'all']:
             success &= problem.validate_format('input_format')
