@@ -279,7 +279,7 @@ class Rule:
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, name: str, yaml, parent):
+    def __init__(self, problem, name: str, yaml, parent, *, tracked=True):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
@@ -289,6 +289,7 @@ class TestcaseRule(Rule):
 
         self.manual = False
         self.manual_inline = False
+        self.tracked = tracked
 
         if isinstance(yaml, str) and len(yaml) == 0:
             fatal(
@@ -333,7 +334,7 @@ class TestcaseRule(Rule):
             fatal(f'Found duplicate rule "{inpt}" at {problem._rules_cache[key]} and {self.path}')
         problem._rules_cache[key] = self.path
 
-    def generate(t, problem, parent_bar):
+    def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
         # E.g. bapctmp/problem/data/secret/1.in
@@ -355,12 +356,22 @@ class TestcaseRule(Rule):
             bar.done(False, f'Source for manual case not found: {t.source}')
             return
 
-        # For each generated .in file, both new and up to date, check that they use a deterministic generator.
-        # This is run When --check-deterministic is passed, which is also set to True when running `bt all`,
+        if t.manual and t.manual_inline and t.tracked:
+            if config.args.move_manual:
+                reltarget = config.args.move_manual.relative_to((problem.path).resolve())
+                bar.log(f'Moving {t.path} to {reltarget}.')
+                generator_config.tracked_inline_manual.add(t.path)
+            else:
+                bar.log(f'Move inline manual case using --move_manual.')
+
+
+        # For each generated .in file, both new and up to date, check that they
+        # use a deterministic generator by rerunning the generator with the
+        # same arguments.  This is run when --check-deterministic is passed,
+        # which is also set to True when running `bt all`.
         # This doesn't do anything for manual cases.
         def check_deterministic():
-            if not (hasattr(config.args, 'check_deterministic')
-                    and config.args.check_deterministic is True):
+            if not getattr(config.args, 'check_deterministic', False):
                 return
 
             if t.manual:
@@ -731,7 +742,7 @@ class Directory(Rule):
             if relpath in generator_config.known_cases: continue
             if f.suffix != '.in': continue
             if config.args.clean: continue
-            t = TestcaseRule(problem, base.name, None, d)
+            t = TestcaseRule(problem, base.name, None, d, tracked=False)
             assert t.manual_inline
             d.data.append(t)
             bar.add_item(t.path)
@@ -770,7 +781,7 @@ class Directory(Rule):
                                 generator_config.untracked_directory.add(relpath)
                             else:
                                 bar.log(
-                                    f'Track {ft} {name} using --add-manual or delete using --clean.'
+                                    f'Track {ft} {name} using --add-manual/--move-manual or delete using --clean.'
                                 )
                         else:
                             bar.log(f'Untracked {ft} {name}. Delete with generate --clean.')
@@ -786,7 +797,7 @@ class Directory(Rule):
                     generator_config.untracked_inline_manual.add(relpath)
                 else:
                     bar.log(
-                        f'Track manual case {relpath}.in using --add-manual or delete using --clean.'
+                        f'Track manual case {relpath}.in using --add-manual/--move-manual or delete using --clean.'
                     )
 
         bar.done()
@@ -908,6 +919,7 @@ class GeneratorConfig:
         self.known_cases = set()
         self.untracked_inline_manual = set()
         self.untracked_directory = set()
+        self.tracked_inline_manual = set()
 
         # Main recursive parsing function.
         def parse(name, yaml, parent):
@@ -1086,7 +1098,7 @@ class GeneratorConfig:
 
         if not parallel:
             self.root_dir.walk(
-                lambda t: t.generate(self.problem, bar),
+                lambda t: t.generate(self.problem, self, bar),
                 lambda d: d.generate(self.problem, self, bar),
             )
         else:
@@ -1119,7 +1131,7 @@ class GeneratorConfig:
                     while True:
                         testcase = q.get()
                         if testcase is None: break
-                        testcase.generate(self.problem, bar)
+                        testcase.generate(self.problem, self, bar)
                         q.task_done()
                 except Exception as e:
                     q.task_done()
@@ -1155,14 +1167,20 @@ class GeneratorConfig:
 
             for _ in range(num_worker_threads):
                 q.put(None)
+
             for t in threads:
                 t.join()
+
+            if error is not None:
+                raise error
 
         bar.finalize()
 
         self.update_gitignore_file()
         if config.args.add_manual:
             self.add_untracked_manual_to_generators_yaml()
+        if config.args.move_manual:
+            self.move_inline_manual_to_directory()
 
     def update_gitignore_file(self):
         gitignorefile = self.problem.path / 'data/.gitignore'
@@ -1214,7 +1232,8 @@ class GeneratorConfig:
             return
 
         if len(self.untracked_inline_manual) == 0 and len(self.untracked_directory) == 0:
-            log('No untracked manual cases found.')
+            if not config.args.move_manual:
+                log('No untracked manual cases found.')
             return
 
         generators_yaml = self.problem.path / 'generators/generators.yaml'
@@ -1261,9 +1280,69 @@ class GeneratorConfig:
             else:
                 assert False
 
+            # Add path to tracked cases, so they can be moved afterwards if needed.
+            self.tracked_inline_manual.add(path)
+
         # Overwrite generators.yaml.
         yaml.dump(data, generators_yaml)
         log('Updated generators.yaml')
+
+
+    def move_inline_manual_to_directory(self):
+        try:
+            import ruamel.yaml
+        except:
+            error(
+                'generate --move-manual needs the ruamel.yaml python3 library. Install python3-ruamel.yaml or python-ruamel-yaml.'
+            )
+            return
+
+        if len(self.tracked_inline_manual) == 0:
+            log('No inline manual cases found.')
+            return
+
+        generators_yaml = self.problem.path / 'generators/generators.yaml'
+
+        # Round-trip parsing.
+        yaml = ruamel.yaml.YAML(typ='rt')
+        yaml.default_flow_style = False
+        yaml.indent(mapping=2, sequence=4, offset=2)
+        data = yaml.load(generators_yaml)
+
+        assert data
+
+        config.args.move_manual.mkdir(exist_ok=True)
+
+
+        # Add missing testcases.
+        for path in sorted(self.tracked_inline_manual):
+            d = data
+            for directory in path.parent.parts:
+                d = d['data'][directory]
+
+            # Move all test data.
+            # Make sure the testcase doesn't already exist in the target directory.
+            in_target = (config.args.move_manual / (path.name+'.in'))
+            if in_target.is_file():
+                warn(f'Target file {in_target.relative_to(self.problem.path.resolve())} already exists. Skipping testcase {path}.')
+                continue
+
+            assert path.name in d['data']
+
+            d['data'][path.name] = str(in_target.relative_to(self.problem.path.resolve()/'generators'))
+
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                source = (self.problem.path/'data')/(path.parent/(path.name+ext))
+                target = config.args.move_manual / (path.name+ext)
+                if source.is_file():
+                    shutil.copy(source, target)
+
+
+        # Overwrite generators.yaml.
+        yaml.dump(data, generators_yaml)
+        log('Updated generators.yaml')
+
+
 
     def clean(self):
         item_names = []

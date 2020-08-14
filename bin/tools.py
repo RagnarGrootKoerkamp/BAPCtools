@@ -306,6 +306,11 @@ Run this from one of:
     genparser.add_argument('--add-manual',
                            action='store_true',
                            help='Add manual cases to generators.yaml.')
+    genparser.add_argument('--move-manual', nargs='?',
+                           type = Path,
+                           const = 'generators/manual',
+                           help='Move tracked inline manual cases to the given directory.', metavar='TARGET_DIRECTORY=generators/manual')
+
 
     # Clean
     cleanparser = subparsers.add_parser('clean',
@@ -461,6 +466,16 @@ def run_parsed_arguments(args):
     if hasattr(config.args, 'testcases') and config.args.testcases and hasattr(
             config.args, 'samples') and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
+
+    if hasattr(config.args, 'move_manual') and config.args.move_manual:
+        # Path *must* be inside generators/.
+        try:
+            config.args.move_manual = (problems[0].path/config.args.move_manual).resolve()
+            config.args.move_manual.relative_to(problems[0].path.resolve() / 'generators')
+        except Exception as e:
+            fatal('Directory given to move_manual must be inside generators/.')
+        config.args.add_manual = True
+
 
     # Handle one-off subcommands.
     if action == 'tmp':
