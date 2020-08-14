@@ -337,6 +337,22 @@ class TestcaseRule(Rule):
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
+        # If a list of testcases was passed and this one is not in it, skip it.
+        if config.args.testcases:
+            found = False
+            for p in config.args.testcases:
+                # Try the given path itself, and the given path without the last suffix.
+                for p2 in [p, p.with_suffix('')]:
+                    try:
+                        (problem.path/'data'/t.path).relative_to(problem.path / p2)
+                        found = True
+                        break
+                    except:
+                        pass
+            if not found:
+                bar.done(True, 'Skipped')
+                return
+
         # E.g. bapctmp/problem/data/secret/1.in
         cwd = problem.tmpdir / 'data' / t.path
         cwd.mkdir(parents=True, exist_ok=True)

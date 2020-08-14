@@ -14,7 +14,7 @@ This lists all subcommands and their most important options.
 * Problem development:
     - [`bt run [-v] [-t TIMEOUT] [-m MEMORY] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
     - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-    - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--clean] [--all] [--check_deterministic] [--add-manual] [--move-manual [DIRECTORY]] [--jobs JOBS]`](#generate)
+    - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--clean] [--all] [--check_deterministic] [--add-manual] [--move-manual [DIRECTORY]] [--jobs JOBS] [testcases [testcases ...]]`](#generate)
     - [`bt clean [-v] [--force]`](#clean)
     - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
     - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
@@ -139,6 +139,8 @@ Use the `generate` command to generate the testcases specified in `generators/ge
 This command tries to be smart about not regenerating testcases that are up to date. When the generator and its invocation haven't changed, nothing will be done.
 
 Any files in `data/` that are not tracked in `generators.yaml` will raise a warning.
+
+Pass a list of testcases or directories to only generate a subset of data. See [run](#run) for possible ways to pass in testcases.
 
 **Flags**
 

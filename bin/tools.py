@@ -310,6 +310,8 @@ Run this from one of:
                            type = Path,
                            const = 'generators/manual',
                            help='Move tracked inline manual cases to the given directory.', metavar='TARGET_DIRECTORY=generators/manual')
+    genparser.add_argument('testcases', nargs='*', type=Path,
+                           help='The testcases to generate, given as directory, .in/.ans file, or base name.')
 
 
     # Clean
