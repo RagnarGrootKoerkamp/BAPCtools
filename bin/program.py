@@ -179,7 +179,8 @@ class Program:
             if 'compile' in lang_conf:
                 exe = lang_conf['compile'].split()[0]
                 if exe[0] != '{' and shutil.which(exe) == None:
-                    self.bar.warn(f'Compile program {exe} not found for language {name}')
+                    if best[0] is None:
+                        self.bar.warn(f'Compile program {exe} not found for language {name}')
                     continue
             assert 'run' in lang_conf
             exe = lang_conf['run'].split()[0]
