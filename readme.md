@@ -96,7 +96,7 @@ This rebuilds and reruns the program until either `control-C` or `control-D` is 
 
 - `bt generate [-v] [--jobs JOBS]`
 
-Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. See [doc/generators.md](doc/generators.md) for documentation on this.
+Use the `generate` command to generate the testcases specified in `generators/generators.yaml`. See [doc/generators.md](doc/generators.md) for the specification of `generators.yaml` and see [doc/commands.md#generate](doc/commands.md#generate) for the full list of arguents.
 Use `-j 0` to disable running multiple jobs in parallel (the default is `4`).
 
 ![generate](./doc/images/generate.gif)
