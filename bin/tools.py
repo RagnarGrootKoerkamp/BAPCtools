@@ -286,7 +286,6 @@ Run this from one of:
                            '-f',
                            action='store_true',
                            help='Overwrite existing input flies.')
-    genparser.add_argument('--clean', '-c', action='store_true', help='Clean untracked files.')
     genparser.add_argument('--all',
                            '-a',
                            action='store_true',
@@ -378,6 +377,7 @@ Run this from one of:
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
     allparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
+    allparser.add_argument('--clean', action='store_true', help='Clean up generated testcases afterwards.')
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser('zip',
@@ -536,11 +536,10 @@ def run_parsed_arguments(args):
         input_validator_ok = False
         if action in ['generate']:
             success &= generate.generate(problem)
-        if action in ['clean']:
-            success &= generate.clean(problem)
         if action in ['all', 'constraints'] or (action in ['run'] and not config.args.no_generate):
             config.args.force = False
-            config.args.clean = False
+            if not hasattr(config.args, 'clean'):
+                config.args.clean = False
             if action in ['all', 'constraints']:
                 config.args.check_deterministic = True
             config.args.jobs = 4
@@ -553,8 +552,8 @@ def run_parsed_arguments(args):
             success &= problem.validate_format('input_format')
         if action in ['validate', 'output', 'all']:
             success &= problem.validate_format('output_format')
-        if action in ['run', 'all']:
-            success &= problem.run_submissions()
+        #if action in ['run', 'all']:
+            #success &= problem.run_submissions()
         if action in ['test']:
             config.args.no_bar = True
             success &= problem.test_submissions()
@@ -577,6 +576,9 @@ def run_parsed_arguments(args):
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
                 success &= export.build_problem_zip(problem.path, output, settings)
+        if action in ['clean'] or (action in ['all'] and config.args.clean):
+            success &= generate.clean(problem)
+
 
         if len(problems) > 1:
             print()

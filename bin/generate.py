@@ -757,7 +757,6 @@ class Directory(Rule):
             relpath = base.relative_to(problem.path / 'data')
             if relpath in generator_config.known_cases: continue
             if f.suffix != '.in': continue
-            if config.args.clean: continue
             t = TestcaseRule(problem, base.name, None, d, tracked=False)
             assert t.manual_inline
             d.data.append(t)
@@ -784,37 +783,26 @@ class Directory(Rule):
                     name = f.relative_to(problem.path / 'data')
 
                     ft = 'directory' if f.is_dir() else 'file'
-                    if config.args.clean:
-                        if f.is_dir():
-                            shutil.rmtree(f)
+                    if f.is_dir():
+                        if config.args.add_manual:
+                            bar.log(f'Adding directory {name} to generators.yaml')
+                            generator_config.untracked_directory.add(relpath)
                         else:
-                            f.unlink()
-                        bar.log(f'Deleted untracked {ft} {name}')
+                            bar.log(
+                                f'Track {ft} {name} using --add-manual/--move-manual or delete using --clean.'
+                            )
                     else:
-                        if f.is_dir():
-                            if config.args.add_manual:
-                                bar.log(f'Adding directory {name} to generators.yaml')
-                                generator_config.untracked_directory.add(relpath)
-                            else:
-                                bar.log(
-                                    f'Track {ft} {name} using --add-manual/--move-manual or delete using --clean.'
-                                )
-                        else:
-                            bar.log(f'Untracked {ft} {name}. Delete with generate --clean.')
+                        bar.log(f'Untracked {ft} {name}. Delete with generate --clean.')
                 continue
 
-            if config.args.clean:
-                f.unlink()
-                bar.log(f'Deleted untracked file {relpath}.in')
+            generator_config.known_cases.add(relpath)
+            if config.args.add_manual:
+                bar.log(f'Adding {relpath.name}.in to generators.yaml')
+                generator_config.untracked_inline_manual.add(relpath)
             else:
-                generator_config.known_cases.add(relpath)
-                if config.args.add_manual:
-                    bar.log(f'Adding {relpath.name}.in to generators.yaml')
-                    generator_config.untracked_inline_manual.add(relpath)
-                else:
-                    bar.log(
-                        f'Track manual case {relpath}.in using --add-manual/--move-manual or delete using --clean.'
-                    )
+                bar.log(
+                    f'Track manual case {relpath}.in using --add-manual/--move-manual or delete using clean -f.'
+                )
 
         bar.done()
         return True
@@ -863,7 +851,7 @@ class Directory(Rule):
                 bar.log(f'Deleted untracked {ft}: {relpath}')
                 f.unlink()
             else:
-                bar.warn(f'Found untracked {ft}. Delete with clean --force: {relpath}')
+                bar.log(f'Found untracked {ft}. Delete with clean --force: {relpath}')
 
         # Try to remove the directory. Fails if it's not empty.
         try:
@@ -908,6 +896,7 @@ class GeneratorConfig:
     # Parse generators.yaml.
     def __init__(self, problem):
         self.problem = problem
+        problem._rules_cache = dict()
         yaml_path = self.problem.path / 'generators/generators.yaml'
         self.ok = True
         if not yaml_path.is_file():
