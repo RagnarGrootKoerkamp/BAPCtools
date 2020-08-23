@@ -378,7 +378,7 @@ class TestcaseRule(Rule):
                 bar.log(f'Moving {t.path} to {reltarget}.')
                 generator_config.tracked_inline_manual.add(t.path)
             else:
-                bar.log(f'Move inline manual case using --move_manual.')
+                bar.debug(f'Move inline manual case using --move_manual.')
 
 
         # For each generated .in file, both new and up to date, check that they
@@ -806,11 +806,11 @@ class Directory(Rule):
                             bar.log(f'Adding directory {name} to generators.yaml')
                             generator_config.untracked_directory.add(relpath)
                         else:
-                            bar.log(
+                            bar.debug(
                                 f'Track {ft} {name} using --add-manual/--move-manual or delete using clean -f.'
                             )
                     else:
-                        bar.log(f'Untracked {ft} {name}. Delete with clean -f.')
+                        bar.debug(f'Untracked {ft} {name}. Delete with clean -f.')
                 continue
 
             generator_config.known_cases.add(relpath)
@@ -818,7 +818,7 @@ class Directory(Rule):
                 bar.log(f'Adding {relpath.name}.in to generators.yaml')
                 generator_config.untracked_inline_manual.add(relpath)
             else:
-                bar.log(
+                bar.debug(
                     f'Track manual case {relpath}.in using --add-manual/--move-manual or delete using clean -f.'
                 )
 
@@ -1253,7 +1253,7 @@ class GeneratorConfig:
             import ruamel.yaml
         except:
             error(
-                'generate --add-manual needs the ruamel.yaml python3 library. Install python3-ruamel.yaml or python-ruamel-yaml.'
+                'generate --add-manual needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
             )
             return
 
@@ -1319,7 +1319,7 @@ class GeneratorConfig:
             import ruamel.yaml
         except:
             error(
-                'generate --move-manual needs the ruamel.yaml python3 library. Install python3-ruamel.yaml or python-ruamel-yaml.'
+                'generate --move-manual needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
             )
             return
 

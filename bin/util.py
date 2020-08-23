@@ -241,7 +241,7 @@ class ProgressBar:
         prefix = '  ' if data.count('\n') <= 1 else '\n'
         return prefix + cc.orange + strip_newline(crop_output(data)) + cc.reset
 
-    # Done can be called multiple times to make multiple persistent lines.
+    # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
     def log(self, message='', data='', color=cc.green, *, needs_lock=True, resume=True):
         if needs_lock: self.lock.acquire()
@@ -271,6 +271,11 @@ class ProgressBar:
                 self._resume()
 
         if needs_lock: self.lock.release()
+
+    # Same as log, but only in verbose mode.
+    def debug(self, message, data=''):
+        if config.args.verbose:
+            self.log(message, data)
 
     def warn(self, message='', data=''):
         config.n_warn += 1
