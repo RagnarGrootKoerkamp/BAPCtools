@@ -552,8 +552,8 @@ def run_parsed_arguments(args):
             success &= problem.validate_format('input_format')
         if action in ['validate', 'output', 'all']:
             success &= problem.validate_format('output_format')
-        #if action in ['run', 'all']:
-            #success &= problem.run_submissions()
+        if action in ['run', 'all']:
+            success &= problem.run_submissions()
         if action in ['test']:
             config.args.no_bar = True
             success &= problem.test_submissions()
