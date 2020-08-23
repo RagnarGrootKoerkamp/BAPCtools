@@ -789,10 +789,10 @@ class Directory(Rule):
                             generator_config.untracked_directory.add(relpath)
                         else:
                             bar.log(
-                                f'Track {ft} {name} using --add-manual/--move-manual or delete using --clean.'
+                                f'Track {ft} {name} using --add-manual/--move-manual or delete using clean -f.'
                             )
                     else:
-                        bar.log(f'Untracked {ft} {name}. Delete with generate --clean.')
+                        bar.log(f'Untracked {ft} {name}. Delete with clean -f.')
                 continue
 
             generator_config.known_cases.add(relpath)

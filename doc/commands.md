@@ -14,7 +14,7 @@ This lists all subcommands and their most important options.
 * Problem development:
     - [`bt run [-v] [-t TIMEOUT] [-m MEMORY] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
     - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-    - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--clean] [--all] [--check_deterministic] [--add-manual] [--move-manual [DIRECTORY]] [--jobs JOBS] [testcases [testcases ...]]`](#generate)
+    - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check_deterministic] [--add-manual] [--move-manual [DIRECTORY]] [--jobs JOBS] [testcases [testcases ...]]`](#generate)
     - [`bt clean [-v] [--force]`](#clean)
     - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
     - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
@@ -32,7 +32,7 @@ This lists all subcommands and their most important options.
     - [`bt samplezip`](#samplezip)
     - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
 * Misc
-    - [`bt all [-v] [--cp] [--no-timelimit]`](#all)
+    - [`bt all [-v] [--cp] [--no-timelimit] [--clean]`](#all)
     - [`bt sort`](#sort)
     - [`bt tmp [--clean]`](#tmp)
 
@@ -146,8 +146,6 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 
 - `--force`/`-f`: By default, `generate` will not overwrite any files, but instead warn that they will change. Pass `--force` to overwrite existing files.
 - `--samples`: Even with `--force`, samples won't be overwritten by default. `--force --samples` also overwrites samples. (Samples usually have a manually curated input and output that should not be overwritten easily.)
-- `--clean`/`-c`: Clean untracked files instead of warning about them. WARNING: This may delete manually created testcases that are not (yet) mentioned in `generators.yaml`.
-  One time where this is useful, is when automatically numbered testcases get renumbered. In this case, the `generate` command will complain about the old numbered testcases, and `clean` can be used to remove those.
 - `--all`/`-a`: Fully regenerate all test cases, skipping the up-to-date check.
 - `--check_deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check. This is implicitly set to true for `bt all`.
 - `--add-manual`: Testcases and directories in `data/` that do not have a corresponding entry in `generators.yaml` are automatically added.
@@ -468,6 +466,7 @@ This is a convenience command (mostly for use in CI) that runs the following sub
 - Validate input
 - Validate output
 - Run all submissions
+- Clean up generated testcases using `clean` when `--clean` is passed.
 
 This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand.
 
