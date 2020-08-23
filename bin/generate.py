@@ -383,9 +383,10 @@ class TestcaseRule(Rule):
 
         # For each generated .in file, both new and up to date, check that they
         # use a deterministic generator by rerunning the generator with the
-        # same arguments.  This is run when --check-deterministic is passed,
+        # same arguments.  This is done when --check-deterministic is passed,
         # which is also set to True when running `bt all`.
         # This doesn't do anything for manual cases.
+        # It also checks that the input changes when the seed changes.
         def check_deterministic():
             if not getattr(config.args, 'check_deterministic', False):
                 return
@@ -393,6 +394,10 @@ class TestcaseRule(Rule):
             if t.manual:
                 return
 
+            # Check that the generator depends on {seed}, in case {seed} is used.
+            if not t.generator.SEED_REGEX.search(t.generator.command_string): return
+
+            # Check that the generator is deterministic.
             result = t.generator.run(bar, cwd, t.name, t.seed, t.config.retries)
             if result.ok is not True:
                 return
@@ -407,7 +412,20 @@ class TestcaseRule(Rule):
             if infile.read_bytes() == target_infile.read_bytes():
                 bar.part_done(True, 'Generator is deterministic.')
             else:
-                bar.part_done(False, f'Generator is not deterministic.')
+                bar.part_done(False, 'Generator is not deterministic.')
+
+            result = t.generator.run(bar, cwd, t.name, (t.seed+1)%(2**31), t.config.retries)
+            if result.ok is not True:
+                return
+
+            generator_config._uses_seed += 1
+
+            # Now check that the source and target are different.
+            if infile.read_bytes() != target_infile.read_bytes():
+                bar.part_done(True, 'Generator depends on seed.')
+                generator_config._depends_on_seed += 1
+            else:
+                bar.part_done(False, 'Generator does not depend on seed.')
 
         # The expected contents of the meta_ file.
         def up_to_date():
@@ -1089,6 +1107,9 @@ class GeneratorConfig:
         self.root_dir.walk(lambda x: item_names.append(x.path))
 
         self.problem.reset_testcase_hashes()
+
+        self._uses_seed = 0
+        self._depends_on_seed = 0
 
         bar = ProgressBar('Generate', items=item_names)
 
