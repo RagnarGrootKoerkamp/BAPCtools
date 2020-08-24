@@ -1,4 +1,5 @@
 from util import *
+import generate
 
 
 # This prints the number belonging to the count.
@@ -26,8 +27,9 @@ def stats(problems):
         ('sol', 'problem_statement/solution.tex'),
         ('   Ival', ['input_validators/*', 'input_format_validators/*']),
         ('Oval', ['output_validators/*']),
-        ('   sample', 'data/sample/*.in', 2),
-        ('secret', 'data/secret/**/*.in', 15, 50),
+        ('   sample', ['data/sample/*.in', lambda s: {x for x in s if x.parts[2] == 'sample'}], 2),
+        ('secret', ['data/secret/**/*.in', lambda s: {x for x in s if x.parts[2] == 'secret'}], 15, 50),
+        ('bad', 'data/bad/**/*', 0),
         ('   AC', 'submissions/accepted/*', 3),
         (' WA', 'submissions/wrong_answer/*', 2),
         ('TLE', 'submissions/time_limit_exceeded/*', 1),
@@ -59,18 +61,21 @@ def stats(problems):
     print(cc.bold + header + cc.reset)
 
     for problem in problems:
+        generated_testcases = {problem.path / 'data' / x.parent / (x.name + '.in') for x in generate.generated_testcases(problem)}
 
         def count(path):
             if type(path) is list:
-                return sum(count(p) for p in path)
-            cnt = 0
+                return  set.union(*(count(p) for p in path))
+            if callable(path):
+                return path(generated_testcases)
+            results = set()
             for p in glob(problem.path, path):
                 # Exclude files containing 'TODO: Remove'.
                 if p.is_file():
                     with p.open() as file:
                         data = file.read()
                         if data.find('TODO: Remove') == -1:
-                            cnt += 1
+                            results.add(p)
                 if p.is_dir():
                     ok = True
                     for f in glob(p, '*'):
@@ -84,10 +89,10 @@ def stats(problems):
                                 ok = False
                                 pass
                     if ok:
-                        cnt += 1
-            return cnt
+                        results.add(p)
+            return results
 
-        counts = [count(s[1]) for s in stats]
+        counts = [len(count(s[1])) for s in stats]
         for i in range(0, len(stats)):
             cumulative[i] = cumulative[i] + counts[i]
 

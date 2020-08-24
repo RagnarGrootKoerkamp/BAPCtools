@@ -943,9 +943,10 @@ class GeneratorConfig:
             else:
                 setattr(self, key, default)
 
-        # A map from directory paths `secret/testgroup` to Directory objects, used to resolve testcase
-        # inclusion.
+        # A set of paths `secret/testgroup/testcase`, without the '.in'.
         self.known_cases = set()
+        # A set of paths `secret/testgroup`.
+        self.known_directories = set()
         self.untracked_inline_manual = set()
         self.untracked_directory = set()
         self.tracked_inline_manual = set()
@@ -972,13 +973,14 @@ class GeneratorConfig:
 
             d = Directory(self.problem, name, yaml, parent)
             assert d.path not in self.known_cases
-            self.known_cases.add(d.path)
+            self.known_directories.add(d.path)
 
             if 'include' in yaml:
                 assert isinstance(yaml['include'], list)
                 for include in yaml['include']:
                     assert not include.startswith('/')
                     assert not Path(include).is_absolute()
+                    # TODO: This, or self.known_directories.
                     assert Path(include) in self.known_cases
                     self.known_cases.add(d.path / Path(include).name)
 
@@ -1396,3 +1398,10 @@ def clean(problem):
     if config.ok:
         config.clean()
     return True
+
+
+def generated_testcases(problem):
+    config = GeneratorConfig(problem)
+    if config.ok:
+        return config.known_cases
+    return set()
