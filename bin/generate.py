@@ -791,6 +791,7 @@ class Directory(Rule):
             base = f.with_suffix('')
             relpath = base.relative_to(problem.path / 'data')
             if relpath in generator_config.known_cases: continue
+            if relpath in generator_config.known_directories: continue
 
             if f.suffix != '.in':
                 if f.suffix in config.KNOWN_DATA_EXTENSIONS and f.with_suffix(
@@ -868,6 +869,7 @@ class Directory(Rule):
             # If --force/-f is passed, also clean unknown files.
             relpath = f.relative_to(problem.path / 'data')
             if relpath.with_suffix('') in generator_config.known_cases: continue
+            if relpath.with_suffix('') in generator_config.known_directories: continue
 
             ft = 'directory' if f.is_dir() else 'file'
 
