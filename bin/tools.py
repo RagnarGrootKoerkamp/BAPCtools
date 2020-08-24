@@ -530,14 +530,6 @@ def run_parsed_arguments(args):
         # TODO: Remove usages of settings.
         settings = problem.settings
 
-        if action in ['pdf', 'all']:
-            # only build the pdf on the problem level, or on the contest level when
-            # --all is passed.
-            if level == 'problem' or (level == 'problemset' and hasattr(config.args, 'all')
-                                      and config.args.all):
-                success &= latex.build_problem_pdf(problem)
-
-        input_validator_ok = False
         if action in ['generate']:
             success &= generate.generate(problem)
         if action in ['all', 'constraints'] or (action in ['run'] and not config.args.no_generate):
@@ -550,8 +542,16 @@ def run_parsed_arguments(args):
             config.args.verbose = 0
             if not hasattr(config.args, 'testcases'):
                 config.args.testcases = None
+            if not hasattr(config.args, 'force'):
+                config.args.force = False
             success &= generate.generate(problem)
             config.args = old_args
+        if action in ['pdf', 'all']:
+            # only build the pdf on the problem level, or on the contest level when
+            # --all is passed.
+            if level == 'problem' or (level == 'problemset' and hasattr(config.args, 'all')
+                                      and config.args.all):
+                success &= latex.build_problem_pdf(problem)
         if action in ['validate', 'input', 'all']:
             success &= problem.validate_format('input_format')
         if action in ['validate', 'output', 'all']:
