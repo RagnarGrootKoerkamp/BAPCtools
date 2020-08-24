@@ -285,7 +285,7 @@ Run this from one of:
     genparser.add_argument('--force',
                            '-f',
                            action='store_true',
-                           help='Overwrite existing input flies.')
+                           help='Overwrite existing input files.')
     genparser.add_argument('--all',
                            '-a',
                            action='store_true',
@@ -344,6 +344,10 @@ Run this from one of:
         '--memory',
         '-m',
         help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
+    runparser.add_argument('--force',
+                           '-f',
+                           action='store_true',
+                           help='Allow overwriting existing input files in generator.')
 
     # Test
     testparser = subparsers.add_parser('test',
@@ -537,17 +541,17 @@ def run_parsed_arguments(args):
         if action in ['generate']:
             success &= generate.generate(problem)
         if action in ['all', 'constraints'] or (action in ['run'] and not config.args.no_generate):
-            config.args.force = False
-            if not hasattr(config.args, 'clean'):
-                config.args.clean = False
-            if action in ['all', 'constraints']:
-                config.args.check_deterministic = True
+            # Call `generate` with modified arguments.
+            old_args = argparse.Namespace(**vars(config.args))
+            config.args.check_deterministic = action in ['all', 'constraints']
             config.args.jobs = 4
             config.args.add_manual = False
             config.args.move_manual = False
+            config.args.verbose = 0
             if not hasattr(config.args, 'testcases'):
                 config.args.testcases = None
             success &= generate.generate(problem)
+            config.args = old_args
         if action in ['validate', 'input', 'all']:
             success &= problem.validate_format('input_format')
         if action in ['validate', 'output', 'all']:
