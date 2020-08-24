@@ -151,7 +151,8 @@ def create_gitlab_jobs(contest, problems):
     print(substitute(contest_yml, locals()))
 
     problem_yml = (config.tools_root / 'skel/gitlab_ci/problem.yaml').read_text()
-    for problem in problems:
-        changesdir = problem_source_dir(problem)
+    for problem_obj in problems:
+        changesdir = problem_source_dir(problem_obj)
+        problem = problem_obj.name
         print('\n')
         print(substitute(problem_yml, locals()), end='')
