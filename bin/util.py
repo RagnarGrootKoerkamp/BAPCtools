@@ -19,6 +19,8 @@ from pathlib import Path
 def is_windows():
     return sys.platform in ['win32', 'cygwin']
 
+def is_mac():
+    return sys.platform in ['darwin']
 
 if not is_windows():
     import resource
