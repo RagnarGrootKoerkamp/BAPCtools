@@ -64,7 +64,7 @@ def run_interactive_testcase(
     # - Wait for the validator to complete.
     # This cannot handle cases where the validator reports WA and the submission timeout out
     # afterwards.
-    if is_windows():
+    if is_windows() or is_mac():
 
         if validator_error is False: validator_error = subprocess.PIPE
         if team_error is False: team_error = subprocess.PIPE
@@ -80,7 +80,7 @@ def run_interactive_testcase(
         # Start and time the submission.
         # TODO: use rusage instead
         tstart = time.monotonic()
-        ok, err, out = exec_command(submission_command,
+        exec_res = exec_command(submission_command,
                                     expect=0,
                                     stdin=validator_process.stdout,
                                     stdout=validator_process.stdin,
@@ -88,8 +88,10 @@ def run_interactive_testcase(
                                     cwd=submission_dir,
                                     timeout=timeout)
 
+
         # Wait
         (validator_out, validator_err) = validator_process.communicate()
+
 
         tend = time.monotonic()
 
@@ -105,15 +107,18 @@ def run_interactive_testcase(
             verdict = 'TIME_LIMIT_EXCEEDED'
             if tend - tstart >= timeout:
                 print_verdict = 'TLE (aborted)'
-        elif ok is not True:
+        elif exec_res.ok is not True:
             verdict = 'RUN_TIME_ERROR'
         elif validator_ok == config.RTV_WA:
             verdict = 'WRONG_ANSWER'
         elif validator_ok == config.RTV_AC:
             verdict = 'ACCEPTED'
 
+        if not validator_err:
+            validator_err = bytes() 
+
         # Set result.err to validator error and result.out to team error.
-        return ExecResult(True, tend - start, validator_err.decode('utf-8'), err, verdict,
+        return ExecResult(True, tend - tstart, validator_err.decode('utf-8'), exec_res.err, verdict,
                           print_verdict)
 
     # On Linux:
