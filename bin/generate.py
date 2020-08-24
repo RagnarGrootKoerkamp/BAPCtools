@@ -378,7 +378,7 @@ class TestcaseRule(Rule):
                 bar.log(f'Moving {t.path} to {reltarget}.')
                 generator_config.tracked_inline_manual.add(t.path)
             else:
-                bar.debug(f'Move inline manual case using --move_manual.')
+                bar.debug(f'Move inline manual case using --move-manual.')
 
 
         # For each generated .in file, both new and up to date, check that they
@@ -394,10 +394,9 @@ class TestcaseRule(Rule):
             if t.manual:
                 return
 
-            # Check that the generator depends on {seed}, in case {seed} is used.
-            if not t.generator.SEED_REGEX.search(t.generator.command_string): return
-
             # Check that the generator is deterministic.
+            # TODO: Can we find a way to easily compare cpython vs pypy? These
+            # use different but fixed implementations to hash tuples of ints.
             result = t.generator.run(bar, cwd, t.name, t.seed, t.config.retries)
             if result.ok is not True:
                 return
@@ -412,20 +411,27 @@ class TestcaseRule(Rule):
             if infile.read_bytes() == target_infile.read_bytes():
                 bar.part_done(True, 'Generator is deterministic.')
             else:
-                bar.part_done(False, 'Generator is not deterministic.')
+                bar.part_done(False, f'Generator `{t.generator.command_string}` is not deterministic.')
 
-            result = t.generator.run(bar, cwd, t.name, (t.seed+1)%(2**31), t.config.retries)
-            if result.ok is not True:
-                return
+            # If {seed} is used, check that the generator depends on it.
+            if t.generator.SEED_REGEX.search(t.generator.command_string):
+                depends_on_seed = False
+                for run in range(config.SEED_DEPENDENCY_RETRIES):
+                    new_seed = (t.seed+1+run)%(2**31)
+                    result = t.generator.run(bar, cwd, t.name, new_seed, t.config.retries)
+                    if result.ok is not True:
+                        return
 
-            generator_config._uses_seed += 1
+                    # Now check that the source and target are different.
+                    if infile.read_bytes() != target_infile.read_bytes():
+                        depends_on_seed = True
+                        break
 
-            # Now check that the source and target are different.
-            if infile.read_bytes() != target_infile.read_bytes():
-                bar.part_done(True, 'Generator depends on seed.')
-                generator_config._depends_on_seed += 1
-            else:
-                bar.part_done(False, 'Generator does not depend on seed.')
+                if depends_on_seed:
+                    bar.debug('Generator depends on seed.')
+                else:
+                    bar.warn(f'Generator `{t.generator.command_string}` likely does not depend on seed:',
+                            f'All values in [{t.seed}, {new_seed}] give the same result.')
 
         # The expected contents of the meta_ file.
         def up_to_date():
@@ -1107,9 +1113,6 @@ class GeneratorConfig:
         self.root_dir.walk(lambda x: item_names.append(x.path))
 
         self.problem.reset_testcase_hashes()
-
-        self._uses_seed = 0
-        self._depends_on_seed = 0
 
         bar = ProgressBar('Generate', items=item_names)
 

@@ -32,6 +32,8 @@ COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
 KNOWN_DATA_EXTENSIONS = ['.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.svg']
 
+SEED_DEPENDENCY_RETRIES = 4
+
 # The root directory of the BAPCtools repository.
 tools_root = Path(__file__).resolve().parent.parent
 
@@ -50,5 +52,5 @@ def timeout():
     if hasattr(args, 'timeout'): return args.timeout
     return 30
 
-
+# Set to true when running as a test.
 RUNNING_TEST = False
