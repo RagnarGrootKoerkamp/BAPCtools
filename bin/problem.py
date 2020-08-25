@@ -413,11 +413,12 @@ class Problem:
                     scores[t] += 1. / failures
         scores_list = sorted(scores.values())
 
-        print('\nVerdict analysis table. Submissions are ordered per column as above. Higher '
-              'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.')
+        print(
+            '\nVerdict analysis table. Submissions are ordered per column as above. Higher '
+            'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.'
+        )
         print(f'{cc.red}0{cc.reset}: submission fails testcase')
         print(f'{cc.green}1{cc.reset}: submission passes testcase\n')
-
 
         for testcase in testcases:
             # Skip all AC testcases

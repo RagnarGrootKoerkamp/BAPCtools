@@ -343,7 +343,8 @@ class Submission(program.Program):
             # Print stderr whenever something is printed
             if result.out and result.err:
                 output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
-                data = f'STDERR:' + bar._format_data(result.err) + f'\n{output_type}:' + bar._format_data(result.out) + '\n'
+                data = f'STDERR:' + bar._format_data(
+                    result.err) + f'\n{output_type}:' + bar._format_data(result.out) + '\n'
             else:
                 data = ''
                 if result.err:
@@ -354,7 +355,8 @@ class Submission(program.Program):
             bar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
             # Lazy judging: stop on the first error when not in verbose mode.
-            if (not config.args.verbose and not getattr(config.args, 'table', False)) and result.verdict in config.MAX_PRIORITY_VERDICT:
+            if (not config.args.verbose and not getattr(config.args, 'table', False)
+                ) and result.verdict in config.MAX_PRIORITY_VERDICT:
                 bar.count = None
                 break
 
@@ -459,7 +461,6 @@ class Submission(program.Program):
             bar.start(name)
             super().__init__(self.problem, self.path, skip_double_build_warning=True)
             bar.log('from stdin' if is_tty else 'from file')
-
 
             # Launch a separate thread to pass stdin to a pipe.
             r, w = os.pipe()

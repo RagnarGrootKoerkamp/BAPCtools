@@ -344,7 +344,7 @@ class TestcaseRule(Rule):
                 # Try the given path itself, and the given path without the last suffix.
                 for p2 in [p, p.with_suffix('')]:
                     try:
-                        (problem.path/'data'/t.path).relative_to(problem.path / p2)
+                        (problem.path / 'data' / t.path).relative_to(problem.path / p2)
                         found = True
                         break
                     except:
@@ -380,7 +380,6 @@ class TestcaseRule(Rule):
             else:
                 bar.debug(f'Move inline manual case using --move-manual.')
 
-
         # For each generated .in file, both new and up to date, check that they
         # use a deterministic generator by rerunning the generator with the
         # same arguments.  This is done when --check-deterministic is passed,
@@ -411,13 +410,14 @@ class TestcaseRule(Rule):
             if infile.read_bytes() == target_infile.read_bytes():
                 bar.part_done(True, 'Generator is deterministic.')
             else:
-                bar.part_done(False, f'Generator `{t.generator.command_string}` is not deterministic.')
+                bar.part_done(False,
+                              f'Generator `{t.generator.command_string}` is not deterministic.')
 
             # If {seed} is used, check that the generator depends on it.
             if t.generator.SEED_REGEX.search(t.generator.command_string):
                 depends_on_seed = False
                 for run in range(config.SEED_DEPENDENCY_RETRIES):
-                    new_seed = (t.seed+1+run)%(2**31)
+                    new_seed = (t.seed + 1 + run) % (2**31)
                     result = t.generator.run(bar, cwd, t.name, new_seed, t.config.retries)
                     if result.ok is not True:
                         return
@@ -430,8 +430,9 @@ class TestcaseRule(Rule):
                 if depends_on_seed:
                     bar.debug('Generator depends on seed.')
                 else:
-                    bar.warn(f'Generator `{t.generator.command_string}` likely does not depend on seed:',
-                            f'All values in [{t.seed}, {new_seed}] give the same result.')
+                    bar.warn(
+                        f'Generator `{t.generator.command_string}` likely does not depend on seed:',
+                        f'All values in [{t.seed}, {new_seed}] give the same result.')
 
         # The expected contents of the meta_ file.
         def up_to_date():
@@ -475,7 +476,7 @@ class TestcaseRule(Rule):
         if up_to_date():
             check_deterministic()
             if config.args.action != 'generate':
-                bar.logged = True # Disable redundant 'up to date' message in run mode.
+                bar.logged = True  # Disable redundant 'up to date' message in run mode.
             bar.done(message='up to date')
             return
 
@@ -575,7 +576,7 @@ class TestcaseRule(Rule):
 
                 # We always copy file contents. Manual cases are copied as well.
                 if source.is_symlink():
-                    shutil.copy(source, target, follow_symlinks = True)
+                    shutil.copy(source, target, follow_symlinks=True)
                     #source = source.resolve().relative_to(problem.path.parent.resolve())
                     #ensure_symlink(target, source, relative=True)
                 else:
@@ -1320,7 +1321,6 @@ class GeneratorConfig:
         yaml.dump(data, generators_yaml)
         log('Updated generators.yaml')
 
-
     def move_inline_manual_to_directory(self):
         try:
             import ruamel.yaml
@@ -1346,7 +1346,6 @@ class GeneratorConfig:
 
         config.args.move_manual.mkdir(exist_ok=True)
 
-
         # Add missing testcases.
         for path in sorted(self.tracked_inline_manual):
             d = data
@@ -1355,27 +1354,27 @@ class GeneratorConfig:
 
             # Move all test data.
             # Make sure the testcase doesn't already exist in the target directory.
-            in_target = (config.args.move_manual / (path.name+'.in'))
+            in_target = (config.args.move_manual / (path.name + '.in'))
             if in_target.is_file():
-                warn(f'Target file {in_target.relative_to(self.problem.path.resolve())} already exists. Skipping testcase {path}.')
+                warn(
+                    f'Target file {in_target.relative_to(self.problem.path.resolve())} already exists. Skipping testcase {path}.'
+                )
                 continue
 
             assert path.name in d['data']
 
-            d['data'][path.name] = str(in_target.relative_to(self.problem.path.resolve()/'generators'))
+            d['data'][path.name] = str(
+                in_target.relative_to(self.problem.path.resolve() / 'generators'))
 
             for ext in config.KNOWN_DATA_EXTENSIONS:
-                source = (self.problem.path/'data')/(path.parent/(path.name+ext))
-                target = config.args.move_manual / (path.name+ext)
+                source = (self.problem.path / 'data') / (path.parent / (path.name + ext))
+                target = config.args.move_manual / (path.name + ext)
                 if source.is_file():
                     shutil.copy(source, target)
-
 
         # Overwrite generators.yaml.
         yaml.dump(data, generators_yaml)
         log('Updated generators.yaml')
-
-
 
     def clean(self):
         item_names = []

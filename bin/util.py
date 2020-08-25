@@ -19,8 +19,10 @@ from pathlib import Path
 def is_windows():
     return sys.platform in ['win32', 'cygwin']
 
+
 def is_mac():
     return sys.platform in ['darwin']
+
 
 if not is_windows():
     import resource
@@ -570,17 +572,20 @@ def limit_setter(command, timeout, memory_limit):
                                (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
 
         if memory_limit and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']:
-            resource.setrlimit(resource.RLIMIT_AS, (memory_limit*1024*1024, memory_limit*1024*1024))
+            resource.setrlimit(resource.RLIMIT_AS,
+                               (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024))
 
         # Disable coredumps.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 
     return setlimits
 
+
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen):
     # If wait4 is available, store resource usage information.
     if 'wait4' in dir(os):
+
         def _try_wait(self, wait_flags):
             """All callers to this function MUST hold self._waitpid_lock."""
             try:
@@ -595,6 +600,7 @@ class ResourcePopen(subprocess.Popen):
                 self.rusage = res
             return (pid, sts)
     else:
+
         def _try_wait(self, wait_flags):
             """All callers to this function MUST hold self._waitpid_lock."""
             try:
@@ -608,6 +614,7 @@ class ResourcePopen(subprocess.Popen):
             else:
                 self.rusage = None
             return (pid, sts)
+
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
@@ -635,6 +642,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         kwargs.pop('timeout')
 
     process = None
+
     def interrupt_handler(sig, frame):
         nonlocal process
         process.kill()
@@ -649,9 +657,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     try:
         if not is_windows():
             process = ResourcePopen(command,
-                                       preexec_fn=limit_setter(command, timeout,
-                                                               get_memory_limit(kwargs)),
-                                       **kwargs)
+                                    preexec_fn=limit_setter(command, timeout,
+                                                            get_memory_limit(kwargs)),
+                                    **kwargs)
         else:
             process = ResourcePopen(command, **kwargs)
         (stdout, stderr) = process.communicate(timeout=timeout)
@@ -691,7 +699,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
         # To prevent under-reporting the duration, we take the max with wall time in this case.
         if did_timeout:
-            duration = max(tend-tstart, duration)
+            duration = max(tend - tstart, duration)
     else:
         duration = tend - tstart
 

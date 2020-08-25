@@ -188,7 +188,8 @@ class Program:
                 self.bar.warn(f'Run program {exe} not found for language {name}')
                 continue
 
-            if (priority//1000, len(matching_files), priority) > (best[2]//1000, len(best[1]), best[2]):
+            if (priority // 1000, len(matching_files), priority) > (best[2] // 1000, len(
+                    best[1]), best[2]):
                 best = (lang, matching_files, priority)
 
         lang, files, priority = best
@@ -201,7 +202,6 @@ class Program:
 
         if self.bar.logged:
             self.bar.log(f'Falling back to {name}.')
-
 
         if len(files) == 0:
             self.ok = False

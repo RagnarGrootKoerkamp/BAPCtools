@@ -27,8 +27,12 @@ def stats(problems):
         ('sol', 'problem_statement/solution.tex'),
         ('   Ival', ['input_validators/*', 'input_format_validators/*']),
         ('Oval', ['output_validators/*']),
-        ('   sample', ['data/sample/*.in', lambda s: {x for x in s if x.parts[2] == 'sample'}], 2),
-        ('secret', ['data/secret/**/*.in', lambda s: {x for x in s if x.parts[2] == 'secret'}], 15, 50),
+        ('   sample', ['data/sample/*.in', lambda s: {x
+                                                      for x in s
+                                                      if x.parts[2] == 'sample'}], 2),
+        ('secret', ['data/secret/**/*.in', lambda s: {x
+                                                      for x in s
+                                                      if x.parts[2] == 'secret'}], 15, 50),
         ('bad', 'data/bad/**/*', 0),
         ('   AC', 'submissions/accepted/*', 3),
         (' WA', 'submissions/wrong_answer/*', 2),
@@ -61,11 +65,14 @@ def stats(problems):
     print(cc.bold + header + cc.reset)
 
     for problem in problems:
-        generated_testcases = {problem.path / 'data' / x.parent / (x.name + '.in') for x in generate.generated_testcases(problem)}
+        generated_testcases = {
+            problem.path / 'data' / x.parent / (x.name + '.in')
+            for x in generate.generated_testcases(problem)
+        }
 
         def count(path):
             if type(path) is list:
-                return  set.union(*(count(p) for p in path))
+                return set.union(*(count(p) for p in path))
             if callable(path):
                 return path(generated_testcases)
             results = set()

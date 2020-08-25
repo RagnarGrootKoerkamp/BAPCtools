@@ -81,17 +81,15 @@ def run_interactive_testcase(
         # TODO: use rusage instead
         tstart = time.monotonic()
         exec_res = exec_command(submission_command,
-                                    expect=0,
-                                    stdin=validator_process.stdout,
-                                    stdout=validator_process.stdin,
-                                    stderr=team_error,
-                                    cwd=submission_dir,
-                                    timeout=timeout)
-
+                                expect=0,
+                                stdin=validator_process.stdout,
+                                stdout=validator_process.stdin,
+                                stderr=team_error,
+                                cwd=submission_dir,
+                                timeout=timeout)
 
         # Wait
         (validator_out, validator_err) = validator_process.communicate()
-
 
         tend = time.monotonic()
 
@@ -115,11 +113,11 @@ def run_interactive_testcase(
             verdict = 'ACCEPTED'
 
         if not validator_err:
-            validator_err = bytes() 
+            validator_err = bytes()
 
         # Set result.err to validator error and result.out to team error.
-        return ExecResult(True, tend - tstart, validator_err.decode('utf-8'), exec_res.err, verdict,
-                          print_verdict)
+        return ExecResult(True, tend - tstart, validator_err.decode('utf-8'), exec_res.err,
+                          verdict, print_verdict)
 
     # On Linux:
     # - Create 2 pipes

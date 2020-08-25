@@ -305,13 +305,17 @@ Run this from one of:
     genparser.add_argument('--add-manual',
                            action='store_true',
                            help='Add manual cases to generators.yaml.')
-    genparser.add_argument('--move-manual', nargs='?',
-                           type = Path,
-                           const = 'generators/manual',
-                           help='Move tracked inline manual cases to the given directory.', metavar='TARGET_DIRECTORY=generators/manual')
-    genparser.add_argument('testcases', nargs='*', type=Path,
-                           help='The testcases to generate, given as directory, .in/.ans file, or base name.')
-
+    genparser.add_argument('--move-manual',
+                           nargs='?',
+                           type=Path,
+                           const='generators/manual',
+                           help='Move tracked inline manual cases to the given directory.',
+                           metavar='TARGET_DIRECTORY=generators/manual')
+    genparser.add_argument(
+        'testcases',
+        nargs='*',
+        type=Path,
+        help='The testcases to generate, given as directory, .in/.ans file, or base name.')
 
     # Clean
     cleanparser = subparsers.add_parser('clean',
@@ -361,7 +365,11 @@ Run this from one of:
                                 type=Path,
                                 help='Optionally a list of testcases to run on.')
     testcasesgroup.add_argument('--samples', action='store_true', help='Only run on the samples.')
-    testcasesgroup.add_argument('--interactive', '-i', action='store_true', help='Run submission in interactive mode: stdin is from the command line.')
+    testcasesgroup.add_argument(
+        '--interactive',
+        '-i',
+        action='store_true',
+        help='Run submission in interactive mode: stdin is from the command line.')
     testparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     testparser.add_argument(
         '--memory',
@@ -381,7 +389,9 @@ Run this from one of:
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
     allparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
-    allparser.add_argument('--clean', action='store_true', help='Clean up generated testcases afterwards.')
+    allparser.add_argument('--clean',
+                           action='store_true',
+                           help='Clean up generated testcases afterwards.')
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser('zip',
@@ -476,12 +486,11 @@ def run_parsed_arguments(args):
     if hasattr(config.args, 'move_manual') and config.args.move_manual:
         # Path *must* be inside generators/.
         try:
-            config.args.move_manual = (problems[0].path/config.args.move_manual).resolve()
+            config.args.move_manual = (problems[0].path / config.args.move_manual).resolve()
             config.args.move_manual.relative_to(problems[0].path.resolve() / 'generators')
         except Exception as e:
             fatal('Directory given to move_manual must be inside generators/.')
         config.args.add_manual = True
-
 
     # Handle one-off subcommands.
     if action == 'tmp':
@@ -584,7 +593,6 @@ def run_parsed_arguments(args):
             if not hasattr(config.args, 'force'):
                 config.args.force = False
             success &= generate.clean(problem)
-
 
         if len(problems) > 1:
             print()
