@@ -581,6 +581,8 @@ def run_parsed_arguments(args):
                 # problem directory name.
                 success &= export.build_problem_zip(problem.path, output, settings)
         if action in ['clean'] or (action in ['all'] and config.args.clean):
+            if not hasattr(config.args, 'force'):
+                config.args.force = False
             success &= generate.clean(problem)
 
 
