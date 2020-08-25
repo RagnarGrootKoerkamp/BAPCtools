@@ -370,7 +370,10 @@ class Generator(Program):
         # Clean the directory, but not the meta_ file.
         for f in cwd.iterdir():
             if f.name in ['meta_', 'meta_.yaml']: continue
-            f.unlink()
+            if f.is_dir() and not f.is_symlink():
+                shutil.rmtree(f)
+            else:
+                f.unlink()
 
         with stdout_path.open('w') as stdout_file:
             result = exec_command(self.run_command + args,

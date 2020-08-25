@@ -161,7 +161,7 @@ class Problem:
         return testcases
 
     # returns a map {expected verdict -> [(name, command)]}
-    def submissions(problem):
+    def submissions(problem, accepted_only = False):
         if problem._submissions is not None: return problem._submissions
 
         paths = []
@@ -183,7 +183,7 @@ class Problem:
                 else:
                     add(problem.path / submission)
         else:
-            for verdict in config.VERDICTS:
+            for verdict in (['ACCEPTED'] if accepted_only else config.VERDICTS):
                 paths += glob(problem.path / 'submissions' / verdict.lower(), '*')
 
         if len(paths) == 0:
@@ -214,6 +214,7 @@ class Problem:
         if sum(len(submissions[x]) for x in submissions) == 0:
             submissions = False
         problem._submissions = submissions
+        if accepted_only: return submissions['ACCEPTED']
         return submissions
 
     # If check_constraints is True, this chooses the first validator that matches

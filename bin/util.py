@@ -119,7 +119,6 @@ class ProgressBar:
 
         assert not (items and (max_len or count))
         assert items is not None or max_len
-        assert items is not None or count is not None
         if items is not None:
             count = len(items)
             if count == 0:
