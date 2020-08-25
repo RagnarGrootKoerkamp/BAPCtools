@@ -28,6 +28,7 @@ import config
 import constraints
 import export
 import generate
+import fuzz
 import latex
 import run
 import skel
@@ -317,6 +318,15 @@ Run this from one of:
         type=Path,
         help='The testcases to generate, given as directory, .in/.ans file, or base name.')
 
+    # Fuzzer
+    # TODO: Also allow specifying a list of submissions?
+    fuzzparser = subparsers.add_parser('fuzz',
+                                      parents=[global_parser],
+                                      help='Generate random testcases and search for inconsistencies in AC submissions.')
+    fuzzparser.add_argument('--time', '-t', type=int, default=600, help='Number of seconds to run for.')
+    fuzzparser.add_argument('testcases', nargs='*', type=Path,
+                           help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name.')
+
     # Clean
     cleanparser = subparsers.add_parser('clean',
                                         parents=[global_parser],
@@ -555,6 +565,8 @@ def run_parsed_arguments(args):
                 config.args.force = False
             success &= generate.generate(problem)
             config.args = old_args
+        if action in ['fuzz']:
+            success &= fuzz.fuzz(problem)
         if action in ['pdf', 'all']:
             # only build the pdf on the problem level, or on the contest level when
             # --all is passed.
