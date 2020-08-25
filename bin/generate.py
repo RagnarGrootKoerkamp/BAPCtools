@@ -61,6 +61,20 @@ def resolve_path(path, *, allow_absolute, allow_relative):
     return Path('generators') / path
 
 
+# testcase_short_path: secret/1.in
+def process_testcase(problem, testcase_path):
+    if not getattr(config.args, 'testcases', None): return True
+    for p in config.args.testcases:
+        # Try the given path itself, and the given path without the last suffix.
+        for p2 in [p, p.with_suffix('')]:
+            try:
+                testcase_path.relative_to(problem.path / p2)
+                return True
+            except ValueError:
+                pass
+    return False
+
+
 # An Invocation is a program with command line arguments to execute.
 # The following classes inherit from Invocation:
 # - GeneratorInvocation
@@ -86,6 +100,8 @@ class Invocation:
                                          allow_absolute=allow_absolute,
                                          allow_relative=allow_relative)
 
+        self.uses_seed = self.SEED_REGEX.search(self.command_string)
+
         # Make sure that {seed} occurs at most once.
         seed_cnt = 0
         for arg in self.args:
@@ -109,10 +125,13 @@ class Invocation:
         return command_string
 
     # Return the full command to be executed.
-    def _sub_args(self, *, name=None, seed=None):
+    def _sub_args(self, *, name, seed=None):
+        if self.uses_seed:
+            assert seed is not None
+
         def sub(arg):
             if name: arg = self.NAME_REGEX.sub(str(name), arg)
-            if seed: arg = self.SEED_REGEX.sub(str(seed), arg)
+            if self.uses_seed: arg = self.SEED_REGEX.sub(str(seed), arg)
             return arg
 
         return [sub(arg) for arg in self.args]
@@ -337,22 +356,6 @@ class TestcaseRule(Rule):
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
-        # If a list of testcases was passed and this one is not in it, skip it.
-        if config.args.testcases:
-            found = False
-            for p in config.args.testcases:
-                # Try the given path itself, and the given path without the last suffix.
-                for p2 in [p, p.with_suffix('')]:
-                    try:
-                        (problem.path / 'data' / t.path).relative_to(problem.path / p2)
-                        found = True
-                        break
-                    except:
-                        pass
-            if not found:
-                bar.done(True, 'Skipped')
-                return
-
         # E.g. bapctmp/problem/data/secret/1.in
         cwd = problem.tmpdir / 'data' / t.path
         cwd.mkdir(parents=True, exist_ok=True)
@@ -414,7 +417,7 @@ class TestcaseRule(Rule):
                               f'Generator `{t.generator.command_string}` is not deterministic.')
 
             # If {seed} is used, check that the generator depends on it.
-            if t.generator.SEED_REGEX.search(t.generator.command_string):
+            if t.generator.uses_seed:
                 depends_on_seed = False
                 for run in range(config.SEED_DEPENDENCY_RETRIES):
                     new_seed = (t.seed + 1 + run) % (2**31)
@@ -775,6 +778,9 @@ class Directory(Rule):
         files = list(dir_path.glob('*'))
         files.sort(key=lambda f: f.with_suffix('') if f.suffix == '.in' else f)
 
+        # Only consider files matching --testcases, if given.
+        files = list(filter(lambda p: process_testcase(problem, p), files))
+
         # First do a loop to find untracked manual .in files.
         for f in files:
             if f in files_created: continue
@@ -967,6 +973,9 @@ class GeneratorConfig:
                     error(f'Testcase \'{parent.path}/{name}.in\' has an invalid name.')
                     return None
 
+                # If a list of testcases was passed and this one is not in it, skip it.
+                if not process_testcase(self.problem, self.problem.path / 'data' / parent.path / name): return None
+
                 t = TestcaseRule(self.problem, name, yaml, parent)
                 assert t.path not in self.known_cases
                 self.known_cases.add(t.path)
@@ -1042,7 +1051,7 @@ class GeneratorConfig:
         warn(f'No solution specified. Using randomly chosen {submission_short_path} instead.')
         return Path('/') / submission.relative_to(self.problem.path)
 
-    def build(self):
+    def build(self, build_visualizers = True):
         generators_used = set()
         solutions_used = set()
         visualizers_used = set()
@@ -1068,10 +1077,10 @@ class GeneratorConfig:
                     t.config.solution = default_solution
                 if t.config.solution:
                     solutions_used.add(t.config.solution.program_path)
-            if t.config.visualizer:
+            if build_visualizers and t.config.visualizer:
                 visualizers_used.add(t.config.visualizer.program_path)
 
-        self.root_dir.walk(collect_programs)
+        self.root_dir.walk(collect_programs, dir_f = None)
 
         def build_programs(program_type, program_paths):
             programs = []
@@ -1105,10 +1114,10 @@ class GeneratorConfig:
         def unset_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
                 t.config.solution = None
-            if t.config.visualizer and t.config.visualizer.program is None:
+            if not build_visualizers or (t.config.visualizer and t.config.visualizer.program is None):
                 t.config.visualizer = None
 
-        self.root_dir.walk(unset_build_failures)
+        self.root_dir.walk(unset_build_failures, dir_f = None)
 
         self.problem.validators('input_format')
         self.problem.validators('output_format')
@@ -1220,6 +1229,7 @@ class GeneratorConfig:
         gitignorefile = self.problem.path / 'data/.gitignore'
         if self.gitignore_generated:
             # Collect all generated testcases and all non inline manual testcases and gitignore them in the data/ directory.
+            # When only generating a subset of testcases, we also keep existing entries not matching the filter.
             cases_to_ignore = []
 
             def maybe_ignore_testcase(t):
@@ -1228,13 +1238,24 @@ class GeneratorConfig:
 
             self.root_dir.walk(maybe_ignore_testcase, None)
 
+            if config.args.testcases and gitignorefile.is_file():
+                for line in gitignorefile.read_text().splitlines():
+                    if line[0] == '#' or line == '.gitignore': continue
+                    assert line.endswith('.*')
+                    line = Path(line).with_suffix('')
+                    path = self.problem.path / 'data' / line
+                    if not process_testcase(self.problem, path):
+                        # Remove the .*.
+                        cases_to_ignore.append(line)
+            cases_to_ignore.sort()
+
             def write_gitignore_file():
                 if len(cases_to_ignore) == 0:
                     return
 
                 if gitignorefile.is_file():
                     text = gitignorefile.read_text()
-                    if not '# GENERATED BY BAPCtools' in text:
+                    if not text.startswith('# GENERATED BY BAPCtools' ):
                         warn('Not overwriting existing data/.gitignore file.')
                         return
                 else:
@@ -1252,7 +1273,7 @@ class GeneratorConfig:
         else:
             if gitignorefile.is_file():
                 text = gitignorefile.read_text()
-                if '# GENERATED BY BAPCtools' in text:
+                if text.startswith('# GENERATED BY BAPCtools'):
                     gitignorefile.unlink()
                     log('Deleted data/.gitignore.')
 
