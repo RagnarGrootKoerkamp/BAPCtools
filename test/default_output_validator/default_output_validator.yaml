@@ -1,0 +1,190 @@
+# Each ac should compare equal to ans with the given flags.
+# Each wa should not compare equal to ans with the given flags.
+---
+# Space lenient
+flags: ''
+ans: ''
+ac:
+  - ' '
+  - '  '
+  - " \n"
+  - "\n"
+  - "\t"
+  - " \t\n\t\n \t"
+wa:
+  - '\n'
+  - '\t'
+  - '|'
+  - '>'
+  - >
+
+    .
+  - .
+  - a
+  - 1
+  - 0
+  - ' 0'
+  - ' 0 '
+  - '0 '
+---
+# Space lenient
+flags: ''
+ans: 'A B'
+ac:
+  - 'A B'
+  - " A  B \t\n"
+  - ' A B'
+  - 'A B '
+wa:
+  - 'A B X'
+  - 'X A B'
+  - "A B\nX"
+  - "A B\n\n\n\n\n \n\n X"
+---
+# Space strict
+flags: 'space_change_sensitive'
+ans: ''
+ac:
+  - ''
+wa:
+  - '\n'
+  - '\t'
+  - '|'
+  - '>'
+  - >
+
+    .
+  - .
+  - a
+  - 1
+  - 0
+  - ' 0'
+  - ' 0 '
+  - '0 '
+  - ' '
+  - '  '
+  - " \n"
+  - "\n"
+  - "\t"
+  - " \t\n\t\n \t"
+  - '1.1'
+---
+# Case lenient
+flags: ''
+ans: 'A B'
+ac:
+  - "a b"
+  - " A b"
+  - "a\n B"
+  - "a\t B"
+  - "A  B"
+  - "A B\n"
+  - "a  B"
+  - "A  B"
+  - "a B"
+wa:
+  - 'A C'
+  - 'a c'
+  - 'A BB'
+  - 'B A'
+  - 'a C'
+  - 'b a'
+  - '1 2'
+---
+# Case sensitive
+flags: 'case_sensitive'
+ans: 'A B'
+ac:
+  - "A B"
+  - " A B"
+  - "A\n B"
+  - "A B\n"
+wa:
+  - "a b"
+  - " A b"
+  - "a\n B"
+  - 'A C'
+  - 'a c'
+  - 'A BB'
+  - 'B A'
+  - 'a C'
+  - 'b a'
+  - '1 2'
+---
+# Float absolute
+flags: 'float_absolute_tolerance 1'
+ans: '10 11'
+ac:
+  - '10 11'
+  - '10.1 11.9'
+  - '9 10'
+  - '11 10'
+  - '11 12'
+  - '1e1 1.1e1'
+wa:
+  - '10 9.99999999'
+  - '11.000000001 11'
+---
+# Float relative
+flags: 'float_relative_tolerance 0.5'
+ans: '10 20'
+ac:
+  - '5 10'
+  - '15 30'
+  - '10 20'
+wa:
+  - '4.999 20'
+  - '4.99999 10'
+  - '15.0001 20'
+  - '10 30.00001'
+  - '10 asdf'
+  - 'A B'
+---
+# Float both
+flags: 'float_tolerance 0.5'
+ans: '1000 0.001'
+ac:
+  - '500 -0.499'
+  - '1500 0.501'
+  - '999.5 0.0005'
+  - '1000.5 0.0015'
+wa:
+  - '1000 0.001 X'
+  - 'X 1000 0.001'
+  - '499 -0.499'
+  - '500 -0.500'
+  - '1501 0.501'
+  - '1500 0.5010001'
+  - 'A'
+  - 'A B'
+  - 'A B C'
+---
+# mixed
+flags: 'float_tolerance 0.5'
+ans: 'A 1000'
+ac:
+  - 'A 1001'
+  - ' a 999'
+wa:
+  - ' a 999a'
+---
+# mixed
+flags: 'float_tolerance 0.5'
+ans: '1000A'
+ac:
+  - '1000A'
+  - '1000a'
+wa:
+  - '1000.0a'
+  - '1000B'
+---
+# mixed
+flags: 'float_tolerance 0.5'
+ans: 'X1000'
+ac:
+  - 'X1000'
+  - 'x1000'
+wa:
+  - 'x1000.0'
+  - 'y1000'
+  - 'x1.e43k5j'
