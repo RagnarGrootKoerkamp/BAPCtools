@@ -235,7 +235,7 @@ class Problem:
         if validator_type == 'output' and problem.settings.validation == 'default':
             validators = [
                 validate.OutputValidator(problem,
-                                         config.tools_root / 'bin' / 'default_output_validator.py')
+                                         config.tools_root / 'support' / 'default_output_validator.cpp')
             ]
             bar = ProgressBar(f'Build {validator_type} validators', items=validators)
             ok = True

@@ -26,7 +26,7 @@ def _quick_diff(out, ans):
 
 
 # return: (success, message)
-def default_output_validator(in_path, ans_path, feedback_dir, settings):
+def default_output_validator(ans_path, feedback_dir, settings):
     # settings: floatabs, floatrel, case_sensitive, space_change_sensitive
     try:
         out = sys.stdin.read()
@@ -73,9 +73,6 @@ def default_output_validator(in_path, ans_path, feedback_dir, settings):
             print('Strings became equal after space sensitive splitting! Something is wrong!')
             assert False
 
-    if floatabs is None and floatrel is None:
-        return (False, _quick_diff(out, ans))
-
     if len(words1) != len(words2):
         return (False, _quick_diff(out, ans))
 
@@ -90,8 +87,7 @@ def default_output_validator(in_path, ans_path, feedback_dir, settings):
                 relerr = abs(f1 - f2) / f2 if f2 != 0 else 1000
                 peakabserr = max(peakabserr, abserr)
                 peakrelerr = max(peakrelerr, relerr)
-                if ((floatabs is None or abserr > floatabs)
-                        and (floatrel is None or relerr > floatrel)):
+                if abserr > floatabs and relerr > floatrel:
                     return (False, _quick_diff(out, ans))
             except ValueError:
                 return (False, _quick_diff(out, ans))
@@ -104,7 +100,7 @@ class Settings:
 
 
 def main():
-    in_path = Path(sys.argv[1])
+    #in_path = Path(sys.argv[1])
     ans_path = Path(sys.argv[2])
     feedback_dir = Path(sys.argv[3])
 
@@ -127,7 +123,7 @@ def main():
         settings.float_relative_tolerance = settings.float_tolerance
         settings.float_absolute_tolerance = settings.float_tolerance
 
-    ok, message = default_output_validator(in_path, ans_path, feedback_dir, settings)
+    ok, message = default_output_validator(ans_path, feedback_dir, settings)
     sys.stderr.write(message + '\n')
     if ok is True: return exit(42)
     return exit(43)
