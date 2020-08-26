@@ -71,7 +71,7 @@ def _try_generator_invocation(problem, t, submissions, i):
 
     command = generator.cache_command(seed=seed)
 
-    bar = ProgressBar('Fuzz ' + str(i) + ': ' + command, max_len=20)
+    bar = ProgressBar('Fuzz ' + str(i) + ': ' + command, max_len=max(len(s.name) for s in submissions))
 
     bar.start('generate')
     result = generator.run(bar, cwd, name, seed)
@@ -93,7 +93,7 @@ def _try_generator_invocation(problem, t, submissions, i):
             if testcase.ans_path.is_file():
                 testcase.ans_path.unlink()
             # Run the solution and validate the generated .ans.
-            bar.start('run solution')
+            bar.start('generate ans')
             if solution.run(bar, cwd, name).ok is not True:
                 return
             bar.done()
