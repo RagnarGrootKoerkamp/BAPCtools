@@ -37,21 +37,25 @@ string quick_diff(const string& out, const string& ans) {
 }
 
 pair<bool, string> default_output_validator(const string& ans_path, const string& feedback_dir) {
-	// read answer
-	stringstream ans_stream;
-	{
+	// Read answer.
+	string ans = [&] {
+		stringstream ans_stream;
 		ifstream f(ans_path);
 		ans_stream << f.rdbuf();
-	}
-	string ans = ans_stream.str();
+		return ans_stream.str();
+	}();
 
-	stringstream out_stream;
-	cin >> noskipws;
-	out_stream << cin.rdbuf();
-	string out = out_stream.str();
+	// Read stdin.
+	string out = [] {
+		stringstream out_stream;
+		cin >> noskipws;
+		out_stream << cin.rdbuf();
+		return out_stream.str();
+	}();
 
 	if(out == ans) return {true, ""};
 
+	// Make lower case if needed.
 	if(not case_sensitive) {
 		for(auto& c : ans) c = tolower(c);
 		for(auto& c : out) c = tolower(c);
@@ -64,8 +68,9 @@ pair<bool, string> default_output_validator(const string& ans_path, const string
 	if(space_change_sensitive and floatabs == 0 and floatrel == 0)
 		return {false, quick_diff(out, ans)};
 
-	vector<string> ans_words, out_words;
-	auto words = [](stringstream& s) {
+	// Split into tokens, depending on space_change_sensitive.
+	auto words = [](const string& st) {
+		stringstream s(st);
 		vector<string> words;
 		string w;
 		if(space_change_sensitive) {
@@ -75,7 +80,7 @@ pair<bool, string> default_output_validator(const string& ans_path, const string
 					words.push_back(w);
 				} else {
 					s.clear();
-					assert(s.failbit);
+					assert(s.fail());
 					char c;
 					if(s >> c) {
 						assert(isspace(c));
@@ -88,33 +93,47 @@ pair<bool, string> default_output_validator(const string& ans_path, const string
 		}
 		return words;
 	};
-	ans_words = words(ans_stream);
-	out_words = words(out_stream);
+	const auto ans_words = words(ans);
+	const auto out_words = words(out);
 
 	if(ans_words == out_words) {
 		assert(not space_change_sensitive);
 		return {true, "white space"};
 	}
 
+	if(floatabs == 0 and floatrel == 0) return {false, quick_diff(out, ans)};
+
 	if(out_words.size() != ans_words.size()) { return {false, quick_diff(out, ans)}; }
 
 	long double max_abs_err = 0;
 	long double max_rel_err = 0;
 	for(int i = 0; i < out_words.size(); ++i) {
-		const auto& w1 = out_words[i];
-		const auto& w2 = ans_words[i];
+		const auto& w1 = ans_words[i];
+		const auto& w2 = out_words[i];
 		if(w1 != w2) {
 			size_t p1 = 0, p2 = 0;
-			long double v1 = stold(w1, &p1);
-			long double v2 = stold(w2, &p2);
-			if(p1 < w1.size() or p2 < w2.size()) return {false, quick_diff(out, ans)};
+			// If the answer term doesn't parse as a float, don't try the output term.
+			// In this case, we always need equality of w1 and w2.
+			long double v1, v2;
+			try {
+				v1 = stold(w1, &p1);
+			} catch(exception& e) { return {false, quick_diff(w2, w1)}; }
+			if(p1 < w1.size()) return {false, quick_diff(w2, w1)};
+
+			// If the output term doesn't parse as a float -> WA.
+			try {
+				v2 = stold(w2, &p2);
+			} catch(exception& e) { return {false, quick_diff(out, ans)}; }
+			if(p2 < w2.size()) return {false, quick_diff(w2, w1)};
+
+			// If both parse as float -> compare the absolute and relative differences.
 			auto abserr = abs(v1 - v2);
-			auto relerr = v2 != 0 ? abs(v1 - v2) / v2 : 1000;
+			auto relerr = v2 != 0 ? abs(v1 - v2) / v1 : 1000;
 			max_abs_err = max(max_abs_err, abserr);
 			max_rel_err = max(max_rel_err, relerr);
 
 			if(abserr > float_absolute_tolerance and relerr > float_relative_tolerance)
-				return {false, quick_diff(out, ans)};
+				return {false, quick_diff(w2, w1)};
 		}
 	}
 

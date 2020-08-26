@@ -130,6 +130,7 @@ class ProgressBar:
         self.count = count  # The number of items we're processing
         self.i = 0
         self.carriage_return = '\r' if is_windows() else '\033[K'
+        self.logged = False
         self.global_logged = False
 
         # For parallel contexts, start() will return a copy to preserve the item name.
