@@ -147,8 +147,9 @@ def build_problem_pdf(problem):
 
     for i in range(3):
         ret = util.exec_command(
-            PDFLATEX + ['-output-directory', builddir,
+            PDFLATEX + ['-aux-directory', builddir,
                         '-include-directory', config.tools_root / 'latex',
+                        '-output-directory', problem.path.absolute(),
                         builddir / 'problem.tex'],
             0,
             False,
@@ -158,9 +159,8 @@ def build_problem_pdf(problem):
             print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{ret.out}')
             return False
 
-    # link the output pdf
+    # show output filename
     output_pdf = problem.path / 'problem.pdf'
-    ensure_symlink(output_pdf, builddir / 'problem.pdf', True)
 
     print(f'{cc.green}Pdf written to {output_pdf}{cc.reset}')
     return True
@@ -238,8 +238,9 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
 
     for i in range(3):
         ret = util.exec_command(
-            PDFLATEX + ['-output-directory', builddir,
+            PDFLATEX + ['-aux-directory', builddir,
                         '-include-directory', config.tools_root / 'latex',
+                        '-output-directory', Path(main_file).parent.absolute(),
                         config.tools_root / 'latex' / main_file],
             0,
             False,
@@ -249,9 +250,8 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
             print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{ret.out}')
             return False
 
-    # link the output pdf
+    # show output filename
     output_pdf = Path(main_file).with_suffix('.pdf')
-    ensure_symlink(output_pdf, builddir / output_pdf, True)
 
     print(f'{cc.green}Pdf written to {output_pdf}{cc.reset}')
     return True
