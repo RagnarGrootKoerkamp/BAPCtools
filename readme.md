@@ -53,6 +53,11 @@ For Windows, you'll need the following in your
 Note that colorized output does not work.
 Resource limits (memory limit/hard cpu time limit) are also not supported.
 
+BAPCtools makes heavy use of symlinks for building programs and LaTeX sources. By default users are not allowed to create symlinks on Windows.
+This can be fixed by enabling Developer Mode on Windows (Only works for Windows 10, version 1703 or newer).
+
+(TODO: Copy instead of symlink files when symlinking is not allowed.)
+
 ## Usage
 
 BAPCtools can be run either from a problem directory or a contest directory. This
