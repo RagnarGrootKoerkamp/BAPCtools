@@ -47,6 +47,9 @@ if not is_windows():
 # TODO: Get rid of old problem.path and settings objects in tools.py.
 #       This mostly needs changes in the less frequently used subcommands.
 
+# Make sure f-strings are supported.
+f'f-strings are not supported by your python version. You need at least python 3.6.'
+
 
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort
