@@ -116,7 +116,6 @@ def create_samples_file(problem):
 def prepare_problem(problem):
     builddir = problem.tmpdir
     builddir.mkdir(exist_ok=True)
-    ensure_symlink(builddir / 'problem_statement', problem.path / 'problem_statement')
 
     create_samples_file(problem)
 
@@ -153,14 +152,15 @@ def build_problem_pdf(problem):
             'problemyamlname': problem.settings.name.replace('_', ' '),
             'problemauthor': problem.settings.author,
             'timelimit': problem.settings.timelimit,
-            'problemdir': builddir,
+            'problemdir': problem.path.absolute().as_posix(),
+            'builddir': problem.tmpdir.as_posix(),
         })
-
-    ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
 
     for i in range(3):
         ret = util.exec_command(
-            PDFLATEX + ['-output-directory', builddir, builddir / 'problem.tex'],
+            PDFLATEX + ['-output-directory', builddir,
+                        '-include-directory', config.tools_root / 'latex',
+                        builddir / 'problem.tex'],
             0,
             False,
             cwd=builddir,
@@ -199,17 +199,13 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     if solutions:
         ensure_symlink(builddir / 'solutions-base.tex',
                        config.tools_root / 'latex/solutions-base.tex')
-    ensure_symlink(builddir / 'bapc.cls', config.tools_root / 'latex/bapc.cls')
-    ensure_symlink(builddir / 'images', config.tools_root / 'latex/images')
-    ensure_symlink(builddir / main_file, config.tools_root / 'latex' / main_file)
 
     config_data = util.read_yaml(Path('contest.yaml'))
     config_data['testsession'] = '\\testsession' if config_data.get('testsession') else ''
+    config_data['logofile'] = find_logo().as_posix()
 
     util.copy_and_substitute(config.tools_root / 'latex/contest-data.tex',
                              builddir / 'contest_data.tex', config_data)
-
-    ensure_symlink(builddir / 'logo.pdf', find_logo())
 
     problems_data = ''
 
@@ -238,7 +234,8 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
                 'problemyamlname': problem.settings.name.replace('_', ' '),
                 'problemauthor': problem.settings.author,
                 'timelimit': problem.settings.timelimit,
-                'problemdir': problem.tmpdir,
+                'problemdir': problem.path.absolute().as_posix(),
+                'builddir': problem.tmpdir.as_posix(),
             })
 
     if solutions:
@@ -252,7 +249,9 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
 
     for i in range(3):
         ret = util.exec_command(
-            PDFLATEX + ['-output-directory', builddir, (builddir / main_file).with_suffix('.tex')],
+            PDFLATEX + ['-output-directory', builddir,
+                        '-include-directory', config.tools_root / 'latex',
+                        config.tools_root / 'latex' / main_file],
             0,
             False,
             cwd=builddir,
