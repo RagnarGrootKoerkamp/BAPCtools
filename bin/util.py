@@ -694,7 +694,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     err = maybe_crop(stderr.decode('utf-8')) if stderr is not None else None
     out = maybe_crop(stdout.decode('utf-8')) if stdout is not None else None
 
-    if process.rusage:
+    if hasattr(process, 'rusage'):
         duration = process.rusage.ru_utime + process.rusage.ru_stime
         # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
         # To prevent under-reporting the duration, we take the max with wall time in this case.
