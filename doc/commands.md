@@ -28,6 +28,7 @@ This lists all subcommands and their most important options.
 * Creating new contest/problems
     - [`bt new_contest [contestname]`](#new_contest)
     - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--skel SKEL]`](#new_problem)
+    - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
     - [`bt gitlabci`](#gitlabci)
 * Exporting
     - [`bt samplezip`](#samplezip)
@@ -347,6 +348,11 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 - `[<problem name>]`: The name of the problem. Will be asked interactively if not specified.
 - `--author`: The author of the problem. Will be asked interactively if not specified.
 - `--validation`: The validation mode to use. Must be one of `default`, `custom`, `custom interactive`.
+
+## `skel`
+
+Copy the given directory from [../skel/problem](../skel/problem) to the current problem directory. Directories passed must be relative to the problem root, e.g. `generators` or `output_validators/output_validator`.
+The skel directory is found as with the `new_problem` command and can be overridden using `--skel`.
 
 ## `gitlabci`
 

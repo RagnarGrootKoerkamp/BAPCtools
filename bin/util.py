@@ -438,6 +438,7 @@ def ensure_symlink(link, target, output=False, relative=False):
 
 
 def substitute(data, variables):
+    if variables is None: return data
     for key in variables:
         r = ''
         if variables[key] != None: r = variables[key]
@@ -502,10 +503,10 @@ def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_syml
             errors.append((srcFile, dstFile, str(why)))
         # catch the Error from the recursive copytree so that we can
         # continue with other files
-        except Error as err:
-            errors.extend(err.args[0])
+        except Exception as err:
+            errors.append(err.args[0])
     if errors:
-        raise Error(errors)
+        raise Exception(errors)
 
 
 def crop_output(output):

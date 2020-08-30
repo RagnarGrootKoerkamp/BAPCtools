@@ -216,6 +216,13 @@ Run this from one of:
                                choices=['default', 'custom', 'custom interactive'])
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
+    # Copy directory from skel.
+    skelparser = subparsers.add_parser('skel',
+                                          parents=[global_parser],
+                                          help='Copy the given directories from skel to the current problem directory.')
+    skelparser.add_argument('directory', nargs='+', help='Directories to copy from skel/problem/, relative to the problem directory.')
+    skelparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
+
     # Problem statements
     pdfparser = subparsers.add_parser('pdf',
                                       parents=[global_parser],
@@ -474,6 +481,8 @@ def run_parsed_arguments(args):
             fatal('Generating testcases only works for a single problem.')
         if action == 'test':
             fatal('Testing a submission only works for a single problem.')
+        if action == 'skel':
+            fatal('Copying skel directories only works for a single problem.')
 
     if level != 'problemset':
         if action == 'solutions':
@@ -534,6 +543,10 @@ def run_parsed_arguments(args):
 
     if action == 'gitlabci':
         skel.create_gitlab_jobs(contest, problems)
+        return
+
+    if action == 'skel':
+        skel.copy_skel_dir(problems)
         return
 
     problem_zips = []

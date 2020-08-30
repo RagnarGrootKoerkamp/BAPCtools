@@ -76,6 +76,20 @@ def new_contest(name):
                             exist_ok=False,
                             preserve_symlinks=False)
 
+def get_skel_dir(target_dir):
+    skeldir = config.tools_root / 'skel/problem'
+    preserve_symlinks = False
+    if (target_dir / 'skel/problem').is_dir():
+        skeldir = target_dir / 'skel/problem'
+        preserve_symlinks = True
+    if (target_dir / '../skel/problem').is_dir():
+        skeldir = target_dir / '../skel/problem'
+        preserve_symlinks = True
+    if config.args.skel:
+        skeldir = Path(config.args.skel)
+        preserve_symlinks = True
+    return (skeldir, preserve_symlinks)
+
 
 def new_problem():
     target_dir = Path('.')
@@ -112,17 +126,7 @@ def new_problem():
         if k not in variables: variables[k] = ''
 
     # Copy tree from the skel directory, next to the contest, if it is found.
-    skeldir = config.tools_root / 'skel/problem'
-    preserve_symlinks = False
-    if (target_dir / 'skel/problem').is_dir():
-        skeldir = target_dir / 'skel/problem'
-        preserve_symlinks = True
-    if (target_dir / '../skel/problem').is_dir():
-        skeldir = target_dir / '../skel/problem'
-        preserve_symlinks = True
-    if config.args.skel:
-        skeldir = Path(config.args.skel)
-        preserve_symlinks = True
+    skeldir, preserve_symlinks = get_skel_dir(target_dir)
     log(f'Copying {skeldir} to {target_dir/dirname}.')
 
     problems_yaml = target_dir / 'problems.yaml'
@@ -135,6 +139,41 @@ def new_problem():
                             variables,
                             exist_ok=True,
                             preserve_symlinks=preserve_symlinks)
+
+
+def copy_skel_dir(problems):
+    assert len(problems)==1
+    problem = problems[0]
+
+    skeldir, preserve_symlinks = get_skel_dir(problem.path)
+
+    for d in config.args.directory:
+        d = Path(d)
+        sources = [skeldir / d, skeldir / d.parent  / (d.name + '.template')]
+        target = problem.path / d
+
+        if d.is_absolute():
+            error(f'{d} is not a relative path.')
+            continue
+
+        found = False
+        for source in sources:
+            if not source.is_file() and not source.is_dir():
+                continue
+
+            target.mkdir(exist_ok=True, parents=True)
+            copytree_and_substitute(source,
+                                target,
+                                None,
+                                exist_ok=True,
+                                preserve_symlinks=preserve_symlinks)
+            found = True
+            break
+
+        if not found:
+            error(f'{source} does not exist')
+
+
 
 
 def create_gitlab_jobs(contest, problems):
