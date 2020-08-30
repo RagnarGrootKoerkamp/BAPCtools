@@ -193,7 +193,6 @@ class Program:
                 best = (lang, matching_files, priority)
 
         lang, files, priority = best
-        name = languages()[lang]['name']
 
         if lang is None:
             self.ok = False

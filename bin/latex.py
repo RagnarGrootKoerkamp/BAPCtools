@@ -14,17 +14,6 @@ from util import *
 PDFLATEX = ['pdflatex', '-interaction=nonstopmode', '-halt-on-error']
 
 
-def require_latex_build_dir():
-    # Set up the build directory if it does not yet exist.
-    builddir = config.tools_root / 'latex/build'
-    if not builddir.is_dir():
-        if builddir.is_symlink():
-            builddir.unlink()
-        tmpdir = Path(tempfile.mkdtemp(prefix='bapctools_latex_'))
-        builddir.symlink_to(tmpdir)
-    return builddir
-
-
 # https://stackoverflow.com/questions/16259923/how-can-i-escape-latex-special-characters-inside-django-templates
 def tex_escape(text):
     """
