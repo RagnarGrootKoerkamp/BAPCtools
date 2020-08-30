@@ -19,14 +19,18 @@ For now the only way to use this is to clone the repository and install the
 required dependencies manually.
 (If you know how to make Debian and/or Arch packages, feel free to help out.)
 
--   Python 3 with the [yaml library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install
-    pyyaml` or the `python[3]-yaml` Arch Linux package.
+-   Python 3 (>= 3.6).
+-   The [yaml library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install pyyaml` or the `python[3]-yaml` Arch Linux package.
 -   The `argcomplete` library for command line argument completion. Install via
     `python[3]-argcomplete`.
 	- Note that actually using `argcomplete` is optional, but recommended.
 	  Detailed instructions are [here](https://argcomplete.readthedocs.io/en/latest/).
 	 
       TL;DR: Put `eval "$(register-python-argcomplete[3] tools.py)"` in your `.bashrc` or `.zshrc`.
+
+Optional dependencies, required for some subcommands:
+-   The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python[3]-ruamel-yaml` Arch Linux package.
+    - This is only needed for commands that update `generators.yaml`.
 -   The `pdflatex` command, provided by `texlive-bin` on Arch Linux and
     potentially some specific LaTeX packages (like tikz) provided by
 	`texlive-extra`.
