@@ -124,14 +124,15 @@ def get_tl(problem_config):
     return tl if print_tl else ''
 
 
-def get_environment(solutions=False):
-    env = os.environ.copy()
-    # For solutions, also use the problem directory.
-    tex_inputs = ''
-    tex_inputs = str(Path.cwd()) + ';' if solutions else ''
-    tex_inputs += str(config.tools_root / 'latex') + ';';
-    env["TEXINPUTS"] = tex_inputs
-    return env
+_env = None
+def get_environment():
+    global _env
+    if _env is not None: return _env
+    _env = os.environ.copy()
+    # Search the contest directory and the latex directory.
+    _env["TEXINPUTS"] = str(Path.cwd()) + ';' + str(config.tools_root / 'latex') + ';';
+    debug(_env["TEXINPUTS"])
+    return _env
 
 
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/problem.tex,
@@ -240,7 +241,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
-    env = get_environment(solutions)
+    env = get_environment()
     for i in range(3):
         ret = util.exec_command(
             PDFLATEX + ['-output-directory', builddir,
