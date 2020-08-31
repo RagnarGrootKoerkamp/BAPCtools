@@ -124,6 +124,16 @@ def get_tl(problem_config):
     return tl if print_tl else ''
 
 
+def get_environment(solutions=False):
+    env = os.environ.copy()
+    # For solutions, also use the problem directory.
+    tex_inputs = ''
+    tex_inputs = str(Path.cwd()) + ';' if solutions else ''
+    tex_inputs += str(config.tools_root / 'latex') + ';';
+    env["TEXINPUTS"] = tex_inputs
+    return env
+
+
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/problem.tex,
 # substituting variables.
 # 2. Link tmpdir/<problem>/problem_statement to the problem problem_statement directory.
@@ -145,9 +155,8 @@ def build_problem_pdf(problem):
             'builddir': problem.tmpdir.as_posix(),
         })
 
+    env = get_environment()
     for i in range(3):
-        env = os.environ.copy()
-        env["TEXINPUTS"] = str(config.tools_root / 'latex') + ';';
         ret = util.exec_command(
             PDFLATEX + ['-output-directory', builddir,
                         builddir / 'problem.tex'],
@@ -188,10 +197,6 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     main_file = 'solutions' if solutions else 'contest'
     main_file += '-web.tex' if web else '.tex'
 
-    if solutions:
-        ensure_symlink(builddir / 'solutions-base.tex',
-                       config.tools_root / 'latex/solutions-base.tex')
-
     config_data = util.read_yaml(Path('contest.yaml'))
     config_data['testsession'] = '\\testsession' if config_data.get('testsession') else ''
     config_data['logofile'] = find_logo().as_posix()
@@ -204,13 +209,10 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     if solutions:
         # Link the solve stats directory if it exists.
         solve_stats = Path('solve_stats')
-        if solve_stats.exists():
-            ensure_symlink(builddir / 'solve_stats', solve_stats)
 
         # include a header slide in the solutions PDF
         headertex = Path('solution_header.tex')
         if headertex.exists():
-            ensure_symlink(builddir / 'solution_header.tex', headertex)
             problems_data += f'\\input{{{headertex}}}\n'
 
     per_problem_data = (config.tools_root / 'latex' / f'contest-{build_type}.tex').read_text()
@@ -234,14 +236,12 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
         # include a statistics slide in the solutions PDF
         footer_tex = Path('solution_footer.tex')
         if footer_tex.exists():
-            ensure_symlink(builddir / 'solution_footer.tex', footer_tex)
             problems_data += f'\\input{{{footer_tex}}}\n'
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
+    env = get_environment(solutions)
     for i in range(3):
-        env = os.environ.copy()
-        env["TEXINPUTS"] = str(config.tools_root / 'latex') + ';';
         ret = util.exec_command(
             PDFLATEX + ['-output-directory', builddir,
                         config.tools_root / 'latex' / main_file],
