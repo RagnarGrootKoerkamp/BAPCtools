@@ -157,15 +157,18 @@ def build_problem_pdf(problem):
         })
 
     for i in range(3):
+        env = os.environ.copy()
+        env["TEXINPUTS"] = str(config.tools_root / 'latex') + ';';
         ret = util.exec_command(
             PDFLATEX + ['-aux-directory', builddir,
-                        '-include-directory', config.tools_root / 'latex',
                         '-output-directory', problem.path.absolute(),
                         builddir / 'problem.tex'],
             0,
             False,
             cwd=builddir,
-            stdout=subprocess.PIPE)
+            stdout=subprocess.PIPE,
+            env=env,
+            )
         if ret.ok is not True:
             print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{ret.out}')
             return False
@@ -248,15 +251,18 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
     for i in range(3):
+        env = os.environ.copy()
+        env["TEXINPUTS"] = str(config.tools_root / 'latex') + ';';
         ret = util.exec_command(
             PDFLATEX + ['-aux-directory', builddir,
-                        '-include-directory', config.tools_root / 'latex',
                         '-output-directory', Path(main_file).parent.absolute(),
                         config.tools_root / 'latex' / main_file],
             0,
             False,
             cwd=builddir,
-            stdout=subprocess.PIPE)
+            stdout=subprocess.PIPE,
+            env=env,
+            )
         if ret.ok is not True:
             print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{ret.out}')
             return False
