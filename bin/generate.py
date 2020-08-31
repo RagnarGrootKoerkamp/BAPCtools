@@ -47,17 +47,15 @@ def is_directory(yaml):
 def resolve_path(path, *, allow_absolute, allow_relative):
     assert isinstance(path, str)
     if not allow_absolute:
-        if path.startswith('/'):
+        if path.is_absolute():
             fatal(f'Path must not be absolute: {path}')
-        assert not Path(path).is_absolute()
 
     if not allow_relative:
-        if not path.startswith('/'):
+        if not path.is_absolute():
             fatal(f'Path must be absolute: {path}')
-        assert Path(path).is_absolute()
 
     # Make all paths relative to the problem root.
-    if path.startswith('/'): return Path(path[1:])
+    if path.is_absolute(): return Path(path[1:])
     return Path('generators') / path
 
 
