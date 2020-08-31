@@ -413,7 +413,7 @@ def strip_newline(s):
 
 # When output is True, copy the file when args.cp is true.
 def ensure_symlink(link, target, output=False, relative=False):
-    # For output files: copy then on Windows, or when --cp is passed.
+    # For output files: copy them on Windows, or when --cp is passed.
     if output and (is_windows() or getattr(config.args, 'cp', False)):
         if link.exists() or link.is_symlink(): link.unlink()
         shutil.copyfile(target, link)
