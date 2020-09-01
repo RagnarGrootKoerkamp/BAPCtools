@@ -46,6 +46,7 @@ def is_directory(yaml):
 # Returns the given path relative to the problem root.
 def resolve_path(path, *, allow_absolute, allow_relative):
     assert isinstance(path, str)
+    path = Path(path)
     if not allow_absolute:
         if path.is_absolute():
             fatal(f'Path must not be absolute: {path}')
@@ -55,7 +56,7 @@ def resolve_path(path, *, allow_absolute, allow_relative):
             fatal(f'Path must be absolute: {path}')
 
     # Make all paths relative to the problem root.
-    if path.is_absolute(): return Path(path[1:])
+    if path.is_absolute(): return Path(*path.parts[1:])
     return Path('generators') / path
 
 
