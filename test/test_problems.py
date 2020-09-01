@@ -32,10 +32,12 @@ class TestDomjudgeProblem:
 def setup_identity_problem(request):
     problem_dir = RUN_DIR / 'test/problems/identity'
     os.chdir(problem_dir)
-    tools.test(['generate'])
-    yield
-    tools.test(['tmp', '--clean'])
-    os.chdir(RUN_DIR)
+    try:
+        tools.test(['tmp', '--clean'])
+        yield
+    finally:
+        tools.test(['tmp', '--clean'])
+        os.chdir(RUN_DIR)
 
 @pytest.mark.usefixtures('setup_identity_problem')
 class TestIdentityProblem:

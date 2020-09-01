@@ -124,15 +124,12 @@ def get_tl(problem_config):
     return tl if print_tl else ''
 
 
-_env = None
 def get_environment():
-    global _env
-    if _env is not None: return _env
-    _env = os.environ.copy()
+    env = os.environ.copy()
     # Search the contest directory and the latex directory.
-    _env["TEXINPUTS"] = str(Path.cwd()) + ';' + str(config.tools_root / 'latex') + ';';
-    debug(_env["TEXINPUTS"])
-    return _env
+    env["TEXINPUTS"] = str(Path.cwd()) + ';' + str(config.tools_root / 'latex') + ';';
+    debug(env["TEXINPUTS"])
+    return env
 
 
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/problem.tex,

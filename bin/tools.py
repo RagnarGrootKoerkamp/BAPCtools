@@ -687,3 +687,4 @@ def test(args):
         run_parsed_arguments(parser.parse_args(args))
     finally:
         os.chdir(original_directory)
+        ProgressBar.current_bar = None
