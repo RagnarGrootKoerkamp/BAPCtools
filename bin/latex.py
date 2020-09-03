@@ -129,7 +129,6 @@ def get_environment():
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
     env["TEXINPUTS"] = str(Path.cwd()) + ';' + str(config.tools_root / 'latex') + ';';
-    debug(env["TEXINPUTS"])
     return env
 
 
