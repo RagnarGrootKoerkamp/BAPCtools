@@ -443,41 +443,41 @@ def substitute_dir_variables(dirname, variables):
 # copies a directory recursively and substitutes {%key%} by their value in text files
 # reference: https://docs.python.org/3/library/shutil.html#copytree-example
 def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_symlinks=True):
-    names = os.listdir(src)
-    os.makedirs(dst, exist_ok=exist_ok)
-    errors = []
-    for name in names:
-        try:
-            srcFile = src / name
-            dstFile = dst / name
+    if preserve_symlinks and os.path.islink(src):
+        shutil.copy(src, dst, follow_symlinks=False)
+    elif os.path.isdir(src):
+        names = os.listdir(src)
+        os.makedirs(dst, exist_ok=exist_ok)
+        errors = []
+        for name in names:
+            try:
+                srcFile = src / name
+                dstFile = dst / name
 
-            if preserve_symlinks and os.path.islink(srcFile):
-                shutil.copy(srcFile, dstFile, follow_symlinks=False)
-            elif (os.path.isdir(srcFile)):
                 copytree_and_substitute(srcFile,
                                         dstFile,
                                         variables,
                                         exist_ok,
                                         preserve_symlinks=preserve_symlinks)
-            elif (dstFile.exists()):
-                warn(f'File "{dstFile}" already exists, skipping...')
-                continue
-            else:
-                try:
-                    data = srcFile.read_text()
-                    data = substitute(data, variables)
-                    dstFile.write_text(data)
-                except UnicodeDecodeError:
-                    # Do not substitute for binary files.
-                    dstFile.write_bytes(srcFile.read_bytes())
-        except OSError as why:
-            errors.append((srcFile, dstFile, str(why)))
-        # catch the Error from the recursive copytree so that we can
-        # continue with other files
-        except Exception as err:
-            errors.append(err.args[0])
-    if errors:
-        raise Exception(errors)
+            except OSError as why:
+                errors.append((srcFile, dstFile, str(why)))
+            # catch the Error from the recursive copytree so that we can
+            # continue with other files
+            except Exception as err:
+                errors.append(err.args[0])
+        if errors:
+            raise Exception(errors)
+
+    elif dst.exists():
+        warn(f'File "{dst}" already exists, skipping...')
+    else:
+        try:
+            data = src.read_text()
+            data = substitute(data, variables)
+            dst.write_text(data)
+        except UnicodeDecodeError:
+            # Do not substitute for binary files.
+            dst.write_bytes(src.read_bytes())
 
 
 def crop_output(output):
