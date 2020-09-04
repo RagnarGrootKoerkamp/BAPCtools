@@ -562,7 +562,7 @@ class TestcaseRule(Rule):
                     else:
                         # different -> overwrite
                         if not forced:
-                            bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
+                            bar.warn(f'SKIPPED: {target.name}{Style.RESET_ALL}' + msg)
                             skipped = True
                             if ext == '.in':
                                 skipped_in = True
@@ -592,7 +592,7 @@ class TestcaseRule(Rule):
 
                     # remove old target
                     if not forced:
-                        bar.warn(f'SKIPPED: {target.name}{cc.reset}' + msg)
+                        bar.warn(f'SKIPPED: {target.name}{Style.RESET_ALL}' + msg)
                         skipped = True
                         continue
                     else:

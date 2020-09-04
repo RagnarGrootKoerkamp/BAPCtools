@@ -1,4 +1,5 @@
 from util import *
+from colorama import Fore, Style
 import generate
 
 
@@ -7,15 +8,15 @@ import generate
 def _get_stat(count, threshold=True, upper_bound=None):
     if threshold is True:
         if count >= 1:
-            return cc.white + 'Y' + cc.reset
+            return Fore.WHITE + 'Y' + Style.RESET_ALL
         else:
-            return cc.red + 'N' + cc.reset
-    color = cc.white
+            return Fore.RED + 'N' + Style.RESET_ALL
+    color = Fore.WHITE
     if upper_bound != None and count > upper_bound:
-        color = cc.orange
+        color = Fore.YELLOW
     if count < threshold:
-        color = cc.red
-    return color + str(count) + cc.reset
+        color = Fore.RED
+    return color + str(count) + Style.RESET_ALL
 
 
 def stats(problems):
@@ -59,10 +60,10 @@ def stats(problems):
         else:
             width = len(header)
             header_string += ' {:>' + str(width) + '}'
-            format_string += ' {:>' + str(width + len(cc.white) + len(cc.reset)) + '}'
+            format_string += ' {:>' + str(width + len(Fore.WHITE) + len(Style.RESET_ALL)) + '}'
 
     header = header_string.format(*headers)
-    print(cc.bold + header + cc.reset)
+    print(Style.BRIGHT + header + Style.RESET_ALL)
 
     for problem in problems:
         generated_testcases = {
@@ -113,9 +114,9 @@ def stats(problems):
         if verified:
             if not comment:
                 comment = 'DONE'
-            comment = cc.green + comment + cc.reset
+            comment = Fore.GREEN + comment + Style.RESET_ALL
         else:
-            comment = cc.orange + comment + cc.reset
+            comment = Fore.YELLOW + comment + Style.RESET_ALL
 
         print(
             format_string.format(

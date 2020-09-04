@@ -14,6 +14,7 @@ import threading
 import signal
 
 from pathlib import Path
+from colorama import Fore, Style
 
 
 def is_windows():
@@ -28,62 +29,28 @@ if not is_windows():
     import resource
 
 
-# color printing
-class Colorcodes(object):
-    def __init__(self):
-        if not is_windows():
-            self.bold = '\033[;1m'
-            self.reset = '\033[0;0m'
-            self.blue = '\033[;96m'
-            self.green = '\033[;32m'
-            self.orange = '\033[;33m'
-            self.red = '\033[;31m'
-            self.white = '\033[;39m'
-
-            self.boldblue = '\033[1;34m'
-            self.boldgreen = '\033[1;32m'
-            self.boldorange = '\033[1;33m'
-            self.boldred = '\033[1;31m'
-        else:
-            self.bold = ''
-            self.reset = ''
-            self.blue = ''
-            self.green = ''
-            self.orange = ''
-            self.red = ''
-            self.white = ''
-
-            self.boldblue = ''
-            self.boldgreen = ''
-            self.boldorange = ''
-            self.boldred = ''
-
-
-cc = Colorcodes()
-
-
 def debug(*msg):
-    print(cc.blue, end='')
+    print(Fore.CYAN, end='')
     print('DEBUG:', *msg, end='')
-    print(cc.reset)
+    print(Style.RESET_ALL)
 
 
 def log(msg):
-    print(cc.green + 'LOG: ' + msg + cc.reset)
+    print(Fore.GREEN + 'LOG: ' + msg + Style.RESET_ALL)
 
 
 def warn(msg):
-    print(cc.orange + 'WARNING: ' + msg + cc.reset)
+    print(Fore.YELLOW + 'WARNING: ' + msg + Style.RESET_ALL)
     config.n_warn += 1
 
 
 def error(msg):
-    print(cc.red + 'ERROR: ' + msg + cc.reset)
+    print(Fore.RED + 'ERROR: ' + msg + Style.RESET_ALL)
     config.n_error += 1
 
 
 def fatal(msg):
-    print(cc.red + 'FATAL ERROR: ' + msg + cc.reset)
+    print(Fore.RED + 'FATAL ERROR: ' + msg + Style.RESET_ALL)
     exit(1)
 
 
@@ -171,7 +138,7 @@ class ProgressBar:
         item = '' if item is None else (item if isinstance(item, str) else item.name)
         if width is not None and len(item) > width: item = item[:width]
         if width is None: width = 0
-        return f'{cc.blue}{prefix}{cc.reset}: {item:<{width}}'
+        return f'{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}'
 
     def get_prefix(self):
         return ProgressBar.action(self.prefix, self.item, self.item_width, self.total_width())
@@ -243,11 +210,11 @@ class ProgressBar:
     def _format_data(data):
         if not data: return ''
         prefix = '  ' if data.count('\n') <= 1 else '\n'
-        return prefix + cc.orange + strip_newline(crop_output(data)) + cc.reset
+        return prefix + Fore.YELLOW + strip_newline(crop_output(data)) + Style.RESET_ALL
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message='', data='', color=cc.green, *, needs_lock=True, resume=True):
+    def log(self, message='', data='', color=Fore.GREEN, *, needs_lock=True, resume=True):
         if needs_lock: self.lock.acquire()
 
         if message is None: message = ''
@@ -264,7 +231,7 @@ class ProgressBar:
               color,
               message,
               ProgressBar._format_data(data),
-              cc.reset,
+              Style.RESET_ALL,
               sep='',
               flush=True)
 
@@ -283,13 +250,13 @@ class ProgressBar:
 
     def warn(self, message='', data=''):
         config.n_warn += 1
-        self.log(message, data, cc.orange)
+        self.log(message, data, Fore.YELLOW)
 
     # Error removes the current item from the in_progress set.
     def error(self, message='', data='', needs_lock=True):
         if needs_lock: self.lock.acquire()
         config.n_error += 1
-        self.log(message, data, cc.red, needs_lock=False, resume=False)
+        self.log(message, data, Fore.RED, needs_lock=False, resume=False)
         self._release_item()
         if needs_lock: self.lock.release()
 
@@ -305,7 +272,7 @@ class ProgressBar:
         if not self.logged:
             if not success: config.n_error += 1
             if config.args.verbose or not success:
-                self.log(message, data, needs_lock=False, color=cc.green if success else cc.red)
+                self.log(message, data, needs_lock=False, color=Fore.GREEN if success else Fore.RED)
 
         self._release_item()
         if self.parent:
@@ -347,7 +314,7 @@ class ProgressBar:
 
         # Print 'DONE' when nothing was printed yet but a summary was requested.
         if print_done and not self.global_logged and not message:
-            message = f'{cc.green}Done{cc.reset}'
+            message = f'{Fore.GREEN}Done{Style.RESET_ALL}'
 
         if message:
             print(self.get_prefix(), message, sep='')
@@ -529,7 +496,7 @@ def crop_output(output):
         cropped = True
 
     if cropped:
-        output += cc.orange + 'Use -e to show more.' + cc.reset
+        output += Fore.YELLOW + 'Use -e to show more.' + Style.RESET_ALL
     return output
 
 

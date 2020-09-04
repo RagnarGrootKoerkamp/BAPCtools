@@ -20,6 +20,7 @@ import os
 import sys
 import tempfile
 import shutil
+import colorama
 
 from pathlib import Path
 
@@ -41,6 +42,8 @@ from util import *
 
 if not is_windows():
     import argcomplete  # For automatic shell completions
+
+colorama.init()
 
 # List of high level todos:
 # TODO: Do more things in parallel (running testcases, building submissions)
@@ -560,7 +563,7 @@ def run_parsed_arguments(args):
         if level == 'problemset' and action == 'pdf' and not (hasattr(config.args, 'all')
                                                               and config.args.all):
             continue
-        print(cc.bold, 'PROBLEM ', problem.name, cc.reset, sep='')
+        print(Style.BRIGHT, 'PROBLEM ', problem.name, Style.RESET_ALL, sep='')
 
         # TODO: Remove usages of settings.
         settings = problem.settings
@@ -626,7 +629,7 @@ def run_parsed_arguments(args):
             print()
 
     if level == 'problemset':
-        print(f'{cc.bold}CONTEST {contest}{cc.reset}')
+        print(f'{Style.BRIGHT}CONTEST {contest}{Style.RESET_ALL}')
 
         # build pdf for the entire contest
         if action in ['pdf']:

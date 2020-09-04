@@ -10,6 +10,7 @@ from pathlib import Path
 import config
 import util
 from util import *
+from colorama import Fore, Style
 
 PDFLATEX = ['pdflatex', '-interaction=nonstopmode', '-halt-on-error']
 
@@ -165,14 +166,14 @@ def build_problem_pdf(problem):
             env=env,
             )
         if ret.ok is not True:
-            print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{ret.out}')
+            print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
             return False
 
     # link the output pdf
     output_pdf = problem.path / 'problem.pdf'
     ensure_symlink(output_pdf, builddir / 'problem.pdf', True)
 
-    print(f'{cc.green}Pdf written to {output_pdf}{cc.reset}')
+    print(f'{Fore.GREEN}Pdf written to {output_pdf}{Style.RESET_ALL}')
     return True
 
 
@@ -250,12 +251,12 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
             env=env,
             )
         if ret.ok is not True:
-            print(f'{cc.red}Failure compiling pdf:{cc.reset}\n{ret.out}')
+            print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
             return False
 
     # link the output pdf
     output_pdf = Path(main_file).with_suffix('.pdf')
     ensure_symlink(output_pdf, builddir / output_pdf, True)
 
-    print(f'{cc.green}Pdf written to {output_pdf}{cc.reset}')
+    print(f'{Fore.GREEN}Pdf written to {output_pdf}{Style.RESET_ALL}')
     return True

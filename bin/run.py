@@ -5,6 +5,7 @@ import interactive
 import os
 
 from util import *
+from colorama import Fore, Style
 
 
 class Testcase:
@@ -75,7 +76,7 @@ class Testcase:
             data = ''
             if ret.ok is not True or config.args.error:
                 if ret.err and ret.out:
-                    ret.out = ret.err + f'\n{cc.red}VALIDATOR STDOUT{cc.reset}\n' + cc.orange + ret.out
+                    ret.out = ret.err + f'\n{Fore.RED}VALIDATOR STDOUT{Style.RESET_ALL}\n' + Fore.YELLOW + ret.out
                 elif ret.err:
                     data = ret.err
                 elif ret.out:
@@ -108,7 +109,7 @@ class Testcase:
             # Remove testcase if specified.
             elif validator_type == 'input' and hasattr(config.args,
                                                        'remove') and config.args.remove:
-                bar.log(cc.red + 'REMOVING TESTCASE!' + cc.reset)
+                bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
                 if testcase.in_path.exists():
                     testcase.in_path.unlink()
                 if testcase.ans_path.exists():
@@ -366,15 +367,15 @@ class Submission(program.Program):
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
-            color = cc.boldgreen if self.verdict in self.expected_verdicts else cc.boldred
-            boldcolor = cc.bold
+            color = Style.BRIGHT + Fore.GREEN if self.verdict in self.expected_verdicts else Style.BRIGHT + Fore.RED
+            boldcolor = Style.BRIGHT
         else:
-            color = cc.green if self.verdict in self.expected_verdicts else cc.red
+            color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
             boldcolor = ''
 
         printed_newline = bar.finalize(
             message=
-            f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{cc.reset} @ {verdict_run.testcase.name}'
+            f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{Style.RESET_ALL} @ {verdict_run.testcase.name}'
         )
 
         return (self.verdict in self.expected_verdicts, printed_newline)
@@ -405,22 +406,22 @@ class Submission(program.Program):
 
                 assert result.err is None and result.out is None
                 if result.duration > self.problem.settings.timeout:
-                    status = f'{cc.red}Aborted!'
+                    status = f'{Fore.RED}Aborted!'
                     config.n_error += 1
                 elif result.ok is not True and result.ok != -9:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{cc.red}Run time error!{cc.reset} exit code {result.ok} {cc.bold}{result.duration:6.3f}s{cc.reset}'
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
                     )
                 elif result.duration > self.problem.settings.timelimit:
-                    status = f'{cc.orange}Done (TLE):'
+                    status = f'{Fore.YELLOW}Done (TLE):'
                     config.n_warn += 1
                 else:
-                    status = f'{cc.green}Done:'
+                    status = f'{Fore.GREEN}Done:'
 
                 if status:
-                    print(f'{status}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
+                    print(f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}')
                 print()
 
             else:
@@ -433,11 +434,11 @@ class Submission(program.Program):
                 if result.verdict != 'ACCEPTED':
                     config.n_error += 1
                     print(
-                        f'{cc.red}{result.verdict}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}'
+                        f'{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
                     )
                 else:
                     print(
-                        f'{cc.green}{result.verdict}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}'
+                        f'{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
                     )
 
     # Run the submission using stdin as input.
@@ -504,13 +505,13 @@ while True:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{cc.red}Run time error!{cc.reset} exit code {result.ok} {cc.bold}{result.duration:6.3f}s{cc.reset}'
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
                     )
                 else:
-                    status = f'{cc.green}Done:'
+                    status = f'{Fore.GREEN}Done:'
 
                 if status:
-                    print(f'{status}{cc.reset} {cc.bold}{result.duration:6.3f}s{cc.reset}')
+                    print(f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}')
                 print()
             finally:
                 os.close(r)
