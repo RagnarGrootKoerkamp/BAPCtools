@@ -21,6 +21,7 @@ required dependencies manually.
 
 -   Python 3 (>= 3.6).
 -   The [yaml library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install pyyaml` or the `python[3]-yaml` Arch Linux package.
+-   The [colorama library](https://pypi.org/project/colorama/) via `pip install colorama` or the `python[3]-colorama` Arch Linux package.
 -   The `argcomplete` library for command line argument completion. Install via
     `python[3]-argcomplete`.
 	- Note that actually using `argcomplete` is optional, but recommended.

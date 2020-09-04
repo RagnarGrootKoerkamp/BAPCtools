@@ -8,7 +8,7 @@ import re
 import zipfile
 import config
 import util
-from util import cc
+from colorama import Fore, Style
 from pathlib import Path
 
 
@@ -67,7 +67,7 @@ def build_problem_zip(problem, output, settings):
     for pattern, required in files:
         paths = list(util.glob(Path(problem), pattern))
         if required and len(paths) == 0:
-            print(f'{cc.red}No matches for required path {pattern}{cc.reset}.')
+            print(f'{Fore.RED}No matches for required path {pattern}{Style.RESET_ALL}.')
         for f in paths:
             # TODO: Fix this hack. Maybe just rename input_validators ->
             # input_format_validators everywhere?

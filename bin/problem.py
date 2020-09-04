@@ -11,6 +11,7 @@ import run
 import validate
 import shlex
 from util import *
+from colorama import Fore, Style
 
 
 # A problem.
@@ -383,9 +384,9 @@ class Problem:
         def single_verdict(row, testcase):
             if testcase.name in row:
                 if row[testcase.name]:
-                    return cc.green + '1' + cc.reset
+                    return Fore.GREEN + '1' + Style.RESET_ALL
                 else:
-                    return cc.red + '0' + cc.reset
+                    return Fore.RED + '0' + Style.RESET_ALL
             else:
                 return '-'
 
@@ -418,23 +419,23 @@ class Problem:
             '\nVerdict analysis table. Submissions are ordered per column as above. Higher '
             'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.'
         )
-        print(f'{cc.red}0{cc.reset}: submission fails testcase')
-        print(f'{cc.green}1{cc.reset}: submission passes testcase\n')
+        print(f'{Fore.RED}0{Style.RESET_ALL}: submission fails testcase')
+        print(f'{Fore.GREEN}1{Style.RESET_ALL}: submission passes testcase\n')
 
         for testcase in testcases:
             # Skip all AC testcases
             if all(map(lambda row: testcase.name in row and row[testcase.name], verdict_table)):
                 continue
 
-            color = cc.reset
+            color = Style.RESET_ALL
             if len(scores_list) > 6 and scores[testcase.name] >= scores_list[-6]:
-                color = cc.orange
+                color = Fore.YELLOW
             if len(scores_list) > 3 and scores[testcase.name] >= scores_list[-3]:
-                color = cc.red
+                color = Fore.RED
             print(f'{str(testcase.name):<60}', end=' ')
             resultant = make_verdict(testcase)
             print(resultant, end='  ')
-            print(f'{color}{scores[testcase.name]:0.3f}{cc.reset}  ', end='')
+            print(f'{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ', end='')
             if resultant in resultant_id:
                 print(str.format('(Type {})', resultant_id[resultant]), end='')
             print(end='\n')
