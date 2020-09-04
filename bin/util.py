@@ -129,7 +129,8 @@ class ProgressBar:
         self.item_width = max_len + 1  # The max length of the items we're processing
         self.count = count  # The number of items we're processing
         self.i = 0
-        self.carriage_return = '\r' if is_windows() else '\033[K'
+        emptyline = ' ' * self.total_width() + '\r'
+        self.carriage_return = emptyline if is_windows() else '\033[K'
         self.logged = False
         self.global_logged = False
 
@@ -146,7 +147,9 @@ class ProgressBar:
         self.needs_leading_newline = needs_leading_newline
 
     def total_width(self):
-        return shutil.get_terminal_size().columns
+        cols = shutil.get_terminal_size().columns
+        if is_windows(): cols -= 1
+        return cols
 
     def bar_width(self):
         if self.item_width is None: return None
