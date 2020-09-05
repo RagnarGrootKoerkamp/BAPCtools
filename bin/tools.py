@@ -43,6 +43,8 @@ from util import *
 if not is_windows():
     import argcomplete  # For automatic shell completions
 
+# Initialize colorama for printing coloured output. On Windows, this captures
+# stdout and replaces ANSI colour codes by calls to change the terminal colour.
 colorama.init()
 
 # List of high level todos:
