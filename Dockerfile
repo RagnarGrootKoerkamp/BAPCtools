@@ -12,6 +12,7 @@ RUN pacman -Syu --noconfirm \
 	pypy \
 	pypy3 \
 	python-yaml \
+	python-colorama \
 	python-argcomplete \
 	python-pytest \
 	python2 \
