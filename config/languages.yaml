@@ -244,8 +244,8 @@ pypy3:
     name: 'pypy 3'
     priority: 850
     files: '*.py *.py3'
-    compile: 'py -3 -m py_compile {files}'
-    run: 'py -3 {mainfile}'
+    compile: 'pypy3 -m py_compile {files}'
+    run: 'pypy3 {mainfile}'
 
 pypy2:
     name: 'pypy 2'
