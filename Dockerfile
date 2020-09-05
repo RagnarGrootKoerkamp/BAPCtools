@@ -1,6 +1,6 @@
 FROM archlinux/base
 MAINTAINER ragnar.grootkoerkamp@gmail.com
-RUN pacman-key --refresh-keys
+RUN pacman-key --refresh-keys --keyserver hkp://pool.sks-keyservers.net
 RUN pacman -Syu --noconfirm \
 	automake \
 	git \
