@@ -161,6 +161,7 @@ class Program:
         # language, matching files, priority
         best = (None, [], 0)
         message = None
+        fallback = False
         for lang in languages():
             lang_conf = languages()[lang]
             name = lang_conf['name']
@@ -180,11 +181,13 @@ class Program:
                 exe = lang_conf['compile'].split()[0]
                 if exe[0] != '{' and shutil.which(exe) == None:
                     if best[0] is None:
+                        fallback = True
                         self.bar.warn(f'Compile program {exe} not found for language {name}')
                     continue
             assert 'run' in lang_conf
             exe = lang_conf['run'].split()[0]
             if exe[0] != '{' and shutil.which(exe) == None:
+                fallback = True
                 self.bar.warn(f'Run program {exe} not found for language {name}')
                 continue
 
@@ -199,7 +202,7 @@ class Program:
             self.bar.error(f'No language detected for {self.path}.')
             return False
 
-        if self.bar.logged:
+        if fallback:
             self.bar.log(f'Falling back to {name}.')
 
         if len(files) == 0:
