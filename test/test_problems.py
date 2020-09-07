@@ -8,12 +8,16 @@ import tools
 import problem
 import config
 
-DOMJUDGE_PROBLEMS = ['hello', 'fltcmp', 'boolfind']
+# Run `bt run` on these problems.
+PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'guess']
+
+# Run various specific commands on this problem.
 IDENTITY_PROBLEMS = ['identity']
+
 RUN_DIR = Path.cwd().resolve()
 
-@pytest.fixture(scope='class', params=DOMJUDGE_PROBLEMS)
-def setup_domjudge_problem(request):
+@pytest.fixture(scope='class', params=PROBLEMS)
+def setup_problem(request):
     problemname = request.param
     problem_dir = RUN_DIR / 'test/problems'/problemname
     os.chdir(problem_dir)
@@ -22,8 +26,8 @@ def setup_domjudge_problem(request):
     os.chdir(RUN_DIR)
 
 
-@pytest.mark.usefixtures('setup_domjudge_problem')
-class TestDomjudgeProblem:
+@pytest.mark.usefixtures('setup_problem')
+class TestProblem:
     def test_problem(self):
         tools.test(['run'])
 
