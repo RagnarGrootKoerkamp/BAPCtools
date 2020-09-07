@@ -238,8 +238,7 @@ while True:
         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
 
         if pid == validator_pid:
-            if first is None:
-                first = 'validator'
+            if first is None: first = 'validator'
             validator_status = status
 
             # Close the output stream.
@@ -248,16 +247,12 @@ while True:
 
             # Kill the team submission in case we already know it's WA.
             if i == 0 and validator_status != config.RTV_AC:
-                os.close(val_in)
-                if interaction: os.close(val_log_in)
-                val_in = None
                 submission.kill()
             continue
 
         if pid == submission_pid:
             signal.alarm(0)
-            if first is None:
-                first = 'submission'
+            if first is None: first = 'submission'
             submission_status = status
 
             # Close the output stream.
@@ -274,9 +269,8 @@ while True:
 
         assert False
 
-    if val_in:
-        os.close(val_in)
-        if interaction: os.close(val_log_in)
+    os.close(val_in)
+    if interaction: os.close(val_log_in)
     os.close(team_in)
     if interaction: os.close(team_log_in)
 
