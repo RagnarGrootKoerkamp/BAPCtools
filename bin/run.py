@@ -132,6 +132,11 @@ class Run:
         self.out_path = tmp_path.with_suffix('.out')
         self.feedbackdir = tmp_path.with_suffix('.feedbackdir')
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
+        # Clean all files in feedbackdir.
+        for f in self.feedbackdir.iterdir():
+            if f.is_file(): f.unlink()
+            else: shutil.rmtree(f)
+
 
     # Return an ExecResult object amended with verdict.
     def run(self, *, interaction=None, submission_args=None):
@@ -352,6 +357,21 @@ class Submission(program.Program):
                     data = crop_output(result.err)
                 if result.out:
                     data = crop_output(result.out)
+
+            # Add data from feedbackdir.
+            for f in run.feedbackdir.iterdir():
+                if not f.is_file():
+                    bar.warn(f'Validator wrote to {f} but it\'s not a file.')
+                    continue
+                try:
+                    t = f.read_text()
+                except UnicodeDecodeError:
+                    bar.warn(f'Validator wrote to {f} but it cannot be parsed as unicode text.')
+                    continue
+                t.unlink()
+                if not t: continue
+                if len(data) > 0 and data[-1] != '\n': data += '\n'
+                data += f'{f.name}:' + bar._format_data(t) + '\n'
 
             bar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
