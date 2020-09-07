@@ -368,7 +368,7 @@ class Submission(program.Program):
                 except UnicodeDecodeError:
                     bar.warn(f'Validator wrote to {f} but it cannot be parsed as unicode text.')
                     continue
-                t.unlink()
+                f.unlink()
                 if not t: continue
                 if len(data) > 0 and data[-1] != '\n': data += '\n'
                 data += f'{f.name}:' + bar._format_data(t) + '\n'
