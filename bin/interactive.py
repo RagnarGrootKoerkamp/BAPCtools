@@ -223,7 +223,11 @@ while True:
         nonlocal submission_time
         submission_time = timeout
         submission.kill()
-        validator.kill()
+        try:
+            validator.kill()
+        except ProcessLookupError:
+            # Validator already exited.
+            pass
         if interaction:
             team_tee.kill()
             val_tee.kill()
