@@ -232,51 +232,51 @@ prolog:
     run: '{binary}'
 
 # By default Use pypy for python.
-# .py defaults to Python3 unless a Python 2 shebang is found.
+# .py defaults to Python 2 unless a Python 3 shebang is found.
+python2:
+    name: 'Python 2'
+    priority: 900
+    files: '*.py *.py2'
+    compile: 'pypy -m py_compile {files}'
+    run: 'pypy {mainfile}'
+
 python3:
     name: 'Python 3'
-    priority: 900
-    files: '*.py *.py3'
+    priority: 901
+    files: '*.py3'
     compile: 'pypy3 -m py_compile {files}'
     run: 'pypy3 {mainfile}'
 
-python2:
-    name: 'Python 2'
-    priority: 901
-    files: '*.py2'
-    compile: 'pypy -m py_compile {files}'
-    run: 'pypy {mainfile}'
-
-python2b:
-    name: 'Python 2'
+python3b:
+    name: 'Python 3'
     priority: 902
     files: '*.py'
-    shebang: '^#!.*(python2\b|pypy2\b|pypy\b)'
-    compile: 'pypy -m py_compile {files}'
-    run: 'pypy {mainfile}'
+    shebang: '^#!.*(python3\b|pypy3\b)'
+    compile: 'pypy3 -m py_compile {files}'
+    run: 'pypy3 {mainfile}'
 
 # Fall back to cpython if pypy isn't found.
+cpython2:
+    name: 'CPython 2'
+    priority: 800
+    files: '*.py *.py2'
+    compile: 'python2 -m py_compile {files}'
+    run: 'python2 {mainfile}'
+
 cpython3:
     name: 'CPython 3'
-    priority: 900
-    files: '*.py *.py3'
+    priority: 801
+    files: '*.py3'
     compile: 'python3 -m py_compile {files}'
     run: 'python3 {mainfile}'
 
-cpython2:
-    name: 'CPython 2'
-    priority: 901
-    files: '*.py2'
-    compile: 'python -m py_compile {files}'
-    run: 'python {mainfile}'
-
-cpython2b:
-    name: 'CPython 2'
-    priority: 902
+cpython3b:
+    name: 'CPython 3'
+    priority: 802
     files: '*.py'
-    shebang: '^#!.*(python2\b|pypy2\b|pypy\b)'
-    compile: 'python2 -m py_compile {files}'
-    run: 'python2 {mainfile}'
+    shebang: '^#!.*(python3\b|pypy3\b)'
+    compile: 'python3 -m py_compile {files}'
+    run: 'python3 {mainfile}'
 
 ruby:
     name: 'Ruby'
