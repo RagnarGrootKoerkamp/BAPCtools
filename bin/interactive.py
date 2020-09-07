@@ -124,11 +124,11 @@ def run_interactive_testcase(
     # - Update the size to 1MB
     # - Start validator
     # - Start submission, limiting CPU time to timelimit+1s
-    # - Close unused read end of pipes
     # - Set alarm for timelimit+1s, and kill submission on SIGALRM if needed.
     # - Wait for either validator or submission to finish
-    # - Close first program + write end of pipe
+    # - Close first program + write end of pipe + read end of team output if validator exited first with non-AC.
     # - Close remaining program + write end of pipe
+    # - Close remaining read end of pipes
 
     def mkpipe():
         # TODO: is os.O_CLOEXEC needed here?
@@ -207,12 +207,6 @@ while True:
                                                           memory_limit))
     submission_pid = submission.pid
 
-    os.close(team_out)
-    os.close(val_out)
-    if interaction:
-        os.close(team_log_out)
-        os.close(val_log_out)
-
     # Will be filled in the loop below.
     validator_status = None
     submission_status = None
@@ -240,20 +234,36 @@ while True:
     # Wait for first to finish
     for i in range(4 if interaction else 2):
         pid, status, rusage = os.wait3(0)
-        status >>= 8
+        # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
+        status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
 
         if pid == validator_pid:
-            if first is None: first = 'validator'
+            if first is None:
+                first = 'validator'
             validator_status = status
+
+            # Close the output stream.
+            os.close(val_out)
+            if interaction: os.close(val_log_out)
+
             # Kill the team submission in case we already know it's WA.
             if i == 0 and validator_status != config.RTV_AC:
+                os.close(val_in)
+                if interaction: os.close(val_log_in)
+                val_in = None
                 submission.kill()
             continue
 
         if pid == submission_pid:
             signal.alarm(0)
-            if first is None: first = 'submission'
+            if first is None:
+                first = 'submission'
             submission_status = status
+
+            # Close the output stream.
+            os.close(team_out)
+            if interaction: os.close(team_log_out)
+
             # Possibly already written by the alarm.
             if not submission_time:
                 submission_time = rusage.ru_utime + rusage.ru_stime
@@ -264,11 +274,11 @@ while True:
 
         assert False
 
+    if val_in:
+        os.close(val_in)
+        if interaction: os.close(val_log_in)
     os.close(team_in)
-    os.close(val_in)
-    if interaction:
-        os.close(team_log_in)
-        os.close(val_log_in)
+    if interaction: os.close(team_log_in)
 
     did_timeout = submission_time > timelimit
     aborted = submission_time >= timeout
