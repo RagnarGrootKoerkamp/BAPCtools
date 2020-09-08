@@ -255,7 +255,8 @@ class Problem:
                  glob(problem.path / (validator_dir + '_format_validators'), '*'))
 
         if len(paths) == 0:
-            warn(f'No {validator_type} validators found.')
+            if validator_type != 'output_format':
+                warn(f'No {validator_type} validators found.')
             problem._validators[key] = False
             return False
         if validator_type == 'output_format' and problem.interactive and len(paths) > 1:
