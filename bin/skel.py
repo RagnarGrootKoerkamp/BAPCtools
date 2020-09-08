@@ -161,7 +161,7 @@ def copy_skel_dir(problems):
             if not source.is_file() and not source.is_dir():
                 continue
 
-            target.mkdir(exist_ok=True, parents=True)
+            target.parent.mkdir(exist_ok=True, parents=True)
             copytree_and_substitute(source,
                                 target,
                                 None,
