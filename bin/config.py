@@ -32,7 +32,7 @@ COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
 KNOWN_DATA_EXTENSIONS = ['.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.svg']
 
-SEED_DEPENDENCY_RETRIES = 4
+SEED_DEPENDENCY_RETRIES = 10
 
 # The root directory of the BAPCtools repository.
 tools_root = Path(__file__).resolve().parent.parent
