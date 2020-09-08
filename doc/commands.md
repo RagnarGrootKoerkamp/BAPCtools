@@ -12,7 +12,7 @@ Unless otherwise specified, commands work both on the problem and contest level.
 This lists all subcommands and their most important options.
 
 * Problem development:
-    - [`bt run [-v] [-t TIMEOUT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
+    - [`bt run [-v] [-t TIMELIMIT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
     - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
     - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check_deterministic] [--add-manual] [--move-manual [DIRECTORY]] [--jobs JOBS] [testcases [testcases ...]]`](#generate)
     - [`bt clean [-v] [--force]`](#clean)
@@ -98,8 +98,8 @@ Use `bt run -v` to show results for all testcases.
 - `--samples`: Run the given submissions against the sample data only. Not allowed in combination with passing in testcases directly.
 - `--no-generate`/`-G`: Do not generate testcases before running the submissions. This usually won't be needed since checking that generated testcases are up to date is fast.
 - `--force`/`-f`: Overwrite existing generated testcases, instead of printing a warning and keeping the old data.
-- `--timelimit <second>`: The timelimit to use for the submission.
-- `--timeout <second>`/`-t <second>`: The timeout to use for the submission.
+- `--timelimit <second>`/`-t <second>`: The timelimit to use for the submission.
+- `--timeout <second>`: The timeout to use for the submission.
 - `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
 

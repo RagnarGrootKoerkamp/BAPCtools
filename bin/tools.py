@@ -367,8 +367,8 @@ Run this from one of:
     runparser.add_argument('--table',
                            action='store_true',
                            help='Print a submissions x testcases table for analysis.')
-    runparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
-    runparser.add_argument('--timelimit', type=int, help='Override the default timelimit.')
+    runparser.add_argument('--timeout', type=int, help='Override the default timeout.')
+    runparser.add_argument('--timelimit', '-t', type=int, help='Override the default timelimit.')
     runparser.add_argument(
         '--memory',
         '-m',
