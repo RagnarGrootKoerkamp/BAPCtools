@@ -49,9 +49,9 @@ def check_constraints(problem, settings):
 
     statement = problem.path / 'problem_statement/problem.en.tex'
     latex_defines = [
-        (re.compile(r'(?:new|command|define).*{\\(\w+)}{(.*)}'), 1, 2, False),
-        (re.compile(r'\$(.*(?:\\leq|\\geq|\\le|\\ge|<|>|=).*)\$'), 1, None, True),
-        (re.compile(r'(-?\d[{}\d,.\-^]*)'), None, 1, True),
+        (re.compile(r'(?:new|newcommand|define).*{\\(\w+)}{(.*)}'), 1, 2, False),
+        (re.compile(r'\$([^\$]*(?:\\leq|\\geq|\\le|\\ge|<|>|=)[^\$]*)\$'), 1, None, True),
+        (re.compile(r'(?<!_|{)(-?(\d[{}\d,.\-^\\]*[\d}]|\d))'), None, 1, True),
     ]
 
     statement_values = set()
@@ -60,48 +60,43 @@ def check_constraints(problem, settings):
     with open(statement) as file:
         for line in file:
             for r, name, value, io_only in latex_defines:
-                if 'begin{Input}' in line:
-                    input_output = True
-                if 'end{Input}' in line:
+                if 'end{Input}' in line or 'end{Output}' in line or 'section*{' in line:
                     input_output = False
-                if 'begin{Output}' in line:
+                if 'begin{Input}' in line or 'section*{Input}' in line:
                     input_output = True
-                if 'end{Output}' in line:
-                    input_output = False
+                if 'begin{Output}' in line or 'section*{Output}' in line:
+                    input_output = True
                 if io_only and not input_output:
                     continue
 
-                mo = r.search(line)
-                if mo is not None:
-                    mo = r.search(line)
-                    if mo is not None:
-                        name_string = None
-                        if name: name_string = mo.group(name) or ''
+                for mo in r.finditer(line):
+                    name_string = None
+                    if name: name_string = mo.group(name) or ''
 
-                        value_string = None
-                        if value is not None and mo.group(value) is not None:
-                            value_string = mo.group(value)
-                            eval_string = value_string
-                            eval_string = re.sub(r'\\frac{(.*)}{(.*)}', r'(\1)/(\2)', eval_string)
-                            eval_string = eval_string.replace('^', '**')
-                            eval_string = eval_string.replace('{,}', '')
-                            eval_string = eval_string.replace('\\,', '')
-                            eval_string = eval_string.replace(',', '')
-                            eval_string = eval_string.replace('{', '(')
-                            eval_string = eval_string.replace('}', ')')
-                            eval_string = eval_string.replace('\\cdot', '*')
-                            try:
-                                val = eval(eval_string)
-                                statement_values.add(eval(eval_string))
-                            except (SyntaxError, NameError) as e:
-                                log(f'SyntaxError for {value_string} when trying to evaluate {eval_string} '
-                                    )
-                                log(str(e))
+                    value_string = None
+                    if value is not None and mo.group(value) is not None:
+                        value_string = mo.group(value)
+                        eval_string = value_string
+                        eval_string = re.sub(r'\\frac{(.*)}{(.*)}', r'(\1)/(\2)', eval_string)
+                        eval_string = eval_string.replace('^', '**')
+                        eval_string = eval_string.replace('{,}', '')
+                        eval_string = eval_string.replace('\\,', '')
+                        eval_string = eval_string.replace(',', '')
+                        eval_string = eval_string.replace('{', '(')
+                        eval_string = eval_string.replace('}', ')')
+                        eval_string = eval_string.replace('\\cdot', '*')
+                        try:
+                            val = eval(eval_string)
+                            statement_values.add(eval(eval_string))
+                        except (SyntaxError, NameError) as e:
+                            log(f'SyntaxError for {value_string} when trying to evaluate {eval_string} '
+                                )
+                            log(str(e))
 
-                        l = []
-                        if name_string: l.append(name_string)
-                        if value_string: l.append(value_string)
-                        defs_statement.append(l)
+                    l = []
+                    if name_string: l.append(name_string)
+                    if value_string: l.append(value_string)
+                    defs_statement.append(l)
     defs_statement.sort()
 
     # print all the definitions.
