@@ -286,7 +286,7 @@ class Problem:
                     constraint_validators.append(f)
             if len(constraint_validators) == 0:
                 error(
-                    'No {validator_type} constraint validators found: No matches for \'constraints_file\'.'
+                    f'No {validator_type} constraint validators found: No matches for \'constraints_file\'.'
                 )
                 return False
 
