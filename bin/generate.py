@@ -543,7 +543,7 @@ class TestcaseRule(Rule):
 
         if t.path.parents[0] == Path('sample'):
             msg = '; supply -f --samples to override'
-            forced = config.args.force and config.args.samples
+            forced = config.args.force and (config.args.action == 'all' or config.args.samples)
         else:
             msg = '; supply -f to override'
             forced = config.args.force
