@@ -45,7 +45,16 @@ if not is_windows():
 
 # Initialize colorama for printing coloured output. On Windows, this captures
 # stdout and replaces ANSI colour codes by calls to change the terminal colour.
-colorama.init()
+#
+# This initialization is disabled on GITLAB CI, since Colorama detects that
+# the terminal is not a TTY and will strip all colour codes. Instead, we just
+# disable this call since capturing of stdout/stderr isn't needed on Linux
+# anyway.
+# See:
+# - https://github.com/conan-io/conan/issues/4718#issuecomment-473102953
+# - https://docs.gitlab.com/runner/faq/#how-can-i-get-colored-output-on-the-web-terminal
+if not os.getenv('GITLAB_CI', False):
+    colorama.init()
 
 # List of high level todos:
 # TODO: Do more things in parallel (running testcases, building submissions)
