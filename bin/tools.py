@@ -338,7 +338,8 @@ Run this from one of:
     fuzzparser = subparsers.add_parser('fuzz',
                                       parents=[global_parser],
                                       help='Generate random testcases and search for inconsistencies in AC submissions.')
-    fuzzparser.add_argument('--time', '-t', type=int, default=600, help='Number of seconds to run for.')
+    fuzzparser.add_argument('--time', type=int, default=600, help='Number of seconds to run for. Default: 600')
+    fuzzparser.add_argument('--timelimit', '-t', type=int, default=600, help='Timeout for submissions.')
     fuzzparser.add_argument('testcases', nargs='*', type=Path,
                            help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name.')
 
@@ -417,6 +418,10 @@ Run this from one of:
     allparser.add_argument('--clean',
                            action='store_true',
                            help='Clean up generated testcases afterwards.')
+    allparser.add_argument('--force',
+                             '-f',
+                             action='store_true',
+                             help='Delete all untracked files.')
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser('zip',
