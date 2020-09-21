@@ -322,7 +322,7 @@ class Program:
         for f in self.source_files:
             ensure_symlink(self.tmpdir / f.name, f)
             self.input_files.append(self.tmpdir / f.name)
-            self.timestamp = max(self.timestamp, f.stat().st_ctime)
+            self.timestamp = max(self.timestamp, f.stat().st_mtime)
 
         if not self._get_language(self.source_files): return False
 
@@ -340,7 +340,7 @@ class Program:
 
         # Compare the latest source timestamp (self.timestamp) to the last build.
         up_to_date = meta_path.is_file(
-        ) and meta_path.stat().st_ctime >= self.timestamp and meta_path.read_text() == ' '.join(
+        ) and meta_path.stat().st_mtime >= self.timestamp and meta_path.read_text() == ' '.join(
             self.compile_command)
 
         if not up_to_date or config.args.force_build:
