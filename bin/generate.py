@@ -449,7 +449,7 @@ class TestcaseRule(Rule):
             last_change = 0
             t.cache_data = {}
             if t.manual:
-                last_change = max(last_change, (problem.path / t.source).stat().st_ctime)
+                last_change = max(last_change, (problem.path / t.source).stat().st_mtime)
                 t.cache_data['source'] = str(t.source)
             else:
                 last_change = max(last_change, t.generator.program.timestamp)
@@ -467,13 +467,13 @@ class TestcaseRule(Rule):
             if not target_infile.is_file(): return False
             if not target_ansfile.is_file(): return False
 
-            last_change = max(last_change, target_infile.stat().st_ctime)
-            last_change = max(last_change, target_ansfile.stat().st_ctime)
+            last_change = max(last_change, target_infile.stat().st_mtime)
+            last_change = max(last_change, target_ansfile.stat().st_mtime)
 
             if not meta_path.is_file(): return False
 
             meta_yaml = yaml.safe_load(meta_path.open())
-            return meta_path.stat().st_ctime >= last_change and meta_yaml == t.cache_data
+            return meta_path.stat().st_mtime >= last_change and meta_yaml == t.cache_data
 
         if up_to_date():
             check_deterministic()
