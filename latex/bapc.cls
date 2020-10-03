@@ -201,20 +201,22 @@
 	\rmfamily
 }
 
-
-
 \newcommand{\InteractiveSampleHeading}{
-	\par\noindent%
+	\par\bigskip\noindent%
+	\normalsize%
+	\ttfamily%
+	\frenchspacing% to prevent extra spaces after punctuation. https://tex.stackexchange.com/q/118455/43242
 	\stepcounter{SampleCount}%
 	\begin{tabularx}{0.983\textwidth}{XXX}%
-		\large\bfseries\textrm Read \hfill%
+		\large\bfseries\textrm{Read} \hfill%
 		& %
-		\centering \large\bfseries\textrm Sample Interaction
+		\centering \large\bfseries\textrm{Sample Interaction}
 		\arabic{SampleCount}%
 		& %
-		\hfill \large\bfseries\textrm Write \\%
+		\hfill \large\bfseries\textrm{Write}\\%
 	\end{tabularx}
-	\par
+	\vspace{-0.6em}
+	\newline
 }
 \NewEnviron{InteractiveWrite}{
 	\noindent
