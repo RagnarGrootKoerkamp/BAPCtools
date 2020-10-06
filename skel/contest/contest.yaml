@@ -9,3 +9,4 @@ subtitle: {%subtitle%}
 year: {%year%}
 author: {%author%}
 testsession: {%testsession%}
+blank_page_text:

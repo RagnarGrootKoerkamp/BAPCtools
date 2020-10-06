@@ -195,7 +195,17 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     main_file = 'solutions' if solutions else 'contest'
     main_file += '-web.tex' if web else '.tex'
 
+    default_config_data = {
+            'title': 'TITLE',
+            'subtitle': '',
+            'year': 'YEAR',
+            'author': 'AUTHOR',
+            'testsession': '',
+            'blank_page_text': '',
+            }
     config_data = util.read_yaml(Path('contest.yaml'))
+    for x in default_config_data:
+        if x not in config_data: config_data[x] = default_config_data[x]    
     config_data['testsession'] = '\\testsession' if config_data.get('testsession') else ''
     config_data['logofile'] = find_logo().as_posix()
 

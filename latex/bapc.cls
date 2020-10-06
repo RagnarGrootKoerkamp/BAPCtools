@@ -22,12 +22,17 @@
 % ThisIsNotABlankPage: clears to an odd page. If a blank page is created, then
 % it is decorated with the text "This is not a blank page".
 %-------------------------------------------------------------------------------
+
+\newcommand{\defaultblankpagetext}{This page is intentionally left blank.}
+
 \newcommand{\ThisIsNotABlankPage}{
 	\cleartooddpage[
 		\thispagestyle{empty}
 		\vfill
 		\begin{center}
-			\huge{This page is intentionally left blank.}
+			\huge{%
+				\ifdefempty{\customblankpagetext}{\defaultblankpagetext}{\customblankpagetext}%
+			}
 			%\includegraphics{images/blank-page-fr.png}
 		\end{center}
 		\vspace*{5.55cm} % slightly above vertical centre.
