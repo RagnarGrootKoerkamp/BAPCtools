@@ -232,7 +232,9 @@ while True:
     signal.alarm(timeout)
 
     # Wait for first to finish
-    for i in range(4 if interaction else 2):
+    i = 0
+    while i < (4 if interaction else 2):
+        i += 1
         pid, status, rusage = os.wait3(0)
         # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
@@ -264,10 +266,14 @@ while True:
                 submission_time = rusage.ru_utime + rusage.ru_stime
             continue
 
-        if pid == team_tee_pid: continue
-        if pid == val_tee_pid: continue
+        if interaction:
+            if pid == team_tee_pid: continue
+            if pid == val_tee_pid: continue
 
-        assert False
+        # This can happen when the window is resized and we make a subprocess
+        # call to get the new terminal width.
+        #assert False
+        i -= 1
 
     os.close(val_in)
     if interaction: os.close(val_log_in)

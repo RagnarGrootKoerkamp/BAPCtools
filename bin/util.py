@@ -67,6 +67,14 @@ class ProgressBar:
 
     current_bar = None
 
+    columns = shutil.get_terminal_size().columns
+
+    if not is_windows():
+        def update_columns(_, __):
+            cols = os.popen('stty size', 'r').read().split()[1]
+            ProgressBar.columns = int(cols)
+        signal.signal(signal.SIGWINCH, update_columns)
+
     @staticmethod
     def item_len(item):
         if isinstance(item, str): return len(item)
@@ -114,7 +122,7 @@ class ProgressBar:
         self.needs_leading_newline = needs_leading_newline
 
     def total_width(self):
-        cols = shutil.get_terminal_size().columns
+        cols = ProgressBar.columns
         if is_windows(): cols -= 1
         return cols
 
