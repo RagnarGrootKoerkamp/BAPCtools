@@ -157,8 +157,12 @@ class ProgressBar:
     def get_bar(self):
         bar_width = self.bar_width()
         if self.count is None or bar_width < 4: return ''
-        fill = (self.i - 1) * (bar_width - 2) // self.count
-        return '[' + '#' * fill + '-' * (bar_width - 2 - fill) + ']'
+        done = (self.i - 1) * (bar_width - 2) // self.count
+        text = f' {self.i}/{self.count}'
+        fill = '#' * done + '-' * (bar_width - 2 - done)
+        if len(text) <= len(fill):
+            fill = fill[:-len(text)] + text
+        return '[' + fill + ']'
 
     # Remove the current item from in_progress.
     def _release_item(self):
