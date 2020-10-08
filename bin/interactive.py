@@ -232,9 +232,9 @@ while True:
     signal.alarm(timeout)
 
     # Wait for first to finish
-    i = 0
-    while i < (4 if interaction else 2):
-        i += 1
+    left = 4 if interaction else 2
+    first_done = True
+    while left > 0:
         pid, status, rusage = os.wait3(0)
         # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
@@ -248,8 +248,10 @@ while True:
             if interaction: os.close(val_log_out)
 
             # Kill the team submission in case we already know it's WA.
-            if i == 0 and validator_status != config.RTV_AC:
+            if first_done and validator_status != config.RTV_AC:
                 submission.kill()
+            left -= 1
+            first_done = False
             continue
 
         if pid == submission_pid:
@@ -264,16 +266,15 @@ while True:
             # Possibly already written by the alarm.
             if not submission_time:
                 submission_time = rusage.ru_utime + rusage.ru_stime
+            left -= 1
+            first_done = False
             continue
 
         if interaction:
-            if pid == team_tee_pid: continue
-            if pid == val_tee_pid: continue
-
-        # This can happen when the window is resized and we make a subprocess
-        # call to get the new terminal width.
-        #assert False
-        i -= 1
+            if pid == team_tee_pid or pid == val_tee_pid:
+                left -= 1
+                first_done = False
+                continue
 
     os.close(val_in)
     if interaction: os.close(val_log_in)
