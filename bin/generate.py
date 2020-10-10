@@ -308,7 +308,7 @@ class TestcaseRule(Rule):
         self.manual = False
         self.manual_inline = False
         self.tracked = tracked
-        self.sample = parent.path.parts[0] == 'sample'
+        self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == 'sample'
 
         if isinstance(yaml, str) and len(yaml) == 0:
             fatal(
