@@ -308,6 +308,7 @@ class TestcaseRule(Rule):
         self.manual = False
         self.manual_inline = False
         self.tracked = tracked
+        self.sample = parent.path.parts[0] == 'sample'
 
         if isinstance(yaml, str) and len(yaml) == 0:
             fatal(
@@ -1228,11 +1229,12 @@ class GeneratorConfig:
         gitignorefile = self.problem.path / 'data/.gitignore'
         if self.gitignore_generated:
             # Collect all generated testcases and all non inline manual testcases and gitignore them in the data/ directory.
+            # Sample cases are never ignored.
             # When only generating a subset of testcases, we also keep existing entries not matching the filter.
             cases_to_ignore = []
 
             def maybe_ignore_testcase(t):
-                if not t.manual_inline:
+                if not t.manual_inline and not t.sample:
                     cases_to_ignore.append(t.path)
 
             self.root_dir.walk(maybe_ignore_testcase, None)
