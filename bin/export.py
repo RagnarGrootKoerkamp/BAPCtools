@@ -19,17 +19,29 @@ def build_samples_zip(problems):
                          allowZip64=False)
 
     for problem in problems:
-        # Sample data is not included for interactive problems.
-        # TODO: We could include a sample interactor instead.
-        if problem.interactive: continue
+        outputdir = Path(problem.label)
+        if problem.interactive:
+            attachments_dir = problem.path/'attachments'
+            if not attachments_dir.is_dir():
+                util.error(f'Interactive problem {problem.name} does not have an attachments/ directory.')
+                continue
+            cnt = 0
+            for f in attachments_dir.iterdir():
+                if f.is_dir():
+                    util.error(f'{f} directory attachments are not supported.')
+                if f.is_file() and f.exists():
+                    zf.write(f, outputdir / f.name)
+                    cnt += 1
+            if cnt == 0:
+                util.error(f'Interactive problem {problem.name} does not have any attachments.')
 
-        samples = problem.testcases(needans=True, only_sample=True)
-        sampledir = Path(problem.label)
-        for i in range(0, len(samples)):
-            sample = samples[i]
-            basename = sampledir / str(i + 1)
-            zf.write(sample.in_path, basename.with_suffix('.in'))
-            zf.write(sample.ans_path, basename.with_suffix('.ans'))
+        else:
+            samples = problem.testcases(needans=True, only_sample=True)
+            for i in range(0, len(samples)):
+                sample = samples[i]
+                basename = outputdir / str(i + 1)
+                zf.write(sample.in_path, basename.with_suffix('.in'))
+                zf.write(sample.ans_path, basename.with_suffix('.ans'))
 
     zf.close()
     print("Wrote zip to samples.zip")
