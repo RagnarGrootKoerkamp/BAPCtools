@@ -20,28 +20,38 @@ def build_samples_zip(problems):
 
     for problem in problems:
         outputdir = Path(problem.label)
-        if problem.interactive:
-            attachments_dir = problem.path/'attachments'
-            if not attachments_dir.is_dir():
-                util.error(f'Interactive problem {problem.name} does not have an attachments/ directory.')
-                continue
-            cnt = 0
+
+        attachments_dir = problem.path/'attachments'
+        if problem.interactive and not attachments_dir.is_dir():
+            util.error(f'Interactive problem {problem.name} does not have an attachments/ directory.')
+            continue
+
+        empty = True
+
+        # Add attachments if they exist.
+        if attachments_dir.is_dir():
             for f in attachments_dir.iterdir():
                 if f.is_dir():
-                    util.error(f'{f} directory attachments are not supported.')
-                if f.is_file() and f.exists():
+                    util.error(f'{f} directory attachments are not yet supported.')
+                elif f.is_file() and f.exists():
                     zf.write(f, outputdir / f.name)
-                    cnt += 1
-            if cnt == 0:
-                util.error(f'Interactive problem {problem.name} does not have any attachments.')
+                    empty = False
+                else:
+                    util.error(f'Cannot include broken file {f}.')
 
-        else:
+        # Add samples for non-interactive problems.
+        if not problem.interactive:
             samples = problem.testcases(needans=True, only_sample=True)
             for i in range(0, len(samples)):
                 sample = samples[i]
                 basename = outputdir / str(i + 1)
                 zf.write(sample.in_path, basename.with_suffix('.in'))
                 zf.write(sample.ans_path, basename.with_suffix('.ans'))
+                empty = False
+
+
+        if empty:
+            util.error(f'No attachments or samples found for problem {problem.name}.')
 
     zf.close()
     print("Wrote zip to samples.zip")
