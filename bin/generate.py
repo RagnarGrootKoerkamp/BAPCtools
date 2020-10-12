@@ -467,6 +467,7 @@ class TestcaseRule(Rule):
 
             if not target_infile.is_file(): return False
             if not target_ansfile.is_file(): return False
+            if problem.interactive and t.sample and not target_ansfile.with_suffix('.interaction').is_file(): return False
 
             last_change = max(last_change, target_infile.stat().st_mtime)
             last_change = max(last_change, target_ansfile.stat().st_mtime)
