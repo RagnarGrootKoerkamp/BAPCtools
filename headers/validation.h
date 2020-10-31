@@ -452,7 +452,7 @@ class Validator {
 		assert(!gen);
 		std::vector<std::string> v(count);
 		for(int i = 0; i < count; ++i) {
-			v[i] = read_string(name, min, max, chars);
+			v[i] = read_string(name, min, max, chars, loc);
 			check_string(name, min, max, v[i], tag, loc);
 			if(i < count - 1) separator(sep);
 		}
