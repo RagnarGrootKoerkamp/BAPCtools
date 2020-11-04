@@ -89,10 +89,12 @@ def build_problem_zip(problem, output, settings):
         if required and len(paths) == 0:
             print(f'{Fore.RED}No matches for required path {pattern}{Style.RESET_ALL}.')
         for f in paths:
-            # TODO: Fix this hack. Maybe just rename input_validators ->
-            # input_format_validators everywhere?
-            out = Path(str(f).replace('input_validators', 'input_format_validators'))
-            copyfiles.append((f, out.relative_to(Path(problem))))
+            # NOTE: Directories are skipped because ZIP only supports files.
+            if f.is_file():
+                # TODO: Fix this hack. Maybe just rename input_validators ->
+                # input_format_validators everywhere?
+                out = Path(str(f).replace('input_validators', 'input_format_validators'))
+                copyfiles.append((f, out.relative_to(Path(problem))))
 
     # Build .ZIP file.
     print("writing ZIP file:", output)
