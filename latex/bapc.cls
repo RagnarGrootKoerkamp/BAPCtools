@@ -215,13 +215,12 @@
 	\begin{tabularx}{0.983\textwidth}{XXX}%
 		\large\bfseries\textrm{Read} \hfill%
 		& %
-		\centering \large\bfseries\textrm{Sample Interaction}
-		\arabic{SampleCount}%
+		\centering \large\bfseries\textrm{Sample Interaction \arabic{SampleCount}}%
 		& %
 		\hfill \large\bfseries\textrm{Write}\\%
 	\end{tabularx}
-	\vspace{-0.6em}
-	\newline
+	\vspace{-1.0em}
+	\par
 }
 \NewEnviron{InteractiveWrite}{
 	\noindent
