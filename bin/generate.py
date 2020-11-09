@@ -517,7 +517,7 @@ class TestcaseRule(Rule):
         # Generate .ans and .interaction if needed.
         # TODO: Disable this with a flag.
         if not problem.interactive:
-            if t.config.solution and (not testcase.ans_path.is_file() or t.manual_inline):
+            if t.config.solution and (not testcase.ans_path.is_file() or not t.manual_inline):
                 if testcase.ans_path.is_file():
                     testcase.ans_path.unlink()
                 # Run the solution and validate the generated .ans.
