@@ -628,10 +628,11 @@ def run_parsed_arguments(args):
 
             problem_zips.append(output)
             if not config.args.skip:
+                success &= generate.generate(problem)
                 success &= latex.build_problem_pdf(problem)
                 if not config.args.force:
-                    success &= problem.validate_format('input_format', check_constraints=True)
-                    success &= problem.validate_format('output_format', check_constraints=True)
+                    success &= problem.validate_format('input_format', constraints={})
+                    success &= problem.validate_format('output_format', constraints={})
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.

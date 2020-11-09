@@ -454,7 +454,10 @@ class Problem:
 
     # Validate the format of the input or output files.
     # For input_format validation, also make sure all testcases are different.
+    # Constraints is None/True/dictionary. When dictionary, contraints will be stored there.
     def validate_format(problem, validator_type, constraints=None):
+        if constraints is True: constraints = {}
+        assert constraints is None or isinstance(constraints, dict)
         assert validator_type in ['input_format', 'output_format']
 
         validators = problem.validators(validator_type, check_constraints=constraints is not None)
