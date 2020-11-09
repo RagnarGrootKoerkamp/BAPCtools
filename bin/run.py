@@ -255,7 +255,7 @@ class Submission(program.Program):
                 text = f.read_text().upper()
                 beginpos = text.index(key) + len(key)
                 endpos = text.find('\n', beginpos)
-                arguments = map(str.strip, text[beginpos:endpos].split(','))
+                arguments = text[beginpos:endpos].split(',')
                 for arg in arguments:
                     if arg in domjudge_verdict_map:
                         arg = domjudge_verdict_map[arg]
@@ -263,7 +263,7 @@ class Submission(program.Program):
                             continue
                     if arg not in config.VERDICTS:
                         error(
-                            f'@EXPECTED_RESULT@ {arg} for submission {self.short_path} is not valid'
+                                f'@EXPECTED_RESULTS@: `{arg}` for submission {self.short_path} is not valid'
                         )
                         continue
                     verdicts.append(arg)
