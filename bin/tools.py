@@ -628,7 +628,19 @@ def run_parsed_arguments(args):
 
             problem_zips.append(output)
             if not config.args.skip:
+
+                # Set up arguments for generate.
+                old_args = argparse.Namespace(**vars(config.args))
+                config.args.check_deterministic = True
+                config.args.jobs = 4
+                config.args.add_manual = False
+                config.args.move_manual = False
+                config.args.verbose = 0
+                config.args.testcases = None
+                config.args.force = False
                 success &= generate.generate(problem)
+                config.args = old_args
+
                 success &= latex.build_problem_pdf(problem)
                 if not config.args.force:
                     success &= problem.validate_format('input_format', constraints={})

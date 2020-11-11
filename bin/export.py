@@ -68,9 +68,7 @@ def build_problem_zip(problem, output, settings):
         ('data/secret/*.in', True),
         ('data/secret/*.ans', True),
         ('submissions/accepted/**/*', True),
-        ('submissions/wrong_answer/**/*', False),
-        ('submissions/time_limit_exceeded/**/*', False),
-        ('submissions/run_time_error/**/*', False),
+        ('submissions/*/**/*', False),
     ]
 
     if 'custom' in settings.validation:
@@ -82,7 +80,7 @@ def build_problem_zip(problem, output, settings):
     print("Preparing to make ZIP file for problem dir %s" % problem)
 
     # Build list of files to store in ZIP file.
-    copyfiles = []
+    copyfiles = set()
 
     for pattern, required in files:
         paths = list(util.glob(Path(problem), pattern))
@@ -94,7 +92,7 @@ def build_problem_zip(problem, output, settings):
                 # TODO: Fix this hack. Maybe just rename input_validators ->
                 # input_format_validators everywhere?
                 out = Path(str(f).replace('input_validators', 'input_format_validators'))
-                copyfiles.append((f, out.relative_to(Path(problem))))
+                copyfiles.add((f, out.relative_to(Path(problem))))
 
     # Build .ZIP file.
     print("writing ZIP file:", output)
@@ -106,7 +104,7 @@ def build_problem_zip(problem, output, settings):
     if config.args.kattis:
         root = os.path.basename(os.path.normpath(problem))
         root = re.sub(r'[^a-z0-9]', '', root.lower())
-    for fname in copyfiles:
+    for fname in sorted(copyfiles):
         source = fname
         target = fname
         if isinstance(fname, tuple):
