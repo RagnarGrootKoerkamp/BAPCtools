@@ -66,13 +66,17 @@
 \RequirePackage{etoolbox}
 \RequirePackage{float}
 \RequirePackage{listingsutf8}
+\RequirePackage{tocloft}
 
-% Add a relatively unknown package for hyperlinks,
-% since hyperref messes up the entire document.
-\RequirePackage{navigator}
-\newcommand{\href}[2]{\urllink{#1}{#2}}
+\RequirePackage[hidelinks,bookmarks=true]{hyperref}
 
 \newcommand{\todo}[1]{{\color{red}[#1]}}
+
+\newcommand{\timelimit}{TIMELIMIT MISSING}
+\newcommand{\problemlabel}{} % Empty to hide activity chart
+\newcommand{\problemyamlname}{Problem name}
+\newcommand{\problemauthor}{Problem author}
+\newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 
 %-------------------------------------------------------------------------------
 % Sectioning commands and list of problems.
@@ -81,26 +85,24 @@
 % turned out to be a lot easier in terms of custom formatting.
 %-------------------------------------------------------------------------------
 \renewcommand{\thesection}{\problemlabel}
-\newlistof{listofproblems}{lop}{Problems}
+\newcommand{\listofproblemsname}{Problems}
+\newlistof{listofproblems}{lop}{\listofproblemsname}
+\newlistentry{problem}{lop}{0}
 \newcounter{SampleCount}
 \renewcommand{\printloptitle}[1]{
-	\outline{1}[problems]{#1}
-	\protect\jumplink{problems}{
+	\hfill
+	\sffamily
 	\Large
 	\eqmakebox[letter][c]{}
 	\quad
 	\eqmakebox[titel][l]{\huge\textbf{#1}}
-	}
-	\par
+	\hfill
 	\vspace*{-1cm}
 }
 \renewcommand{\afterloptitle}{\thispagestyle{empty}\afterchaptertitle}
-
-\newcommand{\timelimit}{TIMELIMIT MISSING}
-\newcommand{\problemlabel}{} % Empty to hide activity chart
-\newcommand{\problemyamlname}{Problem name}
-\newcommand{\problemauthor}{Problem author}
-\newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
+\setlength{\cftparskip}{0.45em}
+\cftpagenumbersoff{section}
+\renewcommand{\cftsectionleader}{}
 
 \newcommand{\problemname}[1]{
 	\ThisIsNotABlankPage
@@ -112,31 +114,27 @@
 	\vspace{-2.3em}
 	\hfill
 	\ifdefempty{\timelimit}{}{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}
-	\ifblank{#1}{
-		\outline[]{1}[\thesection]{\problemyamlname}
-	}{
-		\outline[]{1}[\thesection]{#1}
-	}
+
+	\setcounter{SampleCount}{0}
+	\setcounter{figure}{0}
 
 	\rmfamily
 
 	% Formatting the list of problems on the title page:
-	\cftaddtitleline{lop}{sec}{
+	\cftaddtitleline{lop}{section}{
 		\vspace{.4pt}
-		\protect\jumplink{\thesection}{
+		\hfill
+		\sffamily
 		\Large
 		\eqmakebox[letter][c]{\thesection}
 		\quad
-		\ifblank{#1}{
-			\eqmakebox[titel][l]{\problemyamlname}
-		}{
-			\eqmakebox[titel][l]{#1}
-		}
-		}
-		\par
+		\ifblank{#1}{%
+			\eqmakebox[titel][l]{\problemyamlname}%
+		}{%
+			\eqmakebox[titel][l]{#1}%
+		}%
+		\hfill
 	}{}
-	\setcounter{SampleCount}{0}
-	\setcounter{figure}{0}
 }
 
 %-------------------------------------------------------------------------------
