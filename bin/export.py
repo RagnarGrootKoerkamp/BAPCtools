@@ -15,6 +15,9 @@ def build_samples_zip(problems):
                          mode="w",
                          compression=zipfile.ZIP_DEFLATED,
                          allowZip64=False)
+    for fname in ['contest.pdf', 'contest-web.pdf']:
+        if Path(fname).is_file():
+            zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 
     for problem in problems:
         outputdir = Path(problem.label)
