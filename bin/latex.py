@@ -128,7 +128,19 @@ def get_tl(problem_config):
 def get_environment():
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
-    env["TEXINPUTS"] = str(Path.cwd()) + ';' + str(config.tools_root / 'latex') + ';';
+    inputs = ''
+    paths = [
+            Path.cwd(),
+            Path.cwd() / 'solve_stats',
+            Path.cwd() / 'solve_stats/activity',
+            config.tools_root / 'latex'
+            ]
+    texinputs = ''
+    for p in paths:
+        texinputs += str(p) + ';'
+    if config.args.verbose >= 2:
+        print(f"export TEXINPUTS='{texinputs}'")
+    env["TEXINPUTS"] = texinputs
     return env
 
 
