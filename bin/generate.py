@@ -475,7 +475,8 @@ class TestcaseRule(Rule):
             if not meta_path.is_file(): return False
 
             meta_yaml = yaml.safe_load(meta_path.open())
-            return meta_path.stat().st_mtime >= last_change and meta_yaml == t.cache_data
+            last_generate = meta_path.stat().st_mtime
+            return last_generate >= last_change and meta_yaml == t.cache_data
 
         if up_to_date():
             check_deterministic()
@@ -544,10 +545,10 @@ class TestcaseRule(Rule):
                 return
 
         if t.path.parents[0] == Path('sample'):
-            msg = '; supply -f --samples to override'
+            msg = '; supply -f --samples to overwrite'
             forced = config.args.force and (config.args.action == 'all' or config.args.samples)
         else:
-            msg = '; supply -f to override'
+            msg = '; supply -f to overwrite'
             forced = config.args.force
 
         skipped = False
