@@ -520,7 +520,7 @@ def run_parsed_arguments(args):
             fatal(
                 'Passing in a list of testcases only works when running from a problem directory.')
 
-    if hasattr(config.args, 'testcases') and config.args.testcases and hasattr(
+    if action != 'generate' and hasattr(config.args, 'testcases') and config.args.testcases and hasattr(
             config.args, 'samples') and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
 
