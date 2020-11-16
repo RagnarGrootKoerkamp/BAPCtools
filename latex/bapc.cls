@@ -113,7 +113,7 @@
 	}
 	\vspace{-2.3em}
 	\hfill
-	\ifdefempty{\timelimit}{}{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}
+	\ifdefempty{\timelimit}{}{{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}}
 
 	\setcounter{SampleCount}{0}
 	\setcounter{figure}{0}
