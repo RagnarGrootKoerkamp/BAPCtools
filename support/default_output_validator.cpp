@@ -149,17 +149,17 @@ int main(int argc, char** argv) {
 	string feedback_dir = argv[3];
 
 	for(int i = 4; i < argc; ++i) {
-		if(argv[i] == "case_sensitive"s) case_sensitive = true;
-		if(argv[i] == "space_change_sensitive"s) space_change_sensitive = true;
-		if(argv[i] == "float_tolerance"s) {
+		if(argv[i] == string("case_sensitive")) case_sensitive = true;
+		if(argv[i] == string("space_change_sensitive")) space_change_sensitive = true;
+		if(argv[i] == string("float_tolerance")) {
 			assert(i + 1 < argc);
 			float_tolerance = stod(argv[i + 1]);
 		}
-		if(argv[i] == "float_absolute_tolerance"s) {
+		if(argv[i] == string("float_absolute_tolerance")) {
 			assert(i + 1 < argc);
 			float_absolute_tolerance = stod(argv[i + 1]);
 		}
-		if(argv[i] == "float_relative_tolerance"s) {
+		if(argv[i] == string("float_relative_tolerance")) {
 			assert(i + 1 < argc);
 			float_relative_tolerance = stod(argv[i + 1]);
 		}
@@ -172,7 +172,9 @@ int main(int argc, char** argv) {
 		float_absolute_tolerance = float_tolerance;
 	}
 
-	auto [ok, message] = default_output_validator(ans_path, feedback_dir);
+	auto res      = default_output_validator(ans_path, feedback_dir);
+	auto& ok      = res.first;
+	auto& message = res.second;
 	cerr << message << "\n";
 	if(not ok) return 43;
 	return 42;
