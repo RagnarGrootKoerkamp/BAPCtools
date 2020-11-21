@@ -7,7 +7,7 @@ import queue
 import threading
 import signal
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import config
 import program
@@ -46,7 +46,7 @@ def is_directory(yaml):
 # Returns the given path relative to the problem root.
 def resolve_path(path, *, allow_absolute, allow_relative):
     assert isinstance(path, str)
-    path = Path(path)
+    path = PurePosixPath(path)
     if not allow_absolute:
         if path.is_absolute():
             fatal(f'Path must not be absolute: {path}')
@@ -453,13 +453,16 @@ class TestcaseRule(Rule):
                 last_change = max(last_change, (problem.path / t.source).stat().st_mtime)
                 t.cache_data['source'] = str(t.source)
             else:
-                last_change = max(last_change, t.generator.program.timestamp)
+                if t.generator.program is not None:
+                    last_change = max(last_change, t.generator.program.timestamp)
                 t.cache_data['generator'] = t.generator.cache_command(seed=t.seed)
             if t.config.solution:
-                last_change = max(last_change, t.config.solution.program.timestamp)
+                if t.solution.program is not None:
+                    last_change = max(last_change, t.config.solution.program.timestamp)
                 t.cache_data['solution'] = t.config.solution.cache_command()
             if t.config.visualizer:
-                last_change = max(last_change, t.config.visualizer.program.timestamp)
+                if t.visualizer.program is not None:
+                    last_change = max(last_change, t.config.visualizer.program.timestamp)
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
             if hasattr(config.args, 'all') and config.args.all is True:
