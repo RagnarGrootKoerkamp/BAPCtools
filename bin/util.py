@@ -631,6 +631,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
             timeout = kwargs['timeout']
         kwargs.pop('timeout')
 
+    if is_windows():
+        kwargs.pop('memory')
+
     process = None
 
     def interrupt_handler(sig, frame):
