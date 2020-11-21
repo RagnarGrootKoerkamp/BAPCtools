@@ -457,11 +457,11 @@ class TestcaseRule(Rule):
                     last_change = max(last_change, t.generator.program.timestamp)
                 t.cache_data['generator'] = t.generator.cache_command(seed=t.seed)
             if t.config.solution:
-                if t.solution.program is not None:
+                if t.config.solution.program is not None:
                     last_change = max(last_change, t.config.solution.program.timestamp)
                 t.cache_data['solution'] = t.config.solution.cache_command()
             if t.config.visualizer:
-                if t.visualizer.program is not None:
+                if t.config.visualizer.program is not None:
                     last_change = max(last_change, t.config.visualizer.program.timestamp)
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
