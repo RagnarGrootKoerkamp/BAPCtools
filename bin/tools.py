@@ -350,7 +350,7 @@ Run this from one of:
     fuzzparser.add_argument('--time', type=int, default=600, help='Number of seconds to run for. Default: 600')
     fuzzparser.add_argument('--timelimit', '-t', type=int, default=600, help='Timeout for submissions.')
     fuzzparser.add_argument('testcases', nargs='*', type=Path,
-                           help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name.')
+                           help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name, and submissions to run.')
 
     # Clean
     cleanparser = subparsers.add_parser('clean',
@@ -477,13 +477,20 @@ def run_parsed_arguments(args):
     config.args = args
     action = config.args.action
 
-    # Parse arguments for 'run' command.
+    # Split submissions and testcases for 'run'.
     if action == 'run':
         if config.args.submissions:
             config.args.submissions, config.args.testcases = split_submissions_and_testcases(
                 config.args.submissions)
         else:
             config.args.testcases = []
+    # Split submissions and testcases for 'fuzz'.
+    if action == 'fuzz':
+        if config.args.testcases:
+            config.args.submissions, config.args.testcases = split_submissions_and_testcases(
+                config.args.testcases)
+        else:
+            config.args.submissions = []
 
     # Skel commands.
     if action in ['new_contest']:
