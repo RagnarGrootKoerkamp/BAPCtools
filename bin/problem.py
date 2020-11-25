@@ -167,6 +167,7 @@ class Problem:
 
         paths = []
         if hasattr(config.args, 'submissions') and config.args.submissions:
+            accepted_only = 'all'
 
             def add(s):
                 if s in paths:
@@ -215,6 +216,10 @@ class Problem:
         if sum(len(submissions[x]) for x in submissions) == 0:
             submissions = False
         problem._submissions = submissions
+        if accepted_only == 'all':
+            subs = []
+            for x in submissions: subs += submissions[x]
+            return subs
         if accepted_only: return submissions['ACCEPTED']
         return submissions
 
