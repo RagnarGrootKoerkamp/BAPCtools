@@ -167,7 +167,7 @@ class Problem:
 
         paths = []
         if hasattr(config.args, 'submissions') and config.args.submissions:
-            accepted_only = 'all'
+            if accepted_only: accepted_only = 'all'
 
             def add(s):
                 if s in paths:
