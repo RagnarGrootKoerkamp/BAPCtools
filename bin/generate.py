@@ -979,7 +979,8 @@ class GeneratorConfig:
                     return None
 
                 # If a list of testcases was passed and this one is not in it, skip it.
-                if not process_testcase(self.problem, self.problem.path / 'data' / parent.path / name): return None
+                if not process_testcase(self.problem, self.problem.path / 'data' / parent.path / name):
+                    return None
 
                 t = TestcaseRule(self.problem, name, yaml, parent)
                 assert t.path not in self.known_cases
