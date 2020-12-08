@@ -249,7 +249,7 @@ class Program:
                     if 'validators/' in str(f):
                         self.bar.error(f'Must not depend on bits/stdc++.h.')
                     else:
-                        self.bar.warn(f'Should not depend on bits/stdc++.h')
+                        self.bar.log(f'Should not depend on bits/stdc++.h')
         return True
 
     # Return True on success.
