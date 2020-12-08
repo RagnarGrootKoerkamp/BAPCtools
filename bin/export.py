@@ -72,6 +72,7 @@ def build_problem_zip(problem, output, settings):
         ('data/secret/*.ans', True),
         ('submissions/accepted/**/*', True),
         ('submissions/*/**/*', False),
+        ('attachments/**/*', False),
     ]
 
     if 'custom' in settings.validation:
