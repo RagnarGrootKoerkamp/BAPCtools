@@ -465,7 +465,7 @@ class TestcaseRule(Rule):
                     last_change = max(last_change, t.config.visualizer.program.timestamp)
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
-            if hasattr(config.args, 'all') and config.args.all is True:
+            if getattr(config.args, 'all', False):
                 return False
 
             if not target_infile.is_file(): return False
@@ -537,7 +537,7 @@ class TestcaseRule(Rule):
         else:
             if not testcase.ans_path.is_file(): testcase.ans_path.write_text('')
             # For interactive problems, run the interactive solution and generate a .interaction.
-            if t.config.solution and testcase.sample:
+            if t.config.solution and (testcase.sample or getattr(config.args, 'interaction', False)):
                 if not t.config.solution.run_interactive(problem, bar, cwd, t):
                     return
 
