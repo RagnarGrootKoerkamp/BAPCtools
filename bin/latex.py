@@ -179,8 +179,8 @@ def build_problem_pdf(problem):
             )
         if ret.ok is not True:
             print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
-            warn(f'return code {ret.ok}')
-            warn(f'duration {ret.duration}')
+            error(f'return code {ret.ok}')
+            error(f'duration {ret.duration}')
             return False
 
     # link the output pdf
@@ -277,8 +277,8 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
             )
         if ret.ok is not True:
             print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
-            warn(f'return code {ret.ok}')
-            warn(f'duration {ret.duration}')
+            error(f'return code {ret.ok}')
+            error(f'duration {ret.duration}')
             return False
 
     # link the output pdf
