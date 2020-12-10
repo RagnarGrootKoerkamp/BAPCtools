@@ -350,7 +350,7 @@ class TestcaseRule(Rule):
 
         key = (inpt, self.config.random_salt)
         if key in problem._rules_cache:
-            fatal(f'Found duplicate rule "{inpt}" at {problem._rules_cache[key]} and {self.path}')
+            error(f'Found duplicate rule "{inpt}" at {problem._rules_cache[key]} and {self.path}')
         problem._rules_cache[key] = self.path
 
     def generate(t, problem, generator_config, parent_bar):
