@@ -30,7 +30,7 @@ TABLE_THRESHOLD = 4
 FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
-KNOWN_DATA_EXTENSIONS = ['.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.svg']
+KNOWN_DATA_EXTENSIONS = ['.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.svg', '.pdf', '.gif']
 
 SEED_DEPENDENCY_RETRIES = 10
 
