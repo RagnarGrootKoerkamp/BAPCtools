@@ -166,7 +166,7 @@ def build_problem_pdf(problem):
         })
 
     env = get_environment()
-    for i in range(3):
+    for i in range(1 if getattr(config.args, '1', False) else 3):
         ret = util.exec_command(
             PDFLATEX + ['-output-directory', builddir,
                         builddir / 'problem.tex'],
@@ -175,9 +175,12 @@ def build_problem_pdf(problem):
             cwd=builddir,
             stdout=subprocess.PIPE,
             env=env,
+            timeout=None,
             )
         if ret.ok is not True:
             print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
+            warn(f'return code {ret.ok}')
+            warn(f'duration {ret.duration}')
             return False
 
     # link the output pdf
@@ -261,7 +264,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
     env = get_environment()
-    for i in range(3):
+    for i in range(1 if getattr(config.args, '1', False) else 3):
         ret = util.exec_command(
             PDFLATEX + ['-output-directory', builddir,
                         config.tools_root / 'latex' / main_file],
@@ -270,9 +273,12 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
             cwd=builddir,
             stdout=subprocess.PIPE,
             env=env,
+            timeout=None,
             )
         if ret.ok is not True:
             print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
+            warn(f'return code {ret.ok}')
+            warn(f'duration {ret.duration}')
             return False
 
     # link the output pdf
