@@ -253,6 +253,7 @@ Run this from one of:
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
+    pdfparser.add_argument('-1', action='store_true', help='Only run pdflatex once')
 
     # Solution slides
     solparser = subparsers.add_parser('solutions',
@@ -265,6 +266,7 @@ Run this from one of:
                            action='store',
                            help='The order of the problems, e.g.: "CAB"')
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
+    solparser.add_argument('-1', action='store_true', help='Only run pdflatex once')
 
     # Validation
     validate_parser = subparsers.add_parser('validate',
@@ -336,6 +338,10 @@ Run this from one of:
                            const='generators/manual',
                            help='Move tracked inline manual cases to the given directory.',
                            metavar='TARGET_DIRECTORY=generators/manual')
+    genparser.add_argument('--interaction',
+                           '-i',
+                           action='store_true',
+                           help='Use the solution to generate .interaction files.')
     genparser.add_argument(
         'testcases',
         nargs='*',
