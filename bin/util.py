@@ -45,6 +45,8 @@ def warn(msg):
 
 
 def error(msg):
+    if config.RUNNING_TEST:
+        fatal(msg)
     print(Fore.RED + 'ERROR: ' + msg + Style.RESET_ALL)
     config.n_error += 1
 
