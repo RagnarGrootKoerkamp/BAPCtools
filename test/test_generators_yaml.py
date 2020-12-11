@@ -3,6 +3,9 @@ import yaml
 from pathlib import Path
 
 import generate
+import config
+
+config.RUNNING_TEST = True
 
 class MockProblem:
     def __init__(self):
