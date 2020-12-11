@@ -36,23 +36,28 @@ def debug(*msg):
 
 
 def log(msg):
-    print(Fore.GREEN + 'LOG: ' + msg + Style.RESET_ALL)
+    print(Fore.GREEN + 'LOG: ' + str(msg) + Style.RESET_ALL)
+
+
+def verbose(msg):
+    if config.args.verbose >= 1:
+        print(Fore.CYAN + 'VERBOSE: ' + str(msg) + Style.RESET_ALL)
 
 
 def warn(msg):
-    print(Fore.YELLOW + 'WARNING: ' + msg + Style.RESET_ALL)
+    print(Fore.YELLOW + 'WARNING: ' + str(msg) + Style.RESET_ALL)
     config.n_warn += 1
 
 
 def error(msg):
     if config.RUNNING_TEST:
         fatal(msg)
-    print(Fore.RED + 'ERROR: ' + msg + Style.RESET_ALL)
+    print(Fore.RED + 'ERROR: ' + str(msg) + Style.RESET_ALL)
     config.n_error += 1
 
 
 def fatal(msg):
-    print(Fore.RED + 'FATAL ERROR: ' + msg + Style.RESET_ALL)
+    print(Fore.RED + 'FATAL ERROR: ' + str(msg) + Style.RESET_ALL)
     exit(1)
 
 
