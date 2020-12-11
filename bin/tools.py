@@ -21,8 +21,10 @@ import sys
 import tempfile
 import shutil
 import colorama
+import json
 
 from pathlib import Path
+from urllib.request import urlopen
 
 # Local imports
 import config
@@ -157,13 +159,62 @@ def get_problems():
             if len(problems) == 0:
                 fatal('Did not find problem.yaml. Are you running this from a problem directory?')
 
-        if hasattr(config.args, 'order') and config.args.order is not None:
+        if getattr(config.args, 'order', None):
             # Sort by position of id in order
             def get_pos(id):
                 if id in config.args.order: return config.args.order.index(id)
                 else: return len(config.args.order) + 1
 
-            problems.sort(key=lambda p: (get_pos(p.label), p.name))
+            problems.sort(key=lambda p: (get_pos(p.label), p.label))
+
+        if getattr(config.args, 'order_from_api', None):
+            # Sort by increasing difficulty, extracted from the CCS api.
+            # Get active contest.
+            api = config.args.order_from_api + '/api/v4'
+            if getattr(config.args, 'contest_id', None):
+                cid = config.args.contest_id
+            else:
+                url = f'{api}/contests'
+                verbose(f'query {url}')
+                with urlopen(url) as response:
+                    contests = json.loads(response.read())
+                    assert isinstance(contests, list)
+                    if len(contests) != 1:
+                        fatal('Server has multiple active contests. Pass --contest-id <cid>.')
+                    cid = contests[0]['id']
+
+            solves = dict()
+
+            # Read set of problems
+            url = f'{api}/contests/{cid}/problems'
+            verbose(f'query {url}')
+            with urlopen(url) as response:
+                contest_problems = json.loads(response.read())
+                assert isinstance(problems, list)
+                for problem in contest_problems:
+                    solves[problem['label']] = 0
+
+
+            url = f'{api}/contests/{cid}/scoreboard'
+            verbose(f'query {url}')
+            with urlopen(url) as response:
+                scoreboard = json.loads(response.read())
+
+            for team in scoreboard['rows']:
+                for problem in team['problems']:
+                    if problem['solved']:
+                        solves[problem['label']] += 1
+
+            # Convert away from defaultdict, so any non matching keys below raise an error.
+            solves = dict(solves)
+            verbose('solves: ' + str(solves))
+
+            # Sort the problems
+            problems.sort(key=lambda p: (solves[p.label], p.label), reverse=True)
+            order = ', '.join(map(lambda p: p.label, problems))
+            verbose('order: ' + order)
+
+
 
     contest = Path().cwd().name
 
@@ -278,9 +329,17 @@ Run this from one of:
     solparser.add_argument('--cp',
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
-    solparser.add_argument('--order',
+    orderparser = solparser.add_mutually_exclusive_group()
+    orderparser.add_argument('--order',
                            action='store',
                            help='The order of the problems, e.g.: "CAB"')
+    orderparser.add_argument('--order-from-api',
+                           action='store',
+                           metavar='API_URL',
+                           help='Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb')
+    solparser.add_argument('--contest-id',
+                           action='store',
+                           help='Contest ID to use when reading from the API. Only useful with --order-from-api.')
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run pdflatex once')
 
