@@ -96,38 +96,54 @@ def get_problems():
     tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
     tmpdir.mkdir(parents=True, exist_ok=True)
 
+    def parse_problems_yaml(path):
+        problemlist = read_yaml(path)
+        if problemlist is None:
+            fatal(f'Did not find any problem in {problemsyaml}.')
+        labels = dict()
+        nextlabel = 'A'
+        problems = []
+        for p in problemlist:
+            label = nextlabel
+            shortname = p['id']
+            if 'label' in p: label = p['label']
+            if label == '': fatal(f'Found empty label for problem {shortname}')
+            nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
+            if label in labels:
+                fatal(
+                    f'label {label} found twice for problem {shortname} and {labels[label]}.')
+            labels[label] = shortname
+            if Path(shortname).is_dir():
+                problems.append((shortname, label))
+            else:
+                error(
+                    f'No directory found for problem {shortname} mentioned in problems.yaml.')
+        return problems
+
+
     problems = []
     if level == 'problem':
-        # TODO: provide a label from a problems.yaml from dir above?
-        # Currently, the label is parsed from the domjudge-problem.ini probid field.
-        problems = [Problem(Path(problem.name), tmpdir)]
+        # If the problem is mentioned in problems.yaml, use that ID.
+        # Otherwise, fall back to the one mentioned in domjudge-problem.ini.
+        problemsyaml = Path('problems.yaml')
+        if problemsyaml.is_file():
+            problem_labels = parse_problems_yaml(problemsyaml)
+            for shortname, label in problem_labels:
+                if shortname == problem.name:
+                    problems = [Problem(Path(problem.name), tmpdir, label)]
+                    break
+
+        if len(problems) == 0:
+            problems = [Problem(Path(problem.name), tmpdir)]
     else:
         level = 'problemset'
         # If problemset.yaml is available, use it.
         problemsyaml = Path('problems.yaml')
         if problemsyaml.is_file():
-            # TODO: Implement label default value
-            problemlist = read_yaml(problemsyaml)
-            if problemlist is None:
-                fatal(f'Did not find any problem in {problemsyaml}.')
-            labels = dict()
-            nextlabel = 'A'
             problems = []
-            for p in problemlist:
-                label = nextlabel
-                shortname = p['id']
-                if 'label' in p: label = p['label']
-                if label == '': fatal(f'Found empty label for problem {shortname}')
-                nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
-                if label in labels:
-                    fatal(
-                        f'label {label} found twice for problem {shortname} and {labels[label]}.')
-                labels[label] = shortname
-                if Path(shortname).is_dir():
-                    problems.append(Problem(Path(shortname), tmpdir, label))
-                else:
-                    error(
-                        f'No directory found for problem {shortname} mentioned in problems.yaml.')
+            problem_labels = parse_problems_yaml(problemsyaml)
+            for shortname, label in problem_labels:
+                problems.append(Problem(Path(shortname), tmpdir, label))
         else:
             # Otherwise, fallback to all directories with a problem.yaml and sort by
             # shortname.
@@ -519,10 +535,6 @@ def run_parsed_arguments(args):
         if action == 'skel':
             fatal('Copying skel directories only works for a single problem.')
 
-    if level != 'problemset':
-        if action == 'solutions':
-            fatal('Generating solution slides only works for a contest.')
-
     # 'submissions' and 'testcases' are only allowed at the problem level, and only when --problem is not specified.
     if level != 'problem' or config.args.problem is not None:
         if hasattr(config.args, 'submissions') and config.args.submissions:
@@ -621,6 +633,9 @@ def run_parsed_arguments(args):
             if level == 'problem' or (level == 'problemset' and hasattr(config.args, 'all')
                                       and config.args.all):
                 success &= latex.build_problem_pdf(problem)
+        if action in ['solutions']:
+            if level == 'problem':
+                success &= latex.build_problem_pdf(problem, solutions=True)
         if action in ['validate', 'input', 'all']:
             success &= problem.validate_format('input_format')
         if action in ['validate', 'output', 'all']:

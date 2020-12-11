@@ -150,13 +150,14 @@ def get_environment():
 # 3. Link bapc.cls
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run pdflatex and link the resulting problem.pdf into the problem directory.
-def build_problem_pdf(problem):
+def build_problem_pdf(problem, solutions=False):
+    t = 'solution' if solutions else 'problem'
     prepare_problem(problem)
 
     builddir = problem.tmpdir
 
     util.copy_and_substitute(
-        config.tools_root / 'latex/problem.tex', builddir / 'problem.tex', {
+        config.tools_root / f'latex/{t}.tex', builddir / f'{t}.tex', {
             'problemlabel': problem.label,
             'problemyamlname': problem.settings.name.replace('_', ' '),
             'problemauthor': problem.settings.author,
@@ -169,7 +170,7 @@ def build_problem_pdf(problem):
     for i in range(1 if getattr(config.args, '1', False) else 3):
         ret = util.exec_command(
             PDFLATEX + ['-output-directory', builddir,
-                        builddir / 'problem.tex'],
+                        builddir / f'{t}.tex'],
             0,
             False,
             cwd=builddir,
@@ -184,12 +185,11 @@ def build_problem_pdf(problem):
             return False
 
     # link the output pdf
-    output_pdf = problem.path / 'problem.pdf'
-    ensure_symlink(output_pdf, builddir / 'problem.pdf', True)
+    output_pdf = problem.path / f'{t}.pdf'
+    ensure_symlink(output_pdf, builddir / f'{t}.pdf', True)
 
     print(f'{Fore.GREEN}Pdf written to {output_pdf}{Style.RESET_ALL}')
     return True
-
 
 def find_logo():
     for directory in ["", "../"]:
@@ -200,7 +200,6 @@ def find_logo():
 
 
 # Build a pdf for an entire problemset. Explanation in latex/readme.md
-# Specify `order` to order the problems by e.g. difficulty.
 # TODO: Extract data from DomJudge API using RGL tools.
 def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     builddir = tmpdir / contest
@@ -230,9 +229,6 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     problems_data = ''
 
     if solutions:
-        # Link the solve stats directory if it exists.
-        solve_stats = Path('solve_stats')
-
         # include a header slide in the solutions PDF
         headertex = Path('solution_header.tex')
         if headertex.exists():
@@ -240,7 +236,6 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
 
     per_problem_data = (config.tools_root / 'latex' / f'contest-{build_type}.tex').read_text()
 
-    # Some logic to prevent duplicate problem IDs.
     for problem in problems:
         if build_type == 'problem':
             prepare_problem(problem)
