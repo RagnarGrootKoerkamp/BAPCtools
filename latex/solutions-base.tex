@@ -12,9 +12,9 @@
 \usetikzlibrary{arrows}
 \usetikzlibrary{shapes}
 \usetikzlibrary{backgrounds}
+\usetikzlibrary{patterns}
 \usepackage{pgfplots}
 \usepackage{pgfplotstable}
-\usetikzlibrary{patterns}
 \pgfplotsset{compat=1.15}
 \usepackage{graphicx}
 \usepackage{listings}
@@ -27,6 +27,12 @@
 \usepackage{tcolorbox}
 \usepackage[makeroom]{cancel}
 \usepackage[autoplay,controls,loop,poster=last]{animate}
+
+\providecolor{Accepted}{named}{LimeGreen}
+\providecolor{WrongAnswer}{named}{Red}
+\providecolor{TimeLimit}{named}{Plum}
+\providecolor{RunError}{named}{Goldenrod}
+\providecolor{Pending}{named}{SkyBlue}
 
 \lstset{
 	backgroundcolor=\color{white},
@@ -125,10 +131,11 @@
 \newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 
 % If solve_stats/activity/A.tex exists, define the \activitychart command
-\IfFileExists{./solve_stats/activity/A.tex}{
+\IfFileExists{A.tex}{
 	\newcommand{\activitychart}{
 	  \ifdefempty{\problemlabel}{}{
 		\includestandalone[width=\textwidth]{solve_stats/activity/\problemlabel}
+		\vspace{-2.5em}
 	  }
 	}
 }{
@@ -142,13 +149,9 @@
 }
 
 % Define \solvestats for the current problem if the file exists.
-\IfFileExists{./solve_stats/problem_stats.tex}{
+\IfFileExists{problem_stats.tex}{
 	\newcommand{\solvestats}{\csname solvestats\problemlabel \endcsname}
-	\input{./solve_stats/problem_stats.tex}
+	\input{problem_stats.tex}
 }{
 	\newcommand{\solvestats}{}
 }
-
-\begin{document}
-\input{./contest-solutions.tex}
-\end{document}
