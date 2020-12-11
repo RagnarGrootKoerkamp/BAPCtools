@@ -210,7 +210,8 @@ def get_problems():
             verbose('solves: ' + str(solves))
 
             # Sort the problems
-            problems.sort(key=lambda p: (solves[p.label], p.label), reverse=True)
+            # Use negative solves instead of reversed, to preserver stable order.
+            problems.sort(key=lambda p: (-solves[p.label], p.label))
             order = ', '.join(map(lambda p: p.label, problems))
             verbose('order: ' + order)
 
