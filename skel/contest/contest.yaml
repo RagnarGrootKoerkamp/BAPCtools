@@ -10,3 +10,9 @@ year: {%year%}
 author: {%author%}
 testsession: {%testsession%}
 blank_page_text:
+
+# CCS fields for integration
+# URL endpoint of the CCS, e.g. https://www.domjudge.org/demoweb.
+#ccs_url: 
+# Contest ID in the CCS; only needed in case of multiple active contests.
+#contest_id:

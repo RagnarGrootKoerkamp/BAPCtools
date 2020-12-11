@@ -67,6 +67,24 @@ if not os.getenv('GITLAB_CI', False):
 f'f-strings are not supported by your python version. You need at least python 3.6.'
 
 
+# Read the contest.yaml, if available
+_contest_yaml = None
+def contest_yaml():
+    global _contest_yaml
+    if _contest_yaml: return _contest_yaml
+    if _contest_yaml is False: return None
+
+    path = None
+    for p in ['contest.yaml', '../contest.yaml']:
+        p = Path(p)
+        if p.is_file():
+            path =p
+            break
+    if path is None: return None
+    _contest_yaml = read_yaml(path)
+    return _contest_yaml
+
+
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort
 # by shortname.
@@ -167,12 +185,21 @@ def get_problems():
 
             problems.sort(key=lambda p: (get_pos(p.label), p.label))
 
-        if getattr(config.args, 'order_from_api', None):
+        if getattr(config.args, 'order_from_ccs', None):
             # Sort by increasing difficulty, extracted from the CCS api.
             # Get active contest.
-            api = config.args.order_from_api + '/api/v4'
+
+            if config.args.order_from_ccs is True:
+                if contest_yaml() is None or 'ccs_url' not in contest_yaml():
+                    fatal('Could not find key `ccs_url` in contest.yaml and it was not specified on the command line.')
+                api = contest_yaml()['ccs_url']
+            else:
+                api = config.args.order_from_ccs
+            api += '/api/v4'
             if getattr(config.args, 'contest_id', None):
                 cid = config.args.contest_id
+            elif contest_yaml() and contest_yaml().get('contest_id', None):
+                cid = contest_yaml()['contest_id']
             else:
                 url = f'{api}/contests'
                 verbose(f'query {url}')
@@ -334,13 +361,15 @@ Run this from one of:
     orderparser.add_argument('--order',
                            action='store',
                            help='The order of the problems, e.g.: "CAB"')
-    orderparser.add_argument('--order-from-api',
+    orderparser.add_argument('--order-from-ccs',
                            action='store',
-                           metavar='API_URL',
-                           help='Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb')
+                           nargs='?',
+                           const=True,
+                           metavar='CCS_URL',
+                           help='Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of ccs_url in contest.yaml.')
     solparser.add_argument('--contest-id',
                            action='store',
-                           help='Contest ID to use when reading from the API. Only useful with --order-from-api.')
+                           help='Contest ID to use when reading from the API. Only useful with --order-from-ccs. Defaults to value of contest_id in contest.yaml.')
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run pdflatex once')
 
