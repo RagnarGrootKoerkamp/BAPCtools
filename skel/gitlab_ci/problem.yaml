@@ -2,8 +2,19 @@ verify_{%problem%}:
   script:
     - ./bt all --cp --error --no-bar --clean --force --problem {%contest%}/{%problem%}
   only:
+    refs:
+      - master
+      - merge_requests
     changes:
-      - {%changesdir%}/**/*
+      #- {%changesdir%}/problem_statement/**/*
+      - {%changesdir%}/problem.yaml/**/*
+      - {%changesdir%}/domjudge-problem.ini/**/*
+      - {%changesdir%}/generators/**/*
+      - {%changesdir%}/data/**/*
+      - {%changesdir%}/input_validators/**/*
+      - {%changesdir%}/output_validators/**/*
+      - {%changesdir%}/submissions/**/*
+      #- {%changesdir%}/attachments/**/*
   artifacts:
     expire_in: 1 week
     paths:
