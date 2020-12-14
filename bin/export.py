@@ -70,20 +70,34 @@ def build_samples_zip(problems):
 
 def build_problem_zip(problem, output, settings):
     """Make DOMjudge ZIP file for specified problem."""
-    # Glob, required?
-    files = [
-        ('domjudge-problem.ini', True),
-        ('problem.yaml', True),
-        ('problem.pdf', True),
-        ('problem_statement/*', True),
-        ('data/sample/*.in', True),
-        ('data/sample/*.ans', True),
-        ('data/secret/*.in', True),
-        ('data/secret/*.ans', True),
-        ('submissions/accepted/**/*', True),
-        ('submissions/*/**/*', False),
-        ('attachments/**/*', False),
-    ]
+
+    if not problem.interactive:
+        # Glob, required?
+        files = [
+            ('domjudge-problem.ini', True),
+            ('problem.yaml', True),
+            ('problem.pdf', True),
+            ('problem_statement/*', True),
+            ('data/sample/*.in', True),
+            ('data/sample/*.ans', True),
+            ('data/secret/*.in', True),
+            ('data/secret/*.ans', True),
+            ('submissions/accepted/**/*', True),
+            ('submissions/*/**/*', False),
+            ('attachments/**/*', False),
+        ]
+    else:
+        files = [
+            ('domjudge-problem.ini', True),
+            ('problem.yaml', True),
+            ('problem.pdf', True),
+            ('problem_statement/*', True),
+            ('data/sample/*.interaction', True),
+            ('data/secret/*.in', True),
+            ('submissions/accepted/**/*', True),
+            ('submissions/*/**/*', False),
+            ('attachments/**/*', False),
+        ]
 
     if 'custom' in settings.validation:
         files.append(('output_validators/**/*', True))
