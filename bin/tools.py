@@ -748,7 +748,7 @@ def run_parsed_arguments(args):
 
                 # Set up arguments for generate.
                 old_args = argparse.Namespace(**vars(config.args))
-                config.args.check_deterministic = True
+                config.args.check_deterministic = False if config.args.force else True
                 config.args.jobs = 4
                 config.args.add_manual = False
                 config.args.move_manual = False
@@ -765,7 +765,7 @@ def run_parsed_arguments(args):
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
-                success &= export.build_problem_zip(problem.path, output, settings)
+                success &= export.build_problem_zip(problem, output, settings)
         if action in ['clean'] or (action in ['all'] and config.args.clean):
             if not hasattr(config.args, 'force'):
                 config.args.force = False
