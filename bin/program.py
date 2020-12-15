@@ -42,7 +42,7 @@ def languages():
         _languages['cpp']['compile'] += ' ' + config.args.cpp_flags
 
     # Add custom languages.
-    extra_langs = yaml.safe_load(EXTRA_LANGUAGES)
+    extra_langs = parse_yaml(EXTRA_LANGUAGES)
     for lang in extra_langs:
         assert lang not in _languages
         _languages[lang] = extra_langs[lang]

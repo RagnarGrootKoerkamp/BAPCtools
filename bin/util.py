@@ -4,12 +4,10 @@ import shutil
 import config
 import time
 import copy
-import yaml
 import subprocess
 import sys
 import os
 import re
-import yaml
 import threading
 import signal
 
@@ -358,14 +356,23 @@ def print_name(path, keep_type=False):
     return str(Path(*path.parts[1 if keep_type else 2:]))
 
 
+def parse_yaml(data):
+    try:
+        import ruamel.yaml
+        yaml = ruamel.yaml.YAML(typ='safe')
+        return yaml.load(data)
+    except ModuleNotFoundError:
+        try:
+            import yaml
+            return yaml.safe_load(data)
+        except:
+            fatal(f'Failed to parse {path}.')
+
 def read_yaml(path):
     settings = {}
     if path.is_file():
         with path.open() as yamlfile:
-            try:
-                config = yaml.safe_load(yamlfile)
-            except:
-                fatal(f'Failed to parse {path}.')
+            config = parse_yaml(yamlfile)
             if config is None: return None
             if isinstance(config, list): return config
             for key, value in config.items():

@@ -477,7 +477,7 @@ class TestcaseRule(Rule):
 
             if not meta_path.is_file(): return False
 
-            meta_yaml = yaml.safe_load(meta_path.open())
+            meta_yaml = parse_yaml(meta_path.read_text())
             last_generate = meta_path.stat().st_mtime
             return last_generate >= last_change and meta_yaml == t.cache_data
 
@@ -559,6 +559,13 @@ class TestcaseRule(Rule):
 
         skipped = False
         skipped_in = False
+        #for f in cwd.iterdir():
+            #ext = f.suffix
+            #if ext not in config.KNOWN_DATA_EXTENSIONS:
+                #continue
+            #if not f.is_file(): continue
+            #source = f
+            #target = target_dir / f.name
         for ext in config.KNOWN_DATA_EXTENSIONS:
             source = cwd / (t.name + ext)
             target = target_dir / (t.name + ext)
@@ -623,7 +630,7 @@ class TestcaseRule(Rule):
 
         # Update metadata
         if not skipped:
-            yaml.dump(t.cache_data, meta_path.open('w'))
+            yamllib.dump(t.cache_data, meta_path.open('w'))
 
         # If the .in was changed but not overwritten, check_deterministic will surely fail.
         if not skipped_in:
@@ -951,7 +958,7 @@ class GeneratorConfig:
             self.ok = False
             return
 
-        yaml = yamllib.load(yaml_path.read_text(), Loader=yamllib.SafeLoader)
+        yaml = parse_yaml(yaml_path.read_text())
         self.parse_yaml(yaml)
 
     def parse_yaml(self, yaml):
