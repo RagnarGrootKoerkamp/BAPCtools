@@ -259,10 +259,13 @@ class Problem:
         paths = (glob(problem.path / (validator_dir + '_validators'), '*') +
                  glob(problem.path / (validator_dir + '_format_validators'), '*'))
 
-        if len(paths) == 0 and validator_type != 'output_format':
-            error(f'No {validator_type} validators found.')
-            problem._validators[key] = False
-            return False
+        if len(paths) == 0:
+            if validator_type == 'output_format':
+                log(f'No {validator_type} validators found (not required).')
+            else:
+                error(f'No {validator_type} validators found, at least one is required.')
+                problem._validators[key] = False
+                return False
         if validator_type == 'output' and problem.interactive and len(paths) > 1:
             error(
                 f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.'
