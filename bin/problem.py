@@ -230,8 +230,8 @@ class Problem:
         assert validator_type in ['input_format', 'output_format', 'output']
 
         # For custom validation, treat 'output' and 'output_format' validators the same.
-        if problem.settings.validation != 'default' and validator_type == 'output':
-            validator_type = 'output_format'
+        if problem.settings.validation != 'default' and validator_type == 'output_format':
+            validator_type = 'output'
 
         key = (validator_type, check_constraints)
         if key in problem._validators:
@@ -259,12 +259,11 @@ class Problem:
         paths = (glob(problem.path / (validator_dir + '_validators'), '*') +
                  glob(problem.path / (validator_dir + '_format_validators'), '*'))
 
-        if len(paths) == 0:
-            if validator_type != 'output_format':
-                warn(f'No {validator_type} validators found.')
+        if len(paths) == 0 and validator_type != 'output_format':
+            error(f'No {validator_type} validators found.')
             problem._validators[key] = False
             return False
-        if validator_type == 'output_format' and problem.interactive and len(paths) > 1:
+        if validator_type == 'output' and problem.interactive and len(paths) > 1:
             error(
                 f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.'
             )
@@ -471,7 +470,7 @@ class Problem:
             log('Not validating .ans for interactive problem.')
             return True
 
-        if not validators:
+        if validators is False:
             return False
 
         testcases = problem.testcases(needans=validator_type == 'output_format', include_bad=True)
