@@ -261,7 +261,7 @@ class Problem:
 
         if len(paths) == 0:
             if validator_type == 'output_format':
-                log(f'No {validator_type} validators found (not required).')
+                log(f'No {validator_type} validators found.')
             else:
                 error(f'No {validator_type} validators found, at least one is required.')
                 problem._validators[key] = False
