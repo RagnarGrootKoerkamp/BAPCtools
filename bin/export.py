@@ -94,6 +94,8 @@ def build_problem_zip(problem, output, settings):
             ('problem_statement/*', True),
             ('data/sample/*.interaction', True),
             ('data/secret/*.in', True),
+            # Not really needed, but otherwise problemtools will complain.
+            ('data/secret/*.ans', True),
             ('submissions/accepted/**/*', True),
             ('submissions/*/**/*', False),
             ('attachments/**/*', False),
@@ -177,6 +179,11 @@ def build_contest_zip(problems, zipfiles, outfile, args):
         ]:
             if Path(fname).is_file():
                 zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
+
+    # For Kattis export, delete the original zipfiles.
+    if args.kattis:
+        for fname in zipfiles:
+            fname.unlink()
 
     print("done")
     print()
