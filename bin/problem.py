@@ -155,8 +155,10 @@ class Problem:
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
-            testcases = False
+            # For interactive problems, allow 0 samples.
+            if not (p.interactive and only_sample):
+                warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
+                testcases = False
 
         p._testcases[key] = testcases
         return testcases
