@@ -122,7 +122,11 @@ def build_problem_zip(problem, output, settings):
                 # TODO: Fix this hack. Maybe just rename input_validators ->
                 # input_format_validators everywhere?
                 out = Path(str(f).replace('input_validators', 'input_format_validators'))
-                copyfiles.add((f, out.relative_to(problem.path)))
+                out = out.relative_to(problem.path)
+                # For Kattis, prepend the problem shortname to all files.
+                if config.args.kattis:
+                    out = problem.name / out
+                copyfiles.add((f, out))
 
     # Build .ZIP file.
     print("writing ZIP file:", output)
