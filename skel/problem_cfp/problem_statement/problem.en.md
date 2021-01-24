@@ -1,6 +1,6 @@
 # Squaring
 
-Given the area a of a square, print it's perimeter.
+Given the area a of a square, print its perimeter.
 
 ## Input
 The input consists of:
