@@ -401,9 +401,14 @@ Run this from one of:
     output_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
 
     # constraints validation
-    subparsers.add_parser('constraints',
+    constraintsparser = subparsers.add_parser('constraints',
                           parents=[global_parser],
                           help='prints all the constraints found in problemset and validators')
+
+    constraintsparser.add_argument('--no-generate',
+                           '-G',
+                           action='store_true',
+                           help='Do not run `generate`.')
 
     # Stats
     subparsers.add_parser('stats',
@@ -700,7 +705,7 @@ def run_parsed_arguments(args):
 
         if action in ['generate']:
             success &= generate.generate(problem)
-        if action in ['all', 'constraints'] or (action in ['run'] and not config.args.no_generate):
+        if action in ['all', 'constraints', 'run'] and not getattr(config.args, 'no_generate', False):
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.check_deterministic = action in ['all', 'constraints']
