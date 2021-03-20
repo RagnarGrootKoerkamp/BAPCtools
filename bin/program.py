@@ -388,7 +388,7 @@ class Generator(Program):
 
         if result.ok == -9:
             # Timeout -> stop retrying and fail.
-            bar.error(f'TIMEOUT after {timeout}s')
+            bar.error(f'TIMEOUT after {config.timeout()}s')
             return result
 
         if result.ok is not True:
