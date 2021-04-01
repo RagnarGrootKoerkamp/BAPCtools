@@ -16,7 +16,7 @@ RUN pacman -Syu --noconfirm \
 	python-argcomplete \
 	python-pytest \
 	python2 \
-	jdk8-openjdk \
+	jdk11-openjdk \
 	kotlin \
 	texlive-core \
 	texlive-latexextra \
