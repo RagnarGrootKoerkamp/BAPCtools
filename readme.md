@@ -32,7 +32,7 @@ required dependencies manually.
 Optional dependencies, required for some subcommands:
 -   The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python[3]-ruamel-yaml` Arch Linux package.
     - This is only needed for commands that update `generators.yaml`.
--   The `pdflatex` command, provided by `texlive-bin` on Arch Linux and
+-   The `latexmk` and `pdflatex` commands, provided by `texlive-bin` on Arch Linux and
     potentially some specific LaTeX packages (like tikz) provided by
 	`texlive-extra`.
 	These are only needed for building `pdf` files, not for `run` and `validate` and such.

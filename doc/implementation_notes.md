@@ -96,8 +96,9 @@ Testcases are only re-generated when changes were made. This is done with the fo
 
 # Building LaTeX files
 
-## Problem/contest pdf
-**LaTeX setup**
+## Problem statement pdfs
+
+### Per-problem pdf
 
 The per-problem pdfs are created inside `<tmpdir>/<problemname>`:
 
@@ -108,8 +109,14 @@ The per-problem pdfs are created inside `<tmpdir>/<problemname>`:
 
 The statement is compiled using:
 ```
-pdflatex -interaction=nonstopmode -halt-on-error -output-directory ~tmpdir/<problemname> ~tmpdir/<problemname>/problem.tex
+latexmk -cd -g -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error' [-pvc] [-e $max_repeat=1] -output-directory=~tmpdir/<problemname> ~tmpdir/<problemname>/problem.tex
 ```
+
+The `-pvc` option is only passed to `latexmk` when `--watch` is passed to BAPCtools.
+The `-e $max_repeat=1` option is only passed to `latexmk` when `-1` is passed to BAPCtools.
+
+### Full contest pdf
+
 After creating the `samples.tex` for each problem, the contest pdf is created in `~tmpdir/<contestname>` like this:
 
 * `~tmp/<contestname>/contest_data.tex`: a filled in copy of [contest_data.tex](../latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
@@ -120,7 +127,9 @@ After creating the `samples.tex` for each problem, the contest pdf is created in
 
 The statement is compiled using:
 
-`pdflatex -interaction=nonstopmode -halt-on-error -output-directory ~tmpdir/<contestname> ~tmpdir/<contestname>/contest[-web].tex`.
+```
+latexmk -cd -g -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error' [-pvc] [-e $max_repeat=1] -output-directory=~tmpdir/<contestname> ~tmpdir/<problemname>/contest[-web].tex
+```
 
 ## Solution slides
 
