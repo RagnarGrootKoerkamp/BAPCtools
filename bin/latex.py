@@ -12,8 +12,6 @@ import util
 from util import *
 from colorama import Fore, Style
 
-PDFLATEX = ['latexmk', '-cd', '-g', '-pdf', '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error']
-
 
 # https://stackoverflow.com/questions/16259923/how-can-i-escape-latex-special-characters-inside-django-templates
 def tex_escape(text):
@@ -128,7 +126,6 @@ def get_tl(problem_config):
 def get_environment():
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
-    inputs = ''
     paths = [
             Path.cwd(),
             Path.cwd() / 'solve_stats',
@@ -144,6 +141,36 @@ def get_environment():
     return env
 
 
+def build_latex_pdf(builddir, tex_path, problem_path=None):
+    env = get_environment()
+    run_once = getattr(config.args, '1', False)
+    watch = getattr(config.args, 'watch', False)
+    ret = util.exec_command(
+        ['latexmk', '-cd', '-g', '-pdf',
+         '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error']
+        + (['-pvc'] if watch else [])
+        + (['-e', '$max_repeat=1'] if run_once else [])
+        + [f'-output-directory={builddir}', tex_path],
+        0,
+        False,
+        cwd=builddir,
+        stdout=subprocess.PIPE,
+        env=env,
+        timeout=None,
+    )
+    if ret.ok is not True:
+        print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
+        error(f'return code {ret.ok}')
+        error(f'duration {ret.duration}')
+        return False
+    # link the output pdf
+    output_pdf = Path(tex_path.name).with_suffix('.pdf')
+    dest_path = output_pdf if problem_path is None else problem_path / output_pdf
+    ensure_symlink(dest_path, builddir / output_pdf, True)
+    print(f'{Fore.GREEN}Pdf written to {dest_path}{Style.RESET_ALL}')
+    return True
+
+
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/problem.tex,
 # substituting variables.
 # 2. Link tmpdir/<problem>/problem_statement to the problem problem_statement directory.
@@ -151,13 +178,13 @@ def get_environment():
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run latexmk and link the resulting problem.pdf into the problem directory.
 def build_problem_pdf(problem, solutions=False):
-    t = 'solution' if solutions else 'problem'
+    main_file = f'{"solution" if solutions else "problem"}.tex'
     prepare_problem(problem)
 
     builddir = problem.tmpdir
 
     util.copy_and_substitute(
-        config.tools_root / f'latex/{t}.tex', builddir / f'{t}.tex', {
+        config.tools_root / 'latex' / main_file, builddir / main_file, {
             'problemlabel': problem.label,
             'problemyamlname': problem.settings.name.replace('_', ' '),
             'problemauthor': problem.settings.author,
@@ -166,33 +193,8 @@ def build_problem_pdf(problem, solutions=False):
             'builddir': problem.tmpdir.as_posix(),
         })
 
-    env = get_environment()
-    run_once = getattr(config.args, '1', False)
-    watch = getattr(config.args, 'watch', False)
-    ret = util.exec_command(
-        PDFLATEX
-        + (['-pvc'] if watch else [])
-        + (['-e', '$max_repeat=1'] if run_once else [])
-        + [f'-output-directory={builddir}', builddir / f'{t}.tex'],
-        0,
-        False,
-        cwd=builddir,
-        stdout=subprocess.PIPE,
-        env=env,
-        timeout=None,
-        )
-    if ret.ok is not True:
-        print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
-        error(f'return code {ret.ok}')
-        error(f'duration {ret.duration}')
-        return False
+    return build_latex_pdf(builddir, builddir / main_file, problem.path)
 
-    # link the output pdf
-    output_pdf = problem.path / f'{t}.pdf'
-    ensure_symlink(output_pdf, builddir / f'{t}.pdf', True)
-
-    print(f'{Fore.GREEN}Pdf written to {output_pdf}{Style.RESET_ALL}')
-    return True
 
 def find_logo():
     for directory in ["", "../"]:
@@ -261,30 +263,4 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
-    env = get_environment()
-    run_once = getattr(config.args, '1', False)
-    watch = getattr(config.args, 'watch', False)
-    ret = util.exec_command(
-        PDFLATEX
-        + (['-pvc'] if watch else [])
-        + (['-e', '$max_repeat=1'] if run_once else [])
-        + [f'-output-directory={builddir}', config.tools_root / 'latex' / main_file],
-        0,
-        False,
-        cwd=builddir,
-        stdout=subprocess.PIPE,
-        env=env,
-        timeout=None,
-        )
-    if ret.ok is not True:
-        print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
-        error(f'return code {ret.ok}')
-        error(f'duration {ret.duration}')
-        return False
-
-    # link the output pdf
-    output_pdf = Path(main_file).with_suffix('.pdf')
-    ensure_symlink(output_pdf, builddir / output_pdf, True)
-
-    print(f'{Fore.GREEN}Pdf written to {output_pdf}{Style.RESET_ALL}')
-    return True
+    return build_latex_pdf(builddir, config.tools_root / 'latex' / main_file)
