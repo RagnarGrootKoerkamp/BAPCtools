@@ -174,16 +174,17 @@ Furthermore, it removes generated `testdata.yaml`.
 
 Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively.
 
-- Note 1: `pdflatex` is called exactly once usually. You may need to call it multiple times after big changes to the problem/contest. `bt zip` *does* run `pdflatex` multiple times.
-- Note 2: All LaTeX compilation is done in tmpfs (`/tmp/` on linux). The resulting pdfs will be symlinks into the temporary directory. See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
+**Note:** All LaTeX compilation is done in tmpfs (`/tmp/` on linux). The resulting pdfs will be symlinks into the temporary directory. See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
 
 
 **Flags**
 
-- `--no-timelimit`: When passed, time limits will not be shown in the problem/contest pdfs.
 - `--all`/`-a`: When run from the contest level, this enables building pdfs for all problems in the contest as well.
 - `--cp`: Instead of symlinking the final pdf, copy it into the problem/contest directory.
+- `--no-timelimit`: When passed, time limits will not be shown in the problem/contest pdfs.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
+- `-1`: Run the LaTeX compiler only once.
 
 
 ## `solutions`
@@ -193,9 +194,13 @@ See the [Implementation notes](implementation_notes.md#building-latex-files) for
 
 **Flags**
 
-- `--order`: The order of the problems, e.g. `BDCA`. Can be used to order problems from easy to difficult. When labels have multiple letters, `B1,A1,A2,B2` is also allowed.
 - `--cp`: Instead of symlinking the final pdf, copy it into the contest directory.
+- `--order`: The order of the problems, e.g. `BDCA`. Can be used to order problems from easy to difficult. When labels have multiple letters, `B1,A1,A2,B2` is also allowed.
+- `--order-from-ccs`: Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of ccs_url in contest.yaml.
+- `--contest-id`: Contest ID to use when reading from the API. Only useful with `--order-from-ccs`. Defaults to value of `contest_id` in `contest.yaml`.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages.
+- `-1`: Run the LaTeX compiler only once.
 
 ## `stats`
 

@@ -12,7 +12,7 @@ import util
 from util import *
 from colorama import Fore, Style
 
-PDFLATEX = ['pdflatex', '-interaction=nonstopmode', '-halt-on-error']
+PDFLATEX = ['latexmk', '-cd', '-g', '-pdf', '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error']
 
 
 # https://stackoverflow.com/questions/16259923/how-can-i-escape-latex-special-characters-inside-django-templates
@@ -149,7 +149,7 @@ def get_environment():
 # 2. Link tmpdir/<problem>/problem_statement to the problem problem_statement directory.
 # 3. Link bapc.cls
 # 4. Create tmpdir/<problem>/samples.tex.
-# 5. Run pdflatex and link the resulting problem.pdf into the problem directory.
+# 5. Run latexmk and link the resulting problem.pdf into the problem directory.
 def build_problem_pdf(problem, solutions=False):
     t = 'solution' if solutions else 'problem'
     prepare_problem(problem)
@@ -167,22 +167,25 @@ def build_problem_pdf(problem, solutions=False):
         })
 
     env = get_environment()
-    for i in range(1 if getattr(config.args, '1', False) else 3):
-        ret = util.exec_command(
-            PDFLATEX + ['-output-directory', builddir,
-                        builddir / f'{t}.tex'],
-            0,
-            False,
-            cwd=builddir,
-            stdout=subprocess.PIPE,
-            env=env,
-            timeout=None,
-            )
-        if ret.ok is not True:
-            print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
-            error(f'return code {ret.ok}')
-            error(f'duration {ret.duration}')
-            return False
+    run_once = getattr(config.args, '1', False)
+    watch = getattr(config.args, 'watch', False)
+    ret = util.exec_command(
+        PDFLATEX
+        + (['-pvc'] if watch else [])
+        + (['-e', '$max_repeat=1'] if run_once else [])
+        + [f'-output-directory={builddir}', builddir / f'{t}.tex'],
+        0,
+        False,
+        cwd=builddir,
+        stdout=subprocess.PIPE,
+        env=env,
+        timeout=None,
+        )
+    if ret.ok is not True:
+        print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
+        error(f'return code {ret.ok}')
+        error(f'duration {ret.duration}')
+        return False
 
     # link the output pdf
     output_pdf = problem.path / f'{t}.pdf'
@@ -219,7 +222,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
             }
     config_data = util.read_yaml(Path('contest.yaml'))
     for x in default_config_data:
-        if x not in config_data: config_data[x] = default_config_data[x]    
+        if x not in config_data: config_data[x] = default_config_data[x]
     config_data['testsession'] = '\\testsession' if config_data.get('testsession') else ''
     config_data['logofile'] = find_logo().as_posix()
 
@@ -259,22 +262,25 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
     env = get_environment()
-    for i in range(1 if getattr(config.args, '1', False) else 3):
-        ret = util.exec_command(
-            PDFLATEX + ['-output-directory', builddir,
-                        config.tools_root / 'latex' / main_file],
-            0,
-            False,
-            cwd=builddir,
-            stdout=subprocess.PIPE,
-            env=env,
-            timeout=None,
-            )
-        if ret.ok is not True:
-            print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
-            error(f'return code {ret.ok}')
-            error(f'duration {ret.duration}')
-            return False
+    run_once = getattr(config.args, '1', False)
+    watch = getattr(config.args, 'watch', False)
+    ret = util.exec_command(
+        PDFLATEX
+        + (['-pvc'] if watch else [])
+        + (['-e', '$max_repeat=1'] if run_once else [])
+        + [f'-output-directory={builddir}', config.tools_root / 'latex' / main_file],
+        0,
+        False,
+        cwd=builddir,
+        stdout=subprocess.PIPE,
+        env=env,
+        timeout=None,
+        )
+    if ret.ok is not True:
+        print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
+        error(f'return code {ret.ok}')
+        error(f'duration {ret.duration}')
+        return False
 
     # link the output pdf
     output_pdf = Path(main_file).with_suffix('.pdf')

@@ -343,12 +343,16 @@ Run this from one of:
                            '-a',
                            action='store_true',
                            help='Create problem statements for individual problems as well.')
-    pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     pdfparser.add_argument('--cp',
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
-    pdfparser.add_argument('-1', action='store_true', help='Only run pdflatex once')
+    pdfparser.add_argument('--watch',
+                           '-w',
+                           action='store_true',
+                           help='Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.')
+    pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
+    pdfparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
 
     # Solution slides
     solparser = subparsers.add_parser('solutions',
@@ -370,8 +374,12 @@ Run this from one of:
     solparser.add_argument('--contest-id',
                            action='store',
                            help='Contest ID to use when reading from the API. Only useful with --order-from-ccs. Defaults to value of contest_id in contest.yaml.')
+    solparser.add_argument('--watch',
+                           '-w',
+                           action='store_true',
+                           help='Continuously compile the pdf whenever a `solution.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.')
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
-    solparser.add_argument('-1', action='store_true', help='Only run pdflatex once')
+    solparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
 
     # Validation
     validate_parser = subparsers.add_parser('validate',
