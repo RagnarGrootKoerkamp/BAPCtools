@@ -143,30 +143,36 @@ def get_environment():
 
 def build_latex_pdf(builddir, tex_path, problem_path=None):
     env = get_environment()
-    run_once = getattr(config.args, '1', False)
-    watch = getattr(config.args, 'watch', False)
+
+    latexmk_command = ['latexmk', '-cd', '-g', '-pdf',
+                       '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error']
+    if getattr(config.args, 'watch', False):
+        latexmk_command.append("-pvc")
+    if getattr(config.args, '1', False):
+        latexmk_command.extend(['-e', '$max_repeat=1'])
+    latexmk_command.extend([f'-output-directory={builddir}', tex_path])
+
     ret = util.exec_command(
-        ['latexmk', '-cd', '-g', '-pdf',
-         '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error']
-        + (['-pvc'] if watch else [])
-        + (['-e', '$max_repeat=1'] if run_once else [])
-        + [f'-output-directory={builddir}', tex_path],
-        0,
-        False,
+        latexmk_command,
+        expect=0,
+        crop=False,
         cwd=builddir,
         stdout=subprocess.PIPE,
         env=env,
         timeout=None,
     )
+
     if ret.ok is not True:
         print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
         error(f'return code {ret.ok}')
         error(f'duration {ret.duration}')
         return False
+
     # link the output pdf
     output_pdf = Path(tex_path.name).with_suffix('.pdf')
     dest_path = output_pdf if problem_path is None else problem_path / output_pdf
     ensure_symlink(dest_path, builddir / output_pdf, True)
+
     print(f'{Fore.GREEN}Pdf written to {dest_path}{Style.RESET_ALL}')
     return True
 
@@ -178,7 +184,7 @@ def build_latex_pdf(builddir, tex_path, problem_path=None):
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run latexmk and link the resulting problem.pdf into the problem directory.
 def build_problem_pdf(problem, solutions=False):
-    main_file = f'{"solution" if solutions else "problem"}.tex'
+    main_file = 'solution.tex' if solutions else 'problem.tex'
     prepare_problem(problem)
 
     builddir = problem.tmpdir
