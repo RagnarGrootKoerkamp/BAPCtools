@@ -66,9 +66,10 @@ if not os.getenv('GITLAB_CI', False):
 # Make sure f-strings are supported.
 f'f-strings are not supported by your python version. You need at least python 3.6.'
 
-
 # Read the contest.yaml, if available
 _contest_yaml = None
+
+
 def contest_yaml():
     global _contest_yaml
     if _contest_yaml: return _contest_yaml
@@ -78,7 +79,7 @@ def contest_yaml():
     for p in ['contest.yaml', '../contest.yaml']:
         p = Path(p)
         if p.is_file():
-            path =p
+            path = p
             break
     if path is None: return None
     _contest_yaml = read_yaml(path)
@@ -130,16 +131,13 @@ def get_problems():
             if label == '': fatal(f'Found empty label for problem {shortname}')
             nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
             if label in labels:
-                fatal(
-                    f'label {label} found twice for problem {shortname} and {labels[label]}.')
+                fatal(f'label {label} found twice for problem {shortname} and {labels[label]}.')
             labels[label] = shortname
             if Path(shortname).is_dir():
                 problems.append((shortname, label))
             else:
-                error(
-                    f'No directory found for problem {shortname} mentioned in problems.yaml.')
+                error(f'No directory found for problem {shortname} mentioned in problems.yaml.')
         return problems
-
 
     problems = []
     if level == 'problem':
@@ -191,7 +189,9 @@ def get_problems():
 
             if config.args.order_from_ccs is True:
                 if contest_yaml() is None or 'ccs_url' not in contest_yaml():
-                    fatal('Could not find key `ccs_url` in contest.yaml and it was not specified on the command line.')
+                    fatal(
+                        'Could not find key `ccs_url` in contest.yaml and it was not specified on the command line.'
+                    )
                 api = contest_yaml()['ccs_url']
             else:
                 api = config.args.order_from_ccs
@@ -221,7 +221,6 @@ def get_problems():
                 for problem in contest_problems:
                     solves[problem['label']] = 0
 
-
             url = f'{api}/contests/{cid}/scoreboard'
             verbose(f'query {url}')
             with urlopen(url) as response:
@@ -241,8 +240,6 @@ def get_problems():
             problems.sort(key=lambda p: (-solves[p.label], p.label))
             order = ', '.join(map(lambda p: p.label, problems))
             verbose('order: ' + order)
-
-
 
     contest = Path().cwd().name
 
@@ -329,10 +326,14 @@ Run this from one of:
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
     # Copy directory from skel.
-    skelparser = subparsers.add_parser('skel',
-                                          parents=[global_parser],
-                                          help='Copy the given directories from skel to the current problem directory.')
-    skelparser.add_argument('directory', nargs='+', help='Directories to copy from skel/problem/, relative to the problem directory.')
+    skelparser = subparsers.add_parser(
+        'skel',
+        parents=[global_parser],
+        help='Copy the given directories from skel to the current problem directory.')
+    skelparser.add_argument(
+        'directory',
+        nargs='+',
+        help='Directories to copy from skel/problem/, relative to the problem directory.')
     skelparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
     # Problem statements
@@ -347,10 +348,13 @@ Run this from one of:
                            action='store_true',
                            help='Copy the output pdf instead of symlinking it.')
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
-    pdfparser.add_argument('--watch',
-                           '-w',
-                           action='store_true',
-                           help='Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.')
+    pdfparser.add_argument(
+        '--watch',
+        '-w',
+        action='store_true',
+        help=
+        'Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.'
+    )
     pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     pdfparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
 
@@ -363,21 +367,30 @@ Run this from one of:
                            help='Copy the output pdf instead of symlinking it.')
     orderparser = solparser.add_mutually_exclusive_group()
     orderparser.add_argument('--order',
-                           action='store',
-                           help='The order of the problems, e.g.: "CAB"')
-    orderparser.add_argument('--order-from-ccs',
-                           action='store',
-                           nargs='?',
-                           const=True,
-                           metavar='CCS_URL',
-                           help='Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of ccs_url in contest.yaml.')
-    solparser.add_argument('--contest-id',
-                           action='store',
-                           help='Contest ID to use when reading from the API. Only useful with --order-from-ccs. Defaults to value of contest_id in contest.yaml.')
-    solparser.add_argument('--watch',
-                           '-w',
-                           action='store_true',
-                           help='Continuously compile the pdf whenever a `solution.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.')
+                             action='store',
+                             help='The order of the problems, e.g.: "CAB"')
+    orderparser.add_argument(
+        '--order-from-ccs',
+        action='store',
+        nargs='?',
+        const=True,
+        metavar='CCS_URL',
+        help=
+        'Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of ccs_url in contest.yaml.'
+    )
+    solparser.add_argument(
+        '--contest-id',
+        action='store',
+        help=
+        'Contest ID to use when reading from the API. Only useful with --order-from-ccs. Defaults to value of contest_id in contest.yaml.'
+    )
+    solparser.add_argument(
+        '--watch',
+        '-w',
+        action='store_true',
+        help=
+        'Continuously compile the pdf whenever a `solution.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.'
+    )
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
 
@@ -409,14 +422,15 @@ Run this from one of:
     output_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
 
     # constraints validation
-    constraintsparser = subparsers.add_parser('constraints',
-                          parents=[global_parser],
-                          help='prints all the constraints found in problemset and validators')
+    constraintsparser = subparsers.add_parser(
+        'constraints',
+        parents=[global_parser],
+        help='prints all the constraints found in problemset and validators')
 
     constraintsparser.add_argument('--no-generate',
-                           '-G',
-                           action='store_true',
-                           help='Do not run `generate`.')
+                                   '-G',
+                                   action='store_true',
+                                   help='Do not run `generate`.')
 
     # Stats
     subparsers.add_parser('stats',
@@ -468,13 +482,26 @@ Run this from one of:
 
     # Fuzzer
     # TODO: Also allow specifying a list of submissions?
-    fuzzparser = subparsers.add_parser('fuzz',
-                                      parents=[global_parser],
-                                      help='Generate random testcases and search for inconsistencies in AC submissions.')
-    fuzzparser.add_argument('--time', type=int, default=600, help='Number of seconds to run for. Default: 600')
-    fuzzparser.add_argument('--timelimit', '-t', type=int, default=600, help='Timeout for submissions.')
-    fuzzparser.add_argument('testcases', nargs='*', type=Path,
-                           help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name, and submissions to run.')
+    fuzzparser = subparsers.add_parser(
+        'fuzz',
+        parents=[global_parser],
+        help='Generate random testcases and search for inconsistencies in AC submissions.')
+    fuzzparser.add_argument('--time',
+                            type=int,
+                            default=600,
+                            help='Number of seconds to run for. Default: 600')
+    fuzzparser.add_argument('--timelimit',
+                            '-t',
+                            type=int,
+                            default=600,
+                            help='Timeout for submissions.')
+    fuzzparser.add_argument(
+        'testcases',
+        nargs='*',
+        type=Path,
+        help=
+        'The generator.yaml rules to use, given as directory, .in/.ans file, or base name, and submissions to run.'
+    )
 
     # Clean
     cleanparser = subparsers.add_parser('clean',
@@ -552,9 +579,9 @@ Run this from one of:
                            action='store_true',
                            help='Clean up generated testcases afterwards.')
     allparser.add_argument('--force',
-                             '-f',
-                             action='store_true',
-                             help='Delete all untracked files.')
+                           '-f',
+                           action='store_true',
+                           help='Delete all untracked files.')
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser('zip',
@@ -647,8 +674,9 @@ def run_parsed_arguments(args):
             fatal(
                 'Passing in a list of testcases only works when running from a problem directory.')
 
-    if action != 'generate' and hasattr(config.args, 'testcases') and config.args.testcases and hasattr(
-            config.args, 'samples') and config.args.samples:
+    if action != 'generate' and hasattr(config.args,
+                                        'testcases') and config.args.testcases and hasattr(
+                                            config.args, 'samples') and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
 
     if hasattr(config.args, 'move_manual') and config.args.move_manual:
@@ -713,7 +741,8 @@ def run_parsed_arguments(args):
 
         if action in ['generate']:
             success &= generate.generate(problem)
-        if action in ['all', 'constraints', 'run'] and not getattr(config.args, 'no_generate', False):
+        if action in ['all', 'constraints', 'run'
+                      ] and not getattr(config.args, 'no_generate', False):
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.check_deterministic = action in ['all', 'constraints']

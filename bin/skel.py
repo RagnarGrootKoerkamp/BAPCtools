@@ -76,6 +76,7 @@ def new_contest(name):
                             exist_ok=False,
                             preserve_symlinks=False)
 
+
 def get_skel_dir(target_dir):
     skeldir = config.tools_root / 'skel/problem'
     preserve_symlinks = False
@@ -142,14 +143,14 @@ def new_problem():
 
 
 def copy_skel_dir(problems):
-    assert len(problems)==1
+    assert len(problems) == 1
     problem = problems[0]
 
     skeldir, preserve_symlinks = get_skel_dir(problem.path)
 
     for d in config.args.directory:
         d = Path(d)
-        sources = [skeldir / d, skeldir / d.parent  / (d.name + '.template')]
+        sources = [skeldir / d, skeldir / d.parent / (d.name + '.template')]
         target = problem.path / d
 
         if d.is_absolute():
@@ -163,17 +164,15 @@ def copy_skel_dir(problems):
 
             target.parent.mkdir(exist_ok=True, parents=True)
             copytree_and_substitute(source,
-                                target,
-                                None,
-                                exist_ok=True,
-                                preserve_symlinks=preserve_symlinks)
+                                    target,
+                                    None,
+                                    exist_ok=True,
+                                    preserve_symlinks=preserve_symlinks)
             found = True
             break
 
         if not found:
             error(f'{source} does not exist')
-
-
 
 
 def create_gitlab_jobs(contest, problems):

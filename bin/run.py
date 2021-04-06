@@ -137,7 +137,6 @@ class Run:
             if f.is_file(): f.unlink()
             else: shutil.rmtree(f)
 
-
     # Return an ExecResult object amended with verdict.
     def run(self, *, interaction=None, submission_args=None):
         if self.problem.interactive:
@@ -263,7 +262,7 @@ class Submission(program.Program):
                             continue
                     if arg not in config.VERDICTS:
                         error(
-                                f'@EXPECTED_RESULT@: `{arg}` for submission {self.short_path} is not valid'
+                            f'@EXPECTED_RESULT@: `{arg}` for submission {self.short_path} is not valid'
                         )
                         continue
                     verdicts.append(arg)
@@ -441,7 +440,9 @@ class Submission(program.Program):
                     status = f'{Fore.GREEN}Done:'
 
                 if status:
-                    print(f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}')
+                    print(
+                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
+                    )
                 print()
 
             else:
@@ -531,7 +532,9 @@ while True:
                     status = f'{Fore.GREEN}Done:'
 
                 if status:
-                    print(f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}')
+                    print(
+                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
+                    )
                 print()
             finally:
                 os.close(r)

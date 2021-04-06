@@ -14,7 +14,7 @@ from pathlib import Path
 def fix_problem_yaml_name(problem):
     for f in (problem.path / 'problem_statement').iterdir():
         if f.is_file() and f.suffix == '.tex':
-            t = f.read_text();
+            t = f.read_text()
             if '\problemyamlname' in t:
                 t = t.replace('\\problemyamlname', problem.settings.name)
                 f.write_text(t)
@@ -32,9 +32,10 @@ def build_samples_zip(problems):
     for problem in problems:
         outputdir = Path(problem.label)
 
-        attachments_dir = problem.path/'attachments'
+        attachments_dir = problem.path / 'attachments'
         if problem.interactive and not attachments_dir.is_dir():
-            util.error(f'Interactive problem {problem.name} does not have an attachments/ directory.')
+            util.error(
+                f'Interactive problem {problem.name} does not have an attachments/ directory.')
             continue
 
         empty = True
@@ -59,7 +60,6 @@ def build_samples_zip(problems):
                 zf.write(sample.in_path, basename.with_suffix('.in'))
                 zf.write(sample.ans_path, basename.with_suffix('.ans'))
                 empty = False
-
 
         if empty:
             util.error(f'No attachments or samples found for problem {problem.name}.')

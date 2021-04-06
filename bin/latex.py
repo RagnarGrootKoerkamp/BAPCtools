@@ -127,11 +127,10 @@ def get_environment():
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
     paths = [
-            Path.cwd(),
-            Path.cwd() / 'solve_stats',
-            Path.cwd() / 'solve_stats/activity',
-            config.tools_root / 'latex'
-            ]
+        Path.cwd(),
+        Path.cwd() / 'solve_stats',
+        Path.cwd() / 'solve_stats/activity', config.tools_root / 'latex'
+    ]
     texinputs = ''
     for p in paths:
         texinputs += str(p) + ';'
@@ -144,8 +143,10 @@ def get_environment():
 def build_latex_pdf(builddir, tex_path, problem_path=None):
     env = get_environment()
 
-    latexmk_command = ['latexmk', '-cd', '-g', '-pdf',
-                       '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error']
+    latexmk_command = [
+        'latexmk', '-cd', '-g', '-pdf',
+        '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error'
+    ]
     if getattr(config.args, 'watch', False):
         latexmk_command.append("-pvc")
     if getattr(config.args, '1', False):
@@ -221,13 +222,13 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     main_file += '-web.tex' if web else '.tex'
 
     default_config_data = {
-            'title': 'TITLE',
-            'subtitle': '',
-            'year': 'YEAR',
-            'author': 'AUTHOR',
-            'testsession': '',
-            'blank_page_text': '',
-            }
+        'title': 'TITLE',
+        'subtitle': '',
+        'year': 'YEAR',
+        'author': 'AUTHOR',
+        'testsession': '',
+        'blank_page_text': '',
+    }
     config_data = util.read_yaml(Path('contest.yaml'))
     for x in default_config_data:
         if x not in config_data: config_data[x] = default_config_data[x]

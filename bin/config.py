@@ -31,7 +31,9 @@ TABLE_THRESHOLD = 4
 FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
-KNOWN_DATA_EXTENSIONS = ['.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.svg', '.pdf', '.gif']
+KNOWN_DATA_EXTENSIONS = [
+    '.in', '.ans', '.interaction', '.hint', '.desc', '.png', '.jpg', '.svg', '.pdf', '.gif'
+]
 
 SEED_DEPENDENCY_RETRIES = 10
 
@@ -39,7 +41,7 @@ SEED_DEPENDENCY_RETRIES = 10
 tools_root = Path(__file__).resolve().parent.parent
 
 # Add third_party/ to the $PATH for checktestdata.
-os.environ["PATH"] += os.pathsep + str(tools_root/'third_party')
+os.environ["PATH"] += os.pathsep + str(tools_root / 'third_party')
 
 # Below here is some global state that will be filled in main().
 

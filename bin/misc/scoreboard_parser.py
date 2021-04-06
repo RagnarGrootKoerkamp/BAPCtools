@@ -35,12 +35,12 @@ for i in range(teams):
         else:
             print(f'"solved": {solved}')
 
-        if p < problems-1:
+        if p < problems - 1:
             print('},')
         else:
             print('}')
 
-    if i < teams-1:
+    if i < teams - 1:
         print(']},')
         input()
     else:

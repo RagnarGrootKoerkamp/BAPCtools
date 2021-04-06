@@ -75,9 +75,11 @@ class ProgressBar:
     columns = shutil.get_terminal_size().columns
 
     if not is_windows():
+
         def update_columns(_, __):
             cols = os.popen('stty size', 'r').read().split()[1]
             ProgressBar.columns = int(cols)
+
         signal.signal(signal.SIGWINCH, update_columns)
 
     @staticmethod
@@ -292,7 +294,10 @@ class ProgressBar:
         if not self.logged:
             if not success: config.n_error += 1
             if config.args.verbose or not success:
-                self.log(message, data, needs_lock=False, color=Fore.GREEN if success else Fore.RED)
+                self.log(message,
+                         data,
+                         needs_lock=False,
+                         color=Fore.GREEN if success else Fore.RED)
 
         self._release_item()
         if self.parent:
@@ -367,6 +372,7 @@ def parse_yaml(data):
             return yaml.safe_load(data)
         except:
             fatal(f'Failed to parse {path}.')
+
 
 def read_yaml(path):
     settings = {}

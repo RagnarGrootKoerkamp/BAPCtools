@@ -11,8 +11,11 @@ import matplotlib.pyplot as plt
 
 def read_json(path):
     return json.loads(Path(path).read_text())
+
+
 submissions = read_json('submissions.json')
 judgements = read_json('judgements.json')
+
 
 # For each |lang| submission find the first and last judgement.
 # If both are AC, return the old and new max_time.
@@ -28,18 +31,18 @@ def get_times(lang):
 
     return points
 
+
 def print_scatter_plot(points):
     fig, ax = plt.subplots()
-    ax.scatter([p[0] for p in points], [p[1] for p in points], s=1, c=[[0,0,0]])
+    ax.scatter([p[0] for p in points], [p[1] for p in points], s=1, c=[[0, 0, 0]])
     ax.set_xscale('log')
     ax.set_yscale('log')
     ax.plot([0, 1, 2, 3])
     fig.tight_layout()
     plt.show()
 
+
 times = get_times('python3')
 times.sort()
 print(times)
 print_scatter_plot(times)
-
-

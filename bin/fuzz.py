@@ -71,7 +71,8 @@ def _try_generator_invocation(problem, t, submissions, i):
 
     command = generator.cache_command(seed=seed)
 
-    bar = ProgressBar('Fuzz ' + str(i) + ': ' + command, max_len=max(len(s.name) for s in submissions))
+    bar = ProgressBar('Fuzz ' + str(i) + ': ' + command,
+                      max_len=max(len(s.name) for s in submissions))
 
     bar.start('generate')
     result = generator.run(bar, cwd, name, seed)

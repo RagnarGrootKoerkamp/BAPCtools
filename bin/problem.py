@@ -164,7 +164,7 @@ class Problem:
         return testcases
 
     # returns a map {expected verdict -> [(name, command)]}
-    def submissions(problem, accepted_only = False):
+    def submissions(problem, accepted_only=False):
         if problem._submissions is not None: return problem._submissions
 
         paths = []
@@ -220,7 +220,8 @@ class Problem:
         problem._submissions = submissions
         if accepted_only == 'all':
             subs = []
-            for x in submissions: subs += submissions[x]
+            for x in submissions:
+                subs += submissions[x]
             return subs
         if accepted_only: return submissions['ACCEPTED']
         return submissions
@@ -242,8 +243,8 @@ class Problem:
         # For default 'output' validation, use default_output_validator.cpp.
         if validator_type == 'output' and problem.settings.validation == 'default':
             validators = [
-                validate.OutputValidator(problem,
-                                         config.tools_root / 'support' / 'default_output_validator.cpp')
+                validate.OutputValidator(
+                    problem, config.tools_root / 'support' / 'default_output_validator.cpp')
             ]
             bar = ProgressBar(f'Build {validator_type} validators', items=validators)
             ok = True

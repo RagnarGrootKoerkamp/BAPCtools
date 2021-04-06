@@ -182,14 +182,18 @@ class Program:
                 if exe[0] != '{' and shutil.which(exe) == None:
                     if best[0] is None or priority >= best[2]:
                         fallback = True
-                        self.bar.warn(f'Compile program {exe} not found for language {name}. Falling back to lower priority languages.')
+                        self.bar.warn(
+                            f'Compile program {exe} not found for language {name}. Falling back to lower priority languages.'
+                        )
                     continue
             assert 'run' in lang_conf
             exe = lang_conf['run'].split()[0]
             if exe[0] != '{' and shutil.which(exe) == None:
                 fallback = True
                 if best[0] is None or priority >= best[2]:
-                    self.bar.warn(f'Run program {exe} not found for language {name}. Falling back to lower priority languages.')
+                    self.bar.warn(
+                        f'Run program {exe} not found for language {name}. Falling back to lower priority languages.'
+                    )
                 continue
 
             if (priority // 1000, len(matching_files), priority) > (best[2] // 1000, len(
