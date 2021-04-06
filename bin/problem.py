@@ -428,10 +428,10 @@ class Problem:
 
         print(
             '\nVerdict analysis table. Submissions are ordered per column as above. Higher '
-            'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.'
-        )
-        print(f'{Fore.RED}0{Style.RESET_ALL}: submission fails testcase')
-        print(f'{Fore.GREEN}1{Style.RESET_ALL}: submission passes testcase\n')
+            'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.',
+            file=sys.stderr)
+        print(f'{Fore.RED}0{Style.RESET_ALL}: submission fails testcase', file=sys.stderr)
+        print(f'{Fore.GREEN}1{Style.RESET_ALL}: submission passes testcase\n', file=sys.stderr)
 
         for testcase in testcases:
             # Skip all AC testcases
@@ -443,13 +443,15 @@ class Problem:
                 color = Fore.YELLOW
             if len(scores_list) > 3 and scores[testcase.name] >= scores_list[-3]:
                 color = Fore.RED
-            print(f'{str(testcase.name):<60}', end=' ')
+            print(f'{str(testcase.name):<60}', end=' ', file=sys.stderr)
             resultant = make_verdict(testcase)
-            print(resultant, end='  ')
-            print(f'{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ', end='')
+            print(resultant, end='  ', file=sys.stderr)
+            print(f'{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ',
+                  end='',
+                  file=sys.stderr)
             if resultant in resultant_id:
-                print(str.format('(Type {})', resultant_id[resultant]), end='')
-            print(end='\n')
+                print(str.format('(Type {})', resultant_id[resultant]), end='', file=sys.stderr)
+            print(end='\n', file=sys.stderr)
 
     def reset_testcase_hashes(self):
         self._testcase_hashes = {}

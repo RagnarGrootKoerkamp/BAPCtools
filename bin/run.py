@@ -400,7 +400,7 @@ class Submission(program.Program):
         return (self.verdict in self.expected_verdicts, printed_newline)
 
     def test(self):
-        print(ProgressBar.action('Running', str(self.name)))
+        print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
 
         testcases = self.problem.testcases(needans=False)
 
@@ -411,7 +411,7 @@ class Submission(program.Program):
 
         for testcase in testcases:
             header = ProgressBar.action('Running ' + str(self.name), testcase.name)
-            print(header)
+            print(header, file=sys.stderr)
 
             if not self.problem.interactive:
                 assert self.run_command is not None
@@ -431,8 +431,8 @@ class Submission(program.Program):
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
-                    )
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        file=sys.stderr)
                 elif result.duration > self.problem.settings.timelimit:
                     status = f'{Fore.YELLOW}Done (TLE):'
                     config.n_warn += 1
@@ -441,9 +441,9 @@ class Submission(program.Program):
 
                 if status:
                     print(
-                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
-                    )
-                print()
+                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        file=sys.stderr)
+                print(file=sys.stderr)
 
             else:
                 # Interactive problem.
@@ -455,12 +455,12 @@ class Submission(program.Program):
                 if result.verdict != 'ACCEPTED':
                     config.n_error += 1
                     print(
-                        f'{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
-                    )
+                        f'{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        file=sys.stderr)
                 else:
                     print(
-                        f'{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
-                    )
+                        f'{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        file=sys.stderr)
 
     # Run the submission using stdin as input.
     def test_interactive(self):
@@ -471,7 +471,7 @@ class Submission(program.Program):
 
         bar = ProgressBar('Running ' + str(self.name), max_len=1, count=1)
         bar.start()
-        #print(ProgressBar.action('Running', str(self.name)))
+        #print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
 
         is_tty = sys.stdin.isatty()
 
@@ -526,16 +526,16 @@ while True:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
-                    )
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        file=sys.stderr)
                 else:
                     status = f'{Fore.GREEN}Done:'
 
                 if status:
                     print(
-                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}'
-                    )
-                print()
+                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        file=sys.stderr)
+                print(file=sys.stderr)
             finally:
                 os.close(r)
                 os.close(w)

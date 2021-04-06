@@ -24,15 +24,15 @@ def _ask_variable(name, default=None):
     if default == None:
         val = ''
         while True:
-            print(f"{name}: ", end='')
+            print(f"{name}: ", end='', file=sys.stderr)
             val = input()
             if val == '':
-                print(f"{name} must not be empty!")
+                print(f"{name} must not be empty!", file=sys.stderr)
             else:
                 break
         return val
     else:
-        print(f"{name} [{default}]: ", end='')
+        print(f"{name} [{default}]: ", end='', file=sys.stderr)
         val = input()
         return default if val == '' else val
 
@@ -175,6 +175,7 @@ def copy_skel_dir(problems):
             error(f'{source} does not exist')
 
 
+# NOTE: This is one of few places that prints to stdout instead of stderr.
 def create_gitlab_jobs(contest, problems):
     def problem_source_dir(problem):
         return problem.path.resolve().relative_to(Path('..').resolve())

@@ -54,8 +54,8 @@ def run_interactive_testcase(
     submission_dir = run.submission.tmpdir
 
     if config.args.verbose >= 2:
-        print('Validator:  ', *validator_command)
-        print('Submission: ', *submission_command)
+        print('Validator:  ', *validator_command, file=sys.stderr)
+        print('Submission: ', *submission_command, file=sys.stderr)
 
     # On Windows:
     # - Start the validator
