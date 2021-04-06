@@ -1,10 +1,10 @@
 import shutil
-
-import config
+import sys
 import datetime
 import re
 
 # Local imports
+import config
 from util import *
 
 

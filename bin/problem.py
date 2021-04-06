@@ -2,6 +2,8 @@ import re
 import glob
 import argparse
 import hashlib
+import shlex
+import sys
 
 from pathlib import Path
 
@@ -9,7 +11,6 @@ import config
 import program
 import run
 import validate
-import shlex
 from util import *
 from colorama import Fore, Style
 
