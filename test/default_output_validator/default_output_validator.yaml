@@ -207,6 +207,8 @@ flags: 'float_tolerance 0.5'
 ans: inf
 ac:
   - inf
+  - INF
+  - Inf
 wa:
   - -inf
   - nan
@@ -218,6 +220,8 @@ flags: 'float_tolerance 0.5'
 ans: -inf
 ac:
   - -inf
+  - -Inf
+  - -INF
 wa:
   - inf
   - nan
@@ -229,6 +233,8 @@ flags: 'float_tolerance 0.5'
 ans: nan
 ac:
   - nan
+  - NaN
+  - NAN
 wa:
   - inf
   - -inf
