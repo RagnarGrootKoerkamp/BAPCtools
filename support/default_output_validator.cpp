@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <ios>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -102,9 +103,13 @@ pair<bool, string> default_output_validator(const string& ans_path, const string
 		return {true, "white space"};
 	}
 
-	if(floatabs == 0 and floatrel == 0) return {false, quick_diff(out, ans)};
+	if(floatabs == 0 and floatrel == 0) {
+		return {false, quick_diff(out, ans)};
+	}
 
-	if(out_words.size() != ans_words.size()) { return {false, quick_diff(out, ans)}; }
+	if(out_words.size() != ans_words.size()) {
+		return {false, quick_diff(out, ans)};
+	}
 
 	long double max_abs_err = 0;
 	long double max_rel_err = 0;
@@ -118,23 +123,36 @@ pair<bool, string> default_output_validator(const string& ans_path, const string
 			long double v1, v2;
 			try {
 				v1 = stold(w1, &p1);
-			} catch(exception& e) { return {false, quick_diff(w2, w1)}; }
+			} catch(exception& e) {
+				return {false, quick_diff(w2, w1)};
+			}
 			if(p1 < w1.size()) return {false, quick_diff(w2, w1)};
 
 			// If the output term doesn't parse as a float -> WA.
 			try {
 				v2 = stold(w2, &p2);
-			} catch(exception& e) { return {false, quick_diff(out, ans)}; }
+			} catch(exception& e) {
+				return {false, quick_diff(out, ans)};
+			}
 			if(p2 < w2.size()) return {false, quick_diff(w2, w1)};
+
+			// OK if w1 and w2 represent the same (possibly nan/inf) value.
+			if(v1 == v2) continue;
 
 			// If both parse as float -> compare the absolute and relative differences.
 			auto abserr = abs(v1 - v2);
-			auto relerr = v2 != 0 ? abs(v1 - v2) / v1 : 1000;
+			auto relerr = v1 != 0 ? abs(v1 - v2) / v1 : 1000;
 			max_abs_err = max(max_abs_err, abserr);
 			max_rel_err = max(max_rel_err, relerr);
 
-			if(isnan(v1) != isnan(v2) or isinf(v1) != isinf(v2) or (abserr > float_absolute_tolerance and relerr > float_relative_tolerance))
+			// Catch inequality of nan and inf values.
+			if(isnan(v1) != isnan(v2) or isinf(v1) != isinf(v2)) {
 				return {false, quick_diff(w2, w1)};
+			}
+
+			if(not(abserr <= float_absolute_tolerance or relerr <= float_relative_tolerance)) {
+				return {false, quick_diff(w2, w1)};
+			}
 		}
 	}
 

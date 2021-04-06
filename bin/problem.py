@@ -239,7 +239,7 @@ class Problem:
         if key in problem._validators:
             return problem._validators[key]
 
-        # For default 'output' validation, use default_output_validator.py.
+        # For default 'output' validation, use default_output_validator.cpp.
         if validator_type == 'output' and problem.settings.validation == 'default':
             validators = [
                 validate.OutputValidator(problem,

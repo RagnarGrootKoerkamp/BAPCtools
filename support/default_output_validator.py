@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# NOTE: This is superseded by the equivalent C++ version, which is
+# significantly faster for problems with many testcases and/or large testcase
+# output.
 import re
 import sys
 from pathlib import Path

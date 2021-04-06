@@ -188,3 +188,60 @@ wa:
   - 'x1000.0'
   - 'y1000'
   - 'x1.e43k5j'
+---
+# mixed
+flags: 'float_tolerance 0.5'
+ans: 0
+ac:
+  - '-0.5'
+  - '0.00'
+  - '0'
+  - '0.5'
+wa:
+  - inf
+  - -inf
+  - nan
+---
+# mixed
+flags: 'float_tolerance 0.5'
+ans: inf
+ac:
+  - inf
+wa:
+  - -inf
+  - nan
+  - 0
+  - 1
+---
+# mixed
+flags: 'float_tolerance 0.5'
+ans: -inf
+ac:
+  - -inf
+wa:
+  - inf
+  - nan
+  - 0
+  - 1
+---
+# mixed
+flags: 'float_tolerance 0.5'
+ans: nan
+ac:
+  - nan
+wa:
+  - inf
+  - -inf
+  - 0
+  - 1
+---
+# mixed
+flags: 'float_tolerance 0.5'
+ans: 1
+ac:
+  - 1
+wa:
+  - inf
+  - -inf
+  - nan
+  - 0
