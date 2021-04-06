@@ -189,7 +189,7 @@ wa:
   - 'y1000'
   - 'x1.e43k5j'
 ---
-# mixed
+# ans 0
 flags: 'float_tolerance 0.5'
 ans: 0
 ac:
@@ -202,7 +202,7 @@ wa:
   - -inf
   - nan
 ---
-# mixed
+# ans inf
 flags: 'float_tolerance 0.5'
 ans: inf
 ac:
@@ -215,7 +215,7 @@ wa:
   - 0
   - 1
 ---
-# mixed
+# ans -inf
 flags: 'float_tolerance 0.5'
 ans: -inf
 ac:
@@ -227,8 +227,9 @@ wa:
   - nan
   - 0
   - 1
+  - -1
 ---
-# mixed
+# ans nan
 flags: 'float_tolerance 0.5'
 ans: nan
 ac:
@@ -241,7 +242,7 @@ wa:
   - 0
   - 1
 ---
-# mixed
+# ans 1
 flags: 'float_tolerance 0.5'
 ans: 1
 ac:
@@ -251,3 +252,20 @@ wa:
   - -inf
   - nan
   - 0
+
+# ans -1
+flags: 'float_tolerance 0.5'
+ans: -1
+ac:
+  - -1
+  - -0.5
+  - -1.5
+wa:
+  - inf
+  - -inf
+  - nan
+  - 0
+  - 1
+  - 0.5
+  - 1.5
+

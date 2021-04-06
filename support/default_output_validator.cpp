@@ -141,7 +141,7 @@ pair<bool, string> default_output_validator(const string& ans_path, const string
 
 			// If both parse as float -> compare the absolute and relative differences.
 			auto abserr = abs(v1 - v2);
-			auto relerr = v1 != 0 ? abs(v1 - v2) / v1 : 1000;
+			auto relerr = v1 != 0 ? abs((v1 - v2) / v1) : 1000;
 			max_abs_err = max(max_abs_err, abserr);
 			max_rel_err = max(max_rel_err, relerr);
 
