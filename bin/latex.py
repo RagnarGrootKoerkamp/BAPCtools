@@ -5,6 +5,7 @@ import util
 import re
 import subprocess
 import tempfile
+import sys
 from pathlib import Path
 
 import config

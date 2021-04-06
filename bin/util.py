@@ -1,7 +1,6 @@
 # read problem settings from config files
 
 import shutil
-import config
 import time
 import copy
 import subprocess
@@ -13,6 +12,8 @@ import signal
 
 from pathlib import Path
 from colorama import Fore, Style
+
+import config
 
 
 def is_windows():

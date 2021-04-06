@@ -1,8 +1,10 @@
-import program
+import os
+import sys
+
 import config
 import validate
+import program
 import interactive
-import os
 
 from util import *
 from colorama import Fore, Style
