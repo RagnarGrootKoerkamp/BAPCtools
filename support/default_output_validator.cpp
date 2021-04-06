@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cctype>
+#include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <ios>
@@ -132,7 +133,7 @@ pair<bool, string> default_output_validator(const string& ans_path, const string
 			max_abs_err = max(max_abs_err, abserr);
 			max_rel_err = max(max_rel_err, relerr);
 
-			if(abserr > float_absolute_tolerance and relerr > float_relative_tolerance)
+			if(isnan(v1) != isnan(v2) or isinf(v1) != isinf(v2) or (abserr > float_absolute_tolerance and relerr > float_relative_tolerance))
 				return {false, quick_diff(w2, w1)};
 		}
 	}
