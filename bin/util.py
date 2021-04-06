@@ -28,34 +28,34 @@ if not is_windows():
 
 
 def debug(*msg):
-    print(Fore.CYAN, end='')
-    print('DEBUG:', *msg, end='')
-    print(Style.RESET_ALL)
+    print(Fore.CYAN, end='', file=sys.stderr)
+    print('DEBUG:', *msg, end='', file=sys.stderr)
+    print(Style.RESET_ALL, file=sys.stderr)
 
 
 def log(msg):
-    print(Fore.GREEN + 'LOG: ' + str(msg) + Style.RESET_ALL)
+    print(Fore.GREEN + 'LOG: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
 
 
 def verbose(msg):
     if config.args.verbose >= 1:
-        print(Fore.CYAN + 'VERBOSE: ' + str(msg) + Style.RESET_ALL)
+        print(Fore.CYAN + 'VERBOSE: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
 
 
 def warn(msg):
-    print(Fore.YELLOW + 'WARNING: ' + str(msg) + Style.RESET_ALL)
+    print(Fore.YELLOW + 'WARNING: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
     config.n_warn += 1
 
 
 def error(msg):
     if config.RUNNING_TEST:
         fatal(msg)
-    print(Fore.RED + 'ERROR: ' + str(msg) + Style.RESET_ALL)
+    print(Fore.RED + 'ERROR: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
     config.n_error += 1
 
 
 def fatal(msg):
-    print(Fore.RED + 'FATAL ERROR: ' + str(msg) + Style.RESET_ALL)
+    print(Fore.RED + 'FATAL ERROR: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
     exit(1)
 
 
@@ -148,7 +148,7 @@ class ProgressBar:
     def clearline(self):
         if hasattr(config.args, 'no_bar') and config.args.no_bar: return
         assert self.lock.locked()
-        print(self.carriage_return, end='', flush=True)
+        print(self.carriage_return, end='', flush=True, file=sys.stderr)
 
     def action(prefix, item, width=None, total_width=None):
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
@@ -197,9 +197,9 @@ class ProgressBar:
                 p = self.item
             bar = self.get_bar()
             if bar is None or bar == '':
-                print(self.get_prefix(), end='\r', flush=True)
+                print(self.get_prefix(), end='\r', flush=True, file=sys.stderr)
             else:
-                print(self.get_prefix(), bar, sep='', end='\r', flush=True)
+                print(self.get_prefix(), bar, sep='', end='\r', flush=True, file=sys.stderr)
 
     def start(self, item=''):
         self.lock.acquire()
@@ -221,9 +221,9 @@ class ProgressBar:
 
         bar = self.get_bar()
         if bar is None or bar == '':
-            print(self.get_prefix(), end='\r', flush=True)
+            print(self.get_prefix(), end='\r', flush=True, file=sys.stderr)
         else:
-            print(self.get_prefix(), bar, sep='', end='\r', flush=True)
+            print(self.get_prefix(), bar, sep='', end='\r', flush=True, file=sys.stderr)
 
         self.lock.release()
         return bar_copy
@@ -246,7 +246,7 @@ class ProgressBar:
         else: self.global_logged = True
 
         if self.needs_leading_newline:
-            print()
+            print(file=sys.stderr)
             self.needs_leading_newline = False
 
         print(self.get_prefix(),
@@ -255,7 +255,8 @@ class ProgressBar:
               ProgressBar._format_data(data),
               Style.RESET_ALL,
               sep='',
-              flush=True)
+              flush=True,
+              file=sys.stderr)
 
         if resume:
             if self.parent:
@@ -342,11 +343,11 @@ class ProgressBar:
             message = f'{Fore.GREEN}Done{Style.RESET_ALL}'
 
         if message:
-            print(self.get_prefix(), message, sep='')
+            print(self.get_prefix(), message, sep='', file=sys.stderr)
 
         # When something was printed, add a newline between parts.
         if self.global_logged:
-            print()
+            print(file=sys.stderr)
 
         self.lock.release()
 
@@ -636,12 +637,12 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     command = [str(x) for x in command]
 
     if config.args.verbose >= 2:
-        if 'cwd' in kwargs: print('cd', kwargs['cwd'], '; ', end='')
-        else: print('cd', Path.cwd(), '; ', end='')
-        print(*command, end='')
+        if 'cwd' in kwargs: print('cd', kwargs['cwd'], '; ', end='', file=sys.stderr)
+        else: print('cd', Path.cwd(), '; ', end='', file=sys.stderr)
+        print(*command, end='', file=sys.stderr)
         if 'stdin' in kwargs:
-            print(' < ', kwargs['stdin'].name, end='')
-        print()
+            print(' < ', kwargs['stdin'].name, end='', file=sys.stderr)
+        print(file=sys.stderr)
 
     timeout = 30
     if 'timeout' in kwargs:

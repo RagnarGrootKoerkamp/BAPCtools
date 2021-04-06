@@ -1,6 +1,7 @@
 from util import *
 from colorama import Fore, Style
 import generate
+import sys
 
 
 # This prints the number belonging to the count.
@@ -63,7 +64,7 @@ def stats(problems):
             format_string += ' {:>' + str(width + len(Fore.WHITE) + len(Style.RESET_ALL)) + '}'
 
     header = header_string.format(*headers)
-    print(Style.BRIGHT + header + Style.RESET_ALL)
+    print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
 
     for problem in problems:
         generated_testcases = {
@@ -118,16 +119,15 @@ def stats(problems):
         else:
             comment = Fore.YELLOW + comment + Style.RESET_ALL
 
-        print(
-            format_string.format(
-                problem.label + ' ' + problem.name, *[
-                    _get_stat(counts[i], True if len(stats[i]) <= 2 else stats[i][2],
-                              None if len(stats[i]) <= 3 else stats[i][3])
-                    for i in range(len(stats))
-                ], comment))
+        print(format_string.format(
+            problem.label + ' ' + problem.name, *[
+                _get_stat(counts[i], True if len(stats[i]) <= 2 else stats[i][2],
+                          None if len(stats[i]) <= 3 else stats[i][3]) for i in range(len(stats))
+            ], comment),
+              file=sys.stderr)
 
     # print the cumulative count
-    print('-' * len(header))
-    print(
-        format_string.format(*(['TOTAL'] + list(map(lambda x: _get_stat(x, False), cumulative)) +
-                               [''])))
+    print('-' * len(header), file=sys.stderr)
+    print(format_string.format(*(['TOTAL'] + list(map(lambda x: _get_stat(x, False), cumulative)) +
+                                 [''])),
+          file=sys.stderr)

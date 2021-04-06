@@ -65,7 +65,7 @@ def build_samples_zip(problems):
             util.error(f'No attachments or samples found for problem {problem.name}.')
 
     zf.close()
-    print("Wrote zip to samples.zip")
+    print("Wrote zip to samples.zip", file=sys.stderr)
 
 
 def build_problem_zip(problem, output, settings):
@@ -107,7 +107,7 @@ def build_problem_zip(problem, output, settings):
     if config.args.kattis:
         files.append(('input_validators/**/*', True))
 
-    print("Preparing to make ZIP file for problem dir %s" % problem.path)
+    print("Preparing to make ZIP file for problem dir %s" % problem.path, file=sys.stderr)
 
     fix_problem_yaml_name(problem)
 
@@ -117,7 +117,8 @@ def build_problem_zip(problem, output, settings):
     for pattern, required in files:
         paths = list(util.glob(problem.path, pattern))
         if required and len(paths) == 0:
-            print(f'{Fore.RED}No matches for required path {pattern}{Style.RESET_ALL}.')
+            print(f'{Fore.RED}No matches for required path {pattern}{Style.RESET_ALL}.',
+                  file=sys.stderr)
         for f in paths:
             # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
@@ -131,7 +132,7 @@ def build_problem_zip(problem, output, settings):
                 copyfiles.add((f, out))
 
     # Build .ZIP file.
-    print("writing ZIP file:", output)
+    print("writing ZIP file:", output, file=sys.stderr)
 
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
@@ -150,8 +151,8 @@ def build_problem_zip(problem, output, settings):
 
     # Done.
     zf.close()
-    print("done")
-    print()
+    print("done", file=sys.stderr)
+    print(file=sys.stderr)
 
     return True
 
@@ -162,7 +163,7 @@ def build_problem_zip(problem, output, settings):
 # solutions.pdf
 # Output is <outfile>
 def build_contest_zip(problems, zipfiles, outfile, args):
-    print("writing ZIP file %s" % outfile)
+    print("writing ZIP file %s" % outfile, file=sys.stderr)
 
     zf = zipfile.ZipFile(outfile, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
@@ -185,7 +186,7 @@ def build_contest_zip(problems, zipfiles, outfile, args):
         for fname in zipfiles:
             fname.unlink()
 
-    print("done")
-    print()
+    print("done", file=sys.stderr)
+    print(file=sys.stderr)
 
     zf.close()

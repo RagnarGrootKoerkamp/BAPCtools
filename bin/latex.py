@@ -135,7 +135,7 @@ def get_environment():
     for p in paths:
         texinputs += str(p) + ';'
     if config.args.verbose >= 2:
-        print(f"export TEXINPUTS='{texinputs}'")
+        print(f"export TEXINPUTS='{texinputs}'", file=sys.stderr)
     env["TEXINPUTS"] = texinputs
     return env
 
@@ -164,7 +164,7 @@ def build_latex_pdf(builddir, tex_path, problem_path=None):
     )
 
     if ret.ok is not True:
-        print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}')
+        print(f'{Fore.RED}Failure compiling pdf:{Style.RESET_ALL}\n{ret.out}', file=sys.stderr)
         error(f'return code {ret.ok}')
         error(f'duration {ret.duration}')
         return False
@@ -174,7 +174,7 @@ def build_latex_pdf(builddir, tex_path, problem_path=None):
     dest_path = output_pdf if problem_path is None else problem_path / output_pdf
     ensure_symlink(dest_path, builddir / output_pdf, True)
 
-    print(f'{Fore.GREEN}Pdf written to {dest_path}{Style.RESET_ALL}')
+    print(f'{Fore.GREEN}Pdf written to {dest_path}{Style.RESET_ALL}', file=sys.stderr)
     return True
 
 

@@ -246,6 +246,7 @@ def get_problems():
     return (problems, level, contest, tmpdir)
 
 
+# NOTE: This is one of the few places that prints to stdout.
 def print_sorted(problems):
     prefix = config.args.contest + '/' if config.args.contest else ''
     for problem in problems:
@@ -734,7 +735,7 @@ def run_parsed_arguments(args):
         if level == 'problemset' and action == 'pdf' and not (hasattr(config.args, 'all')
                                                               and config.args.all):
             continue
-        print(Style.BRIGHT, 'PROBLEM ', problem.name, Style.RESET_ALL, sep='')
+        print(Style.BRIGHT, 'PROBLEM ', problem.name, Style.RESET_ALL, sep='', file=sys.stderr)
 
         # TODO: Remove usages of settings.
         settings = problem.settings
@@ -814,10 +815,10 @@ def run_parsed_arguments(args):
             success &= generate.clean(problem)
 
         if len(problems) > 1:
-            print()
+            print(file=sys.stderr)
 
     if level == 'problemset':
-        print(f'{Style.BRIGHT}CONTEST {contest}{Style.RESET_ALL}')
+        print(f'{Style.BRIGHT}CONTEST {contest}{Style.RESET_ALL}', file=sys.stderr)
 
         # build pdf for the entire contest
         if action in ['pdf']:

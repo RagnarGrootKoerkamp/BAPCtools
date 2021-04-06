@@ -18,7 +18,7 @@ def check_constraints(problem, settings):
     ans_constraints = {}
     problem.validate_format('input_format', constraints=in_constraints)
     problem.validate_format('output_format', constraints=ans_constraints)
-    print()
+    print(file=sys.stderr)
 
     vinput = problem.path / 'input_validators/input_validator/input_validator.cpp'
     voutput = problem.path / 'output_validators/output_validator/output_validator.cpp'
@@ -105,39 +105,41 @@ def check_constraints(problem, settings):
     left_width = 8 + name_len + 2 * value_len
 
     print('{:^{width}}|{:^30}'.format('VALIDATORS', '      PROBLEM STATEMENT', width=left_width),
-          sep='')
+          sep='',
+          file=sys.stderr)
     for val, st in itertools.zip_longest(defs_validators, defs_statement):
         if val is not None:
             if isinstance(val, str):
-                print('{:^{width}}'.format(val, width=left_width), sep='', end='')
+                print('{:^{width}}'.format(val, width=left_width), sep='', end='', file=sys.stderr)
             else:
                 print('{:>{value_len}} <= {:^{name_len}} <= {:<{value_len}}'.format(
                     *val, name_len=name_len, value_len=value_len),
                       sep='',
-                      end='')
+                      end='',
+                      file=sys.stderr)
         else:
-            print('{:^{width}}'.format('', width=left_width), sep='', end='')
+            print('{:^{width}}'.format('', width=left_width), sep='', end='', file=sys.stderr)
         print('|', end='')
         if st is not None:
             if len(st) == 2:
-                print('{:>15}  {:<13}'.format(*st), sep='', end='')
+                print('{:>15}  {:<13}'.format(*st), sep='', end='', file=sys.stderr)
             else:
-                print('{:^30}'.format(*st), sep='', end='')
+                print('{:^30}'.format(*st), sep='', end='', file=sys.stderr)
         else:
-            print('{:^30}'.format(''), sep='', end='')
-        print()
+            print('{:^30}'.format(''), sep='', end='', file=sys.stderr)
+        print(file=sys.stderr)
 
-    print()
+    print(file=sys.stderr)
 
     extra_in_validator = validator_values.difference(statement_values)
     if extra_in_validator:
         warn('Values in validators but not in statement:')
         for v in extra_in_validator:
-            print(v)
+            print(v, file=sys.stderr)
     extra_in_statement = statement_values.difference(validator_values)
     if extra_in_validator:
         warn('Values in statement but not in input validators:')
         for v in extra_in_statement:
-            print(v)
+            print(v, file=sys.stderr)
 
     return True
