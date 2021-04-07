@@ -15,9 +15,10 @@ time since I'm not aware of usage outside of BAPC yet.
 
 ## Installation
 
-For now the only way to use this is to clone the repository and install the
-required dependencies manually.
-(If you know how to make Debian and/or Arch packages, feel free to help out.)
+You can install the [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/), mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git).
+
+Otherwise, clone this repository and install the required dependencies manually.
+(If you know how to make a Debian package, feel free to help out.)
 
 -   Python 3 (>= 3.6).
 -   The [yaml library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install pyyaml` or the `python[3]-yaml` Arch Linux package.
