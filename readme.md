@@ -135,3 +135,8 @@ Use this command to compile the `problem.pdf` from the `problem_statement/proble
 `problem.pdf` is written to the problem directory itself.
 
 This can also be used to create the contest pdf by running it from the contest directory.
+
+## Contributing
+
+The python code in the repository is formatted using YAPF.
+Run `scripts/yafp_format.sh` to format all python files in the `bin/` directory.
