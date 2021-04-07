@@ -136,7 +136,12 @@ Use this command to compile the `problem.pdf` from the `problem_statement/proble
 
 This can also be used to create the contest pdf by running it from the contest directory.
 
-## Contributing
+## Contributing / Style guide
 
-The python code in the repository is formatted using YAPF.
+- The python code in the repository is formatted using YAPF.
 Run `scripts/yafp_format.sh` to format all python files in the `bin/` directory.
+
+- Imports are usually ordered with system libraries first, followed by a
+    newline, followed by local includes. Both groups are sorted alphabetically,
+    and `import` comes before `from ... import`.
+
