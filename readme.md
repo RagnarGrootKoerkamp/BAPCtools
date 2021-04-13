@@ -139,8 +139,11 @@ This can also be used to create the contest pdf by running it from the contest d
 
 ## Contributing / Style guide
 
-- The python code in the repository is formatted using YAPF.
-Run `scripts/yafp_format.sh` to format all python files in the `bin/` directory.
+- The python code in the repository is formatted using [black](https://github.com/psf/black).
+  To enable the pre-commit hook, install [pre-commit](https://pre-commit.com/)
+  with `pip` or your package manager (Arch: `python-pre-commit`) and run
+  `pre-commit install` from the repository root. All python code will now automatically be formatted
+  on each commit.
 
 - Imports are usually ordered with system libraries first, followed by a
     newline, followed by local includes. Both groups are sorted alphabetically,
