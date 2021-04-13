@@ -14,8 +14,8 @@ def fix_problem_yaml_name(problem):
     for f in (problem.path / 'problem_statement').iterdir():
         if f.is_file() and f.suffix == '.tex':
             t = f.read_text()
-            if '\problemyamlname' in t:
-                t = t.replace('\\problemyamlname', problem.settings.name)
+            if r'\problemyamlname' in t:
+                t = t.replace(r'\problemyamlname', problem.settings.name)
                 f.write_text(t)
 
 
