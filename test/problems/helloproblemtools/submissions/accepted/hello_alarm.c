@@ -2,11 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-/* Based on the libc manual*/   
+/* Based on the libc manual*/
 
 /* This flag controls termination of the main loop. */
 volatile sig_atomic_t keep_going = 1;
-     
+
 /* The signal handler just clears the flag and re-enables itself. */
 void catch_alarm (int sig)
 {
@@ -29,7 +29,7 @@ int main (void)
   /* Check the flag once in a while to see when to quit. */
   while (keep_going)
     do_nothing();
-  
+
   printf("Hello World!\n");
   return EXIT_SUCCESS;
 }

@@ -78,7 +78,12 @@ class Testcase:
             data = ''
             if ret.ok is not True or config.args.error:
                 if ret.err and ret.out:
-                    ret.out = ret.err + f'\n{Fore.RED}VALIDATOR STDOUT{Style.RESET_ALL}\n' + Fore.YELLOW + ret.out
+                    ret.out = (
+                        ret.err
+                        + f'\n{Fore.RED}VALIDATOR STDOUT{Style.RESET_ALL}\n'
+                        + Fore.YELLOW
+                        + ret.out
+                    )
                 elif ret.err:
                     data = ret.err
                 elif ret.out:
@@ -88,7 +93,8 @@ class Testcase:
 
             bar.part_done(ret.ok is True, message, data=data)
 
-            if ret.ok is True: continue
+            if ret.ok is True:
+                continue
 
             # Move testcase to destination directory if specified.
             if hasattr(config.args, 'move_to') and config.args.move_to:
@@ -109,8 +115,9 @@ class Testcase:
                         bar.log('Moved to ' + print_name(anstarget))
 
             # Remove testcase if specified.
-            elif validator_type == 'input' and hasattr(config.args,
-                                                       'remove') and config.args.remove:
+            elif (
+                validator_type == 'input' and hasattr(config.args, 'remove') and config.args.remove
+            ):
                 bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
                 if testcase.in_path.exists():
                     testcase.in_path.unlink()
@@ -130,21 +137,25 @@ class Run:
         self.name = self.testcase.name
         self.result = None
 
-        tmp_path = self.problem.tmpdir / 'runs' / self.submission.short_path / self.testcase.short_path
+        tmp_path = (
+            self.problem.tmpdir / 'runs' / self.submission.short_path / self.testcase.short_path
+        )
         self.out_path = tmp_path.with_suffix('.out')
         self.feedbackdir = tmp_path.with_suffix('.feedbackdir')
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
         # Clean all files in feedbackdir.
         for f in self.feedbackdir.iterdir():
-            if f.is_file(): f.unlink()
-            else: shutil.rmtree(f)
+            if f.is_file():
+                f.unlink()
+            else:
+                shutil.rmtree(f)
 
     # Return an ExecResult object amended with verdict.
     def run(self, *, interaction=None, submission_args=None):
         if self.problem.interactive:
-            result = interactive.run_interactive_testcase(self,
-                                                          interaction=interaction,
-                                                          submission_args=submission_args)
+            result = interactive.run_interactive_testcase(
+                self, interaction=interaction, submission_args=submission_args
+            )
         else:
             result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:
@@ -172,8 +183,11 @@ class Run:
                     result.verdict = 'VALIDATOR_CRASH'
 
             # Delete .out files larger than 1MB.
-            if not config.args.error and self.out_path.is_file(
-            ) and self.out_path.stat().st_size > 1000000000:
+            if (
+                not config.args.error
+                and self.out_path.is_file()
+                and self.out_path.stat().st_size > 1000000000
+            ):
                 self.out_path.unlink()
 
         self.result = result
@@ -181,7 +195,8 @@ class Run:
 
     def _validate_output(self):
         output_validators = self.problem.validators('output')
-        if output_validators is False: return False
+        if output_validators is False:
+            return False
 
         last_result = None
         for output_validator in output_validators:
@@ -240,7 +255,7 @@ class Submission(program.Program):
             'RUN-ERROR': 'RUN_TIME_ERROR',
             'NO-OUTPUT': 'WRONG_ANSWER',
             'CHECK-MANUALLY': None,
-            'COMPILER-ERROR': None
+            'COMPILER-ERROR': None,
         }
         # Matching is case insensitive and all source files are checked.
         key = '@EXPECTED_RESULTS@: '
@@ -251,7 +266,8 @@ class Submission(program.Program):
         else:
             files = []
         for f in files:
-            if not f.is_file(): continue
+            if not f.is_file():
+                continue
             try:
                 text = f.read_text().upper()
                 beginpos = text.index(key) + len(key)
@@ -294,36 +310,39 @@ class Submission(program.Program):
     def run(self, in_path, out_path, crop=True, args=[], cwd=None):
         assert self.run_command is not None
         # Just for safety reasons, change the cwd.
-        if cwd is None: cwd = self.tmpdir
+        if cwd is None:
+            cwd = self.tmpdir
         with in_path.open('rb') as inf:
             out_file = out_path.open('wb') if out_path else None
 
             # Print stderr to terminal is stdout is None, otherwise return its value.
-            result = exec_command(self.run_command + args,
-                                  crop=crop,
-                                  stdin=inf,
-                                  stdout=out_file,
-                                  stderr=None if out_file is None else True,
-                                  timeout=self.problem.settings.timeout,
-                                  cwd=cwd)
-            if out_file: out_file.close()
+            result = exec_command(
+                self.run_command + args,
+                crop=crop,
+                stdin=inf,
+                stdout=out_file,
+                stderr=None if out_file is None else True,
+                timeout=self.problem.settings.timeout,
+                cwd=cwd,
+            )
+            if out_file:
+                out_file.close()
             return result
 
     # Run this submission on all testcases for the current problem.
     # Returns (OK verdict, printed newline)
-    def run_all_testcases(self,
-                          max_submission_name_len=None,
-                          table_dict=None,
-                          *,
-                          needs_leading_newline):
+    def run_all_testcases(
+        self, max_submission_name_len=None, table_dict=None, *, needs_leading_newline
+    ):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
-        max_item_len = max(len(run.name)
-                           for run in runs) + max_submission_name_len - len(self.name)
+        max_item_len = max(len(run.name) for run in runs) + max_submission_name_len - len(self.name)
 
-        bar = ProgressBar('Running ' + self.name,
-                          count=len(runs),
-                          max_len=max_item_len,
-                          needs_leading_newline=needs_leading_newline)
+        bar = ProgressBar(
+            'Running ' + self.name,
+            count=len(runs),
+            max_len=max_item_len,
+            needs_leading_newline=needs_leading_newline,
+        )
 
         max_duration = -1
 
@@ -335,8 +354,12 @@ class Submission(program.Program):
             bar.start(run)
             result = run.run()
 
-            new_verdict = (config.PRIORITY[result.verdict], result.verdict, result.print_verdict(),
-                           result.duration)
+            new_verdict = (
+                config.PRIORITY[result.verdict],
+                result.verdict,
+                result.print_verdict(),
+                result.duration,
+            )
             if new_verdict > verdict:
                 verdict = new_verdict
                 verdict_run = run
@@ -350,8 +373,13 @@ class Submission(program.Program):
             # Print stderr whenever something is printed
             if result.out and result.err:
                 output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
-                data = f'STDERR:' + bar._format_data(
-                    result.err) + f'\n{output_type}:' + bar._format_data(result.out) + '\n'
+                data = (
+                    f'STDERR:'
+                    + bar._format_data(result.err)
+                    + f'\n{output_type}:'
+                    + bar._format_data(result.out)
+                    + '\n'
+                )
             else:
                 data = ''
                 if result.err:
@@ -370,15 +398,18 @@ class Submission(program.Program):
                     bar.warn(f'Validator wrote to {f} but it cannot be parsed as unicode text.')
                     continue
                 f.unlink()
-                if not t: continue
-                if len(data) > 0 and data[-1] != '\n': data += '\n'
+                if not t:
+                    continue
+                if len(data) > 0 and data[-1] != '\n':
+                    data += '\n'
                 data += f'{f.name}:' + bar._format_data(t) + '\n'
 
             bar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
             # Lazy judging: stop on the first error when not in verbose mode.
-            if (not config.args.verbose and not getattr(config.args, 'table', False)
-                ) and result.verdict in config.MAX_PRIORITY_VERDICT:
+            if (
+                not config.args.verbose and not getattr(config.args, 'table', False)
+            ) and result.verdict in config.MAX_PRIORITY_VERDICT:
                 bar.count = None
                 break
 
@@ -388,15 +419,18 @@ class Submission(program.Program):
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
-            color = Style.BRIGHT + Fore.GREEN if self.verdict in self.expected_verdicts else Style.BRIGHT + Fore.RED
+            color = (
+                Style.BRIGHT + Fore.GREEN
+                if self.verdict in self.expected_verdicts
+                else Style.BRIGHT + Fore.RED
+            )
             boldcolor = Style.BRIGHT
         else:
             color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
             boldcolor = ''
 
         printed_newline = bar.finalize(
-            message=
-            f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{Style.RESET_ALL} @ {verdict_run.testcase.name}'
+            message=f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{Style.RESET_ALL} @ {verdict_run.testcase.name}'
         )
 
         return (self.verdict in self.expected_verdicts, printed_newline)
@@ -418,12 +452,14 @@ class Submission(program.Program):
             if not self.problem.interactive:
                 assert self.run_command is not None
                 with testcase.in_path.open('rb') as inf:
-                    result = exec_command(self.run_command,
-                                          crop=False,
-                                          stdin=inf,
-                                          stdout=None,
-                                          stderr=None,
-                                          timeout=self.problem.settings.timeout)
+                    result = exec_command(
+                        self.run_command,
+                        crop=False,
+                        stdin=inf,
+                        stdout=None,
+                        stderr=None,
+                        timeout=self.problem.settings.timeout,
+                    )
 
                 assert result.err is None and result.out is None
                 if result.duration > self.problem.settings.timeout:
@@ -434,7 +470,8 @@ class Submission(program.Program):
                     status = None
                     print(
                         f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
-                        file=sys.stderr)
+                        file=sys.stderr,
+                    )
                 elif result.duration > self.problem.settings.timelimit:
                     status = f'{Fore.YELLOW}Done (TLE):'
                     config.n_warn += 1
@@ -444,25 +481,27 @@ class Submission(program.Program):
                 if status:
                     print(
                         f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
-                        file=sys.stderr)
+                        file=sys.stderr,
+                    )
                 print(file=sys.stderr)
 
             else:
                 # Interactive problem.
                 run = Run(self.problem, self, testcase)
-                result = interactive.run_interactive_testcase(run,
-                                                              interaction=True,
-                                                              validator_error=None,
-                                                              team_error=None)
+                result = interactive.run_interactive_testcase(
+                    run, interaction=True, validator_error=None, team_error=None
+                )
                 if result.verdict != 'ACCEPTED':
                     config.n_error += 1
                     print(
                         f'{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
-                        file=sys.stderr)
+                        file=sys.stderr,
+                    )
                 else:
                     print(
                         f'{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
-                        file=sys.stderr)
+                        file=sys.stderr,
+                    )
 
     # Run the submission using stdin as input.
     def test_interactive(self):
@@ -473,7 +512,7 @@ class Submission(program.Program):
 
         bar = ProgressBar('Running ' + str(self.name), max_len=1, count=1)
         bar.start()
-        #print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
+        # print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
 
         is_tty = sys.stdin.isatty()
 
@@ -516,12 +555,9 @@ while True:
                 writer = subprocess.Popen(['python3', '-c', TEE_CODE], stdin=None, stdout=w)
 
                 assert self.run_command is not None
-                result = exec_command(self.run_command,
-                                      crop=False,
-                                      stdin=r,
-                                      stdout=None,
-                                      stderr=None,
-                                      timeout=None)
+                result = exec_command(
+                    self.run_command, crop=False, stdin=r, stdout=None, stderr=None, timeout=None
+                )
 
                 assert result.err is None and result.out is None
                 if result.ok is not True:
@@ -529,14 +565,16 @@ while True:
                     status = None
                     print(
                         f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
-                        file=sys.stderr)
+                        file=sys.stderr,
+                    )
                 else:
                     status = f'{Fore.GREEN}Done:'
 
                 if status:
                     print(
                         f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
-                        file=sys.stderr)
+                        file=sys.stderr,
+                    )
                 print(file=sys.stderr)
             finally:
                 os.close(r)
@@ -545,4 +583,5 @@ while True:
                     writer.kill()
             bar.done()
 
-            if not is_tty: break
+            if not is_tty:
+                break

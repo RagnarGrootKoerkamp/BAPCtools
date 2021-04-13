@@ -2,7 +2,7 @@ import pytest
 import argparse
 import yaml
 import os
-import hashlib 
+import hashlib
 import tempfile
 from pathlib import Path
 
@@ -24,19 +24,25 @@ config.args.error = True
 
 # return list of (flags, ans, out, expected result)
 def read_tests():
-    docs = yaml.load_all((RUN_DIR / 'test/default_output_validator/default_output_validator.yaml').read_text(), Loader=yaml.SafeLoader)
+    docs = yaml.load_all(
+        (RUN_DIR / 'test/default_output_validator/default_output_validator.yaml').read_text(),
+        Loader=yaml.SafeLoader,
+    )
 
     tests = []
 
     for doc in docs:
         doc['ans'] = str(doc['ans'])
         if 'ac' in doc:
-            for out in doc['ac']: tests.append((doc['flags'], doc['ans'], str(out), True))
+            for out in doc['ac']:
+                tests.append((doc['flags'], doc['ans'], str(out), True))
         if 'wa' in doc:
-            for out in doc['wa']: tests.append((doc['flags'], doc['ans'], str(out), 43))
+            for out in doc['wa']:
+                tests.append((doc['flags'], doc['ans'], str(out), 43))
 
     print(tests)
     return tests
+
 
 @pytest.fixture(scope='class', params=DEFAULT_OUTPUT_VALIDATORS)
 def validator(request):
@@ -47,7 +53,7 @@ def validator(request):
     tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
     tmpdir.mkdir(exist_ok=True)
     p = problem.Problem(Path('.'), tmpdir)
-    validator = validate.OutputValidator(p, RUN_DIR  / 'support' / request.param)
+    validator = validate.OutputValidator(p, RUN_DIR / 'support' / request.param)
     print(util.ProgressBar.current_bar)
     bar = util.ProgressBar('build', max_len=1)
     validator.build(bar)
@@ -55,18 +61,20 @@ def validator(request):
     yield (p, validator)
     os.chdir(RUN_DIR)
 
-class MockRun():
+
+class MockRun:
     pass
+
 
 @pytest.mark.usefixtures('validator')
 class TestDefaultOutputValidators:
-    @pytest.mark.parametrize( 'testdata', read_tests())
+    @pytest.mark.parametrize('testdata', read_tests())
     def test_default_output_validators(self, validator, testdata):
         problem, validator = validator
         flags, ans, out, exp = testdata
         flags = flags.split()
 
-        (problem.tmpdir/'data').mkdir(exist_ok=True,parents=True)
+        (problem.tmpdir / 'data').mkdir(exist_ok=True, parents=True)
         in_path = problem.tmpdir / 'data/test.in'
         ans_path = problem.tmpdir / 'data/test.ans'
         out_path = problem.tmpdir / 'data/test.out'
@@ -75,7 +83,7 @@ class TestDefaultOutputValidators:
 
         in_path.write_text('')
 
-        t = run.Testcase(problem, in_path, short_path = Path('test'))
+        t = run.Testcase(problem, in_path, short_path=Path('test'))
         r = MockRun()
         r.feedbackdir = problem.tmpdir / 'data'
         r.out_path = out_path
@@ -86,8 +94,5 @@ class TestDefaultOutputValidators:
         if result.ok != exp:
             print(testdata)
             for k in vars(result):
-                print(k, " -> ", getattr(result,k))
+                print(k, " -> ", getattr(result, k))
         assert result.ok == exp
-
-
-

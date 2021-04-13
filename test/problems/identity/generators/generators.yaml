@@ -97,7 +97,7 @@ data:
         visualizer:
         random_salt: xyz
         input: random_gen.py {seed:9}
-      unused_args_1: > # Spread arguments over multiple lines. 
+      unused_args_1: > # Spread arguments over multiple lines.
         random_gen.py
         {seed}
         extra

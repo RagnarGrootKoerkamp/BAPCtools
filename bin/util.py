@@ -85,18 +85,16 @@ class ProgressBar:
 
     @staticmethod
     def item_len(item):
-        if isinstance(item, str): return len(item)
-        if isinstance(item, Path): return len(str(item))
+        if isinstance(item, str):
+            return len(item)
+        if isinstance(item, Path):
+            return len(str(item))
         return len(item.name)
 
     # When needs_leading_newline is True, this will print an additional empty line before the first log message.
-    def __init__(self,
-                 prefix,
-                 max_len=None,
-                 count=None,
-                 *,
-                 items=None,
-                 needs_leading_newline=False):
+    def __init__(
+        self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
+    ):
         assert ProgressBar.current_bar is None
         ProgressBar.current_bar = self
 
@@ -131,11 +129,13 @@ class ProgressBar:
 
     def total_width(self):
         cols = ProgressBar.columns
-        if is_windows(): cols -= 1
+        if is_windows():
+            cols -= 1
         return cols
 
     def bar_width(self):
-        if self.item_width is None: return None
+        if self.item_width is None:
+            return None
         return self.total_width() - len(self.prefix) - 2 - self.item_width
 
     def update(self, count, max_len):
@@ -147,7 +147,8 @@ class ProgressBar:
         self.item_width = max(self.item_width, ProgressBar.item_len(item))
 
     def clearline(self):
-        if hasattr(config.args, 'no_bar') and config.args.no_bar: return
+        if hasattr(config.args, 'no_bar') and config.args.no_bar:
+            return
         assert self.lock.locked()
         print(self.carriage_return, end='', flush=True, file=sys.stderr)
 
@@ -155,8 +156,10 @@ class ProgressBar:
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
         item = '' if item is None else (item if isinstance(item, str) else item.name)
-        if width is not None and len(item) > width: item = item[:width]
-        if width is None: width = 0
+        if width is not None and len(item) > width:
+            item = item[:width]
+        if width is None:
+            width = 0
         return f'{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}'
 
     def get_prefix(self):
@@ -164,12 +167,13 @@ class ProgressBar:
 
     def get_bar(self):
         bar_width = self.bar_width()
-        if self.count is None or bar_width < 4: return ''
+        if self.count is None or bar_width < 4:
+            return ''
         done = (self.i - 1) * (bar_width - 2) // self.count
         text = f' {self.i}/{self.count}'
         fill = '#' * done + '-' * (bar_width - 2 - done)
         if len(text) <= len(fill):
-            fill = fill[:-len(text)] + text
+            fill = fill[: -len(text)] + text
         return '[' + fill + ']'
 
     # Remove the current item from in_progress.
@@ -188,7 +192,8 @@ class ProgressBar:
         assert self.lock.locked()
         assert self.parent is None
 
-        if config.args.no_bar: return
+        if config.args.no_bar:
+            return
 
         if len(self.in_progress) > 0:
             p = None
@@ -209,7 +214,7 @@ class ProgressBar:
         self.i += 1
         assert self.count is None or self.i <= self.count
 
-        #assert self.item is None
+        # assert self.item is None
         self.item = item
         self.logged = False
         self.in_progress.add(item)
@@ -231,33 +236,40 @@ class ProgressBar:
 
     @staticmethod
     def _format_data(data):
-        if not data: return ''
+        if not data:
+            return ''
         prefix = '  ' if data.count('\n') <= 1 else '\n'
         return prefix + Fore.YELLOW + strip_newline(crop_output(data)) + Style.RESET_ALL
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
     def log(self, message='', data='', color=Fore.GREEN, *, needs_lock=True, resume=True):
-        if needs_lock: self.lock.acquire()
+        if needs_lock:
+            self.lock.acquire()
 
-        if message is None: message = ''
+        if message is None:
+            message = ''
         self.clearline()
         self.logged = True
-        if self.parent: self.parent.global_logged = True
-        else: self.global_logged = True
+        if self.parent:
+            self.parent.global_logged = True
+        else:
+            self.global_logged = True
 
         if self.needs_leading_newline:
             print(file=sys.stderr)
             self.needs_leading_newline = False
 
-        print(self.get_prefix(),
-              color,
-              message,
-              ProgressBar._format_data(data),
-              Style.RESET_ALL,
-              sep='',
-              flush=True,
-              file=sys.stderr)
+        print(
+            self.get_prefix(),
+            color,
+            message,
+            ProgressBar._format_data(data),
+            Style.RESET_ALL,
+            sep='',
+            flush=True,
+            file=sys.stderr,
+        )
 
         if resume:
             if self.parent:
@@ -265,7 +277,8 @@ class ProgressBar:
             else:
                 self._resume()
 
-        if needs_lock: self.lock.release()
+        if needs_lock:
+            self.lock.release()
 
     # Same as log, but only in verbose mode.
     def debug(self, message, data=''):
@@ -278,11 +291,13 @@ class ProgressBar:
 
     # Error removes the current item from the in_progress set.
     def error(self, message='', data='', needs_lock=True):
-        if needs_lock: self.lock.acquire()
+        if needs_lock:
+            self.lock.acquire()
         config.n_error += 1
         self.log(message, data, Fore.RED, needs_lock=False, resume=False)
         self._release_item()
-        if needs_lock: self.lock.release()
+        if needs_lock:
+            self.lock.release()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(self, success=True, message='', data=''):
@@ -294,12 +309,10 @@ class ProgressBar:
             return
 
         if not self.logged:
-            if not success: config.n_error += 1
+            if not success:
+                config.n_error += 1
             if config.args.verbose or not success:
-                self.log(message,
-                         data,
-                         needs_lock=False,
-                         color=Fore.GREEN if success else Fore.RED)
+                self.log(message, data, needs_lock=False, color=Fore.GREEN if success else Fore.RED)
 
         self._release_item()
         if self.parent:
@@ -311,7 +324,8 @@ class ProgressBar:
     # Log an intermediate line if it's an error or we're in verbose mode.
     # Return True when something was printed
     def part_done(self, success=True, message='', data=''):
-        if not success: config.n_error += 1
+        if not success:
+            config.n_error += 1
         if config.args.verbose or not success:
             self.lock.acquire()
             if success:
@@ -333,7 +347,8 @@ class ProgressBar:
         assert self.count is None or self.i == self.count
         assert self.item is None
         # At most one of print_done and message may be passed.
-        if message: assert print_done is True
+        if message:
+            assert print_done is True
 
         # If nothing was logged, we don't need the super wide spacing before the final 'DONE'.
         if not self.global_logged and not message:
@@ -360,17 +375,19 @@ class ProgressBar:
 
 # Drops the first two path components <problem>/<type>/
 def print_name(path, keep_type=False):
-    return str(Path(*path.parts[1 if keep_type else 2:]))
+    return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
 def parse_yaml(data):
     try:
         import ruamel.yaml
+
         yaml = ruamel.yaml.YAML(typ='safe')
         return yaml.load(data)
     except ModuleNotFoundError:
         try:
             import yaml
+
             return yaml.safe_load(data)
         except:
             fatal(f'Failed to parse {path}.')
@@ -381,8 +398,10 @@ def read_yaml(path):
     if path.is_file():
         with path.open() as yamlfile:
             config = parse_yaml(yamlfile)
-            if config is None: return None
-            if isinstance(config, list): return config
+            if config is None:
+                return None
+            if isinstance(config, list):
+                return config
             for key, value in config.items():
                 settings[key] = '' if value is None else value
     return settings
@@ -400,8 +419,10 @@ def glob(path, expression):
 
         if config.RUNNING_TEST:
             suffixes = p.suffixes
-            if len(suffixes) >= 1 and suffixes[-1] == '.bad': return False
-            if len(suffixes) >= 2 and suffixes[-2] == '.bad': return False
+            if len(suffixes) >= 1 and suffixes[-1] == '.bad':
+                return False
+            if len(suffixes) >= 2 and suffixes[-2] == '.bad':
+                return False
 
         return True
 
@@ -419,21 +440,24 @@ def strip_newline(s):
 def ensure_symlink(link, target, output=False, relative=False):
     # On windows, always copy.
     if is_windows():
-        if link.exists() or link.is_symlink(): link.unlink()
+        if link.exists() or link.is_symlink():
+            link.unlink()
         shutil.copyfile(target, link)
         return
 
     # For output files: copy them on Windows, or when --cp is passed.
     if output and (is_windows() or getattr(config.args, 'cp', False)):
-        if link.exists() or link.is_symlink(): link.unlink()
+        if link.exists() or link.is_symlink():
+            link.unlink()
         shutil.copyfile(target, link)
         return
 
     # Do nothing if link already points to the right target.
     if link.is_symlink() and link.resolve() == target.resolve():
         is_absolute = os.readlink(link)
-        if not relative and is_absolute: return
-        #if relative and not is_absolute: return
+        if not relative and is_absolute:
+            return
+        # if relative and not is_absolute: return
 
     if link.is_symlink() or link.exists():
         if link.is_dir():
@@ -449,10 +473,12 @@ def ensure_symlink(link, target, output=False, relative=False):
 
 
 def substitute(data, variables):
-    if variables is None: return data
+    if variables is None:
+        return data
     for key in variables:
         r = ''
-        if variables[key] != None: r = variables[key]
+        if variables[key] != None:
+            r = variables[key]
         data = data.replace('{%' + key + '%}', str(r))
     return data
 
@@ -494,11 +520,9 @@ def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_syml
                 srcFile = src / name
                 dstFile = dst / name
 
-                copytree_and_substitute(srcFile,
-                                        dstFile,
-                                        variables,
-                                        exist_ok,
-                                        preserve_symlinks=preserve_symlinks)
+                copytree_and_substitute(
+                    srcFile, dstFile, variables, exist_ok, preserve_symlinks=preserve_symlinks
+                )
             except OSError as why:
                 errors.append((srcFile, dstFile, str(why)))
             # catch the Error from the recursive copytree so that we can
@@ -521,7 +545,8 @@ def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_syml
 
 
 def crop_output(output):
-    if config.args.error: return output
+    if config.args.error:
+        return output
 
     lines = output.split('\n')
     numlines = len(lines)
@@ -569,7 +594,8 @@ class ExecResult:
         self.print_verdict_ = print_verdict
 
     def print_verdict(self):
-        if self.print_verdict_: return self.print_verdict_
+        if self.print_verdict_:
+            return self.print_verdict_
         return self.verdict
 
 
@@ -580,12 +606,14 @@ def limit_setter(command, timeout, memory_limit):
 
         # Increase the max stack size from default to the max available.
         if sys.platform != 'darwin':
-            resource.setrlimit(resource.RLIMIT_STACK,
-                               (resource.RLIM_INFINITY, resource.RLIM_INFINITY))
+            resource.setrlimit(
+                resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
+            )
 
         if memory_limit and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']:
-            resource.setrlimit(resource.RLIMIT_AS,
-                               (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024))
+            resource.setrlimit(
+                resource.RLIMIT_AS, (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024)
+            )
 
         # Disable coredumps.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
@@ -611,6 +639,7 @@ class ResourcePopen(subprocess.Popen):
             else:
                 self.rusage = res
             return (pid, sts)
+
     else:
 
         def _try_wait(self, wait_flags):
@@ -631,15 +660,19 @@ class ResourcePopen(subprocess.Popen):
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
     # By default: discard stdout, return stderr
-    if 'stdout' not in kwargs or kwargs['stdout'] is True: kwargs['stdout'] = subprocess.PIPE
-    if 'stderr' not in kwargs or kwargs['stderr'] is True: kwargs['stderr'] = subprocess.PIPE
+    if 'stdout' not in kwargs or kwargs['stdout'] is True:
+        kwargs['stdout'] = subprocess.PIPE
+    if 'stderr' not in kwargs or kwargs['stderr'] is True:
+        kwargs['stderr'] = subprocess.PIPE
 
     # Convert any Pathlib objects to string.
     command = [str(x) for x in command]
 
     if config.args.verbose >= 2:
-        if 'cwd' in kwargs: print('cd', kwargs['cwd'], '; ', end='', file=sys.stderr)
-        else: print('cd', Path.cwd(), '; ', end='', file=sys.stderr)
+        if 'cwd' in kwargs:
+            print('cd', kwargs['cwd'], '; ', end='', file=sys.stderr)
+        else:
+            print('cd', Path.cwd(), '; ', end='', file=sys.stderr)
         print(*command, end='', file=sys.stderr)
         if 'stdin' in kwargs:
             print(' < ', kwargs['stdin'].name, end='', file=sys.stderr)
@@ -671,10 +704,11 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     tstart = time.monotonic()
     try:
         if not is_windows():
-            process = ResourcePopen(command,
-                                    preexec_fn=limit_setter(command, timeout,
-                                                            get_memory_limit(kwargs)),
-                                    **kwargs)
+            process = ResourcePopen(
+                command,
+                preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs)),
+                **kwargs,
+            )
         else:
             process = ResourcePopen(command, **kwargs)
         (stdout, stderr) = process.communicate(timeout=timeout)

@@ -24,7 +24,8 @@ def _save_test(problem, command):
         return
 
     generators_yaml = problem.path / 'generators/generators.yaml'
-    if not generators_yaml.is_file(): generators_yaml.write_text('')
+    if not generators_yaml.is_file():
+        generators_yaml.write_text('')
 
     # Round-trip parsing.
     yaml = ruamel.yaml.YAML(typ='rt')
@@ -67,12 +68,13 @@ def _try_generator_invocation(problem, t, submissions, i):
     assert generator.program is not None
 
     # Pick a random seed.
-    seed = random.randint(0, 2**31 - 1)
+    seed = random.randint(0, 2 ** 31 - 1)
 
     command = generator.cache_command(seed=seed)
 
-    bar = ProgressBar('Fuzz ' + str(i) + ': ' + command,
-                      max_len=max(len(s.name) for s in submissions))
+    bar = ProgressBar(
+        'Fuzz ' + str(i) + ': ' + command, max_len=max(len(s.name) for s in submissions)
+    )
 
     bar.start('generate')
     result = generator.run(bar, cwd, name, seed)
@@ -132,7 +134,7 @@ def fuzz(problem):
         error('Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.')
         return
 
-    #config.args.no_bar = True
+    # config.args.no_bar = True
 
     # GENERATOR INVOCATIONS
     generator_config = generate.GeneratorConfig(problem)
@@ -143,13 +145,16 @@ def fuzz(problem):
     def filter_dir(d):
         d.data = list(
             filter(
-                lambda t: isinstance(t, generate.Directory) or
-                (not t.manual and t.generator.uses_seed), d.data))
+                lambda t: isinstance(t, generate.Directory)
+                or (not t.manual and t.generator.uses_seed),
+                d.data,
+            )
+        )
 
     testcase_rules = []
-    generator_config.root_dir.walk(lambda t: testcase_rules.append(t),
-                                   dir_f=filter_dir,
-                                   dir_last=False)
+    generator_config.root_dir.walk(
+        lambda t: testcase_rules.append(t), dir_f=filter_dir, dir_last=False
+    )
 
     if len(testcase_rules) == 0:
         fatal('No invocations depending on {seed} found.')
@@ -167,6 +172,7 @@ def fuzz(problem):
     i = 0
     while True:
         for testcase_rule in testcase_rules:
-            if time.monotonic() - tstart > config.args.time: return True
+            if time.monotonic() - tstart > config.args.time:
+                return True
             i += 1
             _try_generator_invocation(problem, testcase_rule, submissions, i)

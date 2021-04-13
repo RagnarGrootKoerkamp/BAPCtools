@@ -1,9 +1,9 @@
 name: Identity
 author: Ragnar Groot Koerkamp
-source: 
-source_url: 
-license: 
-rights_owner: 
+source:
+source_url:
+license:
+rights_owner:
 # 'default', 'custom', or 'interactive'
 validation: default
 

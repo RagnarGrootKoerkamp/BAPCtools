@@ -5,7 +5,7 @@ import re
 
 integer = "(0|-?[1-9]\d*)"
 
-MAX = 10**15
+MAX = 10 ** 15
 
 cases = 0
 

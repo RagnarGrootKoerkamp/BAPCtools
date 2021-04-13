@@ -29,19 +29,22 @@ def stats(problems):
         ('sol', 'problem_statement/solution.tex'),
         ('   Ival', ['input_validators/*', 'input_format_validators/*']),
         ('Oval', ['output_validators/*']),
-        ('   sample', ['data/sample/*.in', lambda s: {x
-                                                      for x in s
-                                                      if x.parts[2] == 'sample'}], 2),
-        ('secret', ['data/secret/**/*.in', lambda s: {x
-                                                      for x in s
-                                                      if x.parts[2] == 'secret'}], 15, 50),
+        ('   sample', ['data/sample/*.in', lambda s: {x for x in s if x.parts[2] == 'sample'}], 2),
+        (
+            'secret',
+            ['data/secret/**/*.in', lambda s: {x for x in s if x.parts[2] == 'secret'}],
+            15,
+            50,
+        ),
         ('bad', 'data/bad/**/*', 0),
         ('   AC', 'submissions/accepted/*', 3),
         (' WA', 'submissions/wrong_answer/*', 2),
         ('TLE', 'submissions/time_limit_exceeded/*', 1),
-        ('   cpp', [
-            'submissions/accepted/*.c', 'submissions/accepted/*.cpp', 'submissions/accepted/*.cc'
-        ], 1),
+        (
+            '   cpp',
+            ['submissions/accepted/*.c', 'submissions/accepted/*.cpp', 'submissions/accepted/*.cc'],
+            1,
+        ),
         ('java', 'submissions/accepted/*.java', 1),
         ('py', ['submissions/accepted/*.py[23]', 'submissions/accepted/*.py'], 1),
     ]
@@ -119,15 +122,27 @@ def stats(problems):
         else:
             comment = Fore.YELLOW + comment + Style.RESET_ALL
 
-        print(format_string.format(
-            problem.label + ' ' + problem.name, *[
-                _get_stat(counts[i], True if len(stats[i]) <= 2 else stats[i][2],
-                          None if len(stats[i]) <= 3 else stats[i][3]) for i in range(len(stats))
-            ], comment),
-              file=sys.stderr)
+        print(
+            format_string.format(
+                problem.label + ' ' + problem.name,
+                *[
+                    _get_stat(
+                        counts[i],
+                        True if len(stats[i]) <= 2 else stats[i][2],
+                        None if len(stats[i]) <= 3 else stats[i][3],
+                    )
+                    for i in range(len(stats))
+                ],
+                comment
+            ),
+            file=sys.stderr,
+        )
 
     # print the cumulative count
     print('-' * len(header), file=sys.stderr)
-    print(format_string.format(*(['TOTAL'] + list(map(lambda x: _get_stat(x, False), cumulative)) +
-                                 [''])),
-          file=sys.stderr)
+    print(
+        format_string.format(
+            *(['TOTAL'] + list(map(lambda x: _get_stat(x, False), cumulative)) + [''])
+        ),
+        file=sys.stderr,
+    )

@@ -72,8 +72,10 @@ _contest_yaml = None
 
 def contest_yaml():
     global _contest_yaml
-    if _contest_yaml: return _contest_yaml
-    if _contest_yaml is False: return None
+    if _contest_yaml:
+        return _contest_yaml
+    if _contest_yaml is False:
+        return None
 
     path = None
     for p in ['contest.yaml', '../contest.yaml']:
@@ -81,7 +83,8 @@ def contest_yaml():
         if p.is_file():
             path = p
             break
-    if path is None: return None
+    if path is None:
+        return None
     _contest_yaml = read_yaml(path)
     return _contest_yaml
 
@@ -127,8 +130,10 @@ def get_problems():
         for p in problemlist:
             label = nextlabel
             shortname = p['id']
-            if 'label' in p: label = p['label']
-            if label == '': fatal(f'Found empty label for problem {shortname}')
+            if 'label' in p:
+                label = p['label']
+            if label == '':
+                fatal(f'Found empty label for problem {shortname}')
             nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
             if label in labels:
                 fatal(f'label {label} found twice for problem {shortname} and {labels[label]}.')
@@ -178,8 +183,10 @@ def get_problems():
         if getattr(config.args, 'order', None):
             # Sort by position of id in order
             def get_pos(id):
-                if id in config.args.order: return config.args.order.index(id)
-                else: return len(config.args.order) + 1
+                if id in config.args.order:
+                    return config.args.order.index(id)
+                else:
+                    return len(config.args.order) + 1
 
             problems.sort(key=lambda p: (get_pos(p.label), p.label))
 
@@ -271,14 +278,16 @@ def split_submissions_and_testcases(s):
 
 
 def build_parser():
-    parser = argparse.ArgumentParser(description="""
+    parser = argparse.ArgumentParser(
+        description="""
 Tools for ICPC style problem sets.
 Run this from one of:
     - the repository root, and supply `contest`
     - a contest directory
     - a problem directory
 """,
-                                     formatter_class=argparse.RawTextHelpFormatter)
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
 
     # Global options
     global_parser = argparse.ArgumentParser(add_help=False)
@@ -287,335 +296,353 @@ Run this from one of:
         '-v',
         default=0,
         action='count',
-        help='Verbose output; once for what\'s going on, twice for all intermediate output.')
+        help='Verbose output; once for what\'s going on, twice for all intermediate output.',
+    )
     group = global_parser.add_mutually_exclusive_group()
     group.add_argument('--contest', help='The contest to use, when running from repository root.')
     group.add_argument('--problem', help='The problem to use, when running from repository root.')
 
-    global_parser.add_argument('--no-bar',
-                               action='store_true',
-                               help='Do not show progress bars in non-interactive environments.')
+    global_parser.add_argument(
+        '--no-bar',
+        action='store_true',
+        help='Do not show progress bars in non-interactive environments.',
+    )
     global_parser.add_argument(
         '--error',
         '-e',
         action='store_true',
-        help='Print full error of failing commands and some succeeding commands.')
-    global_parser.add_argument('--cpp_flags',
-                               help='Additional compiler flags used for all c++ compilations.')
-    global_parser.add_argument('--force_build',
-                               action='store_true',
-                               help='Force rebuild instead of only on changed files.')
+        help='Print full error of failing commands and some succeeding commands.',
+    )
+    global_parser.add_argument(
+        '--cpp_flags', help='Additional compiler flags used for all c++ compilations.'
+    )
+    global_parser.add_argument(
+        '--force_build', action='store_true', help='Force rebuild instead of only on changed files.'
+    )
 
     subparsers = parser.add_subparsers(title='actions', dest='action')
     subparsers.required = True
 
     # New contest
-    contestparser = subparsers.add_parser('new_contest',
-                                          parents=[global_parser],
-                                          help='Add a new contest to the current directory.')
+    contestparser = subparsers.add_parser(
+        'new_contest', parents=[global_parser], help='Add a new contest to the current directory.'
+    )
     contestparser.add_argument('contestname', nargs='?', help='The name of the contest')
 
     # New problem
-    problemparser = subparsers.add_parser('new_problem',
-                                          parents=[global_parser],
-                                          help='Add a new problem to the current directory.')
+    problemparser = subparsers.add_parser(
+        'new_problem', parents=[global_parser], help='Add a new problem to the current directory.'
+    )
     problemparser.add_argument('problemname', nargs='?', help='The name of the problem,')
     problemparser.add_argument('--author', help='The author of the problem,')
-    problemparser.add_argument('--validation',
-                               help='Use validation to use for this problem.',
-                               choices=['default', 'custom', 'custom interactive'])
+    problemparser.add_argument(
+        '--validation',
+        help='Use validation to use for this problem.',
+        choices=['default', 'custom', 'custom interactive'],
+    )
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
     # Copy directory from skel.
     skelparser = subparsers.add_parser(
         'skel',
         parents=[global_parser],
-        help='Copy the given directories from skel to the current problem directory.')
+        help='Copy the given directories from skel to the current problem directory.',
+    )
     skelparser.add_argument(
         'directory',
         nargs='+',
-        help='Directories to copy from skel/problem/, relative to the problem directory.')
+        help='Directories to copy from skel/problem/, relative to the problem directory.',
+    )
     skelparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
     # Problem statements
-    pdfparser = subparsers.add_parser('pdf',
-                                      parents=[global_parser],
-                                      help='Build the problem statement pdf.')
-    pdfparser.add_argument('--all',
-                           '-a',
-                           action='store_true',
-                           help='Create problem statements for individual problems as well.')
-    pdfparser.add_argument('--cp',
-                           action='store_true',
-                           help='Copy the output pdf instead of symlinking it.')
+    pdfparser = subparsers.add_parser(
+        'pdf', parents=[global_parser], help='Build the problem statement pdf.'
+    )
+    pdfparser.add_argument(
+        '--all',
+        '-a',
+        action='store_true',
+        help='Create problem statements for individual problems as well.',
+    )
+    pdfparser.add_argument(
+        '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
+    )
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     pdfparser.add_argument(
         '--watch',
         '-w',
         action='store_true',
-        help=
-        'Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.'
+        help='Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.',
     )
     pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     pdfparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
 
     # Solution slides
-    solparser = subparsers.add_parser('solutions',
-                                      parents=[global_parser],
-                                      help='Build the solution slides pdf.')
-    solparser.add_argument('--cp',
-                           action='store_true',
-                           help='Copy the output pdf instead of symlinking it.')
+    solparser = subparsers.add_parser(
+        'solutions', parents=[global_parser], help='Build the solution slides pdf.'
+    )
+    solparser.add_argument(
+        '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
+    )
     orderparser = solparser.add_mutually_exclusive_group()
-    orderparser.add_argument('--order',
-                             action='store',
-                             help='The order of the problems, e.g.: "CAB"')
+    orderparser.add_argument(
+        '--order', action='store', help='The order of the problems, e.g.: "CAB"'
+    )
     orderparser.add_argument(
         '--order-from-ccs',
         action='store',
         nargs='?',
         const=True,
         metavar='CCS_URL',
-        help=
-        'Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of ccs_url in contest.yaml.'
+        help='Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of ccs_url in contest.yaml.',
     )
     solparser.add_argument(
         '--contest-id',
         action='store',
-        help=
-        'Contest ID to use when reading from the API. Only useful with --order-from-ccs. Defaults to value of contest_id in contest.yaml.'
+        help='Contest ID to use when reading from the API. Only useful with --order-from-ccs. Defaults to value of contest_id in contest.yaml.',
     )
     solparser.add_argument(
         '--watch',
         '-w',
         action='store_true',
-        help=
-        'Continuously compile the pdf whenever a `solution.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.'
+        help='Continuously compile the pdf whenever a `solution.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.',
     )
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
 
     # Validation
-    validate_parser = subparsers.add_parser('validate',
-                                            parents=[global_parser],
-                                            help='validate all grammar')
-    validate_parser.add_argument('testcases',
-                                 nargs='*',
-                                 type=Path,
-                                 help='The testcases to run on.')
+    validate_parser = subparsers.add_parser(
+        'validate', parents=[global_parser], help='validate all grammar'
+    )
+    validate_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
-    move_or_remove_group.add_argument('--remove',
-                                      action='store_true',
-                                      help='Remove failing testcsaes.')
-    move_or_remove_group.add_argument('--move-to',
-                                      help='Move failing testcases to this directory.')
+    move_or_remove_group.add_argument(
+        '--remove', action='store_true', help='Remove failing testcsaes.'
+    )
+    move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
 
     # input validations
-    input_parser = subparsers.add_parser('input',
-                                         parents=[global_parser],
-                                         help='validate input grammar')
+    input_parser = subparsers.add_parser(
+        'input', parents=[global_parser], help='validate input grammar'
+    )
     input_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
 
     # output validation
-    output_parser = subparsers.add_parser('output',
-                                          parents=[global_parser],
-                                          help='validate output grammar')
+    output_parser = subparsers.add_parser(
+        'output', parents=[global_parser], help='validate output grammar'
+    )
     output_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
 
     # constraints validation
     constraintsparser = subparsers.add_parser(
         'constraints',
         parents=[global_parser],
-        help='prints all the constraints found in problemset and validators')
+        help='prints all the constraints found in problemset and validators',
+    )
 
-    constraintsparser.add_argument('--no-generate',
-                                   '-G',
-                                   action='store_true',
-                                   help='Do not run `generate`.')
+    constraintsparser.add_argument(
+        '--no-generate', '-G', action='store_true', help='Do not run `generate`.'
+    )
 
     # Stats
-    subparsers.add_parser('stats',
-                          parents=[global_parser],
-                          help='show statistics for contest/problem')
+    subparsers.add_parser(
+        'stats', parents=[global_parser], help='show statistics for contest/problem'
+    )
 
     # Generate Testcases
-    genparser = subparsers.add_parser('generate',
-                                      parents=[global_parser],
-                                      help='Generate testcases according to .gen files.')
-    genparser.add_argument('--force',
-                           '-f',
-                           action='store_true',
-                           help='Overwrite existing input files.')
-    genparser.add_argument('--all',
-                           '-a',
-                           action='store_true',
-                           help='Regenerate all data, including up to date test cases. ')
-    genparser.add_argument('--check_deterministic',
-                           action='store_true',
-                           help='Rerun all generators to make sure generators are deterministic.')
+    genparser = subparsers.add_parser(
+        'generate', parents=[global_parser], help='Generate testcases according to .gen files.'
+    )
+    genparser.add_argument(
+        '--force', '-f', action='store_true', help='Overwrite existing input files.'
+    )
+    genparser.add_argument(
+        '--all',
+        '-a',
+        action='store_true',
+        help='Regenerate all data, including up to date test cases. ',
+    )
+    genparser.add_argument(
+        '--check_deterministic',
+        action='store_true',
+        help='Rerun all generators to make sure generators are deterministic.',
+    )
     genparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
-    genparser.add_argument('--samples',
-                           action='store_true',
-                           help='Overwrite the samples as well, in combination with -f.')
-    genparser.add_argument('--jobs',
-                           '-j',
-                           type=int,
-                           default=4,
-                           help='The number of jobs to use. Default is 4.')
-    genparser.add_argument('--add-manual',
-                           action='store_true',
-                           help='Add manual cases to generators.yaml.')
-    genparser.add_argument('--move-manual',
-                           nargs='?',
-                           type=Path,
-                           const='generators/manual',
-                           help='Move tracked inline manual cases to the given directory.',
-                           metavar='TARGET_DIRECTORY=generators/manual')
-    genparser.add_argument('--interaction',
-                           '-i',
-                           action='store_true',
-                           help='Use the solution to generate .interaction files.')
+    genparser.add_argument(
+        '--samples',
+        action='store_true',
+        help='Overwrite the samples as well, in combination with -f.',
+    )
+    genparser.add_argument(
+        '--jobs', '-j', type=int, default=4, help='The number of jobs to use. Default is 4.'
+    )
+    genparser.add_argument(
+        '--add-manual', action='store_true', help='Add manual cases to generators.yaml.'
+    )
+    genparser.add_argument(
+        '--move-manual',
+        nargs='?',
+        type=Path,
+        const='generators/manual',
+        help='Move tracked inline manual cases to the given directory.',
+        metavar='TARGET_DIRECTORY=generators/manual',
+    )
+    genparser.add_argument(
+        '--interaction',
+        '-i',
+        action='store_true',
+        help='Use the solution to generate .interaction files.',
+    )
     genparser.add_argument(
         'testcases',
         nargs='*',
         type=Path,
-        help='The testcases to generate, given as directory, .in/.ans file, or base name.')
+        help='The testcases to generate, given as directory, .in/.ans file, or base name.',
+    )
 
     # Fuzzer
     # TODO: Also allow specifying a list of submissions?
     fuzzparser = subparsers.add_parser(
         'fuzz',
         parents=[global_parser],
-        help='Generate random testcases and search for inconsistencies in AC submissions.')
-    fuzzparser.add_argument('--time',
-                            type=int,
-                            default=600,
-                            help='Number of seconds to run for. Default: 600')
-    fuzzparser.add_argument('--timelimit',
-                            '-t',
-                            type=int,
-                            default=600,
-                            help='Timeout for submissions.')
+        help='Generate random testcases and search for inconsistencies in AC submissions.',
+    )
+    fuzzparser.add_argument(
+        '--time', type=int, default=600, help='Number of seconds to run for. Default: 600'
+    )
+    fuzzparser.add_argument(
+        '--timelimit', '-t', type=int, default=600, help='Timeout for submissions.'
+    )
     fuzzparser.add_argument(
         'testcases',
         nargs='*',
         type=Path,
-        help=
-        'The generator.yaml rules to use, given as directory, .in/.ans file, or base name, and submissions to run.'
+        help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name, and submissions to run.',
     )
 
     # Clean
-    cleanparser = subparsers.add_parser('clean',
-                                        parents=[global_parser],
-                                        help='Delete all .in and .ans corresponding to .gen.')
-    cleanparser.add_argument('--force',
-                             '-f',
-                             action='store_true',
-                             help='Delete all untracked files.')
+    cleanparser = subparsers.add_parser(
+        'clean', parents=[global_parser], help='Delete all .in and .ans corresponding to .gen.'
+    )
+    cleanparser.add_argument(
+        '--force', '-f', action='store_true', help='Delete all untracked files.'
+    )
 
     # Run
-    runparser = subparsers.add_parser('run',
-                                      parents=[global_parser],
-                                      help='Run multiple programs against some or all input.')
-    runparser.add_argument('submissions',
-                           nargs='*',
-                           type=Path,
-                           help='optionally supply a list of programs and testcases to run')
+    runparser = subparsers.add_parser(
+        'run', parents=[global_parser], help='Run multiple programs against some or all input.'
+    )
+    runparser.add_argument(
+        'submissions',
+        nargs='*',
+        type=Path,
+        help='optionally supply a list of programs and testcases to run',
+    )
     runparser.add_argument('--samples', action='store_true', help='Only run on the samples.')
-    runparser.add_argument('--no-generate',
-                           '-G',
-                           action='store_true',
-                           help='Do not run `generate` before running submissions.')
-    runparser.add_argument('--table',
-                           action='store_true',
-                           help='Print a submissions x testcases table for analysis.')
+    runparser.add_argument(
+        '--no-generate',
+        '-G',
+        action='store_true',
+        help='Do not run `generate` before running submissions.',
+    )
+    runparser.add_argument(
+        '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
+    )
     runparser.add_argument('--timeout', type=int, help='Override the default timeout.')
     runparser.add_argument('--timelimit', '-t', type=int, help='Override the default timelimit.')
     runparser.add_argument(
         '--memory',
         '-m',
-        help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
-    runparser.add_argument('--force',
-                           '-f',
-                           action='store_true',
-                           help='Allow overwriting existing input files in generator.')
+        help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.',
+    )
+    runparser.add_argument(
+        '--force',
+        '-f',
+        action='store_true',
+        help='Allow overwriting existing input files in generator.',
+    )
 
     # Test
-    testparser = subparsers.add_parser('test',
-                                       parents=[global_parser],
-                                       help='Run a single program and print the output.')
+    testparser = subparsers.add_parser(
+        'test', parents=[global_parser], help='Run a single program and print the output.'
+    )
     testparser.add_argument('submissions', nargs=1, type=Path, help='A single submission to run')
     testcasesgroup = testparser.add_mutually_exclusive_group()
-    testcasesgroup.add_argument('testcases',
-                                nargs='*',
-                                default=[],
-                                type=Path,
-                                help='Optionally a list of testcases to run on.')
+    testcasesgroup.add_argument(
+        'testcases',
+        nargs='*',
+        default=[],
+        type=Path,
+        help='Optionally a list of testcases to run on.',
+    )
     testcasesgroup.add_argument('--samples', action='store_true', help='Only run on the samples.')
     testcasesgroup.add_argument(
         '--interactive',
         '-i',
         action='store_true',
-        help='Run submission in interactive mode: stdin is from the command line.')
+        help='Run submission in interactive mode: stdin is from the command line.',
+    )
     testparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
     testparser.add_argument(
         '--memory',
         '-m',
-        help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.')
+        help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.',
+    )
 
     # Sort
-    subparsers.add_parser('sort',
-                          parents=[global_parser],
-                          help='sort the problems for a contest by name')
+    subparsers.add_parser(
+        'sort', parents=[global_parser], help='sort the problems for a contest by name'
+    )
 
     # All
-    allparser = subparsers.add_parser('all',
-                                      parents=[global_parser],
-                                      help='validate input, validate output, and run programs')
-    allparser.add_argument('--cp',
-                           action='store_true',
-                           help='Copy the output pdf instead of symlinking it.')
+    allparser = subparsers.add_parser(
+        'all', parents=[global_parser], help='validate input, validate output, and run programs'
+    )
+    allparser.add_argument(
+        '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
+    )
     allparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
-    allparser.add_argument('--clean',
-                           action='store_true',
-                           help='Clean up generated testcases afterwards.')
-    allparser.add_argument('--force',
-                           '-f',
-                           action='store_true',
-                           help='Delete all untracked files.')
+    allparser.add_argument(
+        '--clean', action='store_true', help='Clean up generated testcases afterwards.'
+    )
+    allparser.add_argument('--force', '-f', action='store_true', help='Delete all untracked files.')
 
     # Build DomJudge zip
-    zipparser = subparsers.add_parser('zip',
-                                      parents=[global_parser],
-                                      help='Create zip file that can be imported into DomJudge')
+    zipparser = subparsers.add_parser(
+        'zip', parents=[global_parser], help='Create zip file that can be imported into DomJudge'
+    )
     zipparser.add_argument('--skip', action='store_true', help='Skip recreation of problem zips.')
-    zipparser.add_argument('--force',
-                           '-f',
-                           action='store_true',
-                           help='Skip validation of input and output files.')
-    zipparser.add_argument('--kattis',
-                           action='store_true',
-                           help='Make a zip more following the kattis problemarchive.com format.')
+    zipparser.add_argument(
+        '--force', '-f', action='store_true', help='Skip validation of input and output files.'
+    )
+    zipparser.add_argument(
+        '--kattis',
+        action='store_true',
+        help='Make a zip more following the kattis problemarchive.com format.',
+    )
     zipparser.add_argument('--no-solutions', action='store_true', help='Do not compile solutions')
 
     # Build a zip with all samples.
-    subparsers.add_parser('samplezip',
-                          parents=[global_parser],
-                          help='Create zip file of all samples.')
+    subparsers.add_parser(
+        'samplezip', parents=[global_parser], help='Create zip file of all samples.'
+    )
 
-    subparsers.add_parser('gitlabci',
-                          parents=[global_parser],
-                          help='Print a list of jobs for the given contest.')
+    subparsers.add_parser(
+        'gitlabci', parents=[global_parser], help='Print a list of jobs for the given contest.'
+    )
 
     # Print the corresponding temporary directory.
     tmpparser = subparsers.add_parser(
         'tmp',
         parents=[global_parser],
-        help='Print the tmpdir corresponding to the current problem.')
+        help='Print the tmpdir corresponding to the current problem.',
+    )
     tmpparser.add_argument(
         '--clean',
         action='store_true',
-        help='Delete the temporary cache directory for the current problem/contest.')
+        help='Delete the temporary cache directory for the current problem/contest.',
+    )
 
     if not is_windows():
         argcomplete.autocomplete(parser)
@@ -633,14 +660,16 @@ def run_parsed_arguments(args):
     if action == 'run':
         if config.args.submissions:
             config.args.submissions, config.args.testcases = split_submissions_and_testcases(
-                config.args.submissions)
+                config.args.submissions
+            )
         else:
             config.args.testcases = []
     # Split submissions and testcases for 'fuzz'.
     if action == 'fuzz':
         if config.args.testcases:
             config.args.submissions, config.args.testcases = split_submissions_and_testcases(
-                config.args.testcases)
+                config.args.testcases
+            )
         else:
             config.args.submissions = []
 
@@ -673,11 +702,16 @@ def run_parsed_arguments(args):
             )
         if hasattr(config.args, 'testcases') and config.args.testcases:
             fatal(
-                'Passing in a list of testcases only works when running from a problem directory.')
+                'Passing in a list of testcases only works when running from a problem directory.'
+            )
 
-    if action != 'generate' and hasattr(config.args,
-                                        'testcases') and config.args.testcases and hasattr(
-                                            config.args, 'samples') and config.args.samples:
+    if (
+        action != 'generate'
+        and hasattr(config.args, 'testcases')
+        and config.args.testcases
+        and hasattr(config.args, 'samples')
+        and config.args.samples
+    ):
         fatal('--samples can not go together with an explicit list of testcases.')
 
     if hasattr(config.args, 'move_manual') and config.args.move_manual:
@@ -732,8 +766,11 @@ def run_parsed_arguments(args):
     success = True
 
     for problem in problems:
-        if level == 'problemset' and action == 'pdf' and not (hasattr(config.args, 'all')
-                                                              and config.args.all):
+        if (
+            level == 'problemset'
+            and action == 'pdf'
+            and not (hasattr(config.args, 'all') and config.args.all)
+        ):
             continue
         print(Style.BRIGHT, 'PROBLEM ', problem.name, Style.RESET_ALL, sep='', file=sys.stderr)
 
@@ -742,8 +779,9 @@ def run_parsed_arguments(args):
 
         if action in ['generate']:
             success &= generate.generate(problem)
-        if action in ['all', 'constraints', 'run'
-                      ] and not getattr(config.args, 'no_generate', False):
+        if action in ['all', 'constraints', 'run'] and not getattr(
+            config.args, 'no_generate', False
+        ):
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.check_deterministic = action in ['all', 'constraints']
@@ -762,8 +800,9 @@ def run_parsed_arguments(args):
         if action in ['pdf', 'all']:
             # only build the pdf on the problem level, or on the contest level when
             # --all is passed.
-            if level == 'problem' or (level == 'problemset' and hasattr(config.args, 'all')
-                                      and config.args.all):
+            if level == 'problem' or (
+                level == 'problemset' and hasattr(config.args, 'all') and config.args.all
+            ):
                 success &= latex.build_problem_pdf(problem)
         if action in ['solutions']:
             if level == 'problem':
@@ -825,11 +864,9 @@ def run_parsed_arguments(args):
             success &= latex.build_contest_pdf(contest, problems, tmpdir, web=config.args.web)
 
         if action in ['solutions']:
-            success &= latex.build_contest_pdf(contest,
-                                               problems,
-                                               tmpdir,
-                                               solutions=True,
-                                               web=config.args.web)
+            success &= latex.build_contest_pdf(
+                contest, problems, tmpdir, solutions=True, web=config.args.web
+            )
 
         if action in ['zip']:
             if not config.args.kattis:
@@ -837,14 +874,13 @@ def run_parsed_arguments(args):
                 success &= latex.build_contest_pdf(contest, problems, tmpdir, web=True)
                 if not config.args.no_solutions:
                     success &= latex.build_contest_pdf(contest, problems, tmpdir, solutions=True)
-                    success &= latex.build_contest_pdf(contest,
-                                                       problems,
-                                                       tmpdir,
-                                                       solutions=True,
-                                                       web=True)
+                    success &= latex.build_contest_pdf(
+                        contest, problems, tmpdir, solutions=True, web=True
+                    )
 
             outfile = contest + '.zip'
-            if config.args.kattis: outfile = contest + '-kattis.zip'
+            if config.args.kattis:
+                outfile = contest + '-kattis.zip'
             export.build_contest_zip(problems, problem_zips, outfile, config.args)
 
     if not success or config.n_error > 0 or config.n_warn > 0:

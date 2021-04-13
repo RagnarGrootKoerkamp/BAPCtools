@@ -1,16 +1,16 @@
 %-------------------------------------------------------------------------------
 % This is the file bapc.cls.
-% 
+%
 % It is a copy of the file bapc2016.cls, with only the file name changed and
 % this line added.
 %
 % It provides a workable environment for typesetting ICPC-style programming
 % contests. The Benelux Algorithm Programming Contest (BAPC) is a local
 % preliminary contest, even before the regionals for Northwestern Europe.
-% 
+%
 % The entire class is based on the memoir class. Every option is immediately
 % passed to memoir. The BAPC class doesn't provide any additional options.
-% 
+%
 % Authors: Josse van Dobben de Bruyn, Joris van Rantwijk, Ragnar Groot Koerkamp
 %-------------------------------------------------------------------------------
 \NeedsTeXFormat{LaTeX2e}
@@ -80,7 +80,7 @@
 
 %-------------------------------------------------------------------------------
 % Sectioning commands and list of problems.
-% 
+%
 % Creating a new list for the problems (instead of using the tableofcontents)
 % turned out to be a lot easier in terms of custom formatting.
 %-------------------------------------------------------------------------------
@@ -166,22 +166,22 @@
 
 %-------------------------------------------------------------------------------
 % Environment for specifying Samples.
-% 
+%
 % In 2016 the BAPC jury will provide only one test case per file, instead of
 % multiple test cases (as is customary at the BAPC). This calls for a different
 % layout, and therefore a complete rewrite of parts of the LaTeX code. The
 % following code was written specifically for BAPC 2016.
-% 
+%
 % We want to create an environment based upon the tabularx environment.
 % Unfortunately, this is not so easy, as the code for the tabularx environment
 % contains some strange hacks that are documented reasonably well.
-% 
+%
 % For more information, please refer to http://tex.stackexchange.com/a/42331 .
 % It is worth mentioning that this is only part of the story. The documentation
 % of the tabularx package reveals that this workaround only works if
 % \endtabularx is the first token of the `end code' of the environment.
 % However, we want to have a \hline before that, so this code is no good.
-% 
+%
 % A solution to this problem was found on http://tex.stackexchange.com/a/111488 .
 %-------------------------------------------------------------------------------
 \newcommand{\mySampleHeading}[1]{
@@ -284,7 +284,7 @@
 
 %-------------------------------------------------------------------------------
 % Change figure numbering.
-% 
+%
 % Taken from http://tex.stackexchange.com/a/116820 .
 %-------------------------------------------------------------------------------
 \makeatletter

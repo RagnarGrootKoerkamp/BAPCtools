@@ -32,7 +32,8 @@ _languages = None
 
 def languages():
     global _languages
-    if _languages is not None: return _languages
+    if _languages is not None:
+        return _languages
     if Path('languages.yaml').is_file():
         _languages = read_yaml(Path('languages.yaml'))
     else:
@@ -76,13 +77,9 @@ def languages():
 #
 # build() will return the (run_command, message) pair.
 class Program:
-    def __init__(self,
-                 problem,
-                 path,
-                 deps=None,
-                 *,
-                 skip_double_build_warning=False,
-                 check_constraints=False):
+    def __init__(
+        self, problem, path, deps=None, *, skip_double_build_warning=False, check_constraints=False
+    ):
         if deps is not None:
             assert isinstance(self, Generator)
             assert isinstance(deps, list)
@@ -106,7 +103,8 @@ class Program:
         try:
             # Only resolve the parent of the program. This preserves programs that are symlinks to other directories.
             relpath = (path.parent.resolve() / path.name).relative_to(
-                problem.path.resolve() / self.subdir)
+                problem.path.resolve() / self.subdir
+            )
             self.short_path = relpath
             self.name = str(relpath)
             self.tmpdir = problem.tmpdir / self.subdir / relpath
@@ -136,7 +134,8 @@ class Program:
                 self.source_files = list(glob(path, '*'))
                 # Filter out __pycache__ files.
                 self.source_files = list(
-                    filter(lambda f: f.name != '__pycache__', self.source_files))
+                    filter(lambda f: f.name != '__pycache__', self.source_files)
+                )
             elif path.is_file():
                 self.source_files = [path]
             else:
@@ -146,13 +145,15 @@ class Program:
     # is file at path executable
     @staticmethod
     def _is_executable(path):
-        return path.is_file() and (path.stat().st_mode &
-                                   (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
+        return path.is_file() and (
+            path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        )
 
     # Returns true when file f matches the given shebang regex.
     @staticmethod
     def _matches_shebang(f, shebang):
-        if shebang is None: return True
+        if shebang is None:
+            return True
         with f.open() as o:
             return shebang.search(o.readline())
 
@@ -174,7 +175,8 @@ class Program:
                 if any(f.match(glob) for glob in globs) and Program._matches_shebang(f, shebang):
                     matching_files.append(f)
 
-            if len(matching_files) == 0: continue
+            if len(matching_files) == 0:
+                continue
 
             # Make sure we can run programs for this language.
             if 'compile' in lang_conf:
@@ -196,8 +198,11 @@ class Program:
                     )
                 continue
 
-            if (priority // 1000, len(matching_files), priority) > (best[2] // 1000, len(
-                    best[1]), best[2]):
+            if (priority // 1000, len(matching_files), priority) > (
+                best[2] // 1000,
+                len(best[1]),
+                best[2],
+            ):
                 best = (lang, matching_files, priority)
 
         lang, files, priority = best
@@ -239,7 +244,6 @@ class Program:
             'Mainclass': mainclass[0].upper() + mainclass[1:],
             # Memory limit in MB.
             'memlim': (get_memory_limit() or 1024),
-
             # Out-of-spec variables used by 'manual' and 'Viva' languages.
             'build': self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else '',
             'run': self.tmpdir / 'run',
@@ -269,7 +273,8 @@ class Program:
                     f.unlink()
 
         # The case where compile_command='{build}' will result in an empty list here.
-        if not self.compile_command: return True
+        if not self.compile_command:
+            return True
 
         try:
             ret = exec_command(
@@ -278,7 +283,8 @@ class Program:
                 memory=5000000000,
                 cwd=self.tmpdir,
                 # Compile errors are never cropped.
-                crop=False)
+                crop=False,
+            )
         except FileNotFoundError as err:
             self.ok = False
             self.bar.error('Failed', str(err))
@@ -286,8 +292,10 @@ class Program:
 
         if ret.ok is not True:
             data = ''
-            if ret.err is not None: data += strip_newline(ret.err) + '\n'
-            if ret.out is not None: data += strip_newline(ret.out) + '\n'
+            if ret.err is not None:
+                data += strip_newline(ret.err) + '\n'
+            if ret.out is not None:
+                data += strip_newline(ret.out) + '\n'
             self.ok = False
             self.bar.error('Failed', data)
             return False
@@ -300,7 +308,8 @@ class Program:
         assert not self.built
         self.built = True
 
-        if not self.ok: return False
+        if not self.ok:
+            return False
         self.bar = bar
 
         if len(self.source_files) == 0:
@@ -329,7 +338,8 @@ class Program:
             self.input_files.append(self.tmpdir / f.name)
             self.timestamp = max(self.timestamp, f.stat().st_mtime)
 
-        if not self._get_language(self.source_files): return False
+        if not self._get_language(self.source_files):
+            return False
 
         # A file containing the compile command. Timestamp is used as last build time.
         meta_path = self.tmpdir / 'meta_'
@@ -344,12 +354,15 @@ class Program:
         self.run_command = run_command.format(**self.env).split()
 
         # Compare the latest source timestamp (self.timestamp) to the last build.
-        up_to_date = meta_path.is_file(
-        ) and meta_path.stat().st_mtime >= self.timestamp and meta_path.read_text() == ' '.join(
-            self.compile_command)
+        up_to_date = (
+            meta_path.is_file()
+            and meta_path.stat().st_mtime >= self.timestamp
+            and meta_path.read_text() == ' '.join(self.compile_command)
+        )
 
         if not up_to_date or config.args.force_build:
-            if not self._compile(): return False
+            if not self._compile():
+                return False
 
         if self.path in self.problem._program_callbacks:
             for c in self.problem._program_callbacks[self.path]:
@@ -358,7 +371,8 @@ class Program:
 
     @staticmethod
     def add_callback(problem, path, c):
-        if path not in problem._program_callbacks: problem._program_callbacks[path] = []
+        if path not in problem._program_callbacks:
+            problem._program_callbacks[path] = []
         problem._program_callbacks[path].append(c)
 
 
@@ -376,17 +390,17 @@ class Generator(Program):
 
         # Clean the directory, but not the meta_ file.
         for f in cwd.iterdir():
-            if f.name in ['meta_', 'meta_.yaml']: continue
+            if f.name in ['meta_', 'meta_.yaml']:
+                continue
             if f.is_dir() and not f.is_symlink():
                 shutil.rmtree(f)
             else:
                 f.unlink()
 
         with stdout_path.open('w') as stdout_file:
-            result = exec_command(self.run_command + args,
-                                  stdout=stdout_file,
-                                  timeout=config.timeout(),
-                                  cwd=cwd)
+            result = exec_command(
+                self.run_command + args, stdout=stdout_file, timeout=config.timeout(), cwd=cwd
+            )
 
         result.retry = False
 

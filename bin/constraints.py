@@ -6,6 +6,7 @@ import validate
 
 # Local imports
 from util import *
+
 """DISCLAIMER:
 
   This tool was only made to check constraints faster.
@@ -25,12 +26,22 @@ def check_constraints(problem, settings):
     voutput = problem.path / 'output_validators/output_validator/output_validator.cpp'
 
     cpp_statement = [
-        (re.compile(
-            r'^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);'),
-         3, 4, None),
-        (re.compile(
-            r'(?:(\w*)\s*=\s*.*)?\.read_(?:number|integer|float|string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'
-        ), 1, 2, 3),
+        (
+            re.compile(
+                r'^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);'
+            ),
+            3,
+            4,
+            None,
+        ),
+        (
+            re.compile(
+                r'(?:(\w*)\s*=\s*.*)?\.read_(?:number|integer|float|string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'
+            ),
+            1,
+            2,
+            3,
+        ),
     ]
 
     validator_values = set()
@@ -72,7 +83,8 @@ def check_constraints(problem, settings):
 
                 for mo in r.finditer(line):
                     name_string = None
-                    if name: name_string = mo.group(name) or ''
+                    if name:
+                        name_string = mo.group(name) or ''
 
                     value_string = None
                     if value is not None and mo.group(value) is not None:
@@ -90,13 +102,16 @@ def check_constraints(problem, settings):
                             val = eval(eval_string)
                             statement_values.add(eval(eval_string))
                         except (SyntaxError, NameError) as e:
-                            log(f'SyntaxError for {value_string} when trying to evaluate {eval_string} '
-                                )
+                            log(
+                                f'SyntaxError for {value_string} when trying to evaluate {eval_string} '
+                            )
                             log(str(e))
 
                     l = []
-                    if name_string: l.append(name_string)
-                    if value_string: l.append(value_string)
+                    if name_string:
+                        l.append(name_string)
+                    if value_string:
+                        l.append(value_string)
                     defs_statement.append(l)
     defs_statement.sort()
 
@@ -105,17 +120,22 @@ def check_constraints(problem, settings):
     name_len = 8
     left_width = 8 + name_len + 2 * value_len
 
-    print('{:^{width}}|{:^30}'.format('VALIDATORS', '      PROBLEM STATEMENT', width=left_width),
-          sep='')
+    print(
+        '{:^{width}}|{:^30}'.format('VALIDATORS', '      PROBLEM STATEMENT', width=left_width),
+        sep='',
+    )
     for val, st in itertools.zip_longest(defs_validators, defs_statement):
         if val is not None:
             if isinstance(val, str):
                 print('{:^{width}}'.format(val, width=left_width), sep='', end='')
             else:
-                print('{:>{value_len}} <= {:^{name_len}} <= {:<{value_len}}'.format(
-                    *val, name_len=name_len, value_len=value_len),
-                      sep='',
-                      end='')
+                print(
+                    '{:>{value_len}} <= {:^{name_len}} <= {:<{value_len}}'.format(
+                        *val, name_len=name_len, value_len=value_len
+                    ),
+                    sep='',
+                    end='',
+                )
         else:
             print('{:^{width}}'.format('', width=left_width), sep='', end='')
         print('|', end='')

@@ -20,10 +20,9 @@ def fix_problem_yaml_name(problem):
 
 
 def build_samples_zip(problems):
-    zf = zipfile.ZipFile('samples.zip',
-                         mode="w",
-                         compression=zipfile.ZIP_DEFLATED,
-                         allowZip64=False)
+    zf = zipfile.ZipFile(
+        'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False
+    )
     for fname in ['contest.pdf', 'contest-web.pdf']:
         if Path(fname).is_file():
             zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
@@ -34,7 +33,8 @@ def build_samples_zip(problems):
         attachments_dir = problem.path / 'attachments'
         if problem.interactive and not attachments_dir.is_dir():
             util.error(
-                f'Interactive problem {problem.name} does not have an attachments/ directory.')
+                f'Interactive problem {problem.name} does not have an attachments/ directory.'
+            )
             continue
 
         empty = True
@@ -173,8 +173,11 @@ def build_contest_zip(problems, zipfiles, outfile, args):
         build_samples_zip(problems)
 
         for fname in [
-                'contest.pdf', 'contest-web.pdf', 'solutions.pdf', 'solutions-web.pdf',
-                'samples.zip'
+            'contest.pdf',
+            'contest-web.pdf',
+            'solutions.pdf',
+            'solutions-web.pdf',
+            'samples.zip',
         ]:
             if Path(fname).is_file():
                 zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)

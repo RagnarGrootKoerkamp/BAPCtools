@@ -11,22 +11,23 @@ if not is_windows():
     import fcntl
     import resource
 
-BUFFER_SIZE = 2**20
+BUFFER_SIZE = 2 ** 20
 
 
 # Return a ExecResult object amended with verdict.
 def run_interactive_testcase(
-        run,
-        # False: Return as part of ExecResult
-        # None: print to stdout
-        validator_error=False,
-        team_error=False,
-        *,
-        # False/None: no output
-        # True: stdout
-        # else: path
-        interaction=False,
-        submission_args=None):
+    run,
+    # False: Return as part of ExecResult
+    # None: print to stdout
+    validator_error=False,
+    team_error=False,
+    *,
+    # False/None: no output
+    # True: stdout
+    # else: path
+    interaction=False,
+    submission_args=None
+):
 
     output_validators = run.problem.validators('output')
     assert len(output_validators) == 1
@@ -40,11 +41,15 @@ def run_interactive_testcase(
     timeout = run.problem.settings.timeout
 
     # Validator command
-    validator_command = output_validator.run_command + [
-        run.testcase.in_path.resolve(),
-        run.testcase.ans_path.resolve(),
-        run.feedbackdir.resolve()
-    ] + run.problem.settings.validator_flags
+    validator_command = (
+        output_validator.run_command
+        + [
+            run.testcase.in_path.resolve(),
+            run.testcase.ans_path.resolve(),
+            run.feedbackdir.resolve(),
+        ]
+        + run.problem.settings.validator_flags
+    )
 
     submission_command = run.submission.run_command
     if submission_args:
@@ -67,27 +72,33 @@ def run_interactive_testcase(
     # afterwards.
     if is_windows() or is_mac():
 
-        if validator_error is False: validator_error = subprocess.PIPE
-        if team_error is False: team_error = subprocess.PIPE
+        if validator_error is False:
+            validator_error = subprocess.PIPE
+        if team_error is False:
+            team_error = subprocess.PIPE
 
         # Start the validator.
-        validator_process = subprocess.Popen(validator_command,
-                                             stdin=subprocess.PIPE,
-                                             stdout=subprocess.PIPE,
-                                             stderr=validator_error,
-                                             cwd=validator_dir,
-                                             bufsize=BUFFER_SIZE)
+        validator_process = subprocess.Popen(
+            validator_command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=validator_error,
+            cwd=validator_dir,
+            bufsize=BUFFER_SIZE,
+        )
 
         # Start and time the submission.
         # TODO: use rusage instead
         tstart = time.monotonic()
-        exec_res = exec_command(submission_command,
-                                expect=0,
-                                stdin=validator_process.stdout,
-                                stdout=validator_process.stdin,
-                                stderr=team_error,
-                                cwd=submission_dir,
-                                timeout=timeout)
+        exec_res = exec_command(
+            submission_command,
+            expect=0,
+            stdin=validator_process.stdout,
+            stdout=validator_process.stdin,
+            stderr=team_error,
+            cwd=submission_dir,
+            timeout=timeout,
+        )
 
         # Wait
         (validator_out, validator_err) = validator_process.communicate()
@@ -117,8 +128,9 @@ def run_interactive_testcase(
             validator_err = bytes()
 
         # Set result.err to validator error and result.out to team error.
-        return ExecResult(True, tend - tstart, validator_err.decode('utf-8'), exec_res.err,
-                          verdict, print_verdict)
+        return ExecResult(
+            True, tend - tstart, validator_err.decode('utf-8'), exec_res.err, verdict, print_verdict
+        )
 
     # On Linux:
     # - Create 2 pipes
@@ -169,15 +181,19 @@ while True:
     sys.stderr.flush()
     new = l=='\n'
 '''
-        team_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '>'],
-                                    stdin=team_log_in,
-                                    stdout=team_log_out,
-                                    stderr=interaction_file)
+        team_tee = subprocess.Popen(
+            ['python3', '-c', TEE_CODE, '>'],
+            stdin=team_log_in,
+            stdout=team_log_out,
+            stderr=interaction_file,
+        )
         team_tee_pid = team_tee.pid
-        val_tee = subprocess.Popen(['python3', '-c', TEE_CODE, '<'],
-                                   stdin=val_log_in,
-                                   stdout=val_log_out,
-                                   stderr=interaction_file)
+        val_tee = subprocess.Popen(
+            ['python3', '-c', TEE_CODE, '<'],
+            stdin=val_log_in,
+            stdout=val_log_out,
+            stderr=interaction_file,
+        )
         val_tee_pid = val_tee.pid
 
     # Use manual pipes with a large buffer instead of subprocess.PIPE for validator and team output.
@@ -190,22 +206,24 @@ while True:
     else:
         team_error_in, team_error_out = None, team_error
 
-    validator = subprocess.Popen(validator_command,
-                                 stdin=val_in,
-                                 stdout=val_out,
-                                 stderr=validator_error_out,
-                                 cwd=validator_dir,
-                                 preexec_fn=limit_setter(validator_command, validator_timeout,
-                                                         None))
+    validator = subprocess.Popen(
+        validator_command,
+        stdin=val_in,
+        stdout=val_out,
+        stderr=validator_error_out,
+        cwd=validator_dir,
+        preexec_fn=limit_setter(validator_command, validator_timeout, None),
+    )
     validator_pid = validator.pid
 
-    submission = subprocess.Popen(submission_command,
-                                  stdin=team_in,
-                                  stdout=team_out,
-                                  stderr=team_error_out,
-                                  cwd=submission_dir,
-                                  preexec_fn=limit_setter(submission_command, timeout,
-                                                          memory_limit))
+    submission = subprocess.Popen(
+        submission_command,
+        stdin=team_in,
+        stdout=team_out,
+        stderr=team_error_out,
+        cwd=submission_dir,
+        preexec_fn=limit_setter(submission_command, timeout, memory_limit),
+    )
     submission_pid = submission.pid
 
     # Will be filled in the loop below.
@@ -241,12 +259,14 @@ while True:
         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
 
         if pid == validator_pid:
-            if first is None: first = 'validator'
+            if first is None:
+                first = 'validator'
             validator_status = status
 
             # Close the output stream.
             os.close(val_out)
-            if interaction: os.close(val_log_out)
+            if interaction:
+                os.close(val_log_out)
 
             # Kill the team submission in case we already know it's WA.
             if first_done and validator_status != config.RTV_AC:
@@ -257,12 +277,14 @@ while True:
 
         if pid == submission_pid:
             signal.alarm(0)
-            if first is None: first = 'submission'
+            if first is None:
+                first = 'submission'
             submission_status = status
 
             # Close the output stream.
             os.close(team_out)
-            if interaction: os.close(team_log_out)
+            if interaction:
+                os.close(team_log_out)
 
             # Possibly already written by the alarm.
             if not submission_time:
@@ -278,9 +300,11 @@ while True:
                 continue
 
     os.close(val_in)
-    if interaction: os.close(val_log_in)
+    if interaction:
+        os.close(val_log_in)
     os.close(team_in)
-    if interaction: os.close(team_log_in)
+    if interaction:
+        os.close(team_log_in)
 
     did_timeout = submission_time > timelimit
     aborted = submission_time >= timeout

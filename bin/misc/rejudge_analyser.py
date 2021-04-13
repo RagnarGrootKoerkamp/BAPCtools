@@ -23,7 +23,8 @@ def get_times(lang):
     # (from, to)
     points = []
     for s in submissions:
-        if s['language_id'] != lang: continue
+        if s['language_id'] != lang:
+            continue
         js = [j for j in judgements if j['submission_id'] == s['id']]
         assert len(js) > 1
         if js[0]['judgement_type_id'] == 'AC' and js[-1]['judgement_type_id'] == 'AC':

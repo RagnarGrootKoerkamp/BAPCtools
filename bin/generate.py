@@ -19,11 +19,14 @@ from problem import Problem
 
 
 def check_type(name, obj, types, path=None):
-    if not isinstance(types, list): types = [types]
+    if not isinstance(types, list):
+        types = [types]
     if obj is None:
-        if obj in types: return
+        if obj in types:
+            return
     else:
-        if obj.__class__ in types: return
+        if obj.__class__ in types:
+            return
     named_types = " or ".join(str(t) if t is None else t.__name__ for t in types)
     if path:
         fatal(
@@ -34,9 +37,15 @@ def check_type(name, obj, types, path=None):
 
 
 def is_testcase(yaml):
-    return yaml == None or isinstance(
-        yaml, str) or (isinstance(yaml, dict) and 'input' in yaml
-                       and not ('type' in yaml and yaml['type'] != 'testcase'))
+    return (
+        yaml == None
+        or isinstance(yaml, str)
+        or (
+            isinstance(yaml, dict)
+            and 'input' in yaml
+            and not ('type' in yaml and yaml['type'] != 'testcase')
+        )
+    )
 
 
 def is_directory(yaml):
@@ -56,13 +65,15 @@ def resolve_path(path, *, allow_absolute, allow_relative):
             fatal(f'Path must be absolute: {path}')
 
     # Make all paths relative to the problem root.
-    if path.is_absolute(): return Path(*path.parts[1:])
+    if path.is_absolute():
+        return Path(*path.parts[1:])
     return Path('generators') / path
 
 
 # testcase_short_path: secret/1.in
 def process_testcase(problem, testcase_path):
-    if not getattr(config.args, 'testcases', None): return True
+    if not getattr(config.args, 'testcases', None):
+        return True
     for p in config.args.testcases:
         # Try the given path itself, and the given path without the last suffix.
         for p2 in [p, p.with_suffix('')]:
@@ -95,9 +106,9 @@ class Invocation:
         self.command_string = string
 
         # The name of the program to be executed, relative to the problem root.
-        self.program_path = resolve_path(command,
-                                         allow_absolute=allow_absolute,
-                                         allow_relative=allow_relative)
+        self.program_path = resolve_path(
+            command, allow_absolute=allow_absolute, allow_relative=allow_relative
+        )
 
         self.uses_seed = self.SEED_REGEX.search(self.command_string)
 
@@ -120,7 +131,8 @@ class Invocation:
     # This is independent of {name} and the actual run_command.
     def cache_command(self, seed=None):
         command_string = self.command_string
-        if seed: command_string = self.SEED_REGEX.sub(str(seed), command_string)
+        if seed:
+            command_string = self.SEED_REGEX.sub(str(seed), command_string)
         return command_string
 
     # Return the full command to be executed.
@@ -129,8 +141,10 @@ class Invocation:
             assert seed is not None
 
         def sub(arg):
-            if name: arg = self.NAME_REGEX.sub(str(name), arg)
-            if self.uses_seed: arg = self.SEED_REGEX.sub(str(seed), arg)
+            if name:
+                arg = self.NAME_REGEX.sub(str(name), arg)
+            if self.uses_seed:
+                arg = self.SEED_REGEX.sub(str(seed), arg)
             return arg
 
         return [sub(arg) for arg in self.args]
@@ -147,10 +161,9 @@ class GeneratorInvocation(Invocation):
     # Try running the generator |retries| times, incrementing seed by 1 each time.
     def run(self, bar, cwd, name, seed, retries=1):
         for retry in range(retries):
-            result = self.program.run(bar,
-                                      cwd,
-                                      name,
-                                      args=self._sub_args(name=name, seed=seed + retry))
+            result = self.program.run(
+                bar, cwd, name, args=self._sub_args(name=name, seed=seed + retry)
+            )
             if result.ok is True:
                 break
             if not result.retry:
@@ -212,7 +225,8 @@ class SolutionInvocation(Invocation):
     def run_interactive(self, problem, bar, cwd, t):
         in_path = cwd / (t.name + '.in')
         interaction_path = cwd / (t.name + '.interaction')
-        if interaction_path.is_file(): return True
+        if interaction_path.is_file():
+            return True
 
         testcase = run.Testcase(problem, in_path, short_path=t.path / t.name)
         r = run.Run(problem, self.program, testcase)
@@ -229,7 +243,14 @@ class SolutionInvocation(Invocation):
 KNOWN_TESTCASE_KEYS = ['type', 'input', 'solution', 'visualizer', 'random_salt', 'retries']
 RESERVED_TESTCASE_KEYS = ['data', 'testdata.yaml', 'include']
 KNOWN_DIRECTORY_KEYS = [
-    'type', 'data', 'testdata.yaml', 'include', 'solution', 'visualizer', 'random_salt', 'retries'
+    'type',
+    'data',
+    'testdata.yaml',
+    'include',
+    'solution',
+    'visualizer',
+    'random_salt',
+    'retries',
 ]
 RESERVED_DIRECTORY_KEYS = ['input']
 KNOWN_ROOT_KEYS = ['generators', 'parallel', 'gitignore_generated']
@@ -243,17 +264,20 @@ class Config:
     # Used at each directory or testcase level.
     def parse_solution(p, x, path):
         check_type('Solution', x, [None, str], path)
-        if x is None: return None
+        if x is None:
+            return None
         return SolutionInvocation(p, x)
 
     def parse_visualizer(p, x, path):
         check_type('Visualizer', x, [None, str], path)
-        if x is None: return None
+        if x is None:
+            return None
         return VisualizerInvocation(p, x)
 
     def parse_random_salt(p, x, path):
         check_type('Random_salt', x, [None, str], path)
-        if x is None: return ''
+        if x is None:
+            return ''
         return x
 
     INHERITABLE_KEYS = [
@@ -261,7 +285,6 @@ class Config:
         ('solution', True, parse_solution),
         ('visualizer', None, parse_visualizer),
         ('random_salt', '', parse_random_salt),
-
         # Non-portable keys only used by BAPCtools:
         # The number of retries to run a generator when it fails, each time incrementing the {seed}
         # by 1.
@@ -272,7 +295,8 @@ class Config:
         assert not yaml or isinstance(yaml, dict)
 
         for key, default, func in Config.INHERITABLE_KEYS:
-            if func is None: func = lambda p, x, path: x
+            if func is None:
+                func = lambda p, x, path: x
             if yaml and key in yaml:
                 setattr(self, key, func(problem, yaml[key], path))
             elif parent_config is not None:
@@ -345,7 +369,7 @@ class TestcaseRule(Rule):
         else:
             # TODO: Should the seed depend on white space? For now it does.
             seed_value = self.config.random_salt + inpt
-            self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
+            self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2 ** 31)
             self.generator = GeneratorInvocation(problem, inpt)
 
         key = (inpt, self.config.random_salt)
@@ -413,14 +437,15 @@ class TestcaseRule(Rule):
             if infile.read_bytes() == target_infile.read_bytes():
                 bar.part_done(True, 'Generator is deterministic.')
             else:
-                bar.part_done(False,
-                              f'Generator `{t.generator.command_string}` is not deterministic.')
+                bar.part_done(
+                    False, f'Generator `{t.generator.command_string}` is not deterministic.'
+                )
 
             # If {seed} is used, check that the generator depends on it.
             if t.generator.uses_seed:
                 depends_on_seed = False
                 for run in range(config.SEED_DEPENDENCY_RETRIES):
-                    new_seed = (t.seed + 1 + run) % (2**31)
+                    new_seed = (t.seed + 1 + run) % (2 ** 31)
                     result = t.generator.run(bar, cwd, t.name, new_seed, t.config.retries)
                     if result.ok is not True:
                         return
@@ -435,7 +460,8 @@ class TestcaseRule(Rule):
                 else:
                     bar.warn(
                         f'Generator `{t.generator.command_string}` likely does not depend on seed:',
-                        f'All values in [{t.seed}, {new_seed}] give the same result.')
+                        f'All values in [{t.seed}, {new_seed}] give the same result.',
+                    )
 
         # The expected contents of the meta_ file.
         def up_to_date():
@@ -468,16 +494,22 @@ class TestcaseRule(Rule):
             if getattr(config.args, 'all', False):
                 return False
 
-            if not target_infile.is_file(): return False
-            if not target_ansfile.is_file(): return False
-            if problem.interactive and t.sample and not target_ansfile.with_suffix(
-                    '.interaction').is_file():
+            if not target_infile.is_file():
+                return False
+            if not target_ansfile.is_file():
+                return False
+            if (
+                problem.interactive
+                and t.sample
+                and not target_ansfile.with_suffix('.interaction').is_file()
+            ):
                 return False
 
             last_change = max(last_change, target_infile.stat().st_mtime)
             last_change = max(last_change, target_ansfile.stat().st_mtime)
 
-            if not meta_path.is_file(): return False
+            if not meta_path.is_file():
+                return False
 
             meta_yaml = parse_yaml(meta_path.read_text())
             last_generate = meta_path.stat().st_mtime
@@ -494,7 +526,8 @@ class TestcaseRule(Rule):
         if t.manual:
             # Clean the directory, but not the meta_ file.
             for f in cwd.iterdir():
-                if f.name in ['meta_', 'meta_.yaml']: continue
+                if f.name in ['meta_', 'meta_.yaml']:
+                    continue
                 f.unlink()
 
             manual_data = problem.path / t.source
@@ -537,10 +570,12 @@ class TestcaseRule(Rule):
                 if not target_ansfile.is_file():
                     bar.warn(f'{ansfile.name} does not exist and was not generated.')
         else:
-            if not testcase.ans_path.is_file(): testcase.ans_path.write_text('')
+            if not testcase.ans_path.is_file():
+                testcase.ans_path.write_text('')
             # For interactive problems, run the interactive solution and generate a .interaction.
-            if t.config.solution and (testcase.sample
-                                      or getattr(config.args, 'interaction', False)):
+            if t.config.solution and (
+                testcase.sample or getattr(config.args, 'interaction', False)
+            ):
                 if not t.config.solution.run_interactive(problem, bar, cwd, t):
                     return
 
@@ -562,13 +597,13 @@ class TestcaseRule(Rule):
 
         skipped = False
         skipped_in = False
-        #for f in cwd.iterdir():
-        #ext = f.suffix
-        #if ext not in config.KNOWN_DATA_EXTENSIONS:
-        #continue
-        #if not f.is_file(): continue
-        #source = f
-        #target = target_dir / f.name
+        # for f in cwd.iterdir():
+        # ext = f.suffix
+        # if ext not in config.KNOWN_DATA_EXTENSIONS:
+        # continue
+        # if not f.is_file(): continue
+        # source = f
+        # target = target_dir / f.name
         for ext in config.KNOWN_DATA_EXTENSIONS:
             source = cwd / (t.name + ext)
             target = target_dir / (t.name + ext)
@@ -601,8 +636,8 @@ class TestcaseRule(Rule):
                 # We always copy file contents. Manual cases are copied as well.
                 if source.is_symlink():
                     shutil.copy(source, target, follow_symlinks=True)
-                    #source = source.resolve().relative_to(problem.path.parent.resolve())
-                    #ensure_symlink(target, source, relative=True)
+                    # source = source.resolve().relative_to(problem.path.parent.resolve())
+                    # ensure_symlink(target, source, relative=True)
                 else:
                     shutil.move(source, target)
             else:
@@ -628,7 +663,8 @@ class TestcaseRule(Rule):
 
         # Clean the directory.
         for f in cwd.glob('*'):
-            if f.name == 'meta_': continue
+            if f.name == 'meta_':
+                continue
             f.unlink()
 
         # Update metadata
@@ -706,10 +742,13 @@ class Directory(Rule):
         self.data = []
 
         # Sanity checks for possibly empty data.
-        if 'data' not in yaml: return
+        if 'data' not in yaml:
+            return
         data = yaml['data']
-        if data is None: return
-        if data == '': return
+        if data is None:
+            return
+        if data == '':
+            return
         check_type('Data', data, [dict, list])
 
         if isinstance(data, dict):
@@ -721,7 +760,8 @@ class Directory(Rule):
                 )
         else:
             self.numbered = True
-            if len(data) == 0: return
+            if len(data) == 0:
+                return
 
         for d in data:
             if isinstance(d, dict):
@@ -731,7 +771,8 @@ class Directory(Rule):
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
     def walk(self, testcase_f=None, dir_f=True, *, dir_last=False):
-        if dir_f is True: dir_f = testcase_f
+        if dir_f is True:
+            dir_f = testcase_f
 
         if not dir_last and dir_f:
             dir_f(self)
@@ -740,7 +781,8 @@ class Directory(Rule):
             if isinstance(d, Directory):
                 d.walk(testcase_f, dir_f, dir_last=dir_last)
             elif isinstance(d, TestcaseRule):
-                if testcase_f: testcase_f(d)
+                if testcase_f:
+                    testcase_f(d)
             else:
                 assert False
 
@@ -807,26 +849,34 @@ class Directory(Rule):
 
         # First do a loop to find untracked manual .in files.
         for f in files:
-            if f in files_created: continue
+            if f in files_created:
+                continue
             base = f.with_suffix('')
             relpath = base.relative_to(problem.path / 'data')
-            if relpath in generator_config.known_cases: continue
-            if f.suffix != '.in': continue
+            if relpath in generator_config.known_cases:
+                continue
+            if f.suffix != '.in':
+                continue
             t = TestcaseRule(problem, base.name, None, d, tracked=False)
             assert t.manual_inline
             d.data.append(t)
             bar.add_item(t.path)
 
         for f in files:
-            if f in files_created: continue
+            if f in files_created:
+                continue
             base = f.with_suffix('')
             relpath = base.relative_to(problem.path / 'data')
-            if relpath in generator_config.known_cases: continue
-            if relpath in generator_config.known_directories: continue
+            if relpath in generator_config.known_cases:
+                continue
+            if relpath in generator_config.known_directories:
+                continue
 
             if f.suffix != '.in':
-                if f.suffix in config.KNOWN_DATA_EXTENSIONS and f.with_suffix(
-                        '.in') in files_created:
+                if (
+                    f.suffix in config.KNOWN_DATA_EXTENSIONS
+                    and f.with_suffix('.in') in files_created
+                ):
                     continue
 
                 if f.with_suffix('.in').is_file():
@@ -882,8 +932,11 @@ class Directory(Rule):
         for f in dir_path.glob('*'):
             if f.is_symlink():
                 try:
-                    target = Path(os.path.normpath(f.parent / os.readlink(f))).relative_to(
-                        problem.path / 'data').with_suffix('')
+                    target = (
+                        Path(os.path.normpath(f.parent / os.readlink(f)))
+                        .relative_to(problem.path / 'data')
+                        .with_suffix('')
+                    )
 
                     if target in d.includes or target.parent in d.includes:
                         bar.log(f'Remove linked file {f.name}')
@@ -892,15 +945,18 @@ class Directory(Rule):
                 except ValueError:
                     pass
 
-            if f.name[0] == '.': continue
+            if f.name[0] == '.':
+                continue
 
             if d.path == Path('.') and f.name == 'bad':
                 continue
 
             # If --force/-f is passed, also clean unknown files.
             relpath = f.relative_to(problem.path / 'data')
-            if relpath.with_suffix('') in generator_config.known_cases: continue
-            if relpath.with_suffix('') in generator_config.known_directories: continue
+            if relpath.with_suffix('') in generator_config.known_cases:
+                continue
+            if relpath.with_suffix('') in generator_config.known_directories:
+                continue
 
             ft = 'directory' if f.is_dir() else 'file'
 
@@ -942,10 +998,8 @@ class GeneratorConfig:
     # Only used at the root directory level.
     ROOT_KEYS = [
         ('generators', [], parse_generators),
-
         # Non-standard key. When set to True, run will be parallelized.
         ('parallel', True, lambda x: x is True),
-
         # Non-standard key. When set to True, all generated testcases will be .gitignored in data/.gitignore.
         ('gitignore_generated', False, lambda x: x is True),
     ]
@@ -966,7 +1020,8 @@ class GeneratorConfig:
 
     def parse_yaml(self, yaml):
         check_type('Root yaml', yaml, [dict, None])
-        if yaml is None: yaml = dict()
+        if yaml is None:
+            yaml = dict()
         yaml['type'] = 'directory'
 
         # Read root level configuration
@@ -998,8 +1053,9 @@ class GeneratorConfig:
                     return None
 
                 # If a list of testcases was passed and this one is not in it, skip it.
-                if not process_testcase(self.problem,
-                                        self.problem.path / 'data' / parent.path / name):
+                if not process_testcase(
+                    self.problem, self.problem.path / 'data' / parent.path / name
+                ):
                     return None
 
                 t = TestcaseRule(self.problem, name, yaml, parent)
@@ -1096,8 +1152,9 @@ class GeneratorConfig:
                     if default_solution is None:
                         default_solution_path = self.get_default_solution()
                         if default_solution_path:
-                            default_solution = SolutionInvocation(self.problem,
-                                                                  default_solution_path)
+                            default_solution = SolutionInvocation(
+                                self.problem, default_solution_path
+                            )
                         else:
                             default_solution = False
                     t.config.solution = default_solution
@@ -1119,7 +1176,8 @@ class GeneratorConfig:
                 else:
                     if program_type is run.Submission:
                         programs.append(
-                            program_type(self.problem, path, skip_double_build_warning=True))
+                            program_type(self.problem, path, skip_double_build_warning=True)
+                        )
                     else:
                         programs.append(program_type(self.problem, path))
 
@@ -1140,8 +1198,9 @@ class GeneratorConfig:
         def unset_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
                 t.config.solution = None
-            if not build_visualizers or (t.config.visualizer
-                                         and t.config.visualizer.program is None):
+            if not build_visualizers or (
+                t.config.visualizer and t.config.visualizer.program is None
+            ):
                 t.config.visualizer = None
 
         self.root_dir.walk(unset_build_failures, dir_f=None)
@@ -1184,7 +1243,8 @@ class GeneratorConfig:
 
             def clear_queue(e=True):
                 nonlocal num_worker_threads, error
-                if error is not None: return
+                if error is not None:
+                    return
                 error = e
                 try:
                     while True:
@@ -1200,7 +1260,8 @@ class GeneratorConfig:
                 try:
                     while True:
                         testcase = q.get()
-                        if testcase is None: break
+                        if testcase is None:
+                            break
                         testcase.generate(self.problem, self, bar)
                         q.task_done()
                 except Exception as e:
@@ -1228,10 +1289,7 @@ class GeneratorConfig:
                 maybe_join()
                 d.generate(self.problem, self, bar)
 
-            self.root_dir.walk(
-                q.put,
-                generate_dir,
-            )
+            self.root_dir.walk(q.put, generate_dir)
 
             maybe_join()
 
@@ -1268,7 +1326,8 @@ class GeneratorConfig:
 
             if config.args.testcases and gitignorefile.is_file():
                 for line in gitignorefile.read_text().splitlines():
-                    if line[0] == '#' or line == '.gitignore': continue
+                    if line[0] == '#' or line == '.gitignore':
+                        continue
                     assert line.endswith('.*')
                     line = Path(line).with_suffix('')
                     path = self.problem.path / 'data' / line
@@ -1403,7 +1462,7 @@ class GeneratorConfig:
 
             # Move all test data.
             # Make sure the testcase doesn't already exist in the target directory.
-            in_target = (config.args.move_manual / (path.name + '.in'))
+            in_target = config.args.move_manual / (path.name + '.in')
             if in_target.is_file():
                 warn(
                     f'Target file {in_target.relative_to(self.problem.path.resolve())} already exists. Skipping testcase {path}.'
@@ -1413,7 +1472,8 @@ class GeneratorConfig:
             assert path.name in d['data']
 
             d['data'][path.name] = str(
-                in_target.relative_to(self.problem.path.resolve() / 'generators'))
+                in_target.relative_to(self.problem.path.resolve() / 'generators')
+            )
 
             for ext in config.KNOWN_DATA_EXTENSIONS:
                 source = (self.problem.path / 'data') / (path.parent / (path.name + ext))

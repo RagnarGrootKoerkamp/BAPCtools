@@ -27,7 +27,7 @@ Otherwise, clone this repository and install the required dependencies manually.
     `python[3]-argcomplete`.
 	- Note that actually using `argcomplete` is optional, but recommended.
 	  Detailed instructions are [here](https://argcomplete.readthedocs.io/en/latest/).
-	 
+
       TL;DR: Put `eval "$(register-python-argcomplete[3] tools.py)"` in your `.bashrc` or `.zshrc`.
 
 Optional dependencies, required for some subcommands:
@@ -145,4 +145,3 @@ Run `scripts/yafp_format.sh` to format all python files in the `bin/` directory.
 - Imports are usually ordered with system libraries first, followed by a
     newline, followed by local includes. Both groups are sorted alphabetically,
     and `import` comes before `from ... import`.
-

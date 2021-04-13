@@ -70,11 +70,9 @@ def new_contest(name):
 
     skeldir = config.tools_root / 'skel/contest'
     log(f'Copying {skeldir} to {dirname}.')
-    copytree_and_substitute(skeldir,
-                            Path(dirname),
-                            locals(),
-                            exist_ok=False,
-                            preserve_symlinks=False)
+    copytree_and_substitute(
+        skeldir, Path(dirname), locals(), exist_ok=False, preserve_symlinks=False
+    )
 
 
 def get_skel_dir(target_dir):
@@ -99,12 +97,17 @@ def new_problem():
     if config.args.problem:
         fatal('--problem does not work for new_problem.')
 
-    problemname = config.args.problemname if config.args.problemname else _ask_variable(
-        'problem name')
-    dirname = _alpha_num(problemname) if config.args.problemname else _ask_variable(
-        'dirname', _alpha_num(problemname))
-    author = config.args.author if config.args.author else _ask_variable(
-        'author', config.args.author)
+    problemname = (
+        config.args.problemname if config.args.problemname else _ask_variable('problem name')
+    )
+    dirname = (
+        _alpha_num(problemname)
+        if config.args.problemname
+        else _ask_variable('dirname', _alpha_num(problemname))
+    )
+    author = (
+        config.args.author if config.args.author else _ask_variable('author', config.args.author)
+    )
 
     if config.args.validation:
         assert config.args.validation in ['default', 'custom', 'custom interactive']
@@ -116,15 +119,16 @@ def new_problem():
     variables = read_yaml(Path('contest.yaml'))
 
     for k, v in {
-            'problemname': problemname,
-            'dirname': dirname,
-            'author': author,
-            'validation': validation
+        'problemname': problemname,
+        'dirname': dirname,
+        'author': author,
+        'validation': validation,
     }.items():
         variables[k] = v
 
     for k in ['source', 'source_url', 'license', 'rights_owner']:
-        if k not in variables: variables[k] = ''
+        if k not in variables:
+            variables[k] = ''
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
@@ -135,11 +139,9 @@ def new_problem():
     if problems_yaml.is_file():
         problems_yaml.write_text(problems_yaml.read_text() + '- id: ' + dirname + '\n')
 
-    copytree_and_substitute(skeldir,
-                            target_dir / dirname,
-                            variables,
-                            exist_ok=True,
-                            preserve_symlinks=preserve_symlinks)
+    copytree_and_substitute(
+        skeldir, target_dir / dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks
+    )
 
 
 def copy_skel_dir(problems):
@@ -163,11 +165,9 @@ def copy_skel_dir(problems):
                 continue
 
             target.parent.mkdir(exist_ok=True, parents=True)
-            copytree_and_substitute(source,
-                                    target,
-                                    None,
-                                    exist_ok=True,
-                                    preserve_symlinks=preserve_symlinks)
+            copytree_and_substitute(
+                source, target, None, exist_ok=True, preserve_symlinks=preserve_symlinks
+            )
             found = True
             break
 

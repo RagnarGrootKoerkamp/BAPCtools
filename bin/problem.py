@@ -59,7 +59,7 @@ class Problem:
             'validation': 'default',
             'validator_flags': [],
             'probid': 'A',
-            'author': ''
+            'author': '',
         }
 
         # parse problem.yaml
@@ -113,10 +113,12 @@ class Problem:
         except AttributeError:
             pass
 
-        if p.interactive: needans = False
+        if p.interactive:
+            needans = False
 
         key = (needans, samplesonly, include_bad)
-        if key in p._testcases is not None: return p._testcases[key]
+        if key in p._testcases is not None:
+            return p._testcases[key]
 
         in_paths = None
         # NOTE: Testcases must be specified relative to the problem root.
@@ -166,11 +168,13 @@ class Problem:
 
     # returns a map {expected verdict -> [(name, command)]}
     def submissions(problem, accepted_only=False):
-        if problem._submissions is not None: return problem._submissions
+        if problem._submissions is not None:
+            return problem._submissions
 
         paths = []
         if hasattr(config.args, 'submissions') and config.args.submissions:
-            if accepted_only: accepted_only = 'all'
+            if accepted_only:
+                accepted_only = 'all'
 
             def add(s):
                 if s in paths:
@@ -188,7 +192,7 @@ class Problem:
                 else:
                     add(problem.path / submission)
         else:
-            for verdict in (['ACCEPTED'] if accepted_only else config.VERDICTS):
+            for verdict in ['ACCEPTED'] if accepted_only else config.VERDICTS:
                 paths += glob(problem.path / 'submissions' / verdict.lower(), '*')
 
         if len(paths) == 0:
@@ -224,7 +228,8 @@ class Problem:
             for x in submissions:
                 subs += submissions[x]
             return subs
-        if accepted_only: return submissions['ACCEPTED']
+        if accepted_only:
+            return submissions['ACCEPTED']
         return submissions
 
     # If check_constraints is True, this chooses the first validator that matches
@@ -245,7 +250,8 @@ class Problem:
         if validator_type == 'output' and problem.settings.validation == 'default':
             validators = [
                 validate.OutputValidator(
-                    problem, config.tools_root / 'support' / 'default_output_validator.cpp')
+                    problem, config.tools_root / 'support' / 'default_output_validator.cpp'
+                )
             ]
             bar = ProgressBar(f'Build {validator_type} validators', items=validators)
             ok = True
@@ -254,14 +260,16 @@ class Problem:
                 ok &= p.build(bar)
                 bar.done()
             bar.finalize(print_done=False)
-            if not ok: validators = False
+            if not ok:
+                validators = False
             problem._validators[key] = validators
             return validators
 
         validator_dir = 'input' if validator_type == 'input_format' else 'output'
 
-        paths = (glob(problem.path / (validator_dir + '_validators'), '*') +
-                 glob(problem.path / (validator_dir + '_format_validators'), '*'))
+        paths = glob(problem.path / (validator_dir + '_validators'), '*') + glob(
+            problem.path / (validator_dir + '_format_validators'), '*'
+        )
 
         if len(paths) == 0:
             if validator_type == 'output_format':
@@ -287,8 +295,10 @@ class Problem:
         if check_constraints:
             constraint_validators = []
             for f in paths:
-                if f.is_file(): sources = [f]
-                elif f.is_dir(): sources = glob(f, '**/*')
+                if f.is_file():
+                    sources = [f]
+                elif f.is_dir():
+                    sources = glob(f, '**/*')
                 has_constraints = False
                 for s in sources:
                     if has_constraints_checking(s):
@@ -306,17 +316,23 @@ class Problem:
 
         if validator_type == 'input_format':
             validators = [
-                validate.InputValidator(problem,
-                                        path,
-                                        skip_double_build_warning=check_constraints,
-                                        check_constraints=check_constraints) for path in paths
+                validate.InputValidator(
+                    problem,
+                    path,
+                    skip_double_build_warning=check_constraints,
+                    check_constraints=check_constraints,
+                )
+                for path in paths
             ]
         else:
             validators = [
-                validate.OutputValidator(problem,
-                                         path,
-                                         skip_double_build_warning=check_constraints,
-                                         check_constraints=check_constraints) for path in paths
+                validate.OutputValidator(
+                    problem,
+                    path,
+                    skip_double_build_warning=check_constraints,
+                    check_constraints=check_constraints,
+                )
+                for path in paths
             ]
 
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
@@ -330,7 +346,8 @@ class Problem:
         bar.finalize(print_done=False)
 
         # All validators must build.
-        if not ok: validators = False
+        if not ok:
+            validators = False
 
         problem._validators[key] = validators
         return validators
@@ -344,10 +361,12 @@ class Problem:
 
         if problem.interactive:
             validators = problem.validators('output')
-            if not validators: return False
+            if not validators:
+                return False
 
         submissions = problem.submissions()
-        if not submissions: return False
+        if not submissions:
+            return False
 
         max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
 
@@ -364,7 +383,8 @@ class Problem:
                 d = dict()
                 verdict_table.append(d)
                 submission_ok, printed_newline = submission.run_all_testcases(
-                    max_submission_len, table_dict=d, needs_leading_newline=needs_leading_newline)
+                    max_submission_len, table_dict=d, needs_leading_newline=needs_leading_newline
+                )
                 needs_leading_newline = not printed_newline
                 ok &= submission_ok
 
@@ -424,13 +444,14 @@ class Problem:
                     failures += 1
             for t in dct:
                 if not dct[t]:
-                    scores[t] += 1. / failures
+                    scores[t] += 1.0 / failures
         scores_list = sorted(scores.values())
 
         print(
             '\nVerdict analysis table. Submissions are ordered per column as above. Higher '
             'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.',
-            file=sys.stderr)
+            file=sys.stderr,
+        )
         print(f'{Fore.RED}0{Style.RESET_ALL}: submission fails testcase', file=sys.stderr)
         print(f'{Fore.GREEN}1{Style.RESET_ALL}: submission passes testcase\n', file=sys.stderr)
 
@@ -447,9 +468,9 @@ class Problem:
             print(f'{str(testcase.name):<60}', end=' ', file=sys.stderr)
             resultant = make_verdict(testcase)
             print(resultant, end='  ', file=sys.stderr)
-            print(f'{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ',
-                  end='',
-                  file=sys.stderr)
+            print(
+                f'{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ', end='', file=sys.stderr
+            )
             if resultant in resultant_id:
                 print(str.format('(Type {})', resultant_id[resultant]), end='', file=sys.stderr)
             print(end='\n', file=sys.stderr)
@@ -459,9 +480,11 @@ class Problem:
 
     # Returns None for new testcases or the Testcase object it equals.
     def matches_existing_testcase(self, t):
-        if t.bad_input or t.bad_output: return None
+        if t.bad_input or t.bad_output:
+            return None
         d = t.in_path.read_text()
-        if d in self._testcase_hashes: return self._testcase_hashes[d]
+        if d in self._testcase_hashes:
+            return self._testcase_hashes[d]
         self._testcase_hashes[d] = t
         return None
 
@@ -469,7 +492,8 @@ class Problem:
     # For input_format validation, also make sure all testcases are different.
     # Constraints is None/True/dictionary. When dictionary, contraints will be stored there.
     def validate_format(problem, validator_type, constraints=None):
-        if constraints is True: constraints = {}
+        if constraints is True:
+            constraints = {}
         assert constraints is None or isinstance(constraints, dict)
         assert validator_type in ['input_format', 'output_format']
 
@@ -484,7 +508,8 @@ class Problem:
 
         testcases = problem.testcases(needans=validator_type == 'output_format', include_bad=True)
 
-        if testcases is False: return True
+        if testcases is False:
+            return True
 
         if len(testcases) == 0:
             return True

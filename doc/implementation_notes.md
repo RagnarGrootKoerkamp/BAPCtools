@@ -60,7 +60,7 @@ Each 'program' (submission/validator/generator/visualizer) gets its own director
 
 ## Building programs
 
-Each program (submission/validator/generator/visualizer) is build in its own directory (`~tmp/problemname/submissions/accepted/submission/`, from here on `~build`). Compilation is only done if either the sources or the compile command changed. 
+Each program (submission/validator/generator/visualizer) is build in its own directory (`~tmp/problemname/submissions/accepted/submission/`, from here on `~build`). Compilation is only done if either the sources or the compile command changed.
 
 1. Detect the program language. Language detection rules are described in [languages.yaml](../config/languages.yaml).
 1. Symlink all input files to `~build`. This can be either the single submission file, or all files/directories directly contained in the submission.

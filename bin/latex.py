@@ -41,16 +41,19 @@ def tex_escape(text):
     }
     regex = re.compile(
         '|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key=lambda item: -len(item))),
-        re.MULTILINE)
+        re.MULTILINE,
+    )
 
     # Remove the trailing newline because it will be replaced by \\newline\n
     has_newline = len(text) > 0 and text[-1] == '\n'
-    if has_newline: text = text[:-1]
+    if has_newline:
+        text = text[:-1]
     text = regex.sub(lambda match: conv[match.group()], text)
     # Escape leading spaces separately
     regex = re.compile('^ ')
     text = regex.sub('\\\\phantom{.}', text)
-    if has_newline: text += '\n'
+    if has_newline:
+        text += '\n'
     return text
 
 
@@ -87,7 +90,8 @@ def create_samples_file(problem):
                 if line[0] == last:
                     cur += line[1:] + '\n'
                 else:
-                    if cur: flush()
+                    if cur:
+                        flush()
                     cur = line[1:] + '\n'
                     last = line[0]
             flush()
@@ -129,7 +133,8 @@ def get_environment():
     paths = [
         Path.cwd(),
         Path.cwd() / 'solve_stats',
-        Path.cwd() / 'solve_stats/activity', config.tools_root / 'latex'
+        Path.cwd() / 'solve_stats/activity',
+        config.tools_root / 'latex',
     ]
     texinputs = ''
     for p in paths:
@@ -144,8 +149,11 @@ def build_latex_pdf(builddir, tex_path, problem_path=None):
     env = get_environment()
 
     latexmk_command = [
-        'latexmk', '-cd', '-g', '-pdf',
-        '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error'
+        'latexmk',
+        '-cd',
+        '-g',
+        '-pdf',
+        '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error',
     ]
     if getattr(config.args, 'watch', False):
         latexmk_command.append("-pvc")
@@ -192,14 +200,17 @@ def build_problem_pdf(problem, solutions=False):
     builddir = problem.tmpdir
 
     util.copy_and_substitute(
-        config.tools_root / 'latex' / main_file, builddir / main_file, {
+        config.tools_root / 'latex' / main_file,
+        builddir / main_file,
+        {
             'problemlabel': problem.label,
             'problemyamlname': problem.settings.name.replace('_', ' '),
             'problemauthor': problem.settings.author,
             'timelimit': get_tl(problem.settings),
             'problemdir': problem.path.absolute().as_posix(),
             'builddir': problem.tmpdir.as_posix(),
-        })
+        },
+    )
 
     return build_latex_pdf(builddir, builddir / main_file, problem.path)
 
@@ -208,7 +219,8 @@ def find_logo():
     for directory in ["", "../"]:
         for extension in ["pdf", "png", "jpg"]:
             logo = Path(directory + 'logo.' + extension)
-            if logo.exists(): return logo
+            if logo.exists():
+                return logo
     return config.tools_root / 'latex/images/logo-not-found.pdf'
 
 
@@ -232,12 +244,14 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     }
     config_data = util.read_yaml(Path('contest.yaml'))
     for x in default_config_data:
-        if x not in config_data: config_data[x] = default_config_data[x]
+        if x not in config_data:
+            config_data[x] = default_config_data[x]
     config_data['testsession'] = '\\testsession' if config_data.get('testsession') else ''
     config_data['logofile'] = find_logo().as_posix()
 
-    util.copy_and_substitute(config.tools_root / 'latex/contest-data.tex',
-                             builddir / 'contest_data.tex', config_data)
+    util.copy_and_substitute(
+        config.tools_root / 'latex/contest-data.tex', builddir / 'contest_data.tex', config_data
+    )
 
     problems_data = ''
 
@@ -254,14 +268,16 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
             prepare_problem(problem)
 
         problems_data += util.substitute(
-            per_problem_data, {
+            per_problem_data,
+            {
                 'problemlabel': problem.label,
                 'problemyamlname': problem.settings.name.replace('_', ' '),
                 'problemauthor': problem.settings.author,
                 'timelimit': get_tl(problem.settings),
                 'problemdir': problem.path.absolute().as_posix(),
                 'builddir': problem.tmpdir.as_posix(),
-            })
+            },
+        )
 
     if solutions:
         # include a statistics slide in the solutions PDF
