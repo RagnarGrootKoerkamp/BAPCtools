@@ -48,7 +48,10 @@ class Testcase:
                 pass
 
         # Get the testdata.yaml content for this testcase.
-        self.testdata_yaml = problem.get_testdata_yaml(self.in_path)
+        # Read using the short_path instead of the in_path, because during
+        # generate the testcase will live in a temporary directory, where
+        # testdata.yaml doesn't exist.
+        self.testdata_yaml = problem.get_testdata_yaml(self.problem.path / 'data' / self.short_path)
 
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
