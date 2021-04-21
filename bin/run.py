@@ -136,21 +136,17 @@ class Testcase:
 
             # Move testcase to destination directory if specified.
             if hasattr(config.args, 'move_to') and config.args.move_to:
-                infile = testcase.in_path
-                targetdir = problem / config.args.move_to
+                infile = self.in_path
+                targetdir = self.problem.path / config.args.move_to
                 targetdir.mkdir(parents=True, exist_ok=True)
                 intarget = targetdir / infile.name
                 infile.rename(intarget)
                 bar.log('Moved to ' + print_name(intarget))
-                ansfile = testcase.ans_path
+                ansfile = self.ans_path
                 if ansfile.is_file():
-                    if validator_type == 'input_format':
-                        ansfile.unlink()
-                        bar.log('Deleted ' + print_name(ansfile))
-                    if validator_type == 'output_format':
-                        anstarget = intarget.with_suffix('.ans')
-                        ansfile.rename(anstarget)
-                        bar.log('Moved to ' + print_name(anstarget))
+                    anstarget = intarget.with_suffix('.ans')
+                    ansfile.rename(anstarget)
+                    bar.log('Moved to ' + print_name(anstarget))
 
             # Remove testcase if specified.
             elif (
@@ -159,10 +155,10 @@ class Testcase:
                 and config.args.remove
             ):
                 bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
-                if testcase.in_path.exists():
-                    testcase.in_path.unlink()
-                if testcase.ans_path.exists():
-                    testcase.ans_path.unlink()
+                if self.in_path.exists():
+                    self.in_path.unlink()
+                if self.ans_path.exists():
+                    self.ans_path.unlink()
 
             break
 
