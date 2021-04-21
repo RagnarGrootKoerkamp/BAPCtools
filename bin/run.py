@@ -246,7 +246,6 @@ class Run:
         last_result = False
         for output_validator in output_validators:
             flags = self.testcase.testdata_yaml_validator_flags(validator_type, output_validator)
-            debug(output_validator.path, flags)
             if flags is False:
                 continue
 
