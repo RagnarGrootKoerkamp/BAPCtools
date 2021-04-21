@@ -36,6 +36,8 @@ class Problem:
         self._programs = dict()
         self._program_callbacks = dict()
         self._rules_cache = dict()
+        # Dictionary from path to parsed file contents.
+        self._testdata_yamls = dict()
 
         # The label for the problem: A, B, A1, A2, X, ...
         if label is None:
@@ -104,6 +106,23 @@ class Problem:
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
 
         self.interactive = self.settings.validation == 'custom interactive'
+
+    # Walk up from the in_path directory looking for the first testdata.yaml
+    # file, and return its contents, or None if no testdata.yaml is found.
+    def get_testdata_yaml(p, in_path):
+        for parent in in_path.parents:
+            f = parent / 'testdata.yaml'
+
+            if f.is_file():
+                # Store testdata.yaml files in a cache.
+                if f not in p._testdata_yamls:
+                    p._testdata_yamls[f] = read_yaml(f)
+                return p._testdata_yamls[f]
+
+            # Do not go above the data directory.
+            if parent == p.path / 'data':
+                break
+        return None
 
     def testcases(p, needans=True, only_sample=False, include_bad=False):
         samplesonly = only_sample

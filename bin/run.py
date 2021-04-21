@@ -47,8 +47,42 @@ class Testcase:
                 # The case is a manual cases included from generators/.
                 pass
 
+        # Get the testdata.yaml content for this testcase.
+        self.testdata_yaml = problem.get_testdata_yaml(self.in_path)
+
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
+
+    # Return the flags specified in testdata.yaml for the given validator,
+    # None if no flags were found, or False if this validator should be skipped.
+    def testdata_yaml_validator_flags(self, validator_type, validator):
+        # Do not use flags when using the default output validator.
+        if self.problem.settings.validation == 'default' and validator_type == 'output':
+            return None
+
+        if self.testdata_yaml is None:
+            return None
+        key = (
+            'input_validator_flags'
+            if validator_type == 'input_format'
+            else 'output_validator_flags'
+        )
+        if key not in self.testdata_yaml:
+            return None
+        data = self.testdata_yaml[key]
+        if isinstance(data, str):
+            data = {'name': data}
+        if isinstance(data, dict):
+            data = [data]
+        for d in data:
+            if d['name'] == validator.path.name:
+                if 'flags' in d:
+                    # Split the string into a list of arguments.
+                    return d['flags'].split()
+                return None
+
+        # Configuration was found but this validator was not listed.
+        return False
 
     # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
     def validate_format(self, validator_type, *, bar, constraints=None):
@@ -63,7 +97,11 @@ class Testcase:
             return True
 
         for validator in validators:
-            ret = validator.run(self, constraints=None if bad_testcase else constraints)
+            flags = self.testdata_yaml_validator_flags(validator_type, validator)
+            if flags is False:
+                continue
+
+            ret = validator.run(self, constraints=None if bad_testcase else constraints, args=flags)
 
             success &= ret.ok is True
             message = ''
@@ -106,17 +144,19 @@ class Testcase:
                 bar.log('Moved to ' + print_name(intarget))
                 ansfile = testcase.ans_path
                 if ansfile.is_file():
-                    if validator_type == 'input':
+                    if validator_type == 'input_format':
                         ansfile.unlink()
                         bar.log('Deleted ' + print_name(ansfile))
-                    if validator_type == 'output':
+                    if validator_type == 'output_format':
                         anstarget = intarget.with_suffix('.ans')
                         ansfile.rename(anstarget)
                         bar.log('Moved to ' + print_name(anstarget))
 
             # Remove testcase if specified.
             elif (
-                validator_type == 'input' and hasattr(config.args, 'remove') and config.args.remove
+                validator_type == 'input_format'
+                and hasattr(config.args, 'remove')
+                and config.args.remove
             ):
                 bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
                 if testcase.in_path.exists():
@@ -172,15 +212,20 @@ class Run:
                 # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
                 duration = result.duration
                 result = self._validate_output()
-                result.duration = duration
-
-                if result.ok is True:
-                    result.verdict = 'ACCEPTED'
-                elif result.ok is False:
-                    result.verdict = 'WRONG_ANSWER'
-                else:
-                    config.n_error += 1
+                if result is False:
+                    error(f'No output validators found for testcase {self.testcase.name}')
+                    result = ExecResult(-1, 0, None, None)
                     result.verdict = 'VALIDATOR_CRASH'
+                else:
+                    result.duration = duration
+
+                    if result.ok is True:
+                        result.verdict = 'ACCEPTED'
+                    elif result.ok is False:
+                        result.verdict = 'WRONG_ANSWER'
+                    else:
+                        config.n_error += 1
+                        result.verdict = 'VALIDATOR_CRASH'
 
             # Delete .out files larger than 1MB.
             if (
@@ -194,13 +239,19 @@ class Run:
         return result
 
     def _validate_output(self):
-        output_validators = self.problem.validators('output')
+        validator_type = 'output'
+        output_validators = self.problem.validators(validator_type)
         if output_validators is False:
             return False
 
-        last_result = None
+        last_result = False
         for output_validator in output_validators:
-            ret = output_validator.run(self.testcase, self)
+            flags = self.testcase.testdata_yaml_validator_flags(validator_type, output_validator)
+            debug(output_validator.path, flags)
+            if flags is False:
+                continue
+
+            ret = output_validator.run(self.testcase, self, args=flags)
 
             judgemessage = self.feedbackdir / 'judgemessage.txt'
             judgeerror = self.feedbackdir / 'judgeerror.txt'
