@@ -71,8 +71,9 @@ class InputValidator(Validator):
     subdir = 'input_validators'
 
     # 'constraints': An optional dictionary mapping file locations to extremal values seen so far.
+    # `args`: Optional list of additional arguments to pass. Used from testdata.yaml configuration.
     # Return ExecResult
-    def run(self, testcase, constraints=None):
+    def run(self, testcase, constraints=None, args=None):
         cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
         cwd.mkdir(parents=True, exist_ok=True)
 
@@ -86,6 +87,10 @@ class InputValidator(Validator):
             if constraints_path.is_file():
                 constraints_path.unlink()
             run_command += ['--constraints_file', constraints_path]
+
+        if args is not None:
+            assert isinstance(args, list)
+            run_command += args
 
         with testcase.in_path.open() as in_file:
             ret = exec_command(
@@ -112,7 +117,7 @@ class OutputValidator(Validator):
 
     # When run is None, validate the testcase. Otherwise, validate the output of the given run.
     # Return ExecResult
-    def run(self, testcase, run=None, constraints=None):
+    def run(self, testcase, run=None, constraints=None, args=None):
         if run is None:
             # When used as a format validator, act like an InputValidator.
             cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
@@ -134,6 +139,10 @@ class OutputValidator(Validator):
                 if constraints_path.is_file():
                     constraints_path.unlink()
                 run_command += ['--constraints_file', constraints_path]
+
+            if args is not None:
+                assert isinstance(args, list)
+                run_command += args
 
             with testcase.ans_path.open() as ans_file:
                 ret = exec_command(
@@ -157,7 +166,8 @@ class OutputValidator(Validator):
             return exec_command(
                 self.run_command
                 + [testcase.in_path.resolve(), testcase.ans_path.resolve(), run.feedbackdir]
-                + self.problem.settings.validator_flags,
+                + self.problem.settings.validator_flags
+                + (args if args else []),
                 expect=config.RTV_AC,
                 stdin=out_file,
                 cwd=run.feedbackdir,
