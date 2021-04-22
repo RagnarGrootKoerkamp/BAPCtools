@@ -500,6 +500,12 @@ Run this from one of:
         type=Path,
         help='The testcases to generate, given as directory, .in/.ans file, or base name.',
     )
+    genparser.add_argument(
+        '--default_solution',
+        '-s',
+        type=Path,
+        help='The default solution to use for generating .ans files.',
+    )
 
     # Fuzzer
     # TODO: Also allow specifying a list of submissions?
