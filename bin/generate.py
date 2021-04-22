@@ -707,7 +707,10 @@ class TestcaseRule(Rule):
 class Directory(Rule):
     # Process yaml object for a directory.
     def __init__(self, problem, name: str = None, yaml: dict = None, parent=None):
+        # The root Directory object has name ''. Its parent is a Directory
+        # object with name None that functions as placeholder only.
         if name is None:
+            # Only the root directory has name None.
             self.name = ''
             self.config = Config(problem, Path('/'))
             self.path = Path('')
@@ -847,23 +850,8 @@ class Directory(Rule):
         files = list(dir_path.glob('*'))
         files.sort(key=lambda f: f.with_suffix('') if f.suffix == '.in' else f)
 
-        # Only consider files matching --testcases, if given.
+        # Only consider files matching testcases argument, if given.
         files = list(filter(lambda p: process_testcase(problem, p), files))
-
-        # First do a loop to find untracked manual .in files.
-        for f in files:
-            if f in files_created:
-                continue
-            base = f.with_suffix('')
-            relpath = base.relative_to(problem.path / 'data')
-            if relpath in generator_config.known_cases:
-                continue
-            if f.suffix != '.in':
-                continue
-            t = TestcaseRule(problem, base.name, None, d, tracked=False)
-            assert t.manual_inline
-            d.data.append(t)
-            bar.add_item(t.path)
 
         for f in files:
             if f in files_created:
@@ -1085,6 +1073,8 @@ class GeneratorConfig:
                 d.includes = [Path(include) for include in yaml['include']]
 
             # Parse child directories/testcases.
+            # First loop over explicitly mentioned testcases/directories, and then find remaining on-disk files/dirs.
+            done = set()
             if 'data' in yaml and yaml['data']:
                 number_width = len(str(len(yaml['data'])))
                 next_number = 1
@@ -1112,9 +1102,33 @@ class GeneratorConfig:
                                 fatal(
                                     f'Unnumbered testcases must not have an empty key: {Path("data")/d.path/child_name}/\'\''
                                 )
+                        done.add(child_name)
                         c = parse(child_name, child_yaml, d)
                         if c is not None:
                             d.data.append(c)
+
+            for f in (self.problem.path / 'data' / d.path).iterdir():
+                # f must either be a directory or a .in file.
+                if not (f.is_dir() or f.suffix == '.in'):
+                    continue
+
+                # Testcases are always passed as name without suffix.
+                if not f.is_dir():
+                    f = f.with_suffix('')
+
+                # Skip already processed cases.
+                if f.name in done:
+                    continue
+
+                # Generate stub yaml so we can call `parse` recursively.
+                child_yaml = None
+                if f.is_dir():
+                    # Only set the one required key to interpret this as directory.
+                    child_yaml = {'type': 'directory'}
+
+                c = parse(f.name, child_yaml, d)
+                if c is not None:
+                    d.data.append(c)
 
             return d
 
