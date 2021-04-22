@@ -1,5 +1,4 @@
 import hashlib
-import random
 import re
 import shutil
 import yaml as yamllib
@@ -262,6 +261,10 @@ KNOWN_ROOT_KEYS = ['generators', 'parallel', 'gitignore_generated']
 # - config.random_salt
 class Config:
     # Used at each directory or testcase level.
+
+    def default_solution(p):
+        return SolutionInvocation(p, p.default_solution_path())
+
     def parse_solution(p, x, path):
         check_type('Solution', x, [None, str], path)
         if x is None:
@@ -282,13 +285,13 @@ class Config:
 
     INHERITABLE_KEYS = [
         # True: use an AC submission by default when the solution: key is not present.
-        ('solution', True, parse_solution),
-        ('visualizer', None, parse_visualizer),
-        ('random_salt', '', parse_random_salt),
+        ('solution', default_solution, parse_solution),
+        ('visualizer', lambda p: None, parse_visualizer),
+        ('random_salt', lambda p: '', parse_random_salt),
         # Non-portable keys only used by BAPCtools:
         # The number of retries to run a generator when it fails, each time incrementing the {seed}
         # by 1.
-        ('retries', 1, lambda p, x, path: int(x)),
+        ('retries', lambda p: 1, lambda p, x, path: int(x)),
     ]
 
     def __init__(self, problem, path, yaml=None, parent_config=None):
@@ -302,7 +305,7 @@ class Config:
             elif parent_config is not None:
                 setattr(self, key, getattr(parent_config, key))
             else:
-                setattr(self, key, default)
+                setattr(self, key, default(problem))
 
 
 class Rule:
@@ -998,9 +1001,9 @@ class GeneratorConfig:
     # Only used at the root directory level.
     ROOT_KEYS = [
         ('generators', [], parse_generators),
-        # Non-standard key. When set to True, run will be parallelized.
+        # Non-standard key. When set to True (the default), run will be parallelized.
         ('parallel', True, lambda x: x is True),
-        # Non-standard key. When set to True, all generated testcases will be .gitignored in data/.gitignore.
+        # Non-standard key. When set to True, all generated testcases will be .gitignored from data/.gitignore.
         ('gitignore_generated', False, lambda x: x is True),
     ]
 
@@ -1010,12 +1013,13 @@ class GeneratorConfig:
         problem._rules_cache = dict()
         yaml_path = self.problem.path / 'generators/generators.yaml'
         self.ok = True
-        if not yaml_path.is_file():
-            log('Did not find generators/generators.yaml')
-            self.ok = False
-            return
 
-        yaml = read_yaml(yaml_path)
+        if yaml_path.is_file():
+            yaml = read_yaml(yaml_path)
+        else:
+            yaml = None
+            log('Did not find generators/generators.yaml')
+
         self.parse_yaml(yaml)
 
     def parse_yaml(self, yaml):
@@ -1116,23 +1120,6 @@ class GeneratorConfig:
 
         self.root_dir = parse('', yaml, Directory(self.problem))
 
-    # Return submission
-    # This function will always raise a warning.
-    # Which submission is used is implementation defined.
-    def get_default_solution(self):
-        # Use one of the accepted submissions.
-        submissions = list(glob(self.problem.path, 'submissions/accepted/*'))
-        if len(submissions) == 0:
-            warn(f'No solution specified and no accepted submissions found.')
-            return False
-
-        # Note: we explicitly random shuffle the submission that's used to generate answers to
-        # encourage setting it in generators.yaml.
-        submission = random.choice(submissions)
-        submission_short_path = submission.relative_to(self.problem.path / 'submissions')
-        warn(f'No solution specified. Using randomly chosen {submission_short_path} instead.')
-        return Path('/') / submission.relative_to(self.problem.path)
-
     def build(self, build_visualizers=True):
         generators_used = set()
         solutions_used = set()
@@ -1148,18 +1135,7 @@ class GeneratorConfig:
                 if not t.manual:
                     generators_used.add(t.generator.program_path)
             if t.config.solution:
-                if t.config.solution is True:
-                    if default_solution is None:
-                        default_solution_path = self.get_default_solution()
-                        if default_solution_path:
-                            default_solution = SolutionInvocation(
-                                self.problem, default_solution_path
-                            )
-                        else:
-                            default_solution = False
-                    t.config.solution = default_solution
-                if t.config.solution:
-                    solutions_used.add(t.config.solution.program_path)
+                solutions_used.add(t.config.solution.program_path)
             if build_visualizers and t.config.visualizer:
                 visualizers_used.add(t.config.visualizer.program_path)
 

@@ -2,6 +2,7 @@ import re
 import glob
 import argparse
 import hashlib
+import random
 import shlex
 import sys
 
@@ -572,3 +573,20 @@ class Problem:
                 success = False
 
         return success
+
+    # Return absolute path to default submission, starting from the problem root.
+    # This function will always raise a warning.
+    # Which submission is used is implementation defined.
+    def default_solution_path(problem):
+        # Use one of the accepted submissions.
+        submissions = list(glob(problem.path, 'submissions/accepted/*'))
+        if len(submissions) == 0:
+            warn(f'No solution specified and no accepted submissions found.')
+            return False
+
+        # Note: we explicitly random shuffle the submission that's used to generate answers to
+        # encourage setting it in generators.yaml.
+        submission = random.choice(submissions)
+        submission_short_path = submission.relative_to(problem.path / 'submissions')
+        warn(f'No solution specified. Using randomly chosen {submission_short_path} instead.')
+        return Path('/') / submission.relative_to(problem.path)
