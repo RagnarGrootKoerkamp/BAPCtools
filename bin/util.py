@@ -285,9 +285,9 @@ class ProgressBar:
         if config.args.verbose:
             self.log(message, data)
 
-    def warn(self, message='', data=''):
+    def warn(self, message='', data='', needs_lock=True):
         config.n_warn += 1
-        self.log(message, data, Fore.YELLOW)
+        self.log(message, data, Fore.YELLOW, needs_lock=needs_lock)
 
     # Error removes the current item from the in_progress set.
     def error(self, message='', data='', needs_lock=True):
@@ -323,7 +323,7 @@ class ProgressBar:
 
     # Log an intermediate line if it's an error or we're in verbose mode.
     # Return True when something was printed
-    def part_done(self, success=True, message='', data=''):
+    def part_done(self, success=True, message='', data='', warn_instead_of_error=False):
         if not success:
             config.n_error += 1
         if config.args.verbose or not success:
@@ -331,7 +331,10 @@ class ProgressBar:
             if success:
                 self.log(message, data, needs_lock=False)
             else:
-                self.error(message, data, needs_lock=False)
+                if warn_instead_of_error:
+                    self.warn(message, data, needs_lock=False)
+                else:
+                    self.error(message, data, needs_lock=False)
             if self.parent:
                 self.parent._resume()
             self.lock.release()

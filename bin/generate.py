@@ -553,22 +553,31 @@ class TestcaseRule(Rule):
         testcase = run.Testcase(problem, infile, short_path=Path(t.path.parent / (t.name + '.in')))
 
         # Validate the manual or generated .in.
-        if not testcase.validate_format('input_format', bar=bar, constraints=None):
-            return
+        ignore_validators = getattr(config.args, 'ignore_validators', False)
+
+        if not testcase.validate_format(
+            'input_format', bar=bar, constraints=None, warn_instead_of_error=ignore_validators
+        ):
+            if not ignore_validators:
+                return
 
         # Generate .ans and .interaction if needed.
         # TODO: Disable this with a flag.
         if not problem.interactive:
-            if t.config.solution and (not testcase.ans_path.is_file() or not t.manual_inline):
+            if t.config.solution and not (t.manual_inline and testcase.ans_path.is_file()):
                 if testcase.ans_path.is_file():
                     testcase.ans_path.unlink()
-                # Run the solution and validate the generated .ans.
+                # Run the solution
                 if t.config.solution.run(bar, cwd, t.name).ok is not True:
                     return
 
+            # Validate the ans file.
             if ansfile.is_file():
-                if not testcase.validate_format('output_format', bar=bar):
-                    return
+                if not testcase.validate_format(
+                    'output_format', bar=bar, warn_instead_of_error=ignore_validators
+                ):
+                    if not ignore_validators:
+                        return
             else:
                 if not target_ansfile.is_file():
                     bar.warn(f'{ansfile.name} does not exist and was not generated.')
