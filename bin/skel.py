@@ -116,7 +116,7 @@ def new_problem():
         validation = _ask_variable('validation (default/custom/custom interactive)', 'default')
 
     # Read settings from the contest-level yaml file.
-    variables = read_yaml(Path('contest.yaml'))
+    variables = read_yaml_settings(Path('contest.yaml'))
 
     for k, v in {
         'problemname': problemname,

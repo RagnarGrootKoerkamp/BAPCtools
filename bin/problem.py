@@ -63,7 +63,7 @@ class Problem:
         }
 
         # parse problem.yaml
-        yamldata = read_yaml(self.path / 'problem.yaml')
+        yamldata = read_yaml_settings(self.path / 'problem.yaml')
         if yamldata:
             for k, v in yamldata.items():
                 self.settings[k] = v

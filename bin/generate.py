@@ -511,7 +511,7 @@ class TestcaseRule(Rule):
             if not meta_path.is_file():
                 return False
 
-            meta_yaml = parse_yaml(meta_path.read_text())
+            meta_yaml = read_yaml(meta_path)
             last_generate = meta_path.stat().st_mtime
             return last_generate >= last_change and meta_yaml == t.cache_data
 
@@ -1015,7 +1015,7 @@ class GeneratorConfig:
             self.ok = False
             return
 
-        yaml = parse_yaml(yaml_path.read_text())
+        yaml = read_yaml(yaml_path)
         self.parse_yaml(yaml)
 
     def parse_yaml(self, yaml):

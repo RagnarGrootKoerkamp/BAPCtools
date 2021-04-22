@@ -378,12 +378,21 @@ def print_name(path, keep_type=False):
     return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
-def parse_yaml(data):
+def parse_yaml(data, path=None):
+    # First try parsing with ruamel.yaml.
+    # If not found, use the normal yaml lib instead.
     try:
         import ruamel.yaml
 
-        yaml = ruamel.yaml.YAML(typ='safe')
-        return yaml.load(data)
+        try:
+            yaml = ruamel.yaml.YAML(typ='safe')
+            return yaml.load(data)
+        except ruamel.yaml.constructor.DuplicateKeyError as error:
+            if path is not None:
+                fatal(f'Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}')
+            else:
+                fatal(f'Duplicate key in yaml object!\n{str(error)}')
+
     except ModuleNotFoundError:
         try:
             import yaml
@@ -394,16 +403,21 @@ def parse_yaml(data):
 
 
 def read_yaml(path):
+    assert path.is_file()
+    return parse_yaml(path.read_text(), path=path)
+
+
+# Wrapper around read_yaml that returns an empty dictionary by default.
+def read_yaml_settings(path):
     settings = {}
     if path.is_file():
-        with path.open() as yamlfile:
-            config = parse_yaml(yamlfile)
-            if config is None:
-                return None
-            if isinstance(config, list):
-                return config
-            for key, value in config.items():
-                settings[key] = '' if value is None else value
+        config = read_yaml(path)
+        if config is None:
+            return None
+        if isinstance(config, list):
+            return config
+        for key, value in config.items():
+            settings[key] = '' if value is None else value
     return settings
 
 

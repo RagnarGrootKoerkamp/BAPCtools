@@ -85,7 +85,7 @@ def contest_yaml():
             break
     if path is None:
         return None
-    _contest_yaml = read_yaml(path)
+    _contest_yaml = read_yaml_settings(path)
     return _contest_yaml
 
 

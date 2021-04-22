@@ -242,7 +242,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
         'testsession': '',
         'blank_page_text': '',
     }
-    config_data = util.read_yaml(Path('contest.yaml'))
+    config_data = util.read_yaml_settings(Path('contest.yaml'))
     for x in default_config_data:
         if x not in config_data:
             config_data[x] = default_config_data[x]
