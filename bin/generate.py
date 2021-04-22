@@ -704,20 +704,18 @@ class TestcaseRule(Rule):
         bar.done()
 
 
+# Helper that has the required keys needed from a parent directory.
+class RootDirectory:
+    path = Path('')
+    config = None
+    numbered = False
+
+
 class Directory(Rule):
     # Process yaml object for a directory.
-    def __init__(self, problem, name: str = None, yaml: dict = None, parent=None):
-        # The root Directory object has name ''. Its parent is a Directory
-        # object with name None that functions as placeholder only.
-        if name is None:
-            # Only the root directory has name None.
-            self.name = ''
-            self.config = Config(problem, Path('/'))
-            self.path = Path('')
-            self.numbered = False
-            return
-
+    def __init__(self, problem, name: str, yaml: dict = None, parent=None):
         assert is_directory(yaml)
+        # The root Directory object has name ''.
         if name != '':
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
                 fatal(f'Directory "{name}" does not have a valid name.')
@@ -1107,44 +1105,43 @@ class GeneratorConfig:
                         if c is not None:
                             d.data.append(c)
 
-            for f in (self.problem.path / 'data' / d.path).iterdir():
-                # f must either be a directory or a .in file.
-                if not (f.is_dir() or f.suffix == '.in'):
-                    continue
+            dir_path = self.problem.path / 'data' / d.path
+            if dir_path.is_dir():
+                for f in dir_path.iterdir():
+                    # f must either be a directory or a .in file.
+                    if not (f.is_dir() or f.suffix == '.in'):
+                        continue
 
-                # Testcases are always passed as name without suffix.
-                if not f.is_dir():
-                    f = f.with_suffix('')
+                    # Testcases are always passed as name without suffix.
+                    if not f.is_dir():
+                        f = f.with_suffix('')
 
-                # Skip already processed cases.
-                if f.name in done:
-                    continue
+                    # Skip already processed cases.
+                    if f.name in done:
+                        continue
 
-                # Generate stub yaml so we can call `parse` recursively.
-                child_yaml = None
-                if f.is_dir():
-                    # Only set the one required key to interpret this as directory.
-                    child_yaml = {'type': 'directory'}
+                    # Generate stub yaml so we can call `parse` recursively.
+                    child_yaml = None
+                    if f.is_dir():
+                        # Only set the one required key to interpret this as directory.
+                        child_yaml = {'type': 'directory'}
 
-                c = parse(f.name, child_yaml, d)
-                if c is not None:
-                    d.data.append(c)
+                    c = parse(f.name, child_yaml, d)
+                    if c is not None:
+                        d.data.append(c)
 
             return d
 
-        self.root_dir = parse('', yaml, Directory(self.problem))
+        self.root_dir = parse('', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
         generators_used = set()
         solutions_used = set()
         visualizers_used = set()
 
-        default_solution = None
-
         # Collect all programs that need building.
         # Also, convert the default submission into an actual Invocation.
         def collect_programs(t):
-            nonlocal default_solution
             if isinstance(t, TestcaseRule):
                 if not t.manual:
                     generators_used.add(t.generator.program_path)
