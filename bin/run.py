@@ -88,7 +88,9 @@ class Testcase:
         return False
 
     # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
-    def validate_format(self, validator_type, *, bar, constraints=None):
+    def validate_format(
+        self, validator_type, *, bar, constraints=None, warn_instead_of_error=False
+    ):
         assert validator_type in ['input_format', 'output_format']
 
         bad_testcase = self.bad_input if validator_type == 'input_format' else self.bad_output
@@ -132,7 +134,9 @@ class Testcase:
             else:
                 data = ret.err
 
-            bar.part_done(ret.ok is True, message, data=data)
+            bar.part_done(
+                ret.ok is True, message, data=data, warn_instead_of_error=warn_instead_of_error
+            )
 
             if ret.ok is True:
                 continue
