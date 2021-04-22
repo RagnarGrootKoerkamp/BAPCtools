@@ -81,7 +81,6 @@ and more information regarding the implementation is at [doc/implementation_note
 
 Without arguments, the `run` command runs all submissions against all testcases.
 Specify one or more submissions and one or more testcases to only run the given submissions against the given testcases.
-okjjkjjk
 
 Before running the given submissions, this command first makes sure that all generated testcases are up to date (in case `generators/generators.yaml` was found).
 
