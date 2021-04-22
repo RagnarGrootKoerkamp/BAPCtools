@@ -294,7 +294,7 @@ class Problem:
             if validator_type == 'output_format':
                 log(f'No {validator_type} validators found.')
             else:
-                error(f'No {validator_type} validators found, at least one is required.')
+                warn(f'No {validator_type} validators found.')
                 problem._validators[key] = False
                 return False
         if validator_type == 'output' and problem.interactive and len(paths) > 1:
