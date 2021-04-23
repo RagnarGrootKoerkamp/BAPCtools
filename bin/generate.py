@@ -239,6 +239,24 @@ class SolutionInvocation(Invocation):
         return True
 
 
+# A wrapper that lazily initializes the underlying SolutionInvocation on first
+# usage.  This is to prevent instantiating the default solution when it's not
+# actually needed.
+class DefaultSolutionInvocation(SolutionInvocation):
+    def __init__(self):
+        self.initialized = False
+
+    def init(self, problem):
+        if self.initialized:
+            return
+        super().__init__(problem, problem.default_solution_path())
+        self.initialized = True
+
+    # Fix the cache_command to prevent regeneration from the random default solution.
+    def cache_command(self, seed=None):
+        return 'default_solution'
+
+
 KNOWN_TESTCASE_KEYS = ['type', 'input', 'solution', 'visualizer', 'random_salt', 'retries']
 RESERVED_TESTCASE_KEYS = ['data', 'testdata.yaml', 'include']
 KNOWN_DIRECTORY_KEYS = [
@@ -262,9 +280,6 @@ KNOWN_ROOT_KEYS = ['generators', 'parallel', 'gitignore_generated']
 class Config:
     # Used at each directory or testcase level.
 
-    def default_solution(p):
-        return SolutionInvocation(p, p.default_solution_path())
-
     def parse_solution(p, x, path):
         check_type('Solution', x, [None, str], path)
         if x is None:
@@ -285,13 +300,13 @@ class Config:
 
     INHERITABLE_KEYS = [
         # True: use an AC submission by default when the solution: key is not present.
-        ('solution', default_solution, parse_solution),
-        ('visualizer', lambda p: None, parse_visualizer),
-        ('random_salt', lambda p: '', parse_random_salt),
+        ('solution', DefaultSolutionInvocation(), parse_solution),
+        ('visualizer', None, parse_visualizer),
+        ('random_salt', '', parse_random_salt),
         # Non-portable keys only used by BAPCtools:
         # The number of retries to run a generator when it fails, each time incrementing the {seed}
         # by 1.
-        ('retries', lambda p: 1, lambda p, x, path: int(x)),
+        ('retries', 1, lambda p, x, path: int(x)),
     ]
 
     def __init__(self, problem, path, yaml=None, parent_config=None):
@@ -305,7 +320,7 @@ class Config:
             elif parent_config is not None:
                 setattr(self, key, getattr(parent_config, key))
             else:
-                setattr(self, key, default(problem))
+                setattr(self, key, default)
 
 
 class Rule:
@@ -852,6 +867,7 @@ class Directory(Rule):
                     ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
                     files_created.append(dir_path / ext_file.name)
 
+        # TODO: Remove all of the below after the other TODOs have moved.
         # Add hardcoded manual cases not mentioned in generators.yaml, and warn for or delete other spurious files.
         # We sort files with .in preceding other extensions.
         files = list(dir_path.glob('*'))
@@ -888,6 +904,8 @@ class Directory(Rule):
 
                     ft = 'directory' if f.is_dir() else 'file'
                     if f.is_dir():
+                        # TODO: This can now move into GeneratorConfig.parse.
+                        # TODO: These logs should not show when generators.yaml does not exist.
                         if config.args.add_manual:
                             bar.log(f'Adding directory {name} to generators.yaml')
                             generator_config.untracked_directory.add(relpath)
@@ -899,6 +917,7 @@ class Directory(Rule):
                         bar.debug(f'Untracked {ft} {name}. Delete with clean -f.')
                 continue
 
+            # TODO: This can now move into GeneratorConfig.parse.
             generator_config.known_cases.add(relpath)
             if config.args.add_manual:
                 bar.log(f'Adding {relpath.name}.in to generators.yaml')
@@ -1155,6 +1174,9 @@ class GeneratorConfig:
                 if not t.manual:
                     generators_used.add(t.generator.program_path)
             if t.config.solution:
+                # Initialize the default solution if needed.
+                if isinstance(t.config.solution, DefaultSolutionInvocation):
+                    t.config.solution.init(self.problem)
                 solutions_used.add(t.config.solution.program_path)
             if build_visualizers and t.config.visualizer:
                 visualizers_used.add(t.config.visualizer.program_path)
