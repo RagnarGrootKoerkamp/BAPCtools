@@ -1032,7 +1032,8 @@ class GeneratorConfig:
             yaml = read_yaml(yaml_path)
         else:
             yaml = None
-            log('Did not find generators/generators.yaml')
+            if config.args.action == 'generate':
+                log('Did not find generators/generators.yaml')
 
         self.parse_yaml(yaml)
 
