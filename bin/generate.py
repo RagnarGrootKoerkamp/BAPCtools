@@ -339,7 +339,7 @@ class Rule:
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, name: str, yaml, parent, *, tracked=True):
+    def __init__(self, problem, name: str, yaml, parent):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
@@ -349,7 +349,6 @@ class TestcaseRule(Rule):
 
         self.manual = False
         self.manual_inline = False
-        self.tracked = tracked
         self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == 'sample'
 
         if isinstance(yaml, str) and len(yaml) == 0:
@@ -417,7 +416,7 @@ class TestcaseRule(Rule):
             bar.done(False, f'Source for manual case not found: {t.source}')
             return
 
-        if t.manual and t.manual_inline and t.tracked:
+        if t.manual_inline:
             if config.args.move_manual:
                 reltarget = config.args.move_manual.relative_to((problem.path).resolve())
                 bar.log(f'Moving {t.path} to {reltarget}.')
