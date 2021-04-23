@@ -594,15 +594,18 @@ class Problem:
             solution = random.choice(solutions)
         solution_short_path = solution.relative_to(problem.path / 'submissions')
 
-        if fixed:
-            log(
-                f'''Prefer setting the solution in generators/generators.yaml:
-  > solution: /{solution.relative_to(problem.path)}'''
-            )
-        else:
-            warn(
-                f'''No solution specified. Using randomly chosen {solution_short_path} instead.
-  Use `generate --default_solution` to use a fixed solution.'''
-            )
+        # Only show these warning when generate was called.
+        # For normal 'run' output this isn't important enough.
+        if config.args.action == 'generate':
+            if fixed:
+                log(
+                    f'''Prefer setting the solution in generators/generators.yaml:
+      > solution: /{solution.relative_to(problem.path)}'''
+                )
+            else:
+                warn(
+                    f'''No solution specified. Using randomly chosen {solution_short_path} instead.
+      Use `generate --default_solution` to use a fixed solution.'''
+                )
 
         return Path('/') / solution.relative_to(problem.path)
