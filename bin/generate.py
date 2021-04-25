@@ -994,6 +994,11 @@ class GeneratorConfig:
 
         # Main recursive parsing function.
         def parse(name, yaml, parent, listed=True):
+
+            # Skip unlisted `data/bad` directory: we should not generate .ans files there.
+            if name == 'bad' and parent.path == Path('.') and listed is False:
+                return None
+
             check_type('Testcase/directory', yaml, [None, str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
                 fatal(
