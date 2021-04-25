@@ -243,14 +243,8 @@ class SolutionInvocation(Invocation):
 # usage.  This is to prevent instantiating the default solution when it's not
 # actually needed.
 class DefaultSolutionInvocation(SolutionInvocation):
-    def __init__(self):
-        self.initialized = False
-
-    def init(self, problem):
-        if self.initialized:
-            return
+    def __init__(self, problem):
         super().__init__(problem, problem.default_solution_path())
-        self.initialized = True
 
     # Fix the cache_command to prevent regeneration from the random default solution.
     def cache_command(self, seed=None):
@@ -300,7 +294,7 @@ class Config:
 
     INHERITABLE_KEYS = [
         # True: use an AC submission by default when the solution: key is not present.
-        ('solution', DefaultSolutionInvocation(), parse_solution),
+        ('solution', True, parse_solution),
         ('visualizer', None, parse_visualizer),
         ('random_salt', '', parse_random_salt),
         # Non-portable keys only used by BAPCtools:
@@ -1113,14 +1107,19 @@ class GeneratorConfig:
 
         # Collect all programs that need building.
         # Also, convert the default submission into an actual Invocation.
+        default_solution = None
+
         def collect_programs(t):
             if isinstance(t, TestcaseRule):
                 if not t.manual:
                     generators_used.add(t.generator.program_path)
             if t.config.solution:
                 # Initialize the default solution if needed.
-                if isinstance(t.config.solution, DefaultSolutionInvocation):
-                    t.config.solution.init(self.problem)
+                if t.config.solution is True:
+                    nonlocal default_solution
+                    if default_solution is None:
+                        default_solution = DefaultSolutionInvocation(self.problem)
+                    t.config.solution = default_solution
                 solutions_used.add(t.config.solution.program_path)
             if build_visualizers and t.config.visualizer:
                 visualizers_used.add(t.config.visualizer.program_path)
