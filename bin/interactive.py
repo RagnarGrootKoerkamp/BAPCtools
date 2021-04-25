@@ -232,9 +232,12 @@ while True:
     submission_time = None
     first = None
 
-    def kill_submission(signal, frame):
+    kill_submission = False
+
+    def kill_submission_handler(signal, frame):
         nonlocal submission_time
-        submission_time = timeout
+        if not kill_submission:
+            submission_time = timeout
         submission.kill()
         try:
             validator.kill()
@@ -245,7 +248,7 @@ while True:
             team_tee.kill()
             val_tee.kill()
 
-    signal.signal(signal.SIGALRM, kill_submission)
+    signal.signal(signal.SIGALRM, kill_submission_handler)
 
     # Raise alarm after timeout reached
     signal.alarm(timeout)
@@ -254,7 +257,11 @@ while True:
     left = 4 if interaction else 2
     first_done = True
     while left > 0:
+        if kill_submission:
+            # Kill the submission asynchronously.
+            signal.setitimer(signal.ITIMER_REAL, 0.001, 0)
         pid, status, rusage = os.wait3(0)
+
         # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
 
@@ -270,7 +277,7 @@ while True:
 
             # Kill the team submission in case we already know it's WA.
             if first_done and validator_status != config.RTV_AC:
-                submission.kill()
+                kill_submission = True
             left -= 1
             first_done = False
             continue
@@ -287,7 +294,7 @@ while True:
                 os.close(team_log_out)
 
             # Possibly already written by the alarm.
-            if not submission_time:
+            if submission_time is None:
                 submission_time = rusage.ru_utime + rusage.ru_stime
             left -= 1
             first_done = False
