@@ -339,7 +339,7 @@ class Rule:
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, name: str, yaml, parent):
+    def __init__(self, problem, name: str, yaml, parent, listed):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
@@ -347,8 +347,12 @@ class TestcaseRule(Rule):
             error(f'Testcase names should not end with \'.in\': {parent.path / name}')
             name = name[:-3]
 
+        # Manual cases are either unlisted .in files, or listed rules ending in .in.
         self.manual = False
+        # Manual
         self.manual_inline = False
+        # Listed cases are mentioned in generators.yaml
+        self.listed = listed
         self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == 'sample'
 
         if isinstance(yaml, str) and len(yaml) == 0:
@@ -397,6 +401,12 @@ class TestcaseRule(Rule):
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
+        # Hints for --add-manual and --move-manual.
+        if not t.listed:
+            bar.debug(f'Track using --add-manual or delete using clean -f.')
+        elif t.manual_inline:
+            bar.debug(f'Use --move-manual to move out of data/.')
+
         # E.g. bapctmp/problem/data/secret/1.in
         cwd = problem.tmpdir / 'data' / t.path
         cwd.mkdir(parents=True, exist_ok=True)
@@ -415,14 +425,6 @@ class TestcaseRule(Rule):
         if t.manual and not (problem.path / t.source).is_file():
             bar.done(False, f'Source for manual case not found: {t.source}')
             return
-
-        if t.manual_inline:
-            if config.args.move_manual:
-                reltarget = config.args.move_manual.relative_to((problem.path).resolve())
-                bar.log(f'Moving {t.path} to {reltarget}.')
-                generator_config.tracked_inline_manual.add(t.path)
-            else:
-                bar.debug(f'Move inline manual case using --move-manual.')
 
         # For each generated .in file, both new and up to date, check that they
         # use a deterministic generator by rerunning the generator with the
@@ -736,7 +738,7 @@ class RootDirectory:
 
 class Directory(Rule):
     # Process yaml object for a directory.
-    def __init__(self, problem, name: str, yaml: dict = None, parent=None):
+    def __init__(self, problem, name: str, yaml: dict = None, parent=None, listed=True):
         assert is_directory(yaml)
         # The root Directory object has name ''.
         if name != '':
@@ -763,6 +765,7 @@ class Directory(Rule):
         else:
             self.testdata_yaml = None
 
+        self.listed = listed
         self.numbered = False
         # These field will be filled by parse().
         self.includes = []
@@ -866,66 +869,6 @@ class Directory(Rule):
                     ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
                     files_created.append(dir_path / ext_file.name)
 
-        # TODO: Remove all of the below after the other TODOs have moved.
-        # Add hardcoded manual cases not mentioned in generators.yaml, and warn for or delete other spurious files.
-        # We sort files with .in preceding other extensions.
-        files = list(dir_path.glob('*'))
-        files.sort(key=lambda f: f.with_suffix('') if f.suffix == '.in' else f)
-
-        # Only consider files matching testcases argument, if given.
-        files = list(filter(lambda p: process_testcase(problem, p), files))
-
-        for f in files:
-            if f in files_created:
-                continue
-            base = f.with_suffix('')
-            relpath = base.relative_to(problem.path / 'data')
-            if relpath in generator_config.known_cases:
-                continue
-            if relpath in generator_config.known_directories:
-                continue
-
-            if f.suffix != '.in':
-                if (
-                    f.suffix in config.KNOWN_DATA_EXTENSIONS
-                    and f.with_suffix('.in') in files_created
-                ):
-                    continue
-
-                if f.with_suffix('.in').is_file():
-                    continue
-
-                if d.path == Path('.') and f.name == 'bad':
-                    continue
-
-                if f.name[0] != '.':
-                    name = f.relative_to(problem.path / 'data')
-
-                    ft = 'directory' if f.is_dir() else 'file'
-                    if f.is_dir():
-                        # TODO: This can now move into GeneratorConfig.parse.
-                        # TODO: These logs should not show when generators.yaml does not exist.
-                        if config.args.add_manual:
-                            bar.log(f'Adding directory {name} to generators.yaml')
-                            generator_config.untracked_directory.add(relpath)
-                        else:
-                            bar.debug(
-                                f'Track {ft} {name} using --add-manual/--move-manual or delete using clean -f.'
-                            )
-                    else:
-                        bar.debug(f'Untracked {ft} {name}. Delete with clean -f.')
-                continue
-
-            # TODO: This can now move into GeneratorConfig.parse.
-            generator_config.known_cases.add(relpath)
-            if config.args.add_manual:
-                bar.log(f'Adding {relpath.name}.in to generators.yaml')
-                generator_config.untracked_inline_manual.add(relpath)
-            else:
-                bar.debug(
-                    f'Track manual case {relpath}.in using --add-manual/--move-manual or delete using clean -f.'
-                )
-
         bar.done()
         return True
 
@@ -977,10 +920,10 @@ class Directory(Rule):
             ft = 'directory' if f.is_dir() else 'file'
 
             if config.args.force:
-                bar.log(f'Deleted untracked {ft}: {relpath}')
+                bar.log(f'Deleted unlisted {ft}: {relpath}')
                 f.unlink()
             else:
-                bar.log(f'Found untracked {ft}. Delete with clean --force: {relpath}')
+                bar.log(f'Found unlisted {ft}. Delete with clean --force: {relpath}')
 
         # Try to remove the directory. Fails if it's not empty.
         try:
@@ -1052,13 +995,11 @@ class GeneratorConfig:
         # A set of paths `secret/testgroup/testcase`, without the '.in'.
         self.known_cases = set()
         # A set of paths `secret/testgroup`.
+        # Used for cleanup.
         self.known_directories = set()
-        self.untracked_inline_manual = set()
-        self.untracked_directory = set()
-        self.tracked_inline_manual = set()
 
         # Main recursive parsing function.
-        def parse(name, yaml, parent):
+        def parse(name, yaml, parent, listed=True):
             check_type('Testcase/directory', yaml, [None, str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
                 fatal(
@@ -1076,14 +1017,14 @@ class GeneratorConfig:
                 ):
                     return None
 
-                t = TestcaseRule(self.problem, name, yaml, parent)
+                t = TestcaseRule(self.problem, name, yaml, parent, listed=listed)
                 assert t.path not in self.known_cases
                 self.known_cases.add(t.path)
                 return t
 
             assert is_directory(yaml)
 
-            d = Directory(self.problem, name, yaml, parent)
+            d = Directory(self.problem, name, yaml, parent, listed=listed)
             assert d.path not in self.known_cases
             self.known_directories.add(d.path)
 
@@ -1129,13 +1070,13 @@ class GeneratorConfig:
                                     f'Unnumbered testcases must not have an empty key: {Path("data")/d.path/child_name}/\'\''
                                 )
                         done.add(child_name)
-                        c = parse(child_name, child_yaml, d)
+                        c = parse(child_name, child_yaml, d, listed=listed)
                         if c is not None:
                             d.data.append(c)
 
             dir_path = self.problem.path / 'data' / d.path
             if dir_path.is_dir():
-                for f in dir_path.iterdir():
+                for f in sorted(dir_path.iterdir()):
                     # f must either be a directory or a .in file.
                     if not (f.is_dir() or f.suffix == '.in'):
                         continue
@@ -1154,7 +1095,7 @@ class GeneratorConfig:
                         # Only set the one required key to interpret this as directory.
                         child_yaml = {'type': 'directory'}
 
-                    c = parse(f.name, child_yaml, d)
+                    c = parse(f.name, child_yaml, d, listed=False)
                     if c is not None:
                         d.data.append(c)
 
@@ -1163,6 +1104,9 @@ class GeneratorConfig:
         self.root_dir = parse('', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
+        if config.args.add_manual or config.args.move_manual:
+            return
+
         generators_used = set()
         solutions_used = set()
         visualizers_used = set()
@@ -1227,6 +1171,7 @@ class GeneratorConfig:
         self.problem.validators('output_format')
 
     def run(self):
+
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
 
@@ -1234,155 +1179,159 @@ class GeneratorConfig:
 
         bar = ProgressBar('Generate', items=item_names)
 
-        parallel = True
-        if self.parallel and config.args.jobs > 1 and self.problem.interactive:
-            parallel = False
-            log('Disabling parallelization for interactive problem.')
-
-        if not self.parallel or config.args.jobs <= 1:
-            parallel = False
-            log('Disabling parallelization.')
-
-        if not parallel:
-            self.root_dir.walk(
-                lambda t: t.generate(self.problem, self, bar),
-                lambda d: d.generate(self.problem, self, bar),
-            )
+        if config.args.add_manual:
+            self.add_unlisted_to_generators_yaml(bar)
+        elif config.args.move_manual:
+            self.move_inline_manual_to_directory(bar)
         else:
-            # Parallelize generating test cases.
-            # All testcases are generated in separate threads. Directories are still handled by the
-            # main thread. We only start processing a directory after all preceding test cases have
-            # completed to avoid problems with including cases.
-            q = queue.Queue()
-            error = None
+            parallel = True
+            if self.parallel and config.args.jobs > 1 and self.problem.interactive:
+                parallel = False
+                log('Disabling parallelization for interactive problem.')
 
-            # TODO: Make this a generators.yaml option?
-            num_worker_threads = config.args.jobs
+            if not self.parallel or config.args.jobs <= 1:
+                parallel = False
+                log('Disabling parallelization.')
 
-            def clear_queue(e=True):
-                nonlocal num_worker_threads, error
-                if error is not None:
-                    return
-                error = e
-                try:
-                    while True:
-                        q.get(block=False)
+            if not parallel:
+                self.root_dir.walk(
+                    lambda t: t.generate(self.problem, self, bar),
+                    lambda d: d.generate(self.problem, self, bar),
+                )
+            else:
+                # Parallelize generating test cases.
+                # All testcases are generated in separate threads. Directories are still handled by the
+                # main thread. We only start processing a directory after all preceding test cases have
+                # completed to avoid problems with including cases.
+                q = queue.Queue()
+                error = None
+
+                # TODO: Make this a generators.yaml option?
+                num_worker_threads = config.args.jobs
+
+                def clear_queue(e=True):
+                    nonlocal num_worker_threads, error
+                    if error is not None:
+                        return
+                    error = e
+                    try:
+                        while True:
+                            q.get(block=False)
+                            q.task_done()
+                    except queue.Empty:
+                        pass
+                    for _ in range(num_worker_threads):
+                        q.put(None)
                         q.task_done()
-                except queue.Empty:
-                    pass
+
+                def worker():
+                    try:
+                        while True:
+                            testcase = q.get()
+                            if testcase is None:
+                                break
+                            testcase.generate(self.problem, self, bar)
+                            q.task_done()
+                    except Exception as e:
+                        q.task_done()
+                        clear_queue(e)
+
+                threads = []
+                for _ in range(num_worker_threads):
+                    t = threading.Thread(target=worker)
+                    t.start()
+                    threads.append(t)
+
+                def interrupt_handler(sig, frame):
+                    clear_queue()
+                    fatal('Running interrupted')
+
+                signal.signal(signal.SIGINT, interrupt_handler)
+
+                def maybe_join():
+                    if error is not None:
+                        raise error
+                    q.join()
+
+                def generate_dir(d):
+                    maybe_join()
+                    d.generate(self.problem, self, bar)
+
+                self.root_dir.walk(q.put, generate_dir)
+
+                maybe_join()
+
                 for _ in range(num_worker_threads):
                     q.put(None)
-                    q.task_done()
 
-            def worker():
-                try:
-                    while True:
-                        testcase = q.get()
-                        if testcase is None:
-                            break
-                        testcase.generate(self.problem, self, bar)
-                        q.task_done()
-                except Exception as e:
-                    q.task_done()
-                    clear_queue(e)
+                for t in threads:
+                    t.join()
 
-            threads = []
-            for _ in range(num_worker_threads):
-                t = threading.Thread(target=worker)
-                t.start()
-                threads.append(t)
-
-            def interrupt_handler(sig, frame):
-                clear_queue()
-                fatal('Running interrupted')
-
-            signal.signal(signal.SIGINT, interrupt_handler)
-
-            def maybe_join():
                 if error is not None:
                     raise error
-                q.join()
-
-            def generate_dir(d):
-                maybe_join()
-                d.generate(self.problem, self, bar)
-
-            self.root_dir.walk(q.put, generate_dir)
-
-            maybe_join()
-
-            for _ in range(num_worker_threads):
-                q.put(None)
-
-            for t in threads:
-                t.join()
-
-            if error is not None:
-                raise error
 
         bar.finalize()
 
         self.update_gitignore_file()
-        if config.args.add_manual:
-            self.add_untracked_manual_to_generators_yaml()
-        if config.args.move_manual:
-            self.move_inline_manual_to_directory()
 
     def update_gitignore_file(self):
         gitignorefile = self.problem.path / 'data/.gitignore'
-        if self.gitignore_generated:
-            # Collect all generated testcases and all non inline manual testcases and gitignore them in the data/ directory.
-            # Sample cases are never ignored.
-            # When only generating a subset of testcases, we also keep existing entries not matching the filter.
-            cases_to_ignore = []
 
-            def maybe_ignore_testcase(t):
-                if not t.manual_inline and not t.sample:
-                    cases_to_ignore.append(t.path)
-
-            self.root_dir.walk(maybe_ignore_testcase, None)
-
-            if config.args.testcases and gitignorefile.is_file():
-                for line in gitignorefile.read_text().splitlines():
-                    if line[0] == '#' or line == '.gitignore':
-                        continue
-                    assert line.endswith('.*')
-                    line = Path(line).with_suffix('')
-                    path = self.problem.path / 'data' / line
-                    if not process_testcase(self.problem, path):
-                        # Remove the .*.
-                        cases_to_ignore.append(line)
-            cases_to_ignore.sort()
-
-            def write_gitignore_file():
-                if len(cases_to_ignore) == 0:
-                    return
-
-                if gitignorefile.is_file():
-                    text = gitignorefile.read_text()
-                    if not text.startswith('# GENERATED BY BAPCtools'):
-                        warn('Not overwriting existing data/.gitignore file.')
-                        return
-                else:
-                    text = ''
-
-                content = '# GENERATED BY BAPCtools\n# Do not modify.\n.gitignore\n'
-                for path in cases_to_ignore:
-                    content += str(path) + '.*\n'
-                if content != text:
-                    gitignorefile.write_text(content)
-                    if config.args.verbose:
-                        log('Updated data/.gitignore.')
-
-            write_gitignore_file()
-        else:
+        if not self.gitignore_generated:
+            # Remove existing .gitignore file if created by BAPCtools.
             if gitignorefile.is_file():
                 text = gitignorefile.read_text()
                 if text.startswith('# GENERATED BY BAPCtools'):
                     gitignorefile.unlink()
                     log('Deleted data/.gitignore.')
+            return
 
-    def add_untracked_manual_to_generators_yaml(self):
+        # Collect all generated testcases and all non inline manual testcases
+        # and gitignore them in the data/ directory.
+        # Sample cases are never ignored.
+        # When only generating a subset of testcases, we also keep existing
+        # entries not matching the filter.
+        cases_to_ignore = []
+
+        def maybe_ignore_testcase(t):
+            if not (t.manual_inline or t.sample):
+                cases_to_ignore.append(t.path)
+
+        self.root_dir.walk(maybe_ignore_testcase, None)
+
+        if config.args.testcases and gitignorefile.is_file():
+            # If there is an existing .gitignore and a list of testcases is
+            # passed, keep entries that are not processed in this run.
+            for line in gitignorefile.read_text().splitlines():
+                if line[0] == '#' or line == '.gitignore':
+                    continue
+                assert line.endswith('.*')
+                line = Path(line).with_suffix('')
+                path = self.problem.path / 'data' / line
+                if not process_testcase(self.problem, path):
+                    cases_to_ignore.append(line)
+        cases_to_ignore.sort()
+
+        if len(cases_to_ignore) == 0:
+            return
+
+        if gitignorefile.is_file():
+            text = gitignorefile.read_text()
+            if not text.startswith('# GENERATED BY BAPCtools'):
+                warn('Not overwriting existing data/.gitignore file.')
+                return
+        else:
+            text = ''
+
+        content = '# GENERATED BY BAPCtools\n# Do not modify.\n.gitignore\n'
+        for path in cases_to_ignore:
+            content += str(path) + '.*\n'
+        if content != text:
+            gitignorefile.write_text(content)
+            if config.args.verbose:
+                log('Updated data/.gitignore.')
+
+    def add_unlisted_to_generators_yaml(self, bar):
         try:
             import ruamel.yaml
         except:
@@ -1391,10 +1340,7 @@ class GeneratorConfig:
             )
             return
 
-        if len(self.untracked_inline_manual) == 0 and len(self.untracked_directory) == 0:
-            if not config.args.move_manual:
-                log('No untracked manual cases found.')
-            return
+        # TODO: Walk the tree to find unlisted dirs/tests.
 
         generators_yaml = self.problem.path / 'generators/generators.yaml'
 
@@ -1407,57 +1353,74 @@ class GeneratorConfig:
         if data is None:
             data = ruamel.yaml.comments.CommentedMap()
 
-        # Add missing directories.
-        for path in sorted(self.untracked_directory):
-            d = data
-            for directory in path.parent.parts:
-                d = d['data'][directory]
+        # Add missing directory.
+        def add_directory(d):
+            bar.start(str(d.path))
+            if d.listed:
+                bar.done()
+                return
 
-            if 'data' not in d:
-                d['data'] = ruamel.yaml.comments.CommentedMap()
-            if d['data'] is None:
-                d['data'] = ruamel.yaml.comments.CommentedMap()
+            bar.log(f'Added to generators.yaml')
+            nonlocal data
+            yaml = data
+            for directory in d.path.parent.parts:
+                yaml = yaml['data'][directory]
 
-            if isinstance(d['data'], ruamel.yaml.comments.CommentedMap):
-                d['data'][path.name] = {'type': 'directory', 'data': None}
-            elif isinstance(d['data'], ruamel.yaml.comments.CommentedSeq):
+            if 'data' not in yaml:
+                yaml['data'] = ruamel.yaml.comments.CommentedMap()
+            if yaml['data'] is None:
+                yaml['data'] = ruamel.yaml.comments.CommentedMap()
+
+            if isinstance(yaml['data'], ruamel.yaml.comments.CommentedMap):
+                if d.path.name in yaml['data']:
+                    if (
+                        not isinstance(yaml['data'][d.path.name], ruamel.yaml.comments.CommentedMap)
+                        or yaml['data'][d.path.name].get('type') != 'directory'
+                    ):
+                        fatal_error(f'Can not overwrite yaml key for {d.path} with a directory.')
+                else:
+                    yaml['data'][d.path.name] = {'type': 'directory', 'data': None}
+            elif isinstance(yaml['data'], ruamel.yaml.comments.CommentedSeq):
+                # TODO: Allow this
                 error(f'Manual case cannot be added to directory {path.parent} which is numbered.')
             else:
                 assert False
+            bar.done()
 
         # Add missing testcases.
-        for path in sorted(self.untracked_inline_manual):
-            d = data
-            for directory in path.parent.parts:
-                d = d['data'][directory]
+        def add_testcase(t):
+            bar.start(str(t.path))
+            if t.listed:
+                bar.done()
+                return
+            bar.log(f'Added to generators.yaml')
+            nonlocal data
+            yaml = data
+            for directory in t.path.parent.parts:
+                yaml = yaml['data'][directory]
 
-            if 'data' not in d or d['data'] is None:
-                d['data'] = ruamel.yaml.comments.CommentedMap()
-            if isinstance(d['data'], ruamel.yaml.comments.CommentedMap):
-                d['data'][path.name] = None
-            elif isinstance(d['data'], ruamel.yaml.comments.CommentedSeq):
+            if 'data' not in yaml or yaml['data'] is None:
+                yaml['data'] = ruamel.yaml.comments.CommentedMap()
+            if isinstance(yaml['data'], ruamel.yaml.comments.CommentedMap):
+                yaml['data'][t.path.name] = None
+            elif isinstance(yaml['data'], ruamel.yaml.comments.CommentedSeq):
                 error(f'Manual case cannot be added to directory {path.parent} which is numbered.')
             else:
                 assert False
+            bar.done()
 
-            # Add path to tracked cases, so they can be moved afterwards if needed.
-            self.tracked_inline_manual.add(path)
+        self.root_dir.walk(add_testcase, add_directory)
 
         # Overwrite generators.yaml.
         yaml.dump(data, generators_yaml)
-        log('Updated generators.yaml')
 
-    def move_inline_manual_to_directory(self):
+    def move_inline_manual_to_directory(self, bar):
         try:
             import ruamel.yaml
         except:
             error(
                 'generate --move-manual needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
             )
-            return
-
-        if len(self.tracked_inline_manual) == 0:
-            log('No inline manual cases found.')
             return
 
         generators_yaml = self.problem.path / 'generators/generators.yaml'
@@ -1472,36 +1435,51 @@ class GeneratorConfig:
 
         config.args.move_manual.mkdir(exist_ok=True)
 
+        # Only needed to bump the progress bar.
+        def move_directory(d):
+            bar.start(str(d.path))
+            bar.done()
+
         # Add missing testcases.
-        for path in sorted(self.tracked_inline_manual):
-            d = data
-            for directory in path.parent.parts:
-                d = d['data'][directory]
+        def move_testcase(t):
+            bar.start(str(t.path))
+            if not t.listed or not t.manual_inline:
+                bar.done()
+                return
+
+            yaml = data
+            for directory in t.path.parent.parts:
+                yaml = yaml['data'][directory]
 
             # Move all test data.
             # Make sure the testcase doesn't already exist in the target directory.
-            in_target = config.args.move_manual / (path.name + '.in')
+            in_target = config.args.move_manual / Path(*t.path.parts[1:]).with_suffix('.in')
+            rel_target = in_target.with_suffix('').relative_to(self.problem.path.resolve())
             if in_target.is_file():
-                warn(
-                    f'Target file {in_target.relative_to(self.problem.path.resolve())} already exists. Skipping testcase {path}.'
-                )
-                continue
+                bar.warn(f'Target file {rel_target} already exists.')
+                bar.done()
+                return
+            bar.log(f'Moved to {rel_target}.')
 
-            assert path.name in d['data']
+            assert t.path.name in yaml['data']
 
-            d['data'][path.name] = str(
+            yaml['data'][t.path.name] = str(
                 in_target.relative_to(self.problem.path.resolve() / 'generators')
             )
 
             for ext in config.KNOWN_DATA_EXTENSIONS:
-                source = (self.problem.path / 'data') / (path.parent / (path.name + ext))
-                target = config.args.move_manual / (path.name + ext)
+                source = (self.problem.path / 'data') / (t.path.parent / (t.path.name + ext))
+                target = in_target.with_suffix(ext)
+                if not target.parent.is_dir():
+                    target.parent.mkdir(parents=True)
                 if source.is_file():
                     shutil.copy(source, target)
+            bar.done()
+
+        self.root_dir.walk(move_testcase, move_directory)
 
         # Overwrite generators.yaml.
         yaml.dump(data, generators_yaml)
-        log('Updated generators.yaml')
 
     def clean(self):
         item_names = []
