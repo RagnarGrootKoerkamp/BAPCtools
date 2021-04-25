@@ -292,12 +292,14 @@ class Problem:
         )
 
         if len(paths) == 0:
-            if validator_type == 'output_format':
-                log(f'No {validator_type} validators found.')
-            else:
-                warn(f'No {validator_type} validators found.')
-                problem._validators[key] = False
-                return False
+            # Only log/warn missing validators in generate mode.
+            if config.args.action == 'generate':
+                if validator_type == 'output_format':
+                    log(f'No {validator_type} validators found.')
+                else:
+                    warn(f'No {validator_type} validators found.')
+                    problem._validators[key] = False
+                    return False
         if validator_type == 'output' and problem.interactive and len(paths) > 1:
             error(
                 f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.'
