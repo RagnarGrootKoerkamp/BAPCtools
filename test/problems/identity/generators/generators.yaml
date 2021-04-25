@@ -1,5 +1,6 @@
 solution: /submissions/accepted/author.py
-visualizer: /visualizers {name}
+# The visualizer is disabled to speed up testing.
+#visualizer: /visualizers {name}
 random_salt: 'abc'
 
 generators:
