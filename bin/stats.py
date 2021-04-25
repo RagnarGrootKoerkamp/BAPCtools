@@ -36,7 +36,7 @@ def stats(problems):
             15,
             50,
         ),
-        ('bad', 'data/bad/**/*', 0),
+        ('bad', ['data/bad/**/*.in', 'data/bad/**/*.ans'], 0),
         ('   AC', 'submissions/accepted/*', 3),
         (' WA', 'submissions/wrong_answer/*', 2),
         ('TLE', 'submissions/time_limit_exceeded/*', 1),
@@ -84,10 +84,9 @@ def stats(problems):
             for p in glob(problem.path, path):
                 # Exclude files containing 'TODO: Remove'.
                 if p.is_file():
-                    with p.open() as file:
-                        data = file.read()
-                        if data.find('TODO: Remove') == -1:
-                            results.add(p)
+                    data = p.read_text()
+                    if 'TODO: Remove' not in data:
+                        results.add(p)
                 if p.is_dir():
                     ok = True
                     for f in glob(p, '*'):
