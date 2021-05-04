@@ -320,7 +320,8 @@ Run this from one of:
         '--force_build', action='store_true', help='Force rebuild instead of only on changed files.'
     )
 
-    subparsers = parser.add_subparsers(title='actions', dest='action', required=True)
+    subparsers = parser.add_subparsers(title='actions', dest='action')
+    subparsers.required = True
 
     # New contest
     contestparser = subparsers.add_parser(
