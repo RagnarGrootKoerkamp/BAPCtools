@@ -49,9 +49,10 @@ def tex_escape(text):
     if has_newline:
         text = text[:-1]
     text = regex.sub(lambda match: conv[match.group()], text)
+    # Escape multiple spaces separately
+    text = re.sub('  +', lambda m: '\\phantom{' + ('.' * len(m.group())) + '}', text)
     # Escape leading spaces separately
-    regex = re.compile('^ ')
-    text = regex.sub('\\\\phantom{.}', text)
+    text = re.compile('^ ', re.MULTILINE).sub('\\\\phantom{.}', text)
     if has_newline:
         text += '\n'
     return text
