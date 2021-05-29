@@ -120,9 +120,7 @@ def build_problem_zip(problem, output, settings):
         for f in paths:
             # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
-                # TODO: Fix this hack. Maybe just rename input_validators ->
-                # input_format_validators everywhere?
-                out = Path(str(f).replace('input_validators', 'input_format_validators'))
+                out = f
                 out = out.relative_to(problem.path)
                 # For Kattis, prepend the problem shortname to all files.
                 if config.args.kattis:
