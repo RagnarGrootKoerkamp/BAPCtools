@@ -120,8 +120,7 @@ def build_problem_zip(problem, output, settings):
         for f in paths:
             # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
-                out = f
-                out = out.relative_to(problem.path)
+                out = f.relative_to(problem.path)
                 # For Kattis, prepend the problem shortname to all files.
                 if config.args.kattis:
                     out = problem.name / out
