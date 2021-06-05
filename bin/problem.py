@@ -6,7 +6,7 @@ import sys
 import threading
 
 from pathlib import Path
-from typing import Type
+from typing import Optional, Type
 
 import config
 import latex
@@ -25,7 +25,7 @@ class Problem:
     _SHORTNAME_REGEX_STRING = '^[a-z0-9]+$'
     _SHORTNAME_REGEX = re.compile(_SHORTNAME_REGEX_STRING)
 
-    def __init__(self, path, tmpdir, label=None):
+    def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):
         # The problem name/shortname, which is the name of the directory and used as a display name.
         self.name = path.resolve().name
         # The Path of the problem directory.

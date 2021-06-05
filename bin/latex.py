@@ -7,21 +7,23 @@ import tempfile
 import sys
 from pathlib import Path
 from colorama import Fore, Style
+from typing import Dict, Optional
 
 import config
 import util
 import generate
+from problem import Problem
 from util import *
 from contest import *
 
 
-def latex_builddir(problem, language):
+def latex_builddir(problem: Problem, language: str) -> Path:
     builddir = problem.tmpdir / 'latex' / language
     builddir.mkdir(parents=True, exist_ok=True)
     return builddir
 
 
-def create_samples_file(problem, language):
+def create_samples_file(problem: Problem, language: str) -> None:
     builddir = latex_builddir(problem, language)
 
     # create the samples.tex file
@@ -153,11 +155,11 @@ def create_samples_file(problem, language):
 
 
 # Steps needed for both problem and contest compilation.
-def prepare_problem(problem, language):
+def prepare_problem(problem: Problem, language: str):
     create_samples_file(problem, language)
 
 
-def get_tl(problem):
+def get_tl(problem: Problem):
     problem_config = problem.settings
     tl = problem_config.timelimit
     tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
@@ -170,7 +172,7 @@ def get_tl(problem):
     return tl if print_tl else ''
 
 
-def make_environment():
+def make_environment() -> Dict[str, str]:
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
     latex_paths = [
@@ -193,10 +195,16 @@ def make_environment():
     return env
 
 
-def build_latex_pdf(builddir, tex_path, language, bar=None, problem_path=None):
+def build_latex_pdf(
+    builddir: Path,
+    tex_path: Path,
+    language: str,
+    bar: PrintBar,
+    problem_path: Optional[Path] = None,
+):
     env = make_environment()
 
-    if shutil.which('latexmk') == None:
+    if shutil.which('latexmk') is None:
         bar.fatal('latexmk not found!')
 
     logfile = (builddir / tex_path.name).with_suffix('.log')
@@ -302,7 +310,7 @@ def build_latex_pdf(builddir, tex_path, language, bar=None, problem_path=None):
 #    substituting variables.
 # 2. Create tmpdir/<problem>/latex/<language>/samples.tex.
 # 3. Run latexmk and link the resulting problem.<language>.pdf into the problem directory.
-def build_problem_pdf(problem, language, solution=False, web=False):
+def build_problem_pdf(problem: Problem, language: str, solution=False, web=False):
     """
     Arguments:
     -- language: str, the two-letter language code appearing the file name, such as problem.en.tex
@@ -367,7 +375,7 @@ def build_problem_pdfs(problem, solutions=False, web=False):
     return all([build_problem_pdf(problem, lang, solutions, web) for lang in languages])
 
 
-def find_logo():
+def find_logo() -> Path:
     for directory in ['', '../']:
         for extension in ['pdf', 'png', 'jpg']:
             logo = Path(directory + 'logo.' + extension)
@@ -376,7 +384,9 @@ def find_logo():
     return config.tools_root / 'latex' / 'images' / 'logo-not-found.pdf'
 
 
-def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=False):
+def build_contest_pdf(
+    contest: str, problems: list[Problem], tmpdir: Path, language: str, solutions=False, web=False
+) -> bool:
     builddir = tmpdir / contest / 'latex'
     builddir.mkdir(parents=True, exist_ok=True)
     build_type = 'solution' if solutions else 'problem'

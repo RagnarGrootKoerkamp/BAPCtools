@@ -239,7 +239,7 @@ def get_problems():
         problems = [p for p in problems if keep_problem(p)]
 
     config.level = level
-    return (problems, level, contest, tmpdir)
+    return problems, level, contest, tmpdir
 
 
 # NOTE: This is one of the few places that prints to stdout instead of stderr.
