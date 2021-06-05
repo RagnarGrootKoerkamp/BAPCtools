@@ -7,7 +7,6 @@ import copy
 import subprocess
 import sys
 import os
-import re
 import threading
 import signal
 import hashlib
@@ -19,8 +18,9 @@ import threading
 from typing import Any
 
 from enum import Enum
-from pathlib import Path
 from colorama import Fore, Style
+from pathlib import Path
+from typing import Any, List, Optional
 
 import config
 
@@ -39,28 +39,28 @@ except Exception:
 ruamel_lock = threading.Lock()
 
 
-def is_windows():
+def is_windows() -> bool:
     return sys.platform in ['win32', 'cygwin']
 
 
 # https://www.scivision.dev/python-detect-wsl/
-def is_wsl():
+def is_wsl() -> bool:
     return 'Microsoft' in platform.uname().release
 
 
-def is_mac():
+def is_mac() -> bool:
     return sys.platform in ['darwin']
 
 
-def is_freebsd():
+def is_freebsd() -> bool:
     return "freebsd" in sys.platform
 
 
-def is_aquabsd():
+def is_aquabsd() -> bool:
     return "aquabsd" in sys.platform
 
 
-def is_bsd():
+def is_bsd() -> bool:
     return is_mac() or is_freebsd() or is_aquabsd()
 
 
@@ -78,34 +78,34 @@ def exit1(force=False):
         sys.exit(1)
 
 
-def debug(*msg):
+def debug(*msg: Any) -> None:
     print(Fore.CYAN, end='', file=sys.stderr)
     print('DEBUG:', *msg, end='', file=sys.stderr)
     print(Style.RESET_ALL, file=sys.stderr)
 
 
-def log(msg):
+def log(msg: Any) -> None:
     print(f'{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}', file=sys.stderr)
 
 
-def verbose(msg):
+def verbose(msg: Any) -> None:
     if config.args.verbose >= 1:
         print(f'{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}', file=sys.stderr)
 
 
-def warn(msg):
+def warn(msg: Any) -> None:
     print(f'{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}', file=sys.stderr)
     config.n_warn += 1
 
 
-def error(msg):
+def error(msg: Any) -> None:
     if config.RUNNING_TEST:
         fatal(msg)
     print(f'{Fore.RED}ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
     config.n_error += 1
 
 
-def fatal(msg, *, force=threading.active_count() > 1):
+def fatal(msg: Any, *, force=threading.active_count() > 1) -> None:
     print(f'\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
     exit1(force)
 
@@ -169,7 +169,7 @@ class ProgressBar:
     lock = threading.RLock()
     lock_depth = 0
 
-    current_bar = None
+    current_bar: Optional["ProgressBar"] = None
 
     columns = shutil.get_terminal_size().columns
 
@@ -547,7 +547,7 @@ def path_size(path):
 
 
 # Drops the first two path components <problem>/<type>/
-def print_name(path, keep_type=False):
+def print_name(path: Path, keep_type=False) -> str:
     return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
@@ -673,7 +673,7 @@ def glob(path, expression, include_hidden=False):
     return sorted(p for p in path.glob(expression) if keep(p))
 
 
-def strip_newline(s):
+def strip_newline(s: str) -> str:
     if s.endswith('\n'):
         return s[:-1]
     else:
