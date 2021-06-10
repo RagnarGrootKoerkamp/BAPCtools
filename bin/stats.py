@@ -84,7 +84,10 @@ def stats(problems):
             for p in glob(problem.path, path):
                 # Exclude files containing 'TODO: Remove'.
                 if p.is_file():
-                    data = p.read_text()
+                    try:
+                        data = p.read_text()
+                    except UnicodeDecodeError:
+                        continue
                     if 'TODO: Remove' not in data:
                         results.add(p)
                 if p.is_dir():
