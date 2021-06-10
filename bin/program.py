@@ -255,7 +255,7 @@ class Program:
     def _checks(self):
         # Make sure c++ does not depend on stdc++.h, because it's not portable.
         if self.language == 'cpp':
-            for f in files:
+            for f in self.source_files:
                 if f.read_text().find('bits/stdc++.h') != -1:
                     if 'validators/' in str(f):
                         self.bar.error(f'Must not depend on bits/stdc++.h.')
@@ -266,11 +266,11 @@ class Program:
         # Warn for known bad (non-deterministic) patterns in generators
         if isinstance(self, Generator):
             if self.language == 'cpp':
-                for f in files:
+                for f in self.source_files:
                     if f.read_text().find('rand()') != -1:
                         self.bar.warn(f'Calling rand() is not cross-platform deterministic in C++. Use <random> instead: https://en.cppreference.com/w/cpp/header/random')
             if 'py' in self.language:
-                for f in files:
+                for f in self.source_files:
                     if f.read_text().find('list(set(') != -1:
                         self.bar.warn(f'The order of sets is not fixed across implementations. Please sort the list!')
 
