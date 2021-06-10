@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 import config
+import parallel
 import program
 import run
 import validate
@@ -224,10 +225,14 @@ class Problem:
 
         bar = ProgressBar('Build submissions', items=programs)
 
-        for p in programs:
-            bar.start(p)
-            p.build(bar)
-            bar.done()
+        def build_program(p):
+            localbar = bar.start(p)
+            p.build(localbar)
+            localbar.done()
+
+        p = parallel.Parallel(build_program)
+        for pr in programs: p.put(pr)
+        p.done()
 
         bar.finalize(print_done=False)
 

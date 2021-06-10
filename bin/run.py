@@ -584,6 +584,8 @@ class Submission(program.Program):
             name = f'run {tc}'
             bar.update(1, len(name))
             bar.start(name)
+            # Reinitialize the underlying program, so that changed to the source
+            # code can be picked up in build.
             super().__init__(self.problem, self.path, skip_double_build_warning=True)
             bar.log('from stdin' if is_tty else 'from file')
 
@@ -607,6 +609,8 @@ while True:
                 read = False
                 for l in sys.stdin:
                     read = True
+                    # Read the first line of input, and re-build the program if
+                    # needed after the first line has been entered.
                     if not self.build(bar):
                         return
                     os.write(w, bytes(l, 'utf8'))

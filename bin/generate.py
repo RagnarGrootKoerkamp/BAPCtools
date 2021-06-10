@@ -1153,19 +1153,27 @@ class GeneratorConfig:
 
             bar = ProgressBar('Build ' + program_type.subdir, items=programs)
 
-            # TODO: Build multiple programs in parallel.
-            for p in programs:
-                bar.start(p)
-                p.build(bar)
-                bar.done()
+            def build_program(p):
+                localbar = bar.start(p)
+                p.build(localbar)
+                localbar.done()
+
+            p = parallel.Parallel(build_program, 12)
+            for pr in programs:
+                p.put(pr)
+            p.done()
 
             bar.finalize(print_done=False)
 
+        # TODO: Consider building all types of programs in parallel as well.
         build_programs(program.Generator, generators_used)
         build_programs(run.Submission, solutions_used)
         build_programs(program.Visualizer, visualizers_used)
 
-        def unset_build_failures(t):
+        self.problem.validators('input_format')
+        self.problem.validators('output_format')
+
+        def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
                 t.config.solution = None
             if not build_visualizers or (
@@ -1173,10 +1181,7 @@ class GeneratorConfig:
             ):
                 t.config.visualizer = None
 
-        self.root_dir.walk(unset_build_failures, dir_f=None)
-
-        self.problem.validators('input_format')
-        self.problem.validators('output_format')
+        self.root_dir.walk(cleanup_build_failures, dir_f=None)
 
     def run(self):
 
