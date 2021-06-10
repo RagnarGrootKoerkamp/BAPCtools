@@ -1193,7 +1193,7 @@ class GeneratorConfig:
             self.move_inline_manual_to_directory(bar)
         else:
             in_parallel = True
-            if config.args.jobs > 1 and self.problem.interactive:
+            if self.problem.interactive:
                 in_parallel = False
                 verbose('Disabling parallelization for interactive problem.')
 
