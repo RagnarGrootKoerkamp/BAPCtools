@@ -300,9 +300,9 @@ class Problem:
                     warn(f'No {validator_type} validators found.')
                     problem._validators[key] = False
                     return False
-        if validator_type == 'output' and problem.interactive and len(paths) > 1:
+        if validator_type == 'output' and problem.interactive and len(paths) != 1:
             error(
-                f'Found more than one output validator, but validation type {problem.settings.validation} needs exactly one.'
+                f'Found {len(paths)} output validators, but validation type {problem.settings.validation} needs exactly one.'
             )
             problem._validators[key] = False
             return False
