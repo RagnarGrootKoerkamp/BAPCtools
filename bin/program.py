@@ -355,7 +355,7 @@ class Program:
         if not self._get_language(self.source_files):
             return False
 
-        self.checks()
+        self._checks()
 
         # A file containing the compile command. Timestamp is used as last build time.
         meta_path = self.tmpdir / 'meta_'
