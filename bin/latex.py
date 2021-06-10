@@ -13,56 +13,16 @@ import util
 from util import *
 
 
-# https://stackoverflow.com/questions/16259923/how-can-i-escape-latex-special-characters-inside-django-templates
-def tex_escape(text):
-    """
-    :param text: a plain text message
-    :return: the message escaped to appear correctly in LaTeX
-    """
-    conv = {
-        '&': r'\&',
-        '%': r'\%',
-        '$': r'\$',
-        '#': r'\#',
-        #        '_': r'\_',
-        # For monospaced purpose, use instead:
-        '_': r'\char`_',
-        '{': r'\{',
-        '}': r'\}',
-        '~': r'\textasciitilde{}',
-        '^': r'\^{}',
-        #        '\\': r'\textbackslash{}',
-        # For monospaced purpose, use instead:
-        '\\': r'\char`\\',
-        '<': r'\textless{}',
-        '>': r'\textgreater{}',
-        '\'': r'\textquotesingle{}',
-        '\n': '\\newline\n',
-    }
-    regex = re.compile(
-        '|'.join(re.escape(str(key)) for key in sorted(conv.keys(), key=lambda item: -len(item))),
-        re.MULTILINE,
-    )
-
-    # Remove the trailing newline because it will be replaced by \\newline\n
-    has_newline = len(text) > 0 and text[-1] == '\n'
-    if has_newline:
-        text = text[:-1]
-    text = regex.sub(lambda match: conv[match.group()], text)
-    # Escape multiple spaces separately
-    text = re.sub('  +', lambda m: '\\phantom{' + ('.' * len(m.group())) + '}', text)
-    # Escape leading spaces separately
-    text = re.compile('^ ', re.MULTILINE).sub('\\\\phantom{.}', text)
-    if has_newline:
-        text += '\n'
-    return text
-
-
 def create_samples_file(problem):
     builddir = problem.tmpdir
 
     # create the samples.tex file
-    samples = problem.testcases(needans=True, only_sample=True)
+    if problem.interactive:
+        # For interactive problems, find all .interaction files instead.
+        samples = glob(problem.path / 'data' / 'sample', '*.interaction')
+    else:
+        # For samples, find all .in/.ans pairs.
+        samples = problem.testcases(needans=True, only_sample=True)
     samples_file_path = builddir / 'samples.tex'
 
     if samples is False:
@@ -72,20 +32,29 @@ def create_samples_file(problem):
     samples_data = ''
 
     for sample in samples:
-        interaction_file = sample.with_suffix('.interaction')
-        if interaction_file.is_file():
+        if problem.interactive:
+            interaction_dir = builddir / 'interaction'
+            interaction_dir.mkdir(exist_ok=True)
+
             samples_data += '\\InteractiveSampleHeading\n'
-            lines = interaction_file.read_text()
+            lines = sample.read_text()
             last = 'x'
             cur = ''
 
+            interaction_id = 0
             def flush():
                 assert last in '<>'
-                nonlocal samples_data
+                nonlocal samples_data, interaction_id
+
+                interaction_file = interaction_dir / f'{sample.with_suffix("").name}-{interaction_id:02}'
+                interaction_file.write_text(cur)
+
                 mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
                 samples_data += '\\begin{' + mode + '}\n'
-                samples_data += tex_escape(cur)
+                samples_data += f'\\lstinputlisting[aboveskip=-1\\baselineskip,belowskip=-1\\baselineskip,inputencoding=utf8/latin1,basicstyle=\\ttfamily]{{{interaction_file}}}\n'
                 samples_data += '\\end{' + mode + '}\n\n'
+
+                interaction_id += 1
 
             for line in lines.splitlines():
                 if line[0] == last:
@@ -98,10 +67,11 @@ def create_samples_file(problem):
             flush()
         else:
             samples_data += '\\begin{Sample}\n'
-            samples_data += tex_escape(sample.in_path.read_text())
+            samples_data += f'\\lstinputlisting[aboveskip=-0.7\\baselineskip,belowskip=-1\\baselineskip,inputencoding=utf8/latin1,basicstyle=\\ttfamily]{{{sample.in_path}}}\n'
             samples_data += '&\n'
-            samples_data += tex_escape(sample.ans_path.read_text())
-            samples_data += '\\\\\n\\end{Sample}\n\n'
+            samples_data += f'\\lstinputlisting[aboveskip=-0.7\\baselineskip,belowskip=-1\\baselineskip,inputencoding=utf8/latin1,basicstyle=\\ttfamily]{{{sample.ans_path}}}\n'
+            samples_data += '\\\\\n'
+            samples_data += '\\end{Sample}\n\n'
     samples_file_path.write_text(samples_data)
 
 
