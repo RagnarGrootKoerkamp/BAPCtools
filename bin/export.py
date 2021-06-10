@@ -116,7 +116,7 @@ def build_problem_zip(problem, output, settings):
     for pattern, required in files:
         paths = list(util.glob(problem.path, pattern))
         if required and len(paths) == 0:
-            error(f'No matches for required path {pattern}.')
+            util.error(f'No matches for required path {pattern}.')
         for f in paths:
             # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
