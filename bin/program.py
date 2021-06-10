@@ -184,7 +184,7 @@ class Program:
                 if exe[0] != '{' and shutil.which(exe) == None:
                     if best[0] is None or priority >= best[2]:
                         fallback = True
-                        self.bar.warn(
+                        self.bar.log(
                             f'Compile program {exe} not found for language {name}. Falling back to lower priority languages.'
                         )
                     continue
