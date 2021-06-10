@@ -5,6 +5,7 @@ import config
 import validate
 import program
 import interactive
+import parallel
 
 from util import *
 from colorama import Fore, Style
@@ -402,9 +403,10 @@ class Submission(program.Program):
         verdict = (-100, 'ACCEPTED', 'ACCEPTED', 0)  # priority, verdict, print_verdict, duration
         verdict_run = None
 
-        # TODO: Run multiple runs in parallel.
-        for run in runs:
-            bar.start(run)
+        def process_run(run, p):
+            nonlocal max_duration, verdict, verdict_run
+
+            localbar = bar.start(run)
             result = run.run()
 
             new_verdict = (
@@ -428,9 +430,9 @@ class Submission(program.Program):
                 output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
                 data = (
                     f'STDERR:'
-                    + bar._format_data(result.err)
+                    + localbar._format_data(result.err)
                     + f'\n{output_type}:'
-                    + bar._format_data(result.out)
+                    + localbar._format_data(result.out)
                     + '\n'
                 )
             else:
@@ -443,28 +445,35 @@ class Submission(program.Program):
             # Add data from feedbackdir.
             for f in run.feedbackdir.iterdir():
                 if not f.is_file():
-                    bar.warn(f'Validator wrote to {f} but it\'s not a file.')
+                    localbar.warn(f'Validator wrote to {f} but it\'s not a file.')
                     continue
                 try:
                     t = f.read_text()
                 except UnicodeDecodeError:
-                    bar.warn(f'Validator wrote to {f} but it cannot be parsed as unicode text.')
+                    localbar.warn(f'Validator wrote to {f} but it cannot be parsed as unicode text.')
                     continue
                 f.unlink()
                 if not t:
                     continue
                 if len(data) > 0 and data[-1] != '\n':
                     data += '\n'
-                data += f'{f.name}:' + bar._format_data(t) + '\n'
+                data += f'{f.name}:' + localbar._format_data(t) + '\n'
 
-            bar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
+            localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
             # Lazy judging: stop on the first error when not in verbose mode.
             if (
                 not config.args.verbose and not getattr(config.args, 'table', False)
             ) and result.verdict in config.MAX_PRIORITY_VERDICT:
                 bar.count = None
-                break
+                p.stop()
+
+        p = parallel.Parallel(lambda run: process_run(run, p), not self.problem.interactive)
+
+        for run in runs:
+            p.put(run)
+
+        p.done()
 
         self.verdict = verdict[1]
         self.print_verdict = verdict[2]

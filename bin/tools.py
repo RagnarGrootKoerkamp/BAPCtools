@@ -319,6 +319,9 @@ Run this from one of:
     global_parser.add_argument(
         '--force_build', action='store_true', help='Force rebuild instead of only on changed files.'
     )
+    global_parser.add_argument(
+        '--jobs', '-j', type=int, default=os.cpu_count()//2, help='The number of jobs to use. Default is cpu_count()/2.'
+    )
 
     subparsers = parser.add_subparsers(title='actions', dest='action')
     subparsers.required = True
@@ -473,9 +476,6 @@ Run this from one of:
         '--samples',
         action='store_true',
         help='Overwrite the samples as well, in combination with -f.',
-    )
-    genparser.add_argument(
-        '--jobs', '-j', type=int, default=4, help='The number of jobs to use. Default is 4.'
     )
 
     manual_case_group = genparser.add_mutually_exclusive_group()
@@ -843,7 +843,7 @@ def run_parsed_arguments(args):
                 # Set up arguments for generate.
                 old_args = argparse.Namespace(**vars(config.args))
                 config.args.check_deterministic = False if config.args.force else True
-                config.args.jobs = 4
+                config.args.jobs = None
                 config.args.add_manual = False
                 config.args.move_manual = False
                 config.args.verbose = 0

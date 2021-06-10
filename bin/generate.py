@@ -12,6 +12,7 @@ import config
 import program
 import validate
 import run
+import parallel
 
 from util import *
 from problem import Problem
@@ -1191,91 +1192,25 @@ class GeneratorConfig:
         elif config.args.move_manual:
             self.move_inline_manual_to_directory(bar)
         else:
-            parallel = True
-            if self.parallel and config.args.jobs > 1 and self.problem.interactive:
-                parallel = False
-                log('Disabling parallelization for interactive problem.')
+            in_parallel = True
+            if config.args.jobs > 1 and self.problem.interactive:
+                in_parallel = False
+                verbose('Disabling parallelization for interactive problem.')
 
-            if not self.parallel or config.args.jobs <= 1:
-                parallel = False
-                log('Disabling parallelization.')
+            # Parallelize generating test cases.
+            # All testcases are generated in separate threads.
+            p = parallel.Parallel(lambda t: t.generate(self.problem, self, bar), in_parallel)
 
-            if not parallel:
-                self.root_dir.walk(
-                    lambda t: t.generate(self.problem, self, bar),
-                    lambda d: d.generate(self.problem, self, bar),
-                )
-            else:
-                # Parallelize generating test cases.
-                # All testcases are generated in separate threads. Directories are still handled by the
-                # main thread. We only start processing a directory after all preceding test cases have
-                # completed to avoid problems with including cases.
-                q = queue.Queue()
-                error = None
+            # Directories are still handled by the main thread. Only start
+            # processing a directory after all preceding test cases have
+            # completed to avoid problems with including cases.
+            def generate_dir(d):
+                p.join()
+                d.generate(self.problem, self, bar)
 
-                # TODO: Make this a generators.yaml option?
-                num_worker_threads = config.args.jobs
+            self.root_dir.walk(p.put, generate_dir)
 
-                def clear_queue(e=True):
-                    nonlocal num_worker_threads, error
-                    if error is not None:
-                        return
-                    error = e
-                    try:
-                        while True:
-                            q.get(block=False)
-                            q.task_done()
-                    except queue.Empty:
-                        pass
-                    for _ in range(num_worker_threads):
-                        q.put(None)
-                        q.task_done()
-
-                def worker():
-                    try:
-                        while True:
-                            testcase = q.get()
-                            if testcase is None:
-                                break
-                            testcase.generate(self.problem, self, bar)
-                            q.task_done()
-                    except Exception as e:
-                        q.task_done()
-                        clear_queue(e)
-
-                threads = []
-                for _ in range(num_worker_threads):
-                    t = threading.Thread(target=worker)
-                    t.start()
-                    threads.append(t)
-
-                def interrupt_handler(sig, frame):
-                    clear_queue()
-                    fatal('Running interrupted')
-
-                signal.signal(signal.SIGINT, interrupt_handler)
-
-                def maybe_join():
-                    if error is not None:
-                        raise error
-                    q.join()
-
-                def generate_dir(d):
-                    maybe_join()
-                    d.generate(self.problem, self, bar)
-
-                self.root_dir.walk(q.put, generate_dir)
-
-                maybe_join()
-
-                for _ in range(num_worker_threads):
-                    q.put(None)
-
-                for t in threads:
-                    t.join()
-
-                if error is not None:
-                    raise error
+            p.done()
 
         bar.finalize()
 
