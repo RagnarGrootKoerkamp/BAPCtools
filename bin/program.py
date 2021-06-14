@@ -157,6 +157,10 @@ class Program:
         with f.open() as o:
             return shebang.search(o.readline())
 
+
+    # Do not warn for the same fallback language multiple times.
+    warn_cache = set()
+
     # Sets self.language and self.env['mainfile']
     def _get_language(self, deps=None):
         # language, matching files, priority
@@ -184,18 +188,24 @@ class Program:
                 if exe[0] != '{' and shutil.which(exe) == None:
                     if best[0] is None or priority >= best[2]:
                         fallback = True
-                        self.bar.log(
-                            f'Compile program {exe} not found for language {name}. Falling back to lower priority languages.'
-                        )
+                        if exe not in Program.warn_cache:
+                            if config.args.verbose:
+                                self.bar.debug(
+                                    f'Compile program {exe} not found for language {name}. Falling back to lower priority languages.'
+                                )
+                                Program.warn_cache.add(exe)
                     continue
             assert 'run' in lang_conf
             exe = lang_conf['run'].split()[0]
             if exe[0] != '{' and shutil.which(exe) == None:
                 fallback = True
                 if best[0] is None or priority >= best[2]:
-                    self.bar.warn(
-                        f'Run program {exe} not found for language {name}. Falling back to lower priority languages.'
-                    )
+                    if exe not in Program.warn_cache:
+                        if config.args.verbose:
+                            Program.warn_cache.add(exe)
+                            self.bar.debug(
+                                f'Run program {exe} not found for language {name}. Falling back to lower priority languages.'
+                            )
                 continue
 
             if (priority // 1000, len(matching_files), priority) > (
@@ -213,7 +223,10 @@ class Program:
             return False
 
         if fallback:
-            self.bar.log(f'Falling back to {languages()[lang]["name"]}.')
+            if lang not in Program.warn_cache:
+                if config.args.verbose:
+                    Program.warn_cache.add(lang)
+                    self.bar.debug(f'Falling back to {languages()[lang]["name"]}.')
 
         if len(files) == 0:
             self.ok = False
@@ -256,23 +269,32 @@ class Program:
         # Make sure c++ does not depend on stdc++.h, because it's not portable.
         if self.language == 'cpp':
             for f in self.source_files:
-                if f.read_text().find('bits/stdc++.h') != -1:
-                    if 'validators/' in str(f):
-                        self.bar.error(f'Must not depend on bits/stdc++.h.')
-                    else:
-                        self.bar.log(f'Should not depend on bits/stdc++.h')
+                try:
+                    if f.read_text().find('bits/stdc++.h') != -1:
+                        if 'validators/' in str(f):
+                            self.bar.error(f'Must not depend on bits/stdc++.h.')
+                        else:
+                            self.bar.log(f'Should not depend on bits/stdc++.h')
+                except UnicodeDecodeError:
+                    pass
 
 
         # Warn for known bad (non-deterministic) patterns in generators
         if isinstance(self, Generator):
             if self.language == 'cpp':
                 for f in self.source_files:
-                    if f.read_text().find('rand()') != -1:
-                        self.bar.warn(f'Calling rand() is not cross-platform deterministic in C++. Use <random> instead: https://en.cppreference.com/w/cpp/header/random')
+                    try:
+                        if f.read_text().find('rand()') != -1:
+                            self.bar.warn(f'Calling rand() is not cross-platform deterministic in C++. Use <random> instead: https://en.cppreference.com/w/cpp/header/random')
+                    except UnicodeDecodeError:
+                        pass
             if 'py' in self.language:
                 for f in self.source_files:
-                    if f.read_text().find('list(set(') != -1:
-                        self.bar.warn(f'The order of sets is not fixed across implementations. Please sort the list!')
+                    try:
+                        if f.read_text().find('list(set(') != -1:
+                            self.bar.warn(f'The order of sets is not fixed across implementations. Please sort the list!')
+                    except UnicodeDecodeError:
+                        pass
 
     # Return True on success.
     def _compile(self):
