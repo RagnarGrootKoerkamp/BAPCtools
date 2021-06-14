@@ -2,6 +2,7 @@ import re
 import shutil
 import stat
 import subprocess
+import threading
 
 from util import *
 
@@ -28,27 +29,29 @@ manual:
 
 # The cached languages.yaml for the current contest.
 _languages = None
-
+_languages_lock = threading.Lock()
 
 def languages():
-    global _languages
-    if _languages is not None:
+    global _languages, _languages_lock
+    with _languages_lock:
+        if _languages is not None:
+            return _languages
+
+        if Path('languages.yaml').is_file():
+            _languages = read_yaml(Path('languages.yaml'))
+        else:
+            _languages = read_yaml(config.tools_root / 'config/languages.yaml')
+
+        if config.args.cpp_flags:
+            _languages['cpp']['compile'] += ' ' + config.args.cpp_flags
+
+        # Add custom languages.
+        extra_langs = parse_yaml(EXTRA_LANGUAGES)
+        for lang in extra_langs:
+            assert lang not in _languages
+            _languages[lang] = extra_langs[lang]
+
         return _languages
-    if Path('languages.yaml').is_file():
-        _languages = read_yaml(Path('languages.yaml'))
-    else:
-        _languages = read_yaml(config.tools_root / 'config/languages.yaml')
-
-    if config.args.cpp_flags:
-        _languages['cpp']['compile'] += ' ' + config.args.cpp_flags
-
-    # Add custom languages.
-    extra_langs = parse_yaml(EXTRA_LANGUAGES)
-    for lang in extra_langs:
-        assert lang not in _languages
-        _languages[lang] = extra_langs[lang]
-
-    return _languages
 
 
 # A Program is class that wraps a program (file/directory) on disk. A program is usually one of:
