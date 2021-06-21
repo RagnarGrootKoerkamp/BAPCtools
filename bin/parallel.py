@@ -16,6 +16,7 @@ class Parallel:
         self.error = None
         self.f = f
         self.running = True
+        self.cleared = False
 
         self.num_threads = config.args.jobs if num_threads is True else num_threads
 
@@ -29,20 +30,17 @@ class Parallel:
             signal.signal(signal.SIGINT, self._interrupt_handler)
 
     # Clear the queue by marking all tasks as done.
-    def _clear_queue(self, e=None):
+    def _clear_queue(self):
+        if self.cleared: return
+        self.cleared = True
+
         self.running = False
-        if self.error is not None:
-            return
-        self.error = e
         try:
             while True:
                 self.q.get(block=False)
                 self.q.task_done()
         except queue.Empty:
             pass
-        for _ in range(self.num_threads):
-            self.q.put(None)
-            self.q.task_done()
 
     def _worker(self):
         try:
@@ -54,10 +52,12 @@ class Parallel:
                 self.q.task_done()
         except Exception as e:
             self.q.task_done()
-            self._clear_queue(e)
+            if not self.error:
+                self.error = e
+            self.stop(e)
 
     def _interrupt_handler(self, sig, frame):
-        self._clear_queue(True)
+        self.stop()
         util.fatal('Running interrupted')
 
     # Add one task.
@@ -81,6 +81,8 @@ class Parallel:
 
     # Wait for all tasks to be done and stop all threads
     def done(self):
+        if not self.running: return
+
         if not self.num_threads:
             return
 
@@ -98,10 +100,12 @@ class Parallel:
 
     # Discard all remaining work in the queue and stop all threads.
     def stop(self):
+        if not self.running: return
+
         if not self.num_threads:
             return
 
         self.running = False
 
         self._clear_queue()
-        done()
+        self.done()
