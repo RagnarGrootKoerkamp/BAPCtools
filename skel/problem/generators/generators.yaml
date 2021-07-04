@@ -1,4 +1,4 @@
-solution: # /submissions/accepted/submission.py
+#solution: /submissions/accepted/submission.py
 #visualizer: /visualizers/asy.sh {name}
 # By default, generated files are not ignored.
 #gitignore_generated: false
@@ -6,13 +6,15 @@ solution: # /submissions/accepted/submission.py
 data:
   sample:
     type: directory
-    solution:
+    # Uncomment to disable generating ans files for sample cases.
+    #solution:
     data:
       #'1':
 
   secret:
     type: directory
     data:
-      # name: <generator> [args] [{seed}]
-      # or for automatic numbering:
-      # - name: <generator> [args] [{seed:1}]
+      # Named testcases:
+      # random: random_generator.py large {seed}
+      # Numbered testcases:
+      # - random: random_generator.py large {seed}
