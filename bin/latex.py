@@ -42,18 +42,18 @@ def create_samples_file(problem):
             cur = ''
 
             interaction_id = 0
+
             def flush():
                 assert last in '<>'
                 nonlocal samples_data, interaction_id
 
-                interaction_file = interaction_dir / f'{sample.with_suffix("").name}-{interaction_id:02}'
+                interaction_file = (
+                    interaction_dir / f'{sample.with_suffix("").name}-{interaction_id:02}'
+                )
                 interaction_file.write_text(cur)
 
                 mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
-                samples_data += '\\begin{' + mode + '}\n'
-                samples_data += f'\\lstinputlisting[aboveskip=-1\\baselineskip,belowskip=-1\\baselineskip,inputencoding=utf8/latin1,basicstyle=\\ttfamily]{{{interaction_file}}}\n'
-                samples_data += '\\end{' + mode + '}\n\n'
-
+                samples_data += f'\\{mode}{{{interaction_file}}}\n'
                 interaction_id += 1
 
             for line in lines.splitlines():
@@ -66,12 +66,7 @@ def create_samples_file(problem):
                     last = line[0]
             flush()
         else:
-            samples_data += '\\begin{Sample}\n'
-            samples_data += f'\\lstinputlisting[aboveskip=-0.7\\baselineskip,belowskip=-1\\baselineskip,inputencoding=utf8/latin1,basicstyle=\\ttfamily]{{{sample.in_path}}}\n'
-            samples_data += '&\n'
-            samples_data += f'\\lstinputlisting[aboveskip=-0.7\\baselineskip,belowskip=-1\\baselineskip,inputencoding=utf8/latin1,basicstyle=\\ttfamily]{{{sample.ans_path}}}\n'
-            samples_data += '\\\\\n'
-            samples_data += '\\end{Sample}\n\n'
+            samples_data += f'\\Sample{{{sample.in_path}}}{{{sample.ans_path}}}\n'
     samples_file_path.write_text(samples_data)
 
 

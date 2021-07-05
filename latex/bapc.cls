@@ -187,28 +187,80 @@
 \newcommand{\mySampleHeading}[1]{
 	\multicolumn{1}{l}{\large \bfseries\textrm{Sample #1 \arabic{SampleCount}}}
 }
-\NewEnviron{Sample}{
+\newcommand{\SampleListing}[1]{
+  	\lstinputlisting[aboveskip=-0.7\baselineskip,belowskip=-0.9\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
+}
+\newcommand{\InteractiveSampleListing}[1]{
+    \lstinputlisting[aboveskip=-1.0\baselineskip,belowskip=-1\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
+}
+\newcommand{\SideBySideSample}[2]{
 	\par\bigskip\noindent%
 	\normalsize%
-	\ttfamily%
-	\frenchspacing% to prevent extra spaces after punctuation. https://tex.stackexchange.com/q/118455/43242
 	\stepcounter{SampleCount}%
 	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
 	\begin{tabularx}{\textwidth}{|X|X|}%             http://tex.stackexchange.com/a/31704
 		\mySampleHeading{Input} & \mySampleHeading{Output} \\
 		\hline
-		\BODY[2pt]
+	  	\SampleListing{#1}
+		&
+	  	\SampleListing{#2}
+        \\
 		\hline
 	\end{tabularx}%
 	\rmfamily
 }
 
+\newcommand{\FullWidthSample}[2]{
+	\par\bigskip\noindent%
+	\normalsize%
+	\stepcounter{SampleCount}%
+	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
+	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
+	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
+		\mySampleHeading{Input} \\
+		\hline
+	  	\SampleListing{#1} \\
+		\hline
+	\end{tabularx}%
+	\nopagebreak
+    \par
+    \noindent
+	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
+	  	\mySampleHeading{Output} \\
+		\hline
+	  	\SampleListing{#2} \\
+		\hline
+	\end{tabularx}%
+	\rmfamily
+}
+
+\newlength{\PS@idealwidth}
+\setlength{\PS@idealwidth}{0.48\textwidth}
+\newsavebox{\PS@inputbox}
+\newsavebox{\PS@outputbox}
+\newlength{\PS@inputwidth}
+\newlength{\PS@outputwidth}
+\newlength{\PS@totalwidth}
+
+\newcommand{\Sample}[2]{
+	\savebox{\PS@inputbox}{\SampleListing{#1}}
+	\savebox{\PS@outputbox}{\SampleListing{#2}}
+	\settowidth{\PS@inputwidth}{\usebox{\PS@inputbox}}
+	\settowidth{\PS@outputwidth}{\usebox{\PS@outputbox}}
+	\setlength{\PS@totalwidth}{\PS@inputwidth}
+	\addtolength{\PS@totalwidth}{\PS@outputwidth}
+	% Check if too wide for side-by-side
+	\ifdim\PS@totalwidth>2\PS@idealwidth
+		\FullWidthSample{#1}{#2}
+	\else
+		\SideBySideSample{#1}{#2}
+	\fi
+}
+
 \newcommand{\InteractiveSampleHeading}{
 	\par\bigskip\noindent%
 	\normalsize%
-	\ttfamily%
-	\frenchspacing% to prevent extra spaces after punctuation. https://tex.stackexchange.com/q/118455/43242
 	\stepcounter{SampleCount}%
 	\begin{tabularx}{0.983\textwidth}{XXX}%
 		\large\bfseries\textrm{Read} \hfill%
@@ -220,7 +272,7 @@
 	\vspace{-1.0em}
 	\par
 }
-\NewEnviron{InteractiveWrite}{
+\newcommand{\InteractiveWrite}[1]{
 	\noindent
 	\normalsize
 	\ttfamily
@@ -229,7 +281,7 @@
 		\parbox[t]{\dimexpr0.55\textwidth-2\fboxsep-2\fboxrule\relax}{
 			\vspace{-.4em}%
 			\strut%
-			\BODY
+			\InteractiveSampleListing{#1}
 			\vspace{-.4em}%
 			\strut%
 		}
@@ -237,7 +289,7 @@
 	\vspace{-0.4em}
 	\par
 }
-\NewEnviron{InteractiveRead}{
+\newcommand{\InteractiveRead}[1]{
 	\noindent
 	\normalsize
 	\ttfamily
@@ -246,7 +298,7 @@
 		\parbox[t]{\dimexpr0.55\textwidth-2\fboxsep-2\fboxrule\relax}{
 			\vspace{-.4em}%
 			\strut%
-			\BODY
+			\InteractiveSampleListing{#1}
 			\vspace{-.4em}%
 			\strut%
 		}
