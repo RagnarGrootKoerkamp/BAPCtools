@@ -231,7 +231,8 @@ class Problem:
             localbar.done()
 
         p = parallel.Parallel(build_program)
-        for pr in programs: p.put(pr)
+        for pr in programs:
+            p.put(pr)
         p.done()
 
         bar.finalize(print_done=False)
@@ -363,12 +364,18 @@ class Problem:
             ]
 
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
-
         ok = True
-        for p in validators:
-            bar.start(p)
-            ok &= p.build(bar)
-            bar.done()
+
+        def build_program(p):
+            nonlocal ok
+            localbar = bar.start(p)
+            ok &= p.build(localbar)
+            localbar.done()
+
+        p = parallel.Parallel(build_program, 12)
+        for pr in validators:
+            p.put(pr)
+        p.done()
 
         bar.finalize(print_done=False)
 
