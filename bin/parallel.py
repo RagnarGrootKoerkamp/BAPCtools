@@ -15,54 +15,48 @@ class Parallel:
         self.q = queue.Queue()
         self.error = None
         self.f = f
-        self.running = True
-        self.cleared = False
+        self.stopping = False
 
         self.num_threads = config.args.jobs if num_threads is True else num_threads
 
         if self.num_threads:
             self.threads = []
             for _ in range(self.num_threads):
-                t = threading.Thread(target=self._worker)
+                t = threading.Thread(target=self._worker, daemon=True)
                 t.start()
                 self.threads.append(t)
 
             signal.signal(signal.SIGINT, self._interrupt_handler)
 
-    # Clear the queue by marking all tasks as done.
-    def _clear_queue(self):
-        if self.cleared: return
-        self.cleared = True
-
-        self.running = False
+    # Get all remaining items in the queue and push None to stop all workers.
+    def _stop_workers(self):
         try:
             while True:
                 self.q.get(block=False)
-                self.q.task_done()
         except queue.Empty:
             pass
+        for _ in range(self.num_threads):
+            self.q.put(None)
 
     def _worker(self):
         try:
-            while self.running:
+            while not self.stopping:
                 task = self.q.get()
                 if task is None:
                     break
                 self.f(task)
                 self.q.task_done()
         except Exception as e:
-            self.q.task_done()
+            self._stop_workers()
             if not self.error:
                 self.error = e
-            self.stop(e)
 
     def _interrupt_handler(self, sig, frame):
-        self.stop()
         util.fatal('Running interrupted')
 
     # Add one task.
     def put(self, task):
-        if not self.running:
+        if self.stopping:
             return
 
         if self.num_threads:
@@ -70,24 +64,17 @@ class Parallel:
         else:
             self.f(task)
 
-    # Wait for all tasks to be done
     def join(self):
-        if not self.num_threads:
-            return
-
-        if self.error is not None:
+        if self.error:
             raise self.error
         self.q.join()
+        if self.error:
+            raise self.error
 
     # Wait for all tasks to be done and stop all threads
     def done(self):
-        if not self.running: return
-
         if not self.num_threads:
             return
-
-        self.join()
-        self.running = False
 
         for _ in range(self.num_threads):
             self.q.put(None)
@@ -100,12 +87,13 @@ class Parallel:
 
     # Discard all remaining work in the queue and stop all threads.
     def stop(self):
-        if not self.running: return
-
         if not self.num_threads:
             return
 
-        self.running = False
+        if self.stopping:
+            return
 
-        self._clear_queue()
+        self.stopping = True
+
+        self._stop_workers()
         self.done()

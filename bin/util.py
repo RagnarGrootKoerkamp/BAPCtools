@@ -751,7 +751,10 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
     if process.returncode == -2:
-        fatal('Child process interrupted.')
+        if threading.current_thread() is threading.main_thread():
+            fatal('Child process interrupted.')
+        else:
+            raise ChildProcessError()
 
     def maybe_crop(s):
         return crop_output(s) if crop else s
