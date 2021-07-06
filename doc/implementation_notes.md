@@ -34,7 +34,6 @@ Matching is case insensitive and extra white space is allowed. Examples:
 ## Non-standard `generators.yaml` keys
 
 The following non-standard top-level `generators/generators.yaml` keys are supported:
-- `parallel` (default `True`): Can be used to disable parallelization when generating testcases.
 - `gitignore_generatred` (default `False`): Can be used to automatically write a `data/.gitignore` containing a single gitignore line like `secret/testcase.*` for each generated testcase.
   This file should not be modified manually as it will be overwritten each time testcases are regenerated.
 

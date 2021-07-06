@@ -833,7 +833,6 @@ class Directory(Rule):
         # - create the directory
         # - write testdata.yaml
         # - include linked testcases
-        # - check for unknown manual cases
         bar.start(str(d.path))
 
         dir_path = problem.path / 'data' / d.path
@@ -982,8 +981,6 @@ class GeneratorConfig:
     # Only used at the root directory level.
     ROOT_KEYS = [
         ('generators', [], parse_generators),
-        # Non-standard key. When set to True (the default), run will be parallelized.
-        ('parallel', True, lambda x: x is True),
         # Non-standard key. When set to True, all generated testcases will be .gitignored from data/.gitignore.
         ('gitignore_generated', False, lambda x: x is True),
     ]
@@ -1176,7 +1173,7 @@ class GeneratorConfig:
                 p.build(localbar)
                 localbar.done()
 
-            p = parallel.Parallel(build_program, 12)
+            p = parallel.Parallel(build_program)
             for pr in programs:
                 p.put(pr)
             p.done()
