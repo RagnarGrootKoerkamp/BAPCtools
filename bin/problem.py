@@ -37,7 +37,6 @@ class Problem:
         self._validators = dict()
         self._programs = dict()
         self._program_callbacks = dict()
-        self._rules_cache = dict()
         # Dictionary from path to parsed file contents.
         self._testdata_yamls = dict()
 

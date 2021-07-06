@@ -397,9 +397,11 @@ class TestcaseRule(Rule):
             self.generator = GeneratorInvocation(problem, inpt)
 
         key = (inpt, self.config.random_salt)
-        if key in problem._rules_cache:
-            error(f'Found duplicate rule "{inpt}" at {problem._rules_cache[key]} and {self.path}')
-        problem._rules_cache[key] = self.path
+        if key in generator_config.rules_cache:
+            error(
+                f'Found duplicate rule "{inpt}" at {generator_config.rules_cache[key]} and {self.path}'
+            )
+        generator_config.rules_cache[key] = self.path
 
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
@@ -989,10 +991,16 @@ class GeneratorConfig:
     # Parse generators.yaml.
     def __init__(self, problem):
         self.problem = problem
-        problem._rules_cache = dict()
         yaml_path = self.problem.path / 'generators/generators.yaml'
         self.ok = True
 
+        # A set of paths `secret/testgroup/testcase`, without the '.in'.
+        self.known_cases = set()
+        # A set of paths `secret/testgroup`.
+        # Used for cleanup.
+        self.known_directories = set()
+        # A set of testcase rules, including seeds.
+        self.rules_cache = dict()
         if yaml_path.is_file():
             yaml = read_yaml(yaml_path)
         else:
@@ -1014,12 +1022,6 @@ class GeneratorConfig:
                 setattr(self, key, func(yaml[key]))
             else:
                 setattr(self, key, default)
-
-        # A set of paths `secret/testgroup/testcase`, without the '.in'.
-        self.known_cases = set()
-        # A set of paths `secret/testgroup`.
-        # Used for cleanup.
-        self.known_directories = set()
 
         # Main recursive parsing function.
         def parse(name, yaml, parent, listed=True):
@@ -1092,6 +1094,7 @@ class GeneratorConfig:
                         if c is not None:
                             d.data.append(c)
 
+            # Find unlisted testcases
             dir_path = self.problem.path / 'data' / d.path
             if dir_path.is_dir():
                 for f in sorted(dir_path.iterdir()):
