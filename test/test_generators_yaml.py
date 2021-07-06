@@ -19,6 +19,17 @@ class MockGeneratorConfig(generate.GeneratorConfig):
     def __init__(self, problem):
         self.problem = problem
 
+        # A set of paths `secret/testgroup/testcase`, without the '.in'.
+        self.known_cases = set()
+        # A set of paths `secret/testgroup`.
+        # Used for cleanup.
+        self.known_directories = set()
+        # A set of testcase rules, including seeds.
+        self.rules_cache = dict()
+        # The set of generated testcases keyed by testdata.
+        # Used to delete duplicated unlisted manual cases.
+        self.generated_testdata = dict()
+
 
 class TestGeneratorConfig:
     @pytest.mark.parametrize(
