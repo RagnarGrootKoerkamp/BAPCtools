@@ -322,6 +322,8 @@ class Rule:
     def __init__(self, problem, name, yaml, parent):
         assert parent is not None
 
+        self.parent = parent
+
         if isinstance(yaml, dict):
             self.config = Config(problem, parent.path / name, yaml, parent_config=parent.config)
         else:
@@ -786,7 +788,7 @@ class Directory(Rule):
             data = yaml['data']
             if parent.numbered is True:
                 fatal(
-                    'Unnumbered data dictionaries may not appear inside numbered data lists at {self.path}.'
+                    f'Unnumbered data dictionaries may not appear inside numbered data lists at {self.path}.'
                 )
         else:
             self.numbered = True
@@ -935,6 +937,22 @@ class Directory(Rule):
         bar.done()
 
 
+# Returns a pair (numbered_name, basename)
+def numbered_testcase_name(basename, i, n, existing_prefix=False):
+    width = len(str(n))
+    number_prefix = f'{i:0{width}}'
+    if basename:
+        # The file already has the right number. No need to prepend it another time.
+        if existing_prefix:
+            parts = basename.split('-', maxsplit=1)
+            if parts[0] == number_prefix:
+                return basename, '' if len(parts) == 1 else parts[1]
+        return number_prefix + '-' + basename, basename
+    else:
+        assert basename is None or basename == ''
+        return number_prefix, ''
+
+
 class GeneratorConfig:
     def parse_generators(generators_yaml):
         check_type('Generators', generators_yaml, dict)
@@ -1048,27 +1066,17 @@ class GeneratorConfig:
             # First loop over explicitly mentioned testcases/directories, and then find remaining on-disk files/dirs.
             done = set()
             if 'data' in yaml and yaml['data']:
-                number_width = len(str(len(yaml['data'])))
-                next_number = 1
 
-                for dictionary in yaml['data']:
+                for id, dictionary in enumerate(yaml['data'], start=1):
                     check_type('Elements of data', dictionary, dict, d.path)
-                    if d.numbered:
-                        number_prefix = f'{next_number:0{number_width}}'
-                        next_number += 1
-                    else:
-                        number_prefix = ''
-
                     for key in dictionary:
                         check_type('Testcase/directory name', key, [str, None], d.path)
 
                     for child_name, child_yaml in sorted(dictionary.items()):
-                        if number_prefix:
-                            if child_name:
-                                child_name = number_prefix + '-' + child_name
-                            else:
-                                assert child_name is None or child_name == ''
-                                child_name = number_prefix
+                        if d.numbered:
+                            child_name, child_basename = numbered_testcase_name(
+                                child_name, id, len(yaml['data'])
+                            )
                         else:
                             if not child_name:
                                 fatal(
@@ -1280,6 +1288,40 @@ class GeneratorConfig:
             if config.args.verbose:
                 log('Updated data/.gitignore.')
 
+    def lookup_yaml(self, yaml, name):
+        import ruamel.yaml
+
+        yaml = yaml['data']
+        if isinstance(yaml, ruamel.yaml.comments.CommentedMap):
+            yaml = yaml[name]
+        else:
+            # Split the testcase/name name in a number and remaining part.
+            parts = name.split('-', maxsplit=1)
+            id = parts[0]
+            name = '' if len(parts) == 1 else parts[1]
+            yaml = yaml[int(id) - 1][name]
+        return yaml
+
+    def set_yaml(self, yaml, name, value):
+        import ruamel.yaml
+
+        yaml = yaml['data']
+        if isinstance(yaml, ruamel.yaml.comments.CommentedMap):
+            yaml[name] = value
+        else:
+            # Split the testcase/name name in a number and remaining part.
+            parts = name.split('-', maxsplit=1)
+            id = parts[0]
+            name = '' if len(parts) == 1 else parts[1]
+            yaml[int(id) - 1][name] = value
+
+    # Given a yaml object and a directory/testcase, find the
+    # parent yaml object. This works for both named and numbered cases.
+    def traverse_yaml(self, yaml, dt):
+        for name in dt.path.parts:
+            yaml = self.lookup_yaml(yaml, name)
+        return yaml
+
     def add_unlisted_to_generators_yaml(self, bar):
         try:
             import ruamel.yaml
@@ -1309,29 +1351,46 @@ class GeneratorConfig:
                 bar.done()
                 return
 
-            bar.log(f'Added to generators.yaml')
+            bar.log(f'Adding to generators.yaml')
             nonlocal data
-            yaml = data
-            for directory in d.path.parent.parts:
-                yaml = yaml['data'][directory]
+            yaml = self.traverse_yaml(data, d.parent)
 
             if 'data' not in yaml:
                 yaml['data'] = ruamel.yaml.comments.CommentedMap()
             if yaml['data'] is None:
                 yaml['data'] = ruamel.yaml.comments.CommentedMap()
+            yaml = yaml['data']
 
-            if isinstance(yaml['data'], ruamel.yaml.comments.CommentedMap):
-                if d.path.name in yaml['data']:
+            if isinstance(yaml, ruamel.yaml.comments.CommentedMap):
+                if d.path.name in yaml:
                     if (
-                        not isinstance(yaml['data'][d.path.name], ruamel.yaml.comments.CommentedMap)
-                        or yaml['data'][d.path.name].get('type') != 'directory'
+                        not isinstance(yaml[d.path.name], ruamel.yaml.comments.CommentedMap)
+                        or yaml[d.path.name].get('type') != 'directory'
                     ):
                         fatal_error(f'Can not overwrite yaml key for {d.path} with a directory.')
                 else:
-                    yaml['data'][d.path.name] = {'type': 'directory', 'data': None}
-            elif isinstance(yaml['data'], ruamel.yaml.comments.CommentedSeq):
-                # TODO: Allow this
-                error(f'Manual case cannot be added to directory {path.parent} which is numbered.')
+                    yaml[d.path.name] = {'type': 'directory', 'data': None}
+            elif isinstance(yaml, ruamel.yaml.comments.CommentedSeq):
+                yaml.append(ruamel.yaml.comments.CommentedMap())
+                # Find the right name for the directory
+                new_name, basename = numbered_testcase_name(
+                    d.path.name, len(yaml), len(yaml), existing_prefix=True
+                )
+                # Add the directory to the yaml
+                yaml[-1][basename] = {
+                    'type': 'directory',
+                    'data': ruamel.yaml.comments.CommentedSeq(),
+                }
+
+                if new_name != d.path.name:
+                    bar.log(f'Rename to {new_name}')
+                    # Rename the directory
+                    source = self.problem.path / 'data' / d.path.parent / d.path.name
+                    target = self.problem.path / 'data' / d.path.parent / new_name
+                    assert source.is_dir()
+                    shutil.move(source, target)
+                else:
+                    bar.log('Keep existing name')
             else:
                 assert False
             bar.done()
@@ -1342,18 +1401,42 @@ class GeneratorConfig:
             if t.listed:
                 bar.done()
                 return
-            bar.log(f'Added to generators.yaml')
+
+            if not (self.problem.path / 'data' / t.path.with_suffix('.in')).is_file():
+                bar.error('Directory was renamed; run again to add testcases.')
+                return
+
+            bar.log(f'Adding to generators.yaml')
             nonlocal data
-            yaml = data
-            for directory in t.path.parent.parts:
-                yaml = yaml['data'][directory]
+            yaml = self.traverse_yaml(data, t.parent)
 
             if 'data' not in yaml or yaml['data'] is None:
                 yaml['data'] = ruamel.yaml.comments.CommentedMap()
-            if isinstance(yaml['data'], ruamel.yaml.comments.CommentedMap):
-                yaml['data'][t.path.name] = None
-            elif isinstance(yaml['data'], ruamel.yaml.comments.CommentedSeq):
-                error(f'Manual case cannot be added to directory {path.parent} which is numbered.')
+            yaml = yaml['data']
+
+            if isinstance(yaml, ruamel.yaml.comments.CommentedMap):
+                yaml[t.path.name] = None
+            elif isinstance(yaml, ruamel.yaml.comments.CommentedSeq):
+                yaml.append(ruamel.yaml.comments.CommentedMap())
+                # Find the right name for the directory
+                new_name, basename = numbered_testcase_name(
+                    t.path.name, len(yaml), len(yaml), existing_prefix=True
+                )
+                # Add the directory to the yaml
+                yaml[-1][basename] = None
+
+                if new_name != t.path.name:
+                    bar.log(f'Rename to {new_name}')
+                    # Rename the files
+                    for ext in config.KNOWN_DATA_EXTENSIONS:
+                        source = self.problem.path / 'data' / t.path.parent / (t.path.name + ext)
+                        target = self.problem.path / 'data' / t.path.parent / (new_name + ext)
+                        if source.is_file():
+                            shutil.move(source, target)
+                else:
+                    bar.log('Keep existing name')
+
+                bar.warn('Run generate --move-manual to prevent out-of-sync numbered manual cases.')
             else:
                 assert False
             bar.done()
@@ -1396,24 +1479,22 @@ class GeneratorConfig:
                 bar.done()
                 return
 
-            yaml = data
-            for directory in t.path.parent.parts:
-                yaml = yaml['data'][directory]
+            nonlocal data
+            yaml = self.traverse_yaml(data, t.parent)
 
             # Move all test data.
             # Make sure the testcase doesn't already exist in the target directory.
             in_target = config.args.move_manual / Path(*t.path.parts[1:]).with_suffix('.in')
             rel_target = in_target.with_suffix('').relative_to(self.problem.path.resolve())
             if in_target.is_file():
-                bar.warn(f'Target file {rel_target} already exists.')
-                bar.done()
+                bar.error(f'Target file {rel_target} already exists.')
                 return
-            bar.log(f'Moved to {rel_target}.')
+            bar.log(f'Moving to {rel_target}.')
 
-            assert t.path.name in yaml['data']
-
-            yaml['data'][t.path.name] = str(
-                in_target.relative_to(self.problem.path.resolve() / 'generators')
+            self.set_yaml(
+                yaml,
+                t.path.name,
+                str(in_target.relative_to(self.problem.path.resolve() / 'generators')),
             )
 
             for ext in config.KNOWN_DATA_EXTENSIONS:
