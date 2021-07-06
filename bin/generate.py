@@ -346,9 +346,9 @@ class TestcaseRule(Rule):
 
         # Manual cases are either unlisted .in files, or listed rules ending in .in.
         self.manual = False
-        # Manual
-        self.manual_inline = False
-        # Listed cases are mentioned in generators.yaml
+        # Inline: cases where the soure is in the data/ directory.
+        self.inline = False
+        # Listed: cases mentioned in generators.yaml.
         self.listed = listed
         self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == 'sample'
 
@@ -359,7 +359,7 @@ class TestcaseRule(Rule):
 
         if yaml is None:
             self.manual = True
-            self.manual_inline = True
+            self.inline = True
             yaml = {'input': Path('data') / parent.path / (name + '.in')}
         elif isinstance(yaml, str) and yaml.endswith('.in'):
             self.manual = True
@@ -371,6 +371,11 @@ class TestcaseRule(Rule):
             check_type('Input', yaml['input'], [None, str])
         else:
             assert False
+
+        if not listed:
+            assert self.manual
+        if self.inline:
+            assert self.manual
 
         super().__init__(problem, name, yaml, parent)
 
@@ -399,12 +404,6 @@ class TestcaseRule(Rule):
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
-        # Hints for --add-manual and --move-manual.
-        if not t.listed:
-            bar.debug(f'Track using --add-manual or delete using clean -f.')
-        elif t.manual_inline:
-            bar.debug(f'Use --move-manual to move out of data/.')
-
         # E.g. bapctmp/problem/data/secret/1.in
         cwd = problem.tmpdir / 'data' / t.path
         cwd.mkdir(parents=True, exist_ok=True)
@@ -415,6 +414,12 @@ class TestcaseRule(Rule):
         target_dir = problem.path / 'data' / t.path.parent
         target_infile = target_dir / (t.name + '.in')
         target_ansfile = target_dir / (t.name + '.ans')
+
+        # Hints for --add-manual and --move-manual.
+        if not t.listed:
+            bar.debug(f'Track using --add-manual or delete using clean -f.')
+        elif t.inline:
+            bar.debug(f'Use --move-manual to move out of data/.')
 
         if not t.manual and t.generator.program is None:
             bar.done(False, f'Generator didn\'t build.')
@@ -1251,7 +1256,7 @@ class GeneratorConfig:
         cases_to_ignore = []
 
         def maybe_ignore_testcase(t):
-            if not (t.manual_inline or t.sample):
+            if not (t.inline or t.sample):
                 cases_to_ignore.append(t.path)
 
         self.root_dir.walk(maybe_ignore_testcase, None)
@@ -1388,7 +1393,7 @@ class GeneratorConfig:
                     source = self.problem.path / 'data' / d.path.parent / d.path.name
                     target = self.problem.path / 'data' / d.path.parent / new_name
                     assert source.is_dir()
-                    shutil.move(source, target)
+                    source.rename(target)
                 else:
                     bar.log('Keep existing name')
             else:
@@ -1475,7 +1480,7 @@ class GeneratorConfig:
         # Add missing testcases.
         def move_testcase(t):
             bar.start(str(t.path))
-            if not t.listed or not t.manual_inline:
+            if not (t.listed and t.inline):
                 bar.done()
                 return
 
