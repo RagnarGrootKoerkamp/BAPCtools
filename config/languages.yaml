@@ -129,7 +129,7 @@ cpp:
     name: 'C++'
     priority: 1000
     files: '*.cc *.C *.cpp *.cxx *.c++'
-    compile: 'g++ -g -O2 -std=gnu++17 -o {binary} {files} -Wall -Wfatal-errors -fdiagnostics-color=always'
+    compile: 'g++ -g -O2 -std=gnu++20 -o {binary} {files} -Wall -Wfatal-errors -fdiagnostics-color=always'
     run: '{binary}'
 
 csharp:
