@@ -371,7 +371,7 @@ class Problem:
             ok &= p.build(localbar)
             localbar.done()
 
-        p = parallel.Parallel(build_program, 12)
+        p = parallel.Parallel(build_program)
         for pr in validators:
             p.put(pr)
         p.done()
