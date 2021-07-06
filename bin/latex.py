@@ -93,17 +93,17 @@ def get_tl(problem_config):
     return tl if print_tl else ''
 
 
-def get_environment():
+def make_environment():
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
-    paths = [
+    latex_paths = [
         Path.cwd(),
         Path.cwd() / 'solve_stats',
         Path.cwd() / 'solve_stats/activity',
         config.tools_root / 'latex',
     ]
     texinputs = ''
-    for p in paths:
+    for p in latex_paths:
         texinputs += str(p) + ';'
     if config.args.verbose >= 2:
         print(f"export TEXINPUTS='{texinputs}'", file=sys.stderr)
@@ -112,7 +112,10 @@ def get_environment():
 
 
 def build_latex_pdf(builddir, tex_path, problem_path=None):
-    env = get_environment()
+    env = make_environment()
+
+    if shutil.which('latexmk') == None:
+        fatal('latexmk not found!')
 
     latexmk_command = [
         'latexmk',
