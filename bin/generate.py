@@ -571,6 +571,7 @@ class TestcaseRule(Rule):
             'input_format', bar=bar, constraints=None, warn_instead_of_error=ignore_validators
         ):
             if not ignore_validators:
+                bar.debug('Use generate --ignore-validators to ignore validation results.')
                 return
 
         # Generate .ans and .interaction if needed.
@@ -589,6 +590,7 @@ class TestcaseRule(Rule):
                     'output_format', bar=bar, warn_instead_of_error=ignore_validators
                 ):
                     if not ignore_validators:
+                        bar.debug('Use generate --ignore-validators to ignore validation results.')
                         return
             else:
                 if not target_ansfile.is_file():
