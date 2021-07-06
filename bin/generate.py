@@ -1302,7 +1302,7 @@ class GeneratorConfig:
             p = parallel.Parallel(
                 lambda t: not t.listed and t.generate(self.problem, self, bar), in_parallel
             )
-            self.root_dir.walk(p.put)
+            self.root_dir.walk(p.put, None)
             p.done()
 
         bar.finalize()
