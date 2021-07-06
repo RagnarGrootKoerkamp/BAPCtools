@@ -336,7 +336,7 @@ class Rule:
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, name: str, yaml, parent, listed):
+    def __init__(self, problem, generator_config, name: str, yaml, parent, listed):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
@@ -416,6 +416,59 @@ class TestcaseRule(Rule):
         target_dir = problem.path / 'data' / t.path.parent
         target_infile = target_dir / (t.name + '.in')
         target_ansfile = target_dir / (t.name + '.ans')
+
+        def add_testdata_to_cache():
+            # Store the generated testdata for deduplication of unlisted manual cases.
+            generator_config.generated_testdata[target_infile.read_text()] = t
+
+        def deduplicate_unlisted():
+            # If this is an unlisted testcase, check if we have already generated a testcase with
+            # the same data:
+            assert target_infile.is_file()
+            testdata = target_infile.read_text()
+            if testdata not in generator_config.generated_testdata:
+                return False
+            # Make sure that all files that exist both in the manual and generated case are equal.
+            # If so, any extra manual files (i.e. visualizations) will be moved to the generated case.
+            # Otherwise a message is shown that the manual case has the same input but differences.
+            distinct = None
+
+            g = generator_config.generated_testdata[testdata]
+            generated_infile = problem.path / 'data' / g.path.parent / (g.name + '.in')
+
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                manual = target_infile.with_suffix(ext)
+                generated = generated_infile.with_suffix(ext)
+                if not (manual.is_file() and generated.is_file()):
+                    continue
+                if manual.read_bytes() == generated.read_bytes():
+                    continue
+                distinct = manual.name
+                break
+
+            if distinct:
+                bar.warn(f'Same input as {g.path} but different {distinct}')
+                return False
+
+            bar.debug(f'Replaced by {g.path}')
+            # Move all files
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                manual = target_infile.with_suffix(ext)
+                generated = generated_infile.with_suffix(ext)
+                if not manual.is_file():
+                    continue
+                if generated.is_file():
+                    # duplicate: delete the source
+                    manual.unlink()
+                else:
+                    # move manual to generated
+                    manual.rename(generated)
+            return True
+
+        if not t.listed:
+            if deduplicate_unlisted():
+                bar.done()
+                return
 
         # Hints for --add-manual and --move-manual.
         if not t.listed:
@@ -543,6 +596,7 @@ class TestcaseRule(Rule):
             check_deterministic()
             if config.args.action != 'generate':
                 bar.logged = True  # Disable redundant 'up to date' message in run mode.
+            add_testdata_to_cache()
             bar.done(message='up to date')
             return
 
@@ -709,6 +763,9 @@ class TestcaseRule(Rule):
         # If the .in was changed but not overwritten, check_deterministic will surely fail.
         if not skipped_in:
             check_deterministic()
+
+        add_testdata_to_cache()
+
         bar.done()
 
     def clean(t, problem, generator_config, bar):
@@ -998,6 +1055,10 @@ class GeneratorConfig:
         self.known_directories = set()
         # A set of testcase rules, including seeds.
         self.rules_cache = dict()
+        # The set of generated testcases keyed by testdata.
+        # Used to delete duplicated unlisted manual cases.
+        self.generated_testdata = dict()
+
         if yaml_path.is_file():
             yaml = read_yaml(yaml_path)
         else:
@@ -1044,7 +1105,7 @@ class GeneratorConfig:
                 ):
                     return None
 
-                t = TestcaseRule(self.problem, name, yaml, parent, listed=listed)
+                t = TestcaseRule(self.problem, self, name, yaml, parent, listed=listed)
                 assert t.path not in self.known_cases
                 self.known_cases.add(t.path)
                 return t
@@ -1217,19 +1278,31 @@ class GeneratorConfig:
                 in_parallel = False
                 verbose('Disabling parallelization for interactive problem.')
 
-            # Parallelize generating test cases.
-            # All testcases are generated in separate threads.
-            p = parallel.Parallel(lambda t: t.generate(self.problem, self, bar), in_parallel)
+            # Testcases are generated in two step:
+            # 1. Generate directories and testcases listed in generators.yaml.
+            #    Each directory is only started after previous directories have
+            #    finished and handled by the main thread, to avoid problems with
+            #    included testcases.
+            # 2. Generate unlisted testcases. These come
+            #    after to deduplicate them against generated testcases.
 
-            # Directories are still handled by the main thread. Only start
-            # processing a directory after all preceding test cases have
-            # completed to avoid problems with including cases.
+            # 1
+            p = parallel.Parallel(
+                lambda t: t.listed and t.generate(self.problem, self, bar), in_parallel
+            )
+
             def generate_dir(d):
                 p.join()
                 d.generate(self.problem, self, bar)
 
             self.root_dir.walk(p.put, generate_dir)
+            p.done()
 
+            # 2
+            p = parallel.Parallel(
+                lambda t: not t.listed and t.generate(self.problem, self, bar), in_parallel
+            )
+            self.root_dir.walk(p.put)
             p.done()
 
         bar.finalize()
