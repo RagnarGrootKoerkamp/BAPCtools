@@ -320,7 +320,11 @@ Run this from one of:
         '--force_build', action='store_true', help='Force rebuild instead of only on changed files.'
     )
     global_parser.add_argument(
-        '--jobs', '-j', type=int, default=os.cpu_count()//2, help='The number of jobs to use. Default is cpu_count()/2.'
+        '--jobs',
+        '-j',
+        type=int,
+        default=os.cpu_count() // 2,
+        help='The number of jobs to use. Default is cpu_count()/2.',
     )
 
     subparsers = parser.add_subparsers(title='actions', dest='action')
@@ -536,7 +540,7 @@ Run this from one of:
 
     # Clean
     cleanparser = subparsers.add_parser(
-        'clean', parents=[global_parser], help='Delete all .in and .ans corresponding to .gen.'
+        'clean', parents=[global_parser], help='Delete all generated files.'
     )
     cleanparser.add_argument(
         '--force', '-f', action='store_true', help='Delete all untracked files.'
