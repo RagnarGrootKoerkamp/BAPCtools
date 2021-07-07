@@ -1,6 +1,6 @@
 verify_{%problem%}:
   script:
-    - ./bt all --cp --error --no-bar --clean --force --problem {%contest%}/{%problem%}
+    - ./bt all --cp --error --no-bar --clean-generated --force --problem {%contest%}/{%problem%}
   only:
     refs:
       - master

@@ -768,30 +768,6 @@ class TestcaseRule(Rule):
 
         bar.done()
 
-    def clean(t, problem, generator_config, bar):
-        bar.start(str(t.path))
-
-        path = Path('data') / t.path.with_suffix(t.path.suffix + '.in')
-
-        # Skip cleaning manual cases that are their own source.
-        if t.manual and t.source == path:
-            bar.log(f'Keep manual case')
-            bar.done()
-            return
-
-        infile = problem.path / path
-        for ext in config.KNOWN_DATA_EXTENSIONS:
-            ext_file = infile.with_suffix(ext)
-            if ext_file.is_file():
-                if ext == '.ans' and t.config.solution is None:
-                    bar.log(f'Keep {ext_file.name} since solution is disabled.')
-                    continue
-
-                bar.log(f'Remove file {ext_file.name}')
-                ext_file.unlink()
-
-        bar.done()
-
 
 # Helper that has the required keys needed from a parent directory.
 class RootDirectory:
@@ -936,68 +912,6 @@ class Directory(Rule):
 
         bar.done()
         return True
-
-    def clean(d, problem, generator_config, bar):
-        # Clean the current directory:
-        # - remove testdata.yaml
-        # - remove linked testcases
-        # - remove the directory if it's empty
-        bar.start(str(d.path))
-
-        dir_path = problem.path / 'data' / d.path
-
-        # Remove the testdata.yaml when the key is present.
-        testdata_yaml_path = dir_path / 'testdata.yaml'
-        if d.testdata_yaml is not None and testdata_yaml_path.is_file():
-            bar.log(f'Remove testdata.yaml')
-            testdata_yaml_path.unlink()
-
-        for f in dir_path.glob('*'):
-            # Remove all symlinks that correspond to includes.
-            if f.is_symlink():
-                try:
-                    target = (
-                        Path(os.path.normpath(f.parent / os.readlink(f)))
-                        .relative_to(problem.path / 'data')
-                        .with_suffix('')
-                    )
-
-                    if target in d.includes or target.parent in d.includes:
-                        bar.log(f'Remove linked file {f.name}')
-                        f.unlink()
-                        continue
-                except ValueError:
-                    pass
-
-            if f.name[0] == '.':
-                continue
-
-            if d.path == Path('.') and f.name == 'bad':
-                continue
-
-            # If --force/-f is passed, also clean unknown files.
-            relpath = f.relative_to(problem.path / 'data')
-            if relpath.with_suffix('') in generator_config.known_cases:
-                continue
-            if relpath.with_suffix('') in generator_config.known_directories:
-                continue
-
-            ft = 'directory' if f.is_dir() else 'file'
-
-            if config.args.force:
-                bar.log(f'Deleted unlisted {ft}: {relpath}')
-                f.unlink()
-            else:
-                bar.log(f'Found unlisted {ft}. Delete with clean --force: {relpath}')
-
-        # Try to remove the directory. Fails if it's not empty.
-        try:
-            dir_path.rmdir()
-            bar.log(f'Remove directory {dir_path.name}')
-        except:
-            pass
-
-        bar.done()
 
 
 # Returns a pair (numbered_name, basename)
@@ -1268,6 +1182,10 @@ class GeneratorConfig:
 
         if config.args.clean:
             self.clean_unlisted()
+            return
+
+        if config.args.clean_generated:
+            self.clean_generated()
             return
 
         bar = ProgressBar('Generate', items=item_names)
@@ -1597,17 +1515,57 @@ class GeneratorConfig:
     def clean_generated(self):
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
-
         bar = ProgressBar('Clean generated', items=item_names)
-        self.root_dir.walk(lambda x: x.clean(self.problem, self, bar), dir_last=True)
+
+        def clean_testcase(t):
+            bar.start(str(t.path))
+
+            # Skip cleaning manual cases that are their own source.
+            if t.inline:
+                bar.done()
+                return
+
+            infile = self.problem.path / 'data' / t.path.with_suffix(t.path.suffix + '.in')
+            deleted = False
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                ext_file = infile.with_suffix(ext)
+                if ext_file.is_file():
+                    ext_file.unlink()
+                    deleted = True
+
+            if deleted:
+                bar.log('Deleting testcase')
+
+            bar.done()
+
+        def clean_directory(d):
+            bar.start(str(d.path))
+            dir_path = self.problem.path / 'data' / d.path
+
+            # Remove the testdata.yaml when the key is present.
+            testdata_yaml_path = dir_path / 'testdata.yaml'
+            if d.testdata_yaml is not None and testdata_yaml_path.is_file():
+                bar.log(f'Remove testdata.yaml')
+                testdata_yaml_path.unlink()
+
+            # Try to remove the directory if it's empty.
+            try:
+                dir_path.rmdir()
+                bar.log('Remove directory')
+            except:
+                pass
+
+            bar.done()
+
+        self.root_dir.walk(clean_testcase, clean_directory, dir_last=True)
         bar.finalize()
 
     # Remove all unlisted files. Runs in dry-run mode without -f.
     def clean_unlisted(self):
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
-
         bar = ProgressBar('Clean unlisted', items=item_names)
+
         # Delete all files related to the testcase.
         def clean_testcase(t):
             bar.start(str(t.path))
@@ -1685,7 +1643,7 @@ def generate(problem):
     return True
 
 
-def clean(problem):
+def clean_generated(problem):
     config = GeneratorConfig(problem)
     if config.ok:
         config.clean_generated()

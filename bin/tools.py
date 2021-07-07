@@ -481,13 +481,12 @@ Run this from one of:
         action='store_true',
         help='Overwrite the samples as well, in combination with -f.',
     )
-    genparser.add_argument('--clean', action='store_true', help='Delete unlisted files.')
 
-    manual_case_group = genparser.add_mutually_exclusive_group()
-    manual_case_group.add_argument(
+    genparser_group = genparser.add_mutually_exclusive_group()
+    genparser_group.add_argument(
         '--add-manual', action='store_true', help='Add manual cases to generators.yaml.'
     )
-    manual_case_group.add_argument(
+    genparser_group.add_argument(
         '--move-manual',
         nargs='?',
         type=Path,
@@ -495,6 +494,13 @@ Run this from one of:
         help='Move tracked inline manual cases to the given directory.',
         metavar='TARGET_DIRECTORY=generators/manual',
     )
+    genparser_group.add_argument(
+        '--clean', '-C', action='store_true', help='Delete unlisted files.'
+    )
+    genparser_group.add_argument(
+        '--clean-generated', '-c', action='store_true', help='Delete generated files.'
+    )
+
     genparser.add_argument(
         '--interaction',
         '-i',
@@ -537,14 +543,6 @@ Run this from one of:
         nargs='*',
         type=Path,
         help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name, and submissions to run.',
-    )
-
-    # Clean
-    cleanparser = subparsers.add_parser(
-        'clean', parents=[global_parser], help='Delete all generated files.'
-    )
-    cleanparser.add_argument(
-        '--force', '-f', action='store_true', help='Delete all untracked files.'
     )
 
     # Run
@@ -622,7 +620,7 @@ Run this from one of:
     )
     allparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     allparser.add_argument(
-        '--clean', action='store_true', help='Clean up generated testcases afterwards.'
+        '--clean-generated', action='store_true', help='Clean up generated testcases afterwards.'
     )
     allparser.add_argument('--force', '-f', action='store_true', help='Delete all untracked files.')
 
@@ -865,10 +863,8 @@ def run_parsed_arguments(args):
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
                 success &= export.build_problem_zip(problem, output, settings)
-        if action in ['clean'] or (action in ['all'] and config.args.clean):
-            if not hasattr(config.args, 'force'):
-                config.args.force = False
-            success &= generate.clean(problem)
+        if action == 'all' and config.args.clean_generated:
+            success &= generate.clean_generated(problem)
 
         if len(problems) > 1:
             print(file=sys.stderr)
