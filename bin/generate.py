@@ -71,14 +71,15 @@ def resolve_path(path, *, allow_absolute, allow_relative):
 
 
 # testcase_short_path: secret/1.in
-def process_testcase(problem, testcase_path):
+def process_testcase(problem, relative_testcase_path):
     if not getattr(config.args, 'testcases', None):
         return True
+    absolute_testcase_path = problem.path / 'data' / relative_testcase_path
     for p in config.args.testcases:
         # Try the given path itself, and the given path without the last suffix.
         for p2 in [p, p.with_suffix('')]:
             try:
-                testcase_path.relative_to(problem.path / p2)
+                absolute_testcase_path.relative_to(problem.path / p2)
                 return True
             except ValueError:
                 pass
@@ -472,7 +473,7 @@ class TestcaseRule(Rule):
 
         # Hints for --add-manual and --move-manual.
         if not t.listed:
-            bar.debug(f'Track using --add-manual or delete using clean -f.')
+            bar.debug(f'Track using --add-manual or delete using --clean.')
         elif t.inline:
             bar.debug(f'Use --move-manual to move out of data/.')
 
@@ -1014,9 +1015,7 @@ class GeneratorConfig:
                     return None
 
                 # If a list of testcases was passed and this one is not in it, skip it.
-                if not process_testcase(
-                    self.problem, self.problem.path / 'data' / parent.path / name
-                ):
+                if not process_testcase(self.problem, parent.path / name):
                     return None
 
                 t = TestcaseRule(self.problem, self, name, yaml, parent, listed=listed)
@@ -1265,8 +1264,7 @@ class GeneratorConfig:
                     continue
                 assert line.endswith('.*')
                 line = Path(line).with_suffix('')
-                path = self.problem.path / 'data' / line
-                if not process_testcase(self.problem, path):
+                if not process_testcase(self.problem, line):
                     cases_to_ignore.append(line)
         cases_to_ignore.sort()
 
@@ -1521,7 +1519,7 @@ class GeneratorConfig:
             bar.start(str(t.path))
 
             # Skip cleaning manual cases that are their own source.
-            if t.inline:
+            if not process_testcase(self.problem, t.path) or t.inline:
                 bar.done()
                 return
 
@@ -1540,20 +1538,23 @@ class GeneratorConfig:
 
         def clean_directory(d):
             bar.start(str(d.path))
+
             dir_path = self.problem.path / 'data' / d.path
 
-            # Remove the testdata.yaml when the key is present.
-            testdata_yaml_path = dir_path / 'testdata.yaml'
-            if d.testdata_yaml is not None and testdata_yaml_path.is_file():
-                bar.log(f'Remove testdata.yaml')
-                testdata_yaml_path.unlink()
+            if process_testcase(self.problem, d.path / 'testdata.yaml'):
+                # Remove the testdata.yaml when the key is present.
+                testdata_yaml_path = dir_path / 'testdata.yaml'
+                if d.testdata_yaml is not None and testdata_yaml_path.is_file():
+                    bar.log(f'Remove testdata.yaml')
+                    testdata_yaml_path.unlink()
 
-            # Try to remove the directory if it's empty.
-            try:
-                dir_path.rmdir()
-                bar.log('Remove directory')
-            except:
-                pass
+            if process_testcase(self.problem, d.path):
+                # Try to remove the directory if it's empty.
+                try:
+                    dir_path.rmdir()
+                    bar.log('Remove directory')
+                except:
+                    pass
 
             bar.done()
 
@@ -1570,7 +1571,11 @@ class GeneratorConfig:
         def clean_testcase(t):
             bar.start(str(t.path))
             # Skip listed cases, but also unlisted cases in data/bad.
-            if t.listed or (len(t.path.parts) > 0 and t.path.parts[0] == 'bad'):
+            if (
+                not process_testcase(self.problem, t.path)
+                or t.listed
+                or (len(t.path.parts) > 0 and t.path.parts[0] == 'bad')
+            ):
                 bar.done()
                 return
 
@@ -1587,7 +1592,7 @@ class GeneratorConfig:
             bar.done()
 
         # For unlisted directories, delete them entirely.
-        # For listed directories, non-testcase files.
+        # For listed directories, delete non-testcase files.
         def clean_directory(d):
             bar.start(str(d.path))
 
@@ -1598,11 +1603,12 @@ class GeneratorConfig:
 
             path = self.problem.path / 'data' / d.path
             if not d.listed:
-                if not config.args.force:
-                    bar.warn(f'Deleting directory with -f')
-                else:
-                    bar.log(f'Deleting directory')
-                    shutil.rmtree(path)
+                if process_testcase(self.problem, d.path):
+                    if not config.args.force:
+                        bar.warn(f'Deleting directory with -f')
+                    else:
+                        bar.log(f'Deleting directory')
+                        shutil.rmtree(path)
                 bar.done()
                 return
 
@@ -1623,11 +1629,12 @@ class GeneratorConfig:
                 if relpath.with_suffix('') in self.known_directories:
                     continue
 
-                if not config.args.force:
-                    bar.warn(f'Deleting {f.name} with -f')
-                else:
-                    bar.log(f'Deleting {f.name}')
-                    f.unlink()
+                if process_testcase(self.problem, relpath):
+                    if not config.args.force:
+                        bar.warn(f'Deleting {f.name} with -f')
+                    else:
+                        bar.log(f'Deleting {f.name}')
+                        f.unlink()
 
             bar.done()
 
