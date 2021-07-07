@@ -952,8 +952,8 @@ class Directory(Rule):
             bar.log(f'Remove testdata.yaml')
             testdata_yaml_path.unlink()
 
-        # Remove all symlinks that correspond to includes.
         for f in dir_path.glob('*'):
+            # Remove all symlinks that correspond to includes.
             if f.is_symlink():
                 try:
                     target = (
@@ -1152,7 +1152,7 @@ class GeneratorConfig:
                         if c is not None:
                             d.data.append(c)
 
-            # Find unlisted testcases
+            # Find unlisted testcases and directories.
             dir_path = self.problem.path / 'data' / d.path
             if dir_path.is_dir():
                 for f in sorted(dir_path.iterdir()):
@@ -1266,6 +1266,10 @@ class GeneratorConfig:
 
         self.problem.reset_testcase_hashes()
 
+        if config.args.clean:
+            self.clean_unlisted()
+            return
+
         bar = ProgressBar('Generate', items=item_names)
 
         if config.args.add_manual:
@@ -1302,6 +1306,7 @@ class GeneratorConfig:
             p = parallel.Parallel(
                 lambda t: not t.listed and t.generate(self.problem, self, bar), in_parallel
             )
+            # Directories have already been generated so can be skipped now.
             self.root_dir.walk(p.put, None)
             p.done()
 
@@ -1589,13 +1594,86 @@ class GeneratorConfig:
         # Overwrite generators.yaml.
         yaml.dump(data, generators_yaml)
 
-    def clean(self):
+    def clean_generated(self):
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
 
-        bar = ProgressBar('Clean', items=item_names)
-
+        bar = ProgressBar('Clean generated', items=item_names)
         self.root_dir.walk(lambda x: x.clean(self.problem, self, bar), dir_last=True)
+        bar.finalize()
+
+    # Remove all unlisted files. Runs in dry-run mode without -f.
+    def clean_unlisted(self):
+        item_names = []
+        self.root_dir.walk(lambda x: item_names.append(x.path))
+
+        bar = ProgressBar('Clean unlisted', items=item_names)
+        # Delete all files related to the testcase.
+        def clean_testcase(t):
+            bar.start(str(t.path))
+            # Skip listed cases, but also unlisted cases in data/bad.
+            if t.listed or (len(t.path.parts) > 0 and t.path.parts[0] == 'bad'):
+                bar.done()
+                return
+
+            infile = self.problem.path / 'data' / t.path.parent / (t.path.name + '.in')
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                ext_file = infile.with_suffix(ext)
+                if ext_file.is_file():
+                    if not config.args.force:
+                        bar.warn(f'Deleting {ext_file.name} with -f')
+                    else:
+                        bar.log(f'Deleting {ext_file.name}')
+                        ext_file.unlink()
+
+            bar.done()
+
+        # For unlisted directories, delete them entirely.
+        # For listed directories, non-testcase files.
+        def clean_directory(d):
+            bar.start(str(d.path))
+
+            # Skip the data/bad directory.
+            if len(d.path.parts) > 0 and d.path.parts[0] == 'bad':
+                bar.done()
+                return
+
+            path = self.problem.path / 'data' / d.path
+            if not d.listed:
+                if not config.args.force:
+                    bar.warn(f'Deleting directory with -f')
+                else:
+                    bar.log(f'Deleting directory')
+                    shutil.rmtree(path)
+                bar.done()
+                return
+
+            # Iterate over all files and delete if they do not belong to a testcase.
+            for f in sorted(path.iterdir()):
+                # Directories should be deleted in the recursive step.
+                if f.is_dir():
+                    continue
+                # Preserve testdata.yaml in listed directories.
+                if f.name == 'testdata.yaml':
+                    continue
+                if f.name[0] == '.':
+                    continue
+
+                relpath = f.relative_to(self.problem.path / 'data')
+                if relpath.with_suffix('') in self.known_cases:
+                    continue
+                if relpath.with_suffix('') in self.known_directories:
+                    continue
+
+                if not config.args.force:
+                    bar.warn(f'Deleting {f.name} with -f')
+                else:
+                    bar.log(f'Deleting {f.name}')
+                    f.unlink()
+
+            bar.done()
+
+        self.root_dir.walk(clean_testcase, clean_directory, dir_last=True)
         bar.finalize()
 
 
@@ -1610,7 +1688,7 @@ def generate(problem):
 def clean(problem):
     config = GeneratorConfig(problem)
     if config.ok:
-        config.clean()
+        config.clean_generated()
     return True
 
 

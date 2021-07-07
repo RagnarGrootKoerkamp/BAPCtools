@@ -481,6 +481,7 @@ Run this from one of:
         action='store_true',
         help='Overwrite the samples as well, in combination with -f.',
     )
+    genparser.add_argument('--clean', action='store_true', help='Delete unlisted files.')
 
     manual_case_group = genparser.add_mutually_exclusive_group()
     manual_case_group.add_argument(
