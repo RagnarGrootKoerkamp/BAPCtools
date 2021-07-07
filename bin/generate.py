@@ -1180,11 +1180,11 @@ class GeneratorConfig:
 
         self.problem.reset_testcase_hashes()
 
-        if config.args.clean:
+        if getattr(config.args, 'clean', False):
             self.clean_unlisted()
             return
 
-        if config.args.clean_generated:
+        if getattr(config.args, 'clean_generated', False):
             self.clean_generated()
             return
 
