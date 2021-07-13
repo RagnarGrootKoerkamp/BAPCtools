@@ -29,7 +29,15 @@ def stats(problems):
         ('sol', 'problem_statement/solution.tex'),
         ('   Ival', ['input_validators/*', 'input_format_validators/*']),
         ('Oval', ['output_validators/*']),
-        ('   sample', ['data/sample/*.in', lambda s: {x for x in s if x.parts[2] == 'sample'}], 2),
+        (
+            '   sample',
+            [
+                'data/sample/*.in',
+                'data/sample/*.interaction',
+                lambda s: {x for x in s if x.parts[2] == 'sample'},
+            ],
+            2,
+        ),
         (
             'secret',
             ['data/secret/**/*.in', lambda s: {x for x in s if x.parts[2] == 'secret'}],
