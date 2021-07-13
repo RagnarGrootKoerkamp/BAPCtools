@@ -28,16 +28,6 @@ class Parallel:
 
             signal.signal(signal.SIGINT, self._interrupt_handler)
 
-    # Get all remaining items in the queue and push None to stop all workers.
-    def _stop_workers(self):
-        try:
-            while True:
-                self.q.get(block=False)
-        except queue.Empty:
-            pass
-        for _ in range(self.num_threads):
-            self.q.put(None)
-
     def _worker(self):
         try:
             while not self.stopping:
@@ -47,7 +37,7 @@ class Parallel:
                 self.f(task)
                 self.q.task_done()
         except Exception as e:
-            self._stop_workers()
+            self.stop()
             if not self.error:
                 self.error = e
 
@@ -85,7 +75,8 @@ class Parallel:
         if self.error is not None:
             raise self.error
 
-    # Discard all remaining work in the queue and stop all threads.
+    # Discard all remaining work in the queue and stop all workers.
+    # Call done() to join the threads.
     def stop(self):
         if not self.num_threads:
             return
@@ -95,5 +86,10 @@ class Parallel:
 
         self.stopping = True
 
-        self._stop_workers()
-        self.done()
+        try:
+            while True:
+                self.q.get(block=False)
+        except queue.Empty:
+            pass
+        for _ in range(self.num_threads):
+            self.q.put(None)
