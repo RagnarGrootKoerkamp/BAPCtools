@@ -17,12 +17,10 @@ def create_samples_file(problem):
     builddir = problem.tmpdir
 
     # create the samples.tex file
-    if problem.interactive:
-        # For interactive problems, find all .interaction files instead.
-        samples = glob(problem.path / 'data' / 'sample', '*.interaction')
-    else:
-        # For samples, find all .in/.ans pairs.
-        samples = problem.testcases(needans=True, only_sample=True)
+    # For samples, find all .in/.ans pairs.
+    samples = problem.testcases(needans=True, only_sample=True)
+    # For interactive problems, find all .interaction files instead.
+    samples += glob(problem.path / 'data' / 'sample', '*.interaction')
     samples_file_path = builddir / 'samples.tex'
 
     if samples is False:
@@ -32,7 +30,7 @@ def create_samples_file(problem):
     samples_data = ''
 
     for sample in samples:
-        if problem.interactive:
+        if sample.in_path.suffix == '.interaction':
             interaction_dir = builddir / 'interaction'
             interaction_dir.mkdir(exist_ok=True)
 
