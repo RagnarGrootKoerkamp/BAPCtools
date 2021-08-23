@@ -19,11 +19,14 @@ def create_samples_file(problem):
     # create the samples.tex file
     # For samples, find all .in/.ans pairs.
     samples = problem.testcases(needans=True, only_sample=True)
+    if samples is False:
+        samples = []
+
     # For interactive problems, find all .interaction files instead.
     samples += glob(problem.path / 'data' / 'sample', '*.interaction')
     samples_file_path = builddir / 'samples.tex'
 
-    if samples is False:
+    if samples is []:
         samples_file_path.write_text('')
         return
 
