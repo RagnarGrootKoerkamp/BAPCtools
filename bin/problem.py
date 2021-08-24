@@ -163,7 +163,7 @@ class Problem:
         else:
             in_paths = list(glob(p.path, 'data/sample/**/*.in'))
             if statement_samples:
-                in_paths = list(glob(p.path, 'data/sample/**/*.in.statement'))
+                in_paths += list(glob(p.path, 'data/sample/**/*.in.statement'))
             if not samplesonly:
                 in_paths += list(glob(p.path, 'data/secret/**/*.in'))
             if include_bad:
