@@ -33,7 +33,7 @@ def create_samples_file(problem):
     samples_data = ''
 
     for sample in samples:
-        if sample.in_path.suffix == '.interaction':
+        if isinstance(sample, Path) and sample.suffix == '.interaction':
             interaction_dir = builddir / 'interaction'
             interaction_dir.mkdir(exist_ok=True)
 
