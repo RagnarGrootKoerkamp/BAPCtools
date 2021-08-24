@@ -13,12 +13,16 @@ from colorama import Fore, Style
 
 class Testcase:
     def __init__(self, problem, path, *, short_path=None):
-        assert path.suffix == '.in'
+        assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
 
         self.problem = problem
 
         self.in_path = path
-        self.ans_path = self.in_path.with_suffix('.ans')
+        self.ans_path = (
+            self.in_path.with_suffix('.ans')
+            if path.suffix == '.in'
+            else self.in_path.with_name(self.in_path.with_suffix('').stem + '.ans.statement')
+        )
         # Note: testcases outside problem/data must pass in the short_path explicitly.
         if short_path is None:
             try:
@@ -450,7 +454,9 @@ class Submission(program.Program):
                 try:
                     t = f.read_text()
                 except UnicodeDecodeError:
-                    localbar.warn(f'Validator wrote to {f} but it cannot be parsed as unicode text.')
+                    localbar.warn(
+                        f'Validator wrote to {f} but it cannot be parsed as unicode text.'
+                    )
                     continue
                 f.unlink()
                 if not t:

@@ -125,7 +125,8 @@ class Problem:
                 break
         return None
 
-    def testcases(p, needans=True, only_sample=False, include_bad=False):
+    # statement_samples end in .in.statement and .ans.statement and are only used in the statement.
+    def testcases(p, needans=True, only_sample=False, statement_samples=False, include_bad=False):
         samplesonly = only_sample
         try:
             if config.args.samples:
@@ -161,6 +162,8 @@ class Problem:
             in_paths = list(set(in_paths))
         else:
             in_paths = list(glob(p.path, 'data/sample/**/*.in'))
+            if statement_samples:
+                in_paths = list(glob(p.path, 'data/sample/**/*.in.statement'))
             if not samplesonly:
                 in_paths += list(glob(p.path, 'data/secret/**/*.in'))
             if include_bad:
