@@ -59,20 +59,24 @@ and only consist of lowercase letters.
 - Items end with a full stop.
 - Use wording `One line with ...`.
 - Use a comma between the description of what appears in input and the description of what it means.
+- Do not write `single`. Just say `One line with an integer $n$`.
+- When possible, mention all variables at the start of the sentence: `One line with two integers $n$ and $m$ (..), ...`.
 - When using indices, always quantify over them properly.
 - Don't introduce indices unless you need them.
 - Do not write "separated by single spaces" and similar general
   formatting rules that always apply (but if for some reason amount of
   spaces may vary, do write this).
 
-| Don't                                                                                                          | Do                                                                                |
-| -------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| `One line without a period`                                                                                    | `One line ending in a period.`                                                    |
-| `A line with ...`, `One line containing ...`                                                                   | `One line with ... `                                                              |
-| `One line with an integer $n$ not separated by a comma.`                                                       | `One line with an integer $n$, separated by a comma.`                             |
-| `$n$ lines each containing an integer $x_i$`                                                                   | `$n$ lines, the $i$th of which contains an integer $x_i$`                         |
-| `One line with $n$ integers $x_i$ ($1 \le x_i \le 100$)`                                                       | `One line with $n$ integers $x_1, \ldots, x_n$ ($1 \le x_i \le 100$ for all $i$)` |
-| `$n$ lines, the $i$th of which contains an integer $x_i$ ($0 \le x_i \le 10$)` without refering to the $x_i$'s | `$n$ lines, each containing an integer $x$ ($0 \le x \le 10$)`                    |
+| Don't                                                                                                          | Do                                                                                  |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `One line without a period`                                                                                    | `One line ending in a period.`                                                      |
+| `A line with ...`, `One line containing ...`                                                                   | `One line with ... `                                                                |
+| `One line with an integer $n$ not separated by a comma.`                                                       | `One line with an integer $n$, separated by a comma.`                               |
+| `One line with a single integer $n$.`                                                                          | `One line with an integer $n$.`                                                     |
+| `One line with $n$ (..), the number of X, and $m$ (..), the number of Y.`                                      | `One line with two integers $n$ and $m$ (..), the number of X and the number of Y.` |
+| `$n$ lines each containing an integer $x_i$`                                                                   | `$n$ lines, the $i$th of which contains an integer $x_i$`                           |
+| `One line with $n$ integers $x_i$ ($1 \le x_i \le 100$)`                                                       | `One line with $n$ integers $x_1, \ldots, x_n$ ($1 \le x_i \le 100$ for all $i$)`   |
+| `$n$ lines, the $i$th of which contains an integer $x_i$ ($0 \le x_i \le 10$)` without refering to the $x_i$'s | `$n$ lines, each containing an integer $x$ ($0 \le x \le 10$)`                      |
 
 ## Output Sections
 
@@ -85,6 +89,7 @@ and only consist of lowercase letters.
   ```
 - Output is usually not space sensitive - don't write `Output one line ...`,
   just write `Output ...`
+- Even when the output goes on multiple lines, just writing `Output the number of integers, followed by these integers.` is usually sufficient.
 - If the problem is to find something or output impossible: ` If {ABC} then output {XYZ}. Otherwise, output ``\texttt{impossible}''. `
 - Real-valued tolerance: `Your answer should have an absolute or relative error of at most 10−6.` (with $10^{-6}$ replaced by
   whatever tolerance the problem uses)
