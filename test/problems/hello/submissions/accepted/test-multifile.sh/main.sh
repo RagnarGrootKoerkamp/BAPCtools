@@ -3,6 +3,6 @@
 # @EXPECTED_RESULTS@: CORRECT
 
 # Use explicit path, since "." may not be included in PATH
-. ./secondary.sh
+. ${0%/*}/secondary.sh
 
 exit 0
