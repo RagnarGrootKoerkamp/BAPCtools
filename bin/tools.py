@@ -620,7 +620,7 @@ Run this from one of:
     )
     allparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     allparser.add_argument(
-        '--clean-generated', action='store_true', help='Clean up generated testcases afterwards.'
+        '--cleanup-generated', action='store_true', help='Clean up generated testcases afterwards.'
     )
     allparser.add_argument('--force', '-f', action='store_true', help='Delete all untracked files.')
 
@@ -863,8 +863,8 @@ def run_parsed_arguments(args):
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
                 success &= export.build_problem_zip(problem, output, settings)
-        if action == 'all' and config.args.clean_generated:
-            success &= generate.clean_generated(problem)
+        if action == 'all' and config.args.cleanup_generated:
+            success &= generate.cleanup_generated(problem)
 
         if len(problems) > 1:
             print(file=sys.stderr)

@@ -1650,7 +1650,7 @@ def generate(problem):
     return True
 
 
-def clean_generated(problem):
+def cleanup_generated(problem):
     config = GeneratorConfig(problem)
     if config.ok:
         config.clean_generated()

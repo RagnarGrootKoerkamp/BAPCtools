@@ -1,14 +1,14 @@
 verify_{%problem%}:
   script:
-    - ./bt all --cp --error --no-bar --clean-generated --force --problem {%contest%}/{%problem%}
+    - ./bt all --cp --error --no-bar --cleanup-generated --force --problem {%contest%}/{%problem%}
   only:
     refs:
       - master
       - merge_requests
     changes:
       #- {%changesdir%}/problem_statement/**/*
-      - {%changesdir%}/problem.yaml/**/*
-      - {%changesdir%}/domjudge-problem.ini/**/*
+      - {%changesdir%}/problem.yaml
+      - {%changesdir%}/domjudge-problem.ini
       - {%changesdir%}/generators/**/*
       - {%changesdir%}/data/**/*
       - {%changesdir%}/input_validators/**/*

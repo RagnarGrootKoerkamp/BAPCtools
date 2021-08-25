@@ -33,7 +33,7 @@ This lists all subcommands and their most important options.
   - [`bt samplezip`](#samplezip)
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
 - Misc
-  - [`bt all [-v] [--cp] [--no-timelimit] [--clean-generated]`](#all)
+  - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated]`](#all)
   - [`bt sort`](#sort)
   - [`bt tmp [--clean]`](#tmp)
 
@@ -502,7 +502,7 @@ This is a convenience command (mostly for use in CI) that runs the following sub
 - Validate input
 - Validate output
 - Run all submissions
-- Clean up generated testcases when done, similar to `bt generate --clean-generated` when `--clean-generated` is passed.
+- Clean up generated testcases when done, similar to `bt generate --clean-generated` when `--cleanup-generated` is passed.
 
 This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand.
 
