@@ -602,7 +602,7 @@ class Problem:
             # Use one of the accepted submissions.
             solutions = list(glob(problem.path, 'submissions/accepted/*'))
             if len(solutions) == 0:
-                warn(f'No solution specified and no accepted submissions found.')
+                fatal(f'No solution specified and no accepted submissions found.')
                 return False
 
             # Note: we explicitly random shuffle the submission that's used to generate answers to

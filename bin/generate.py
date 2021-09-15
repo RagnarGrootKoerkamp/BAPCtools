@@ -392,8 +392,9 @@ class TestcaseRule(Rule):
         if self.manual:
             self.source = inpt
         else:
-            # TODO: Should the seed depend on white space? For now it does.
-            seed_value = self.config.random_salt + inpt
+            # TODO: Should the seed depend on white space? For now it does, but
+            # leading and trailing whitespace is stripped.
+            seed_value = self.config.random_salt + inpt.strip()
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2 ** 31)
             self.generator = GeneratorInvocation(problem, inpt)
 
@@ -640,34 +641,37 @@ class TestcaseRule(Rule):
 
         # Generate .ans and .interaction if needed.
         # TODO: Disable this with a flag.
-        if not problem.interactive:
-            if t.config.solution:
-                if testcase.ans_path.is_file():
-                    testcase.ans_path.unlink()
-                # Run the solution
-                if t.config.solution.run(bar, cwd, t.name).ok is not True:
-                    return
-
-            # Validate the ans file.
-            if ansfile.is_file():
-                if not testcase.validate_format(
-                    'output_format', bar=bar, warn_instead_of_error=ignore_validators
-                ):
-                    if not ignore_validators:
-                        bar.debug('Use generate --ignore-validators to ignore validation results.')
+        if not (testcase.bad_input or testcase.bad_output):
+            if not problem.interactive:
+                if t.config.solution:
+                    if testcase.ans_path.is_file():
+                        testcase.ans_path.unlink()
+                    # Run the solution
+                    if t.config.solution.run(bar, cwd, t.name).ok is not True:
                         return
+
+                # Validate the ans file.
+                if ansfile.is_file():
+                    if not testcase.validate_format(
+                        'output_format', bar=bar, warn_instead_of_error=ignore_validators
+                    ):
+                        if not ignore_validators:
+                            bar.debug(
+                                'Use generate --ignore-validators to ignore validation results.'
+                            )
+                            return
+                else:
+                    if not target_ansfile.is_file():
+                        bar.warn(f'{ansfile.name} does not exist and was not generated.')
             else:
-                if not target_ansfile.is_file():
-                    bar.warn(f'{ansfile.name} does not exist and was not generated.')
-        else:
-            if not testcase.ans_path.is_file():
-                testcase.ans_path.write_text('')
-            # For interactive problems, run the interactive solution and generate a .interaction.
-            if t.config.solution and (
-                testcase.sample or getattr(config.args, 'interaction', False)
-            ):
-                if not t.config.solution.run_interactive(problem, bar, cwd, t):
-                    return
+                if not testcase.ans_path.is_file():
+                    testcase.ans_path.write_text('')
+                # For interactive problems, run the interactive solution and generate a .interaction.
+                if t.config.solution and (
+                    testcase.sample or getattr(config.args, 'interaction', False)
+                ):
+                    if not t.config.solution.run_interactive(problem, bar, cwd, t):
+                        return
 
         # Generate visualization
         # TODO: Disable this with a flag.
