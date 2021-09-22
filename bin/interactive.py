@@ -210,6 +210,7 @@ while True:
         validator_command,
         stdin=val_in,
         stdout=val_out,
+        # TODO: Make a flag to pass validator error directly to terminal.
         stderr=validator_error_out,
         cwd=validator_dir,
         preexec_fn=limit_setter(validator_command, validator_timeout, None),

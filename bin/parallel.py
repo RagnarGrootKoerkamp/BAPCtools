@@ -78,13 +78,13 @@ class Parallel:
     # Discard all remaining work in the queue and stop all workers.
     # Call done() to join the threads.
     def stop(self):
-        if not self.num_threads:
-            return
-
         if self.stopping:
             return
 
         self.stopping = True
+
+        if not self.num_threads:
+            return
 
         try:
             while True:
