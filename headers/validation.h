@@ -151,7 +151,7 @@ struct MaxGenerator {
 	template <typename T>
 	T operator()(T low, T high, std::mt19937_64& rng) const {
 		static_assert(is_number_v<T>);
-		return low;
+		return high;
 	}
 };
 
