@@ -15,28 +15,33 @@ time since I'm not aware of usage outside of BAPC yet.
 
 ## Installation
 
-You can install the [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/), mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git).
+You can install the [bapctools-git AUR
+package](https://aur.archlinux.org/packages/bapctools-git/), mirrored
+[here](https://github.com/RagnarGrootKoerkamp/bapctools-git), or use the [Docker
+image](#Docker).
 
 Otherwise, clone this repository and install the required dependencies manually.
 (If you know how to make a Debian package, feel free to help out.)
 
--   Python 3 (>= 3.6).
--   The [yaml library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install pyyaml` or the `python[3]-yaml` Arch Linux package.
--   The [colorama library](https://pypi.org/project/colorama/) via `pip install colorama` or the `python[3]-colorama` Arch Linux package.
--   The `argcomplete` library for command line argument completion. Install via
-    `python[3]-argcomplete`.
-	- Note that actually using `argcomplete` is optional, but recommended.
-	  Detailed instructions are [here](https://argcomplete.readthedocs.io/en/latest/).
+- Python 3 (>= 3.6).
+- The [yaml library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install pyyaml` or the `python[3]-yaml` Arch Linux package.
+- The [colorama library](https://pypi.org/project/colorama/) via `pip install colorama` or the `python[3]-colorama` Arch Linux package.
+- The `argcomplete` library for command line argument completion. Install via
+  `python[3]-argcomplete`.
 
-      TL;DR: Put `eval "$(register-python-argcomplete[3] tools.py)"` in your `.bashrc` or `.zshrc`.
+  - Note that actually using `argcomplete` is optional, but recommended.
+    Detailed instructions are [here](https://argcomplete.readthedocs.io/en/latest/).
+
+    TL;DR: Put `eval "$(register-python-argcomplete[3] tools.py)"` in your `.bashrc` or `.zshrc`.
 
 Optional dependencies, required for some subcommands:
--   The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python[3]-ruamel-yaml` Arch Linux package.
-    - This is only needed for commands that update `generators.yaml`.
--   The `latexmk` and `pdflatex` commands, provided by `texlive-bin` on Arch Linux and
-    potentially some specific LaTeX packages (like tikz) provided by
-	`texlive-extra`.
-	These are only needed for building `pdf` files, not for `run` and `validate` and such.
+
+- The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python[3]-ruamel-yaml` Arch Linux package.
+  - This is only needed for commands that update `generators.yaml`.
+- The `latexmk` and `pdflatex` commands, provided by `texlive-bin` on Arch Linux and
+  potentially some specific LaTeX packages (like tikz) provided by
+  `texlive-extra`.
+  These are only needed for building `pdf` files, not for `run` and `validate` and such.
 
 After cloning the repository, symlink [bin/tools.py](bin/tools.py) to somewhere in your `$PATH`. E.g., if `~/bin/` is in your `$PATH`, you can do:
 
@@ -48,6 +53,7 @@ After cloning the repository, symlink [bin/tools.py](bin/tools.py) to somewhere 
 
 For Windows, you'll need the following in your
 `path`:
+
 - `Python` for Python 3
 - `g++` to compile C++
 - `javac` and `java` to compile and run `java`.
@@ -58,6 +64,13 @@ BAPCtools makes use of symlinks for building programs. By default users are not 
 This can be fixed by enabling Developer Mode on Windows (Only works for Windows 10, version 1703 or newer).
 
 (TODO: Copy instead of symlink files when symlinking is not allowed.)
+
+### Docker
+
+A docker image containing this git repo and dependencies, together with commonly
+used languages, is provided at
+[ragnargrootkoerkamp/bacptools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
+This is not updated regularly.
 
 ## Usage
 
@@ -77,7 +90,7 @@ and more information regarding the implementation is at [doc/implementation_note
 
 ### Run
 
-* `bt run [-v] [submissions [submissions ...]] [testcases [testcases ...]]`
+- `bt run [-v] [submissions [submissions ...]] [testcases [testcases ...]]`
 
 Without arguments, the `run` command runs all submissions against all testcases.
 Specify one or more submissions and one or more testcases to only run the given submissions against the given testcases.
@@ -89,7 +102,6 @@ Before running the given submissions, this command first makes sure that all gen
 By default, `bt run` only prints one summary line per submission, and one additional line for each testcase with an unexpected result. Use `-v` to print one line per testcase instead.
 
 ![run -v](doc/images/run-v.gif)
-
 
 ### Test
 
@@ -117,9 +129,10 @@ Use `-j 0` to disable running multiple jobs in parallel (the default is `4`).
 Validate all the `.in` and `.ans` for all (given) testcases. It runs all validators from `input_validators` and `output_validators`.
 
 Validators can be one of
- - a single-file program.
- - a multi-file program with all files in a common directory.
- - a .ctd CheckTestData file (this needs the `checktestdata` executable in your `$PATH`).
+
+- a single-file program.
+- a multi-file program with all files in a common directory.
+- a .ctd CheckTestData file (this needs the `checktestdata` executable in your `$PATH`).
 - a .viva file.
 
 You can use `--remove` to delete all failing testcases or `--move <dir>` to move
@@ -145,5 +158,5 @@ This can also be used to create the contest pdf by running it from the contest d
   on each commit.
 
 - Imports are usually ordered with system libraries first, followed by a
-    newline, followed by local includes. Both groups are sorted alphabetically,
-    and `import` comes before `from ... import`.
+  newline, followed by local includes. Both groups are sorted alphabetically,
+  and `import` comes before `from ... import`.
