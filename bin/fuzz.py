@@ -79,6 +79,7 @@ def _try_generator_invocation(problem, t, submissions, i):
     bar.start('generate')
     result = generator.run(bar, cwd, name, seed)
     if result.ok is not True:
+        bar.finalize()
         return
     bar.done()
 
@@ -87,6 +88,7 @@ def _try_generator_invocation(problem, t, submissions, i):
     # Validate the manual or generated .in.
     bar.start('validate input')
     if not testcase.validate_format('input_format', bar=bar, constraints=None):
+        bar.finalize()
         return
     bar.done()
 
@@ -98,17 +100,20 @@ def _try_generator_invocation(problem, t, submissions, i):
             # Run the solution and validate the generated .ans.
             bar.start('generate ans')
             if solution.run(bar, cwd, name).ok is not True:
+                bar.finalize()
                 return
             bar.done()
 
         if ansfile.is_file():
             bar.start('validate output')
             if not testcase.validate_format('output_format', bar=bar):
+                bar.finalize()
                 return
             bar.done()
         else:
             if not target_ansfile.is_file():
                 bar.error(f'{ansfile.name} does not exist and was not generated.')
+                bar.finalize()
                 return
     else:
         if not testcase.ans_path.is_file():
