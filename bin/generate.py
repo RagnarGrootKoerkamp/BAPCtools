@@ -1100,7 +1100,7 @@ class GeneratorConfig:
         self.root_dir = parse('', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
-        if config.args.add_manual or config.args.move_manual:
+        if getattr(config.args, 'add_manual', None) or getattr(config.args, 'move_manual', None):
             return
 
         generators_used = set()
