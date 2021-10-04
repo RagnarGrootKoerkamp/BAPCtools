@@ -33,6 +33,7 @@ def stats(problems):
             '   sample',
             [
                 'data/sample/*.in',
+                'data/sample/*.in.statement',
                 'data/sample/*.interaction',
                 lambda s: {x for x in s if x.parts[2] == 'sample'},
             ],
