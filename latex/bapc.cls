@@ -68,7 +68,7 @@
 \RequirePackage{listingsutf8}
 \RequirePackage{tocloft}
 
-\RequirePackage[hidelinks,bookmarks=true]{hyperref}
+\RequirePackage[hidelinks,bookmarks=true,pdfusetitle]{hyperref}
 
 \newcommand{\todo}[1]{{\color{red}[#1]}}
 
@@ -317,6 +317,9 @@
 \usepackage{courier}
 \usepackage[T1]{fontenc} % Standard
 \usepackage[utf8]{inputenc} % UTF-8 support
+% https://tex.stackexchange.com/questions/270557/undefined-control-sequence-on-onehalfspacing
+\DisemulatePackage{setspace}
+\usepackage{setspace}
 
 %-------------------------------------------------------------------------------
 % The following are required for most problems:
