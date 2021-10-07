@@ -79,13 +79,21 @@ def prepare_problem(problem):
     create_samples_file(problem)
 
 
-def get_tl(problem_config):
+_contest_settings = None
+
+
+def get_tl(problem):
+    problem_config = problem.settings
     tl = problem_config.timelimit
     tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
 
+    global _contest_settings
+    if _contest_settings is None:
+        _contest_settings = util.read_yaml_settings(Path('contest.yaml'))
+
     print_tl = True
-    if 'print_timelimit' in problem_config:
-        print_tl = problem_config.print_timelimit
+    if 'print_timelimit' in _contest_settings:
+        print_tl = _contest_settings['print_timelimit']
     elif hasattr(config.args, 'no_timelimit'):
         print_tl = not config.args.no_timelimit
     else:
@@ -176,7 +184,7 @@ def build_problem_pdf(problem, solutions=False):
             'problemlabel': problem.label,
             'problemyamlname': problem.settings.name.replace('_', ' '),
             'problemauthor': problem.settings.author,
-            'timelimit': get_tl(problem.settings),
+            'timelimit': get_tl(problem),
             'problemdir': problem.path.absolute().as_posix(),
             'builddir': problem.tmpdir.as_posix(),
         },
@@ -243,7 +251,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
                 'problemlabel': problem.label,
                 'problemyamlname': problem.settings.name.replace('_', ' '),
                 'problemauthor': problem.settings.author,
-                'timelimit': get_tl(problem.settings),
+                'timelimit': get_tl(problem),
                 'problemdir': problem.path.absolute().as_posix(),
                 'builddir': problem.tmpdir.as_posix(),
             },

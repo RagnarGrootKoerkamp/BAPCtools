@@ -10,6 +10,7 @@ year: {%year%}
 author: {%author%}
 testsession: {%testsession%}
 blank_page_text:
+print_timelimit: true
 
 # CCS fields for integration
 # URL endpoint of the CCS, e.g. https://www.domjudge.org/demoweb.
