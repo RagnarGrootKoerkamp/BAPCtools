@@ -1588,7 +1588,7 @@ class GeneratorConfig:
                 ext_file = infile.with_suffix(ext)
                 if ext_file.is_file():
                     if not config.args.force:
-                        bar.warn(f'Deleting {ext_file.name} with -f')
+                        bar.warn(f'Delete {ext_file.name} with -f')
                     else:
                         bar.log(f'Deleting {ext_file.name}')
                         ext_file.unlink()
@@ -1609,7 +1609,7 @@ class GeneratorConfig:
             if not d.listed:
                 if process_testcase(self.problem, d.path):
                     if not config.args.force:
-                        bar.warn(f'Deleting directory with -f')
+                        bar.warn(f'Delete directory with -f')
                     else:
                         bar.log(f'Deleting directory')
                         shutil.rmtree(path)
@@ -1635,7 +1635,7 @@ class GeneratorConfig:
 
                 if process_testcase(self.problem, relpath):
                     if not config.args.force:
-                        bar.warn(f'Deleting {f.name} with -f')
+                        bar.warn(f'Delete {f.name} with -f')
                     else:
                         bar.log(f'Deleting {f.name}')
                         f.unlink()
