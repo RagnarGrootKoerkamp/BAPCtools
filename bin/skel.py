@@ -134,10 +134,10 @@ def new_problem():
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
     log(f'Copying {skeldir} to {target_dir/dirname}.')
 
-    problems_yaml = target_dir / 'problems.yaml'
+    problemset_yaml = target_dir / 'problemset.yaml'
 
-    if problems_yaml.is_file():
-        problems_yaml.write_text(problems_yaml.read_text() + '- id: ' + dirname + '\n')
+    if problemset_yaml.is_file():
+        problemset_yaml.write_text(problemset_yaml.read_text() + '- id: ' + dirname + '\n')
 
     copytree_and_substitute(
         skeldir, target_dir / dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks

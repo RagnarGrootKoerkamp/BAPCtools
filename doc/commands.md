@@ -310,7 +310,7 @@ This command creates a new contest. Can be called as `bt new_contest` or `bt new
 Settings for this contest will be asked for interactively. The following files are copied from [skel/contest](../skel/contest):
 
 - `contest.yaml` containing data for rendering the contest pdf.
-- `problems.yaml` containing the list of problems and their labels.
+- `problemset.yaml` containing the list of problems and their labels.
 - `languages.yaml` containing the list of languages to use. This may be deleted to use the default instead, or changed to e.g. only allow a subset of languages.
 - `logo.pdf` for the contest pdf.
 - `solution_{header,footer}.tex` contains extra slides for the solutions presentation.
@@ -331,7 +331,7 @@ rights owner [author]:
 
 ## `new_problem`
 
-Create a new problem directory and fill it with skel files. If `problems.yaml` is present, also add the problem to it. Information can be passed in either interactively or via command line arguments:
+Create a new problem directory and fill it with skel files. If `problemset.yaml` is present, also add the problem to it. Information can be passed in either interactively or via command line arguments:
 
 ```
 ~nwerc2020 % bt new_problem

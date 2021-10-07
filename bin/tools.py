@@ -90,7 +90,7 @@ def contest_yaml():
 
 
 # Get the list of relevant problems.
-# Either use the problems.yaml, or check the existence of problem.yaml and sort
+# Either use the problemset.yaml, or check the existence of problem.yaml and sort
 # by shortname.
 def get_problems():
     def is_problem_directory(path):
@@ -120,7 +120,7 @@ def get_problems():
     tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
     tmpdir.mkdir(parents=True, exist_ok=True)
 
-    def parse_problems_yaml(path):
+    def parse_problemset_yaml(path):
         problemlist = read_yaml(path)
         if problemlist is None:
             fatal(f'Did not find any problem in {problemsyaml}.')
@@ -141,15 +141,18 @@ def get_problems():
             if Path(shortname).is_dir():
                 problems.append((shortname, label))
             else:
-                error(f'No directory found for problem {shortname} mentioned in problems.yaml.')
+                error(f'No directory found for problem {shortname} mentioned in problemset.yaml.')
         return problems
 
     problems = []
     if level == 'problem':
-        # If the problem is mentioned in problems.yaml, use that ID.
-        problemsyaml = Path('problems.yaml')
+        # If the problem is mentioned in problemset.yaml, use that ID.
+        problemsyaml = Path('problemset.yaml')
+        if not problemsyaml.is_file() and Path('problems.yaml').is_file():
+            verbose('problems.yaml is DEPRECATED. Rename to problemset.yaml instead.')
+            problemsyaml = Path('problems.yaml')
         if problemsyaml.is_file():
-            problem_labels = parse_problems_yaml(problemsyaml)
+            problem_labels = parse_problemset_yaml(problemsyaml)
             for shortname, label in problem_labels:
                 if shortname == problem.name:
                     problems = [Problem(Path(problem.name), tmpdir, label)]
@@ -160,10 +163,12 @@ def get_problems():
     else:
         level = 'problemset'
         # If problemset.yaml is available, use it.
-        problemsyaml = Path('problems.yaml')
+        problemsyaml = Path('problemset.yaml')
+        if not problemsyaml.is_file() and Path('problems.yaml').is_file():
+            verbose('problems.yaml is DEPRECATED. Rename to problemset.yaml instead.')
         if problemsyaml.is_file():
             problems = []
-            problem_labels = parse_problems_yaml(problemsyaml)
+            problem_labels = parse_problemset_yaml(problemsyaml)
             for shortname, label in problem_labels:
                 problems.append(Problem(Path(shortname), tmpdir, label))
         else:

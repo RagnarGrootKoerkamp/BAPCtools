@@ -9,7 +9,7 @@ import util
 from pathlib import Path
 
 
-# Replace \problemyamlname by the value of `name:` in problems.yaml in all .tex files.
+# Replace \problemyamlname by the value of `name:` in problemset.yaml in all .tex files.
 def fix_problem_yaml_name(problem):
     for f in (problem.path / 'problem_statement').iterdir():
         if f.is_file() and f.suffix == '.tex':
@@ -73,7 +73,7 @@ def build_problem_zip(problem, output, settings):
     if not problem.interactive:
         # Glob, required?
         files = [
-            ('domjudge-problem.ini', False),  # May be removed at some point.
+            ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
             ('problem.yaml', True),
             ('problem.pdf', True),
             ('problem_statement/*', True),
@@ -87,7 +87,7 @@ def build_problem_zip(problem, output, settings):
         ]
     else:
         files = [
-            ('domjudge-problem.ini', False),  # May be removed at some point.
+            ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
             ('problem.yaml', True),
             ('problem.pdf', True),
             ('problem_statement/*', True),

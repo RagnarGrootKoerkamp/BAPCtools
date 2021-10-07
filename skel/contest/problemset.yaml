@@ -1,0 +1,7 @@
+# An array of problems
+#- id: exampleshortname
+#  # The label of the problem. Automatic, but required for DOMjudge.
+#  label: A
+#  # The color of the problem. RGB has priority.
+#  rgb: '#ff0000'
+#  color: red
