@@ -570,7 +570,7 @@ Run this from one of:
     runparser.add_argument(
         '--memory',
         '-m',
-        help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.',
+        help='The max amount of memory in MB a subprocesses may use. Does not work for java. (Default: 2048)',
     )
     runparser.add_argument(
         '--force',
@@ -603,7 +603,7 @@ Run this from one of:
     testparser.add_argument(
         '--memory',
         '-m',
-        help='The max amount of memory (in bytes) a subprocesses may use. Does not work for java.',
+        help='The max amount of memory in MB a subprocesses may use. Does not work for java. (Default: 2048)',
     )
 
     # Sort

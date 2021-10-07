@@ -586,9 +586,9 @@ def crop_output(output):
 
 
 # TODO: Move this to Problem.settings and read limits.memory variable from problem.yaml.
-# Return memory limit in bytes.
+# Return memory limit in MB.
 def get_memory_limit(kwargs=None):
-    memory_limit = 1024  # 1GB
+    memory_limit = 2048  # 2GB
     if hasattr(config.args, 'memory'):
         if config.args.memory:
             if config.args.memory != 'unlimited':
