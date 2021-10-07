@@ -3,6 +3,15 @@ source_url: {%source_url%}
 license: {%license%}
 rights_owner: {%rights_owner%}
 
+# CCS fields:
+# https://ccs-specs.icpc.io/ccs_system_requirements?#contestyaml
+name:                     {%title%}
+short-name:               {%title%}
+start-time:               2021-01-01T12:00:00Z
+duration:                 5:00:00
+scoreboard-freeze-length: 1:00:00
+penalty-time:             20
+
 # Latex fields:
 title: {%title%}
 subtitle: {%subtitle%}

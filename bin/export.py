@@ -170,6 +170,8 @@ def build_contest_zip(problems, zipfiles, outfile, args):
         build_samples_zip(problems)
 
         for fname in [
+            'problemset.yaml',
+            'contest.yaml',
             'contest.pdf',
             'contest-web.pdf',
             'solutions.pdf',
