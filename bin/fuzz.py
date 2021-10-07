@@ -3,6 +3,8 @@ import run
 import random
 import generate
 import time
+
+import parallel
 from util import *
 
 # STEPS:
@@ -12,8 +14,6 @@ from util import *
 # 4. When at least one submissions fails: create a generated testcase:
 #      data/fuzz/1.in: <generator rule with hardcoded seed>
 #    by using a numbered directory data/fuzz.
-
-# TODO: Parallelization at some level.
 
 
 def _save_test(problem, command):
@@ -119,16 +119,29 @@ def _try_generator_invocation(problem, t, submissions, i):
         if not testcase.ans_path.is_file():
             testcase.ans_path.write_text('')
 
-    # Run all submissions against the testcase.
-    for submission in submissions:
+    saved = False
+
+    def run_submission(submission):
+        nonlocal saved
         r = run.Run(problem, submission, testcase)
-        bar.start(submission)
+        localbar = bar.start(submission)
         result = r.run()
         if result.verdict != 'ACCEPTED':
-            bar.error('Broken! Saving testcase in generators.yaml.')
-            _save_test(problem, command)
-            break
-        bar.done()
+            if not saved:
+                saved = True
+                bar.error('Broken! Saving testcase in generators.yaml.')
+                _save_test(problem, command)
+        localbar.done()
+
+    # Run all submissions against the testcase.
+    in_parallel = True
+    if problem.interactive:
+        in_parallel = False
+        verbose('Disabling parallelization for interactive problem.')
+    p = parallel.Parallel(run_submission, in_parallel)
+    for submission in submissions:
+        p.put(submission)
+    p.done()
     bar.finalize(print_done=False)
 
 
