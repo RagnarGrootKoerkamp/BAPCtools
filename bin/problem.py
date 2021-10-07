@@ -76,10 +76,16 @@ class Problem:
         # parse domjudge-problem.ini
         domjudge_path = self.path / 'domjudge-problem.ini'
         if domjudge_path.is_file():
+            verbose('Prefer using a .timelimit file over domjudge-problem.ini')
             for line in domjudge_path.read_text().splitlines():
                 key, var = map(str.strip, line.strip().split('='))
                 var = var[1:-1]
                 self.settings[key] = float(var) if key == 'timelimit' else var
+
+        # Read the .timitlimit file if present.
+        timelimit_path = self.path / '.timelimit'
+        if timelimit_path.is_file():
+            self.settings['timelimit'] = float(timelimit_path.read_text())
 
         # Convert the dictionary to a namespace object.
         self.settings = argparse.Namespace(**self.settings)
