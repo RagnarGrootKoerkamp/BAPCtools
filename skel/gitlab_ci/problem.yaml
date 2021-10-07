@@ -8,7 +8,7 @@ verify_{%problem%}:
     changes:
       #- {%changesdir%}/problem_statement/**/*
       - {%changesdir%}/problem.yaml
-      - {%changesdir%}/domjudge-problem.ini
+      - {%changesdir%}/.timelimit
       - {%changesdir%}/generators/**/*
       - {%changesdir%}/data/**/*
       - {%changesdir%}/input_validators/**/*

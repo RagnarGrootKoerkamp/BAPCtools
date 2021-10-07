@@ -24,7 +24,6 @@ def stats(problems):
     stats = [
         # Roughly in order of importance
         ('yaml', 'problem.yaml'),
-        ('ini', 'domjudge-problem.ini'),
         ('tex', 'problem_statement/problem*.tex'),
         ('sol', 'problem_statement/solution.tex'),
         ('   Ival', ['input_validators/*', 'input_format_validators/*']),

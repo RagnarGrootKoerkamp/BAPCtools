@@ -147,7 +147,6 @@ def get_problems():
     problems = []
     if level == 'problem':
         # If the problem is mentioned in problems.yaml, use that ID.
-        # Otherwise, fall back to the one mentioned in domjudge-problem.ini.
         problemsyaml = Path('problems.yaml')
         if problemsyaml.is_file():
             problem_labels = parse_problems_yaml(problemsyaml)

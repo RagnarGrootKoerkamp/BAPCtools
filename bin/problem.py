@@ -71,12 +71,10 @@ class Problem:
             for k, v in yamldata.items():
                 self.settings[k] = v
 
-        # TODO: Get rid of domjudge-problem.ini; it's only remaining use is
-        # timelimits.
-        # parse domjudge-problem.ini
+        # DEPRECATED: parse domjudge-problem.ini for the timelimit.
         domjudge_path = self.path / 'domjudge-problem.ini'
         if domjudge_path.is_file():
-            verbose('Prefer using a .timelimit file over domjudge-problem.ini')
+            verbose('domjudge-problem.ini is DEPRECATED. Use a .timelimit file instead.')
             for line in domjudge_path.read_text().splitlines():
                 key, var = map(str.strip, line.strip().split('='))
                 var = var[1:-1]

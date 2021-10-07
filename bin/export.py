@@ -73,7 +73,7 @@ def build_problem_zip(problem, output, settings):
     if not problem.interactive:
         # Glob, required?
         files = [
-            ('domjudge-problem.ini', True),
+            ('domjudge-problem.ini', False),  # May be removed at some point.
             ('problem.yaml', True),
             ('problem.pdf', True),
             ('problem_statement/*', True),
@@ -87,7 +87,7 @@ def build_problem_zip(problem, output, settings):
         ]
     else:
         files = [
-            ('domjudge-problem.ini', True),
+            ('domjudge-problem.ini', False),  # May be removed at some point.
             ('problem.yaml', True),
             ('problem.pdf', True),
             ('problem_statement/*', True),
