@@ -23,6 +23,6 @@ print_timelimit: true
 
 # CCS fields for integration
 # URL endpoint of the CCS, e.g. https://www.domjudge.org/demoweb.
-#ccs_url:
+#api:
 # Contest ID in the CCS; only needed in case of multiple active contests.
 #contest_id:

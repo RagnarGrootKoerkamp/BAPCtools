@@ -1,12 +1,26 @@
 import sys
 import argparse
 import os
+import yaml
 import os.path
 import re
 import zipfile
 import config
 import util
+import base64
 from pathlib import Path
+
+from contest import *
+
+try:
+    import requests
+except:
+    pass
+
+try:
+    import ruamel.yaml
+except:
+    pass
 
 
 # Replace \problemyamlname by the value of `name:` in problemset.yaml in all .tex files.
@@ -190,3 +204,139 @@ def build_contest_zip(problems, zipfiles, outfile, args):
     print(file=sys.stderr)
 
     zf.close()
+
+
+def call_api(method, endpoint, **kwargs):
+    url = get_api() + endpoint
+    verbose(f'{method} {url}')
+    return requests.request(
+        method,
+        url,
+        auth=requests.auth.HTTPBasicAuth(config.args.username, config.args.password),
+        **kwargs,
+    )
+
+
+def update_contest_id(cid):
+    try:
+        ryaml = ruamel.yaml.YAML(typ='rt')
+    except:
+        error('ruamel.yaml library not found. Update the id manually.')
+    ryaml.default_flow_style = False
+    ryaml.indent(mapping=2, sequence=4, offset=2)
+    contest_yaml_path = Path('contest.yaml')
+    data = ryaml.load(contest_yaml_path)
+    data['contest_id'] = cid
+    ryaml.dump(data, contest_yaml_path)
+
+
+def export_contest(problems):
+    if contest_yaml() is None or problemset_yaml() is None:
+        fatal(
+            'Exporting a contest only works if both contest.yaml and problemset.yaml are available.'
+        )
+
+    def get_problem_label(name):
+        for problem in problems:
+            if problem.name == name:
+                return problem.label
+        fatal(f'Did not find problem {name}')
+
+    def fix_letters():
+        log('problemset.yaml is missing labels. Adding them.')
+        try:
+            ryaml = ruamel.yaml.YAML(typ='rt')
+        except NameError:
+            fatal('ruamel.yaml library not found. Update the labels manually.')
+        ryaml.default_flow_style = False
+        ryaml.indent(mapping=2, sequence=4, offset=2)
+        path = Path('problemset.yaml')
+        data = ryaml.load(path)
+        for problem in data['problems']:
+            if 'letter' not in problem:
+                problem['letter'] = get_problem_label(problem['short-name'])
+
+        ryaml.dump(data, path)
+
+    # Make sure the problemset.yaml contains all required fields.
+    for problem in problemset_yaml()['problems']:
+        if 'letter' not in problem:
+            fix_letters()
+            break
+
+    # Read set of problems
+    try:
+        r = call_api(
+            'POST',
+            '/contests',
+            files={
+                'yaml': (
+                    'combined.yaml',
+                    yaml.dump({**contest_yaml(), **problemset_yaml()}),
+                    'application/x-yaml',
+                )
+            },
+        )
+        r.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        msg = parse_yaml(r.text)
+        if msg is not None and 'message' in msg:
+            msg = msg['message']
+        fatal(f'{msg}\n{e}')
+    cid = yaml.load(r.text, Loader=yaml.SafeLoader)
+    log(f'Uploaded the contest to contest_id {cid}. Please update this in contest.yaml.')
+    log('Update contest_id automatically? [Y/n]')
+    a = input().lower()
+    debug(f'input: {a}')
+    if a == '' or a[0] == 'y':
+        update_contest_id(cid)
+        log(f'Updated contest_id to {cid}')
+    return cid
+
+
+# Export a single problem to the specified contest ID.
+def export_problem(problem, cid, pid):
+    log(f'Export {problem.name} to id {pid}')
+    zipfile = Path(problem.name).with_suffix('.zip')
+    if not zipfile.is_file():
+        error(f'Did not find {zipfile}. First run `bt zip`.')
+        return
+    data = None if pid is None else {'problem': pid}
+    zip_path = Path(problem.name).with_suffix('.zip')
+    zipfile = zip_path.open('rb')
+    r = call_api(
+        'POST',
+        f'/contests/{cid}/problems',
+        data=data,
+        files=[('zip[]', zipfile)],
+    )
+    verbose(f'RESPONSE:\n' + '\n'.join(yaml.load(r.text, Loader=yaml.SafeLoader)['messages']))
+    r.raise_for_status()
+
+
+# Export the contest and individual problems to DOMjudge.
+# Mimicked from https://github.com/DOMjudge/domjudge/blob/main/misc-tools/import-contest.sh
+def export_contest_and_problems(problems):
+    cid = contest_yaml().get('contest_id', None)
+    if cid is not None and cid != '':
+        log(f'Reusing contest id {cid} from contest.yaml')
+    else:
+        cid = export_contest(problems)
+
+    # Query the internal DOMjudge problem IDs.
+    r = call_api('GET', f'/contests/{cid}/problems')
+    r.raise_for_status()
+    ccs_problems = yaml.load(r.text, Loader=yaml.SafeLoader)
+    debug(f'CURRENT PROBLEMS: {ccs_problems}')
+
+    # TODO: Make sure the user is associated to a team.
+
+    def get_problem_id(problem):
+        nonlocal ccs_problems
+        for p in ccs_problems:
+            if p['short_name'] == problem.name or p.get('externalid', None) == problem.name:
+                return p['id']
+
+    for problem in problems:
+        pid = get_problem_id(problem)
+        export_problem(problem, cid, pid)

@@ -40,6 +40,7 @@ import validate
 import signal
 
 from problem import Problem
+from contest import *
 from util import *
 
 if not is_windows():
@@ -65,29 +66,6 @@ if not os.getenv('GITLAB_CI', False):
 
 # Make sure f-strings are supported.
 f'f-strings are not supported by your python version. You need at least python 3.6.'
-
-# Read the contest.yaml, if available
-_contest_yaml = None
-
-
-def contest_yaml():
-    global _contest_yaml
-    if _contest_yaml:
-        return _contest_yaml
-    if _contest_yaml is False:
-        return None
-
-    path = None
-    for p in ['contest.yaml', '../contest.yaml']:
-        p = Path(p)
-        if p.is_file():
-            path = p
-            break
-    if path is None:
-        return None
-    _contest_yaml = read_yaml_settings(path)
-    return _contest_yaml
-
 
 # Get the list of relevant problems.
 # Either use the problemset.yaml, or check the existence of problem.yaml and sort
@@ -120,21 +98,28 @@ def get_problems():
     tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
     tmpdir.mkdir(parents=True, exist_ok=True)
 
-    def parse_problemset_yaml(path):
-        problemlist = read_yaml(path)
+    def parse_problemset_yaml(problemlist):
         if problemlist is None:
             fatal(f'Did not find any problem in {problemsyaml}.')
+        if 'problems' not in problemlist:
+            fatal(f'problemset.yaml must contain a problems: list.')
+        problemlist = problemlist['problems']
+        if problemlist is None:
+            problemlist = []
+        if not isinstance(problemlist, list):
+            fatal(f'problemset.yaml must contain a problems: list.')
+
         labels = dict()
         nextlabel = 'A'
         problems = []
         for p in problemlist:
             label = nextlabel
-            shortname = p['id']
-            if 'label' in p:
-                label = p['label']
+            shortname = p['short-name']
+            if 'letter' in p:
+                label = p['letter']
             if label == '':
                 fatal(f'Found empty label for problem {shortname}')
-            nextlabel = label[:-1] + chr(ord(label[-1]) + 1)
+            nextlabel = next_label(label)
             if label in labels:
                 fatal(f'label {label} found twice for problem {shortname} and {labels[label]}.')
             labels[label] = shortname
@@ -147,11 +132,8 @@ def get_problems():
     problems = []
     if level == 'problem':
         # If the problem is mentioned in problemset.yaml, use that ID.
-        problemsyaml = Path('problemset.yaml')
-        if not problemsyaml.is_file() and Path('problems.yaml').is_file():
-            verbose('problems.yaml is DEPRECATED. Rename to problemset.yaml instead.')
-            problemsyaml = Path('problems.yaml')
-        if problemsyaml.is_file():
+        problemsyaml = problemset_yaml()
+        if problemsyaml:
             problem_labels = parse_problemset_yaml(problemsyaml)
             for shortname, label in problem_labels:
                 if shortname == problem.name:
@@ -163,10 +145,8 @@ def get_problems():
     else:
         level = 'problemset'
         # If problemset.yaml is available, use it.
-        problemsyaml = Path('problemset.yaml')
-        if not problemsyaml.is_file() and Path('problems.yaml').is_file():
-            verbose('problems.yaml is DEPRECATED. Rename to problemset.yaml instead.')
-        if problemsyaml.is_file():
+        problemsyaml = problemset_yaml()
+        if problemsyaml:
             problems = []
             problem_labels = parse_problemset_yaml(problemsyaml)
             for shortname, label in problem_labels:
@@ -198,29 +178,8 @@ def get_problems():
             # Sort by increasing difficulty, extracted from the CCS api.
             # Get active contest.
 
-            if config.args.order_from_ccs is True:
-                if contest_yaml() is None or 'ccs_url' not in contest_yaml():
-                    fatal(
-                        'Could not find key `ccs_url` in contest.yaml and it was not specified on the command line.'
-                    )
-                api = contest_yaml()['ccs_url']
-            else:
-                api = config.args.order_from_ccs
-            api += '/api/v4'
-            if getattr(config.args, 'contest_id', None):
-                cid = config.args.contest_id
-            elif contest_yaml() and contest_yaml().get('contest_id', None):
-                cid = contest_yaml()['contest_id']
-            else:
-                url = f'{api}/contests'
-                verbose(f'query {url}')
-                with urlopen(url) as response:
-                    contests = json.loads(response.read())
-                    assert isinstance(contests, list)
-                    if len(contests) != 1:
-                        fatal('Server has multiple active contests. Pass --contest-id <cid>.')
-                    cid = contests[0]['id']
-
+            api = get_api()
+            cid = get_contest_id()
             solves = dict()
 
             # Read set of problems
@@ -330,6 +289,10 @@ Run this from one of:
         default=os.cpu_count() // 2,
         help='The number of jobs to use. Default is cpu_count()/2.',
     )
+    global_parser.add_argument(
+        '--api',
+        help='API endpoint to use, e.g. https://www.domjudge.org/demoweb. Defaults to the value in contest.yaml.',
+    )
 
     subparsers = parser.add_subparsers(title='actions', dest='action')
     subparsers.required = True
@@ -402,11 +365,8 @@ Run this from one of:
     )
     orderparser.add_argument(
         '--order-from-ccs',
-        action='store',
-        nargs='?',
-        const=True,
-        metavar='CCS_URL',
-        help='Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of ccs_url in contest.yaml.',
+        action='store_true',
+        help='Order the problems by increasing difficulty, extracted from the CCS.',
     )
     solparser.add_argument(
         '--contest-id',
@@ -652,6 +612,12 @@ Run this from one of:
         'gitlabci', parents=[global_parser], help='Print a list of jobs for the given contest.'
     )
 
+    exportparser = subparsers.add_parser(
+        'export', parents=[global_parser], help='Export the problem or contest to DOMjudge.'
+    )
+    exportparser.add_argument('--username', '-u', help='The username to login to the CCS.')
+    exportparser.add_argument('--password', '-p', help='The password to login to the CCS.')
+
     # Print the corresponding temporary directory.
     tmpparser = subparsers.add_parser(
         'tmp',
@@ -787,7 +753,7 @@ def run_parsed_arguments(args):
     for problem in problems:
         if (
             level == 'problemset'
-            and action == 'pdf'
+            and action in ['pdf', 'export']
             and not (hasattr(config.args, 'all') and config.args.all)
         ):
             continue
@@ -838,11 +804,7 @@ def run_parsed_arguments(args):
         if action in ['constraints']:
             success &= constraints.check_constraints(problem, settings)
         if action in ['zip']:
-            # For DOMjudge: export to A.zip
-            output = problem.label + '.zip'
-            # For Kattis: export to shortname.zip
-            if hasattr(config.args, 'kattis') and config.args.kattis:
-                output = problem.path.with_suffix('.zip')
+            output = problem.path.with_suffix('.zip')
 
             problem_zips.append(output)
             if not config.args.skip:
@@ -899,6 +861,8 @@ def run_parsed_arguments(args):
             if config.args.kattis:
                 outfile = contest + '-kattis.zip'
             export.build_contest_zip(problems, problem_zips, outfile, config.args)
+        if action in ['export']:
+            export.export_contest_and_problems(problems)
 
     if not success or config.n_error > 0 or config.n_warn > 0:
         sys.exit(1)
