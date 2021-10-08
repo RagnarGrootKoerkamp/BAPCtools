@@ -1,2 +1,3 @@
-- id: identity
-  label: A
+problems:
+  - short-name: identity
+    letter: A

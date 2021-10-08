@@ -6,6 +6,7 @@ import re
 # Local imports
 import config
 from util import *
+import contest
 
 
 # Returns the alphanumeric version of a string:
@@ -137,7 +138,21 @@ def new_problem():
     problemset_yaml = target_dir / 'problemset.yaml'
 
     if problemset_yaml.is_file():
-        problemset_yaml.write_text(problemset_yaml.read_text() + '- id: ' + dirname + '\n')
+        # try:
+        import ruamel.yaml
+
+        ryaml = ruamel.yaml.YAML(typ='rt')
+        ryaml.default_flow_style = False
+        ryaml.indent(mapping=2, sequence=4, offset=2)
+        data = ryaml.load(problemset_yaml)
+        next_label = contest.next_label(
+            data['problems'][-1]['letter'] if len(data['problems']) > 0 else None
+        )
+        data['problems'].append({'short-name': dirname, 'letter': next_label, 'rgb': '#000000'})
+        ryaml.dump(data, problemset_yaml)
+    # except Error as e:
+    # raise (e)
+    # error('ruamel.yaml library not found. Please update problems.yaml manually.')
 
     copytree_and_substitute(
         skeldir, target_dir / dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks

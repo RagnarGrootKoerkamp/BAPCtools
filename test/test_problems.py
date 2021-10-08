@@ -175,7 +175,7 @@ class TestNewContestProblem:
         monkeypatch.setattr('sys.stdin', io.StringIO('Ragnar Groot Koerkamp\ncustom\n'))
         tools.test(['new_problem', 'Problem Two'])
         os.chdir('..')
-        problemsyaml = Path('contest_name/problemset.yaml').read_text()
+        problemsyaml = Path('contest_name/problemset.yaml').read_text()['problems']
         assert 'id: problemone' in problemsyaml
         assert 'id: problemtwo' in problemsyaml
 
