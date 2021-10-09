@@ -24,7 +24,6 @@ import colorama
 import json
 
 from pathlib import Path
-from urllib.request import urlopen
 
 # Local imports
 import config
@@ -183,18 +182,16 @@ def get_problems():
             solves = dict()
 
             # Read set of problems
-            url = f'{api}/contests/{cid}/problems'
-            verbose(f'query {url}')
-            with urlopen(url) as response:
-                contest_problems = json.loads(response.read())
-                assert isinstance(problems, list)
-                for problem in contest_problems:
-                    solves[problem['label']] = 0
+            response = export.call_api('GET', f'/contests/{cid}/problems')
+            response.raise_for_status()
+            contest_problems = json.loads(response.text)
+            assert isinstance(problems, list)
+            for problem in contest_problems:
+                solves[problem['label']] = 0
 
-            url = f'{api}/contests/{cid}/scoreboard'
-            verbose(f'query {url}')
-            with urlopen(url) as response:
-                scoreboard = json.loads(response.read())
+            response = export.call_api('GET', f'/contests/{cid}/scoreboard')
+            response.raise_for_status()
+            scoreboard = json.loads(response.text)
 
             for team in scoreboard['rows']:
                 for problem in team['problems']:
@@ -291,8 +288,10 @@ Run this from one of:
     )
     global_parser.add_argument(
         '--api',
-        help='API endpoint to use, e.g. https://www.domjudge.org/demoweb. Defaults to the value in contest.yaml.',
+        help='CCS API endpoint to use, e.g. https://www.domjudge.org/demoweb. Defaults to the value in contest.yaml.',
     )
+    global_parser.add_argument('--username', '-u', help='The username to login to the CCS.')
+    global_parser.add_argument('--password', '-p', help='The password to login to the CCS.')
 
     subparsers = parser.add_subparsers(title='actions', dest='action')
     subparsers.required = True
@@ -615,8 +614,6 @@ Run this from one of:
     exportparser = subparsers.add_parser(
         'export', parents=[global_parser], help='Export the problem or contest to DOMjudge.'
     )
-    exportparser.add_argument('--username', '-u', help='The username to login to the CCS.')
-    exportparser.add_argument('--password', '-p', help='The password to login to the CCS.')
 
     # Print the corresponding temporary directory.
     tmpparser = subparsers.add_parser(
