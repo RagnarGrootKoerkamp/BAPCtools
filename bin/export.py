@@ -89,6 +89,7 @@ def build_problem_zip(problem, output, settings):
         files = [
             ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
             ('problem.yaml', True),
+            ('.timelimit', True),
             ('problem.pdf', True),
             ('problem_statement/*', True),
             ('data/sample/*.in', True),
@@ -103,6 +104,7 @@ def build_problem_zip(problem, output, settings):
         files = [
             ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
             ('problem.yaml', True),
+            ('.timelimit', True),
             ('problem.pdf', True),
             ('problem_statement/*', True),
             ('data/sample/*.interaction', True),
