@@ -94,7 +94,7 @@ class TestIdentityProblem:
 
     def test_zip(self):
         tools.test(['zip', '--force'])
-        Path('../A.zip').unlink()
+        Path('../identity.zip').unlink()
 
     # Misc
     # def test_all(self): tools.test(['all'])

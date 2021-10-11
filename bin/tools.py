@@ -39,6 +39,7 @@ import validate
 import signal
 
 from problem import Problem
+import contest
 from contest import *
 from util import *
 
@@ -882,6 +883,8 @@ def test(args):
     original_directory = Path().cwd()
     config.n_warn = 0
     config.n_error = 0
+    contest._contest_yaml = None
+    contest._problemset_yaml = None
     try:
         parser = build_parser()
         run_parsed_arguments(parser.parse_args(args))
