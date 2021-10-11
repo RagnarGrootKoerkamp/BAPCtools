@@ -130,7 +130,8 @@ def build_problem_zip(problem, output, settings):
     copyfiles = set()
 
     for pattern, required in files:
-        paths = list(util.glob(problem.path, pattern))
+        # Only include hidden files if the pattern starts with a '.'.
+        paths = list(util.glob(problem.path, pattern, include_hidden=pattern[0] == '.'))
         if required and len(paths) == 0:
             util.error(f'No matches for required path {pattern}.')
         for f in paths:

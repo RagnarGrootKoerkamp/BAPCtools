@@ -425,11 +425,12 @@ def read_yaml_settings(path):
 
 
 # glob, but without hidden files
-def glob(path, expression):
+def glob(path, expression, include_hidden=False):
     def keep(p):
-        for d in p.parts:
-            if d[0] == '.':
-                return False
+        if not include_hidden:
+            for d in p.parts:
+                if d[0] == '.':
+                    return False
 
         if p.suffix in ['.template', '.disabled']:
             return False

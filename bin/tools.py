@@ -292,6 +292,9 @@ Run this from one of:
     )
     global_parser.add_argument('--username', '-u', help='The username to login to the CCS.')
     global_parser.add_argument('--password', '-p', help='The password to login to the CCS.')
+    global_parser.add_argument(
+        '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
+    )
 
     subparsers = parser.add_subparsers(title='actions', dest='action')
     subparsers.required = True
@@ -338,9 +341,6 @@ Run this from one of:
         action='store_true',
         help='Create problem statements for individual problems as well.',
     )
-    pdfparser.add_argument(
-        '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
-    )
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     pdfparser.add_argument(
         '--watch',
@@ -354,9 +354,6 @@ Run this from one of:
     # Solution slides
     solparser = subparsers.add_parser(
         'solutions', parents=[global_parser], help='Build the solution slides pdf.'
-    )
-    solparser.add_argument(
-        '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
     )
     orderparser = solparser.add_mutually_exclusive_group()
     orderparser.add_argument(
@@ -577,9 +574,6 @@ Run this from one of:
     # All
     allparser = subparsers.add_parser(
         'all', parents=[global_parser], help='validate input, validate output, and run programs'
-    )
-    allparser.add_argument(
-        '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
     )
     allparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     allparser.add_argument(
