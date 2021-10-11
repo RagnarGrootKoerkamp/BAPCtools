@@ -146,7 +146,7 @@ def new_problem():
         ryaml.indent(mapping=2, sequence=4, offset=2)
         data = ryaml.load(problemset_yaml)
         next_label = contest.next_label(
-            data['problems'][-1]['letter'] if len(data['problems']) > 0 else None
+            data['problems'][-1]['letter'] if data['problems'] else None
         )
         data['problems'].append({'short-name': dirname, 'letter': next_label, 'rgb': '#000000'})
         ryaml.dump(data, problemset_yaml)
