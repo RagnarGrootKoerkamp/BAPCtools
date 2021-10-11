@@ -64,7 +64,8 @@ def get_api():
                 'Could not find key `api` in contest.yaml and it was not specified on the command line.'
             )
         api = contest_yaml()['api']
-    api += '/api/v4'
+    if not api.endswith('/'): api += '/'
+    api += 'api/v4'
     return api
 
 
