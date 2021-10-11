@@ -56,7 +56,7 @@ def problemset_yaml():
 
 def get_api():
     api = None
-    if hasattr(config.args, 'api'):
+    if hasattr(config.args, 'api') and config.args.api is not None:
         api = config.args.api
     else:
         if contest_yaml() is None or 'api' not in contest_yaml():
