@@ -8,7 +8,7 @@ CID=4
 
 dir=$(mktemp -d)
 for endpoint in teams organizations problems scoreboard; do
-    curl -u "$USER:$PASS" $URL/api/v4/contests/$CID/$endpoint >$dir/$endpoint
+    curl -L -u "$USER:$PASS" $URL/api/v4/contests/$CID/$endpoint >$dir/$endpoint
 done
 
 rm -f scoreboard.zip
