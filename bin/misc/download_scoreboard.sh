@@ -2,9 +2,9 @@
 set -euo pipefail
 
 if [ $# -eq 0 ]; then
-    echo Pass the url to the contest, optionally including username and password:
+    echo Pass the url to the contest, optionally including username and password, and optionally the name of the zip to write:
     echo 'https://{USER}:{PASSWORD}@{URL}/api/contests/{CONTEST_ID}'
-    echo Example: https://www.domjudge.org/demoweb/api/contests/1
+    echo Example: "https://www.domjudge.org/demoweb/api/contests/1 scoreboard.zip"
     exit 1
 fi
 
@@ -14,10 +14,15 @@ URL=$1
 
 dir=$(mktemp -d)
 for endpoint in teams organizations problems scoreboard; do
-    curl -L $URL/$endpoint >$dir/$endpoint
+    curl --fail --location $URL/$endpoint >$dir/$endpoint
 done
 
-rm -f scoreboard.zip
-zip -j scoreboard.zip $dir/*
+OUT=scoreboard.zip
 
-echo Wrote scoreboard.zip
+if [ $# -eq 2 ]; then
+    OUT=$2
+fi
+
+zip -j $OUT $dir/*
+
+echo Wrote $OUT
