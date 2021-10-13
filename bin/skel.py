@@ -145,6 +145,8 @@ def new_problem():
         ryaml.default_flow_style = False
         ryaml.indent(mapping=2, sequence=4, offset=2)
         data = ryaml.load(problemset_yaml)
+        if 'problems' not in data or data['problems'] is None:
+            data['problems'] = []
         next_label = contest.next_label(
             data['problems'][-1]['letter'] if data['problems'] else None
         )
