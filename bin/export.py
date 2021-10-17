@@ -290,7 +290,6 @@ def export_contest(problems):
     log(f'Uploaded the contest to contest_id {cid}. Please update this in contest.yaml.')
     log('Update contest_id automatically? [Y/n]')
     a = input().lower()
-    debug(f'input: {a}')
     if a == '' or a[0] == 'y':
         update_contest_id(cid)
         log(f'Updated contest_id to {cid}')
@@ -299,7 +298,11 @@ def export_contest(problems):
 
 # Export a single problem to the specified contest ID.
 def export_problem(problem, cid, pid):
-    log(f'Export {problem.name} to id {pid}')
+    if pid:
+        log(f'Export {problem.name} to id {pid}')
+    else:
+        log(f'Export {problem.name} to new id')
+
     zipfile = Path(problem.name).with_suffix('.zip')
     if not zipfile.is_file():
         error(f'Did not find {zipfile}. First run `bt zip`.')
@@ -313,7 +316,13 @@ def export_problem(problem, cid, pid):
         data=data,
         files=[('zip[]', zipfile)],
     )
-    verbose(f'RESPONSE:\n' + '\n'.join(yaml.load(r.text, Loader=yaml.SafeLoader)['messages']))
+    yaml_response = yaml.load(r.text, Loader=yaml.SafeLoader)
+    if 'messages' in yaml_response:
+        verbose(f'RESPONSE:\n' + '\n'.join(yaml_response['messages']))
+    elif 'message' in yaml_response:
+        verbose(f'RESPONSE: ' + yaml_response['message'])
+    else:
+        verbose(f'RESPONSE:\n' + str(yaml_response))
     r.raise_for_status()
 
 
@@ -330,7 +339,6 @@ def export_contest_and_problems(problems):
     r = call_api('GET', f'/contests/{cid}/problems')
     r.raise_for_status()
     ccs_problems = yaml.load(r.text, Loader=yaml.SafeLoader)
-    debug(f'CURRENT PROBLEMS: {ccs_problems}')
 
     # TODO: Make sure the user is associated to a team.
 
