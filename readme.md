@@ -79,7 +79,7 @@ This image can be used for e.g.:
 - running `bt` on your local problems. Use this command to mount your local
   directory into the docker image and run a command on it:
   ```
-  docker run -v $PWD:/data ragnargrootkoerkamp/bapctools <bt subcommands>
+  docker run -v $PWD:/data --rm -it ragnargrootkoerkamp/bapctools <bt subcommands>
   ```
 
 ## Usage
