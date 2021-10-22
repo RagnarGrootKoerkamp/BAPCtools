@@ -70,7 +70,17 @@ This can be fixed by enabling Developer Mode on Windows (Only works for Windows 
 A docker image containing this git repo and dependencies, together with commonly
 used languages, is provided at
 [ragnargrootkoerkamp/bacptools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
-This is not updated regularly.
+This version may be somewhat outdated. Ping me if you'd like it to be updated.
+
+This image can be used for e.g.:
+
+- running CI on your repo. Also see `bt gitlabci` which generates a
+  `.gitlab-ci.yaml` file.
+- running `bt` on your local problems. Use this command to mount your local
+  directory into the docker image and run a command on it:
+  ```
+  docker run -v $PWD:/data ragnargrootkoerkamp/bapctools <bt subcommands>
+  ```
 
 ## Usage
 

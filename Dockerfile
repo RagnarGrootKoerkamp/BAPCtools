@@ -32,4 +32,4 @@ RUN git clone https://github.com/RagnarGrootKoerkamp/BAPCtools /opt/bapctools &&
     ln -sfn /opt/bapctools/bin/tools.py /usr/bin/bt && ln -sfn /opt/bapctools/third_party/checktestdata /usr/bin/checktestdata
 RUN mkdir /data
 WORKDIR /data
-ENTRYPOINT /bin/bt
+ENTRYPOINT ["/bin/bt"]
