@@ -75,7 +75,7 @@ This version may be somewhat outdated. Ping me if you'd like it to be updated.
 This image can be used for e.g.:
 
 - running CI on your repo. Also see `bt gitlabci` which generates a
-  `.gitlab-ci.yaml` file.
+  `.gitlab-ci.yaml` file. Make sure to clear the entrypoint, e.g. `entrypoint: [""]`.
 - running `bt` on your local problems. Use this command to mount your local
   directory into the docker image and run a command on it:
   ```

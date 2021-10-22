@@ -287,6 +287,7 @@
 			\strut%
 		}
 	}
+	\nopagebreak
 	\vspace{-0.4em}
 	\par
 }
@@ -304,6 +305,7 @@
 			\strut%
 		}
 	}
+	\nopagebreak
 	\vspace{-0.4em}
 	\par%
 }
