@@ -1,4 +1,6 @@
-image: ragnargrootkoerkamp/bapctools
+image:
+  name: ragnargrootkoerkamp/bapctools
+  entrypoint: [""]
 
 stages:
   - test
