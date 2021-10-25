@@ -862,16 +862,16 @@ def run_parsed_arguments(args):
 
 # Takes command line arguments
 def main():
+    def interrupt_handler(sig, frame):
+        fatal('Running interrupted')
+
+    signal.signal(signal.SIGINT, interrupt_handler)
+
     parser = build_parser()
     run_parsed_arguments(parser.parse_args())
 
 
 if __name__ == '__main__':
-
-    def interrupt_handler(sig, frame):
-        fatal('Running interrupted')
-
-    signal.signal(signal.SIGINT, interrupt_handler)
     main()
 
 
