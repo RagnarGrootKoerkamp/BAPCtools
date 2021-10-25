@@ -329,6 +329,11 @@
 \usepackage{amsmath,amssymb}
 \usepackage{wrapfig}
 \usepackage{tikz}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{patterns}
+\usetikzlibrary{positioning}
 \usepackage{enumitem}	% [noitemsep] for smaller lists
 \usepackage{textcomp} % textquotesingle: '
 
