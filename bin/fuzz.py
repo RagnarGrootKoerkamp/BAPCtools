@@ -131,6 +131,7 @@ def _try_generator_invocation(problem, t, submissions, i):
                 saved = True
                 bar.error('Broken! Saving testcase in generators.yaml.')
                 _save_test(problem, command)
+                return
         localbar.done()
 
     # Run all submissions against the testcase.
