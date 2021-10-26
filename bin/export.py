@@ -234,31 +234,9 @@ def update_contest_id(cid):
 
 
 def export_contest(problems):
-    if contest_yaml() is None or problems_yaml() is None:
-        fatal(
-            'Exporting a contest only works if both contest.yaml and problems.yaml are available.'
-        )
+    if contest_yaml() is None:
+        fatal('Exporting a contest only works if contest.yaml is available.')
 
-    # def fix_fields():
-    #     log('problems.yaml is missing fields. Adding them.')
-    #     try:
-    #         ryaml = ruamel.yaml.YAML(typ='rt')
-    #     except NameError:
-    #         fatal('ruamel.yaml library not found. Update the labels manually.')
-    #     ryaml.default_flow_style = False
-    #     ryaml.indent(mapping=2, sequence=4, offset=2)
-    #     path = Path('problems.yaml')
-    #     data = ryaml.load(path)
-
-    #     ryaml.dump(data, path)
-
-    # # Make sure the problems.yaml contains all required fields.
-    # for problem in problems_yaml():
-    #     if 'name' not in problem:
-    #         fix_fields()
-    #         break
-
-    # Read set of problems
     try:
         r = call_api(
             'POST',
@@ -266,20 +244,7 @@ def export_contest(problems):
             files={
                 'yaml': (
                     'contest.yaml',
-                    contest_yaml(),
-                    'application/x-yaml',
-                )
-            },
-        )
-        r.raise_for_status()
-
-        r = call_api(
-            'POST',
-            '/contests/add-data',
-            files={
-                'yaml': (
-                    'problems.yaml',
-                    problems_yaml(),
+                    yaml.dump(contest_yaml()),
                     'application/x-yaml',
                 )
             },
@@ -298,6 +263,68 @@ def export_contest(problems):
         update_contest_id(cid)
         log(f'Updated contest_id to {cid}')
     return cid
+
+
+def export_problems(problems, cid):
+    if contest_yaml() is None:
+        fatal('Exporting a contest only works if contest.yaml is available.')
+
+    # Update name and timelimit values.
+    try:
+        ryaml = ruamel.yaml.YAML(typ='rt')
+        ryaml.default_flow_style = False
+        ryaml.indent(mapping=2, sequence=4, offset=2)
+        path = Path('problems.yaml')
+        data = ryaml.load(path)
+
+        change = False
+        for problem in problems:
+            for d in data:
+                if d['id'] == problem.name:
+                    if problem.settings.name and problem.settings.name != getattr(d, 'name', None):
+                        change = True
+                        d['name'] = problem.settings.name
+
+                    if (
+                        not problem.settings.timelimit_is_default
+                        and problem.settings.timelimit != getattr(d, 'timelimit', None)
+                    ):
+                        change = True
+                        d['timelimit'] = problem.settings.timelimit
+
+        if change:
+            log('Update problems.yaml with latest values? [Y/n]')
+            a = input().lower()
+            if a == '' or a[0] == 'y':
+                ryaml.dump(data, path)
+                log(f'Updated problems.yaml')
+    except NameError as e:
+        log(
+            'ruamel.yaml library not found. Make sure to update the name and timelimit fields manually.'
+        )
+
+    # Uploading problems.yaml
+    try:
+        r = call_api(
+            'POST',
+            f'/contests/{cid}/problems/add-data',
+            files={
+                'data': (
+                    'contest.yaml',
+                    yaml.dump(problems_yaml()),
+                    'application/x-yaml',
+                )
+            },
+        )
+        r.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        msg = parse_yaml(r.text)
+        if msg is not None and 'message' in msg:
+            msg = msg['message']
+        fatal(f'{msg}\n{e}')
+    log(f'Uploaded problems.yaml for contest_id {cid}.')
+    data = yaml.load(r.text, Loader=yaml.SafeLoader)
+    return data
 
 
 # Export a single problem to the specified contest ID.
@@ -340,9 +367,16 @@ def export_contest_and_problems(problems):
         cid = export_contest(problems)
 
     # Query the internal DOMjudge problem IDs.
+    ccs_problems = None
     r = call_api('GET', f'/contests/{cid}/problems')
     r.raise_for_status()
     ccs_problems = yaml.load(r.text, Loader=yaml.SafeLoader)
+    if not ccs_problems:
+        export_problems(problems, cid)
+        # TODO: Could output from export_problems instead of querying the API again.
+        r = call_api('GET', f'/contests/{cid}/problems')
+        r.raise_for_status()
+        ccs_problems = yaml.load(r.text, Loader=yaml.SafeLoader)
 
     # TODO: Make sure the user is associated to a team.
 
