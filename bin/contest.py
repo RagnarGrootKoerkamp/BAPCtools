@@ -32,26 +32,26 @@ def next_label(label):
     return label[:-1] + chr(ord(label[-1]) + 1)
 
 
-_problemset_yaml = None
+_problems_yaml = None
 
 
-def problemset_yaml():
-    global _problemset_yaml
-    if _problemset_yaml:
-        return _problemset_yaml
-    if _problemset_yaml is False:
+def problems_yaml():
+    global _problems_yaml
+    if _problems_yaml:
+        return _problems_yaml
+    if _problems_yaml is False:
         return None
 
-    problemsyaml_path = Path('problemset.yaml')
-    old_problemsyaml_path = Path('problems.yaml')
+    problemsyaml_path = Path('problems.yaml')
+    old_problemsyaml_path = Path('problemset.yaml')
     if not problemsyaml_path.is_file() and old_problemsyaml_path.is_file():
-        verbose('problems.yaml is DEPRECATED. Rename to problemset.yaml instead.')
+        verbose('problemset.yaml is DEPRECATED. Rename to problems.yaml instead.')
         problemsyaml_path = old_problemsyaml_path
     if not problemsyaml_path.is_file():
-        _problemset_yaml = False
+        _problems_yaml = False
         return None
-    _problemset_yaml = read_yaml(problemsyaml_path)
-    return _problemset_yaml
+    _problems_yaml = read_yaml(problemsyaml_path)
+    return _problems_yaml
 
 
 def get_api():
@@ -64,7 +64,8 @@ def get_api():
                 'Could not find key `api` in contest.yaml and it was not specified on the command line.'
             )
         api = contest_yaml()['api']
-    if not api.endswith('/'): api += '/'
+    if not api.endswith('/'):
+        api += '/'
     api += 'api/v4'
     return api
 

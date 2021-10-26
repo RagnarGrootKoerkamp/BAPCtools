@@ -63,7 +63,6 @@ def new_contest(name):
     author = _ask_variable('author', f'The {title} jury').replace('_', '-')
     testsession = _ask_variable('testsession?', 'n (y/n)')[0] != 'n'  # boolean
     year = _ask_variable('year', str(datetime.datetime.now().year))
-    source = _ask_variable('source', title)
     source_url = _ask_variable('source url', '')
     license = _ask_variable('license', 'cc by-sa')
     rights_owner = _ask_variable('rights owner', 'author')
@@ -118,6 +117,8 @@ def new_problem():
 
     # Read settings from the contest-level yaml file.
     variables = read_yaml_settings(Path('contest.yaml'))
+    if 'source' not in variables:
+        variables['source'] = variables['name']
 
     for k, v in {
         'problemname': problemname,
@@ -127,7 +128,7 @@ def new_problem():
     }.items():
         variables[k] = v
 
-    for k in ['source', 'source_url', 'license', 'rights_owner']:
+    for k in ['source_url', 'license', 'rights_owner']:
         if k not in variables:
             variables[k] = ''
 
@@ -135,23 +136,22 @@ def new_problem():
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
     log(f'Copying {skeldir} to {target_dir/dirname}.')
 
-    problemset_yaml = target_dir / 'problemset.yaml'
+    problems_yaml = target_dir / 'problems.yaml'
 
-    if problemset_yaml.is_file():
+    if problems_yaml.is_file():
         # try:
         import ruamel.yaml
 
         ryaml = ruamel.yaml.YAML(typ='rt')
         ryaml.default_flow_style = False
         ryaml.indent(mapping=2, sequence=4, offset=2)
-        data = ryaml.load(problemset_yaml)
-        if 'problems' not in data or data['problems'] is None:
-            data['problems'] = []
-        next_label = contest.next_label(
-            data['problems'][-1]['letter'] if data['problems'] else None
+        data = ryaml.load(problems_yaml) or []
+        next_label = contest.next_label(data[-1]['label'] if data else None)
+        # Name and timelimits are overridden by problem.yaml, but still required.
+        data.append(
+            {'id': dirname, 'name': None, 'label': next_label, 'rgb': '#000000', 'timelimit': None}
         )
-        data['problems'].append({'short-name': dirname, 'letter': next_label, 'rgb': '#000000'})
-        ryaml.dump(data, problemset_yaml)
+        ryaml.dump(data, problems_yaml)
     # except Error as e:
     # raise (e)
     # error('ruamel.yaml library not found. Please update problems.yaml manually.')

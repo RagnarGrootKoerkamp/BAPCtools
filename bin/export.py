@@ -23,7 +23,7 @@ except:
     pass
 
 
-# Replace \problemyamlname by the value of `name:` in problemset.yaml in all .tex files.
+# Replace \problemyamlname by the value of `name:` in problems.yaml in all .tex files.
 def fix_problem_yaml_name(problem):
     for f in (problem.path / 'problem_statement').iterdir():
         if f.is_file() and f.suffix == '.tex':
@@ -187,7 +187,7 @@ def build_contest_zip(problems, zipfiles, outfile, args):
         build_samples_zip(problems)
 
         for fname in [
-            'problemset.yaml',
+            'problems.yaml',
             'contest.yaml',
             'contest.pdf',
             'contest-web.pdf',
@@ -234,38 +234,29 @@ def update_contest_id(cid):
 
 
 def export_contest(problems):
-    if contest_yaml() is None or problemset_yaml() is None:
+    if contest_yaml() is None or problems_yaml() is None:
         fatal(
-            'Exporting a contest only works if both contest.yaml and problemset.yaml are available.'
+            'Exporting a contest only works if both contest.yaml and problems.yaml are available.'
         )
 
-    def get_problem_label(name):
-        for problem in problems:
-            if problem.name == name:
-                return problem.label
-        fatal(f'Did not find problem {name}')
+    # def fix_fields():
+    #     log('problems.yaml is missing fields. Adding them.')
+    #     try:
+    #         ryaml = ruamel.yaml.YAML(typ='rt')
+    #     except NameError:
+    #         fatal('ruamel.yaml library not found. Update the labels manually.')
+    #     ryaml.default_flow_style = False
+    #     ryaml.indent(mapping=2, sequence=4, offset=2)
+    #     path = Path('problems.yaml')
+    #     data = ryaml.load(path)
 
-    def fix_letters():
-        log('problemset.yaml is missing labels. Adding them.')
-        try:
-            ryaml = ruamel.yaml.YAML(typ='rt')
-        except NameError:
-            fatal('ruamel.yaml library not found. Update the labels manually.')
-        ryaml.default_flow_style = False
-        ryaml.indent(mapping=2, sequence=4, offset=2)
-        path = Path('problemset.yaml')
-        data = ryaml.load(path)
-        for problem in data['problems']:
-            if 'letter' not in problem:
-                problem['letter'] = get_problem_label(problem['short-name'])
+    #     ryaml.dump(data, path)
 
-        ryaml.dump(data, path)
-
-    # Make sure the problemset.yaml contains all required fields.
-    for problem in problemset_yaml()['problems']:
-        if 'letter' not in problem:
-            fix_letters()
-            break
+    # # Make sure the problems.yaml contains all required fields.
+    # for problem in problems_yaml():
+    #     if 'name' not in problem:
+    #         fix_fields()
+    #         break
 
     # Read set of problems
     try:
@@ -274,8 +265,21 @@ def export_contest(problems):
             '/contests',
             files={
                 'yaml': (
-                    'combined.yaml',
-                    yaml.dump({**contest_yaml(), **problemset_yaml()}),
+                    'contest.yaml',
+                    contest_yaml(),
+                    'application/x-yaml',
+                )
+            },
+        )
+        r.raise_for_status()
+
+        r = call_api(
+            'POST',
+            '/contests/add-data',
+            files={
+                'yaml': (
+                    'problems.yaml',
+                    problems_yaml(),
                     'application/x-yaml',
                 )
             },
@@ -287,8 +291,8 @@ def export_contest(problems):
             msg = msg['message']
         fatal(f'{msg}\n{e}')
     cid = yaml.load(r.text, Loader=yaml.SafeLoader)
-    log(f'Uploaded the contest to contest_id {cid}. Please update this in contest.yaml.')
-    log('Update contest_id automatically? [Y/n]')
+    log(f'Uploaded the contest to contest_id {cid}.')
+    log('Update contest_id in contest.yaml automatically? [Y/n]')
     a = input().lower()
     if a == '' or a[0] == 'y':
         update_contest_id(cid)

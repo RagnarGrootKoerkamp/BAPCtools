@@ -1,0 +1,10 @@
+# An array of problems:
+#- id: exampleproblem
+#  # optional; overwritten by name in problem.yaml
+#  name: Example Problem
+#  label: A
+#  rgb: '#ff0000'
+#  # optional; rgb has priority
+#  color: red
+#  # optional; overwritten by .timelimit
+#  timelimit:

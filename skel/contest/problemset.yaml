@@ -1,8 +1,0 @@
-# An array of problems
-#- short-name: exampleshortname
-#  # The label of the problem. Automatic, but required for DOMjudge.
-#  letter: A
-#  # The color of the problem. RGB has priority.
-#  rgb: '#ff0000'
-#  color: red
-problems:

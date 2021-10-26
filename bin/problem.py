@@ -41,10 +41,7 @@ class Problem:
         self._testdata_yamls = dict()
 
         # The label for the problem: A, B, A1, A2, X, ...
-        if label is None:
-            self.label = self.settings.probid
-        else:
-            self.label = label
+        self.label = label
 
         # TODO: transform this into nice warnings
         assert path.is_dir()
@@ -61,7 +58,6 @@ class Problem:
             'name': '',
             'validation': 'default',
             'validator_flags': [],
-            'probid': 'A',
             'author': '',
         }
 

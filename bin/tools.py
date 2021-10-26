@@ -68,7 +68,7 @@ if not os.getenv('GITLAB_CI', False):
 f'f-strings are not supported by your python version. You need at least python 3.6.'
 
 # Get the list of relevant problems.
-# Either use the problemset.yaml, or check the existence of problem.yaml and sort
+# Either use the problems.yaml, or check the existence of problem.yaml and sort
 # by shortname.
 def get_problems():
     def is_problem_directory(path):
@@ -98,43 +98,38 @@ def get_problems():
     tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
     tmpdir.mkdir(parents=True, exist_ok=True)
 
-    def parse_problemset_yaml(problemlist):
+    def parse_problems_yaml(problemlist):
         if problemlist is None:
             fatal(f'Did not find any problem in {problemsyaml}.')
-        if 'problems' not in problemlist:
-            fatal(f'problemset.yaml must contain a problems: list.')
-        problemlist = problemlist['problems']
+        problemlist = problemlist
         if problemlist is None:
             problemlist = []
         if not isinstance(problemlist, list):
-            fatal(f'problemset.yaml must contain a problems: list.')
+            fatal(f'problems.yaml must contain a problems: list.')
 
         labels = dict()
-        nextlabel = 'A'
         problems = []
         for p in problemlist:
-            label = nextlabel
-            shortname = p['short-name']
-            if 'letter' in p:
-                label = p['letter']
+            shortname = p['id']
+            if 'label' in p:
+                label = p['label']
             if label == '':
                 fatal(f'Found empty label for problem {shortname}')
-            nextlabel = next_label(label)
             if label in labels:
                 fatal(f'label {label} found twice for problem {shortname} and {labels[label]}.')
             labels[label] = shortname
             if Path(shortname).is_dir():
                 problems.append((shortname, label))
             else:
-                error(f'No directory found for problem {shortname} mentioned in problemset.yaml.')
+                error(f'No directory found for problem {shortname} mentioned in problems.yaml.')
         return problems
 
     problems = []
     if level == 'problem':
-        # If the problem is mentioned in problemset.yaml, use that ID.
-        problemsyaml = problemset_yaml()
+        # If the problem is mentioned in problems.yaml, use that ID.
+        problemsyaml = problems_yaml()
         if problemsyaml:
-            problem_labels = parse_problemset_yaml(problemsyaml)
+            problem_labels = parse_problems_yaml(problemsyaml)
             for shortname, label in problem_labels:
                 if shortname == problem.name:
                     problems = [Problem(Path(problem.name), tmpdir, label)]
@@ -144,11 +139,11 @@ def get_problems():
             problems = [Problem(Path(problem.name), tmpdir)]
     else:
         level = 'problemset'
-        # If problemset.yaml is available, use it.
-        problemsyaml = problemset_yaml()
+        # If problems.yaml is available, use it.
+        problemsyaml = problems_yaml()
         if problemsyaml:
             problems = []
-            problem_labels = parse_problemset_yaml(problemsyaml)
+            problem_labels = parse_problems_yaml(problemsyaml)
             for shortname, label in problem_labels:
                 problems.append(Problem(Path(shortname), tmpdir, label))
         else:
@@ -884,7 +879,7 @@ def test(args):
     config.n_warn = 0
     config.n_error = 0
     contest._contest_yaml = None
-    contest._problemset_yaml = None
+    contest._problems_yaml = None
     try:
         parser = build_parser()
         run_parsed_arguments(parser.parse_args(args))
