@@ -1,9 +1,11 @@
 # An array of problems:
+# NOTE: Name and timelimit are overwritten by values from the problem itself.
+#       Do not edit them here. Run `bt update_problems_yaml` to update this file.
 #- id: exampleproblem
 #  # optional; overwritten by name in problem.yaml
 #  name: Example Problem
 #  label: A
-#  rgb: '#ff0000'
+#  rgb: '#000000'
 #  # optional; rgb has priority
 #  color: red
 #  # optional; overwritten by .timelimit

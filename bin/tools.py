@@ -149,7 +149,6 @@ def get_problems():
         else:
             # Otherwise, fallback to all directories with a problem.yaml and sort by
             # shortname.
-            # TODO: Keep this fallback?
             label_ord = 0
             for path in glob(Path('.'), '*/'):
                 if is_problem_directory(path):
@@ -605,6 +604,12 @@ Run this from one of:
         'export', parents=[global_parser], help='Export the problem or contest to DOMjudge.'
     )
 
+    updateproblemsyamlparser = subparsers.add_parser(
+        'update_problems_yaml',
+        parents=[global_parser],
+        help='Update the problems.yaml with current names and timelimits.',
+    )
+
     # Print the corresponding temporary directory.
     tmpparser = subparsers.add_parser(
         'tmp',
@@ -740,7 +745,7 @@ def run_parsed_arguments(args):
     for problem in problems:
         if (
             level == 'problemset'
-            and action in ['pdf', 'export']
+            and action in ['pdf', 'export', 'update_problems_yaml']
             and not (hasattr(config.args, 'all') and config.args.all)
         ):
             continue
@@ -850,6 +855,8 @@ def run_parsed_arguments(args):
             export.build_contest_zip(problems, problem_zips, outfile, config.args)
         if action in ['export']:
             export.export_contest_and_problems(problems)
+        if action in ['update_problems_yaml']:
+            export.update_problems_yaml(problems)
 
     if not success or config.n_error > 0 or config.n_warn > 0:
         sys.exit(1)

@@ -265,43 +265,70 @@ def export_contest(problems):
     return cid
 
 
-def export_problems(problems, cid):
-    if contest_yaml() is None:
-        fatal('Exporting a contest only works if contest.yaml is available.')
-
+def update_problems_yaml(problems):
     # Update name and timelimit values.
+    log('Updating problems.yaml')
     try:
         ryaml = ruamel.yaml.YAML(typ='rt')
         ryaml.default_flow_style = False
         ryaml.indent(mapping=2, sequence=4, offset=2)
         path = Path('problems.yaml')
-        data = ryaml.load(path)
+        data = ryaml.load(path) if path.is_file() else []
 
         change = False
         for problem in problems:
+            found = False
             for d in data:
                 if d['id'] == problem.name:
-                    if problem.settings.name and problem.settings.name != getattr(d, 'name', None):
+                    found = True
+                    if problem.settings.name and problem.settings.name != d.get('name', None):
                         change = True
                         d['name'] = problem.settings.name
 
                     if (
                         not problem.settings.timelimit_is_default
-                        and problem.settings.timelimit != getattr(d, 'timelimit', None)
+                        and problem.settings.timelimit != d.get('timelimit', None)
                     ):
                         change = True
                         d['timelimit'] = problem.settings.timelimit
+                    break
+            if not found:
+                change = True
+                log(f'Add problem {problem.name}')
+                data.append(
+                    {
+                        'id': problem.name,
+                        'name': problem.settings.name,
+                        'label': problem.label,
+                        'rgb': '#000000',
+                        'timelimit': problem.settings.timelimit,
+                    }
+                )
 
         if change:
-            log('Update problems.yaml with latest values? [Y/n]')
-            a = input().lower()
+            if config.args.action == 'update_problems_yaml':
+                a = 'y'
+            else:
+                log('Update problems.yaml with latest values? [Y/n]')
+                a = input().lower()
             if a == '' or a[0] == 'y':
                 ryaml.dump(data, path)
                 log(f'Updated problems.yaml')
+        else:
+            if config.args.action == 'update_problems_yaml':
+                log(f'Already up to date')
+
     except NameError as e:
         log(
             'ruamel.yaml library not found. Make sure to update the name and timelimit fields manually.'
         )
+
+
+def export_problems(problems, cid):
+    if contest_yaml() is None:
+        fatal('Exporting a contest only works if contest.yaml is available.')
+
+    update_problems_yaml()
 
     # Uploading problems.yaml
     try:

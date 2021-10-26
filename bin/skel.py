@@ -139,22 +139,27 @@ def new_problem():
     problems_yaml = target_dir / 'problems.yaml'
 
     if problems_yaml.is_file():
-        # try:
-        import ruamel.yaml
+        try:
+            import ruamel.yaml
 
-        ryaml = ruamel.yaml.YAML(typ='rt')
-        ryaml.default_flow_style = False
-        ryaml.indent(mapping=2, sequence=4, offset=2)
-        data = ryaml.load(problems_yaml) or []
-        next_label = contest.next_label(data[-1]['label'] if data else None)
-        # Name and timelimits are overridden by problem.yaml, but still required.
-        data.append(
-            {'id': dirname, 'name': None, 'label': next_label, 'rgb': '#000000', 'timelimit': None}
-        )
-        ryaml.dump(data, problems_yaml)
-    # except Error as e:
-    # raise (e)
-    # error('ruamel.yaml library not found. Please update problems.yaml manually.')
+            ryaml = ruamel.yaml.YAML(typ='rt')
+            ryaml.default_flow_style = False
+            ryaml.indent(mapping=2, sequence=4, offset=2)
+            data = ryaml.load(problems_yaml) or []
+            next_label = contest.next_label(data[-1]['label'] if data else None)
+            # Name and timelimits are overridden by problem.yaml, but still required.
+            data.append(
+                {
+                    'id': dirname,
+                    'name': problemname,
+                    'label': next_label,
+                    'rgb': '#000000',
+                    'timelimit': 1.0,
+                }
+            )
+            ryaml.dump(data, problems_yaml)
+        except NameError as e:
+            error('ruamel.yaml library not found. Please update problems.yaml manually.')
 
     copytree_and_substitute(
         skeldir, target_dir / dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks

@@ -43,10 +43,6 @@ def problems_yaml():
         return None
 
     problemsyaml_path = Path('problems.yaml')
-    old_problemsyaml_path = Path('problemset.yaml')
-    if not problemsyaml_path.is_file() and old_problemsyaml_path.is_file():
-        verbose('problemset.yaml is DEPRECATED. Rename to problems.yaml instead.')
-        problemsyaml_path = old_problemsyaml_path
     if not problemsyaml_path.is_file():
         _problems_yaml = False
         return None
