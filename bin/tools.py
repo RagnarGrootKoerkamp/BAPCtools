@@ -72,17 +72,16 @@ f'f-strings are not supported by your python version. You need at least python 3
 # by shortname.
 def get_problems():
     def is_problem_directory(path):
-        # TODO: Simplify this when problem.yaml is required.
-        return (path / 'problem.yaml').is_file() or (path / 'problem_statement').is_dir()
+        return (path / 'problem.yaml').is_file()
 
     contest = None
     problem = None
     level = None
-    if hasattr(config.args, 'contest') and config.args.contest:
+    if getattr(config.args, 'contest', None):
         contest = config.args.contest
         os.chdir(contest)
         level = 'problemset'
-    elif hasattr(config.args, 'problem') and config.args.problem:
+    if getattr(config.args, 'problem', None):
         problem = Path(config.args.problem)
         level = 'problem'
         os.chdir(problem.parent)
@@ -254,8 +253,10 @@ Run this from one of:
         help='Verbose output; once for what\'s going on, twice for all intermediate output.',
     )
     group = global_parser.add_mutually_exclusive_group()
-    group.add_argument('--contest', help='The contest to use, when running from repository root.')
-    group.add_argument('--problem', help='The problem to use, when running from repository root.')
+    group.add_argument('--contest', help='Path to the contest to use.')
+    group.add_argument(
+        '--problem', help='Path to the problem to use. Can be relative to contest if given.'
+    )
 
     global_parser.add_argument(
         '--no-bar',
