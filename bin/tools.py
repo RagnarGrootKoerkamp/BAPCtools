@@ -242,7 +242,7 @@ def split_submissions_and_testcases(s):
     testcases = []
     for p in s:
         ps = str(p)
-        if 'data/' in ps or 'sample/' in ps or 'secret/' in ps or '.in' in ps or '.ans' in ps:
+        if 'data' in ps or 'sample' in ps or 'secret' in ps or '.in' in ps or '.ans' in ps:
             # Strip potential .ans and .in
             if p.suffix in ['.ans', '.in']:
                 testcases.append(p.with_suffix(''))

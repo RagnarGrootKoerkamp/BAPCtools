@@ -213,7 +213,6 @@ class Problem:
 
             for submission in config.args.submissions:
                 s = resolve_path_argument(problem, submission, 'submissions')
-                debug(s)
                 if s:
                     if s == problem.path / 'submissions':
                         for verdict in config.VERDICTS:
