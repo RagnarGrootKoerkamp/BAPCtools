@@ -245,6 +245,11 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
         if build_type == 'problem':
             prepare_problem(problem)
 
+        if solutions:
+            if not (problem.path / 'problem_statement/solution.tex').is_file():
+                warn(f'solution.tex not found for problem {problem.name}')
+                continue
+
         problems_data += util.substitute(
             per_problem_data,
             {

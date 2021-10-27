@@ -212,12 +212,16 @@ def build_contest_zip(problems, zipfiles, outfile, args):
 def call_api(method, endpoint, **kwargs):
     url = get_api() + endpoint
     verbose(f'{method} {url}')
-    return requests.request(
+    r = requests.request(
         method,
         url,
         auth=requests.auth.HTTPBasicAuth(config.args.username, config.args.password),
         **kwargs,
     )
+
+    if not r.ok:
+        error(r.text)
+    return r
 
 
 def update_contest_id(cid):
@@ -328,7 +332,7 @@ def export_problems(problems, cid):
     if contest_yaml() is None:
         fatal('Exporting a contest only works if contest.yaml is available.')
 
-    update_problems_yaml()
+    update_problems_yaml(problems)
 
     # Uploading problems.yaml
     try:
@@ -372,7 +376,7 @@ def export_problem(problem, cid, pid):
         'POST',
         f'/contests/{cid}/problems',
         data=data,
-        files=[('zip[]', zipfile)],
+        files=[('zip', zipfile)],
     )
     yaml_response = yaml.load(r.text, Loader=yaml.SafeLoader)
     if 'messages' in yaml_response:
