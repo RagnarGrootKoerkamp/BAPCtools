@@ -378,23 +378,19 @@ Run this from one of:
         'validate', parents=[global_parser], help='validate all grammar'
     )
     validate_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
+    input_output_group = validate_parser.add_mutually_exclusive_group()
+    input_output_group.add_argument(
+        '--input', '-i', action='store_true', help='Only validate input.'
+    )
+    input_output_group.add_argument(
+        '--output', '-o', action='store_true', help='Only validate output.'
+    )
+
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
     move_or_remove_group.add_argument(
         '--remove', action='store_true', help='Remove failing testcsaes.'
     )
     move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
-
-    # input validations
-    input_parser = subparsers.add_parser(
-        'input', parents=[global_parser], help='validate input grammar'
-    )
-    input_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
-
-    # output validation
-    output_parser = subparsers.add_parser(
-        'output', parents=[global_parser], help='validate output grammar'
-    )
-    output_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
 
     # constraints validation
     constraintsparser = subparsers.add_parser(
@@ -784,10 +780,12 @@ def run_parsed_arguments(args):
         if action in ['solutions']:
             if level == 'problem':
                 success &= latex.build_problem_pdf(problem, solutions=True)
-        if action in ['validate', 'input', 'all']:
-            success &= problem.validate_format('input_format')
+        if action in ['validate', 'all']:
+            if not (action == 'validate' and config.args.output):
+                success &= problem.validate_format('input_format')
         if action in ['validate', 'output', 'all']:
-            success &= problem.validate_format('output_format')
+            if not (action == 'validate' and config.args.input):
+                success &= problem.validate_format('output_format')
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
