@@ -177,6 +177,8 @@ def build_problem_zip(problem, output, settings):
 def build_contest_zip(problems, zipfiles, outfile, args):
     print("writing ZIP file %s" % outfile, file=sys.stderr)
 
+    update_problems_yaml(problems)
+
     zf = zipfile.ZipFile(outfile, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
     for fname in zipfiles:
@@ -310,7 +312,7 @@ def update_problems_yaml(problems):
                 )
 
         if change:
-            if config.args.action == 'update_problems_yaml':
+            if config.args.action in ['update_problems_yaml']:
                 a = 'y'
             else:
                 log('Update problems.yaml with latest values? [Y/n]')
