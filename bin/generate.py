@@ -74,15 +74,11 @@ def resolve_path(path, *, allow_absolute, allow_relative):
 def process_testcase(problem, relative_testcase_path):
     if not getattr(config.args, 'testcases', None):
         return True
-    absolute_testcase_path = problem.path / 'data' / relative_testcase_path
+    absolute_testcase_path = problem.path / 'data' / relative_testcase_path.with_suffix('')
     for p in config.args.testcases:
-        # Try the given path itself, and the given path without the last suffix.
-        for p2 in [p, p.with_suffix('')]:
-            try:
-                absolute_testcase_path.relative_to(problem.path / p2)
+        for basedir in get_basedirs(problem, 'data'):
+            if is_relative_to(basedir / p, absolute_testcase_path):
                 return True
-            except ValueError:
-                pass
     return False
 
 

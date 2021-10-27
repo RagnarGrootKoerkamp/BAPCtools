@@ -49,12 +49,16 @@ SEED_DEPENDENCY_RETRIES = 10
 # The root directory of the BAPCtools repository.
 tools_root = Path(__file__).resolve().parent.parent
 
+# The directory from which BAPCtools is invoked.
+current_working_directory = Path.cwd().resolve()
+
 # Add third_party/ to the $PATH for checktestdata.
 os.environ["PATH"] += os.pathsep + str(tools_root / 'third_party')
 
 # Below here is some global state that will be filled in main().
 
 args = None
+level = None
 
 # The number of warnings and errors encountered.
 # The program will return non-zero when the number of errors is nonzero.

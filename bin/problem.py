@@ -150,22 +150,20 @@ class Problem:
             return p._testcases[key]
 
         in_paths = None
-        # NOTE: Testcases must be specified relative to the problem root.
-        if hasattr(config.args, 'testcases') and config.args.testcases:
+        if getattr(config.args, 'testcases', None):
             if samplesonly:
                 assert False
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
             for t in config.args.testcases:
-                t = p.path / t
-                if t.is_dir():
-                    in_paths += glob(t, '**/*.in')
-                else:
-                    t = t.with_suffix('.in')
-                    if t.is_file():
-                        in_paths.append(t)
-                    else:
-                        warn(f'Testcase {t} not found.')
+                t = resolve_path_argument(p, t, 'data', suffixes=['.in'])
+                if t:
+                    # When running from contest level, the testcase must be inside the problem.
+                    if config.level != 'problemset' or is_relative_to(problem.path, t):
+                        if t.is_dir():
+                            in_paths += glob(t, '**/*.in')
+                        else:
+                            in_paths.append(t)
 
             in_paths = list(set(in_paths))
         else:
@@ -203,7 +201,7 @@ class Problem:
             return problem._submissions
 
         paths = []
-        if hasattr(config.args, 'submissions') and config.args.submissions:
+        if getattr(config.args, 'submissions', None):
             if accepted_only:
                 accepted_only = 'all'
 
@@ -214,14 +212,19 @@ class Problem:
                 paths.append(s)
 
             for submission in config.args.submissions:
-                if problem.path / submission == problem.path / 'submissions':
-                    for verdict in config.VERDICTS:
-                        paths += glob(problem.path / 'submissions' / verdict.lower(), '*')
-                elif (problem.path / submission).parent == problem.path / 'submissions':
-                    for s in glob(problem.path / submission, '*'):
-                        add(s)
-                else:
-                    add(problem.path / submission)
+                s = resolve_path_argument(problem, submission, 'submissions')
+                debug(s)
+                if s:
+                    if s == problem.path / 'submissions':
+                        for verdict in config.VERDICTS:
+                            paths += glob(s / verdict.lower(), '*')
+                    elif s.parent == problem.path / 'submissions':
+                        for s in glob(s, '*'):
+                            add(s)
+                    else:
+                        # If running from a contest, the submission must be inside a problem.
+                        if config.level == 'problem' or is_relative_to(problem.path, s):
+                            add(s)
         else:
             for verdict in ['ACCEPTED'] if accepted_only else config.VERDICTS:
                 paths += glob(problem.path / 'submissions' / verdict.lower(), '*')

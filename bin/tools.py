@@ -204,6 +204,28 @@ def get_problems():
 
     contest = Path().cwd().name
 
+    # Filter problems by submissions/testcases, if given.
+    if level == 'problemset' and (
+        getattr(config.args, 'submissions', []) or getattr(config.args, 'testcases', [])
+    ):
+
+        submissions = getattr(config.args, 'submissions', [])
+        testcases = getattr(config.args, 'testcases', [])
+
+        def keep_problem(problem):
+            for s in submissions:
+                if x := resolve_path_argument(problem, s, 'submissions'):
+                    if is_relative_to(problem.path, x):
+                        return True
+            for t in testcases:
+                if x := resolve_path_argument(problem, t, 'data', suffixed=['.in']):
+                    if is_relative_to(problem.path, x):
+                        return True
+            return False
+
+        problems = [p for p in problems if keep_problem(p)]
+
+    config.level = level
     return (problems, level, contest, tmpdir)
 
 
@@ -220,7 +242,7 @@ def split_submissions_and_testcases(s):
     testcases = []
     for p in s:
         ps = str(p)
-        if 'data/' in ps or '.in' in ps or '.ans' in ps:
+        if 'data/' in ps or 'sample/' in ps or 'secret/' in ps or '.in' in ps or '.ans' in ps:
             # Strip potential .ans and .in
             if p.suffix in ['.ans', '.in']:
                 testcases.append(p.with_suffix(''))
@@ -631,22 +653,14 @@ def run_parsed_arguments(args):
     config.args = args
     action = config.args.action
 
-    # Split submissions and testcases for 'run'.
-    if action == 'run':
+    # Split submissions and testcases when needed..
+    if action in ['run', 'fuzz']:
         if config.args.submissions:
             config.args.submissions, config.args.testcases = split_submissions_and_testcases(
                 config.args.submissions
             )
         else:
             config.args.testcases = []
-    # Split submissions and testcases for 'fuzz'.
-    if action == 'fuzz':
-        if config.args.testcases:
-            config.args.submissions, config.args.testcases = split_submissions_and_testcases(
-                config.args.testcases
-            )
-        else:
-            config.args.submissions = []
 
     # Skel commands.
     if action in ['new_contest']:
@@ -669,23 +683,10 @@ def run_parsed_arguments(args):
         if action == 'skel':
             fatal('Copying skel directories only works for a single problem.')
 
-    # 'submissions' and 'testcases' are only allowed at the problem level, and only when --problem is not specified.
-    if level != 'problem' or config.args.problem is not None:
-        if hasattr(config.args, 'submissions') and config.args.submissions:
-            fatal(
-                'Passing in a list of submissions only works when running from a problem directory.'
-            )
-        if hasattr(config.args, 'testcases') and config.args.testcases:
-            fatal(
-                'Passing in a list of testcases only works when running from a problem directory.'
-            )
-
     if (
         action != 'generate'
-        and hasattr(config.args, 'testcases')
-        and config.args.testcases
-        and hasattr(config.args, 'samples')
-        and config.args.samples
+        and getattr(config.args, 'testcases', None)
+        and getattr(config.args, 'samples', None)
     ):
         fatal('--samples can not go together with an explicit list of testcases.')
 

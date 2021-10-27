@@ -376,6 +376,39 @@ class ProgressBar:
         return self.global_logged
 
 
+# Given a command line argument, return the first match:
+# - absolute
+# - relative to the 'type' directory for the current problem
+# - relative to the problem directory
+# - relative to the contest directory
+# - relative to the current working directory
+#
+# Pass suffixes = ['.in'] to also try to find the file with the given suffix appended.
+def get_basedirs(problem, type):
+    p = problem.path
+    return [p / type, p, p.parent, config.current_working_directory]
+
+
+# Python 3.9
+# True when child is a Path inside parent Path.
+# Both must be absolute.
+def is_relative_to(parent, child):
+    return child == parent or parent in child.parents
+
+
+def resolve_path_argument(problem, path, type, suffixes=[]):
+    if path.is_absolute():
+        return path
+    for suffix in [None] + suffixes:
+        suffixed_path = path if suffix is None else path.with_suffix(suffix)
+        for basedir in get_basedirs(problem, type):
+            p = basedir / suffixed_path
+            if p.exists():
+                return p
+    warn(f'{path} not found')
+    return None
+
+
 # Drops the first two path components <problem>/<type>/
 def print_name(path, keep_type=False):
     return str(Path(*path.parts[1 if keep_type else 2 :]))

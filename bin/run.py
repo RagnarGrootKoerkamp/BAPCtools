@@ -45,10 +45,9 @@ class Testcase:
         self.included = False
         if path.is_symlink():
             include_target = Path(os.path.normpath(path.parent / os.readlink(path)))
-            try:
-                include_target.relative_to(problem.path / 'data')
+            if is_relative_to(problem.path / 'data', include_target):
                 self.included = True
-            except ValueError:
+            else:
                 # The case is a manual cases included from generators/.
                 pass
 
