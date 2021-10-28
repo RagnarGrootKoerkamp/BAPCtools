@@ -134,7 +134,12 @@ class Problem:
         return None
 
     # statement_samples end in .in.statement and .ans.statement and are only used in the statement.
-    def testcases(p, needans=True, only_sample=False, statement_samples=False, include_bad=False):
+    def testcases(
+        p, needans=True, only_sample=False, statement_samples=False, include_bad=False, copy=False
+    ):
+        def maybe_copy(x):
+            return x if copy and isinstance(x, list) else x
+
         samplesonly = only_sample
         try:
             if config.args.samples:
@@ -147,7 +152,7 @@ class Problem:
 
         key = (needans, samplesonly, include_bad)
         if key in p._testcases is not None:
-            return p._testcases[key]
+            return maybe_copy(p._testcases[key])
 
         in_paths = None
         if getattr(config.args, 'testcases', None):
@@ -193,12 +198,12 @@ class Problem:
                 testcases = False
 
         p._testcases[key] = testcases
-        return testcases
+        return maybe_copy(testcases)
 
     # returns a map {expected verdict -> [(name, command)]}
     def submissions(problem, accepted_only=False, copy=False):
-        def maybe_copy(submissions):
-            return submissions.copy() if copy else submissions
+        def maybe_copy(x):
+            return x if copy and isinstance(x, list) else x
 
         if problem._submissions is not None:
             return maybe_copy(problem._submissions.copy())
