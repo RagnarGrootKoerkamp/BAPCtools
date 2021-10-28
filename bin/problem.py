@@ -138,7 +138,7 @@ class Problem:
         p, needans=True, only_sample=False, statement_samples=False, include_bad=False, copy=False
     ):
         def maybe_copy(x):
-            return x if copy and isinstance(x, list) else x
+            return x.copy() if copy and isinstance(x, (list, dict)) else x
 
         samplesonly = only_sample
         try:
@@ -203,7 +203,7 @@ class Problem:
     # returns a map {expected verdict -> [(name, command)]}
     def submissions(problem, accepted_only=False, copy=False):
         def maybe_copy(x):
-            return x if copy and isinstance(x, list) else x
+            return x.copy() if copy and isinstance(x, (list, dict)) else x
 
         if problem._submissions is not None:
             return maybe_copy(problem._submissions.copy())

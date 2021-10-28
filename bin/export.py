@@ -278,7 +278,7 @@ def update_problems_yaml(problems):
 
                     if (
                         not problem.settings.timelimit_is_default
-                        and problem.settings.timelimit != d.get('timelimit', None)
+                        and problem.settings.timelimit != d.get('time_limit', None)
                     ):
                         change = True
                         d['time_limit'] = problem.settings.timelimit
