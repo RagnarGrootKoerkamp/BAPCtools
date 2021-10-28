@@ -109,6 +109,8 @@ def build_problem_zip(problem, output, settings):
             ('problem_statement/*', True),
             # Either .interaction or .in.statement should be present, but we only care about .interaction here.
             ('data/sample/*.interaction', False),
+            ('data/sample/*.in.statement', False),
+            ('data/sample/*.ans.statement', False),
             ('data/secret/*.in', True),
             # Not really needed, but otherwise problemtools will complain.
             ('data/secret/*.ans', True),
