@@ -9,4 +9,4 @@
 #  # optional; rgb has priority
 #  color: red
 #  # optional; overwritten by .timelimit
-#  timelimit:
+#  time_limit:

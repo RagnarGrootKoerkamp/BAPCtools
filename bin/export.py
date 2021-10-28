@@ -296,7 +296,7 @@ def update_problems_yaml(problems):
                         and problem.settings.timelimit != d.get('timelimit', None)
                     ):
                         change = True
-                        d['timelimit'] = problem.settings.timelimit
+                        d['time_limit'] = problem.settings.timelimit
                     break
             if not found:
                 change = True
@@ -307,7 +307,7 @@ def update_problems_yaml(problems):
                         'name': problem.settings.name,
                         'label': problem.label,
                         'rgb': '#000000',
-                        'timelimit': problem.settings.timelimit,
+                        'time_limit': problem.settings.timelimit,
                     }
                 )
 
