@@ -399,7 +399,7 @@ def is_relative_to(parent, child):
 def resolve_path_argument(problem, path, type, suffixes=[]):
     if path.is_absolute():
         return path
-    for suffix in [None] + suffixes:
+    for suffix in suffixes + [None]:
         suffixed_path = path if suffix is None else path.with_suffix(suffix)
         for basedir in get_basedirs(problem, type):
             p = basedir / suffixed_path

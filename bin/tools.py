@@ -275,9 +275,11 @@ Run this from one of:
         help='Verbose output; once for what\'s going on, twice for all intermediate output.',
     )
     group = global_parser.add_mutually_exclusive_group()
-    group.add_argument('--contest', help='Path to the contest to use.')
+    group.add_argument('--contest', type=Path, help='Path to the contest to use.')
     group.add_argument(
-        '--problem', help='Path to the problem to use. Can be relative to contest if given.'
+        '--problem',
+        type=Path,
+        help='Path to the problem to use. Can be relative to contest if given.',
     )
 
     global_parser.add_argument(
