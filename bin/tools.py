@@ -514,7 +514,7 @@ Run this from one of:
         '--timelimit', '-t', type=int, default=600, help='Timeout for submissions.'
     )
     fuzzparser.add_argument(
-        'testcases',
+        'submissions',
         nargs='*',
         type=Path,
         help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name, and submissions to run.',
