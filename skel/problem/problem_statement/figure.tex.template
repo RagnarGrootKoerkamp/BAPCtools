@@ -1,0 +1,14 @@
+\documentclass[margin=5pt]{standalone}
+\usepackage{array}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{patterns}
+\usetikzlibrary{positioning}
+\begin{document}
+\begin{tikzfigure}
+
+\end{tikzfigure}
+\end{document}
