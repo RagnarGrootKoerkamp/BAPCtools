@@ -642,6 +642,17 @@ Run this from one of:
         help='Delete the temporary cache directory for the current problem/contest.',
     )
 
+    solvestatsparser = subparsers.add_parser(
+        'solvestats',
+        parents=[global_parser],
+        help='Make solvestats plots using https://github.com/hex539/scoreboard.',
+    )
+    solvestatsparser.add_argument(
+        '--scoreboard_repo',
+        type=Path,
+        help='The path to the root of the hex539/scoreboard repository. Can also be set in contest.yaml.',
+    )
+
     if not is_windows():
         argcomplete.autocomplete(parser)
 
@@ -733,6 +744,12 @@ def run_parsed_arguments(args):
 
     if action == 'skel':
         skel.copy_skel_dir(problems)
+        return
+
+    if action == 'solvestats':
+        if level == 'problem':
+            fatal_error('solvestats only works for a contest')
+        latex.generate_solvestats(problems)
         return
 
     problem_zips = []

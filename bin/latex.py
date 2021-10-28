@@ -11,6 +11,7 @@ from pathlib import Path
 import config
 import util
 from util import *
+from contest import *
 
 
 def create_samples_file(problem):
@@ -271,3 +272,63 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
     return build_latex_pdf(builddir, config.tools_root / 'latex' / main_file)
+
+
+def generate_solvestats(problems):
+    solve_stats_dir = Path('solve_stats').resolve()
+    problem_stats = Path('solve_stats/problem_stats.tex')
+    solve_stats_dir.mkdir(exist_ok=True)
+    scoreboard_repo = getattr(config.args, 'scoreboard_repo', None) or contest_yaml().get(
+        'scoreboard_repo', None
+    )
+    if not scoreboard_repo:
+        fatal('scoreboard_repo must be set in contest.yaml or passed as an argument')
+    scoreboard_repo = Path(scoreboard_repo).expanduser()
+
+    # Run the necessary shell commands
+    contest_dir = Path().cwd()
+
+    log('Generating plots')
+    subprocess.run(
+        [
+            'bazel',
+            'run',
+            'analysis:activity',
+            '--',
+            '--url',
+            get_api(),
+            '--contest',
+            get_contest_id(),
+            '--prefreeze',
+            '-l',
+            config.args.username,
+            '-p',
+            config.args.password,
+            solve_stats_dir,
+        ],
+        cwd=scoreboard_repo,
+    )
+    log('Generating plots done')
+    log('Generating solvestats')
+    subprocess.run(
+        [
+            'bazel',
+            'run',
+            'analysis:activity',
+            '--',
+            '--url',
+            get_api(),
+            '--contest',
+            get_contest_id(),
+            '--prefreeze',
+            '-l',
+            config.args.username,
+            '-p',
+            config.args.password,
+            '--solvestats',
+            solve_stats_dir,
+        ],
+        cwd=scoreboard_repo,
+        stdout=problem_stats.open('w'),
+    )
+    log('Generating solvestats done')

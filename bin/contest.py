@@ -1,5 +1,7 @@
 from pathlib import Path
 from util import *
+import requests
+import json
 
 # Read the contest.yaml, if available
 _contest_yaml = None
@@ -71,14 +73,32 @@ def get_contest_id():
         return config.args.contest_id
     if contest_yaml() and contest_yaml().get('contest_id', None):
         return contest_yaml()['contest_id']
-    url = f'{api}/contests'
+    url = f'{get_api()}/contests'
     verbose(f'query {url}')
-    with urlopen(url) as response:
-        contests = json.loads(response.read())
-        assert isinstance(contests, list)
-        if len(contests) != 1:
-            fatal(
-                'Server has multiple active contests. Pass --contest-id <cid> or set it in contest.yaml.'
-            )
-        log(f'The only active contest has id {contests[0]["id"]}')
-        return contests[0]['id']
+    r = call_api('GET', '/contests')
+    r.raise_for_status()
+    contests = json.loads(r.text)
+    assert isinstance(contests, list)
+    if len(contests) != 1:
+        for contest in contests:
+            log(f'{contest["id"]}: {contest["name"]}')
+        fatal(
+            'Server has multiple active contests. Pass --contest-id <cid> or set it in contest.yaml.'
+        )
+    log(f'The only active contest has id {contests[0]["id"]}')
+    return contests[0]['id']
+
+
+def call_api(method, endpoint, **kwargs):
+    url = get_api() + endpoint
+    verbose(f'{method} {url}')
+    r = requests.request(
+        method,
+        url,
+        auth=requests.auth.HTTPBasicAuth(config.args.username, config.args.password),
+        **kwargs,
+    )
+
+    if not r.ok:
+        error(r.text)
+    return r

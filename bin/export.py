@@ -211,21 +211,6 @@ def build_contest_zip(problems, zipfiles, outfile, args):
     zf.close()
 
 
-def call_api(method, endpoint, **kwargs):
-    url = get_api() + endpoint
-    verbose(f'{method} {url}')
-    r = requests.request(
-        method,
-        url,
-        auth=requests.auth.HTTPBasicAuth(config.args.username, config.args.password),
-        **kwargs,
-    )
-
-    if not r.ok:
-        error(r.text)
-    return r
-
-
 def update_contest_id(cid):
     try:
         ryaml = ruamel.yaml.YAML(typ='rt')
