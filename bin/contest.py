@@ -1,7 +1,12 @@
 from pathlib import Path
 from util import *
-import requests
 import json
+
+# Optional, only needed for API stuff
+try:
+    import requests
+except:
+    pass
 
 # Read the contest.yaml, if available
 _contest_yaml = None
