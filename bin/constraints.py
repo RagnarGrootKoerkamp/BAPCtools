@@ -156,7 +156,7 @@ def check_constraints(problem, settings):
         for v in extra_in_validator:
             print(v)
     extra_in_statement = statement_values.difference(validator_values)
-    if extra_in_validator:
+    if extra_in_statement:
         warn('Values in statement but not in input validators:')
         for v in extra_in_statement:
             print(v)
