@@ -18,7 +18,7 @@ def create_samples_file(problem):
 
     # create the samples.tex file
     # For samples, find all .in/.ans pairs.
-    samples = problem.testcases(needans=True, only_sample=True, statement_samples=True).copy()
+    samples = problem.testcases(needans=True, only_sample=True, statement_samples=True, copy=True)
     if samples is False:
         samples = []
 

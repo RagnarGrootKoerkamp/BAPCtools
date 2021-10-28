@@ -196,9 +196,12 @@ class Problem:
         return testcases
 
     # returns a map {expected verdict -> [(name, command)]}
-    def submissions(problem, accepted_only=False):
+    def submissions(problem, accepted_only=False, copy=False):
+        def maybe_copy(submissions):
+            return submissions.copy() if copy else submissions
+
         if problem._submissions is not None:
-            return problem._submissions
+            return maybe_copy(problem._submissions.copy())
 
         paths = []
         if getattr(config.args, 'submissions', None):
@@ -267,8 +270,8 @@ class Problem:
                 subs += submissions[x]
             return subs
         if accepted_only:
-            return submissions['ACCEPTED']
-        return submissions
+            return maybe_copy(submissions['ACCEPTED'])
+        return maybe_copy(submissions)
 
     # If check_constraints is True, this chooses the first validator that matches
     # contains 'constraints_file' in its source.
