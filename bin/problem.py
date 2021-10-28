@@ -8,6 +8,13 @@ import sys
 
 from pathlib import Path
 
+try:
+    import ruamel.yaml
+
+    has_ryaml = True
+except:
+    has_ryaml = False
+
 import config
 import parallel
 import program
@@ -63,7 +70,14 @@ class Problem:
         }
 
         # parse problem.yaml
-        yamldata = read_yaml_settings(self.path / 'problem.yaml')
+        if has_ryaml:
+            try:
+                yamldata = read_yaml_settings(self.path / 'problem.yaml')
+            except ruamel.yaml.scanner.ScannerError:
+                fatal('Make sure problem.yaml does not contain any more {% ... %}.')
+        else:
+            yamldata = read_yaml_settings(self.path / 'problem.yaml')
+
         if yamldata:
             for k, v in yamldata.items():
                 self.settings[k] = v
