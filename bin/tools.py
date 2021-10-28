@@ -676,8 +676,6 @@ def run_parsed_arguments(args):
 
     # Check for incompatible actions at the problem/problemset level.
     if level != 'problem':
-        if action == 'generate':
-            fatal('Generating testcases only works for a single problem.')
         if action == 'test':
             fatal('Testing a submission only works for a single problem.')
         if action == 'skel':
