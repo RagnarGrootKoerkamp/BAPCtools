@@ -152,5 +152,6 @@
 	\newcommand{\solvestats}{\csname solvestats\problemlabel \endcsname}
 	\input{problem_stats.tex}
 }{
-	\newcommand{\solvestats}{}
+	% If the file does not exist, use a placeholder.
+	\newcommand{\solvestats}{\printsolvestats{\ldots}{\ldots}{\ldots}}
 }
