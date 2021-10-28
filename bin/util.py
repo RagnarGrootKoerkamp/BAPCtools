@@ -158,7 +158,7 @@ class ProgressBar:
         item = '' if item is None else (item if isinstance(item, str) else item.name)
         if width is not None and len(item) > width:
             item = item[:width]
-        if width is None:
+        if width is None or width <= 0:
             width = 0
         return f'{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}'
 
