@@ -229,9 +229,8 @@ def get_problems():
     return (problems, level, contest, tmpdir)
 
 
-# NOTE: This is one of the few places that prints to stdout.
+# NOTE: This is one of the few places that prints to stdout instead of stderr.
 def print_sorted(problems):
-    prefix = config.args.contest + '/' if config.args.contest else ''
     for problem in problems:
         print(f'{problem.label:<2}: {problem.path}')
 
