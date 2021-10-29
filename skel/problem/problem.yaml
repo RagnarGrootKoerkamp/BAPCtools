@@ -17,9 +17,9 @@ validation: {%validation%}
 # float_tolerance eps
 #validator_flags:
 
-# To change the time limit factors for Kattis, use:
+# To change the time limit factors for problemtools/Kattis, use:
 # limits:
-# Time limit is 2*slowest accepted submission:
+# Time limit is 2*slowest accepted submission: (default: 5)
 #     time_multiplier: 2
-# Warning for submissions within 1 second of limit:
-#     time_safety_margin: 1
+# Warning for submissions within 50% of time limit
+#     time_safety_margin: 1.5
