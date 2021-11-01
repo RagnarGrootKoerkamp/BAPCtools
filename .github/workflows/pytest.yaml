@@ -1,0 +1,9 @@
+name: CI
+on: push
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: ragnargrootkoerkamp/bapctools
+    steps:
+      - uses: actions/checkout@v2
+      - run: pytest
