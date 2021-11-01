@@ -10,19 +10,19 @@ fi
 
 # URL = https://{USER}:{PASSWORD}@{URL}/api/contests/{CONTEST_ID}
 # URL = https://domjudge.org/demoweb/api/contests/1
-URL=$1
+URL="$1"
 
-dir=$(mktemp -d)
+dir="$(mktemp -d)"
 for endpoint in teams organizations problems scoreboard; do
-    curl --fail --location $URL/$endpoint >$dir/$endpoint
+    curl --fail --location "$URL/$endpoint" > "$dir/$endpoint.json"
 done
 
 OUT=scoreboard.zip
 
 if [ $# -eq 2 ]; then
-    OUT=$2
+    OUT="$2"
 fi
 
-zip -j $OUT $dir/*
+zip -j "$OUT" "$dir"/*
 
-echo Wrote $OUT
+echo "Wrote $OUT"
