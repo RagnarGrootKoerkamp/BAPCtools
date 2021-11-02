@@ -157,7 +157,13 @@ def new_problem():
                     'timelimit': 1.0,
                 }
             )
-            ryaml.dump(data, problems_yaml)
+            ryaml.dump(
+                data,
+                problems_yaml,
+                # Remove spaces at the start of each line, caused by the indent configuration.
+                # If there was a top-level key (like `problems:`), this wouldn't be needed...
+                transform=lambda yaml_str: "\n".join(line[2:] for line in yaml_str.split("\n")),
+            )
         except NameError as e:
             error('ruamel.yaml library not found. Please update problems.yaml manually.')
 
