@@ -146,14 +146,16 @@ def get_problems():
             for shortname, label in problem_labels:
                 problems.append(Problem(Path(shortname), tmpdir, label))
         else:
-            # Otherwise, fallback to all directories with a problem.yaml and sort by
-            # shortname.
-            label_ord = 0
-            for path in glob(Path('.'), '*/'):
-                if is_problem_directory(path):
-                    label = chr(ord('A') + label_ord)
-                    problems.append(Problem(path, tmpdir, label))
-                    label_ord += 1
+            # Otherwise, fallback to all directories with a problem.yaml and sort by shortname.
+            problem_paths = list(filter(is_problem_directory, glob(Path('.'), '*/')))
+            start_label_ord = (
+                ord('Z') - len(problem_paths) + 1
+                if (contest_yaml() or {}).get('testsession')
+                else ord('A')
+            )
+            for i, path in enumerate(problem_paths):
+                label = chr(start_label_ord + i)
+                problems.append(Problem(path, tmpdir, label))
             if len(problems) == 0:
                 fatal('Did not find problem.yaml. Are you running this from a problem directory?')
 
