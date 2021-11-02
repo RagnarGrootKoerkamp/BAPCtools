@@ -116,7 +116,7 @@ def new_problem():
         validation = _ask_variable('validation (default/custom/custom interactive)', 'default')
 
     # Read settings from the contest-level yaml file.
-    variables = read_yaml_settings(Path('contest.yaml'))
+    variables = contest.contest_yaml() or {}
     if 'source' not in variables:
         variables['source'] = variables.get('name', '')
 

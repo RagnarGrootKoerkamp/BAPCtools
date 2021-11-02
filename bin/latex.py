@@ -90,7 +90,7 @@ def get_tl(problem):
 
     global _contest_settings
     if _contest_settings is None:
-        _contest_settings = util.read_yaml_settings(Path('contest.yaml'))
+        _contest_settings = contest_yaml()
 
     print_tl = True
     if 'print_timelimit' in _contest_settings:
@@ -221,7 +221,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
         'testsession': '',
         'blank_page_text': '',
     }
-    config_data = util.read_yaml_settings(Path('contest.yaml'))
+    config_data = contest_yaml() or {}
     for x in default_config_data:
         if x not in config_data:
             config_data[x] = default_config_data[x]
