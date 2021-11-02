@@ -80,21 +80,13 @@ def prepare_problem(problem):
     create_samples_file(problem)
 
 
-_contest_settings = None
-
-
 def get_tl(problem):
     problem_config = problem.settings
     tl = problem_config.timelimit
     tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
 
-    global _contest_settings
-    if _contest_settings is None:
-        _contest_settings = contest_yaml()
-
-    print_tl = True
-    if 'print_timelimit' in _contest_settings:
-        print_tl = _contest_settings['print_timelimit']
+    if 'print_timelimit' in contest_yaml():
+        print_tl = contest_yaml()['print_timelimit']
     elif hasattr(config.args, 'no_timelimit'):
         print_tl = not config.args.no_timelimit
     else:
