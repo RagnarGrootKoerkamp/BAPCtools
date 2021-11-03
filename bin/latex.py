@@ -134,9 +134,9 @@ def build_latex_pdf(builddir, tex_path, problem_path=None):
         '-pdf',
         '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error',
     ]
-    if getattr(config.args, 'watch', False):
+    if config.args.watch:
         latexmk_command.append("-pvc")
-    if getattr(config.args, '1', False):
+    if getattr(config.args, '1'):
         latexmk_command.extend(['-e', '$max_repeat=1'])
     latexmk_command.extend([f'-output-directory={builddir}', tex_path])
 
@@ -278,9 +278,7 @@ def generate_solvestats(problems):
     solve_stats_dir = Path('solve_stats').resolve()
     problem_stats = Path('solve_stats/problem_stats.tex')
     solve_stats_dir.mkdir(exist_ok=True)
-    scoreboard_repo = getattr(config.args, 'scoreboard_repo', None) or contest_yaml().get(
-        'scoreboard_repo', None
-    )
+    scoreboard_repo = config.args.scoreboard_repo or contest_yaml().get('scoreboard_repo', None)
     if not scoreboard_repo:
         fatal('scoreboard_repo must be set in contest.yaml or passed as an argument')
     scoreboard_repo = Path(scoreboard_repo).expanduser()

@@ -77,11 +77,11 @@ def get_problems():
     contest = None
     problem = None
     level = None
-    if getattr(config.args, 'contest', None):
+    if config.args.contest:
         contest = config.args.contest.resolve()
         os.chdir(contest)
         level = 'problemset'
-    if getattr(config.args, 'problem', None):
+    if config.args.problem:
         problem = config.args.problem.resolve()
         level = 'problem'
         os.chdir(problem.parent)
@@ -157,7 +157,7 @@ def get_problems():
             if len(problems) == 0:
                 fatal('Did not find problem.yaml. Are you running this from a problem directory?')
 
-        if getattr(config.args, 'order', None):
+        if config.args.order:
             # Sort by position of id in order
             def get_pos(id):
                 if id in config.args.order:
@@ -167,7 +167,7 @@ def get_problems():
 
             problems.sort(key=lambda p: (get_pos(p.label), p.label))
 
-        if getattr(config.args, 'order_from_ccs', None):
+        if config.args.order_from_ccs:
             # Sort by increasing difficulty, extracted from the CCS api.
             # Get active contest.
 
@@ -205,12 +205,9 @@ def get_problems():
     contest = Path().cwd().name
 
     # Filter problems by submissions/testcases, if given.
-    if level == 'problemset' and (
-        getattr(config.args, 'submissions', []) or getattr(config.args, 'testcases', [])
-    ):
-
-        submissions = getattr(config.args, 'submissions', [])
-        testcases = getattr(config.args, 'testcases', [])
+    if level == 'problemset' and (config.args.submissions or config.args.testcases):
+        submissions = config.args.submissions or []
+        testcases = config.args.testcases or []
 
         def keep_problem(problem):
             for s in submissions:
@@ -663,6 +660,31 @@ Run this from one of:
 def run_parsed_arguments(args):
     # Process arguments
     config.args = args
+
+    # Set default argument values
+    for arg in [
+        'testcases',
+        'submissions',
+        'order',
+        'order_from_ccs',
+        'watch',
+        'contest_id',
+        'scoreboard_repo',
+        'table',
+        'move_manual',
+        'no_generate',
+        'check_deterministic',
+        'all',
+        'ignore_validators',
+        'interaction',
+        'add_manual',
+        'move_manual',
+        'clean',
+        'clean_generated',
+    ]:
+        if not hasattr(config.args, arg):
+            setattr(config.args, arg, None)
+
     action = config.args.action
 
     # Split submissions and testcases when needed..
@@ -693,14 +715,10 @@ def run_parsed_arguments(args):
         if action == 'skel':
             fatal('Copying skel directories only works for a single problem.')
 
-    if (
-        action != 'generate'
-        and getattr(config.args, 'testcases', None)
-        and getattr(config.args, 'samples', None)
-    ):
+    if action != 'generate' and config.args.testcases and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
 
-    if getattr(config.args, 'move_manual', False):
+    if config.args.move_manual:
         # Path *must* be inside generators/.
         try:
             config.args.move_manual = (problems[0].path / config.args.move_manual).resolve()
@@ -770,9 +788,7 @@ def run_parsed_arguments(args):
 
         if action in ['generate']:
             success &= generate.generate(problem)
-        if action in ['all', 'constraints', 'run'] and not getattr(
-            config.args, 'no_generate', False
-        ):
+        if action in ['all', 'constraints', 'run'] and not config.args.no_generate:
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.check_deterministic = action in ['all', 'constraints']

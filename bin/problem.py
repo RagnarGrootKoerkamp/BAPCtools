@@ -169,7 +169,7 @@ class Problem:
             return maybe_copy(p._testcases[key])
 
         in_paths = None
-        if getattr(config.args, 'testcases', None):
+        if config.args.testcases:
             if samplesonly:
                 assert False
             # Deduplicate testcases with both .in and .ans.
@@ -223,7 +223,7 @@ class Problem:
             return maybe_copy(problem._submissions.copy())
 
         paths = []
-        if getattr(config.args, 'submissions', None):
+        if config.args.submissions:
             if accepted_only:
                 accepted_only = 'all'
 

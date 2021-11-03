@@ -497,7 +497,7 @@ def ensure_symlink(link, target, output=False, relative=False):
         return
 
     # For output files: copy them on Windows, or when --cp is passed.
-    if output and (is_windows() or getattr(config.args, 'cp', False)):
+    if output and (is_windows() or config.args.cp):
         if link.exists() or link.is_symlink():
             link.unlink()
         shutil.copyfile(target, link)

@@ -468,7 +468,7 @@ class Submission(program.Program):
 
             # Lazy judging: stop on the first error when not in verbose mode.
             if (
-                not config.args.verbose and not getattr(config.args, 'table', False)
+                not config.args.verbose and not config.args.table
             ) and result.verdict in config.MAX_PRIORITY_VERDICT:
                 bar.count = None
                 p.stop()

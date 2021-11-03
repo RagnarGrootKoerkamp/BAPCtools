@@ -58,10 +58,8 @@ def problems_yaml():
 
 
 def get_api():
-    api = None
-    if getattr(config.args, 'api', None):
-        api = config.args.api
-    else:
+    api = config.args.api
+    if not api:
         if contest_yaml() is None or 'api' not in contest_yaml():
             fatal(
                 'Could not find key `api` in contest.yaml and it was not specified on the command line.'
@@ -74,7 +72,7 @@ def get_api():
 
 
 def get_contest_id():
-    if getattr(config.args, 'contest_id', None):
+    if config.args.contest_id:
         return config.args.contest_id
     if contest_yaml() and contest_yaml().get('contest_id'):
         return contest_yaml()['contest_id']

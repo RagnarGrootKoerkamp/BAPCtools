@@ -72,7 +72,7 @@ def resolve_path(path, *, allow_absolute, allow_relative):
 
 # testcase_short_path: secret/1.in
 def process_testcase(problem, relative_testcase_path):
-    if not getattr(config.args, 'testcases', None):
+    if not config.args.testcases:
         return True
     absolute_testcase_path = problem.path / 'data' / relative_testcase_path.with_suffix('')
     for p in config.args.testcases:
@@ -489,7 +489,7 @@ class TestcaseRule(Rule):
         # This doesn't do anything for manual cases.
         # It also checks that the input changes when the seed changes.
         def check_deterministic():
-            if not getattr(config.args, 'check_deterministic', False):
+            if not config.args.check_deterministic:
                 return
 
             if t.manual:
@@ -566,7 +566,7 @@ class TestcaseRule(Rule):
                     last_change = max(last_change, t.config.visualizer.program.timestamp)
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
-            if getattr(config.args, 'all', False):
+            if config.args.all:
                 return False
 
             if not target_infile.is_file():
@@ -626,7 +626,7 @@ class TestcaseRule(Rule):
         testcase = run.Testcase(problem, infile, short_path=Path(t.path.parent / (t.name + '.in')))
 
         # Validate the manual or generated .in.
-        ignore_validators = getattr(config.args, 'ignore_validators', False)
+        ignore_validators = config.args.ignore_validators
 
         if not testcase.validate_format(
             'input_format', bar=bar, constraints=None, warn_instead_of_error=ignore_validators
@@ -663,9 +663,7 @@ class TestcaseRule(Rule):
                 if not testcase.ans_path.is_file():
                     testcase.ans_path.write_text('')
                 # For interactive problems, run the interactive solution and generate a .interaction.
-                if t.config.solution and (
-                    testcase.sample or getattr(config.args, 'interaction', False)
-                ):
+                if t.config.solution and (testcase.sample or config.args.interaction):
                     if not t.config.solution.run_interactive(problem, bar, cwd, t):
                         return
 
@@ -1096,7 +1094,7 @@ class GeneratorConfig:
         self.root_dir = parse('', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
-        if getattr(config.args, 'add_manual', None) or getattr(config.args, 'move_manual', None):
+        if config.args.add_manual or config.args.move_manual:
             return
 
         generators_used = set()
@@ -1179,11 +1177,11 @@ class GeneratorConfig:
 
         self.problem.reset_testcase_hashes()
 
-        if getattr(config.args, 'clean', False):
+        if config.args.clean:
             self.clean_unlisted()
             return
 
-        if getattr(config.args, 'clean_generated', False):
+        if config.args.clean_generated:
             self.clean_generated()
             return
 
