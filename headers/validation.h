@@ -676,18 +676,32 @@ class Validator {
 			assert((std::is_same<Tag, ArbitraryTag>::value) &&
 			       "Only Unique and Arbitrary are supported!");
 
-			if(params.contains(name)) {
+			if(params.find(name) != params.end()) {
 				v = params.at(name).operator()<T>(low, high, rng);
-				assert(low <= v and v <= high);
+				// This will be checked during input validation of the generated case.
+				// assert(low <= v and v <= high);
 			} else {
 				v = uniform_number<T>(low, high);
 			}
 		}
 
-		out << std::setprecision(10) << std::fixed << v;
 		return v;
 	}
 
+  public:
+	template <typename Tag = ArbitraryTag>
+	long long gen_integer(const std::string& name, long long low, long long high, Tag tag = Tag{},
+	                      source_location loc = source_location::current()) {
+		return gen_number(name, low, high, tag, loc);
+	}
+
+	template <typename Tag = ArbitraryTag>
+	long double gen_float(const std::string& name, long double low, long double high,
+	                      Tag tag = Tag{}, source_location loc = source_location::current()) {
+		return gen_number(name, low, high, tag, loc);
+	}
+
+  private:
 	template <typename T, typename Tag>
 	std::vector<T> gen_numbers(const std::string& name, int count, T low, T high, Tag /*unused*/,
 	                           Separator sep, source_location loc) {
@@ -770,18 +784,30 @@ class Validator {
 			if(Tag::decreasing) reverse(begin(v), end(v));
 		}
 
-		out << std::setprecision(10) << std::fixed;
-		for(int i = 0; i < count; ++i) {
-			out << v[i];
-			if(i < count - 1) separator(sep);
-		}
-		newline();
 		return v;
 	}
 
+  public:
+	template <typename Tag = ArbitraryTag>
+	long long gen_integers(const std::string& name, int count, long long low, long long high,
+	                       Tag tag = Tag{}, source_location loc = source_location::current()) {
+		return gen_numbers(name, low, high, tag, loc);
+	}
+
+	template <typename Tag = ArbitraryTag>
+	long double gen_floats(const std::string& name, int count, long double low, long double high,
+	                       Tag tag = Tag{}, source_location loc = source_location::current()) {
+		return gen_numbers(name, low, high, tag, loc);
+	}
+
+  private:
 	template <typename T, typename Tag>
 	T read_number(const std::string& name, T low, T high, Tag tag, source_location loc) {
-		if(gen) return gen_number(name, low, high, tag, loc);
+		if(gen) {
+			auto v = gen_number(name, low, high, tag, loc);
+			out << std::setprecision(10) << std::fixed << v;
+			return v;
+		}
 
 		const auto v = [&] {
 			if constexpr(std::is_integral<T>::value)
@@ -798,7 +824,18 @@ class Validator {
 	template <typename T, typename Tag>
 	std::vector<T> read_numbers(const std::string& name, int count, T low, T high, Tag tag,
 	                            Separator sep, source_location loc) {
-		if(gen) return gen_numbers(name, count, low, high, tag, sep, loc);
+		if(gen) {
+			auto v = gen_numbers(name, count, low, high, tag, sep, loc);
+
+			out << std::setprecision(10) << std::fixed;
+			for(int i = 0; i < count; ++i) {
+				out << v[i];
+				if(i < count - 1) separator(sep);
+			}
+			newline();
+
+			return v;
+		}
 		reset<T>(loc);
 		std::vector<T> v(count);
 		for(int i = 0; i < count; ++i) {
