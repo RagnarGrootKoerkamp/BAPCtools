@@ -1,3 +1,4 @@
+import argparse
 import pytest
 import yaml
 from pathlib import Path
@@ -6,6 +7,8 @@ import generate
 import config
 
 config.RUNNING_TEST = True
+config.args = argparse.Namespace()
+config.args.testcases = None
 
 
 class MockProblem:
