@@ -17,7 +17,7 @@ def contest_yaml():
     if _contest_yaml:
         return _contest_yaml
     if _contest_yaml is False:
-        return None
+        return {}
 
     path = None
     # TODO: Do we need both here?
@@ -28,9 +28,9 @@ def contest_yaml():
             break
     if path is None:
         _contest_yaml = False
-        return None
+        return {}
     _contest_yaml = read_yaml_settings(path)
-    return _contest_yaml
+    return _contest_yaml or {}
 
 
 _problems_yaml = None
@@ -52,13 +52,11 @@ def problems_yaml():
 
 
 def get_api():
-    api = config.args.api
+    api = config.args.api or contest_yaml().get('api')
     if not api:
-        if contest_yaml() is None or 'api' not in contest_yaml():
-            fatal(
-                'Could not find key `api` in contest.yaml and it was not specified on the command line.'
-            )
-        api = contest_yaml()['api']
+        fatal(
+            'Could not find key `api` in contest.yaml and it was not specified on the command line.'
+        )
     if not api.endswith('/'):
         api += '/'
     api += 'api/v4'
@@ -68,7 +66,7 @@ def get_api():
 def get_contest_id():
     if config.args.contest_id:
         return config.args.contest_id
-    if contest_yaml() and contest_yaml().get('contest_id'):
+    if 'contest_id' in contest_yaml():
         return contest_yaml()['contest_id']
     url = f'{get_api()}/contests'
     verbose(f'query {url}')

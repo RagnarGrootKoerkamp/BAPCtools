@@ -116,7 +116,7 @@ def new_problem():
         validation = _ask_variable('validation (default/custom/custom interactive)', 'default')
 
     # Read settings from the contest-level yaml file.
-    variables = contest.contest_yaml() or {}
+    variables = contest.contest_yaml()
     if 'source' not in variables:
         variables['source'] = variables.get('name', '')
 
@@ -148,7 +148,7 @@ def new_problem():
             data = ryaml.load(problems_yaml) or []
             prev_label = data[-1]['label'] if data else None
             next_label = (
-                ('X' if (contest.contest_yaml() or {}).get('testsession') else 'A')
+                ('X' if contest.contest_yaml().get('testsession') else 'A')
                 if prev_label is None
                 else prev_label[:-1] + chr(ord(prev_label[-1]) + 1)
             )

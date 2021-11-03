@@ -149,9 +149,7 @@ def get_problems():
             # Otherwise, fallback to all directories with a problem.yaml and sort by shortname.
             problem_paths = list(filter(is_problem_directory, glob(Path('.'), '*/')))
             start_label_ord = (
-                ord('Z') - len(problem_paths) + 1
-                if (contest_yaml() or {}).get('testsession')
-                else ord('A')
+                ord('Z') - len(problem_paths) + 1 if contest_yaml().get('testsession') else ord('A')
             )
             for i, path in enumerate(problem_paths):
                 label = chr(start_label_ord + i)

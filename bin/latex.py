@@ -213,7 +213,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
         'testsession': '',
         'blank_page_text': '',
     }
-    config_data = contest_yaml() or {}
+    config_data = contest_yaml()
     for x in default_config_data:
         if x not in config_data:
             config_data[x] = default_config_data[x]
@@ -270,7 +270,7 @@ def generate_solvestats(problems):
     solve_stats_dir = Path('solve_stats').resolve()
     problem_stats = Path('solve_stats/problem_stats.tex')
     solve_stats_dir.mkdir(exist_ok=True)
-    scoreboard_repo = config.args.scoreboard_repo or contest_yaml().get('scoreboard_repo', None)
+    scoreboard_repo = config.args.scoreboard_repo or contest_yaml().get('scoreboard_repo')
     if not scoreboard_repo:
         fatal('scoreboard_repo must be set in contest.yaml or passed as an argument')
     scoreboard_repo = Path(scoreboard_repo).expanduser()

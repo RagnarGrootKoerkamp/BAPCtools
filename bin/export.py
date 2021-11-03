@@ -228,8 +228,8 @@ def update_contest_id(cid):
 
 
 def export_contest(problems):
-    if contest_yaml() is None:
-        fatal('Exporting a contest only works if contest.yaml is available.')
+    if not contest_yaml():
+        fatal('Exporting a contest only works if contest.yaml is available and not empty.')
 
     try:
         r = call_api(
@@ -319,8 +319,8 @@ def update_problems_yaml(problems):
 
 
 def export_problems(problems, cid):
-    if contest_yaml() is None:
-        fatal('Exporting a contest only works if contest.yaml is available.')
+    if not contest_yaml():
+        fatal('Exporting a contest only works if contest.yaml is available and not empty.')
 
     update_problems_yaml(problems)
 
