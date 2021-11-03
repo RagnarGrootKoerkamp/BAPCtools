@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <charconv>
 #include <cstring>
 #include <fstream>
 #include <functional>
@@ -446,6 +447,10 @@ class Validator {
 	    : in(in_), ws(ws_), case_sensitive(case_),
 	      constraints_file_path(std::move(constraints_file_path_)), gen(seed.has_value()),
 	      rng(seed.value_or(std::random_device()())), params(std::move(params_)) {
+
+		std::ios_base::sync_with_stdio(false);
+		in.tie(nullptr);
+
 		if(gen) return;
 		if(ws)
 			in >> std::noskipws;
@@ -1086,8 +1091,9 @@ class Validator {
 		long long v;
 		try {
 			size_t chars_processed = 0;
-			v                      = stoll(s, &chars_processed);
-			if(chars_processed != s.size())
+			auto begin = s.c_str(), end = begin + s.size();
+			auto [ptr, ec] = std::from_chars(begin, end, v);
+			if(ptr != end or ec != std::errc{})
 				WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
 		} catch(const std::out_of_range& e) {
 			WA(name, ": Number " + s + " does not fit in a long long!");
