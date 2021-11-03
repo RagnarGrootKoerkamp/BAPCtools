@@ -849,8 +849,7 @@ class Validator {
 		assert(!gen);
 		std::vector<std::string> v(count);
 		for(int i = 0; i < count; ++i) {
-			v[i] = read_string(name, min, max, chars, loc);
-			check_string(name, min, max, v[i], tag, loc);
+			v[i] = read_string(name, min, max, chars, tag, loc);
 			if(i < count - 1) separator(sep);
 		}
 		newline();
@@ -948,9 +947,10 @@ class Validator {
 	}
 
 	// Read an arbitrary string of a given length.
+	template <typename Tag = ArbitraryTag>
 	std::string read_string(const std::string& name, long long min, long long max,
-	                        const std::string_view chars = "",
-	                        source_location loc          = source_location::current()) {
+	                        const std::string_view chars = "", Tag tag = Tag(),
+	                        source_location loc = source_location::current()) {
 		if(gen) {
 			// TODO: Params for strings.
 			assert(!chars.empty());
@@ -961,12 +961,7 @@ class Validator {
 			out << s;
 			return s;
 		}
-		std::string s  = get_string();
-		long long size = s.size();
-		if(size < min || size > max)
-			expected(name + ": string of length between " + std::to_string(min) + " and " +
-			             std::to_string(max),
-			         s);
+		std::string s = get_string();
 		std::array<bool, 256> ok_char{};
 		if(!chars.empty()) {
 			for(auto c : chars) ok_char[c] = true;
@@ -974,7 +969,7 @@ class Validator {
 				check(ok_char[c], name, ": expected characters in ", chars, " but found character ",
 				      c, " in ", s);
 		}
-		log_constraint(name, min, max, size, loc);
+		check_string(name, min, max, s, tag, loc);
 		return s;
 	}
 
