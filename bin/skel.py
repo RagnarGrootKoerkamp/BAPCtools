@@ -146,7 +146,12 @@ def new_problem():
             ryaml.default_flow_style = False
             ryaml.indent(mapping=2, sequence=4, offset=2)
             data = ryaml.load(problems_yaml) or []
-            next_label = contest.next_label(data[-1]['label'] if data else None)
+            prev_label = data[-1]['label'] if data else None
+            next_label = (
+                ('X' if (contest.contest_yaml() or {}).get('testsession') else 'A')
+                if prev_label is None
+                else prev_label[:-1] + chr(ord(prev_label[-1]) + 1)
+            )
             # Name and timelimits are overridden by problem.yaml, but still required.
             data.append(
                 {
