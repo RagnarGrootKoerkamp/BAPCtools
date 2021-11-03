@@ -118,7 +118,7 @@ def new_problem():
     # Read settings from the contest-level yaml file.
     variables = read_yaml_settings(Path('contest.yaml'))
     if 'source' not in variables:
-        variables['source'] = variables.get('name', None) or ''
+        variables['source'] = variables.get('name', '')
 
     for k, v in {
         'problemname': problemname,

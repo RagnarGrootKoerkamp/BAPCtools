@@ -76,7 +76,7 @@ def get_api():
 def get_contest_id():
     if getattr(config.args, 'contest_id', None):
         return config.args.contest_id
-    if contest_yaml() and contest_yaml().get('contest_id', None):
+    if contest_yaml() and contest_yaml().get('contest_id'):
         return contest_yaml()['contest_id']
     url = f'{get_api()}/contests'
     verbose(f'query {url}')

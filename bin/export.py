@@ -275,13 +275,13 @@ def update_problems_yaml(problems):
             for d in data:
                 if d['id'] == problem.name:
                     found = True
-                    if problem.settings.name and problem.settings.name != d.get('name', None):
+                    if problem.settings.name and problem.settings.name != d.get('name'):
                         change = True
                         d['name'] = problem.settings.name
 
                     if (
                         not problem.settings.timelimit_is_default
-                        and problem.settings.timelimit != d.get('time_limit', None)
+                        and problem.settings.timelimit != d.get('time_limit')
                     ):
                         change = True
                         d['time_limit'] = problem.settings.timelimit
@@ -381,7 +381,7 @@ def export_problem(problem, cid, pid):
 # Export the contest and individual problems to DOMjudge.
 # Mimicked from https://github.com/DOMjudge/domjudge/blob/main/misc-tools/import-contest.sh
 def export_contest_and_problems(problems):
-    cid = contest_yaml().get('contest_id', None)
+    cid = contest_yaml().get('contest_id')
     if cid is not None and cid != '':
         log(f'Reusing contest id {cid} from contest.yaml')
     else:
@@ -404,7 +404,7 @@ def export_contest_and_problems(problems):
     def get_problem_id(problem):
         nonlocal ccs_problems
         for p in ccs_problems:
-            if p['short_name'] == problem.name or p.get('externalid', None) == problem.name:
+            if p['short_name'] == problem.name or p.get('externalid') == problem.name:
                 return p['id']
 
     for problem in problems:

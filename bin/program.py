@@ -31,6 +31,7 @@ manual:
 _languages = None
 _languages_lock = threading.Lock()
 
+
 def languages():
     global _languages, _languages_lock
     with _languages_lock:
@@ -160,7 +161,6 @@ class Program:
         with f.open() as o:
             return shebang.search(o.readline())
 
-
     # Do not warn for the same fallback language multiple times.
     warn_cache = set()
 
@@ -174,7 +174,7 @@ class Program:
             lang_conf = languages()[lang]
             name = lang_conf['name']
             globs = lang_conf['files'].split() or []
-            shebang = re.compile(lang_conf['shebang']) if lang_conf.get('shebang', None) else None
+            shebang = re.compile(lang_conf['shebang']) if lang_conf.get('shebang') else None
             priority = int(lang_conf['priority'])
 
             matching_files = []
@@ -281,21 +281,24 @@ class Program:
                 except UnicodeDecodeError:
                     pass
 
-
         # Warn for known bad (non-deterministic) patterns in generators
         if isinstance(self, Generator):
             if self.language == 'cpp':
                 for f in self.source_files:
                     try:
                         if f.read_text().find('rand()') != -1:
-                            self.bar.warn(f'Calling rand() is not cross-platform deterministic in C++. Use <random> instead: https://en.cppreference.com/w/cpp/header/random')
+                            self.bar.warn(
+                                f'Calling rand() is not cross-platform deterministic in C++. Use <random> instead: https://en.cppreference.com/w/cpp/header/random'
+                            )
                     except UnicodeDecodeError:
                         pass
             if 'py' in self.language:
                 for f in self.source_files:
                     try:
                         if f.read_text().find('list(set(') != -1:
-                            self.bar.warn(f'The order of sets is not fixed across implementations. Please sort the list!')
+                            self.bar.warn(
+                                f'The order of sets is not fixed across implementations. Please sort the list!'
+                            )
                     except UnicodeDecodeError:
                         pass
 
