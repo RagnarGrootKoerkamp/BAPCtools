@@ -33,12 +33,6 @@ def contest_yaml():
     return _contest_yaml
 
 
-def next_label(label):
-    if label is None:
-        return 'X' if (contest_yaml() or {}).get('testsession') else 'A'
-    return label[:-1] + chr(ord(label[-1]) + 1)
-
-
 _problems_yaml = None
 
 
