@@ -337,7 +337,7 @@ struct ChoiceGenerator {
 	template <typename G>
 	static void parse_generator(std::string_view& s, std::optional<GeneratorType>& out) {
 		if(out) return;
-		if(not s.starts_with(G::name)) return;
+		if(s.substr(0, G::name.size()) != G::name) return;
 
 		// Drop the name.
 		s.remove_prefix(G::name.size());
@@ -623,7 +623,8 @@ class Validator {
 		T v;
 
 		if constexpr(Tag::unique) {
-			assert(not params.contains(name) && "Parameters are not supported for unique values.");
+			assert(params.find(name) == params.end() &&
+			       "Parameters are not supported for unique values.");
 			if constexpr(std::is_integral<T>::value) {
 				auto& [seen_here, remaining_here, use_remaining] = integers_seen<T>()[loc];
 
@@ -689,7 +690,7 @@ class Validator {
 		std::vector<T> v;
 		v.reserve(count);
 		if constexpr(std::is_same_v<Tag, ArbitraryTag>) {
-			if(params.contains(name)) {
+			if(params.find(name) != params.end()) {
 				auto& generator = params.at(name);
 				for(int i = 0; i < count; ++i) {
 					auto val = generator.operator()<T>(low, high, rng);
@@ -702,7 +703,8 @@ class Validator {
 				}
 			}
 		} else if constexpr(Tag::unique) {
-			assert(not params.contains(name) && "Parameters are not supported for unique values.");
+			assert(params.find(name) == params.end() &&
+			       "Parameters are not supported for unique values.");
 			std::set<T> seen_here;
 			if constexpr(std::is_integral_v<T>) {
 				if(2 * count < high - low) {
@@ -736,12 +738,12 @@ class Validator {
 
 			constexpr bool integral_strict = Tag::strict and std::is_integral<T>::value;
 			if(integral_strict) {
-				assert(not params.contains(name) &&
+				assert(params.find(name) == params.end() &&
 				       "Parameters are not supported for strict integer values.");
 				high = high - count + 1;
 			}
 
-			if(params.contains(name)) {
+			if(params.find(name) != params.end()) {
 				auto& generator = params.at(name);
 				for(int i = 0; i < count; ++i) {
 					auto val = generator.operator()<T>(low, high, rng);
@@ -1167,8 +1169,8 @@ class Validator {
 			if(isspace(next)) expected(wanted, next == '\n' ? "newline" : "whitespace");
 			if(in.eof()) expected(wanted, "EOF");
 		}
-		std::string s;
 
+		std::string s;
 		if(in >> s) {
 			return s;
 		}
