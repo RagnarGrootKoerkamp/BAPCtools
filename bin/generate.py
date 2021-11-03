@@ -950,7 +950,7 @@ class GeneratorConfig:
 
     # Only used at the root directory level.
     ROOT_KEYS = [
-        ('generators', [], parse_generators),
+        ('generators', {}, parse_generators),
         # Non-standard key. When set to True, all generated testcases will be .gitignored from data/.gitignore.
         ('gitignore_generated', False, lambda x: x is True),
     ]
@@ -990,7 +990,7 @@ class GeneratorConfig:
         # Read root level configuration
         for key, default, func in GeneratorConfig.ROOT_KEYS:
             if yaml and key in yaml:
-                setattr(self, key, func(yaml[key]))
+                setattr(self, key, func(yaml[key] if yaml[key] is not None else default))
             else:
                 setattr(self, key, default)
 
