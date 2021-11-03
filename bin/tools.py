@@ -669,6 +669,7 @@ def run_parsed_arguments(args):
         'check_deterministic',
         'clean',
         'clean_generated',
+        'cpp_flags',
         'contest_id',
         'ignore_validators',
         'interaction',

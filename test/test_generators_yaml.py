@@ -7,8 +7,6 @@ import generate
 import config
 
 config.RUNNING_TEST = True
-config.args = argparse.Namespace()
-config.args.testcases = None
 
 
 class MockProblem:

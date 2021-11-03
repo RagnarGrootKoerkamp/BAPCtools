@@ -16,10 +16,7 @@ RUN_DIR = Path.cwd().resolve()
 # Note: the python version isn't tested by default, because it's quite slow.
 DEFAULT_OUTPUT_VALIDATORS = ['default_output_validator.cpp']
 
-config.args = argparse.Namespace()
-config.args.cpp_flags = None
 config.args.verbose = 2
-config.args.force_build = False
 config.args.error = True
 
 # return list of (flags, ans, out, expected result)

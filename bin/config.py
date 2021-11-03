@@ -4,6 +4,7 @@
 from pathlib import Path
 import re
 import os
+import argparse
 
 # return values
 RTV_AC = 42
@@ -57,7 +58,15 @@ os.environ["PATH"] += os.pathsep + str(tools_root / 'third_party')
 
 # Below here is some global state that will be filled in main().
 
-args = None
+# Some default values needed for tests.
+args = argparse.Namespace()
+args.testcases = None
+args.cpp_flags = None
+args.verbose = None
+args.force_build = None
+args.error = None
+
+
 level = None
 
 # The number of warnings and errors encountered.
