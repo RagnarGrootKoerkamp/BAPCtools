@@ -251,14 +251,17 @@ class ProgressBar:
             message = ''
         self.clearline()
         self.logged = True
+
         if self.parent:
             self.parent.global_logged = True
+            if self.parent.needs_leading_newline:
+                print(file=sys.stderr)
+                self.parent.needs_leading_newline = False
         else:
             self.global_logged = True
-
-        if self.needs_leading_newline:
-            print(file=sys.stderr)
-            self.needs_leading_newline = False
+            if self.needs_leading_newline:
+                print(file=sys.stderr)
+                self.needs_leading_newline = False
 
         print(
             self.get_prefix(),
