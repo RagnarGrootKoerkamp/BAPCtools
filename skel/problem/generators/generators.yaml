@@ -9,12 +9,42 @@ data:
     # Uncomment to disable generating ans files for sample cases.
     #solution:
     data:
+      # Some small examples showing to help understanding of the problem
       #'1':
+      #'2':
 
   secret:
     type: directory
     data:
-      # Named testcases:
-      # random: random_generator.py large {seed}
-      # Numbered testcases:
-      # - random: random_generator.py large {seed}
+      # You can re-use the input validator by symlinking it as `generator` in
+      # this directory. Below is some inspiration for test cases.
+      #
+      # Use `-X` to set the value of variable `X`, as provided to the `read_*` functions.
+      # Use `min` and `max` to set variables to their minimum and maximum
+      # allowed values.
+      #- min: generator {seed} -n min -k min -ai min
+      #- max: generator {seed} -n max -k max -ai max
+      # Leave a variable out to pick a uniform random value.
+      #- random_a: generator {seed} -n max
+      # Provide an explicit list of values:
+      #- binary: generator {seed} -ai 0,1
+      # Provide probabilities for each value:
+      #- mostly_0: generator {seed} -ai 0:0.99,1:0.01
+      # Uniform random values in range:
+      #- small_a: generator {seed} -n 10 -ai 1..100
+      # Use a geometric distribution (see validation.h for more):
+      #- geometric: generator {seed} -n 100 -k 123 -ai geometric(0.1)
+
+      # Typically, small test cases are more likely to find bugs/edge cases.
+      # When the limit on n is 1000, do something like:
+      #- small: generator {seed} -n 1
+      #- small: generator {seed} -n 2
+      #- small: generator {seed} -n 3
+      #- small: generator {seed} -n 7
+      #- small: generator {seed} -n 13
+      #- medium: generator {seed} -n 85
+      #- medium: generator {seed} -n 103
+      #- medium: generator {seed} -n 243
+      #- large: generator {seed} -n 991
+      #- large: generator {seed} -n 999
+      #- large: generator {seed} -n 1000

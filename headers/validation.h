@@ -62,10 +62,11 @@ inline std::string location_to_string(source_location loc) {
 	return std::string(loc.file_name()) + ":" + std::to_string(loc.line());
 }
 
-const std::string_view case_sensitive_flag   = "case_sensitive";
-const std::string_view ws_sensitive_flag     = "space_change_sensitive";
-const std::string_view constraints_file_flag = "--constraints_file";
-const std::string_view generate_flag         = "--generate";
+const std::string_view case_sensitive_flag       = "case_sensitive";
+const std::string_view ws_sensitive_flag         = "space_change_sensitive";
+const std::string_view constraints_file_flag     = "--constraints_file";
+const std::string_view generate_flag             = "--generate";
+const std::string_view generate_binary_substring = "generat";
 
 inline struct ArbitraryTag {
 	static constexpr bool unique     = false;
@@ -1323,6 +1324,11 @@ class InputValidator : public Validator {
 			if(argv[i] == generate_flag) {
 				return std::stol(argv[i + 1]);
 			}
+		}
+		// If no --generate is given, but `generat` is a substring of the binary path,
+		// use the first argument as seed.
+		if(std::string(argv[0]).find(generate_binary_substring) != std::string::npos) {
+			return std::stol(argv[1]);
 		}
 		return std::nullopt;
 	}
