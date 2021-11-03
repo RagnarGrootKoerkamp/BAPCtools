@@ -68,6 +68,9 @@ def create_samples_file(problem):
                     last = line[0]
             flush()
         else:
+            # Already handled above.
+            if sample.in_path.with_suffix('.interaction').is_file():
+                continue
             samples_data += f'\\Sample{{{sample.in_path}}}{{{sample.ans_path}}}\n'
     samples_file_path.write_text(samples_data)
 
