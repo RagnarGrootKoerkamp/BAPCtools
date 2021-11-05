@@ -1,7 +1,5 @@
 # BAPCtools
 
-[![pipeline status](https://gitlab.com/ragnar.grootkoerkamp/BAPCtools/badges/master/pipeline.svg)](https://gitlab.com/ragnar.grootkoerkamp/BAPCtools/commits/master)
-
 BAPCtools is a tool for creating and developing problems following the
 CLICS (DOMjudge/Kattis) problem format specified [here](https://clics.ecs.baylor.edu/index.php?title=Problem_format).
 
