@@ -129,7 +129,7 @@ def _try_generator_invocation(problem, t, submissions, i):
         if result.verdict != 'ACCEPTED':
             if not saved:
                 saved = True
-                bar.error('Broken! Saving testcase in generators.yaml.')
+                localbar.error('Broken! Saving testcase in generators.yaml.')
                 _save_test(problem, command)
                 return
         localbar.done()
@@ -143,6 +143,7 @@ def _try_generator_invocation(problem, t, submissions, i):
     for submission in submissions:
         p.put(submission)
     p.done()
+    bar.global_logged = False
     bar.finalize(print_done=False)
 
 
