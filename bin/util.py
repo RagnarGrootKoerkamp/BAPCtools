@@ -748,6 +748,8 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     def interrupt_handler(sig, frame):
         nonlocal process
         process.kill()
+        # Extra newline to not overwrite progress bars
+        print(file=sys.stderr)
         fatal('Running interrupted')
 
     if threading.current_thread() is threading.main_thread():
