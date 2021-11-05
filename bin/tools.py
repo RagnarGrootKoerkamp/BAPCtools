@@ -678,6 +678,7 @@ def run_parsed_arguments(args):
         'no_generate',
         'order',
         'order_from_ccs',
+        'samples',
         'scoreboard_repo',
         'submissions',
         'table',
