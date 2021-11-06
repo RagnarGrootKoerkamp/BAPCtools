@@ -780,7 +780,7 @@ def run_parsed_arguments(args):
 
     if action == 'solvestats':
         if level == 'problem':
-            fatal_error('solvestats only works for a contest')
+            fatal('solvestats only works for a contest')
         latex.generate_solvestats(problems)
         return
 

@@ -1364,7 +1364,7 @@ class GeneratorConfig:
                         not isinstance(yaml[d.path.name], ruamel.yaml.comments.CommentedMap)
                         or yaml[d.path.name].get('type') != 'directory'
                     ):
-                        fatal_error(f'Can not overwrite yaml key for {d.path} with a directory.')
+                        fatal(f'Can not overwrite yaml key for {d.path} with a directory.')
                 else:
                     yaml[d.path.name] = {'type': 'directory', 'data': None}
             elif isinstance(yaml, ruamel.yaml.comments.CommentedSeq):
