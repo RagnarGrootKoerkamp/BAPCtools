@@ -81,7 +81,7 @@ def build_samples_zip(problems):
     print("Wrote zip to samples.zip", file=sys.stderr)
 
 
-def build_problem_zip(problem, output, settings):
+def build_problem_zip(problem, output):
     """Make DOMjudge ZIP file for specified problem."""
 
     if not problem.interactive:
@@ -119,7 +119,7 @@ def build_problem_zip(problem, output, settings):
             ('attachments/**/*', False),
         ]
 
-    if 'custom' in settings.validation:
+    if 'custom' in problem.settings.validation:
         files.append(('output_validators/**/*', True))
 
     if config.args.kattis:

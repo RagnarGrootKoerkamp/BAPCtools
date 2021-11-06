@@ -15,7 +15,7 @@ from util import *
 """
 
 
-def check_constraints(problem, settings):
+def check_constraints(problem):
     in_constraints = {}
     ans_constraints = {}
     problem.validate_format('input_format', constraints=in_constraints)

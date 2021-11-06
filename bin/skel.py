@@ -50,14 +50,14 @@ def alpha_num(string):
     return s
 
 
-def new_contest(name):
+def new_contest():
     if config.args.contest:
         fatal('--contest does not work for new_contest.')
     if config.args.problem:
         fatal('--problem does not work for new_contest.')
 
     # Ask for all required infos.
-    title = _ask_variable('name', name)
+    title = _ask_variable('name', config.args.contestname)
     subtitle = _ask_variable('subtitle', '').replace('_', '-')
     dirname = _ask_variable('dirname', _alpha_num(title))
     author = _ask_variable('author', f'The {title} jury').replace('_', '-')
