@@ -157,6 +157,21 @@ Use this command to compile the `problem.pdf` from the `problem_statement/proble
 
 This can also be used to create the contest pdf by running it from the contest directory.
 
+## Personal configuration file
+
+For some command-line flags, it is convenient if they are always set to the same value, which differs per user
+(e.g., `--username` or `--password` for commands that access a CCS like DOMjudge,
+or `--scoreboard_repo` for the `bt solvestats` command).
+For this, you can create a configuration YAML file containing key-value pairs
+in one of the following locations:
+- `$XDG_CONFIG_HOME/bapctools/config.yaml` (Unix-ish systems, where `$XDG_CONFIG_HOME` usually is `~/.config`)
+- `%AppData%/bapctools/config.yaml` (Windows systems)
+- `<contest directory>/.bapctools.yaml`
+
+The keys in this config file can be any option that can be passed on the command-line.
+Note that the keys should be written out in full (e.g., `username: jury` rather than `u: jury`)
+and any hyphens should be replaced with an underscore (e.g., `no_bar: True` rather than `no-bar: True`).
+
 ## Contributing / Style guide
 
 - The python code in the repository is formatted using [black](https://github.com/psf/black).

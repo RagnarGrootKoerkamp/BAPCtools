@@ -60,6 +60,12 @@ os.environ["PATH"] += os.pathsep + str(tools_root / 'third_party')
 
 args = argparse.Namespace()
 
+default_args = {
+    'jobs': os.cpu_count() // 2,
+    'time': 600,
+    'verbose': 0,
+}
+
 
 def set_default_args():
     # Set default argument values
@@ -70,30 +76,49 @@ def set_default_args():
         'check_deterministic',
         'clean',
         'clean_generated',
+        'cleanup_generated',
+        'cp',
         'cpp_flags',
+        'contest',
         'contest_id',
         'default_solution',
+        'error',
+        'force',
+        'force_build',
         'ignore_validators',
+        'input',
         'interaction',
+        'interactive',
+        'kattis',
         'memory',
         'move_manual',
         'move_to',
         'no_bar',
         'no_generate',
+        'no_solutions',
         'no_timelimit',
         'order',
         'order_from_ccs',
+        'output',
+        'problem',
         'remove',
         'samples',
         'scoreboard_repo',
+        'skel',
+        'skip',
         'submissions',
         'table',
         'testcases',
+        'timelimit',
         'timeout',
         'watch',
+        'web',
     ]:
         if not hasattr(args, arg):
             setattr(args, arg, None)
+    for arg, value in default_args.items():
+        if not hasattr(args, arg):
+            setattr(args, arg, value)
 
 
 level = None
