@@ -107,17 +107,9 @@ class Problem:
         self.settings = argparse.Namespace(**self.settings)
 
         # Override settings by command line arguments.
-        try:
-            self.settings.timelimit = config.args.timelimit or self.settings.timelimit
-        except AttributeError:
-            pass
+        self.settings.timelimit = config.args.timelimit or self.settings.timelimit
 
-        timeout = 1.5 * self.settings.timelimit + 1
-        try:
-            if config.args.timeout:
-                timeout = config.args.timeout
-        except AttributeError:
-            pass
+        timeout = config.args.timeout or 1.5 * self.settings.timelimit + 1
         self.settings.timeout = int(timeout)
 
         if self.settings.validation not in config.VALIDATION_MODES:
@@ -155,11 +147,8 @@ class Problem:
             return x.copy() if copy and isinstance(x, (list, dict)) else x
 
         samplesonly = only_sample
-        try:
-            if config.args.samples:
-                samplesonly = True
-        except AttributeError:
-            pass
+        if config.args.samples:
+            samplesonly = True
 
         if p.interactive:
             needans = False
@@ -459,7 +448,7 @@ class Problem:
                 needs_leading_newline = not printed_newline
                 ok &= submission_ok
 
-        if hasattr(config.args, 'table') and config.args.table:
+        if config.args.table:
             Problem._print_table(verdict_table, testcases, submissions)
 
         return ok
@@ -629,7 +618,7 @@ class Problem:
     # This function will always raise a warning.
     # Which submission is used is implementation defined, unless one is explicitly given on the command line.
     def default_solution_path(problem):
-        if hasattr(config.args, 'default_solution') and config.args.default_solution:
+        if config.args.default_solution:
             fixed = True
             solution = problem.path / config.args.default_solution
         else:

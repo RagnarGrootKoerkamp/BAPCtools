@@ -146,7 +146,7 @@ class Testcase:
                 continue
 
             # Move testcase to destination directory if specified.
-            if hasattr(config.args, 'move_to') and config.args.move_to:
+            if config.args.move_to:
                 infile = self.in_path
                 targetdir = self.problem.path / config.args.move_to
                 targetdir.mkdir(parents=True, exist_ok=True)
@@ -160,11 +160,7 @@ class Testcase:
                     bar.log('Moved to ' + print_name(anstarget))
 
             # Remove testcase if specified.
-            elif (
-                validator_type == 'input_format'
-                and hasattr(config.args, 'remove')
-                and config.args.remove
-            ):
+            elif validator_type == 'input_format' and config.args.remove:
                 bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
                 if self.in_path.exists():
                     self.in_path.unlink()

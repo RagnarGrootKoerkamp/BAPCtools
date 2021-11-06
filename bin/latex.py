@@ -90,7 +90,7 @@ def get_tl(problem):
 
     if 'print_timelimit' in contest_yaml():
         print_tl = contest_yaml()['print_timelimit']
-    elif hasattr(config.args, 'no_timelimit'):
+    elif config.args.no_timelimit is not None:
         print_tl = not config.args.no_timelimit
     else:
         print_tl = True

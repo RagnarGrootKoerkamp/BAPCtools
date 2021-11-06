@@ -147,7 +147,7 @@ class ProgressBar:
         self.item_width = max(self.item_width, ProgressBar.item_len(item))
 
     def clearline(self):
-        if hasattr(config.args, 'no_bar') and config.args.no_bar:
+        if config.args.no_bar:
             return
         assert self.lock.locked()
         print(self.carriage_return, end='', flush=True, file=sys.stderr)
@@ -626,12 +626,11 @@ def crop_output(output):
 # Return memory limit in MB.
 def get_memory_limit(kwargs=None):
     memory_limit = 2048  # 2GB
-    if hasattr(config.args, 'memory'):
-        if config.args.memory:
-            if config.args.memory != 'unlimited':
-                memory_limit = int(config.args.memory)
-            else:
-                memory_limit = None  # disabled
+    if config.args.memory:
+        if config.args.memory != 'unlimited':
+            memory_limit = int(config.args.memory)
+        else:
+            memory_limit = None  # disabled
     if kwargs and 'memory' in kwargs:
         memory_limit = kwargs['memory']
         kwargs.pop('memory')
