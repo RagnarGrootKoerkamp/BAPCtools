@@ -509,7 +509,6 @@ Run this from one of:
     )
 
     # Fuzzer
-    # TODO: Also allow specifying a list of submissions?
     fuzzparser = subparsers.add_parser(
         'fuzz',
         parents=[global_parser],
