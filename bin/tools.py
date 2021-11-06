@@ -681,18 +681,24 @@ def run_parsed_arguments(args):
         'clean_generated',
         'cpp_flags',
         'contest_id',
+        'default_solution',
         'ignore_validators',
         'interaction',
+        'memory',
         'move_manual',
-        'move_manual',
+        'move_to',
+        'no_bar',
         'no_generate',
+        'no_timelimit',
         'order',
         'order_from_ccs',
+        'remove',
         'samples',
         'scoreboard_repo',
         'submissions',
         'table',
         'testcases',
+        'timeout',
         'watch',
     ]:
         if not hasattr(config.args, arg):
@@ -791,7 +797,7 @@ def run_parsed_arguments(args):
         if (
             level == 'problemset'
             and action in ['pdf', 'export', 'update_problems_yaml']
-            and not (hasattr(config.args, 'all') and config.args.all)
+            and not config.args.all
         ):
             continue
         print(Style.BRIGHT, 'PROBLEM ', problem.name, Style.RESET_ALL, sep='', file=sys.stderr)
@@ -806,10 +812,6 @@ def run_parsed_arguments(args):
             config.args.add_manual = False
             config.args.move_manual = False
             config.args.verbose = 0
-            if not hasattr(config.args, 'testcases'):
-                config.args.testcases = None
-            if not hasattr(config.args, 'force'):
-                config.args.force = False
             success &= generate.generate(problem)
             config.args = old_args
         if action in ['fuzz']:
@@ -817,9 +819,7 @@ def run_parsed_arguments(args):
         if action in ['pdf', 'all']:
             # only build the pdf on the problem level, or on the contest level when
             # --all is passed.
-            if level == 'problem' or (
-                level == 'problemset' and hasattr(config.args, 'all') and config.args.all
-            ):
+            if level == 'problem' or (level == 'problemset' and config.args.all):
                 success &= latex.build_problem_pdf(problem)
         if action in ['solutions']:
             if level == 'problem':
@@ -845,7 +845,7 @@ def run_parsed_arguments(args):
 
                 # Set up arguments for generate.
                 old_args = argparse.Namespace(**vars(config.args))
-                config.args.check_deterministic = False if config.args.force else True
+                config.args.check_deterministic = not config.args.force
                 config.args.jobs = None
                 config.args.add_manual = False
                 config.args.move_manual = False
