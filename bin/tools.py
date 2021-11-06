@@ -711,7 +711,7 @@ def run_parsed_arguments(args):
 
     # Skel commands.
     if action in ['new_contest']:
-        skel.new_contest(config.args.contestname)
+        skel.new_contest()
         return
 
     if action in ['new_problem']:
@@ -796,9 +796,6 @@ def run_parsed_arguments(args):
             continue
         print(Style.BRIGHT, 'PROBLEM ', problem.name, Style.RESET_ALL, sep='', file=sys.stderr)
 
-        # TODO: Remove usages of settings.
-        settings = problem.settings
-
         if action in ['generate']:
             success &= generate.generate(problem)
         if action in ['all', 'constraints', 'run'] and not config.args.no_generate:
@@ -839,7 +836,7 @@ def run_parsed_arguments(args):
             config.args.no_bar = True
             success &= problem.test_submissions()
         if action in ['constraints']:
-            success &= constraints.check_constraints(problem, settings)
+            success &= constraints.check_constraints(problem)
         if action in ['zip']:
             output = problem.path.with_suffix('.zip')
 
@@ -865,7 +862,7 @@ def run_parsed_arguments(args):
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
-                success &= export.build_problem_zip(problem, output, settings)
+                success &= export.build_problem_zip(problem, output)
         if action == 'all' and config.args.cleanup_generated:
             success &= generate.cleanup_generated(problem)
 
