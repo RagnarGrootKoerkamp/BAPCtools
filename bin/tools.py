@@ -260,8 +260,17 @@ def split_submissions_and_testcases(s):
     return (submissions, testcases)
 
 
+# We set argument_default=SUPPRESS in all parsers,
+# to make sure no default values (like `False` or `0`) end up in the parsed arguments object.
+# If we would not do this, it would not be possible to check which keys are explicitly set from the command line.
+# This check is necessary when loading the personal config file in `read_personal_config`.
+class SuppressingParser(argparse.ArgumentParser):
+    def __init__(self, **kwargs):
+        super(SuppressingParser, self).__init__(**kwargs, argument_default=argparse.SUPPRESS)
+
+
 def build_parser():
-    parser = argparse.ArgumentParser(
+    parser = SuppressingParser(
         description="""
 Tools for ICPC style problem sets.
 Run this from one of:
@@ -273,11 +282,10 @@ Run this from one of:
     )
 
     # Global options
-    global_parser = argparse.ArgumentParser(add_help=False)
+    global_parser = SuppressingParser(add_help=False)
     global_parser.add_argument(
         '--verbose',
         '-v',
-        default=0,
         action='count',
         help='Verbose output; once for what\'s going on, twice for all intermediate output.',
     )
@@ -310,7 +318,6 @@ Run this from one of:
         '--jobs',
         '-j',
         type=int,
-        default=os.cpu_count() // 2,
         help='The number of jobs to use. Default is cpu_count()/2.',
     )
     global_parser.add_argument(
@@ -323,7 +330,9 @@ Run this from one of:
         '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
     )
 
-    subparsers = parser.add_subparsers(title='actions', dest='action')
+    subparsers = parser.add_subparsers(
+        title='actions', dest='action', parser_class=SuppressingParser
+    )
     subparsers.required = True
 
     # New contest
@@ -458,7 +467,9 @@ Run this from one of:
         action='store_true',
         help='Rerun all generators to make sure generators are deterministic.',
     )
-    genparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
+    genparser.add_argument(
+        '--timeout', '-t', type=int, help='Override the default timeout (Default: 30).'
+    )
     genparser.add_argument(
         '--samples',
         action='store_true',
@@ -514,12 +525,8 @@ Run this from one of:
         parents=[global_parser],
         help='Generate random testcases and search for inconsistencies in AC submissions.',
     )
-    fuzzparser.add_argument(
-        '--time', type=int, default=600, help='Number of seconds to run for. Default: 600'
-    )
-    fuzzparser.add_argument(
-        '--timelimit', '-t', type=int, default=600, help='Timeout for submissions.'
-    )
+    fuzzparser.add_argument('--time', type=int, help=f'Number of seconds to run for. Default: 600')
+    fuzzparser.add_argument('--timelimit', '-t', type=int, help=f'Time limit for submissions.')
     fuzzparser.add_argument(
         'submissions',
         nargs='*',
@@ -547,7 +554,11 @@ Run this from one of:
     runparser.add_argument(
         '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
     )
-    runparser.add_argument('--timeout', type=int, help='Override the default timeout.')
+    runparser.add_argument(
+        '--timeout',
+        type=int,
+        help='Override the default timeout (Default: 1.5 * timelimit + 1).',
+    )
     runparser.add_argument('--timelimit', '-t', type=int, help='Override the default timelimit.')
     runparser.add_argument(
         '--memory',
@@ -581,7 +592,11 @@ Run this from one of:
         action='store_true',
         help='Run submission in interactive mode: stdin is from the command line.',
     )
-    testparser.add_argument('--timeout', '-t', type=int, help='Override the default timeout.')
+    testparser.add_argument(
+        '--timeout',
+        type=int,
+        help='Override the default timeout (Default: 1.5 * timelimit + 1).',
+    )
     testparser.add_argument(
         '--memory',
         '-m',
@@ -674,7 +689,7 @@ def run_parsed_arguments(args):
 
     action = config.args.action
 
-    # Split submissions and testcases when needed..
+    # Split submissions and testcases when needed.
     if action in ['run', 'fuzz']:
         if config.args.submissions:
             config.args.submissions, config.args.testcases = split_submissions_and_testcases(
@@ -872,6 +887,36 @@ def run_parsed_arguments(args):
         sys.exit(1)
 
 
+def read_personal_config():
+    args = {}
+
+    if is_windows():
+        home_config = Path(os.getenv('AppData'))
+    else:
+        home_config = (
+            Path(os.getenv('XDG_CONFIG_HOME'))
+            if os.getenv('XDG_CONFIG_HOME')
+            else Path(os.getenv('HOME')) / '.config'
+        )
+
+    for config_file in [
+        # Highest prio: contest directory
+        Path() / '.bapctools.yaml',
+        Path() / '..' / '.bapctools.yaml',
+        # Lowest prio: user config directory
+        home_config / 'bapctools' / 'config.yaml',
+    ]:
+        if not config_file.is_file():
+            continue
+        config_data = read_yaml(config_file)
+        assert isinstance(config_data, dict)
+        for arg, value in config_data.items():
+            if arg not in args:
+                args[arg] = value
+
+    return args
+
+
 # Takes command line arguments
 def main():
     def interrupt_handler(sig, frame):
@@ -880,6 +925,7 @@ def main():
     signal.signal(signal.SIGINT, interrupt_handler)
 
     parser = build_parser()
+    parser.set_defaults(**read_personal_config())
     run_parsed_arguments(parser.parse_args())
 
 
