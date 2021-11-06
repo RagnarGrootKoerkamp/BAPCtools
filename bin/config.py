@@ -67,21 +67,33 @@ default_args = {
 }
 
 
+# The list of arguments below is generated using the following command:
+"""
+for cmd in $(bapctools --help | grep '^  {' | sed 's/  {//;s/}//;s/,/ /g') ; do bapctools $cmd --help ; done |& \
+grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_/g' | sort -u | \
+grep -Ev '^(h|jobs|time|verbose)$' | sed "s/^/        '/;s/$/',/"
+"""
+
+
 def set_default_args():
-    # Set default argument values
+    # Set default argument values.
     for arg in [
         '1',
         'add_manual',
         'all',
+        'api',
+        'author',
         'check_deterministic',
         'clean',
         'clean_generated',
         'cleanup_generated',
-        'cp',
-        'cpp_flags',
         'contest',
         'contest_id',
+        'contestname',
+        'cp',
+        'cpp_flags',
         'default_solution',
+        'directory',
         'error',
         'force',
         'force_build',
@@ -100,7 +112,9 @@ def set_default_args():
         'order',
         'order_from_ccs',
         'output',
+        'password',
         'problem',
+        'problemname',
         'remove',
         'samples',
         'scoreboard_repo',
@@ -111,6 +125,8 @@ def set_default_args():
         'testcases',
         'timelimit',
         'timeout',
+        'username',
+        'validation',
         'watch',
         'web',
     ]:
