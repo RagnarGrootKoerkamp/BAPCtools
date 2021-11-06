@@ -670,39 +670,7 @@ Run this from one of:
 def run_parsed_arguments(args):
     # Process arguments
     config.args = args
-
-    # Set default argument values
-    for arg in [
-        '1',
-        'add_manual',
-        'all',
-        'check_deterministic',
-        'clean',
-        'clean_generated',
-        'cpp_flags',
-        'contest_id',
-        'default_solution',
-        'ignore_validators',
-        'interaction',
-        'memory',
-        'move_manual',
-        'move_to',
-        'no_bar',
-        'no_generate',
-        'no_timelimit',
-        'order',
-        'order_from_ccs',
-        'remove',
-        'samples',
-        'scoreboard_repo',
-        'submissions',
-        'table',
-        'testcases',
-        'timeout',
-        'watch',
-    ]:
-        if not hasattr(config.args, arg):
-            setattr(config.args, arg, None)
+    config.set_default_args()
 
     action = config.args.action
 

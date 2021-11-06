@@ -58,13 +58,42 @@ os.environ["PATH"] += os.pathsep + str(tools_root / 'third_party')
 
 # Below here is some global state that will be filled in main().
 
-# Some default values needed for tests.
 args = argparse.Namespace()
-args.testcases = None
-args.cpp_flags = None
-args.verbose = None
-args.force_build = None
-args.error = None
+
+
+def set_default_args():
+    # Set default argument values
+    for arg in [
+        '1',
+        'add_manual',
+        'all',
+        'check_deterministic',
+        'clean',
+        'clean_generated',
+        'cpp_flags',
+        'contest_id',
+        'default_solution',
+        'ignore_validators',
+        'interaction',
+        'memory',
+        'move_manual',
+        'move_to',
+        'no_bar',
+        'no_generate',
+        'no_timelimit',
+        'order',
+        'order_from_ccs',
+        'remove',
+        'samples',
+        'scoreboard_repo',
+        'submissions',
+        'table',
+        'testcases',
+        'timeout',
+        'watch',
+    ]:
+        if not hasattr(args, arg):
+            setattr(args, arg, None)
 
 
 level = None

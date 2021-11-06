@@ -18,6 +18,7 @@ DEFAULT_OUTPUT_VALIDATORS = ['default_output_validator.cpp']
 
 config.args.verbose = 2
 config.args.error = True
+config.set_default_args()
 
 # return list of (flags, ans, out, expected result)
 def read_tests():
