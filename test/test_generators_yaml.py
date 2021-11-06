@@ -7,6 +7,7 @@ import generate
 import config
 
 config.RUNNING_TEST = True
+config.set_default_args()
 
 
 class MockProblem:
