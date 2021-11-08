@@ -84,3 +84,4 @@ def timeout():
 
 # Set to true when running as a test.
 RUNNING_TEST = False
+TEST_TLE_SUBMISSIONS = False
