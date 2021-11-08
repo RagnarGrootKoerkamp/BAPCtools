@@ -290,10 +290,10 @@ Run this from one of:
         help='Print full error of failing commands and some succeeding commands.',
     )
     global_parser.add_argument(
-        '--cpp_flags', help='Additional compiler flags used for all c++ compilations.'
+        '--cpp-flags', help='Additional compiler flags used for all c++ compilations.'
     )
     global_parser.add_argument(
-        '--force_build', action='store_true', help='Force rebuild instead of only on changed files.'
+        '--force-build', action='store_true', help='Force rebuild instead of only on changed files.'
     )
     global_parser.add_argument(
         '--jobs',
@@ -443,7 +443,7 @@ Run this from one of:
         help='Regenerate all data, including up to date test cases. ',
     )
     genparser.add_argument(
-        '--check_deterministic',
+        '--check-deterministic',
         action='store_true',
         help='Rerun all generators to make sure generators are deterministic.',
     )
@@ -486,7 +486,7 @@ Run this from one of:
         help='The testcases to generate, given as directory, .in/.ans file, or base name.',
     )
     genparser.add_argument(
-        '--default_solution',
+        '--default-solution',
         '-s',
         type=Path,
         help='The default solution to use for generating .ans files.',
@@ -645,7 +645,7 @@ Run this from one of:
         help='Make solvestats plots using https://github.com/hex539/scoreboard.',
     )
     solvestatsparser.add_argument(
-        '--scoreboard_repo',
+        '--scoreboard-repo',
         type=Path,
         help='The path to the root of the hex539/scoreboard repository. Can also be set in contest.yaml.',
     )
