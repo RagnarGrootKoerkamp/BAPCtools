@@ -14,23 +14,17 @@ _contest_yaml = None
 
 def contest_yaml():
     global _contest_yaml
-    if _contest_yaml:
+    if _contest_yaml is not None:
         return _contest_yaml
-    if _contest_yaml is False:
-        return {}
 
-    path = None
     # TODO: Do we need both here?
     for p in ['contest.yaml', '../contest.yaml']:
         p = Path(p)
         if p.is_file():
-            path = p
-            break
-    if path is None:
-        _contest_yaml = False
-        return {}
-    _contest_yaml = read_yaml_settings(path)
-    return _contest_yaml or {}
+            _contest_yaml = read_yaml_settings(p)
+            return _contest_yaml
+    _contest_yaml = {}
+    return _contest_yaml
 
 
 _problems_yaml = None
