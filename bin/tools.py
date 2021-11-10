@@ -123,6 +123,17 @@ def get_problems():
                 error(f'No directory found for problem {shortname} mentioned in problems.yaml.')
         return problems
 
+    def fallback_problems():
+        problem_paths = list(filter(is_problem_directory, glob(Path('.'), '*/')))
+        start_label_ord = (
+            ord('Z') - len(problem_paths) + 1 if contest_yaml().get('testsession') else ord('A')
+        )
+        problems = []
+        for i, path in enumerate(problem_paths):
+            label = chr(start_label_ord + i)
+            problems.append((path, label))
+        return problems
+
     problems = []
     if level == 'problem':
         # If the problem is mentioned in problems.yaml, use that ID.
@@ -135,7 +146,11 @@ def get_problems():
                     break
 
         if len(problems) == 0:
-            problems = [Problem(Path(problem.name), tmpdir)]
+            label = None
+            for p, l in fallback_problems():
+                if p.name == problem.name:
+                    label = l
+            problems = [Problem(Path(problem.name), tmpdir, label)]
     else:
         level = 'problemset'
         # If problems.yaml is available, use it.
@@ -147,12 +162,8 @@ def get_problems():
                 problems.append(Problem(Path(shortname), tmpdir, label))
         else:
             # Otherwise, fallback to all directories with a problem.yaml and sort by shortname.
-            problem_paths = list(filter(is_problem_directory, glob(Path('.'), '*/')))
-            start_label_ord = (
-                ord('Z') - len(problem_paths) + 1 if contest_yaml().get('testsession') else ord('A')
-            )
-            for i, path in enumerate(problem_paths):
-                label = chr(start_label_ord + i)
+            problems = []
+            for path, label in fallback_problems():
                 problems.append(Problem(path, tmpdir, label))
             if len(problems) == 0:
                 fatal('Did not find problem.yaml. Are you running this from a problem directory?')
