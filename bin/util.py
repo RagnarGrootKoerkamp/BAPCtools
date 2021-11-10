@@ -78,8 +78,8 @@ class ProgressBar:
     if not is_windows():
 
         def update_columns(_, __):
-            cols = os.popen('stty size', 'r').read().split()[1]
-            ProgressBar.columns = int(cols)
+            cols, rows = shutil.get_terminal_size()
+            ProgressBar.columns = cols
 
         signal.signal(signal.SIGWINCH, update_columns)
 
