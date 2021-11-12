@@ -67,31 +67,37 @@ if not os.getenv('GITLAB_CI', False):
 # Make sure f-strings are supported.
 f'f-strings are not supported by your python version. You need at least python 3.6.'
 
-# Get the list of relevant problems.
-# Either use the problems.yaml, or check the existence of problem.yaml and sort
-# by shortname.
-def get_problems():
-    def is_problem_directory(path):
-        return (path / 'problem.yaml').is_file()
 
-    contest = None
-    problem = None
-    level = None
+# A path is a problem directory if it contains a `problem.yaml` file.
+def is_problem_directory(path):
+    return (path / 'problem.yaml').is_file()
+
+
+# Changes the working directory to the root of the contest.
+# Returns the "level" of the current command (either 'problem' or 'problemset')
+# and, if `level == 'problem'`, the directory of the problem.
+def change_directory():
+    problem_dir = None
+    level = 'problemset'
     if config.args.contest:
-        contest = config.args.contest.resolve()
-        os.chdir(contest)
-        level = 'problemset'
+        os.chdir(config.args.contest.resolve())
     if config.args.problem:
-        problem = config.args.problem.resolve()
+        problem_dir = config.args.problem.resolve()
         level = 'problem'
-        os.chdir(problem.parent)
+        os.chdir(problem_dir.parent)
     elif is_problem_directory(Path('.')):
-        problem = Path().cwd()
+        problem_dir = Path().cwd()
         level = 'problem'
         os.chdir('..')
-    else:
-        level = 'problemset'
 
+    config.level = level
+    return problem_dir
+
+
+# Get the list of relevant problems.
+# Either use the problems.yaml,
+# or check the existence of problem.yaml and sort by shortname.
+def get_problems(problem_dir):
     # We create one tmpdir per contest.
     h = hashlib.sha256(bytes(Path().cwd())).hexdigest()[-6:]
     tmpdir = Path(tempfile.gettempdir()) / ('bapctools_' + h)
@@ -135,24 +141,23 @@ def get_problems():
         return problems
 
     problems = []
-    if level == 'problem':
+    if config.level == 'problem':
         # If the problem is mentioned in problems.yaml, use that ID.
         problemsyaml = problems_yaml()
         if problemsyaml:
             problem_labels = parse_problems_yaml(problemsyaml)
             for shortname, label in problem_labels:
-                if shortname == problem.name:
-                    problems = [Problem(Path(problem.name), tmpdir, label)]
+                if shortname == problem_dir.name:
+                    problems = [Problem(Path(problem_dir.name), tmpdir, label)]
                     break
 
         if len(problems) == 0:
             label = None
             for p, l in fallback_problems():
-                if p.name == problem.name:
+                if p.name == problem_dir.name:
                     label = l
-            problems = [Problem(Path(problem.name), tmpdir, label)]
-    else:
-        level = 'problemset'
+            problems = [Problem(Path(problem_dir.name), tmpdir, label)]
+    else:  # config.level = 'problemset'
         # If problems.yaml is available, use it.
         problemsyaml = problems_yaml()
         if problemsyaml:
@@ -213,10 +218,8 @@ def get_problems():
             order = ', '.join(map(lambda p: p.label, problems))
             verbose('order: ' + order)
 
-    contest = Path().cwd().name
-
     # Filter problems by submissions/testcases, if given.
-    if level == 'problemset' and (config.args.submissions or config.args.testcases):
+    if config.level == 'problemset' and (config.args.submissions or config.args.testcases):
         submissions = config.args.submissions or []
         testcases = config.args.testcases or []
 
@@ -233,8 +236,7 @@ def get_problems():
 
         problems = [p for p in problems if keep_problem(p)]
 
-    config.level = level
-    return (problems, level, contest, tmpdir)
+    return problems, tmpdir
 
 
 # NOTE: This is one of the few places that prints to stdout instead of stderr.
@@ -707,8 +709,11 @@ def run_parsed_arguments(args):
         skel.new_problem()
         return
 
-    # Get problem_paths and cd to contest
-    problems, level, contest, tmpdir = get_problems()
+    # Get problems list and cd to contest directory
+    problem_dir = change_directory()
+    level = config.level
+    contest_name = Path().cwd().name
+    problems, tmpdir = get_problems(problem_dir)
 
     # Check for incompatible actions at the problem/problemset level.
     if level != 'problem':
@@ -759,7 +764,7 @@ def run_parsed_arguments(args):
         return
 
     if action == 'gitlabci':
-        skel.create_gitlab_jobs(contest, problems)
+        skel.create_gitlab_jobs(contest_name, problems)
         return
 
     if action == 'skel':
@@ -853,30 +858,32 @@ def run_parsed_arguments(args):
             print(file=sys.stderr)
 
     if level == 'problemset':
-        print(f'{Style.BRIGHT}CONTEST {contest}{Style.RESET_ALL}', file=sys.stderr)
+        print(f'{Style.BRIGHT}CONTEST {contest_name}{Style.RESET_ALL}', file=sys.stderr)
 
         # build pdf for the entire contest
         if action in ['pdf']:
-            success &= latex.build_contest_pdf(contest, problems, tmpdir, web=config.args.web)
+            success &= latex.build_contest_pdf(contest_name, problems, tmpdir, web=config.args.web)
 
         if action in ['solutions']:
             success &= latex.build_contest_pdf(
-                contest, problems, tmpdir, solutions=True, web=config.args.web
+                contest_name, problems, tmpdir, solutions=True, web=config.args.web
             )
 
         if action in ['zip']:
             if not config.args.kattis:
-                success &= latex.build_contest_pdf(contest, problems, tmpdir)
-                success &= latex.build_contest_pdf(contest, problems, tmpdir, web=True)
+                success &= latex.build_contest_pdf(contest_name, problems, tmpdir)
+                success &= latex.build_contest_pdf(contest_name, problems, tmpdir, web=True)
                 if not config.args.no_solutions:
-                    success &= latex.build_contest_pdf(contest, problems, tmpdir, solutions=True)
                     success &= latex.build_contest_pdf(
-                        contest, problems, tmpdir, solutions=True, web=True
+                        contest_name, problems, tmpdir, solutions=True
+                    )
+                    success &= latex.build_contest_pdf(
+                        contest_name, problems, tmpdir, solutions=True, web=True
                     )
 
-            outfile = contest + '.zip'
+            outfile = contest_name + '.zip'
             if config.args.kattis:
-                outfile = contest + '-kattis.zip'
+                outfile = contest_name + '-kattis.zip'
             export.build_contest_zip(problems, problem_zips, outfile, config.args)
         if action in ['export']:
             export.export_contest_and_problems(problems)
