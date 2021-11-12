@@ -14,7 +14,7 @@ This lists all subcommands and their most important options.
 - Problem development:
   - [`bt run [-v] [-t TIMELIMIT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check_deterministic] [--add-manual] [--move-manual [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS] [testcases [testcases ...]]`](#generate)
+  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-manual] [--move-manual [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS] [testcases [testcases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
@@ -46,8 +46,8 @@ The flags below work for any subcommand:
 - `--problem <directory>`: The directory of the problem to use, if not the current directory. At most one of `--contest` and `--problem` may be used. Useful in CI jobs.
 - `--no-bar`: Disable showing progress bars. This is useful when running in non-interactive contexts (such as CI jobs) or on platforms/terminals that don't handle the progress bars well.
 - `--error`/`-e`: show full output of failing commands using `--error`. The default is to show a short snippet only.
-- `--cpp_flags`: Additional flags to pass to any C++ compilation rule. Useful for e.g. `--cpp_flags=-fsanitize=undefined`.
-- `--force_build`: Force rebuilding binaries instead of reusing cached version.
+- `--cpp-flags`: Additional flags to pass to any C++ compilation rule. Useful for e.g. `--cpp-flags=-fsanitize=undefined`.
+- `--force-build`: Force rebuilding binaries instead of reusing cached version.
 
 # Problem development
 
@@ -62,7 +62,7 @@ bt run [<submissions and/or testcases>]
 
 This first makes sure all generated testcases are up to date and then runs the given submissions (or all submissions by default) against the given testcases (or all testcases by default).
 
-By default this prints one summary line per submission containing the slowest testcase.
+By default, this prints one summary line per submission containing the slowest testcase.
 If the submission failed, it also prints the testcases for which it failed.
 Use `bt run -v` to show results for all testcases.
 
@@ -153,7 +153,7 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--force`/`-f`: By default, `generate` will not overwrite any files, but instead warn that they will change. Pass `--force` to overwrite existing files.
 - `--samples`: Even with `--force`, samples won't be overwritten by default. `--force --samples` also overwrites samples. (Samples usually have a manually curated input and output that should not be overwritten easily.)
 - `--all`/`-a`: Fully regenerate all test cases, skipping the up-to-date check.
-- `--check_deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check. This is implicitly set to true for `bt all`.
+- `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check. This is implicitly set to true for `bt all`.
 - `--add-manual`: Testcases and directories in `data/` that do not have a corresponding entry in `generators.yaml` are automatically added.
 - `--move-manual [directory]`: Move all inline testcases to the specified directory (which defaults to `generators/manual`) and update `generators.yaml`. Implies `--add-manual`.
 - `--clean`: Delete all files/testcases not listed in `generators.yaml`. Without `-f`, this does a dry-run.
