@@ -62,7 +62,7 @@ args = argparse.Namespace()
 
 default_args = {
     'jobs': os.cpu_count() // 2,
-    'time': 600,
+    'time': 600,  # Used for `bt fuzz`
     'verbose': 0,
 }
 

@@ -318,7 +318,7 @@ Run this from one of:
         '--jobs',
         '-j',
         type=int,
-        help='The number of jobs to use. Default is cpu_count()/2.',
+        help='The number of jobs to use. Default: cpu_count()/2.',
     )
     global_parser.add_argument(
         '--api',
@@ -468,7 +468,7 @@ Run this from one of:
         help='Rerun all generators to make sure generators are deterministic.',
     )
     genparser.add_argument(
-        '--timeout', '-t', type=int, help='Override the default timeout (Default: 30).'
+        '--timeout', '-t', type=int, help='Override the default timeout. Default: 30.'
     )
     genparser.add_argument(
         '--samples',
@@ -557,13 +557,13 @@ Run this from one of:
     runparser.add_argument(
         '--timeout',
         type=int,
-        help='Override the default timeout (Default: 1.5 * timelimit + 1).',
+        help='Override the default timeout. Default: 1.5 * timelimit + 1.',
     )
     runparser.add_argument('--timelimit', '-t', type=int, help='Override the default timelimit.')
     runparser.add_argument(
         '--memory',
         '-m',
-        help='The max amount of memory in MB a subprocesses may use. Does not work for java. (Default: 2048)',
+        help='The max amount of memory in MB a subprocesses may use. Does not work for java. Default: 2048.',
     )
     runparser.add_argument(
         '--force',
@@ -595,12 +595,12 @@ Run this from one of:
     testparser.add_argument(
         '--timeout',
         type=int,
-        help='Override the default timeout (Default: 1.5 * timelimit + 1).',
+        help='Override the default timeout. Default: 1.5 * timelimit + 1.',
     )
     testparser.add_argument(
         '--memory',
         '-m',
-        help='The max amount of memory in MB a subprocesses may use. Does not work for java. (Default: 2048)',
+        help='The max amount of memory in MB a subprocesses may use. Does not work for java. Default: 2048.',
     )
 
     # Sort
@@ -908,8 +908,7 @@ def read_personal_config():
     ]:
         if not config_file.is_file():
             continue
-        config_data = read_yaml(config_file)
-        assert isinstance(config_data, dict)
+        config_data = read_yaml(config_file) or {}
         for arg, value in config_data.items():
             if arg not in args:
                 args[arg] = value
