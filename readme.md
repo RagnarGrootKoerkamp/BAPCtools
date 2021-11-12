@@ -161,9 +161,9 @@ This can also be used to create the contest pdf by running it from the contest d
 
 For some command-line flags, it is convenient if they are always set to the same value, which differs per user
 (e.g., `--username` or `--password` for commands that access a CCS like DOMjudge,
-or `--scoreboard_repo` for the `bt solvestats` command).
+or `--scoreboard-repo` for the `bt solvestats` command).
 For this, you can create a configuration YAML file containing key-value pairs
-in one of the following locations:
+in one of the following locations, from low to high priority:
 - `$XDG_CONFIG_HOME/bapctools/config.yaml` (Unix-ish systems, where `$XDG_CONFIG_HOME` usually is `~/.config`)
 - `%AppData%/bapctools/config.yaml` (Windows systems)
 - `<contest directory>/.bapctools.yaml`

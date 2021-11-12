@@ -108,9 +108,7 @@ class Problem:
 
         # Override settings by command line arguments.
         self.settings.timelimit = config.args.timelimit or self.settings.timelimit
-
-        timeout = config.args.timeout or 1.5 * self.settings.timelimit + 1
-        self.settings.timeout = int(timeout)
+        self.settings.timeout = int(config.args.timeout or 1.5 * self.settings.timelimit + 1)
 
         if self.settings.validation not in config.VALIDATION_MODES:
             fatal(
@@ -146,9 +144,7 @@ class Problem:
         def maybe_copy(x):
             return x.copy() if copy and isinstance(x, (list, dict)) else x
 
-        samplesonly = only_sample
-        if config.args.samples:
-            samplesonly = True
+        samplesonly = config.args.samples or only_sample
 
         if p.interactive:
             needans = False

@@ -419,10 +419,6 @@ class Program:
             problem._program_callbacks[path] = []
         problem._program_callbacks[path].append(c)
 
-    @staticmethod
-    def timeout():
-        return config.args.timeout or 30
-
 
 class Generator(Program):
     subdir = 'generators'
@@ -445,16 +441,18 @@ class Generator(Program):
             else:
                 f.unlink()
 
+        timeout = config.args.timeout or 30
+
         with stdout_path.open('w') as stdout_file:
             result = exec_command(
-                self.run_command + args, stdout=stdout_file, timeout=Program.timeout(), cwd=cwd
+                self.run_command + args, stdout=stdout_file, timeout=timeout, cwd=cwd
             )
 
         result.retry = False
 
         if result.ok == -9:
             # Timeout -> stop retrying and fail.
-            bar.error(f'TIMEOUT after {Program.timeout()}s')
+            bar.error(f'TIMEOUT after {timeout}s')
             return result
 
         if result.ok is not True:
@@ -483,4 +481,4 @@ class Visualizer(Program):
     # Stdin and stdout are not used.
     def run(self, cwd, args=[]):
         assert self.run_command is not None
-        return exec_command(self.run_command + args, timeout=Program.timeout(), cwd=cwd)
+        return exec_command(self.run_command + args, timeout=config.args.timeout or 30, cwd=cwd)
