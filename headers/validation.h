@@ -1287,10 +1287,17 @@ class Validator {
 	const std::string constraints_file_path;
 	const bool gen = false;
 
-  private:
 	std::mt19937_64 rng;
 
+  private:
 	std::unordered_map<std::string, ParamGenerator> params;
+
+  public:
+	std::string_view get_param(std::string_view name, std::string_view default_) {
+		auto it = params.find(std::string(name));
+		if(it == params.end()) return default_;
+		return std::get<std::string_view>(it->second.generator);
+	}
 
   protected:
 	static std::string get_constraints_file(int argc, char** argv) {
