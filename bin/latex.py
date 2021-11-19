@@ -280,6 +280,10 @@ def generate_solvestats(problems):
     contest_dir = Path().cwd()
 
     log('Generating plots')
+    if config.args.username is None:
+        fatal('Username must be set')
+    if config.args.password is None:
+        fatal('Password must be set')
     subprocess.run(
         [
             'bazel',
