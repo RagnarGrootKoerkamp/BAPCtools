@@ -233,7 +233,7 @@ class Problem:
                             add(s)
         else:
             for verdict in ['ACCEPTED'] if accepted_only else config.VERDICTS:
-                if verdict == 'TIME_LIMIT_EXCEEDED' and not config.TEST_TLE_SUBMISSIONS:
+                if verdict == 'TIME_LIMIT_EXCEEDED' and config.TEST_TLE_SUBMISSIONS:
                     continue
 
                 paths += glob(problem.path / 'submissions' / verdict.lower(), '*')
