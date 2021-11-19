@@ -30,6 +30,9 @@ def run_interactive_testcase(
 ):
 
     output_validators = run.problem.validators('output')
+    if output_validators is False:
+        fatal('No output validators found!')
+
     assert len(output_validators) == 1
     output_validator = output_validators[0]
 

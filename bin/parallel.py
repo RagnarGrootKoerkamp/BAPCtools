@@ -10,7 +10,7 @@ import util
 class Parallel:
     # f(task): the function to run on each queue item.
     # num_threads: True: the configured default
-    #              None/False/0: disable parallelizatoin
+    #              None/False/0: disable parallelization
     def __init__(self, f, num_threads=True):
         self.q = queue.Queue()
         self.error = None
