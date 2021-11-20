@@ -192,7 +192,7 @@ def get_problems():
             contest_problems = json.loads(response.text)
             assert isinstance(problems, list)
             for problem in contest_problems:
-                solves[problem['label']] = 0
+                solves[problem['id']] = 0
 
             response = export.call_api('GET', f'/contests/{cid}/scoreboard')
             response.raise_for_status()
@@ -201,7 +201,7 @@ def get_problems():
             for team in scoreboard['rows']:
                 for problem in team['problems']:
                     if problem['solved']:
-                        solves[problem['label']] += 1
+                        solves[problem['problem_id']] += 1
 
             # Convert away from defaultdict, so any non matching keys below raise an error.
             solves = dict(solves)
@@ -209,7 +209,7 @@ def get_problems():
 
             # Sort the problems
             # Use negative solves instead of reversed, to preserver stable order.
-            problems.sort(key=lambda p: (-solves[p.label], p.label))
+            problems.sort(key=lambda p: (-solves[p.name], p.label))
             order = ', '.join(map(lambda p: p.label, problems))
             verbose('order: ' + order)
 
