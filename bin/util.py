@@ -23,7 +23,7 @@ def is_windows():
 
 # https://www.scivision.dev/python-detect-wsl/
 def is_wsl():
-    return 'Microsoft' in uname().release()
+    return 'Microsoft' in platform.uname().release()
 
 
 def is_mac():
