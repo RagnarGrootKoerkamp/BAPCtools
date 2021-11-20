@@ -96,12 +96,13 @@
     \end{minipage}
     \begin{minipage}{0.4\paperwidth}%
 	\ifdefempty{\problemlabel}{%
-		\insertframetitle%
+		\insertframetitle\strut%
 	}{%
 		\problemtitle%
 		\\[0.3em]%
 		\tiny%
 		Problem Author: \problemauthor%
+        \strut%
 	}%
     \end{minipage}%
     \hfill%
