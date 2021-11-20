@@ -27,7 +27,9 @@
 \usepackage{ifthen}
 \usepackage{tcolorbox}
 \usepackage[autoplay,controls,loop,poster=last]{animate}
+\usepackage{multicol}
 
+% Needed for solve stats.
 \providecolor{Accepted}{named}{LimeGreen}
 \providecolor{WrongAnswer}{named}{Red}
 \providecolor{TimeLimit}{named}{Plum}
@@ -45,105 +47,28 @@
 	stringstyle=\color{red}
 }
 
-%-------------------------------------------------------------------------------
-% General layout settings:
-%
-% These are very similar to the setting from the BAPC 2015 presentation, except
-% that the colours have been replaced by the TU Delft colours.
-%-------------------------------------------------------------------------------
-\usetheme{default}
-\useinnertheme{rectangles}
-\useoutertheme{infolines}
-\setbeamertemplate{navigation symbols}{} % remove navigation symbols
-\setbeamertemplate{frametitle}[default][center]
-\setbeamersize{text margin left=1cm}
-\setbeamersize{text margin right=1cm}
-
-\definecolor{tudCyan}{RGB}{61,152,222} % TU Delft colour
-\definecolor{uva}{RGB}{64,83,163} % Bapc 2017 UvA colour
-\definecolor{beamer@blendedblue}{RGB}{64,83,163}
-\definecolor{uclouvain}{RGB}{0,46,98} % BAPC 2018 Louvain
-\definecolor{rucolour}{RGB}{0,46,98} % BAPC 2019 Nijmegen
-\definecolor{titlegray}{RGB}{60,60,60} % BAPC 2019 Nijmegen
-
-\setbeamercolor{footlinecolor}{fg=white,bg=rucolour}
-\setbeamercolor{headlinecolor}{bg=titlegray}
-\setbeamercolor{frametitle}{fg=rucolour}
-\setbeamercolor{title}{fg=rucolour}
-
-%\setbeamertemplate{footline}{%
-	%\begin{beamercolorbox}[sep=1em,wd=\paperwidth,leftskip=0.5cm,rightskip=0.5cm]{footlinecolor}
-		%\insertshorttitle\ --- \insertdate \hfill\hfill\insertframenumber
-	%\end{beamercolorbox}%
-%}
-%\setbeamertemplate{headline}{%
-	%\begin{beamercolorbox}[sep=2.4em,wd=\paperwidth,leftskip=0.5cm,rightskip=0.5cm]{headlinecolor}
-		%\insertshorttitle\ --- \insertdate \hfill\hfill\insertframenumber
-	%\end{beamercolorbox}%
-%}
-
-%-------------------------------------------------------------------------------
-% BAPC logo in the top right corner:
-%-------------------------------------------------------------------------------
-%\addtobeamertemplate{headline}{
-	%\begin{figure}[!ht]
-		%\vspace{0.02\textwidth}
-		%\hspace{0.05\textwidth}
-		%\includegraphics[width=0.14\textwidth]{logo}
-		%\hfill
-		%\phantom{}
-	%\end{figure}
-	%\vspace{-0.10\textwidth}
-%}
-
-% A bit ugly solution, but it works...
-\setbeamertemplate{frametitle}{%
-  \nointerlineskip%
-  \begin{beamercolorbox}[%
-      wd=\paperwidth,%
-      sep=0pt,%
-      leftskip=4.2ex,%
-      rightskip=2.2ex,%
-    ]{frametitle}%
-    \begin{minipage}{0.4\paperwidth}%
-    \rule{0pt}{2.2ex}%
-	\ifdefempty{\problemlabel}{%
-		\insertframetitle%
-	}{%
-		\fullproblemtitle %
-		\\[0.3em]%
-		\tiny%
-		Problem Author: \problemauthor%
-	}%
-    \nolinebreak%
-    \end{minipage}%
-    \begin{minipage}{0.5\paperwidth}%
-      \activitychart%
-    \end{minipage}%
-    \rule[-2.2ex]{0pt}{2.2ex}%
-  \end{beamercolorbox}%
-}
-
-\newcommand{\timelimit}{1.0s}
+\newcommand{\timelimit}{0.0s}
 \newcommand{\problemlabel}{} % Empty to hide activity chart
-\newcommand{\problemyamlname}{Problem name}
 \newcommand{\problemauthor}{Problem author}
+% TODO: Clean these up
+\newcommand{\problemyamlname}{Problem name}
 \newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
+\newcommand{\problemtitle}{\problemlabel: \problemyamlname}
 
 % If solve_stats/activity/A.tex exists, define the \activitychart command
 \IfFileExists{A.tex}{
 	\newcommand{\activitychart}{
-	  \ifdefempty{\problemlabel}{}{
-		\includestandalone[width=\textwidth]{solve_stats/activity/\problemlabel}
-		\vspace{-2.5em}
-	  }
+	  \ifdefempty{\problemlabel}{}{%
+		\includestandalone[width=\textwidth]{solve_stats/activity/\problemlabel}%
+	  }%
 	}
 }{
 	\newcommand{\activitychart}{}
 }
 
 \newcommand{\printsolvestats}[3]{%
-	\vfill
+	\vfill%
+    \onslide<+->%
 	Statistics: #1 submissions, #2 accepted, #3 unknown%
 }
 
@@ -154,4 +79,51 @@
 }{
 	% If the file does not exist, use a placeholder.
 	\newcommand{\solvestats}{\printsolvestats{\ldots}{\ldots}{\ldots}}
+}
+
+
+
+%%%% NWERC THEME
+\usetheme[numbering=none,block=fill]{metropolis}
+
+\renewcommand{\insertshortauthor}{
+	\ifdefempty{\problemlabel}{%
+		\insertframetitle%
+	}{%
+		\problemname %
+		\\[0.3em]%
+		\tiny%
+		Problem Author: \problemauthor%
+	}%
+  Problem Author: \problemauthor
+}
+
+\setbeamertemplate{frametitle}{%
+  \nointerlineskip%
+  \begin{beamercolorbox}[%
+      wd=\paperwidth,%
+      sep=0.4ex,%
+      leftskip=4.2ex,% 2.2ex
+      rightskip=2.2ex,%
+    ]{frametitle}%
+    \begin{minipage}{0\paperwidth}%
+    \rule{0ex}{5.5ex}%
+    \end{minipage}
+    \begin{minipage}{0.4\paperwidth}%
+	\ifdefempty{\problemlabel}{%
+		\insertframetitle%
+	}{%
+		\problemtitle%
+		\\[0.3em]%
+		\tiny%
+		Problem Author: \problemauthor%
+	}%
+    \end{minipage}%
+    \hfill%
+    \begin{minipage}{0.5\paperwidth}%
+      \activitychart%
+      %\vspace{-2ex}%
+    \end{minipage}%
+    %\rule[-2.2ex]{0pt}{2.2ex}%
+  \end{beamercolorbox}%
 }
