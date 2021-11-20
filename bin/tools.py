@@ -227,7 +227,7 @@ def get_problems():
                     if is_relative_to(problem.path, x):
                         return True
             for t in testcases:
-                x = resolve_path_argument(problem, t, 'data', suffixed=['.in']):
+                x = resolve_path_argument(problem, t, 'data', suffixed=['.in'])
                 if x:
                     if is_relative_to(problem.path, x):
                         return True
