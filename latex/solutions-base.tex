@@ -81,22 +81,7 @@
 	\newcommand{\solvestats}{\printsolvestats{\ldots}{\ldots}{\ldots}}
 }
 
-
-
-%%%% NWERC THEME
 \usetheme[numbering=none,block=fill]{metropolis}
-
-\renewcommand{\insertshortauthor}{
-	\ifdefempty{\problemlabel}{%
-		\insertframetitle%
-	}{%
-		\problemname %
-		\\[0.3em]%
-		\tiny%
-		Problem Author: \problemauthor%
-	}%
-  Problem Author: \problemauthor
-}
 
 \setbeamertemplate{frametitle}{%
   \nointerlineskip%
