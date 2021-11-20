@@ -1,5 +1,6 @@
 # read problem settings from config files
 
+import platform
 import shutil
 import time
 import copy
@@ -18,6 +19,11 @@ import config
 
 def is_windows():
     return sys.platform in ['win32', 'cygwin']
+
+
+# https://www.scivision.dev/python-detect-wsl/
+def is_wsl():
+    return 'Microsoft' in uname().release()
 
 
 def is_mac():
@@ -758,7 +764,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     tstart = time.monotonic()
     try:
-        if not is_windows():
+        if not is_windows() and not is_wsl():
             process = ResourcePopen(
                 command,
                 preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs)),
