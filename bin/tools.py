@@ -222,11 +222,13 @@ def get_problems():
 
         def keep_problem(problem):
             for s in submissions:
-                if x := resolve_path_argument(problem, s, 'submissions'):
+                x = resolve_path_argument(problem, s, 'submissions')
+                if x:
                     if is_relative_to(problem.path, x):
                         return True
             for t in testcases:
-                if x := resolve_path_argument(problem, t, 'data', suffixed=['.in']):
+                x = resolve_path_argument(problem, t, 'data', suffixed=['.in']):
+                if x:
                     if is_relative_to(problem.path, x):
                         return True
             return False
