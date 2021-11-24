@@ -187,14 +187,14 @@ def get_problems():
             solves = dict()
 
             # Read set of problems
-            response = export.call_api('GET', f'/contests/{cid}/problems')
+            response = export.call_api('GET', f'/contests/{cid}/problems?public=true')
             response.raise_for_status()
             contest_problems = json.loads(response.text)
             assert isinstance(problems, list)
             for problem in contest_problems:
                 solves[problem['id']] = 0
 
-            response = export.call_api('GET', f'/contests/{cid}/scoreboard')
+            response = export.call_api('GET', f'/contests/{cid}/scoreboard?public=true')
             response.raise_for_status()
             scoreboard = json.loads(response.text)
 
