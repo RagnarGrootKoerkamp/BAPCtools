@@ -1,5 +1,5 @@
-name: Your name
-email: your@email.address
+Name: Your name
+Email: your@email.address
 
 Relevant experience:
 - e.g. BAPC participant in year
