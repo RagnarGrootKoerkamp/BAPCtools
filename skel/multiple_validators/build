@@ -4,5 +4,5 @@
 # Modify to your likings.
 
 for validator in *.cpp ; do
-	g++ -std=gnu++20 -Wall -Wextra -pedantic -O2 $validator -o ${validator%.cpp}
+	g++ -std=gnu++17 -Wall -Wextra -pedantic -O2 $validator -o ${validator%.cpp}
 done
