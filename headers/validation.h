@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bitset>
 #include <cassert>
 #include <charconv>
 #include <cstring>
@@ -108,6 +109,51 @@ auto operator|(T1 /*unused*/, T2 /*unused*/) {
 
 enum Separator { Space, Newline };
 
+//this contains some specific code which would be available in c++20
+namespace C20 {
+
+constexpr int countl_zero(unsigned long long x) {
+	int res = 64;
+	for (int i = 32; i > 0; i >>= 1) {
+		if ((x >> i) > 0) {
+			res -= i;
+			x >>= i;
+		}
+	}
+	if (x > 0) res--;
+	return res;
+}
+
+int popcount(unsigned long long x) {
+	return static_cast<int>(std::bitset<64>(x).count());
+}
+
+constexpr long double PI = 3.141592653589793238462643383279502884l;
+
+} // namespace C20
+
+namespace Random {
+
+unsigned long long bits64(std::mt19937_64& rng) {
+	static_assert(std::mt19937_64::max() == 0xFFFF'FFFF'FFFF'FFFFull);
+	static_assert(std::mt19937_64::min() == 0ull);
+	return rng();
+}
+
+long double real64(std::mt19937_64& rng) {
+	// a long double can represent more than 2^64 values in the range [0, 1)...
+	// another problem is that real64() < 1.0/3.0 is technically biased.
+	long double res = bits64(rng) / 0x1.0p64l;
+	assert(res < 1.0l);
+	return res;
+}
+
+bool bit(std::mt19937_64& rng) {
+	return C20::popcount(bits64(rng));
+}
+
+} // namespace Random
+
 template <typename T>
 constexpr bool is_number_v = std::is_same_v<T, long long> or std::is_same_v<T, long double>;
 
@@ -166,11 +212,25 @@ struct UniformGenerator {
 	template <typename T>
 	T operator()(T low, T high, std::mt19937_64& rng) const {
 		static_assert(is_number_v<T>);
-		if constexpr(std::is_same_v<T, long long>)
-			return std::uniform_int_distribution<T>(low, high)(rng);
-		else
-			return std::uniform_real_distribution<T>(low, high)(rng);
+		if constexpr(std::is_same_v<T, long long>) {
+			assert(low <= high);
+			// since C++20 we can assume Two's Complement but any sane syste, used it before anyway
+			// rejection sampling is not as fast as possible
+			// but definetly unbiased
+			unsigned long long ul = static_cast<unsigned long long>(low);
+			unsigned long long uh = static_cast<unsigned long long>(high);
+			int shitfs = C20::countl_zero(uh - ul + 1ull) % std::numeric_limits<unsigned long long>::digits;
+			unsigned long long res;
+			do {
+				res = Random::bits64(rng) >> shitfs;
+			} while (res > uh - ul);
+			return static_cast<long long>(res + ul);
+		}	else {
+			assert(low < high);
+			return low + Random::real64(rng) * (high - low);
+		}
 	}
+
 };
 
 template <typename T>
@@ -222,14 +282,25 @@ struct NormalDistributionGenerator {
 
 	const T mean_, stddev_;
 
-	explicit NormalDistributionGenerator(T mean, T stddev) : mean_(mean), stddev_(stddev) {}
+	explicit NormalDistributionGenerator(T mean, T stddev) : mean_(mean), stddev_(stddev) {
+		assert(stddev_ >= 0);
+	}
 
 	// NOTE: Currently this retries instead of clamping to the interval.
 	T operator()(T low, T high, std::mt19937_64& rng) const {
+		assert(low < high);
 		T v;
-		do {
-			v = std::normal_distribution<T>(mean_, stddev_)(rng);
-		} while(v < low or v > high);
+		while (true) {
+			T u1 = Random::real64(rng);
+			T u2 = Random::real64(rng);
+			// Box-Muller-Methode
+			v = std::sqrt(-2.0l * std::log(u1)) * std::cos(2.0l * C20::PI * u2);
+			v = std::sqrt(stddev_)*v+mean_;
+			if (v >= low && v < high) return v;
+			v = std::sqrt(-2.0l * std::log(u1)) * std::sin(2.0l * C20::PI * u2);
+			v = std::sqrt(stddev_)*v+mean_;
+			if (v >= low && v < high) return v;
+		}
 		return v;
 	}
 };
@@ -241,15 +312,18 @@ struct ExponentialDistributionGenerator {
 
 	T lambda_;
 
-	explicit ExponentialDistributionGenerator(T lambda) : lambda_(lambda) {}
+	explicit ExponentialDistributionGenerator(T lambda) : lambda_(lambda) {
+		assert(lambda_ > 0);
+	}
 
 	// NOTE: Currently this retries instead of clamping to the interval.
 	T operator()(T low, T high, std::mt19937_64& rng) const {
+		assert(low < high);
 		T v;
-		do {
-			v = low + std::exponential_distribution<T>(lambda_)(rng);
-		} while(v < low or v > high);
-		return v;
+		while (true) {
+			v = low - std::log(Random::real64(rng)) / lambda_;
+			if (v < high) return v;
+		}
 	}
 };
 
@@ -260,15 +334,19 @@ struct GeometricDistributionGenerator {
 
 	double p_;
 
-	explicit GeometricDistributionGenerator(double p) : p_(p) {}
+	explicit GeometricDistributionGenerator(double p) : p_(p) {
+		assert(p_ > 0);
+		assert(p_ < 1);
+	}
 
 	// NOTE: Currently this retries instead of clamping to the interval.
 	T operator()(T low, T high, std::mt19937_64& rng) const {
+		assert(low <= high);
 		T v;
-		do {
-			v = low + std::geometric_distribution<T>(p_)(rng);
-		} while(v < low or v > high);
-		return v;
+		while (true) {
+			v = low + std::floor(std::log(Random::real64(rng)) / std::log1p(-p_));
+			if (v <= high) return v;
+		}
 	}
 };
 
@@ -280,15 +358,23 @@ struct BinomialDistributionGenerator {
 	long long n_;
 	double p_;
 
-	explicit BinomialDistributionGenerator(long long n, double p) : n_(n), p_(p) {}
+	explicit BinomialDistributionGenerator(long long n, double p) : n_(n), p_(p) {
+		assert(p_ >= 0);
+		assert(p_ <= 1);
+	}
 
 	// NOTE: Currently this retries instead of clamping to the interval.
 	T operator()(T low, T high, std::mt19937_64& rng) const {
-		T v;
-		do {
-			v = std::binomial_distribution<T>(n_, p_)(rng);
-		} while(v < low or v > high);
-		return v;
+		assert(low <= high);
+		// this will be slow for large n
+		// (a faster implementation requires efficient poisson sampling)
+		while (true) {
+			T v = 0;
+			for (long long i = 0; i < n_; i++) {
+				v += Random::real64(rng) < p_ ? 1 : 0;
+			}
+			if (v >= low && v <= high) return v;
+		}
 	}
 };
 
@@ -411,7 +497,8 @@ struct ChoiceGenerator {
 	}
 
 	T operator()(T low, T high, std::mt19937_64& rng) const {
-		double x = std::uniform_real_distribution<double>(0, total_weight_)(rng);
+		Generators::UniformGenerator uniform;
+		double x = uniform.operator()<long double>(0, total_weight_, rng);
 		for(size_t i = 0; i < generators_.size(); ++i) {
 			x -= generators_[i].second;
 			if(x <= 0)
@@ -439,6 +526,41 @@ struct ParamGenerator {
 } // namespace Generators
 
 using Generators::ParamGenerator;
+
+namespace Random {
+	template<class RandomIt>
+	void shuffle(RandomIt first, RandomIt last, std::mt19937_64& rng) {
+		Generators::UniformGenerator uniform;
+		long long n = last - first;
+		for (long long i = n-1; i > 0; i--) {
+			std::swap(first[i], first[uniform(0ll, i, rng)]);
+		}
+	}
+
+	template<class T>
+	void shuffle(std::pair<T, T>& in, std::mt19937_64& rng) {
+		if (bit(rng)) std::swap(in.first, in.second);
+	}
+
+	template<class RandomIt>
+	auto& select(RandomIt first, RandomIt last, std::mt19937_64& rng) {
+		assert(first != last);
+		Generators::UniformGenerator uniform;
+		long long n = last - first;
+		return first[uniform(0ll, n - 1, rng)];
+	}
+
+	template<class T>
+	const T& select(const std::pair<T, T>& in, std::mt19937_64& rng) {
+		return bit(rng) ? in.first : in.second;
+	}
+
+	template<class T>
+	T& select(std::pair<T, T>& in, std::mt19937_64& rng) {
+		return bit(rng) ? in.first : in.second;
+	}
+
+} // namespace Random
 
 class Validator {
   protected:
@@ -613,14 +735,14 @@ class Validator {
 		}
 	}
 
-	// Generate a random integer or float in [low, high].
+	// Generate a random integer in [low, high] or float in [low, high).
 	template <typename T>
 	T uniform_number(T low, T high) {
-		assert(low <= high);
+		Generators::UniformGenerator uniform;
 		if constexpr(std::is_integral<T>::value)
-			return std::uniform_int_distribution<T>(low, high)(rng);
+			return uniform.operator()<long long>(low, high, rng);
 		else
-			return std::uniform_real_distribution<T>(low, high)(rng);
+			return uniform.operator()<long double>(low, high, rng);
 	}
 
 	template <typename T, typename Tag>
@@ -755,7 +877,7 @@ class Validator {
 					// If density >= 1/2, crop a random permutation.
 					v.resize(high - low + 1);
 					iota(begin(v), end(v), low);
-					shuffle(begin(v), end(v), rng);
+					Random::shuffle(begin(v), end(v), rng);
 					v.resize(count);
 				}
 			} else {
@@ -956,8 +1078,7 @@ class Validator {
 			// if(not name.empty() and params.contains(name)) {
 			// return c == params.at(name).operator()<char>(0, 0, rng);
 			//}
-			std::bernoulli_distribution dis(0.5);
-			return dis(rng);
+			return Random::bit(rng);
 		}
 		if(!ws) in >> std::ws;
 		if(case_sensitive) return in.peek() == std::char_traits<char>::to_int_type(c);
