@@ -144,6 +144,7 @@ long double real64(std::mt19937_64& rng) {
 	// a long double can represent more than 2^64 values in the range [0, 1)...
 	// another problem is that real64() < 1.0/3.0 is technically biased.
 	long double res = bits64(rng) / 0x1.0p64l;
+	res += bits64(rng) / 0x1.0p128l;
 	assert(res < 1.0l);
 	return res;
 }
