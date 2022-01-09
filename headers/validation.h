@@ -689,6 +689,21 @@ class Validator {
 		return v;
 	}
 
+	std::string gen_string(const std::string& name, long long low, long long high, std::string_view chars) {
+		assert(!chars.empty());
+
+		int len;
+		if(params.find(name + ".length") != params.end())
+			len = params.at(name + ".length").operator()<long long>(low, high, rng);
+		else
+			len = uniform_number(low, high);
+		std::string s(len, ' ');
+		for(auto& x : s) x = chars[uniform_number<int>(0, chars.size() - 1)];
+
+		out << s;
+		return s;
+	}
+
   public:
 	template <typename Tag = ArbitraryTag>
 	long long gen_integer(const std::string& name, long long low, long long high, Tag tag = Tag{},
@@ -990,14 +1005,7 @@ class Validator {
 	                        const std::string_view chars = "", Tag tag = Tag(),
 	                        source_location loc = source_location::current()) {
 		if(gen) {
-			// TODO: Params for strings.
-			assert(!chars.empty());
-
-			std::string s(uniform_number(min, max), ' ');
-			for(auto& x : s) x = chars[uniform_number<int>(0, chars.size() - 1)];
-
-			out << s;
-			return s;
+			return gen_string(name, min, max, chars);
 		}
 		std::string s = get_string();
 		std::array<bool, 256> ok_char{};
