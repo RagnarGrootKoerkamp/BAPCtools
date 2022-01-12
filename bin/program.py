@@ -276,6 +276,7 @@ class Program:
                     if f.read_text().find('bits/stdc++.h') != -1:
                         if 'validators/' in str(f):
                             self.bar.error(f'Must not depend on bits/stdc++.h.')
+                            break
                         else:
                             self.bar.log(f'Should not depend on bits/stdc++.h')
                 except UnicodeDecodeError:
