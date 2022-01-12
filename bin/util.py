@@ -568,8 +568,13 @@ def substitute_dir_variables(dirname, variables):
 
 # copies a directory recursively and substitutes {%key%} by their value in text files
 # reference: https://docs.python.org/3/library/shutil.html#copytree-example
-def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_symlinks=True):
+def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_symlinks=True, base=None):
+    if base is None:
+        base = src
+
     if preserve_symlinks and os.path.islink(src):
+        shutil.copy(src, dst, follow_symlinks=False)
+    elif os.path.islink(src) and src.resolve().is_relative_to(base):
         shutil.copy(src, dst, follow_symlinks=False)
     elif os.path.isdir(src):
         names = os.listdir(src)
