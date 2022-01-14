@@ -7,6 +7,8 @@ import re
 import config
 from util import *
 import contest
+import questionary
+from questionary import Validator, ValidationError
 
 
 # Returns the alphanumeric version of a string:
@@ -21,21 +23,24 @@ def _alpha_num(string):
     return s
 
 
-def _ask_variable(name, default=None):
-    if default == None:
-        val = ''
-        while True:
-            print(f"{name}: ", end='', file=sys.stderr)
-            val = input()
-            if val == '':
-                print(f"{name} must not be empty!", file=sys.stderr)
-            else:
-                break
-        return val
+class EmptyValidator(Validator):
+    def validate(self, document):
+        if len(document.text) == 0:
+            raise ValidationError(message="Please enter a value")
+
+def _ask_variable_string(name, default=None):
+    if default == '':
+        return questionary.text(name).unsafe_ask()
+    elif default == None:
+        return questionary.text(name, validate=EmptyValidator).unsafe_ask()
     else:
-        print(f"{name} [{default}]: ", end='', file=sys.stderr)
-        val = input()
-        return default if val == '' else val
+        return questionary.text(name, default=default, validate=EmptyValidator).unsafe_ask()
+
+def _ask_variable_bool(name, default=True):
+    return questionary.confirm(name, default=default).unsafe_ask()
+
+def _ask_variable_choice(name, choices):
+    return questionary.select(name, choices=choices).unsafe_ask()
 
 
 # Returns the alphanumeric version of a string:
@@ -57,15 +62,15 @@ def new_contest():
         fatal('--problem does not work for new_contest.')
 
     # Ask for all required infos.
-    title = _ask_variable('name', config.args.contestname)
-    subtitle = _ask_variable('subtitle', '').replace('_', '-')
-    dirname = _ask_variable('dirname', _alpha_num(title))
-    author = _ask_variable('author', f'The {title} jury').replace('_', '-')
-    testsession = _ask_variable('testsession?', 'n (y/n)')[0] != 'n'  # boolean
-    year = _ask_variable('year', str(datetime.datetime.now().year))
-    source_url = _ask_variable('source url', '')
-    license = _ask_variable('license', 'cc by-sa')
-    rights_owner = _ask_variable('rights owner', 'author')
+    title = _ask_variable_string('name', config.args.contestname)
+    subtitle = _ask_variable_string('subtitle', '').replace('_', '-')
+    dirname = _ask_variable_string('dirname', _alpha_num(title))
+    author = _ask_variable_string('author', f'The {title} jury').replace('_', '-')
+    testsession = _ask_variable_bool('testsession?', False)
+    year = _ask_variable_string('year', str(datetime.datetime.now().year))
+    source_url = _ask_variable_string('source url', '')
+    license = _ask_variable_string('license', 'cc by-sa')
+    rights_owner = _ask_variable_string('rights owner', 'author')
     title = title.replace('_', '-')
 
     skeldir = config.tools_root / 'skel/contest'
@@ -98,22 +103,22 @@ def new_problem():
         fatal('--problem does not work for new_problem.')
 
     problemname = (
-        config.args.problemname if config.args.problemname else _ask_variable('problem name')
+        config.args.problemname if config.args.problemname else _ask_variable_string('problem name')
     )
     dirname = (
         _alpha_num(problemname)
         if config.args.problemname
-        else _ask_variable('dirname', _alpha_num(problemname))
+        else _ask_variable_string('dirname', _alpha_num(problemname))
     )
     author = (
-        config.args.author if config.args.author else _ask_variable('author', config.args.author)
+        config.args.author if config.args.author else _ask_variable_string('author', config.args.author)
     )
 
     if config.args.validation:
         assert config.args.validation in ['default', 'custom', 'custom interactive']
         validation = config.args.validation
     else:
-        validation = _ask_variable('validation (default/custom/custom interactive)', 'default')
+        validation = _ask_variable_choice('validation', ['default','custom','custom interactive'])
 
     # Read settings from the contest-level yaml file.
     variables = contest.contest_yaml()
