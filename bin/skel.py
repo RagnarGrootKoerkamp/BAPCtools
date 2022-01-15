@@ -31,23 +31,23 @@ class EmptyValidator(Validator):
 def _ask_variable_string(name, default=None):
     try:
         if default == '':
-            return questionary.text(name).unsafe_ask()
+            return questionary.text(name + ':').unsafe_ask()
         elif default == None:
-            return questionary.text(name, validate=EmptyValidator).unsafe_ask()
+            return questionary.text(name + ':', validate=EmptyValidator).unsafe_ask()
         else:
-            return questionary.text(name, default=default, validate=EmptyValidator).unsafe_ask()
+            return questionary.text(name + ':', default=default, validate=EmptyValidator).unsafe_ask()
     except KeyboardInterrupt:
         fatal('Running interrupted')
 
 def _ask_variable_bool(name, default=True):
     try:
-        return questionary.confirm(name, default=default, auto_enter=False).unsafe_ask()
+        return questionary.confirm(name + '?', default=default, auto_enter=False).unsafe_ask()
     except KeyboardInterrupt:
         fatal('Running interrupted')
 
 def _ask_variable_choice(name, choices):
     try:
-        return questionary.select(name, choices=choices).unsafe_ask()
+        return questionary.select(name + ':', choices=choices).unsafe_ask()
     except KeyboardInterrupt:
         fatal('Running interrupted')
 
@@ -75,7 +75,7 @@ def new_contest():
     subtitle = _ask_variable_string('subtitle', '').replace('_', '-')
     dirname = _ask_variable_string('dirname', _alpha_num(title))
     author = _ask_variable_string('author', f'The {title} jury').replace('_', '-')
-    testsession = _ask_variable_bool('testsession?', False)
+    testsession = _ask_variable_bool('testsession', False)
     year = _ask_variable_string('year', str(datetime.datetime.now().year))
     source_url = _ask_variable_string('source url', '')
     license = _ask_variable_string('license', 'cc by-sa')
