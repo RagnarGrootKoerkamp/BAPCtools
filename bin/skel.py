@@ -29,18 +29,27 @@ class EmptyValidator(Validator):
             raise ValidationError(message="Please enter a value")
 
 def _ask_variable_string(name, default=None):
-    if default == '':
-        return questionary.text(name).unsafe_ask()
-    elif default == None:
-        return questionary.text(name, validate=EmptyValidator).unsafe_ask()
-    else:
-        return questionary.text(name, default=default, validate=EmptyValidator).unsafe_ask()
+    try:
+        if default == '':
+            return questionary.text(name).unsafe_ask()
+        elif default == None:
+            return questionary.text(name, validate=EmptyValidator).unsafe_ask()
+        else:
+            return questionary.text(name, default=default, validate=EmptyValidator).unsafe_ask()
+    except KeyboardInterrupt:
+        fatal('Running interrupted')
 
 def _ask_variable_bool(name, default=True):
-    return questionary.confirm(name, default=default, auto_enter=False).unsafe_ask()
+    try:
+        return questionary.confirm(name, default=default, auto_enter=False).unsafe_ask()
+    except KeyboardInterrupt:
+        fatal('Running interrupted')
 
 def _ask_variable_choice(name, choices):
-    return questionary.select(name, choices=choices).unsafe_ask()
+    try:
+        return questionary.select(name, choices=choices).unsafe_ask()
+    except KeyboardInterrupt:
+        fatal('Running interrupted')
 
 
 # Returns the alphanumeric version of a string:
