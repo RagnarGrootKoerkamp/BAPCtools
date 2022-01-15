@@ -78,7 +78,7 @@ def new_contest():
     testsession = _ask_variable_bool('testsession', False)
     year = _ask_variable_string('year', str(datetime.datetime.now().year))
     source_url = _ask_variable_string('source url', '')
-    license = _ask_variable_string('license', 'cc by-sa')
+    license = _ask_variable_choice('license', ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown'])
     rights_owner = _ask_variable_string('rights owner', 'author')
     title = title.replace('_', '-')
 
