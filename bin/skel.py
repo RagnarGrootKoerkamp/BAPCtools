@@ -37,7 +37,7 @@ def _ask_variable_string(name, default=None):
         return questionary.text(name, default=default, validate=EmptyValidator).unsafe_ask()
 
 def _ask_variable_bool(name, default=True):
-    return questionary.confirm(name, default=default).unsafe_ask()
+    return questionary.confirm(name, default=default, auto_enter=False).unsafe_ask()
 
 def _ask_variable_choice(name, choices):
     return questionary.select(name, choices=choices).unsafe_ask()
