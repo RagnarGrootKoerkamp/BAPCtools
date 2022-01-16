@@ -28,14 +28,10 @@ class EmptyValidator(Validator):
         if len(document.text) == 0:
             raise ValidationError(message="Please enter a value")
 
-def _ask_variable_string(name, default=None):
+def _ask_variable_string(name, default=None, allow_empty=False):
     try:
-        if default == '':
-            return questionary.text(name + ':').unsafe_ask()
-        elif default == None:
-            return questionary.text(name + ':', validate=EmptyValidator).unsafe_ask()
-        else:
-            return questionary.text(name + ':', default=default, validate=EmptyValidator).unsafe_ask()
+        validate = None if allow_empty else EmptyValidator
+        return questionary.text(name + ':', default=default or '', validate=validate).unsafe_ask()
     except KeyboardInterrupt:
         fatal('Running interrupted')
 
@@ -45,11 +41,15 @@ def _ask_variable_bool(name, default=True):
     except KeyboardInterrupt:
         fatal('Running interrupted')
 
-def _ask_variable_choice(name, choices):
+def _ask_variable_choice(name, choices, default=None):
     try:
-        return questionary.select(name + ':', choices=choices).unsafe_ask()
+        plain = questionary.Style([('selected', 'noreverse')])
+        return questionary.select(name + ':', choices=choices, default=default, style=plain).unsafe_ask()
     except KeyboardInterrupt:
         fatal('Running interrupted')
+
+def _license_choices():
+    return ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown']
 
 
 # Returns the alphanumeric version of a string:
@@ -72,13 +72,13 @@ def new_contest():
 
     # Ask for all required infos.
     title = _ask_variable_string('name', config.args.contestname)
-    subtitle = _ask_variable_string('subtitle', '').replace('_', '-')
+    subtitle = _ask_variable_string('subtitle', '', True).replace('_', '-')
     dirname = _ask_variable_string('dirname', _alpha_num(title))
     author = _ask_variable_string('author', f'The {title} jury').replace('_', '-')
     testsession = _ask_variable_bool('testsession', False)
     year = _ask_variable_string('year', str(datetime.datetime.now().year))
-    source_url = _ask_variable_string('source url', '')
-    license = _ask_variable_choice('license', ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown'])
+    source_url = _ask_variable_string('source url', '', True)
+    license = _ask_variable_choice('license', _license_choices())
     rights_owner = _ask_variable_string('rights owner', 'author')
     title = title.replace('_', '-')
 
@@ -131,8 +131,6 @@ def new_problem():
 
     # Read settings from the contest-level yaml file.
     variables = contest.contest_yaml()
-    if 'source' not in variables:
-        variables['source'] = variables.get('name', '')
 
     for k, v in {
         'problemname': problemname,
@@ -142,9 +140,10 @@ def new_problem():
     }.items():
         variables[k] = v
 
-    for k in ['source_url', 'license', 'rights_owner']:
-        if k not in variables:
-            variables[k] = ''
+    variables['source'] = _ask_variable_string('source', variables.get('source', variables.get('name', '')))
+    variables['source_url'] = _ask_variable_string('source url', variables.get('source_url', ''), True)
+    variables['license'] = _ask_variable_choice('license', _license_choices(),  variables.get('license', None))
+    variables['rights_owner'] = _ask_variable_string('rights owner', variables.get('rights_owner', 'author'))
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
