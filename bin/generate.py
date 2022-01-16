@@ -667,7 +667,7 @@ class TestcaseRule(Rule):
                         return
 
         # Generate visualization
-        if t.config.visualizer and not config.args.skip_visualizer:
+        if not config.args.skip_visualizer and t.config.visualizer:
             if t.config.visualizer.run(bar, cwd, t.name).ok is not True:
                 return
 
