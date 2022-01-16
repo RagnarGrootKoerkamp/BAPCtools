@@ -109,8 +109,8 @@ auto operator|(T1 /*unused*/, T2 /*unused*/) {
 
 enum Separator { Space, Newline };
 
-//this contains some specific code which would be available in c++20
-namespace C20 {
+//this contains some specific code which emulates c++20 features
+namespace cpp20 {
 
 constexpr int countl_zero(unsigned long long x) {
 	int res = 64;
@@ -130,7 +130,7 @@ int popcount(unsigned long long x) {
 
 constexpr long double PI = 3.141592653589793238462643383279502884l;
 
-} // namespace C20
+} // namespace cpp20
 
 namespace Random {
 
@@ -140,6 +140,7 @@ unsigned long long bits64(std::mt19937_64& rng) {
 	return rng();
 }
 
+// generates a uniform real in [0, 1)
 long double real64(std::mt19937_64& rng) {
 	// a long double can represent more than 2^64 values in the range [0, 1)...
 	// another problem is that real64() < 1.0/3.0 is technically biased.
@@ -150,7 +151,7 @@ long double real64(std::mt19937_64& rng) {
 }
 
 bool bit(std::mt19937_64& rng) {
-	return C20::popcount(bits64(rng));
+	return cpp20::popcount(bits64(rng)) & 1;
 }
 
 } // namespace Random
@@ -220,7 +221,7 @@ struct UniformGenerator {
 			// but definetly unbiased
 			unsigned long long ul = static_cast<unsigned long long>(low);
 			unsigned long long uh = static_cast<unsigned long long>(high);
-			int shitfs = C20::countl_zero(uh - ul + 1ull) % std::numeric_limits<unsigned long long>::digits;
+			int shitfs = cpp20::countl_zero(uh - ul + 1ull) % std::numeric_limits<unsigned long long>::digits;
 			unsigned long long res;
 			do {
 				res = Random::bits64(rng) >> shitfs;
@@ -295,10 +296,11 @@ struct NormalDistributionGenerator {
 			T u1 = Random::real64(rng);
 			T u2 = Random::real64(rng);
 			// Box-Muller-Methode
-			v = std::sqrt(-2.0l * std::log(u1)) * std::cos(2.0l * C20::PI * u2);
+			// https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform
+			v = std::sqrt(-2.0l * std::log(u1)) * std::cos(2.0l * cpp20::PI * u2);
 			v = std::sqrt(stddev_)*v+mean_;
 			if (v >= low && v < high) return v;
-			v = std::sqrt(-2.0l * std::log(u1)) * std::sin(2.0l * C20::PI * u2);
+			v = std::sqrt(-2.0l * std::log(u1)) * std::sin(2.0l * cpp20::PI * u2);
 			v = std::sqrt(stddev_)*v+mean_;
 			if (v >= low && v < high) return v;
 		}
@@ -345,6 +347,8 @@ struct GeometricDistributionGenerator {
 		assert(low <= high);
 		T v;
 		while (true) {
+			// https://en.wikipedia.org/wiki/Geometric_distribution
+			// "The exponential distribution is the continuous analogue of the geometric distribution[...]"
 			v = low + std::floor(std::log(Random::real64(rng)) / std::log1p(-p_));
 			if (v <= high) return v;
 		}
@@ -362,6 +366,7 @@ struct BinomialDistributionGenerator {
 	explicit BinomialDistributionGenerator(long long n, double p) : n_(n), p_(p) {
 		assert(p_ >= 0);
 		assert(p_ <= 1);
+		std::cerr << "Warning: Large n (" << n_ << ") is slow for BinomialDistributionGenerator!" << std::endl
 	}
 
 	// NOTE: Currently this retries instead of clamping to the interval.
