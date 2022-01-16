@@ -636,7 +636,7 @@ class TestcaseRule(Rule):
                 return
 
         # Generate .ans and .interaction if needed.
-        if not (testcase.bad_input or testcase.bad_output or config.args.skip_solution):
+        if not config.args.skip_solution and not (testcase.bad_input or testcase.bad_output):
             if not problem.interactive:
                 if t.config.solution:
                     if testcase.ans_path.is_file():
