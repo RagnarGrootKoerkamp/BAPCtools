@@ -140,7 +140,7 @@ def new_problem():
     }.items():
         variables[k] = v
 
-    variables['source'] = _ask_variable_string('source', variables.get('source', variables.get('name', '')))
+    variables['source'] = _ask_variable_string('source', variables.get('source', variables.get('name', '')), True)
     variables['source_url'] = _ask_variable_string('source url', variables.get('source_url', ''), True)
     variables['license'] = _ask_variable_choice('license', _license_choices(),  variables.get('license', None))
     variables['rights_owner'] = _ask_variable_string('rights owner', variables.get('rights_owner', 'author'))
