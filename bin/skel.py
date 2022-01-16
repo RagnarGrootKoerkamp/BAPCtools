@@ -120,7 +120,7 @@ def new_problem():
         else _ask_variable_string('dirname', _alpha_num(problemname))
     )
     author = (
-        config.args.author if config.args.author else _ask_variable_string('author', config.args.author)
+        config.args.author if config.args.author else _ask_variable_string('author')
     )
 
     if config.args.validation:
