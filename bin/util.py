@@ -586,7 +586,7 @@ def copytree_and_substitute(src, dst, variables, exist_ok=True, *, preserve_syml
                 dstFile = dst / name
 
                 copytree_and_substitute(
-                    srcFile, dstFile, variables, exist_ok, preserve_symlinks=preserve_symlinks
+                    srcFile, dstFile, variables, exist_ok, preserve_symlinks=preserve_symlinks, base=base
                 )
             except OSError as why:
                 errors.append((srcFile, dstFile, str(why)))
