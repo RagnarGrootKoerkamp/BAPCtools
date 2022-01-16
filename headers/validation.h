@@ -227,7 +227,7 @@ struct UniformGenerator {
 				res = Random::bits64(rng) >> shitfs;
 			} while (res > uh - ul);
 			return static_cast<long long>(res + ul);
-		}	else {
+		} else {
 			assert(low < high);
 			return low + Random::real64(rng) * (high - low);
 		}
@@ -366,7 +366,7 @@ struct BinomialDistributionGenerator {
 	explicit BinomialDistributionGenerator(long long n, double p) : n_(n), p_(p) {
 		assert(p_ >= 0);
 		assert(p_ <= 1);
-		std::cerr << "Warning: Large n (" << n_ << ") is slow for BinomialDistributionGenerator!" << std::endl
+		std::cerr << "Warning: Large n (" << n_ << ") is slow for BinomialDistributionGenerator!" << std::endl;
 	}
 
 	// NOTE: Currently this retries instead of clamping to the interval.
