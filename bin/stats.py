@@ -34,13 +34,13 @@ def stats(problems):
                 'data/sample/*.in',
                 'data/sample/*.in.statement',
                 'data/sample/*.interaction',
-                lambda s: {x for x in s if x.parts[2] == 'sample'},
+                lambda s: {x.stem for x in s if x.parts[2] == 'sample'},
             ],
             2,
         ),
         (
             'secret',
-            ['data/secret/**/*.in', lambda s: {x for x in s if x.parts[2] == 'secret'}],
+            ['data/secret/**/*.in', lambda s: {x.stem for x in s if x.parts[2] == 'secret'}],
             15,
             50,
         ),
@@ -97,7 +97,7 @@ def stats(problems):
                     except UnicodeDecodeError:
                         continue
                     if 'TODO: Remove' not in data:
-                        results.add(p)
+                        results.add(p.stem)
                 if p.is_dir():
                     ok = True
                     for f in glob(p, '*'):
