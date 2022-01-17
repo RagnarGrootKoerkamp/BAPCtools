@@ -435,6 +435,8 @@ Run this from one of:
     )
     move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
 
+    validate_parser.add_argument('--skip-generic', action='store_true', help='Skip generic testcase validation.')
+
     # constraints validation
     constraintsparser = subparsers.add_parser(
         'constraints',
