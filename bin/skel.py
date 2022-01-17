@@ -123,11 +123,18 @@ def new_problem():
         config.args.author if config.args.author else _ask_variable_string('author')
     )
 
+    validator_flags = ''
     if config.args.validation:
         assert config.args.validation in ['default', 'custom', 'custom interactive']
         validation = config.args.validation
     else:
-        validation = _ask_variable_choice('validation', ['default','custom','custom interactive'])
+        validation = _ask_variable_choice('validation', ['default','float','custom','custom interactive'])
+        if validation == 'float':
+            validation = 'default'
+            validator_flags = 'validator_flags:\n  float_tolerance 1e-6\n'
+            log(f'Using default float tolerance of 1e-6')
+
+
 
     # Read settings from the contest-level yaml file.
     variables = contest.contest_yaml()
@@ -137,6 +144,7 @@ def new_problem():
         'dirname': dirname,
         'author': author,
         'validation': validation,
+        'validator_flags': validator_flags,
     }.items():
         variables[k] = v
 
