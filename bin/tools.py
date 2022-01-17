@@ -520,6 +520,16 @@ Run this from one of:
         action='store_true',
         help='Ignore results of input and output validators. They are still run.',
     )
+    genparser.add_argument(
+        '--skip-solution',
+        action='store_true',
+        help='Skip generating .ans/.interaction files with the solution.',
+    )
+    genparser.add_argument(
+        '--skip-visualizer',
+        action='store_true',
+        help='Skip generating graphics with the visualizer.',
+    )
 
     # Fuzzer
     fuzzparser = subparsers.add_parser(

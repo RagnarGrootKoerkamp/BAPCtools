@@ -636,8 +636,7 @@ class TestcaseRule(Rule):
                 return
 
         # Generate .ans and .interaction if needed.
-        # TODO: Disable this with a flag.
-        if not (testcase.bad_input or testcase.bad_output):
+        if not config.args.skip_solution and not (testcase.bad_input or testcase.bad_output):
             if not problem.interactive:
                 if t.config.solution:
                     if testcase.ans_path.is_file():
@@ -668,8 +667,7 @@ class TestcaseRule(Rule):
                         return
 
         # Generate visualization
-        # TODO: Disable this with a flag.
-        if t.config.visualizer:
+        if not config.args.skip_visualizer and t.config.visualizer:
             if t.config.visualizer.run(bar, cwd, t.name).ok is not True:
                 return
 
