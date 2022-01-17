@@ -265,6 +265,7 @@ It supports the following flags when run for a single problem:
 - `[testcases]`: a list of testcases and/or directories to validate. See `run <testcases>` for allowed formats. When not set, all testcases are validated.
 - `--remove`: when passed, all invalid testcases are deleted.
 - `--move-to <directory>`: when passed, all invalid testcases are moved to the given directory.
+- `--skip-generic`: when passed, all generic tests in the testcases are skipped.
 
 ## `constraints`
 
