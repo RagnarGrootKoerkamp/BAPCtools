@@ -20,8 +20,6 @@ try:
 except ImportError:
     has_questionary = False
 
-has_questionary = False
-
 def _ask_variable(name, default=None, allow_empty=False):
     while True:
         val = input(f"{name}: ")
@@ -64,21 +62,11 @@ def _ask_variable_choice(name, choices, default=None):
 def _license_choices():
     return ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown']
 
-# Returns the alphanumeric version of a string:
-# This reduces it to a string that follows the regex:
-# [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
-def _alpha_num(string):
-    s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '').replace('-', ''))
-    while s.startswith('_.-'):
-        s = s[1:]
-    while s.endswith('_.-'):
-        s = s[:-1]
-    return s
 
 # Returns the alphanumeric version of a string:
 # This reduces it to a string that follows the regex:
 # [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
-def alpha_num(string):
+def _alpha_num(string):
     s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '').replace('-', ''))
     while s.startswith('_.-'):
         s = s[1:]
