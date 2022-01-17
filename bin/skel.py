@@ -56,6 +56,7 @@ def _ask_variable_choice(name, choices, default=None):
         except KeyboardInterrupt:
             fatal('Running interrupted')
     else:
+        default = default or choices[0]
         text = f' ({default})' if default else ''
         return _ask_variable(name + text, default if default else '')
 
