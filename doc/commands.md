@@ -160,6 +160,8 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--clean-generated`: Delete all generated files. Useful to save on disk space, since all this data can be regenerated.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
 - `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
+- `--skip-solution`: Skip generating .ans or .interaction files with the solution.
+- `--skip-visualizer`: Skip generating graphics with the visualiser.
 
 ## `clean`
 
