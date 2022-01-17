@@ -170,41 +170,41 @@ class Testcase:
             break
 
         if not config.args.skip_generic:
-        if success and validator_type == 'input_format' and self.in_path.exists():
-            with self.in_path.open() as in_file:
-                def invalid(byte):
-                    if byte == ord('\n'): return False;
-                    if byte >= 0x20 and byte < 0x7F : return False;
-                    return True
+            if success and validator_type == 'input_format' and self.in_path.exists():
+                with self.in_path.open() as in_file:
+                    def invalid(byte):
+                        if byte == ord('\n'): return False;
+                        if byte >= 0x20 and byte < 0x7F : return False;
+                        return True
 
-                bytes = in_file.buffer.read()
-                if any(invalid(b) for b in bytes):
-                    bar.warn('Testcase contains unexpected characters but was accepted!')
-                else:
-                    input = bytes.decode(encoding="ascii")
-                    if re.search(r"^\s", input):
-                        bar.warn('Testcase starts with whitespace but was accepted!')
-                    elif re.search(r"\s\s", input):
-                        bar.warn('Testcase contains consecutive whitespace characters but was accepted!')
-                    elif not re.search(r"\S", input):
-                        bar.warn('Testcase is empty but was accepted!')
-                    elif not re.search(r"\n$", input):
-                        bar.warn('Testcase does not end with a newline but was accepted!')
+                    bytes = in_file.buffer.read()
+                    if any(invalid(b) for b in bytes):
+                        bar.warn('Testcase contains unexpected characters but was accepted!')
+                    else:
+                        input = bytes.decode(encoding="ascii")
+                        if re.search(r"^\s", input):
+                            bar.warn('Testcase starts with whitespace but was accepted!')
+                        elif re.search(r"\s\s", input):
+                            bar.warn('Testcase contains consecutive whitespace characters but was accepted!')
+                        elif not re.search(r"\S", input):
+                            bar.warn('Testcase is empty but was accepted!')
+                        elif not re.search(r"\n$", input):
+                            bar.warn('Testcase does not end with a newline but was accepted!')
 
-        if success and validator_type == 'output_format' and self.ans_path.exists():
-            with self.ans_path.open() as in_file:
-                def invalid(byte):
-                    if byte == ord('\t'): return False;
-                    if byte == ord('\r'): return False;
-                    if byte == ord('\n'): return False;
-                    if byte == ord('\v'): return False;
-                    if byte == ord('\f'): return False;
-                    if byte >= 0x20 and byte < 0x7F : return False;
-                    return True
+            if success and validator_type == 'output_format' and self.ans_path.exists():
+                with self.ans_path.open() as in_file:
+                    def invalid(byte):
+                        if byte == ord('\t'): return False;
+                        if byte == ord('\r'): return False;
+                        if byte == ord('\n'): return False;
+                        if byte == ord('\v'): return False;
+                        if byte == ord('\f'): return False;
+                        if byte >= 0x20 and byte < 0x7F : return False;
+                        return True
 
-                bytes = in_file.buffer.read()
-                if any(invalid(b) for b in bytes):
-                    bar.warn('Answere contains unexpected characters but was accepted!')
+                    bytes = in_file.buffer.read()
+                    if any(invalid(b) for b in bytes):
+                        bar.warn('Answere contains unexpected characters but was accepted!')
 
         return success
 
