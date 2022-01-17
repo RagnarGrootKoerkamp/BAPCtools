@@ -7,9 +7,62 @@ import re
 import config
 from util import *
 import contest
-import questionary
-from questionary import Validator, ValidationError
 
+try:
+    import questionary
+    from questionary import Validator, ValidationError
+
+    has_questionary = True
+    class EmptyValidator(Validator):
+        def validate(self, document):
+            if len(document.text) == 0:
+                raise ValidationError(message="Please enter a value")
+except ImportError:
+    has_questionary = False
+
+has_questionary = False
+
+def _ask_variable(name, default=None, allow_empty=False):
+    while True:
+        val = input(f"{name}: ")
+        val = default if val == '' else val
+        if val != '' or allow_empty:
+            return val
+
+def _ask_variable_string(name, default=None, allow_empty=False):
+    if has_questionary:
+        try:
+            validate = None if allow_empty else EmptyValidator
+            return questionary.text(name + ':', default=default or '', validate=validate).unsafe_ask()
+        except KeyboardInterrupt:
+            fatal('Running interrupted')
+    else:
+        text = f' ({default})' if default else ''
+        return _ask_variable(name + text, default if default else '', allow_empty)
+
+def _ask_variable_bool(name, default=True):
+    if has_questionary:
+        try:
+            return questionary.confirm(name + '?', default=default, auto_enter=False).unsafe_ask()
+        except KeyboardInterrupt:
+            fatal('Running interrupted')
+    else:
+        text = ' (Y/n)' if default else ' (y/N)'
+        return _ask_variable(name + text, 'Y' if default else 'N').lower()[0] == 'y'
+
+def _ask_variable_choice(name, choices, default=None):
+    if has_questionary:
+        try:
+            plain = questionary.Style([('selected', 'noreverse')])
+            return questionary.select(name + ':', choices=choices, default=default, style=plain).unsafe_ask()
+        except KeyboardInterrupt:
+            fatal('Running interrupted')
+    else:
+        text = f' ({default})' if default else ''
+        return _ask_variable(name + text, default if default else '')
+
+def _license_choices():
+    return ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown']
 
 # Returns the alphanumeric version of a string:
 # This reduces it to a string that follows the regex:
@@ -21,36 +74,6 @@ def _alpha_num(string):
     while s.endswith('_.-'):
         s = s[:-1]
     return s
-
-
-class EmptyValidator(Validator):
-    def validate(self, document):
-        if len(document.text) == 0:
-            raise ValidationError(message="Please enter a value")
-
-def _ask_variable_string(name, default=None, allow_empty=False):
-    try:
-        validate = None if allow_empty else EmptyValidator
-        return questionary.text(name + ':', default=default or '', validate=validate).unsafe_ask()
-    except KeyboardInterrupt:
-        fatal('Running interrupted')
-
-def _ask_variable_bool(name, default=True):
-    try:
-        return questionary.confirm(name + '?', default=default, auto_enter=False).unsafe_ask()
-    except KeyboardInterrupt:
-        fatal('Running interrupted')
-
-def _ask_variable_choice(name, choices, default=None):
-    try:
-        plain = questionary.Style([('selected', 'noreverse')])
-        return questionary.select(name + ':', choices=choices, default=default, style=plain).unsafe_ask()
-    except KeyboardInterrupt:
-        fatal('Running interrupted')
-
-def _license_choices():
-    return ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown']
-
 
 # Returns the alphanumeric version of a string:
 # This reduces it to a string that follows the regex:
