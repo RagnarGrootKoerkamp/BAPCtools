@@ -287,19 +287,31 @@ class Program:
             if self.language == 'cpp':
                 for f in self.source_files:
                     try:
-                        if f.read_text().find('rand()') != -1:
-                            self.bar.warn(
-                                f'Calling rand() is not cross-platform deterministic in C++. Use <random> instead: https://en.cppreference.com/w/cpp/header/random'
-                            )
+                        text = f.read_text()
+                        for s in ['rand()',
+                                  'uniform_int_distribution',
+                                  'uniform_real_distribution',
+                                  'normal_distribution',
+                                  'exponential_distribution',
+                                  'geometric_distribution',
+                                  'binomial_distribution',
+                                  'random_device',
+                                  'default_random_engine']:
+                            if text.find(s) != -1:
+                                self.bar.warn(
+                                    f'Calling {s} is implementation dependent in C++. Use <validation.h> instead.'
+                                )
                     except UnicodeDecodeError:
                         pass
             if 'py' in self.language:
                 for f in self.source_files:
                     try:
-                        if f.read_text().find('list(set(') != -1:
-                            self.bar.warn(
-                                f'The order of sets is not fixed across implementations. Please sort the list!'
-                            )
+                        text = f.read_text()
+                        for s in ['list(set(']:
+                            if text.find(s) != -1:
+                                self.bar.warn(
+                                    f'The order of sets is not fixed across implementations. Please sort the list!'
+                                )
                     except UnicodeDecodeError:
                         pass
 
