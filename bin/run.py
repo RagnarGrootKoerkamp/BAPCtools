@@ -190,6 +190,8 @@ class Testcase:
                             bar.warn('Testcase is empty but was accepted!')
                         elif not re.search(r"\n$", input):
                             bar.warn('Testcase does not end with a newline but was accepted!')
+                        elif len(bytes) > 20_000_000_000:
+                            bar.warn('Testcase is larger than 20Mb!')
 
             if success and validator_type == 'output_format' and self.ans_path.exists():
                 with self.ans_path.open() as in_file:
@@ -205,6 +207,8 @@ class Testcase:
                     bytes = in_file.buffer.read()
                     if any(invalid(b) for b in bytes):
                         bar.warn('Answere contains unexpected characters but was accepted!')
+                    elif len(bytes) > 20_000_000_000:
+                            bar.warn('Output is larger than 20Mb!')
 
         return success
 
