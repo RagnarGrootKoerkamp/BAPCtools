@@ -17,7 +17,7 @@ try:
         def validate(self, document):
             if len(document.text) == 0:
                 raise ValidationError(message="Please enter a value")
-except ImportError:
+except:
     has_questionary = False
 
 def _ask_variable(name, default=None, allow_empty=False):
