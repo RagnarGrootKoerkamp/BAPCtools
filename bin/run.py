@@ -207,8 +207,10 @@ class Testcase:
                     bytes = in_file.buffer.read()
                     if any(invalid(b) for b in bytes):
                         bar.warn('Answere contains unexpected characters but was accepted!')
-                    elif len(bytes) > 20_000_000_000:
-                            bar.warn('Output is larger than 20Mb!')
+                    elif not self.problem.interactive and len(bytes) > 20_000_000_000:
+                        bar.warn('Output is larger than 20Mb!')
+                    elif self.problem.interactive and len(bytes) > 2_000_000_000:
+                        bar.warn('Interactive output is larger than 2Mb!')
 
         return success
 
@@ -275,7 +277,7 @@ class Run:
             if (
                 not config.args.error
                 and self.out_path.is_file()
-                and self.out_path.stat().st_size > 1000_000_000
+                and self.out_path.stat().st_size > 1_000_000_000
             ):
                 self.out_path.unlink()
 
