@@ -721,6 +721,16 @@ class ResourcePopen(subprocess.Popen):
             return (pid, sts)
 
 
+# decodes bytes to ASCII and replaces invalid chars with '<hex_code>'
+def _safe_decode(bytes):
+    def _decode_byte(byte):
+        if byte >= 0 and byte < 0x80:
+            return chr(byte)
+        else:
+            return f'<{hex(byte)}>'
+    return ''.join(map(_decode_byte, bytes))
+
+
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, expect=0, crop=True, **kwargs):
     # By default: discard stdout, return stderr
@@ -809,15 +819,8 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         return crop_output(s) if crop else s
 
     ok = True if process.returncode == expect else process.returncode
-    try:
-        err = maybe_crop(stderr.decode('utf-8')) if stderr is not None else None
-    except UnicodeDecodeError:
-        err = None
-
-    try:
-        out = maybe_crop(stdout.decode('utf-8')) if stdout is not None else None
-    except UnicodeDecodeError:
-        out = None
+    err = maybe_crop(_safe_decode(stderr)) if stderr is not None else None
+    out = maybe_crop(_safe_decode(stdout)) if stdout is not None else None
 
     if hasattr(process, 'rusage'):
         duration = process.rusage.ru_utime + process.rusage.ru_stime
