@@ -271,7 +271,7 @@ class Run:
             if (
                 not config.args.error
                 and self.out_path.is_file()
-                and self.out_path.stat().st_size > 1000000000
+                and self.out_path.stat().st_size > 1000_000_000
             ):
                 self.out_path.unlink()
 
