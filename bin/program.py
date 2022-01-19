@@ -279,27 +279,49 @@ class Program:
                             break
                         else:
                             self.bar.log(f'Should not depend on bits/stdc++.h')
+                            break
                 except UnicodeDecodeError:
                     pass
 
         # Warn for known bad (non-deterministic) patterns in generators
-        if isinstance(self, Generator):
+        from validate import Validator
+        if isinstance(self, Generator) or isinstance(self, Validator):
             if self.language == 'cpp':
                 for f in self.source_files:
                     try:
-                        if f.read_text().find('rand()') != -1:
+                        text = f.read_text()
+                        bad_random = []
+                        for s in ['rand()',
+                                  'uniform_int_distribution',
+                                  'uniform_real_distribution',
+                                  'normal_distribution',
+                                  'exponential_distribution',
+                                  'geometric_distribution',
+                                  'binomial_distribution',
+                                  'random_device',
+                                  'default_random_engine']:
+                            if text.find(s) != -1:
+                                bad_random.append(s)
+                        if bad_random:
+                            bad_message = ', '.join(bad_random)
                             self.bar.warn(
-                                f'Calling rand() is not cross-platform deterministic in C++. Use <random> instead: https://en.cppreference.com/w/cpp/header/random'
+                                f'Calling {bad_message} in {f.name} is implementation dependent in C++. Use <validation.h> instead.'
+                            )
+                        if text.find('typeid(') != -1:
+                            self.bar.warn(
+                                f'Calling typeid() in {f.name} is implementation dependent in C++.'
                             )
                     except UnicodeDecodeError:
                         pass
             if 'py' in self.language:
                 for f in self.source_files:
                     try:
-                        if f.read_text().find('list(set(') != -1:
-                            self.bar.warn(
-                                f'The order of sets is not fixed across implementations. Please sort the list!'
-                            )
+                        text = f.read_text()
+                        for s in ['list(set(']:
+                            if text.find(s) != -1:
+                                self.bar.warn(
+                                    f'The order of sets is not fixed across implementations. Please sort the list!'
+                                )
                     except UnicodeDecodeError:
                         pass
 
