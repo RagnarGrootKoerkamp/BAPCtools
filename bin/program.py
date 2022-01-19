@@ -3,6 +3,7 @@ import shutil
 import stat
 import subprocess
 import threading
+import validate
 
 from util import *
 
@@ -283,7 +284,7 @@ class Program:
                     pass
 
         # Warn for known bad (non-deterministic) patterns in generators
-        if isinstance(self, Generator):
+        if isinstance(self, Generator) or isinstance(self, validate.Validator):
             if self.language == 'cpp':
                 for f in self.source_files:
                     try:
