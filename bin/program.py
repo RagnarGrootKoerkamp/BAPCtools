@@ -301,6 +301,10 @@ class Program:
                                 self.bar.warn(
                                     f'Calling {s} is implementation dependent in C++. Use <validation.h> instead.'
                                 )
+                        if text.find('typeid(') != -1:
+                            self.bar.warn(
+                                f'Calling typeid() is implementation dependent in C++.'
+                            )
                     except UnicodeDecodeError:
                         pass
             if 'py' in self.language:
