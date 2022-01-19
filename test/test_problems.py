@@ -157,7 +157,7 @@ def tmp_contest_dir(tmp_path):
 @pytest.mark.usefixtures('tmp_contest_dir')
 class TestNewContestProblem:
     def test_new_contest_problem(self, monkeypatch):
-        monkeypatch.setattr('sys.stdin', io.StringIO('\n\n\n\n\n\n\n\n\n\n'))
+        monkeypatch.setattr('sys.stdin', io.StringIO('\n\n\n\n\n\n\n\n\n\n\n\n\n\n'))
         tools.test(['new_contest', 'contest_name'])
         tools.test(
             [
@@ -172,7 +172,7 @@ class TestNewContestProblem:
             ]
         )
         os.chdir('contest_name')
-        monkeypatch.setattr('sys.stdin', io.StringIO('Ragnar Groot Koerkamp\ncustom\n'))
+        monkeypatch.setattr('sys.stdin', io.StringIO('Ragnar Groot Koerkamp\ncustom\n\n\n\n\n'))
         tools.test(['new_problem', 'Problem Two'])
         os.chdir('..')
         problemsyaml = Path('contest_name/problems.yaml').read_text()
