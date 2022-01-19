@@ -280,6 +280,7 @@ class Program:
                             break
                         else:
                             self.bar.log(f'Should not depend on bits/stdc++.h')
+                            break
                 except UnicodeDecodeError:
                     pass
 
@@ -289,6 +290,7 @@ class Program:
                 for f in self.source_files:
                     try:
                         text = f.read_text()
+                        bad_random = []
                         for s in ['rand()',
                                   'uniform_int_distribution',
                                   'uniform_real_distribution',
@@ -299,12 +301,15 @@ class Program:
                                   'random_device',
                                   'default_random_engine']:
                             if text.find(s) != -1:
-                                self.bar.warn(
-                                    f'Calling {s} is implementation dependent in C++. Use <validation.h> instead.'
-                                )
+                                bad_random.append(s)
+                        if bad_random:
+                            bad_message = ', '.join(bad_random)
+                            self.bar.warn(
+                                f'Calling {bad_message} in {f.name} is implementation dependent in C++. Use <validation.h> instead.'
+                            )
                         if text.find('typeid(') != -1:
                             self.bar.warn(
-                                f'Calling typeid() is implementation dependent in C++.'
+                                f'Calling typeid() in {f.name} is implementation dependent in C++.'
                             )
                     except UnicodeDecodeError:
                         pass
