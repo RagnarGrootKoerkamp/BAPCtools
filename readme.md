@@ -40,6 +40,8 @@ Optional dependencies, required for some subcommands:
   potentially some specific LaTeX packages (like tikz) provided by
   `texlive-extra`.
   These are only needed for building `pdf` files, not for `run` and `validate` and such.
+- The [questionary library](https://pypi.org/project/questionary/) via `pip install questionary`.
+  - This is optional and only used by the `new_contest` and `new_problem` commands.
 
 After cloning the repository, symlink [bin/tools.py](bin/tools.py) to somewhere in your `$PATH`. E.g., if `~/bin/` is in your `$PATH`, you can do:
 
