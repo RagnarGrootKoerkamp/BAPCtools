@@ -11,6 +11,31 @@ from util import *
 from colorama import Fore, Style
 
 
+# Testcas input is only allowed to contain newlines and printable characters
+def _is_invalid_input_byte(byte):
+    if byte == ord('\n'): return False;
+    if byte >= 0x20 and byte < 0x7F : return False;
+    return True
+
+# User output is additionally allowed to contain all other types of whitespaces
+def _is_invalid_output_byte(byte):
+    if byte == ord('\t'): return False;
+    if byte == ord('\r'): return False;
+    if byte == ord('\v'): return False;
+    if byte == ord('\f'): return False;
+    return _is_invalid_input_byte(byte)
+
+# assumes that the only possible whitespaces are space and newline
+def _has_consecutive_whitespaces(bytes):
+    last_whitespace = False
+    for byte in bytes:
+        cur_whitespace = byte == ord(' ') or byte == ord('\n')
+        if cur_whitespace and last_whitespace:
+            return True
+        last_whitespace = cur_whitespace
+    return False
+
+
 class Testcase:
     def __init__(self, problem, path, *, short_path=None):
         assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
@@ -90,20 +115,6 @@ class Testcase:
 
         # Configuration was found but this validator was not listed.
         return False
-
-    # Testcas input is only allowed to contain newlines and printable characters
-    def _is_invalid_input_byte(byte):
-        if byte == ord('\n'): return False;
-        if byte >= 0x20 and byte < 0x7F : return False;
-        return True
-
-    # User output is additionally allowed to contain all other types of whitespaces
-    def _is_invalid_output_byte(byte):
-        if byte == ord('\t'): return False;
-        if byte == ord('\r'): return False;
-        if byte == ord('\v'): return False;
-        if byte == ord('\f'): return False;
-        return _is_invalid_input_byte(byte)
 
     # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
     def validate_format(
@@ -185,30 +196,26 @@ class Testcase:
 
         if not config.args.skip_testcase_sanity_checks and success and not bad_testcase :
             if validator_type == 'input_format' and self.in_path.exists():
-                with self.in_path.open() as in_file:
-                    bytes = in_file.buffer.read()
-                    if any(_is_invalid_input_byte(b) for b in bytes):
-                        bar.warn('Testcase contains unexpected characters but was accepted!')
-                    else:
-                        input = bytes.decode(encoding="ascii")
-                        if re.search(r"^\s", input):
-                            bar.warn('Testcase starts with whitespace but was accepted!')
-                        elif re.search(r"\s\s", input):
-                            bar.warn('Testcase contains consecutive whitespace characters but was accepted!')
-                        elif not re.search(r"\S", input):
-                            bar.warn('Testcase is empty but was accepted!')
-                        elif not re.search(r"\n$", input):
-                            bar.warn('Testcase does not end with a newline but was accepted!')
-                        elif len(bytes) > 20_000_000_000:
-                            bar.warn('Testcase is larger than 20Mb!')
+                bytes = self.in_path.read_bytes()
+                if any(_is_invalid_input_byte(b) for b in bytes):
+                    bar.warn('Testcase contains unexpected characters but was accepted!')
+                elif len(bytes) == 0:
+                    bar.warn('Testcase is empty but was accepted!')
+                elif bytes[0] == ord(' ') or bytes[0] == ord('\n'):
+                    bar.warn('Testcase starts with whitespace but was accepted!')
+                elif bytes[-1] != ord('\n'):
+                    bar.warn('Testcase does not end with a newline but was accepted!')
+                elif _has_consecutive_whitespaces(bytes):
+                    bar.warn('Testcase contains consecutive whitespace characters but was accepted!')
+                elif len(bytes) > 20_000_000_000:
+                    bar.warn('Testcase is larger than 20Mb!')
 
             if validator_type == 'output_format' and self.ans_path.exists():
-                with self.ans_path.open() as in_file:
-                    bytes = in_file.buffer.read()
-                    if any(_is_invalid_output_byte(b) for b in bytes):
-                        bar.warn('Answere contains unexpected characters but was accepted!')
-                    elif len(bytes) > 20_000_000_000:
-                            bar.warn('Output is larger than 20Mb!')
+                bytes = self.ans_path.read_bytes()
+                if any(_is_invalid_output_byte(b) for b in bytes):
+                    bar.warn('Answere contains unexpected characters but was accepted!')
+                elif len(bytes) > 20_000_000_000:
+                    bar.warn('Output is larger than 20Mb!')
 
         return success
 
