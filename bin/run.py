@@ -91,6 +91,20 @@ class Testcase:
         # Configuration was found but this validator was not listed.
         return False
 
+    # Testcas input is only allowed to contain newlines and printable characters
+    def _is_invalid_input_byte(byte):
+        if byte == ord('\n'): return False;
+        if byte >= 0x20 and byte < 0x7F : return False;
+        return True
+
+    # User output is additionally allowed to contain all other types of whitespaces
+    def _is_invalid_output_byte(byte):
+        if byte == ord('\t'): return False;
+        if byte == ord('\r'): return False;
+        if byte == ord('\v'): return False;
+        if byte == ord('\f'): return False;
+        return _is_invalid_input_byte(byte)
+
     # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
     def validate_format(
         self, validator_type, *, bar, constraints=None, warn_instead_of_error=False
@@ -109,7 +123,7 @@ class Testcase:
             flags = self.testdata_yaml_validator_flags(validator_type, validator)
             if flags is False:
                 continue
-            
+
             ret = validator.run(self, constraints=None if bad_testcase else constraints, args=flags)
 
             success &= ret.ok is True
@@ -172,13 +186,8 @@ class Testcase:
         if not config.args.skip_testcase_sanity_checks and success and not bad_testcase :
             if validator_type == 'input_format' and self.in_path.exists():
                 with self.in_path.open() as in_file:
-                    def invalid(byte):
-                        if byte == ord('\n'): return False;
-                        if byte >= 0x20 and byte < 0x7F : return False;
-                        return True
-
                     bytes = in_file.buffer.read()
-                    if any(invalid(b) for b in bytes):
+                    if any(_is_invalid_input_byte(b) for b in bytes):
                         bar.warn('Testcase contains unexpected characters but was accepted!')
                     else:
                         input = bytes.decode(encoding="ascii")
@@ -195,17 +204,8 @@ class Testcase:
 
             if validator_type == 'output_format' and self.ans_path.exists():
                 with self.ans_path.open() as in_file:
-                    def invalid(byte):
-                        if byte == ord('\t'): return False;
-                        if byte == ord('\r'): return False;
-                        if byte == ord('\n'): return False;
-                        if byte == ord('\v'): return False;
-                        if byte == ord('\f'): return False;
-                        if byte >= 0x20 and byte < 0x7F : return False;
-                        return True
-
                     bytes = in_file.buffer.read()
-                    if any(invalid(b) for b in bytes):
+                    if any(_is_invalid_output_byte(b) for b in bytes):
                         bar.warn('Answere contains unexpected characters but was accepted!')
                     elif len(bytes) > 20_000_000_000:
                             bar.warn('Output is larger than 20Mb!')
@@ -275,7 +275,7 @@ class Run:
             if (
                 not config.args.error
                 and self.out_path.is_file()
-                and self.out_path.stat().st_size > 1000_000_000
+                and self.out_path.stat().st_size > 1_000_000_000
             ):
                 self.out_path.unlink()
 
