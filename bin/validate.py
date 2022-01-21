@@ -95,7 +95,7 @@ class InputValidator(Validator):
         with testcase.in_path.open() as in_file:
             ret = exec_command(
                 run_command,
-                expect=config.RTV_WA if testcase.bad_input or testcase.bad_output else config.RTV_AC,
+                expect=config.RTV_WA if testcase.bad_input else config.RTV_AC,
                 stdin=in_file,
                 cwd=cwd,
             )
