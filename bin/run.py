@@ -169,7 +169,7 @@ class Testcase:
 
             break
 
-        if not config.args.skip_generic and success and not bad_testcase :
+        if not config.args.skip_testcase_sanity_checks and success and not bad_testcase :
             if validator_type == 'input_format' and self.in_path.exists():
                 with self.in_path.open() as in_file:
                     def invalid(byte):

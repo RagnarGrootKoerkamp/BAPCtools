@@ -435,7 +435,7 @@ Run this from one of:
     )
     move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
 
-    validate_parser.add_argument('--skip-generic', action='store_true', help='Skip generic testcase validation.')
+    validate_parser.add_argument('--skip-testcase-sanity-checks', action='store_true', help='Skip sanity checks on testcases.')
 
     # constraints validation
     constraintsparser = subparsers.add_parser(
@@ -533,9 +533,9 @@ Run this from one of:
         help='Skip generating graphics with the visualizer.',
     )
     genparser.add_argument(
-        '--skip-generic',
+        '--skip-testcase-sanity-checks',
         action='store_true',
-        help='Skip generic testcase validation.'
+        help='Skip sanity checks on testcases.'
     )
 
 
@@ -592,9 +592,9 @@ Run this from one of:
         help='Allow overwriting existing input files in generator.',
     )
     runparser.add_argument(
-        '--skip-generic',
+        '--skip-testcase-sanity-checks',
         action='store_true',
-        help='Skip generic testcase validation.'
+        help='Skip sanity checks on testcases.'
     )
 
     # Test
@@ -642,7 +642,7 @@ Run this from one of:
         '--cleanup-generated', action='store_true', help='Clean up generated testcases afterwards.'
     )
     allparser.add_argument('--force', '-f', action='store_true', help='Delete all untracked files.')
-    allparser.add_argument('--skip-generic', action='store_true', help='Skip generic testcase validation.')
+    allparser.add_argument('--skip-testcase-sanity-checks', action='store_true', help='Skip sanity checks on testcases.')
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser(
