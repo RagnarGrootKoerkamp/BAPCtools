@@ -8,40 +8,66 @@ import config
 from util import *
 import contest
 
+try:
+    import questionary
+    from questionary import Validator, ValidationError
+
+    has_questionary = True
+    class EmptyValidator(Validator):
+        def validate(self, document):
+            if len(document.text) == 0:
+                raise ValidationError(message="Please enter a value")
+except:
+    has_questionary = False
+
+def _ask_variable(name, default=None, allow_empty=False):
+    while True:
+        val = input(f"{name}: ")
+        val = default if val == '' else val
+        if val != '' or allow_empty:
+            return val
+
+def _ask_variable_string(name, default=None, allow_empty=False):
+    if has_questionary:
+        try:
+            validate = None if allow_empty else EmptyValidator
+            return questionary.text(name + ':', default=default or '', validate=validate).unsafe_ask()
+        except KeyboardInterrupt:
+            fatal('Running interrupted')
+    else:
+        text = f' ({default})' if default else ''
+        return _ask_variable(name + text, default if default else '', allow_empty)
+
+def _ask_variable_bool(name, default=True):
+    if has_questionary:
+        try:
+            return questionary.confirm(name + '?', default=default, auto_enter=False).unsafe_ask()
+        except KeyboardInterrupt:
+            fatal('Running interrupted')
+    else:
+        text = ' (Y/n)' if default else ' (y/N)'
+        return _ask_variable(name + text, 'Y' if default else 'N').lower()[0] == 'y'
+
+def _ask_variable_choice(name, choices, default=None):
+    if has_questionary:
+        try:
+            plain = questionary.Style([('selected', 'noreverse')])
+            return questionary.select(name + ':', choices=choices, default=default, style=plain).unsafe_ask()
+        except KeyboardInterrupt:
+            fatal('Running interrupted')
+    else:
+        default = default or choices[0]
+        text = f' ({default})' if default else ''
+        return _ask_variable(name + text, default if default else '')
+
+def _license_choices():
+    return ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown']
+
 
 # Returns the alphanumeric version of a string:
 # This reduces it to a string that follows the regex:
 # [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
 def _alpha_num(string):
-    s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '').replace('-', ''))
-    while s.startswith('_.-'):
-        s = s[1:]
-    while s.endswith('_.-'):
-        s = s[:-1]
-    return s
-
-
-def _ask_variable(name, default=None):
-    if default == None:
-        val = ''
-        while True:
-            print(f"{name}: ", end='', file=sys.stderr)
-            val = input()
-            if val == '':
-                print(f"{name} must not be empty!", file=sys.stderr)
-            else:
-                break
-        return val
-    else:
-        print(f"{name} [{default}]: ", end='', file=sys.stderr)
-        val = input()
-        return default if val == '' else val
-
-
-# Returns the alphanumeric version of a string:
-# This reduces it to a string that follows the regex:
-# [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
-def alpha_num(string):
     s = re.sub(r'[^a-zA-Z0-9_.-]', '', string.lower().replace(' ', '').replace('-', ''))
     while s.startswith('_.-'):
         s = s[1:]
@@ -57,15 +83,15 @@ def new_contest():
         fatal('--problem does not work for new_contest.')
 
     # Ask for all required infos.
-    title = _ask_variable('name', config.args.contestname)
-    subtitle = _ask_variable('subtitle', '').replace('_', '-')
-    dirname = _ask_variable('dirname', _alpha_num(title))
-    author = _ask_variable('author', f'The {title} jury').replace('_', '-')
-    testsession = _ask_variable('testsession?', 'n (y/n)')[0] != 'n'  # boolean
-    year = _ask_variable('year', str(datetime.datetime.now().year))
-    source_url = _ask_variable('source url', '')
-    license = _ask_variable('license', 'cc by-sa')
-    rights_owner = _ask_variable('rights owner', 'author')
+    title = _ask_variable_string('name', config.args.contestname)
+    subtitle = _ask_variable_string('subtitle', '', True).replace('_', '-')
+    dirname = _ask_variable_string('dirname', _alpha_num(title))
+    author = _ask_variable_string('author', f'The {title} jury').replace('_', '-')
+    testsession = _ask_variable_bool('testsession', False)
+    year = _ask_variable_string('year', str(datetime.datetime.now().year))
+    source_url = _ask_variable_string('source url', '', True)
+    license = _ask_variable_choice('license', _license_choices())
+    rights_owner = _ask_variable_string('rights owner', 'author')
     title = title.replace('_', '-')
 
     skeldir = config.tools_root / 'skel/contest'
@@ -98,39 +124,46 @@ def new_problem():
         fatal('--problem does not work for new_problem.')
 
     problemname = (
-        config.args.problemname if config.args.problemname else _ask_variable('problem name')
+        config.args.problemname if config.args.problemname else _ask_variable_string('problem name')
     )
     dirname = (
         _alpha_num(problemname)
         if config.args.problemname
-        else _ask_variable('dirname', _alpha_num(problemname))
+        else _ask_variable_string('dirname', _alpha_num(problemname))
     )
     author = (
-        config.args.author if config.args.author else _ask_variable('author', config.args.author)
+        config.args.author if config.args.author else _ask_variable_string('author')
     )
 
+    validator_flags = ''
     if config.args.validation:
         assert config.args.validation in ['default', 'custom', 'custom interactive']
         validation = config.args.validation
     else:
-        validation = _ask_variable('validation (default/custom/custom interactive)', 'default')
+        validation = _ask_variable_choice('validation', ['default','float','custom','custom interactive'])
+        if validation == 'float':
+            validation = 'default'
+            validator_flags = 'validator_flags:\n  float_tolerance 1e-6\n'
+            log(f'Using default float tolerance of 1e-6')
+
+
 
     # Read settings from the contest-level yaml file.
     variables = contest.contest_yaml()
-    if 'source' not in variables:
-        variables['source'] = variables.get('name', '')
 
     for k, v in {
         'problemname': problemname,
         'dirname': dirname,
         'author': author,
         'validation': validation,
+        'validator_flags': validator_flags,
     }.items():
         variables[k] = v
 
-    for k in ['source_url', 'license', 'rights_owner']:
-        if k not in variables:
-            variables[k] = ''
+    variables['source'] = _ask_variable_string('source', variables.get('source', variables.get('name', '')), True)
+    variables['source_url'] = _ask_variable_string('source url', variables.get('source_url', ''), True)
+    variables['license'] = _ask_variable_choice('license', _license_choices(),  variables.get('license', None))
+    variables['rights_owner'] = _ask_variable_string('rights owner', variables.get('rights_owner', 'author'))
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir, preserve_symlinks = get_skel_dir(target_dir)

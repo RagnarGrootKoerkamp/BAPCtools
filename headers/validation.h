@@ -134,6 +134,8 @@ constexpr long double PI = 3.141592653589793238462643383279502884l;
 
 namespace Random {
 
+constexpr unsigned int default_seed = 3141592653; // some digits of PI
+
 unsigned long long bits64(std::mt19937_64& rng) {
 	static_assert(std::mt19937_64::max() == 0xFFFF'FFFF'FFFF'FFFFull);
 	static_assert(std::mt19937_64::min() == 0ull);
@@ -575,7 +577,7 @@ class Validator {
 	          std::unordered_map<std::string, ParamGenerator> params_ = {})
 	    : in(in_), ws(ws_), case_sensitive(case_),
 	      constraints_file_path(std::move(constraints_file_path_)), gen(seed.has_value()),
-	      rng(seed.value_or(std::random_device()())), params(std::move(params_)) {
+	      rng(seed.value_or(Random::default_seed)), params(std::move(params_)) {
 
 		std::ios_base::sync_with_stdio(false);
 		in.tie(nullptr);
