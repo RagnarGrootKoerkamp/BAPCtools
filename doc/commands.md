@@ -101,7 +101,7 @@ Use `bt run -v` to show results for all testcases.
 - `--timeout <second>`: The timeout to use for the submission.
 - `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
-- `--skip-generic`: when passed, all generic tests in the testcases are skipped.
+- `--skip-testcase-sanity-checks`: when passed, all generic tests in the testcases are skipped.
 
 ## `test`
 
@@ -163,7 +163,7 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
 - `--skip-solution`: Skip generating .ans or .interaction files with the solution.
 - `--skip-visualizer`: Skip generating graphics with the visualiser.
-- `--skip-generic`: when passed, all generic tests in the testcases are skipped.
+- `--skip-testcase-sanity-checks`: when passed, all generic tests in the testcases are skipped.
 
 ## `clean`
 
@@ -267,7 +267,7 @@ It supports the following flags when run for a single problem:
 - `[testcases]`: a list of testcases and/or directories to validate. See `run <testcases>` for allowed formats. When not set, all testcases are validated.
 - `--remove`: when passed, all invalid testcases are deleted.
 - `--move-to <directory>`: when passed, all invalid testcases are moved to the given directory.
-- `--skip-generic`: when passed, all generic tests in the testcases are skipped.
+- `--skip-testcase-sanity-checks`: when passed, all generic tests in the testcases are skipped.
 
 ## `constraints`
 
@@ -509,7 +509,7 @@ This is a convenience command (mostly for use in CI) that runs the following sub
 - Run all submissions
 - Clean up generated testcases when done, similar to `bt generate --clean-generated` when `--cleanup-generated` is passed.
 
-This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand and the `--skip-generic` flag from `validate`.
+This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand and the `--skip-testcase-sanity-checks` flag from `validate`.
 
 ## `sort`
 
