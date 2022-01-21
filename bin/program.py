@@ -345,7 +345,7 @@ class Program:
             ret = exec_command(
                 self.compile_command,
                 stdout=subprocess.PIPE,
-                memory=5000000000,
+                memory=5_000_000_000,
                 cwd=self.tmpdir,
                 # Compile errors are never cropped.
                 crop=False,

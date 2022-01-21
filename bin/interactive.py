@@ -132,7 +132,7 @@ def run_interactive_testcase(
 
         # Set result.err to validator error and result.out to team error.
         return ExecResult(
-            True, tend - tstart, validator_err.decode('utf-8'), exec_res.err, verdict, print_verdict
+            True, tend - tstart, validator_err.decode('utf-8', 'replace'), exec_res.err, verdict, print_verdict
         )
 
     # On Linux:
@@ -362,12 +362,12 @@ while True:
         os.close(validator_error_out)
         val_err = os.fdopen(validator_error_in).read()
     elif validator_error is not None:
-        val_err = validator.stderr.read().decode('utf-8')
+        val_err = validator.stderr.read().decode('utf-8', 'replace')
     team_err = None
     if team_error is False:
         os.close(team_error_out)
         team_err = os.fdopen(team_error_in).read()
     elif team_error is not None:
-        team_err = submission.stderr.read().decode('utf-8')
+        team_err = submission.stderr.read().decode('utf-8', 'replace')
 
     return ExecResult(True, submission_time, val_err, team_err, verdict, print_verdict)

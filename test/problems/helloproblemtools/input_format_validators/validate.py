@@ -2,7 +2,8 @@
 from sys import stdin
 import sys
 
-# There shouldn't be any input
+# The input should be ``Hello``
+assert stdin.readline() == 'Hello!\n'
 assert len(stdin.readline()) == 0
 
 sys.exit(42)

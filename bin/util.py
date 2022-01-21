@@ -809,8 +809,8 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         return crop_output(s) if crop else s
 
     ok = True if process.returncode == expect else process.returncode
-    err = maybe_crop(stderr.decode('utf-8')) if stderr is not None else None
-    out = maybe_crop(stdout.decode('utf-8')) if stdout is not None else None
+    err = maybe_crop(stderr.decode('utf-8', 'replace')) if stderr is not None else None
+    out = maybe_crop(stdout.decode('utf-8', 'replace')) if stdout is not None else None
 
     if hasattr(process, 'rusage'):
         duration = process.rusage.ru_utime + process.rusage.ru_stime
