@@ -532,6 +532,12 @@ Run this from one of:
         action='store_true',
         help='Skip generating graphics with the visualizer.',
     )
+    genparser.add_argument(
+        '--skip-generic',
+        action='store_true',
+        help='Skip generic testcase validation.'
+    )
+
 
     # Fuzzer
     fuzzparser = subparsers.add_parser(
@@ -585,6 +591,11 @@ Run this from one of:
         action='store_true',
         help='Allow overwriting existing input files in generator.',
     )
+    runparser.add_argument(
+        '--skip-generic',
+        action='store_true',
+        help='Skip generic testcase validation.'
+    )
 
     # Test
     testparser = subparsers.add_parser(
@@ -631,6 +642,7 @@ Run this from one of:
         '--cleanup-generated', action='store_true', help='Clean up generated testcases afterwards.'
     )
     allparser.add_argument('--force', '-f', action='store_true', help='Delete all untracked files.')
+    allparser.add_argument('--skip-generic', action='store_true', help='Skip generic testcase validation.')
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser(
