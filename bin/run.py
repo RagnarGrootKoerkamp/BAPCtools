@@ -109,7 +109,7 @@ class Testcase:
             flags = self.testdata_yaml_validator_flags(validator_type, validator)
             if flags is False:
                 continue
-
+            
             ret = validator.run(self, constraints=None if bad_testcase else constraints, args=flags)
 
             success &= ret.ok is True
@@ -169,8 +169,8 @@ class Testcase:
 
             break
 
-        if not config.args.skip_generic:
-            if success and validator_type == 'input_format' and self.in_path.exists():
+        if not config.args.skip_generic and success and not bad_testcase :
+            if validator_type == 'input_format' and self.in_path.exists():
                 with self.in_path.open() as in_file:
                     def invalid(byte):
                         if byte == ord('\n'): return False;
@@ -193,7 +193,7 @@ class Testcase:
                         elif len(bytes) > 20_000_000_000:
                             bar.warn('Testcase is larger than 20Mb!')
 
-            if success and validator_type == 'output_format' and self.ans_path.exists():
+            if validator_type == 'output_format' and self.ans_path.exists():
                 with self.ans_path.open() as in_file:
                     def invalid(byte):
                         if byte == ord('\t'): return False;
@@ -207,10 +207,8 @@ class Testcase:
                     bytes = in_file.buffer.read()
                     if any(invalid(b) for b in bytes):
                         bar.warn('Answere contains unexpected characters but was accepted!')
-                    elif not self.problem.interactive and len(bytes) > 20_000_000_000:
-                        bar.warn('Output is larger than 20Mb!')
-                    elif self.problem.interactive and len(bytes) > 2_000_000_000:
-                        bar.warn('Interactive output is larger than 2Mb!')
+                    elif len(bytes) > 20_000_000_000:
+                            bar.warn('Output is larger than 20Mb!')
 
         return success
 
@@ -277,7 +275,7 @@ class Run:
             if (
                 not config.args.error
                 and self.out_path.is_file()
-                and self.out_path.stat().st_size > 1_000_000_000
+                and self.out_path.stat().st_size > 1000_000_000
             ):
                 self.out_path.unlink()
 
