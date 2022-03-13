@@ -110,10 +110,11 @@ def get_problems():
         problems = []
         for p in problemlist:
             shortname = p['id']
-            if 'label' in p:
-                label = p['label']
+            if 'label' not in p:
+                fatal(f'Found no label for problem {shortname}.')
+            label = p['label']
             if label == '':
-                fatal(f'Found empty label for problem {shortname}')
+                fatal(f'Found empty label for problem {shortname}.')
             if label in labels:
                 fatal(f'label {label} found twice for problem {shortname} and {labels[label]}.')
             labels[label] = shortname

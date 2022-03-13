@@ -8,13 +8,6 @@ import sys
 
 from pathlib import Path
 
-try:
-    import ruamel.yaml
-
-    has_ryaml = True
-except:
-    has_ryaml = False
-
 import config
 import parallel
 import program

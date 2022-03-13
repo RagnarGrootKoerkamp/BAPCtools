@@ -190,41 +190,26 @@ def new_problem():
     problems_yaml = target_dir / 'problems.yaml'
 
     if problems_yaml.is_file():
-        try:
-            import ruamel.yaml
-
-            ryaml = ruamel.yaml.YAML(typ='rt')
-            ryaml.default_flow_style = False
-            ryaml.indent(mapping=2, sequence=4, offset=2)
-            data = ryaml.load(problems_yaml) or []
+        if has_ryaml:
+            data = read_yaml(problems_yaml) or []
             prev_label = data[-1]['label'] if data else None
             next_label = (
                 ('X' if contest.contest_yaml().get('testsession') else 'A')
                 if prev_label is None
                 else prev_label[:-1] + chr(ord(prev_label[-1]) + 1)
             )
-            # Name and timelimits are overridden by problem.yaml, but still required.
+            # Name and time limits are overridden by problem.yaml, but still required.
             data.append(
                 {
                     'id': dirname,
-                    'name': problemname,
                     'label': next_label,
+                    'name': problemname,
                     'rgb': '#000000',
-                    'timelimit': 1.0,
+                    'time_limit': 1.0,
                 }
             )
-            ryaml.dump(
-                data,
-                problems_yaml,
-                # Remove spaces at the start of each (non-commented) line, caused by the indent configuration.
-                # If there was a top-level key (like `problems:`), this wouldn't be needed...
-                # See also: https://stackoverflow.com/a/58773229
-                transform=lambda yaml_str: "\n".join(
-                    line if line.strip().startswith('#') else line[2:]
-                    for line in yaml_str.split("\n")
-                ),
-            )
-        except NameError as e:
+            write_yaml(data, problems_yaml)
+        else:
             error('ruamel.yaml library not found. Please update problems.yaml manually.')
 
     copytree_and_substitute(

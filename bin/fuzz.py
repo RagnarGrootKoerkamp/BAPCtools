@@ -17,9 +17,7 @@ from util import *
 
 
 def _save_test(problem, command):
-    try:
-        import ruamel.yaml
-    except:
+    if not has_ryaml:
         error('Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.')
         return
 
@@ -27,11 +25,7 @@ def _save_test(problem, command):
     if not generators_yaml.is_file():
         generators_yaml.write_text('')
 
-    # Round-trip parsing.
-    yaml = ruamel.yaml.YAML(typ='rt')
-    yaml.default_flow_style = False
-    yaml.indent(mapping=2, sequence=4, offset=2)
-    data = yaml.load(generators_yaml)
+    data = read_yaml(generators_yaml)
 
     if data is None:
         data = ruamel.yaml.comments.CommentedMap()
@@ -51,7 +45,7 @@ def _save_test(problem, command):
     data['data']['fuzz']['data'].append(item)
 
     # Overwrite generators.yaml.
-    yaml.dump(data, generators_yaml)
+    write_yaml(data, generators_yaml)
 
 
 def _try_generator_invocation(problem, t, submissions, i):
@@ -148,9 +142,7 @@ def _try_generator_invocation(problem, t, submissions, i):
 
 
 def fuzz(problem):
-    try:
-        import ruamel.yaml
-    except:
+    if not has_ryaml:
         error('Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.')
         return
 
