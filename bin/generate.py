@@ -25,7 +25,7 @@ def check_type(name, obj, types, path=None):
         if obj in types:
             return
     else:
-        if obj.__class__ in types:
+        if any(obj is None if t is None else isinstance(obj, t) for t in types):
             return
     named_types = " or ".join(str(t) if t is None else t.__name__ for t in types)
     if path:
@@ -1318,9 +1318,7 @@ class GeneratorConfig:
         return yaml
 
     def add_unlisted_to_generators_yaml(self, bar):
-        try:
-            import ruamel.yaml
-        except:
+        if not has_ryaml:
             error(
                 'generate --add-manual needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
             )
@@ -1331,10 +1329,7 @@ class GeneratorConfig:
         generators_yaml = self.problem.path / 'generators/generators.yaml'
 
         # Round-trip parsing.
-        yaml = ruamel.yaml.YAML(typ='rt')
-        yaml.default_flow_style = False
-        yaml.indent(mapping=2, sequence=4, offset=2)
-        data = yaml.load(generators_yaml)
+        data = read_yaml(generators_yaml)
 
         if data is None:
             data = ruamel.yaml.comments.CommentedMap()
@@ -1439,12 +1434,10 @@ class GeneratorConfig:
         self.root_dir.walk(add_testcase, add_directory)
 
         # Overwrite generators.yaml.
-        yaml.dump(data, generators_yaml)
+        write_yaml(data, generators_yaml)
 
     def move_inline_manual_to_directory(self, bar):
-        try:
-            import ruamel.yaml
-        except:
+        if not has_ryaml:
             error(
                 'generate --move-manual needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
             )
@@ -1452,11 +1445,7 @@ class GeneratorConfig:
 
         generators_yaml = self.problem.path / 'generators/generators.yaml'
 
-        # Round-trip parsing.
-        yaml = ruamel.yaml.YAML(typ='rt')
-        yaml.default_flow_style = False
-        yaml.indent(mapping=2, sequence=4, offset=2)
-        data = yaml.load(generators_yaml)
+        data = read_yaml(generators_yaml)
 
         assert data
 
@@ -1504,7 +1493,7 @@ class GeneratorConfig:
         self.root_dir.walk(move_testcase, move_directory)
 
         # Overwrite generators.yaml.
-        yaml.dump(data, generators_yaml)
+        write_yaml(data, generators_yaml)
 
     def clean_generated(self):
         item_names = []

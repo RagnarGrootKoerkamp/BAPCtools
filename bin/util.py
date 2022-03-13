@@ -423,22 +423,30 @@ def print_name(path, keep_type=False):
     return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
+try:
+    import ruamel.yaml
+
+    has_ryaml = True
+    ryaml = ruamel.yaml.YAML(typ='rt')
+    ryaml.default_flow_style = False
+    ryaml.indent(mapping=2, sequence=4, offset=2)
+except:
+    has_ryaml = False
+
+
 def parse_yaml(data, path=None):
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
-    try:
-        import ruamel.yaml
-
+    if has_ryaml:
         try:
-            yaml = ruamel.yaml.YAML(typ='safe')
-            return yaml.load(data)
+            return ryaml.load(data)
         except ruamel.yaml.constructor.DuplicateKeyError as error:
             if path is not None:
                 fatal(f'Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}')
             else:
                 fatal(f'Duplicate key in yaml object!\n{str(error)}')
 
-    except ModuleNotFoundError:
+    else:
         try:
             import yaml
 
@@ -464,6 +472,24 @@ def read_yaml_settings(path):
         for key, value in config.items():
             settings[key] = '' if value is None else value
     return settings
+
+
+# Writing a yaml file only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
+def write_yaml(data, path):
+    ryaml.dump(
+        data,
+        path,
+        # Remove spaces at the start of each (non-commented) line, caused by the indent configuration.
+        # This is only needed when the YAML data is a list of items, like in the problems.yaml file.
+        # See also: https://stackoverflow.com/a/58773229
+        transform=(
+            lambda yaml_str: "\n".join(
+                line if line.strip().startswith('#') else line[2:] for line in yaml_str.split("\n")
+            )
+        )
+        if isinstance(data, list)
+        else None,
+    )
 
 
 # glob, but without hidden files

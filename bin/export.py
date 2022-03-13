@@ -17,11 +17,6 @@ try:
 except:
     pass
 
-try:
-    import ruamel.yaml
-except:
-    pass
-
 
 # Replace \problemyamlname by the value of `name:` in problems.yaml in all .tex files.
 def fix_problem_yaml_name(problem):
@@ -215,16 +210,13 @@ def build_contest_zip(problems, zipfiles, outfile, args):
 
 
 def update_contest_id(cid):
-    try:
-        ryaml = ruamel.yaml.YAML(typ='rt')
-    except:
+    if has_ryaml:
+        contest_yaml_path = Path('contest.yaml')
+        data = read_yaml(contest_yaml_path)
+        data['contest_id'] = cid
+        write_yaml(data, contest_yaml_path)
+    else:
         error('ruamel.yaml library not found. Update the id manually.')
-    ryaml.default_flow_style = False
-    ryaml.indent(mapping=2, sequence=4, offset=2)
-    contest_yaml_path = Path('contest.yaml')
-    data = ryaml.load(contest_yaml_path)
-    data['contest_id'] = cid
-    ryaml.dump(data, contest_yaml_path)
 
 
 def export_contest(problems):
@@ -262,12 +254,9 @@ def export_contest(problems):
 def update_problems_yaml(problems):
     # Update name and timelimit values.
     log('Updating problems.yaml')
-    try:
-        ryaml = ruamel.yaml.YAML(typ='rt')
-        ryaml.default_flow_style = False
-        ryaml.indent(mapping=2, sequence=4, offset=2)
+    if has_ryaml:
         path = Path('problems.yaml')
-        data = ryaml.load(path) if path.is_file() else []
+        data = read_yaml(path) if path.is_file() else []
 
         change = False
         for problem in problems:
@@ -278,6 +267,10 @@ def update_problems_yaml(problems):
                     if problem.settings.name and problem.settings.name != d.get('name'):
                         change = True
                         d['name'] = problem.settings.name
+
+                    if 'rgb' not in d:
+                        change = True
+                        d['rgb'] = "#000000"
 
                     if (
                         not problem.settings.timelimit_is_default
@@ -292,8 +285,8 @@ def update_problems_yaml(problems):
                 data.append(
                     {
                         'id': problem.name,
-                        'name': problem.settings.name,
                         'label': problem.label,
+                        'name': problem.settings.name,
                         'rgb': '#000000',
                         'time_limit': problem.settings.timelimit,
                     }
@@ -306,13 +299,13 @@ def update_problems_yaml(problems):
                 log('Update problems.yaml with latest values? [Y/n]')
                 a = input().lower()
             if a == '' or a[0] == 'y':
-                ryaml.dump(data, path)
+                write_yaml(data, path)
                 log(f'Updated problems.yaml')
         else:
             if config.args.action == 'update_problems_yaml':
                 log(f'Already up to date')
 
-    except NameError as e:
+    else:
         log(
             'ruamel.yaml library not found. Make sure to update the name and timelimit fields manually.'
         )
