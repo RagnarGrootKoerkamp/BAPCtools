@@ -13,12 +13,16 @@ try:
     from questionary import Validator, ValidationError
 
     has_questionary = True
+
     class EmptyValidator(Validator):
         def validate(self, document):
             if len(document.text) == 0:
                 raise ValidationError(message="Please enter a value")
+
+
 except:
     has_questionary = False
+
 
 def _ask_variable(name, default=None, allow_empty=False):
     while True:
@@ -27,16 +31,20 @@ def _ask_variable(name, default=None, allow_empty=False):
         if val != '' or allow_empty:
             return val
 
+
 def _ask_variable_string(name, default=None, allow_empty=False):
     if has_questionary:
         try:
             validate = None if allow_empty else EmptyValidator
-            return questionary.text(name + ':', default=default or '', validate=validate).unsafe_ask()
+            return questionary.text(
+                name + ':', default=default or '', validate=validate
+            ).unsafe_ask()
         except KeyboardInterrupt:
             fatal('Running interrupted')
     else:
         text = f' ({default})' if default else ''
         return _ask_variable(name + text, default if default else '', allow_empty)
+
 
 def _ask_variable_bool(name, default=True):
     if has_questionary:
@@ -48,17 +56,21 @@ def _ask_variable_bool(name, default=True):
         text = ' (Y/n)' if default else ' (y/N)'
         return _ask_variable(name + text, 'Y' if default else 'N').lower()[0] == 'y'
 
+
 def _ask_variable_choice(name, choices, default=None):
     if has_questionary:
         try:
             plain = questionary.Style([('selected', 'noreverse')])
-            return questionary.select(name + ':', choices=choices, default=default, style=plain).unsafe_ask()
+            return questionary.select(
+                name + ':', choices=choices, default=default, style=plain
+            ).unsafe_ask()
         except KeyboardInterrupt:
             fatal('Running interrupted')
     else:
         default = default or choices[0]
         text = f' ({default})' if default else ''
         return _ask_variable(name + text, default if default else '')
+
 
 def _license_choices():
     return ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown']
@@ -131,22 +143,20 @@ def new_problem():
         if config.args.problemname
         else _ask_variable_string('dirname', _alpha_num(problemname))
     )
-    author = (
-        config.args.author if config.args.author else _ask_variable_string('author')
-    )
+    author = config.args.author if config.args.author else _ask_variable_string('author')
 
     validator_flags = ''
     if config.args.validation:
         assert config.args.validation in ['default', 'custom', 'custom interactive']
         validation = config.args.validation
     else:
-        validation = _ask_variable_choice('validation', ['default','float','custom','custom interactive'])
+        validation = _ask_variable_choice(
+            'validation', ['default', 'float', 'custom', 'custom interactive']
+        )
         if validation == 'float':
             validation = 'default'
             validator_flags = 'validator_flags:\n  float_tolerance 1e-6\n'
             log(f'Using default float tolerance of 1e-6')
-
-
 
     # Read settings from the contest-level yaml file.
     variables = contest.contest_yaml()
@@ -160,10 +170,18 @@ def new_problem():
     }.items():
         variables[k] = v
 
-    variables['source'] = _ask_variable_string('source', variables.get('source', variables.get('name', '')), True)
-    variables['source_url'] = _ask_variable_string('source url', variables.get('source_url', ''), True)
-    variables['license'] = _ask_variable_choice('license', _license_choices(),  variables.get('license', None))
-    variables['rights_owner'] = _ask_variable_string('rights owner', variables.get('rights_owner', 'author'))
+    variables['source'] = _ask_variable_string(
+        'source', variables.get('source', variables.get('name', '')), True
+    )
+    variables['source_url'] = _ask_variable_string(
+        'source url', variables.get('source_url', ''), True
+    )
+    variables['license'] = _ask_variable_choice(
+        'license', _license_choices(), variables.get('license', None)
+    )
+    variables['rights_owner'] = _ask_variable_string(
+        'rights owner', variables.get('rights_owner', 'author')
+    )
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
