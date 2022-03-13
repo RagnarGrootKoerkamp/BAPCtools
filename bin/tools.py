@@ -435,7 +435,11 @@ Run this from one of:
     )
     move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
 
-    validate_parser.add_argument('--skip-testcase-sanity-checks', action='store_true', help='Skip sanity checks on testcases.')
+    validate_parser.add_argument(
+        '--skip-testcase-sanity-checks',
+        action='store_true',
+        help='Skip sanity checks on testcases.',
+    )
 
     # constraints validation
     constraintsparser = subparsers.add_parser(
@@ -535,9 +539,8 @@ Run this from one of:
     genparser.add_argument(
         '--skip-testcase-sanity-checks',
         action='store_true',
-        help='Skip sanity checks on testcases.'
+        help='Skip sanity checks on testcases.',
     )
-
 
     # Fuzzer
     fuzzparser = subparsers.add_parser(
@@ -594,7 +597,7 @@ Run this from one of:
     runparser.add_argument(
         '--skip-testcase-sanity-checks',
         action='store_true',
-        help='Skip sanity checks on testcases.'
+        help='Skip sanity checks on testcases.',
     )
 
     # Test
@@ -642,7 +645,11 @@ Run this from one of:
         '--cleanup-generated', action='store_true', help='Clean up generated testcases afterwards.'
     )
     allparser.add_argument('--force', '-f', action='store_true', help='Delete all untracked files.')
-    allparser.add_argument('--skip-testcase-sanity-checks', action='store_true', help='Skip sanity checks on testcases.')
+    allparser.add_argument(
+        '--skip-testcase-sanity-checks',
+        action='store_true',
+        help='Skip sanity checks on testcases.',
+    )
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser(
