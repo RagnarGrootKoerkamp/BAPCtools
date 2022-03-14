@@ -253,62 +253,62 @@ def export_contest(problems):
 
 def update_problems_yaml(problems):
     # Update name and timelimit values.
-    log('Updating problems.yaml')
-    if has_ryaml:
-        path = Path('problems.yaml')
-        data = read_yaml(path) if path.is_file() else []
-
-        change = False
-        for problem in problems:
-            found = False
-            for d in data:
-                if d['id'] == problem.name:
-                    found = True
-                    if problem.settings.name and problem.settings.name != d.get('name'):
-                        change = True
-                        d['name'] = problem.settings.name
-
-                    if 'rgb' not in d:
-                        change = True
-                        d['rgb'] = "#000000"
-
-                    if (
-                        not problem.settings.timelimit_is_default
-                        and problem.settings.timelimit != d.get('time_limit')
-                    ):
-                        change = True
-                        d['time_limit'] = problem.settings.timelimit
-                    break
-            if not found:
-                change = True
-                log(f'Add problem {problem.name}')
-                data.append(
-                    {
-                        'id': problem.name,
-                        'label': problem.label,
-                        'name': problem.settings.name,
-                        'rgb': '#000000',
-                        'time_limit': problem.settings.timelimit,
-                    }
-                )
-
-        if change:
-            if config.args.action in ['update_problems_yaml']:
-                a = 'y'
-            else:
-                log('Update problems.yaml with latest values? [Y/n]')
-                a = input().lower()
-            if a == '' or a[0] == 'y':
-                write_yaml(data, path)
-                log(f'Updated problems.yaml')
-        else:
-            if config.args.action == 'update_problems_yaml':
-                log(f'Already up to date')
-
-    else:
+    if not has_ryaml:
         log(
             'ruamel.yaml library not found. Make sure to update the name and timelimit fields manually.'
         )
+        return
+
+    log('Updating problems.yaml')
+    path = Path('problems.yaml')
+    data = read_yaml(path) if path.is_file() else []
+
+    change = False
+    for problem in problems:
+        found = False
+        for d in data:
+            if d['id'] == problem.name:
+                found = True
+                if problem.settings.name and problem.settings.name != d.get('name'):
+                    change = True
+                    d['name'] = problem.settings.name
+
+                if 'rgb' not in d:
+                    change = True
+                    d['rgb'] = "#000000"
+
+                if (
+                    not problem.settings.timelimit_is_default
+                    and problem.settings.timelimit != d.get('time_limit')
+                ):
+                    change = True
+                    d['time_limit'] = problem.settings.timelimit
+                break
+        if not found:
+            change = True
+            log(f'Add problem {problem.name}')
+            data.append(
+                {
+                    'id': problem.name,
+                    'label': problem.label,
+                    'name': problem.settings.name,
+                    'rgb': '#000000',
+                    'time_limit': problem.settings.timelimit,
+                }
+            )
+
+    if change:
+        if config.args.action in ['update_problems_yaml']:
+            a = 'y'
+        else:
+            log('Update problems.yaml with latest values? [Y/n]')
+            a = input().lower()
+        if a == '' or a[0] == 'y':
+            write_yaml(data, path)
+            log(f'Updated problems.yaml')
+    else:
+        if config.args.action == 'update_problems_yaml':
+            log(f'Already up to date')
 
 
 def export_problems(problems, cid):
