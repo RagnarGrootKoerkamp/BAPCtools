@@ -1,21 +1,16 @@
 import hashlib
+import io
 import re
 import shutil
-import yaml as yamllib
-import queue
-import threading
-import signal
 
 from pathlib import Path, PurePosixPath
 
 import config
 import program
-import validate
 import run
 import parallel
 
 from util import *
-from problem import Problem
 
 
 def check_type(name, obj, types, path=None):
@@ -751,7 +746,7 @@ class TestcaseRule(Rule):
 
         # Update metadata
         if not skipped:
-            yamllib.dump(t.cache_data, meta_path.open('w'))
+            write_yaml(t.cache_data, meta_path)
 
         # If the .in was changed but not overwritten, check_deterministic will surely fail.
         if not skipped_in:
@@ -870,7 +865,9 @@ class Directory(Rule):
         testdata_yaml_path = dir_path / 'testdata.yaml'
         if d.testdata_yaml is not None:
             if d.testdata_yaml:
-                yaml_text = yamllib.dump(d.testdata_yaml)
+                buf = io.StringIO()
+                write_yaml(d.testdata_yaml, buf)
+                yaml_text = buf.getvalue()
                 if not testdata_yaml_path.is_file():
                     testdata_yaml_path.write_text(yaml_text)
                 else:
