@@ -21,12 +21,8 @@ from problem import Problem
 def check_type(name, obj, types, path=None):
     if not isinstance(types, list):
         types = [types]
-    if obj is None:
-        if obj in types:
-            return
-    else:
-        if any(obj is None if t is None else isinstance(obj, t) for t in types):
-            return
+    if any(isinstance(obj, t) for t in types):
+        return
     named_types = " or ".join(str(t) if t is None else t.__name__ for t in types)
     if path:
         fatal(
@@ -273,19 +269,19 @@ class Config:
     # Used at each directory or testcase level.
 
     def parse_solution(p, x, path):
-        check_type('Solution', x, [None, str], path)
+        check_type('Solution', x, [type(None), str], path)
         if x is None:
             return None
         return SolutionInvocation(p, x)
 
     def parse_visualizer(p, x, path):
-        check_type('Visualizer', x, [None, str], path)
+        check_type('Visualizer', x, [type(None), str], path)
         if x is None:
             return None
         return VisualizerInvocation(p, x)
 
     def parse_random_salt(p, x, path):
-        check_type('Random_salt', x, [None, str], path)
+        check_type('Random_salt', x, [type(None), str], path)
         if x is None:
             return ''
         return x
@@ -365,7 +361,7 @@ class TestcaseRule(Rule):
             yaml = {'input': yaml}
         elif isinstance(yaml, dict):
             assert 'input' in yaml
-            check_type('Input', yaml['input'], [None, str])
+            check_type('Input', yaml['input'], [type(None), str])
         else:
             assert False
 
@@ -980,7 +976,7 @@ class GeneratorConfig:
         self.parse_yaml(yaml)
 
     def parse_yaml(self, yaml):
-        check_type('Root yaml', yaml, [dict, None])
+        check_type('Root yaml', yaml, [type(None), dict])
         if yaml is None:
             yaml = dict()
         yaml['type'] = 'directory'
@@ -999,7 +995,7 @@ class GeneratorConfig:
             if name == 'bad' and parent.path == Path('.') and listed is False:
                 return None
 
-            check_type('Testcase/directory', yaml, [None, str, dict], parent.path)
+            check_type('Testcase/directory', yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
                 fatal(
                     f'Could not parse {parent.path/name} as a testcase or directory. Try setting the type: key.'
@@ -1044,7 +1040,7 @@ class GeneratorConfig:
                 for id, dictionary in enumerate(yaml['data'], start=1):
                     check_type('Elements of data', dictionary, dict, d.path)
                     for key in dictionary:
-                        check_type('Testcase/directory name', key, [str, None], d.path)
+                        check_type('Testcase/directory name', key, [type(None), str], d.path)
 
                     for child_name, child_yaml in sorted(dictionary.items()):
                         if d.numbered:
