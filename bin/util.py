@@ -474,8 +474,13 @@ def read_yaml_settings(path):
     return settings
 
 
+# Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
+write_yaml_lock = threading.Lock()
+
+
 # Writing a yaml file only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
 def write_yaml(data, path):
+    write_yaml_lock.acquire()
     ryaml.dump(
         data,
         path,
@@ -493,6 +498,7 @@ def write_yaml(data, path):
             else None
         ),
     )
+    write_yaml_lock.release()
 
 
 # glob, but without hidden files
