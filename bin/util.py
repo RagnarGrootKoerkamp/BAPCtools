@@ -480,25 +480,24 @@ write_yaml_lock = threading.Lock()
 
 # Writing a yaml file only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
 def write_yaml(data, path):
-    write_yaml_lock.acquire()
-    ryaml.dump(
-        data,
-        path,
-        # Remove spaces at the start of each (non-commented) line, caused by the indent configuration.
-        # This is only needed when the YAML data is a list of items, like in the problems.yaml file.
-        # See also: https://stackoverflow.com/a/58773229
-        transform=(
-            (
-                lambda yaml_str: "\n".join(
-                    line if line.strip().startswith('#') else line[2:]
-                    for line in yaml_str.split("\n")
+    with write_yaml_lock:
+        ryaml.dump(
+            data,
+            path,
+            # Remove spaces at the start of each (non-commented) line, caused by the indent configuration.
+            # This is only needed when the YAML data is a list of items, like in the problems.yaml file.
+            # See also: https://stackoverflow.com/a/58773229
+            transform=(
+                (
+                    lambda yaml_str: "\n".join(
+                        line if line.strip().startswith('#') else line[2:]
+                        for line in yaml_str.split("\n")
+                    )
                 )
-            )
-            if isinstance(data, list)
-            else None
-        ),
-    )
-    write_yaml_lock.release()
+                if isinstance(data, list)
+                else None
+            ),
+        )
 
 
 # glob, but without hidden files
