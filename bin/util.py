@@ -392,9 +392,11 @@ class TableProgressBar(ProgressBar):
         self.table = table
 
     def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
+        assert self.lock.locked()
         self.table.clear(force=False)
-        print(*objects, sep=sep, end=end, file=file, flush=flush)
+        print(*objects, sep=sep, end=end, file=file, flush=False)
         self.table.print(force=False)
+        print(end='', flush=True, file=sys.stderr)
 
     def start(self, item):
         self.table.add_testcase(item.testcase.name)
@@ -405,7 +407,7 @@ class TableProgressBar(ProgressBar):
 
     def finalize(self, *, print_done=True, message=None):
         res = super().finalize(print_done=print_done, message=message)
-        self.table.clear(force=False)
+        self.table.clear(force=True)
         return res
 
 
