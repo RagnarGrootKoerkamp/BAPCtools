@@ -159,7 +159,7 @@ class ProgressBar:
         if config.args.no_bar:
             return
         assert self.lock.locked()
-        self._print(self.carriage_return, end='')
+        self._print(self.carriage_return, end='', flush=False)
 
     def action(prefix, item, width=None, total_width=None):
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
@@ -396,7 +396,7 @@ class TableProgressBar(ProgressBar):
         self.table.clear(force=False)
         print(*objects, sep=sep, end=end, file=file, flush=False)
         self.table.print(force=False)
-        print(end='', flush=True, file=sys.stderr)
+        print(end='', flush=flush, file=sys.stderr)
         sys.stderr.reconfigure(line_buffering=True)
 
     def start(self, item):
