@@ -392,10 +392,12 @@ class TableProgressBar(ProgressBar):
 
     def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
         assert self.lock.locked()
+        sys.stderr.reconfigure(line_buffering=False)
         self.table.clear(force=False)
         print(*objects, sep=sep, end=end, file=file, flush=False)
         self.table.print(force=False)
         print(end='', flush=True, file=sys.stderr)
+        sys.stderr.reconfigure(line_buffering=True)
 
     def start(self, item):
         self.table.add_testcase(item.testcase.name)
