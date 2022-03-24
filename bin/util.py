@@ -133,6 +133,9 @@ class ProgressBar:
 
         self.needs_leading_newline = needs_leading_newline
 
+    def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
+        print(*objects, sep=sep, end=end, file=file, flush=flush)
+
     def total_width(self):
         cols = ProgressBar.columns
         if is_windows():
@@ -156,7 +159,7 @@ class ProgressBar:
         if config.args.no_bar:
             return
         assert self.lock.locked()
-        print(self.carriage_return, end='', flush=True, file=sys.stderr)
+        self._print(self.carriage_return, end='')
 
     def action(prefix, item, width=None, total_width=None):
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
@@ -209,9 +212,9 @@ class ProgressBar:
                 p = self.item
             bar = self.get_bar()
             if bar is None or bar == '':
-                print(self.get_prefix(), end='\r', flush=True, file=sys.stderr)
+                self._print(self.get_prefix(), end='\r')
             else:
-                print(self.get_prefix(), bar, sep='', end='\r', flush=True, file=sys.stderr)
+                self._print(self.get_prefix(), bar, end='\r')
 
     def start(self, item=''):
         self.lock.acquire()
@@ -233,9 +236,9 @@ class ProgressBar:
 
         bar = self.get_bar()
         if bar is None or bar == '':
-            print(self.get_prefix(), end='\r', flush=True, file=sys.stderr)
+            self._print(self.get_prefix(), end='\r')
         else:
-            print(self.get_prefix(), bar, sep='', end='\r', flush=True, file=sys.stderr)
+            self._print(self.get_prefix(), bar, end='\r')
 
         self.lock.release()
         return bar_copy
@@ -261,23 +264,20 @@ class ProgressBar:
         if self.parent:
             self.parent.global_logged = True
             if self.parent.needs_leading_newline:
-                print(file=sys.stderr)
+                self._print()
                 self.parent.needs_leading_newline = False
         else:
             self.global_logged = True
             if self.needs_leading_newline:
-                print(file=sys.stderr)
+                self._print()
                 self.needs_leading_newline = False
 
-        print(
+        self._print(
             self.get_prefix(),
             color,
             message,
             ProgressBar._format_data(data),
             Style.RESET_ALL,
-            sep='',
-            flush=True,
-            file=sys.stderr,
         )
 
         if resume:
@@ -371,11 +371,11 @@ class ProgressBar:
             message = f'{Fore.GREEN}Done{Style.RESET_ALL}'
 
         if message:
-            print(self.get_prefix(), message, sep='', file=sys.stderr)
+            self._print(self.get_prefix(), message)
 
         # When something was printed, add a newline between parts.
         if self.global_logged:
-            print(file=sys.stderr)
+            self._print()
 
         self.lock.release()
 
@@ -383,6 +383,120 @@ class ProgressBar:
         ProgressBar.current_bar = None
 
         return self.global_logged
+
+
+class TableProgressBar(ProgressBar):
+    def __init__(self, table, prefix, max_len, count, *, items, needs_leading_newline):
+        super().__init__(prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline)
+        self.table = table
+
+    def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
+        self.table.clear(force=False)
+        print(*objects, sep=sep, end=end, file=file, flush=flush)
+        self.table.print(force=False)
+
+    def start(self, item):
+        self.table.add_testcase(item.testcase.name)
+        return super().start(item)
+
+    def done(self, success=True, message='', data=''):
+        return super().done(success, message, data)
+
+    def finalize(self, *, print_done=True, message=None):
+        res = super().finalize(print_done=print_done, message=message)
+        self.table.clear(force=False)
+        return res
+
+
+class VerdictTable:
+    def __init__(self, submissions, testcases, width = shutil.get_terminal_size().columns, max_name_width = 50):
+        self.submissions = [submission.name for verdict in submissions for submission in submissions[verdict]]
+        self.testcases = [testcase.name for testcase in testcases]
+        self.results = []
+        self.current_testcases = set()
+        self.name_width = min(max_name_width, max([len(submission) for submission in self.submissions]))
+        self.width = width if width >= self.name_width + 2 + 10 else -1
+        self.last_printed = []
+
+    def next_submission(self):
+        self.results.append(dict())
+        self.current_testcases = set()
+
+    def add_testcase(self, testcase):
+        self.current_testcases.add(testcase)
+
+    def finish_testcase(self, testcase, verdict):
+        self.results[-1][testcase] = verdict
+        self.current_testcases.discard(testcase)
+
+    def clear(self, *, force=True, clear=True):
+        if force or not config.args.no_bar:
+            if self.last_printed:
+                actual_width = shutil.get_terminal_size().columns
+                lines = 0
+                for printed in self.last_printed:
+                    lines += (printed + actual_width - 1) // actual_width
+                print(f'\033[{lines}A\r', end = '', file=sys.stderr)
+
+                if clear:
+                    for printed in self.last_printed:
+                        print(' ' * printed, file=sys.stderr)
+                    print(f'\033[{lines}A\r', end = '', file=sys.stderr)
+
+                self.last_printed = []
+
+    def _get_verdict(self, s, testcase):
+        if s < len(self.results):
+            if testcase in self.results[s]:
+                v = self.results[s][testcase]
+                if v == 'ACCEPTED':
+                    return Fore.GREEN + 'A' + Style.RESET_ALL
+                else:
+                    return Fore.RED + v[0] + Style.RESET_ALL
+            elif s + 1 == len(self.results) and testcase in self.current_testcases:
+                return Style.DIM + Fore.BLUE + '?' + Style.RESET_ALL
+        return Style.DIM + Fore.WHITE + '-' + Style.RESET_ALL
+
+    #TODO only print this if a flag is given! (config.args.???)
+    def print(self, *, force=True, new_lines=2):
+        if force or not config.args.no_bar:
+            self.clear(force=True, clear=False)
+            print('\n' * new_lines, end='', file=sys.stderr)
+            self.last_printed.extend([1] * new_lines)
+            for s, submission in enumerate(self.submissions):
+                # pad/truncate submission names to not break table layout
+                name = submission
+                if len(name) > self.name_width:
+                    name = '...' + name[-self.name_width+3:]
+                padding = ' ' * (self.name_width - len(name))
+                print(f'{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}', end='', file=sys.stderr)
+
+                # group verdicts in parts of length at most ten
+                verdicts = []
+                for t, testcase in enumerate(self.testcases):
+                    if t % 10 == 0:
+                        verdicts.append([0, ''])
+                    verdicts[-1][0] += 1
+                    verdicts[-1][1] += self._get_verdict(s, testcase)
+
+                printed = self.name_width + 1
+                for length, tmp in verdicts:
+                    if self.width >= 0 and printed + 1 + length > self.width:
+                        print(f'\n{str():{self.name_width+1}}', end='', file=sys.stderr)
+                        self.last_printed.append(printed)
+                        printed = self.name_width + 1
+
+                    print(f' {tmp}', end='', file=sys.stderr)
+                    printed += length + 1
+
+
+                self.last_printed.append(printed)
+                print(end='\n', file=sys.stderr)
+            print(end='', flush=True, file=sys.stderr)
+
+    def ProgressBar(self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False):
+        return TableProgressBar(self, prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline)
+
 
 
 # Given a command line argument, return the first match:
