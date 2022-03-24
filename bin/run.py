@@ -447,17 +447,25 @@ class Submission(program.Program):
     # Run this submission on all testcases for the current problem.
     # Returns (OK verdict, printed newline)
     def run_all_testcases(
-        self, max_submission_name_len=None, table_dict=None, *, needs_leading_newline
+        self, max_submission_name_len=None, verdict_table=None, *, needs_leading_newline
     ):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_item_len = max(len(run.name) for run in runs) + max_submission_name_len - len(self.name)
 
-        bar = ProgressBar(
-            'Running ' + self.name,
-            count=len(runs),
-            max_len=max_item_len,
-            needs_leading_newline=needs_leading_newline,
-        )
+        if verdict_table is not None:
+            bar = verdict_table.ProgressBar(
+                'Running ' + self.name,
+                count=len(runs),
+                max_len=max_item_len,
+                needs_leading_newline=needs_leading_newline,
+            )
+        else:
+            bar = ProgressBar(
+                'Running ' + self.name,
+                count=len(runs),
+                max_len=max_item_len,
+                needs_leading_newline=needs_leading_newline,
+            )
 
         max_duration = -1
 
@@ -481,8 +489,8 @@ class Submission(program.Program):
                 verdict_run = run
             max_duration = max(max_duration, result.duration)
 
-            if table_dict is not None:
-                table_dict[run.name] = result.verdict == 'ACCEPTED'
+            if verdict_table is not None:
+                verdict_table.finish_testcase(run.name, result.verdict)
 
             got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
 
