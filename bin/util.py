@@ -399,6 +399,7 @@ class TableProgressBar(ProgressBar):
     def _acquire_lock(self, required=True):
         if required:
             super()._acquire_lock(required)
+            self.reset_line_buffering = sys.stderr.line_buffering
             sys.stderr.reconfigure(line_buffering=False)
             self.table.clear(force=False)
 
@@ -406,7 +407,7 @@ class TableProgressBar(ProgressBar):
     def _release_lock(self, required=True):
         if required:
             self.table.print(force=False)
-            sys.stderr.reconfigure(line_buffering=True)
+            sys.stderr.reconfigure(line_buffering=self.reset_line_buffering)
             print(end='', flush=True, file=sys.stderr)
             super()._release_lock(required)
 
