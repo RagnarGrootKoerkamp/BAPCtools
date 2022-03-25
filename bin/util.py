@@ -133,6 +133,14 @@ class ProgressBar:
 
         self.needs_leading_newline = needs_leading_newline
 
+    def _acquire_lock(self, required=True):
+        if required:
+            self.lock.acquire()
+
+    def _release_lock(self, required=True):
+        if required:
+            self.lock.release()
+
     def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
         print(*objects, sep=sep, end=end, file=file, flush=flush)
 
@@ -217,7 +225,7 @@ class ProgressBar:
                 self._print(self.get_prefix(), bar, end='\r')
 
     def start(self, item=''):
-        self.lock.acquire()
+        self._acquire_lock()
         # start may only be called on the root bar.
         assert self.parent is None
         self.i += 1
@@ -231,7 +239,7 @@ class ProgressBar:
         bar_copy.parent = self
 
         if config.args.no_bar:
-            self.lock.release()
+            self._release_lock()
             return bar_copy
 
         bar = self.get_bar()
@@ -240,7 +248,7 @@ class ProgressBar:
         else:
             self._print(self.get_prefix(), bar, end='\r')
 
-        self.lock.release()
+        self._release_lock()
         return bar_copy
 
     @staticmethod
@@ -253,8 +261,7 @@ class ProgressBar:
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
     def log(self, message='', data='', color=Fore.GREEN, *, needs_lock=True, resume=True):
-        if needs_lock:
-            self.lock.acquire()
+        self._acquire_lock(needs_lock)
 
         if message is None:
             message = ''
@@ -286,8 +293,7 @@ class ProgressBar:
             else:
                 self._resume()
 
-        if needs_lock:
-            self.lock.release()
+        self._release_lock(needs_lock)
 
     # Same as log, but only in verbose mode.
     def debug(self, message, data=''):
@@ -300,21 +306,19 @@ class ProgressBar:
 
     # Error removes the current item from the in_progress set.
     def error(self, message='', data='', needs_lock=True):
-        if needs_lock:
-            self.lock.acquire()
+        self._acquire_lock(needs_lock)
         config.n_error += 1
         self.log(message, data, Fore.RED, needs_lock=False, resume=False)
         self._release_item()
-        if needs_lock:
-            self.lock.release()
+        self._release_lock(needs_lock)
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(self, success=True, message='', data=''):
-        self.lock.acquire()
+        self._acquire_lock()
         self.clearline()
 
         if self.item is None:
-            self.lock.release()
+            self._release_lock()
             return
 
         if not self.logged:
@@ -327,7 +331,7 @@ class ProgressBar:
         if self.parent:
             self.parent._resume()
 
-        self.lock.release()
+        self._release_lock()
         return
 
     # Log an intermediate line if it's an error or we're in verbose mode.
@@ -336,7 +340,7 @@ class ProgressBar:
         if not success:
             config.n_error += 1
         if config.args.verbose or not success:
-            self.lock.acquire()
+            self._acquire_lock()
             if success:
                 self.log(message, data, needs_lock=False)
             else:
@@ -346,14 +350,14 @@ class ProgressBar:
                     self.error(message, data, needs_lock=False)
             if self.parent:
                 self.parent._resume()
-            self.lock.release()
+            self._release_lock()
             return True
         return False
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
     def finalize(self, *, print_done=True, message=None):
-        self.lock.acquire()
+        self._acquire_lock()
         self.clearline()
         assert self.parent is None
         assert self.count is None or self.i == self.count
@@ -377,7 +381,7 @@ class ProgressBar:
         if self.global_logged:
             self._print()
 
-        self.lock.release()
+        self._release_lock()
 
         assert ProgressBar.current_bar is not None
         ProgressBar.current_bar = None
@@ -390,14 +394,25 @@ class TableProgressBar(ProgressBar):
         super().__init__(prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline)
         self.table = table
 
+    # at the begin of any IO the progress bar locks so we can clear the table at this point
+    def _acquire_lock(self, required=True):
+        if required:
+            super()._acquire_lock(required)
+            sys.stderr.reconfigure(line_buffering=False)
+            self.table.clear(force=False)
+
+    # at the end of any IO the progress bar unlocks so we can reprint the table at this point
+    def _release_lock(self, required=True):
+        if required:
+            self.table.print(force=False)
+            sys.stderr.reconfigure(line_buffering=True)
+            print(end='', flush=True, file=sys.stderr)
+            super()._release_lock(required)
+
     def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
         assert self.lock.locked()
-        sys.stderr.reconfigure(line_buffering=False)
-        self.table.clear(force=False)
+        # drop all flushes...
         print(*objects, sep=sep, end=end, file=file, flush=False)
-        self.table.print(force=False)
-        print(end='', flush=flush, file=sys.stderr)
-        sys.stderr.reconfigure(line_buffering=True)
 
     def start(self, item):
         self.table.add_testcase(item.testcase.name)
