@@ -2,6 +2,7 @@ import hashlib
 import io
 import re
 import shutil
+import yaml as yamllib
 
 from pathlib import Path, PurePosixPath
 
@@ -159,7 +160,7 @@ class GeneratorInvocation(Invocation):
 
         if result.ok is not True:
             if retries > 1:
-                bar.error(f'Failed {retry+1} times', result.err)
+                bar.error(f'Failed {retry + 1} times', result.err)
             else:
                 bar.error(f'Failed', result.err)
 
@@ -342,7 +343,7 @@ class TestcaseRule(Rule):
 
         if isinstance(yaml, str) and len(yaml) == 0:
             fatal(
-                f'Manual testcase should be None or a relative path, not empty string at {parent.path/name}.'
+                f'Manual testcase should be None or a relative path, not empty string at {parent.path / name}.'
             )
 
         if yaml is None:
@@ -746,7 +747,7 @@ class TestcaseRule(Rule):
 
         # Update metadata
         if not skipped:
-            write_yaml(t.cache_data, meta_path)
+            yamllib.dump(t.cache_data, meta_path.open('w'))
 
         # If the .in was changed but not overwritten, check_deterministic will surely fail.
         if not skipped_in:
@@ -865,9 +866,7 @@ class Directory(Rule):
         testdata_yaml_path = dir_path / 'testdata.yaml'
         if d.testdata_yaml is not None:
             if d.testdata_yaml:
-                buf = io.StringIO()
-                write_yaml(d.testdata_yaml, buf)
-                yaml_text = buf.getvalue()
+                yaml_text = yamllib.dump(dict(d.testdata_yaml))
                 if not testdata_yaml_path.is_file():
                     testdata_yaml_path.write_text(yaml_text)
                 else:
@@ -995,7 +994,7 @@ class GeneratorConfig:
             check_type('Testcase/directory', yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
                 fatal(
-                    f'Could not parse {parent.path/name} as a testcase or directory. Try setting the type: key.'
+                    f'Could not parse {parent.path / name} as a testcase or directory. Try setting the type: key.'
                 )
 
             if is_testcase(yaml):
@@ -1047,7 +1046,7 @@ class GeneratorConfig:
                         else:
                             if not child_name:
                                 fatal(
-                                    f'Unnumbered testcases must not have an empty key: {Path("data")/d.path/child_name}/\'\''
+                                    f'Unnumbered testcases must not have an empty key: {Path("data") / d.path / child_name}/\'\''
                                 )
                         done.add(child_name)
                         c = parse(child_name, child_yaml, d, listed=listed)
