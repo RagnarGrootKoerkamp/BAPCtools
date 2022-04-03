@@ -218,12 +218,13 @@ struct UniformGenerator {
 		static_assert(is_number_v<T>);
 		if constexpr(std::is_same_v<T, long long>) {
 			assert(low <= high);
+			if (low == high) return low;
 			// since C++20 we can assume Two's Complement but any sane syste, used it before anyway
 			// rejection sampling is not as fast as possible
 			// but definetly unbiased
 			unsigned long long ul = static_cast<unsigned long long>(low);
 			unsigned long long uh = static_cast<unsigned long long>(high);
-			int shitfs = cpp20::countl_zero(uh - ul + 1ull) % std::numeric_limits<unsigned long long>::digits;
+			int shitfs = cpp20::countl_zero(uh - ul) % std::numeric_limits<unsigned long long>::digits;
 			unsigned long long res;
 			do {
 				res = Random::bits64(rng) >> shitfs;
