@@ -224,7 +224,7 @@ struct UniformGenerator {
 			// but definetly unbiased
 			unsigned long long ul = static_cast<unsigned long long>(low);
 			unsigned long long uh = static_cast<unsigned long long>(high);
-			int shitfs = cpp20::countl_zero(uh - ul) % std::numeric_limits<unsigned long long>::digits;
+			int shitfs = cpp20::countl_zero(uh - ul);
 			unsigned long long res;
 			do {
 				res = Random::bits64(rng) >> shitfs;
