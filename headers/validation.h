@@ -177,7 +177,7 @@ struct ConstGenerator {
 	// passed in.
 	template <typename U>
 	T operator()(U low, U high, std::mt19937_64& rng) const {
-		return const_;
+		return std::clamp(const_, low, high);
 	}
 };
 
@@ -216,12 +216,12 @@ struct UniformGenerator {
 	template <typename T>
 	T operator()(T low, T high, std::mt19937_64& rng) const {
 		static_assert(is_number_v<T>);
+		if(low == high) return low;
+
 		if constexpr(std::is_same_v<T, long long>) {
-			assert(low <= high);
-			if(low == high) return low;
-			// since C++20 we can assume Two's Complement but any sane syste, used it before anyway
-			// rejection sampling is not as fast as possible
-			// but definetly unbiased
+			assert(low < high);
+			// Since C++20 we can assume Two's Complement but any sane system used it before anyway.
+			// Rejection sampling is not as fast as possible but definitely unbiased.
 			auto ul    = static_cast<unsigned long long>(low);
 			auto uh    = static_cast<unsigned long long>(high);
 			int shitfs = cpp20::countl_zero(uh - ul);
