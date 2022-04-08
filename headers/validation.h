@@ -853,7 +853,7 @@ class Validator {
   private:
 	template <typename T, typename Tag>
 	std::vector<T> gen_numbers(const std::string& name, int count, T low, T high, Tag /*unused*/,
-	                           Separator sep, source_location loc) {
+	                           source_location loc) {
 		static_assert(is_number_v<T>);
 		std::vector<T> v;
 		v.reserve(count);
@@ -941,14 +941,14 @@ class Validator {
 	std::vector<long long> gen_integers(const std::string& name, int count, long long low,
 	                                    long long high, Tag tag = Tag{},
 	                                    source_location loc = source_location::current()) {
-		return gen_numbers(name, low, high, tag, loc);
+		return gen_numbers(name, count, low, high, tag, loc);
 	}
 
 	template <typename Tag = ArbitraryTag>
 	std::vector<long double> gen_floats(const std::string& name, int count, long double low,
 	                                    long double high, Tag tag = Tag{},
 	                                    source_location loc = source_location::current()) {
-		return gen_numbers(name, low, high, tag, loc);
+		return gen_numbers(name, count, low, high, tag, loc);
 	}
 
   private:
