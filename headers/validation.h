@@ -938,14 +938,16 @@ class Validator {
 
   public:
 	template <typename Tag = ArbitraryTag>
-	long long gen_integers(const std::string& name, int count, long long low, long long high,
-	                       Tag tag = Tag{}, source_location loc = source_location::current()) {
+	std::vector<long long> gen_integers(const std::string& name, int count, long long low,
+	                                    long long high, Tag tag = Tag{},
+	                                    source_location loc = source_location::current()) {
 		return gen_numbers(name, low, high, tag, loc);
 	}
 
 	template <typename Tag = ArbitraryTag>
-	long double gen_floats(const std::string& name, int count, long double low, long double high,
-	                       Tag tag = Tag{}, source_location loc = source_location::current()) {
+	std::vector<long double> gen_floats(const std::string& name, int count, long double low,
+	                                    long double high, Tag tag = Tag{},
+	                                    source_location loc = source_location::current()) {
 		return gen_numbers(name, low, high, tag, loc);
 	}
 
