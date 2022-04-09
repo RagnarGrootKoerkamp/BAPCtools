@@ -383,7 +383,7 @@ class TestcaseRule(Rule):
             # TODO: Should the seed depend on white space? For now it does, but
             # leading and trailing whitespace is stripped.
             seed_value = self.config.random_salt + inpt.strip()
-            self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2 ** 31)
+            self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
             self.generator = GeneratorInvocation(problem, inpt)
 
         key = (inpt, self.config.random_salt)
@@ -512,7 +512,7 @@ class TestcaseRule(Rule):
             if t.generator.uses_seed:
                 depends_on_seed = False
                 for run in range(config.SEED_DEPENDENCY_RETRIES):
-                    new_seed = (t.seed + 1 + run) % (2 ** 31)
+                    new_seed = (t.seed + 1 + run) % (2**31)
                     result = t.generator.run(bar, cwd, t.name, new_seed, t.config.retries)
                     if result.ok is not True:
                         return
@@ -1099,7 +1099,7 @@ class GeneratorConfig:
             if isinstance(t, TestcaseRule):
                 if not t.manual:
                     generators_used.add(t.generator.program_path)
-            if t.config.solution:
+            if t.config.solution and not config.args.skip_solution:
                 # Initialize the default solution if needed.
                 if t.config.solution is True:
                     nonlocal default_solution
