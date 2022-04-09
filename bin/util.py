@@ -715,12 +715,16 @@ def limit_setter(command, timeout, memory_limit):
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
 
         # Increase the max stack size from default to the max available.
-        if sys.platform != 'darwin':
+        if not is_mac():
             resource.setrlimit(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
 
-        if memory_limit and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']:
+        if (
+            memory_limit
+            and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']
+            and not is_mac()
+        ):
             resource.setrlimit(
                 resource.RLIMIT_AS, (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024)
             )
