@@ -976,7 +976,7 @@ class Validator {
 	std::vector<T> read_numbers(const std::string& name, int count, T low, T high, Tag tag,
 	                            Separator sep, source_location loc) {
 		if(gen) {
-			auto v = gen_numbers(name, count, low, high, tag, sep, loc);
+			auto v = gen_numbers(name, count, low, high, tag, loc);
 
 			out << std::setprecision(10) << std::fixed;
 			for(int i = 0; i < count; ++i) {
