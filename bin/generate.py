@@ -1099,14 +1099,17 @@ class GeneratorConfig:
             if isinstance(t, TestcaseRule):
                 if not t.manual:
                     generators_used.add(t.generator.program_path)
-            if t.config.solution and not config.args.skip_solution:
-                # Initialize the default solution if needed.
-                if t.config.solution is True:
-                    nonlocal default_solution
-                    if default_solution is None:
-                        default_solution = DefaultSolutionInvocation(self.problem)
-                    t.config.solution = default_solution
-                solutions_used.add(t.config.solution.program_path)
+            if t.config.solution:
+                if config.args.skip_solution:
+                    t.config.solution = None
+                else:
+                    # Initialize the default solution if needed.
+                    if t.config.solution is True:
+                        nonlocal default_solution
+                        if default_solution is None:
+                            default_solution = DefaultSolutionInvocation(self.problem)
+                        t.config.solution = default_solution
+                    solutions_used.add(t.config.solution.program_path)
             if build_visualizers and t.config.visualizer:
                 visualizers_used.add(t.config.visualizer.program_path)
 
