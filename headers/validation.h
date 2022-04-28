@@ -109,18 +109,18 @@ auto operator|(T1 /*unused*/, T2 /*unused*/) {
 
 enum Separator { Space, Newline };
 
-//this contains some specific code which emulates c++20 features
+// this contains some specific code which emulates c++20 features
 namespace cpp20 {
 
 constexpr int countl_zero(unsigned long long x) {
 	int res = 64;
-	for (int i = 32; i > 0; i >>= 1) {
-		if ((x >> i) > 0) {
+	for(int i = 32; i > 0; i >>= 1) {
+		if((x >> i) > 0) {
 			res -= i;
 			x >>= i;
 		}
 	}
-	if (x > 0) res--;
+	if(x > 0) res--;
 	return res;
 }
 
@@ -177,7 +177,7 @@ struct ConstGenerator {
 	// passed in.
 	template <typename U>
 	T operator()(U low, U high, std::mt19937_64& rng) const {
-		return const_;
+		return std::clamp(const_, low, high);
 	}
 };
 
@@ -216,25 +216,25 @@ struct UniformGenerator {
 	template <typename T>
 	T operator()(T low, T high, std::mt19937_64& rng) const {
 		static_assert(is_number_v<T>);
+		if(low == high) return low;
+
 		if constexpr(std::is_same_v<T, long long>) {
-			assert(low <= high);
-			// since C++20 we can assume Two's Complement but any sane syste, used it before anyway
-			// rejection sampling is not as fast as possible
-			// but definetly unbiased
-			unsigned long long ul = static_cast<unsigned long long>(low);
-			unsigned long long uh = static_cast<unsigned long long>(high);
-			int shitfs = cpp20::countl_zero(uh - ul + 1ull) % std::numeric_limits<unsigned long long>::digits;
+			assert(low < high);
+			// Since C++20 we can assume Two's Complement but any sane system used it before anyway.
+			// Rejection sampling is not as fast as possible but definitely unbiased.
+			auto ul    = static_cast<unsigned long long>(low);
+			auto uh    = static_cast<unsigned long long>(high);
+			int shitfs = cpp20::countl_zero(uh - ul);
 			unsigned long long res;
 			do {
 				res = Random::bits64(rng) >> shitfs;
-			} while (res > uh - ul);
+			} while(res > uh - ul);
 			return static_cast<long long>(res + ul);
 		} else {
 			assert(low < high);
 			return low + Random::real64(rng) * (high - low);
 		}
 	}
-
 };
 
 template <typename T>
@@ -294,17 +294,17 @@ struct NormalDistributionGenerator {
 	T operator()(T low, T high, std::mt19937_64& rng) const {
 		assert(low < high);
 		T v;
-		while (true) {
+		while(true) {
 			T u1 = Random::real64(rng);
 			T u2 = Random::real64(rng);
 			// Box-Muller-Methode
 			// https://en.wikipedia.org/wiki/Box%E2%80%93Muller_transform
 			v = std::sqrt(-2.0l * std::log(u1)) * std::cos(2.0l * cpp20::PI * u2);
-			v = std::sqrt(stddev_)*v+mean_;
-			if (v >= low && v < high) return v;
+			v = std::sqrt(stddev_) * v + mean_;
+			if(v >= low && v < high) return v;
 			v = std::sqrt(-2.0l * std::log(u1)) * std::sin(2.0l * cpp20::PI * u2);
-			v = std::sqrt(stddev_)*v+mean_;
-			if (v >= low && v < high) return v;
+			v = std::sqrt(stddev_) * v + mean_;
+			if(v >= low && v < high) return v;
 		}
 		return v;
 	}
@@ -317,17 +317,15 @@ struct ExponentialDistributionGenerator {
 
 	T lambda_;
 
-	explicit ExponentialDistributionGenerator(T lambda) : lambda_(lambda) {
-		assert(lambda_ > 0);
-	}
+	explicit ExponentialDistributionGenerator(T lambda) : lambda_(lambda) { assert(lambda_ > 0); }
 
 	// NOTE: Currently this retries instead of clamping to the interval.
 	T operator()(T low, T high, std::mt19937_64& rng) const {
 		assert(low < high);
 		T v;
-		while (true) {
+		while(true) {
 			v = low - std::log(Random::real64(rng)) / lambda_;
-			if (v < high) return v;
+			if(v < high) return v;
 		}
 	}
 };
@@ -348,11 +346,12 @@ struct GeometricDistributionGenerator {
 	T operator()(T low, T high, std::mt19937_64& rng) const {
 		assert(low <= high);
 		T v;
-		while (true) {
+		while(true) {
 			// https://en.wikipedia.org/wiki/Geometric_distribution
-			// "The exponential distribution is the continuous analogue of the geometric distribution[...]"
+			// "The exponential distribution is the continuous analogue of the geometric
+			// distribution[...]"
 			v = low + std::floor(std::log(Random::real64(rng)) / std::log1p(-p_));
-			if (v <= high) return v;
+			if(v <= high) return v;
 		}
 	}
 };
@@ -368,7 +367,8 @@ struct BinomialDistributionGenerator {
 	explicit BinomialDistributionGenerator(long long n, double p) : n_(n), p_(p) {
 		assert(p_ >= 0);
 		assert(p_ <= 1);
-		std::cerr << "Warning: Large n (" << n_ << ") is slow for BinomialDistributionGenerator!" << std::endl;
+		std::cerr << "Warning: Large n (" << n_ << ") is slow for BinomialDistributionGenerator!"
+		          << std::endl;
 	}
 
 	// NOTE: Currently this retries instead of clamping to the interval.
@@ -376,12 +376,12 @@ struct BinomialDistributionGenerator {
 		assert(low <= high);
 		// this will be slow for large n
 		// (a faster implementation requires efficient poisson sampling)
-		while (true) {
+		while(true) {
 			T v = 0;
-			for (long long i = 0; i < n_; i++) {
+			for(long long i = 0; i < n_; i++) {
 				v += Random::real64(rng) < p_ ? 1 : 0;
 			}
-			if (v >= low && v <= high) return v;
+			if(v >= low && v <= high) return v;
 		}
 	}
 };
@@ -424,7 +424,8 @@ struct ChoiceGenerator {
 	}
 
 	template <typename... As>
-	static std::tuple<As...> parse_arguments(std::string_view& s, Pack<std::tuple<As...>>) {
+	static std::tuple<As...> parse_arguments(std::string_view& s,
+	                                         Pack<std::tuple<As...>> /*unused*/) {
 		std::tuple<As...> args{parse_argument<As>(s)...};
 		return args;
 	}
@@ -454,7 +455,7 @@ struct ChoiceGenerator {
 
 	template <typename... Gs>
 	static std::optional<GeneratorType> parse_generators(std::string_view& s,
-	                                                     Pack<std::variant<Gs...>>) {
+	                                                     Pack<std::variant<Gs...>> /*unused*/) {
 		std::optional<GeneratorType> out;
 		(parse_generator<Gs>(s, out), ...);
 		return out;
@@ -536,37 +537,37 @@ struct ParamGenerator {
 using Generators::ParamGenerator;
 
 namespace Random {
-	template<class RandomIt>
-	void shuffle(RandomIt first, RandomIt last, std::mt19937_64& rng) {
-		Generators::UniformGenerator uniform;
-		long long n = last - first;
-		for (long long i = n-1; i > 0; i--) {
-			std::swap(first[i], first[uniform(0ll, i, rng)]);
-		}
+template <class RandomIt>
+void shuffle(RandomIt first, RandomIt last, std::mt19937_64& rng) {
+	Generators::UniformGenerator uniform;
+	long long n = last - first;
+	for(long long i = n - 1; i > 0; i--) {
+		std::swap(first[i], first[uniform(0ll, i, rng)]);
 	}
+}
 
-	template<class T>
-	void shuffle(std::pair<T, T>& in, std::mt19937_64& rng) {
-		if (bit(rng)) std::swap(in.first, in.second);
-	}
+template <class T>
+void shuffle(std::pair<T, T>& in, std::mt19937_64& rng) {
+	if(bit(rng)) std::swap(in.first, in.second);
+}
 
-	template<class RandomIt>
-	auto& select(RandomIt first, RandomIt last, std::mt19937_64& rng) {
-		assert(first != last);
-		Generators::UniformGenerator uniform;
-		long long n = last - first;
-		return first[uniform(0ll, n - 1, rng)];
-	}
+template <class RandomIt>
+auto& select(RandomIt first, RandomIt last, std::mt19937_64& rng) {
+	assert(first != last);
+	Generators::UniformGenerator uniform;
+	long long n = last - first;
+	return first[uniform(0ll, n - 1, rng)];
+}
 
-	template<class T>
-	const T& select(const std::pair<T, T>& in, std::mt19937_64& rng) {
-		return bit(rng) ? in.first : in.second;
-	}
+template <class T>
+const T& select(const std::pair<T, T>& in, std::mt19937_64& rng) {
+	return bit(rng) ? in.first : in.second;
+}
 
-	template<class T>
-	T& select(std::pair<T, T>& in, std::mt19937_64& rng) {
-		return bit(rng) ? in.first : in.second;
-	}
+template <class T>
+T& select(std::pair<T, T>& in, std::mt19937_64& rng) {
+	return bit(rng) ? in.first : in.second;
+}
 
 } // namespace Random
 
@@ -746,6 +747,7 @@ class Validator {
 	// Generate a random integer in [low, high] or float in [low, high).
 	template <typename T>
 	T uniform_number(T low, T high) {
+		assert(low <= high);
 		Generators::UniformGenerator uniform;
 		if constexpr(std::is_integral<T>::value)
 			return uniform.operator()<long long>(low, high, rng);
@@ -819,7 +821,8 @@ class Validator {
 		return v;
 	}
 
-	std::string gen_string(const std::string& name, long long low, long long high, std::string_view chars) {
+	std::string gen_string(const std::string& name, long long low, long long high,
+	                       std::string_view chars) {
 		assert(!chars.empty());
 
 		int len;
@@ -850,7 +853,7 @@ class Validator {
   private:
 	template <typename T, typename Tag>
 	std::vector<T> gen_numbers(const std::string& name, int count, T low, T high, Tag /*unused*/,
-	                           Separator sep, source_location loc) {
+	                           source_location loc) {
 		static_assert(is_number_v<T>);
 		std::vector<T> v;
 		v.reserve(count);
@@ -935,15 +938,17 @@ class Validator {
 
   public:
 	template <typename Tag = ArbitraryTag>
-	long long gen_integers(const std::string& name, int count, long long low, long long high,
-	                       Tag tag = Tag{}, source_location loc = source_location::current()) {
-		return gen_numbers(name, low, high, tag, loc);
+	std::vector<long long> gen_integers(const std::string& name, int count, long long low,
+	                                    long long high, Tag tag = Tag{},
+	                                    source_location loc = source_location::current()) {
+		return gen_numbers(name, count, low, high, tag, loc);
 	}
 
 	template <typename Tag = ArbitraryTag>
-	long double gen_floats(const std::string& name, int count, long double low, long double high,
-	                       Tag tag = Tag{}, source_location loc = source_location::current()) {
-		return gen_numbers(name, low, high, tag, loc);
+	std::vector<long double> gen_floats(const std::string& name, int count, long double low,
+	                                    long double high, Tag tag = Tag{},
+	                                    source_location loc = source_location::current()) {
+		return gen_numbers(name, count, low, high, tag, loc);
 	}
 
   private:
@@ -971,7 +976,7 @@ class Validator {
 	std::vector<T> read_numbers(const std::string& name, int count, T low, T high, Tag tag,
 	                            Separator sep, source_location loc) {
 		if(gen) {
-			auto v = gen_numbers(name, count, low, high, tag, sep, loc);
+			auto v = gen_numbers(name, count, low, high, tag, loc);
 
 			out << std::setprecision(10) << std::fixed;
 			for(int i = 0; i < count; ++i) {
@@ -1260,7 +1265,6 @@ class Validator {
 		}
 		long long v;
 		try {
-			size_t chars_processed = 0;
 			auto begin = s.c_str(), end = begin + s.size();
 			auto [ptr, ec] = std::from_chars(begin, end, v);
 			if(ptr != end or ec != std::errc{})
@@ -1403,14 +1407,14 @@ class Validator {
 
 		std::ofstream os(constraints_file_path);
 
-		for(const auto& [location, b] : bounds) {
+		for(const auto& [location, bound] : bounds) {
 			os << location_to_string(location) << " ";
 			std::visit(
 			    [&](const auto& b) {
 				    os << b.name << " " << b.has_min << " " << b.has_max << " " << b.min << " "
 				       << b.max << " " << b.low << " " << b.high << std::endl;
 			    },
-			    b);
+			    bound);
 		}
 	}
 

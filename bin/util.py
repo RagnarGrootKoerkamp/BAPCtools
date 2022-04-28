@@ -614,6 +614,11 @@ write_yaml_lock = threading.Lock()
 
 # Writing a yaml file only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
 def write_yaml(data, path):
+    if not has_ryaml:
+        error(
+            'This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
+        )
+        exit(1)
     with write_yaml_lock:
         ryaml.dump(
             data,
@@ -844,12 +849,16 @@ def limit_setter(command, timeout, memory_limit):
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
 
         # Increase the max stack size from default to the max available.
-        if sys.platform != 'darwin':
+        if not is_mac():
             resource.setrlimit(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
 
-        if memory_limit and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']:
+        if (
+            memory_limit
+            and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']
+            and not is_mac()
+        ):
             resource.setrlimit(
                 resource.RLIMIT_AS, (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024)
             )

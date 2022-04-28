@@ -708,6 +708,11 @@ Run this from one of:
         type=Path,
         help='The path to the root of the hex539/scoreboard repository. Can also be set in contest.yaml.',
     )
+    solvestatsparser.add_argument(
+        '--contest-id',
+        action='store',
+        help='Contest ID to use when reading from the API. Defaults to value of contest_id in contest.yaml.',
+    )
 
     if not is_windows():
         argcomplete.autocomplete(parser)
