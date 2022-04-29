@@ -82,6 +82,14 @@ This image can be used for e.g.:
   docker run -v $PWD:/data --rm -it ragnargrootkoerkamp/bapctools <bt subcommands>
   ```
 
+To update the image:
+```
+$ sudo systemctl start docker
+$ docker login
+$ docker build . -t ragnargrootkoerkamp/bapctools
+$ docker push ragnargrootkoerkamp/bapctools
+```
+
 ## Usage
 
 BAPCtools can be run either from a problem directory or a contest directory. This
