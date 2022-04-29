@@ -17,7 +17,7 @@ RUN pacman -Syu --noconfirm \
 	python-pytest \
 	python-ruamel-yaml \
 	python2 \
-	jdk11-openjdk \
+	jdk17-openjdk \
 	kotlin \
 	texlive-core \
 	texlive-latexextra \
