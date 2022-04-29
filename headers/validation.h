@@ -1266,7 +1266,7 @@ class Validator {
 		long long v;
 		auto begin = s.c_str(), end = begin + s.size();
 		auto [ptr, ec] = std::from_chars(begin, end, v);
-		if(ec == std::errc::invalid_argument){
+		if(ec == std::errc::result_out_of_range){
 			WA(name, ": Number " + s + " does not fit in a long long!");
 		} else if(ptr != end) {
 			WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
