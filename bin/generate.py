@@ -180,7 +180,7 @@ class VisualizerInvocation(Invocation):
         result = self.program.run(cwd, args=self._sub_args(name=name))
 
         if result.ok == -9:
-            bar.error(f'TIMEOUT after {timeout}s')
+            bar.error(f'TIMEOUT after {result.duration}s')
         elif result.ok is not True:
             bar.error('Failed', result.err)
 

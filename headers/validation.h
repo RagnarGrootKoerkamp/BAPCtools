@@ -1264,15 +1264,14 @@ class Validator {
 			WA(name, ": Want integer, found nothing");
 		}
 		long long v;
-		try {
-			auto begin = s.c_str(), end = begin + s.size();
-			auto [ptr, ec] = std::from_chars(begin, end, v);
-			if(ptr != end or ec != std::errc{})
-				WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
-		} catch(const std::out_of_range& e) {
+		auto begin = s.c_str(), end = begin + s.size();
+		auto [ptr, ec] = std::from_chars(begin, end, v);
+		if(ec == std::errc::result_out_of_range){
 			WA(name, ": Number " + s + " does not fit in a long long!");
-		} catch(const std::invalid_argument& e) {
-			WA("Parsing " + s + " as long long failed!");
+		} else if(ptr != end) {
+			WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
+		} else if (ec != std::errc{}) {
+			WA(name, ": Parsing " + s + " as long long failed!");
 		}
 		// Check for leading zero.
 		if(v == 0) {

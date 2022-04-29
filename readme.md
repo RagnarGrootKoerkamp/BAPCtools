@@ -82,6 +82,16 @@ This image can be used for e.g.:
   docker run -v $PWD:/data --rm -it ragnargrootkoerkamp/bapctools <bt subcommands>
   ```
 
+To update the image:
+
+```
+$ sudo systemctl start docker
+$ docker pull archlinux:latest
+$ docker login
+$ docker build . -t ragnargrootkoerkamp/bapctools
+$ docker push ragnargrootkoerkamp/bapctools
+```
+
 ## Usage
 
 BAPCtools can be run either from a problem directory or a contest directory. This
@@ -166,6 +176,7 @@ For some command-line flags, it is convenient if they are always set to the same
 or `--scoreboard-repo` for the `bt solvestats` command).
 For this, you can create a configuration YAML file containing key-value pairs
 in one of the following locations, from low to high priority:
+
 - `$XDG_CONFIG_HOME/bapctools/config.yaml` (Unix-ish systems, where `$XDG_CONFIG_HOME` usually is `~/.config`)
 - `%AppData%/bapctools/config.yaml` (Windows systems)
 - `<contest directory>/.bapctools.yaml`
