@@ -1266,8 +1266,13 @@ class Validator {
 		long long v;
 		auto begin = s.c_str(), end = begin + s.size();
 		auto [ptr, ec] = std::from_chars(begin, end, v);
-		if(ptr != end or ec != std::errc{})
+		if(ec == std::errc::invalid_argument){
+			WA(name, ": Number " + s + " does not fit in a long long!");
+		} else if(ptr != end) {
 			WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
+		} else if (ec != std::errc{}) {
+			WA(name, ": Parsing " + s + " as long long failed!");
+		}
 		// Check for leading zero.
 		if(v == 0) {
 			if(s.size() != 1) WA(name, ": Parsed 0, but has leading 0 or minus sign: ", s);
