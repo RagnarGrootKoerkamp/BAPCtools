@@ -441,6 +441,9 @@ Run this from one of:
         action='store_true',
         help='Skip sanity checks on testcases.',
     )
+    validate_parser.add_argument(
+        '--timeout', '-t', type=int, help='Override the default timeout. Default: 30.'
+    )
 
     # constraints validation
     constraintsparser = subparsers.add_parser(

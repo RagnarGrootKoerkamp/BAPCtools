@@ -5,6 +5,7 @@ import subprocess
 import threading
 
 from util import *
+from colorama import Fore
 
 EXTRA_LANGUAGES = '''
 checktestdata:
@@ -475,7 +476,7 @@ class Generator(Program):
 
         if result.ok == -9:
             # Timeout -> stop retrying and fail.
-            bar.error(f'TIMEOUT after {timeout}s')
+            bar.log(f'TIMEOUT after {timeout}s',color=Fore.RED)
             return result
 
         if result.ok is not True:
@@ -490,7 +491,7 @@ class Generator(Program):
                 stdout_path.rename(in_path)
         else:
             if not in_path.is_file():
-                bar.error(f'Did not write {name}.in and stdout is empty!')
+                bar.log(f'Did not write {name}.in and stdout is empty!',color=Fore.RED)
                 result.ok = False
                 return result
 
