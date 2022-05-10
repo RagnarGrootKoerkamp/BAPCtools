@@ -98,6 +98,7 @@ class InputValidator(Validator):
                 expect=config.RTV_WA if testcase.bad_input else config.RTV_AC,
                 stdin=in_file,
                 cwd=cwd,
+                timeout=self.problem.settings.timeout,
             )
 
         if constraints is not None:
@@ -150,6 +151,7 @@ class OutputValidator(Validator):
                     expect=config.RTV_WA if testcase.bad_output else config.RTV_AC,
                     stdin=ans_file,
                     cwd=cwd,
+                    timeout=self.problem.settings.timeout,
                 )
 
             if constraints is not None:
@@ -171,4 +173,5 @@ class OutputValidator(Validator):
                 expect=config.RTV_AC,
                 stdin=out_file,
                 cwd=run.feedbackdir,
+                timeout=self.problem.settings.timeout,
             )
