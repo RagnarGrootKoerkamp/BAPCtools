@@ -792,7 +792,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
             print(' < ', kwargs['stdin'].name, end='', file=sys.stderr)
         print(file=sys.stderr)
 
-    timeout = 30
+    timeout = config.DEFAULT_TIMEOUT
     if 'timeout' in kwargs:
         if kwargs['timeout'] is None:
             timeout = None

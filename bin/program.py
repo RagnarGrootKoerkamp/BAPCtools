@@ -465,7 +465,7 @@ class Generator(Program):
             else:
                 f.unlink()
 
-        timeout = config.args.timeout or 30
+        timeout = config.args.timeout
 
         with stdout_path.open('w') as stdout_file:
             result = exec_command(
@@ -505,4 +505,4 @@ class Visualizer(Program):
     # Stdin and stdout are not used.
     def run(self, cwd, args=[]):
         assert self.run_command is not None
-        return exec_command(self.run_command + args, timeout=config.args.timeout or 30, cwd=cwd)
+        return exec_command(self.run_command + args, timeout=config.args.timeout, cwd=cwd)
