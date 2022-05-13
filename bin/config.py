@@ -47,6 +47,9 @@ KNOWN_DATA_EXTENSIONS = [
 
 SEED_DEPENDENCY_RETRIES = 10
 
+# The default timeout used for generators, visualizer etc.
+DEFAULT_TIMEOUT = 30
+
 # The root directory of the BAPCtools repository.
 tools_root = Path(__file__).resolve().parent.parent
 
@@ -64,6 +67,7 @@ default_args = {
     'jobs': os.cpu_count() // 2,
     'time': 600,  # Used for `bt fuzz`
     'verbose': 0,
+    'timeout': DEFAULT_TIMEOUT,
 }
 
 
