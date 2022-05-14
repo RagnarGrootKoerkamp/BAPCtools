@@ -37,7 +37,7 @@ def run_interactive_testcase(
     output_validator = output_validators[0]
 
     # Set limits
-    validator_timeout = 60
+    validator_timeout = 2*config.DEFAULT_TIMEOUT
 
     memory_limit = get_memory_limit()
     timelimit = run.problem.settings.timelimit
