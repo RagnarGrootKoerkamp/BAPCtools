@@ -47,6 +47,10 @@ KNOWN_DATA_EXTENSIONS = [
 
 SEED_DEPENDENCY_RETRIES = 10
 
+# The default timeout used for generators, visualizer etc.
+DEFAULT_TIMEOUT = 30
+DEFAULT_INTERACTION_TIMEOUT = 60
+
 # The root directory of the BAPCtools repository.
 tools_root = Path(__file__).resolve().parent.parent
 
@@ -64,6 +68,7 @@ default_args = {
     'jobs': os.cpu_count() // 2,
     'time': 600,  # Used for `bt fuzz`
     'verbose': 0,
+    'timeout': DEFAULT_TIMEOUT,
 }
 
 
@@ -71,10 +76,10 @@ default_args = {
 """
 for cmd in $(bapctools --help | grep '^  {' | sed 's/  {//;s/}//;s/,/ /g') ; do bapctools $cmd --help ; done |& \
 grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_/g' | sort -u | \
-grep -Ev '^(h|jobs|time|verbose)$' | sed "s/^/'/;s/$/',/" | tr '\n' ' ' | sed 's/^/args_list = [/;s/, $/]\n/'
+grep -Ev '^(h|jobs|time|verbose|timeout)$' | sed "s/^/'/;s/$/',/" | tr '\n' ' ' | sed 's/^/args_list = [/;s/, $/]\n/'
 """
 # fmt: off
-args_list = ['1', 'add_manual', 'all', 'api', 'author', 'check_deterministic', 'clean', 'clean_generated', 'cleanup_generated', 'contest', 'contest_id', 'contestname', 'cp', 'cpp_flags', 'default_solution', 'directory', 'error', 'force', 'force_build', 'ignore_validators', 'input', 'interaction', 'interactive', 'kattis', 'memory', 'move_manual', 'move_to', 'no_bar', 'no_generate', 'no_solutions', 'no_timelimit', 'order', 'order_from_ccs', 'output', 'password', 'problem', 'problemname', 'remove', 'samples', 'scoreboard_repo', 'skel', 'skip', 'skip_solution', 'skip_testcase_sanity_checks', 'skip_visualizer', 'submissions', 'table', 'testcases', 'timelimit', 'timeout', 'username', 'validation', 'watch', 'web']
+args_list = ['1', 'add_manual', 'all', 'api', 'author', 'check_deterministic', 'clean', 'clean_generated', 'cleanup_generated', 'contest', 'contest_id', 'contestname', 'cp', 'cpp_flags', 'default_solution', 'directory', 'error', 'force', 'force_build', 'ignore_validators', 'input', 'interaction', 'interactive', 'kattis', 'memory', 'move_manual', 'move_to', 'no_bar', 'no_generate', 'no_solutions', 'no_timelimit', 'order', 'order_from_ccs', 'output', 'password', 'problem', 'problemname', 'remove', 'samples', 'scoreboard_repo', 'skel', 'skip', 'skip_solution', 'skip_testcase_sanity_checks', 'skip_visualizer', 'submissions', 'table', 'testcases', 'timelimit', 'username', 'validation', 'watch', 'web']
 # fmt: on
 
 

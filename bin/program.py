@@ -5,6 +5,7 @@ import subprocess
 import threading
 
 from util import *
+from colorama import Fore
 
 EXTRA_LANGUAGES = '''
 checktestdata:
@@ -464,7 +465,7 @@ class Generator(Program):
             else:
                 f.unlink()
 
-        timeout = config.args.timeout or 30
+        timeout = config.args.timeout
 
         with stdout_path.open('w') as stdout_file:
             result = exec_command(
@@ -475,7 +476,7 @@ class Generator(Program):
 
         if result.ok == -9:
             # Timeout -> stop retrying and fail.
-            bar.error(f'TIMEOUT after {timeout}s')
+            bar.log(f'TIMEOUT after {timeout}s',color=Fore.RED)
             return result
 
         if result.ok is not True:
@@ -490,7 +491,7 @@ class Generator(Program):
                 stdout_path.rename(in_path)
         else:
             if not in_path.is_file():
-                bar.error(f'Did not write {name}.in and stdout is empty!')
+                bar.log(f'Did not write {name}.in and stdout is empty!',color=Fore.RED)
                 result.ok = False
                 return result
 
@@ -504,4 +505,4 @@ class Visualizer(Program):
     # Stdin and stdout are not used.
     def run(self, cwd, args=[]):
         assert self.run_command is not None
-        return exec_command(self.run_command + args, timeout=config.args.timeout or 30, cwd=cwd)
+        return exec_command(self.run_command + args, timeout=config.args.timeout, cwd=cwd)
