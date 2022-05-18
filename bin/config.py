@@ -104,5 +104,5 @@ TEST_TLE_SUBMISSIONS = False
 DEFAULT_TIMEOUT = 30
 DEFAULT_INTERACTION_TIMEOUT = 60
 
-def get_timeout(default=DEFAULT_TIMEOUT):
-    return args.timeout or default
+def get_timeout():
+    return args.timeout or DEFAULT_TIMEOUT
