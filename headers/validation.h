@@ -224,10 +224,10 @@ struct UniformGenerator {
 			// Rejection sampling is not as fast as possible but definitely unbiased.
 			auto ul    = static_cast<unsigned long long>(low);
 			auto uh    = static_cast<unsigned long long>(high);
-			int shitfs = cpp20::countl_zero(uh - ul);
+			int shifts = cpp20::countl_zero(uh - ul);
 			unsigned long long res;
 			do {
-				res = Random::bits64(rng) >> shitfs;
+				res = Random::bits64(rng) >> shifts;
 			} while(res > uh - ul);
 			return static_cast<long long>(res + ul);
 		} else {
