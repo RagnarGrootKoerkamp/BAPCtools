@@ -239,10 +239,11 @@ def rename_problem(problem):
     problems_yaml = Path('problems.yaml')
     if problems_yaml.is_file():
         data = read_yaml(problems_yaml) or []
-        prob = next(p for p in data if p['id'] == problem.name)
-        prob['id'] = dirname
-        prob['name'] = problemname
-        write_yaml(data, problems_yaml)
+        prob = next((p for p in data if p['id'] == problem.name), None)
+        if prob is not None:
+            prob['id'] = dirname
+            prob['name'] = problemname
+            write_yaml(data, problems_yaml)
 
 
 def copy_skel_dir(problems):
