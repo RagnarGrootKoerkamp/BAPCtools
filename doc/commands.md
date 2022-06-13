@@ -28,6 +28,7 @@ This lists all subcommands and their most important options.
   - [`bt new_contest [contestname]`](#new_contest)
   - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--skel SKEL]`](#new_problem)
   - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
+  - [`bt rename_problem [problemname]`](#rename_problem)
   - [`bt gitlabci`](#gitlabci)
 - Exporting
   - [`bt samplezip`](#samplezip)
@@ -367,6 +368,14 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 
 Copy the given directory from [../skel/problem](../skel/problem) to the current problem directory. Directories passed must be relative to the problem root, e.g. `generators` or `output_validators/output_validator`.
 The skel directory is found as with the `new_problem` command and can be overridden using `--skel`.
+
+## `rename_problem`
+
+Rename a problem, including its problem directory. If `problems.yaml` is present, also rename the problem in this file. Do not forget to pass a `--problem` to rename when running this from a contest directory.
+
+**Flags**
+
+- `[<problem name>]`: The new name of the problem. Will be asked interactively if not specified.
 
 ## `gitlabci`
 
