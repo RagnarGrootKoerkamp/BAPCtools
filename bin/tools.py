@@ -560,6 +560,9 @@ Run this from one of:
         type=Path,
         help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name, and submissions to run.',
     )
+    fuzzparser.add_argument(
+        '--timeout', type=int, help='Override the default timeout. Default: 30.'
+    )
 
     # Run
     runparser = subparsers.add_parser(
