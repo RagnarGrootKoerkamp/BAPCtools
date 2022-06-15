@@ -18,7 +18,7 @@ This lists all subcommands and their most important options.
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
-  - [`bt fuzz [-v] [-t TIME] [testcases [testcases ...]]`](#fuzz)
+  - [`bt fuzz [-v] [-t TIME] [--timeout TIMEOUT] [testcases [testcases ...]]`](#fuzz)
 - Problem validation
   - [`bt input [-v] [testcases [testcases ...]]`](#input)
   - [`bt output [-v] [testcases [testcases ...]]`](#output)
@@ -244,6 +244,7 @@ stored in `generators.yaml` corresponding to `data/fuzz/<id>.in`.
 
 - `[<testcases>]`: The generator invocations to use for generating random test data. Accepts directories (`data/secret`), test case names (`data/secret/1`), or test case files (`data/secret/1.in`).
 - `--time <seconds>`/`-t <seconds>`: For how long to run the fuzzer.
+- `--timeout <seconds>`: Override the default timeout for generators (`30s`).
 
 # Problem validation
 
