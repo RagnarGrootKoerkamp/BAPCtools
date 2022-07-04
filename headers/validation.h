@@ -362,26 +362,88 @@ struct BinomialDistributionGenerator {
 	using Args                             = std::tuple<long long, long double>;
 
 	long long n_;
-	double p_;
+	long double p_;
 
-	explicit BinomialDistributionGenerator(long long n, double p) : n_(n), p_(p) {
+	explicit BinomialDistributionGenerator(long long n, long double p) : n_(n), p_(p) {
 		assert(p_ >= 0);
 		assert(p_ <= 1);
-		std::cerr << "Warning: Large n (" << n_ << ") is slow for BinomialDistributionGenerator!"
-		          << std::endl;
 	}
 
 	// NOTE: Currently this retries instead of clamping to the interval.
 	T operator()(T low, T high, std::mt19937_64& rng) const {
 		assert(low <= high);
-		// this will be slow for large n
-		// (a faster implementation requires efficient poisson sampling)
 		while(true) {
-			T v = 0;
-			for(long long i = 0; i < n_; i++) {
-				v += Random::real64(rng) < p_ ? 1 : 0;
-			}
+			T v = binomial(rng);
 			if(v >= low && v <= high) return v;
+		}
+	}
+
+private:
+	long double logFac(long long n) const {
+		if (n < 16) {
+			long long fac = 1;
+			for (long long i = 2; i <= n; i++) fac *= i;
+			return std::log(fac);
+		} else {
+			// https://mathworld.wolfram.com/StirlingsSeries.html
+			return 0.5l * std::log(2.0l * cpp20::PI)
+			     + (n + 0.5l) * std::log(n + 1.0l)
+			     - (n + 1)
+			     + 1.0l / (12 * (n + 1.0))
+			     - 1.0l / (360 * std::pow(n + 1.0l, 3))
+			     + 1.0l / (1260 * std::pow(n + 1.0l, 5))
+			     - 1.0l / (1680 * std::pow(n + 1.0l, 7));
+		}
+	}
+
+	long long binomial(std::mt19937_64& rng) const {
+		// n_ and p_ are not const so we cant precalculate anything? ):
+		bool swap = p_ > 0.5l;
+		long double p = std::min(p_, 1.0l - p_);
+		if (p*n_ <= 16.0l) {
+			// inverse sampling
+			long double q = 1.0l - p;
+			long double s = p / q;
+			long double a = (n_ + 1) * s;
+			long double r = std::pow(q, n_);
+			long double u = Random::real64(rng);
+			long long res = 0;
+			while (u > r) {
+				u -= r;
+				res++;
+				r *= (a / res) - s;
+			}
+			return swap ? n_ - res : res;
+		} else {
+			// BTRS algorithm
+			// https://epub.wu.ac.at/1242/1/document.pdf
+			long double q = 1.0l - p;
+			long double spq = sqrt(n_ * p * q);
+			long double b = 1.15l + 2.53l * spq;
+			long double a = -0.0873l + 0.0248l * b + 0.01l * p;
+			long double c = n_ * p + 0.5l;
+			long double vr = 0.92l - 4.2l / b;
+			do {
+				long double v, us;
+				long long res;
+				do {
+					v = Random::real64(rng);
+					long double u = Random::real64(rng) - 0.5l;
+					us = 0.5l - std::abs(u);
+					res = std::floor((2.0l * a / us + b) * u + c);
+				} while (res < 0 || res > n_);
+				if (us >= 0.07l && v <= vr) {
+					return swap ? n_ - res : res;
+				}
+				long double alpha = (2.83l + 5.1l / b) * spq;
+				long double lpq = std::log(p / q);
+				long long m = std::floor((n_ + 1) * p);
+				long double h = logFac(m) + logFac(n_ - m);
+				v += alpha / (a / (us * us) + b);
+				if (v <= h - logFac(res) - logFac(n_ - res) + (res - m) * lpq) {
+					return swap ? n_ - res : res;
+				}
+			} while (true);
 		}
 	}
 };
