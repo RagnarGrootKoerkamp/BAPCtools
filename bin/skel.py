@@ -19,7 +19,6 @@ try:
             if len(document.text) == 0:
                 raise ValidationError(message="Please enter a value")
 
-
 except:
     has_questionary = False
 
@@ -215,6 +214,36 @@ def new_problem():
     copytree_and_substitute(
         skeldir, target_dir / dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks
     )
+
+
+def rename_problem(problem):
+    if not has_ryaml:
+        fatal('ruamel.yaml library not found.')
+
+    problemname = (
+        config.args.problemname if config.args.problemname else _ask_variable_string('problem name')
+    )
+    dirname = (
+        _alpha_num(problemname)
+        if config.args.problemname
+        else _ask_variable_string('dirname', _alpha_num(problemname))
+    )
+
+    shutil.move(problem.name, dirname)
+
+    problem_yaml = Path(dirname) / 'problem.yaml'
+    data = read_yaml(problem_yaml)
+    data['name'] = problemname
+    write_yaml(data, problem_yaml)
+
+    problems_yaml = Path('problems.yaml')
+    if problems_yaml.is_file():
+        data = read_yaml(problems_yaml) or []
+        prob = next((p for p in data if p['id'] == problem.name), None)
+        if prob is not None:
+            prob['id'] = dirname
+            prob['name'] = problemname
+            write_yaml(data, problems_yaml)
 
 
 def copy_skel_dir(problems):

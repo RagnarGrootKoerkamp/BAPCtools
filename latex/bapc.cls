@@ -241,20 +241,24 @@
 \newsavebox{\PS@outputbox}
 \newlength{\PS@inputwidth}
 \newlength{\PS@outputwidth}
-\newlength{\PS@totalwidth}
 
 \newcommand{\Sample}[2]{
 	\savebox{\PS@inputbox}{\SampleListing{#1}}
 	\savebox{\PS@outputbox}{\SampleListing{#2}}
 	\settowidth{\PS@inputwidth}{\usebox{\PS@inputbox}}
 	\settowidth{\PS@outputwidth}{\usebox{\PS@outputbox}}
-	\setlength{\PS@totalwidth}{\PS@inputwidth}
-	\addtolength{\PS@totalwidth}{\PS@outputwidth}
 	% Check if too wide for side-by-side
-	\ifdim\PS@totalwidth>2\PS@idealwidth
-		\FullWidthSample{#1}{#2}
+	\ifdim\PS@inputwidth<\PS@idealwidth
+		\ifdim\PS@outputwidth<\PS@idealwidth
+			% If both input and output are small enough, print side-by-side.
+			\SideBySideSample{#1}{#2}
+		\else
+			% If output width is too large, print full-width.
+			\FullWidthSample{#1}{#2}
+		\fi
 	\else
-		\SideBySideSample{#1}{#2}
+		% If input width is too large, print full-width.
+		\FullWidthSample{#1}{#2}
 	\fi
 }
 

@@ -370,6 +370,12 @@ Run this from one of:
     )
     skelparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 
+    # Rename problem
+    renameproblemparser = subparsers.add_parser(
+        'rename_problem', parents=[global_parser], help='Rename a problem, including its directory.'
+    )
+    renameproblemparser.add_argument('problemname', nargs='?', help='The new name of the problem,')
+
     # Problem statements
     pdfparser = subparsers.add_parser(
         'pdf', parents=[global_parser], help='Build the problem statement pdf.'
@@ -560,6 +566,9 @@ Run this from one of:
         type=Path,
         help='The generator.yaml rules to use, given as directory, .in/.ans file, or base name, and submissions to run.',
     )
+    fuzzparser.add_argument(
+        '--timeout', type=int, help='Override the default timeout. Default: 30.'
+    )
 
     # Run
     runparser = subparsers.add_parser(
@@ -741,11 +750,11 @@ def run_parsed_arguments(args):
             config.args.testcases = []
 
     # Skel commands.
-    if action in ['new_contest']:
+    if action == 'new_contest':
         skel.new_contest()
         return
 
-    if action in ['new_problem']:
+    if action == 'new_problem':
         skel.new_problem()
         return
 
@@ -788,7 +797,7 @@ def run_parsed_arguments(args):
 
         return
 
-    if action in ['stats']:
+    if action == 'stats':
         stats.stats(problems)
         return
 
@@ -796,8 +805,14 @@ def run_parsed_arguments(args):
         print_sorted(problems)
         return
 
-    if action in ['samplezip']:
+    if action == 'samplezip':
         export.build_samples_zip(problems)
+        return
+
+    if action == 'rename_problem':
+        if level == 'problemset':
+            fatal('rename_problem only works for a problem')
+        skel.rename_problem(problems[0])
         return
 
     if action == 'gitlabci':

@@ -18,7 +18,7 @@ This lists all subcommands and their most important options.
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
-  - [`bt fuzz [-v] [-t TIME] [testcases [testcases ...]]`](#fuzz)
+  - [`bt fuzz [-v] [-t TIME] [--timeout TIMEOUT] [testcases [testcases ...]]`](#fuzz)
 - Problem validation
   - [`bt input [-v] [testcases [testcases ...]]`](#input)
   - [`bt output [-v] [testcases [testcases ...]]`](#output)
@@ -28,6 +28,7 @@ This lists all subcommands and their most important options.
   - [`bt new_contest [contestname]`](#new_contest)
   - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--skel SKEL]`](#new_problem)
   - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
+  - [`bt rename_problem [problemname]`](#rename_problem)
   - [`bt gitlabci`](#gitlabci)
 - Exporting
   - [`bt samplezip`](#samplezip)
@@ -243,6 +244,7 @@ stored in `generators.yaml` corresponding to `data/fuzz/<id>.in`.
 
 - `[<testcases>]`: The generator invocations to use for generating random test data. Accepts directories (`data/secret`), test case names (`data/secret/1`), or test case files (`data/secret/1.in`).
 - `--time <seconds>`/`-t <seconds>`: For how long to run the fuzzer.
+- `--timeout <seconds>`: Override the default timeout for generators (`30s`).
 
 # Problem validation
 
@@ -367,6 +369,14 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 
 Copy the given directory from [../skel/problem](../skel/problem) to the current problem directory. Directories passed must be relative to the problem root, e.g. `generators` or `output_validators/output_validator`.
 The skel directory is found as with the `new_problem` command and can be overridden using `--skel`.
+
+## `rename_problem`
+
+Rename a problem, including its problem directory. If `problems.yaml` is present, also rename the problem in this file. Do not forget to pass a `--problem` to rename when running this from a contest directory.
+
+**Flags**
+
+- `[<problem name>]`: The new name of the problem. Will be asked interactively if not specified.
 
 ## `gitlabci`
 
