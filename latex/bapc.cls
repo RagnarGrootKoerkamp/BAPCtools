@@ -333,6 +333,7 @@
 \usepackage{amsmath,amssymb}
 \usepackage{wrapfig}
 \usepackage{tikz}
+\usepackage{tikz-qtree}
 \usetikzlibrary{arrows}
 \usetikzlibrary{shapes}
 \usetikzlibrary{backgrounds}
