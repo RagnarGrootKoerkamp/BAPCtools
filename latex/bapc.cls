@@ -339,8 +339,13 @@
 \usetikzlibrary{backgrounds}
 \usetikzlibrary{patterns}
 \usetikzlibrary{positioning}
+\usetikzlibrary{scopes}
+\usetikzlibrary{shapes.geometric}
 \usepackage{enumitem}	% [noitemsep] for smaller lists
 \usepackage{textcomp} % textquotesingle: '
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+
 
 %-------------------------------------------------------------------------------
 % Set margins (using commands from memoir.cls).
