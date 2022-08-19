@@ -126,13 +126,11 @@ def get_problems():
 
     def fallback_problems():
         problem_paths = list(filter(is_problem_directory, glob(Path('.'), '*/')))
-        start_label_ord = (
-            ord('Z') - len(problem_paths) + 1 if contest_yaml().get('testsession') else ord('A')
-        )
+        label = chr(ord('Z') - len(problem_paths) + 1) if contest_yaml().get('testsession') else 'A'
         problems = []
         for i, path in enumerate(problem_paths):
-            label = chr(start_label_ord + i)
             problems.append((path, label))
+            label = inc_label(label)
         return problems
 
     problems = []
