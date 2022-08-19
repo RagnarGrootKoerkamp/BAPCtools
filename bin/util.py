@@ -1006,3 +1006,12 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         duration = tend - tstart
 
     return ExecResult(ok, duration, err, out)
+
+
+def inc_label(label):
+    for x in range(len(label) - 1, -1, -1):
+        if label[x] != 'Z':
+            label = label[:x] + chr(ord(label[x]) + 1) + label[x + 1 :]
+            return label
+        label = label[:x] + 'A' + label[x + 1 :]
+    return 'A' + label
