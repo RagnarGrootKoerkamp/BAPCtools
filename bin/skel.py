@@ -195,7 +195,7 @@ def new_problem():
             next_label = (
                 ('X' if contest.contest_yaml().get('testsession') else 'A')
                 if prev_label is None
-                else prev_label[:-1] + chr(ord(prev_label[-1]) + 1)
+                else inc_label(prev_label)
             )
             # Name and time limits are overridden by problem.yaml, but still required.
             data.append(
