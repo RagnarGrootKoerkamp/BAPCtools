@@ -123,9 +123,11 @@ def _try_generator_invocation(problem, t, submissions, i):
         if result.verdict != 'ACCEPTED':
             if not saved:
                 saved = True
-                localbar.error('Broken! Saving testcase in generators.yaml.')
+                localbar.error(f'{result.verdict}! Saving testcase in generators.yaml.')
                 _save_test(problem, command)
                 return
+            else:
+                localbar.error(f'{result.verdict}!')
         localbar.done()
 
     # Run all submissions against the testcase.
