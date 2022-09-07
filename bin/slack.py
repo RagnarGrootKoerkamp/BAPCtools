@@ -1,4 +1,7 @@
-import requests
+try:
+    import requests
+except:
+    pass
 
 from util import *
 
