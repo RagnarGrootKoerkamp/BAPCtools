@@ -77,14 +77,14 @@ and only consist of English lowercase letters (`a-z`).
 - Use itemize even when there is only a single item.
 
 | Don't                                                                                                          | Do                                                                                  |
-| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | -------- | ----------- |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `One line without a period`                                                                                    | `One line ending in a period.`                                                      |
 | `A line with ...`, `One line containing ...`                                                                   | `One line with ... `                                                                |
 | `One line with an integer $n$ not separated by a comma.`                                                       | `One line with an integer $n$, separated by a comma.`                               |
 | `One line with a single integer $n$.`                                                                          | `One line with an integer $n$.`                                                     |
 | `Then follow $n$ lines with ...`                                                                               | `$n$ lines with ...`                                                                |
 | `One line with $n$ (..), the number of X, and $m$ (..), the number of Y.`                                      | `One line with two integers $n$ and $m$ (..), the number of X and the number of Y.` |
-| `One line with an integer $x$ ($-100 \leq x \leq 100$)`                                                        | `One line with an integer $x$ ($\left                                               | x \right | \leq 100$)` |
+| `One line with an integer $x$ ($-100 \leq x \leq 100$)`                                                        | `One line with an integer $x$ ($\left \vert x \right \vert \leq 100$)`              |
 | `$n$ lines each containing an integer $x_i$`                                                                   | `$n$ lines, the $i$th of which contains an integer $x_i$`                           |
 | `One line with $n$ integers $x_i$ ($1 \le x_i \le 100$)`                                                       | `One line with $n$ integers $x_1, \ldots, x_n$ ($1 \le x_i \le 100$ for all $i$)`   |
 | `$n$ lines, the $i$th of which contains an integer $x_i$ ($0 \le x_i \le 10$)` without refering to the $x_i$'s | `$n$ lines, each containing an integer $x$ ($0 \le x \le 10$)`                      |
