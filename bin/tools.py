@@ -730,7 +730,18 @@ Run this from one of:
         parents=[global_parser],
         help='Create a slack channel for each problem',
     )
-    create_slack_channel_parser.add_argument('--token', required=True)
+    create_slack_channel_parser.add_argument(
+        '--token', required=True, help='A user token is of the form xoxp-...'
+    )
+
+    join_slack_channel_parser = subparsers.add_parser(
+        'join_slack_channels',
+        parents=[global_parser],
+        help='Join a slack channel for each problem',
+    )
+    join_slack_channel_parser.add_argument(
+        '--token', required=True, help='A user token is of the form xoxp-...'
+    )
 
     if not is_windows():
         argcomplete.autocomplete(parser)
@@ -837,6 +848,10 @@ def run_parsed_arguments(args):
 
     if action == 'create_slack_channels':
         slack.create_slack_channels(problems)
+        return
+
+    if action == 'join_slack_channels':
+        slack.join_slack_channels(problems)
         return
 
     problem_zips = []
