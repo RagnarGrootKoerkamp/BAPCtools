@@ -2,8 +2,9 @@
 
 ## Input Sections
 
-Input Sections are in "Dutch style". Most items exactly follow one of the
-forms in this sample:
+Input Sections are in "Dutch style": an itemized list of lines, possibly
+followed by some remarks. Most items
+exactly follow one of the forms in this sample:
 
 ### Input
 
@@ -21,7 +22,7 @@ The input consists of:
 - $n$ lines, each containing two numbers describing an event:
   - An integer $e$ ($1\leq e\leq 5$) the type of the event, and
   - a floating-point number $p$ ($0 < p < 1$ with at most $6$ digits after the decimal point),
-    the probability of succes.
+    the probability of success.
 
 An optional remark regarding additional guarantees goes here, i.e., that a graph
 is connected or all input strings have length between $1$ and $20$ characters
@@ -73,16 +74,17 @@ and only consist of English lowercase letters (`a-z`).
 - Do not write "separated by single spaces" and similar general
   formatting rules that always apply (but if for some reason amount of
   spaces may vary, do write this).
+- Use itemize even when there is only a single item.
 
 | Don't                                                                                                          | Do                                                                                  |
-| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | -------- | ----------- |
 | `One line without a period`                                                                                    | `One line ending in a period.`                                                      |
 | `A line with ...`, `One line containing ...`                                                                   | `One line with ... `                                                                |
 | `One line with an integer $n$ not separated by a comma.`                                                       | `One line with an integer $n$, separated by a comma.`                               |
 | `One line with a single integer $n$.`                                                                          | `One line with an integer $n$.`                                                     |
 | `Then follow $n$ lines with ...`                                                                               | `$n$ lines with ...`                                                                |
 | `One line with $n$ (..), the number of X, and $m$ (..), the number of Y.`                                      | `One line with two integers $n$ and $m$ (..), the number of X and the number of Y.` |
-| `One line with an integer $x$ ($-100 \leq x \leq 100$)`                                                        | `One line with an integer $x$ ($\left| x \right| \leq 100$)`                        |
+| `One line with an integer $x$ ($-100 \leq x \leq 100$)`                                                        | `One line with an integer $x$ ($\left                                               | x \right | \leq 100$)` |
 | `$n$ lines each containing an integer $x_i$`                                                                   | `$n$ lines, the $i$th of which contains an integer $x_i$`                           |
 | `One line with $n$ integers $x_i$ ($1 \le x_i \le 100$)`                                                       | `One line with $n$ integers $x_1, \ldots, x_n$ ($1 \le x_i \le 100$ for all $i$)`   |
 | `$n$ lines, the $i$th of which contains an integer $x_i$ ($0 \le x_i \le 10$)` without refering to the $x_i$'s | `$n$ lines, each containing an integer $x$ ($0 \le x \le 10$)`                      |
@@ -107,6 +109,7 @@ and only consist of English lowercase letters (`a-z`).
   underlying problem, for the purposes of making judging feasible:
   describe these after the general description of the output format
   (c.f. NWERC 2018 Circuit Design and NWERC 2018 Game Design).
+- Do not use itemize.
 
 ## General guidelines
 
