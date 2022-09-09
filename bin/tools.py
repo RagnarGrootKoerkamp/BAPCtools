@@ -34,6 +34,7 @@ import fuzz
 import latex
 import run
 import skel
+import slack
 import stats
 import validate
 import signal
@@ -724,6 +725,24 @@ Run this from one of:
         help='Contest ID to use when reading from the API. Defaults to value of contest_id in contest.yaml.',
     )
 
+    create_slack_channel_parser = subparsers.add_parser(
+        'create_slack_channels',
+        parents=[global_parser],
+        help='Create a slack channel for each problem',
+    )
+    create_slack_channel_parser.add_argument(
+        '--token', required=True, help='A user token is of the form xoxp-...'
+    )
+
+    join_slack_channel_parser = subparsers.add_parser(
+        'join_slack_channels',
+        parents=[global_parser],
+        help='Join a slack channel for each problem',
+    )
+    join_slack_channel_parser.add_argument(
+        '--token', required=True, help='A user token is of the form xoxp-...'
+    )
+
     if not is_windows():
         argcomplete.autocomplete(parser)
 
@@ -825,6 +844,14 @@ def run_parsed_arguments(args):
         if level == 'problem':
             fatal('solvestats only works for a contest')
         latex.generate_solvestats(problems)
+        return
+
+    if action == 'create_slack_channels':
+        slack.create_slack_channels(problems)
+        return
+
+    if action == 'join_slack_channels':
+        slack.join_slack_channels(problems)
         return
 
     problem_zips = []
