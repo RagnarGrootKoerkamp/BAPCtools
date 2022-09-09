@@ -37,6 +37,7 @@ This lists all subcommands and their most important options.
   - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated]`](#all)
   - [`bt sort`](#sort)
   - [`bt tmp [--clean]`](#tmp)
+  - `bt create_slack_channels --token xoxb-...`
 
 # Global flags
 
