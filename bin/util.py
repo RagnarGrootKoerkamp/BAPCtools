@@ -934,7 +934,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
             timeout = kwargs['timeout']
         kwargs.pop('timeout')
 
-    if is_windows() and 'memory' in kwargs:
+    if (is_windows() or is_wsl()) and 'memory' in kwargs:
         kwargs.pop('memory')
 
     process = None
