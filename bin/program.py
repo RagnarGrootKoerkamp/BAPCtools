@@ -286,27 +286,31 @@ class Program:
 
         # Warn for known bad (non-deterministic) patterns in generators
         from validate import Validator
+
         if isinstance(self, Generator) or isinstance(self, Validator):
             if self.language == 'cpp':
                 for f in self.source_files:
                     try:
                         text = f.read_text()
-                        bad_random = []
-                        for s in ['rand()',
-                                  'uniform_int_distribution',
-                                  'uniform_real_distribution',
-                                  'normal_distribution',
-                                  'exponential_distribution',
-                                  'geometric_distribution',
-                                  'binomial_distribution',
-                                  'random_device',
-                                  'default_random_engine']:
-                            if text.find(s) != -1:
-                                bad_random.append(s)
+                        bad_random = set()
+                        for s in [
+                            'rand\\(\\)',
+                            'uniform_int_distribution',
+                            'uniform_real_distribution',
+                            'normal_distribution',
+                            'exponential_distribution',
+                            'geometric_distribution',
+                            'binomial_distribution',
+                            'random_device',
+                            'default_random_engine',
+                        ]:
+                            for line in text.splitlines():
+                                if s in line and 'bt ignore' not in line:
+                                    bad_random.add(s)
                         if bad_random:
                             bad_message = ', '.join(bad_random)
                             self.bar.warn(
-                                f'Calling {bad_message} in {f.name} is implementation dependent in C++. Use <validation.h> instead.'
+                                f'Calling {bad_message} in {f.name} is implementation dependent in C++. Use <validation.h> instead, or add `// bt ignore` to the line.'
                             )
                         if text.find('typeid(') != -1:
                             self.bar.warn(
@@ -476,7 +480,7 @@ class Generator(Program):
 
         if result.ok == -9:
             # Timeout -> stop retrying and fail.
-            bar.log(f'TIMEOUT after {timeout}s',color=Fore.RED)
+            bar.log(f'TIMEOUT after {timeout}s', color=Fore.RED)
             return result
 
         if result.ok is not True:
@@ -491,7 +495,7 @@ class Generator(Program):
                 stdout_path.rename(in_path)
         else:
             if not in_path.is_file():
-                bar.log(f'Did not write {name}.in and stdout is empty!',color=Fore.RED)
+                bar.log(f'Did not write {name}.in and stdout is empty!', color=Fore.RED)
                 result.ok = False
                 return result
 
