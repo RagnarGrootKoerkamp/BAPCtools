@@ -525,7 +525,7 @@ class TestcaseRule(Rule):
                 if depends_on_seed:
                     bar.debug('Generator depends on seed.')
                 else:
-                    bar.warn(
+                    bar.log(
                         f'Generator `{t.generator.command_string}` likely does not depend on seed:',
                         f'All values in [{t.seed}, {new_seed}] give the same result.',
                     )
