@@ -278,6 +278,14 @@ cpython3b:
     compile: 'python3 -m py_compile {files}'
     run: 'python3 {mainfile}'
 
+# Use .cpy to explicitly invoke CPython 3
+cpython:
+    name: 'Python 3'
+    priority: 800
+    files: '*.cpy'
+    compile: 'python3 -m py_compile {files}'
+    run: 'python3 {mainfile}'
+
 ruby:
     name: 'Ruby'
     priority: 650
