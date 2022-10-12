@@ -14,7 +14,7 @@ URL="$1"
 
 dir="$(mktemp -d)"
 for endpoint in teams organizations problems scoreboard; do
-    curl --fail --location "$URL/$endpoint" > "$dir/$endpoint.json"
+    curl --fail --location "$URL/$endpoint" >"$dir/$endpoint.json"
 done
 
 OUT=scoreboard.zip

@@ -877,6 +877,7 @@ def run_parsed_arguments(args):
             config.args.add_manual = False
             config.args.move_manual = False
             config.args.verbose = 0
+            config.args.skip_visualizer = True
             success &= generate.generate(problem)
             config.args = old_args
         if action in ['fuzz']:
