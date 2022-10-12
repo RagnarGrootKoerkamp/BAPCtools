@@ -14,6 +14,6 @@
 # Only the /teams, /organizations, /problems and /scoreboard endpoint are used,
 # so manually putting files in those locations can work as well.
 
-sudo docker-compose exec domjudge sudo -u domjudge webapp/bin/console scoreboard:merge 'BAPC Preliminaries 2021' \
+sudo docker-compose exec domjudge sudo -u domjudge webapp/bin/console scoreboard:merge merged.zip 'BAPC Preliminaries 2022' \
     https://{user}:{pass}@www.domjudge.org/demoweb/api/v4/contests/{cid} {group_id} \
     {some_other_url}/api/v4/contests/{cid} {group_id}
