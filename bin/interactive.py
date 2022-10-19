@@ -236,86 +236,103 @@ while True:
     submission_time = None
     first = None
 
-    kill_submission = False
-
-    def kill_submission_handler(signal, frame):
-        nonlocal submission_time
-        if not kill_submission:
-            submission_time = timeout
-        submission.kill()
+    def close_stream(id):
         try:
-            validator.kill()
-        except ProcessLookupError:
-            # Validator already exited.
-            pass
-        if interaction:
-            team_tee.kill()
-            val_tee.kill()
+            os.close(id)
+        except:
+            return False
+        return True
 
-    signal.signal(signal.SIGALRM, kill_submission_handler)
+    def kill_process(process):
+        try:
+            process.kill()
+        except:
+            return False
+        return True
+
+    set_timeout = True
+    def tle_handler(signal, frame):
+        nonlocal submission_time
+        if set_timeout:
+            submission_time = timeout
+        kill_process(submission)
+        kill_process(validator)
+        if interaction:
+            kill_process(team_tee)
+            kill_process(val_tee)
+
+    signal.signal(signal.SIGALRM, tle_handler)
 
     # Raise alarm after timeout reached
     signal.alarm(timeout)
 
     # Wait for first to finish
     left = 4 if interaction else 2
-    first_done = True
-    while left > 0:
-        if kill_submission:
-            # Kill the submission asynchronously.
-            signal.setitimer(signal.ITIMER_REAL, 0.001, 0)
-        pid, status, rusage = os.wait3(0)
+    try:
+        while left > 0:
+            pid, status, rusage = os.wait3(0)
 
-        # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
-        status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
+            # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
+            status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
 
-        if pid == validator_pid:
-            if first is None:
-                first = 'validator'
-            validator_status = status
+            if pid == validator_pid:
+                # Kill the team submission in case we already know it's WA.
+                if first is None and status != config.RTV_AC:
+                    set_timeout = False
+                    signal.setitimer(signal.ITIMER_REAL, 0.001, 0)
 
-            # Close the output stream.
-            os.close(val_out)
-            if interaction:
-                os.close(val_log_out)
+                if first is None:
+                    first = 'validator'
+                validator_status = status
 
-            # Kill the team submission in case we already know it's WA.
-            if first_done and validator_status != config.RTV_AC:
-                kill_submission = True
-            left -= 1
-            first_done = False
-            continue
+                # Close the output stream.
+                close_stream(val_out)
+                close_stream(val_log_in)
 
-        if pid == submission_pid:
-            signal.alarm(0)
-            if first is None:
-                first = 'submission'
-            submission_status = status
-
-            # Close the output stream.
-            os.close(team_out)
-            if interaction:
-                os.close(team_log_out)
-
-            # Possibly already written by the alarm.
-            if submission_time is None:
-                submission_time = rusage.ru_utime + rusage.ru_stime
-            left -= 1
-            first_done = False
-            continue
-
-        if interaction:
-            if pid == team_tee_pid or pid == val_tee_pid:
                 left -= 1
-                first_done = False
                 continue
 
-    os.close(val_in)
+            if pid == submission_pid:
+                signal.alarm(0)
+                if first is None:
+                    first = 'submission'
+                submission_status = status
+
+                # Close the output stream.
+                close_stream(team_out)
+                close_stream(team_log_in)
+
+                # Possibly already written by the alarm.
+                if submission_time is None:
+                    submission_time = rusage.ru_utime + rusage.ru_stime
+                left -= 1
+                continue
+
+            if interaction:
+                if pid == team_tee_pid:
+                    close_stream(team_log_out)
+                    close_stream(val_in)
+                    left -= 1
+                    continue
+                if pid == val_tee_pid:
+                    close_stream(val_log_out)
+                    close_stream(team_in)
+                    left -= 1
+                    continue
+    except:
+        assert(first is not None)
+
+    signal.alarm(0)
+    
+    close_stream(val_out)
+    close_stream(val_log_in)
+    close_stream(team_out)
+    close_stream(team_log_in)
     if interaction:
-        os.close(val_log_in)
-    os.close(team_in)
-    if interaction:
-        os.close(team_log_in)
+        close_stream(team_log_out)
+        close_stream(val_in)
+        close_stream(val_log_out)
+        close_stream(team_in)
 
     did_timeout = submission_time > timelimit
     aborted = submission_time >= timeout
