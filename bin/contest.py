@@ -53,7 +53,8 @@ def get_api():
         )
     if api.endswith('/'):
         api = api[:-1]
-    # api += '/api/v4'
+    if not api.endswith('/api/v4'):
+        api += '/api/v4'
     return api
 
 
