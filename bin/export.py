@@ -248,14 +248,16 @@ def export_contest(problems):
         if msg is not None and 'message' in msg:
             msg = msg['message']
         fatal(f'{msg}\n{e}')
-    cid = yaml.load(r.text, Loader=yaml.SafeLoader)
-    log(f'Uploaded the contest to contest_id {cid}.')
-    log('Update contest_id in contest.yaml automatically? [Y/n]')
-    a = input().lower()
-    if a == '' or a[0] == 'y':
-        update_contest_id(cid)
-        log(f'Updated contest_id to {cid}')
-    return cid
+
+    new_cid = yaml.load(r.text, Loader=yaml.SafeLoader)
+    log(f'Uploaded the contest to contest_id {new_cid}.')
+    if new_cid != cid:
+        log('Update contest_id in contest.yaml automatically? [Y/n]')
+        a = input().lower()
+        if a == '' or a[0] == 'y':
+            update_contest_id(new_cid)
+            log(f'Updated contest_id to {new_cid}')
+    return new_cid
 
 
 def update_problems_yaml(problems):
