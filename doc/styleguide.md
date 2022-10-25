@@ -87,7 +87,7 @@ and only consist of English lowercase letters (`a-z`).
 | `One line with an integer $x$ ($-100 \leq x \leq 100$)`                                                        | `One line with an integer $x$ ($\left \vert x \right \vert \leq 100$)`              |
 | `$n$ lines each containing an integer $x_i$`                                                                   | `$n$ lines, the $i$th of which contains an integer $x_i$`                           |
 | `One line with $n$ integers $x_i$ ($1 \le x_i \le 100$)`                                                       | `One line with $n$ integers $x_1, \ldots, x_n$ ($1 \le x_i \le 100$ for all $i$)`   |
-| `$n$ lines, the $i$th of which contains an integer $x_i$ ($0 \le x_i \le 10$)` without refering to the $x_i$'s | `$n$ lines, each containing an integer $x$ ($0 \le x \le 10$)`                      |
+| `$n$ lines, the $i$th of which contains an integer $x_i$ ($0 \le x_i \le 10$)` without refering to the $x_i$s  | `$n$ lines, each containing an integer $x$ ($0 \le x \le 10$)`                      |
 
 ## Output Sections
 
@@ -137,9 +137,10 @@ reliably.
 
 ## Formatting/typesetting details
 
-- Use exponents where reasonable, e.g. `$10^6$` rather than `$1\,000\,000$`.
-- For large numbers, use `\,` (small space) to create groups of three
-  digits, e.g. `$2\,500$`: $2\,500$ instead of $2500$.
+- Use exponents for values of 10⁵ and larger, e.g. `$10^6$` rather than `$1\,000\,000$`.
+- For numbers of five or more digits, use `\,` (small space) to create groups of three
+  digits, e.g., `$25\,000$`: $25\,000$ instead of $25000$.
+  Smaller numbers (e.g., $2500$) are fine without separating space.
 - Always put numbers in math mode throughout the text, e.g. $42$
   rather than 42.
 - $i$th (`$i$th`), not $i$:th, $i$-th, or $i$'th.
