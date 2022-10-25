@@ -20,12 +20,20 @@ except:
 
 # Replace \problemyamlname by the value of `name:` in problems.yaml in all .tex files.
 def fix_problem_yaml_name(problem):
+    reverts = []
     for f in (problem.path / 'problem_statement').iterdir():
         if f.is_file() and f.suffix == '.tex':
             t = f.read_text()
             if r'\problemyamlname' in t:
+                reverts.append((f, t))
                 t = t.replace(r'\problemyamlname', problem.settings.name)
                 f.write_text(t)
+
+    def revert():
+        for f, t in reverts:
+            f.write_text(t)
+
+    return revert
 
 
 def build_samples_zip(problems):
@@ -122,8 +130,6 @@ def build_problem_zip(problem, output):
 
     print("Preparing to make ZIP file for problem dir %s" % problem.path, file=sys.stderr)
 
-    fix_problem_yaml_name(problem)
-
     # Build list of files to store in ZIP file.
     copyfiles = set()
 
@@ -144,25 +150,26 @@ def build_problem_zip(problem, output):
     # Build .ZIP file.
     print("writing ZIP file:", output, file=sys.stderr)
 
-    zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
+    revert_problem_yaml_name = fix_problem_yaml_name(problem)
 
-    # For kattis, write to problemname/<file> instead of just <file>.
-    root = ''
-    if config.args.kattis:
-        root = os.path.basename(os.path.normpath(problem.path))
-        root = re.sub(r'[^a-z0-9]', '', root.lower())
-    for fname in sorted(copyfiles):
-        source = fname
-        target = fname
-        if isinstance(fname, tuple):
-            source = fname[0]
-            target = fname[1]
-        zf.write(source, target, compress_type=zipfile.ZIP_DEFLATED)
+    try:
+        zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
-    # Done.
-    zf.close()
-    print("done", file=sys.stderr)
-    print(file=sys.stderr)
+        for fname in sorted(copyfiles):
+            source = fname
+            target = fname
+            if isinstance(fname, tuple):
+                source = fname[0]
+                target = fname[1]
+            zf.write(source, target, compress_type=zipfile.ZIP_DEFLATED)
+
+        # Done.
+        zf.close()
+        print("done", file=sys.stderr)
+        print(file=sys.stderr)
+
+    finally:
+        revert_problem_yaml_name()
 
     return True
 
