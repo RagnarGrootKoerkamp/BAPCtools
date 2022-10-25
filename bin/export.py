@@ -226,18 +226,26 @@ def update_contest_id(cid):
         error('ruamel.yaml library not found. Update the id manually.')
 
 
-def export_contest(problems):
-    if not contest_yaml():
+def export_contest():
+    data = contest_yaml()
+
+    if not data:
         fatal('Exporting a contest only works if contest.yaml is available and not empty.')
 
+    cid = get_contest_id()
+    if cid:
+        data['id'] = cid
+
     try:
+        verbose("Uploading contest.yaml:")
+        verbose(data)
         r = call_api(
             'POST',
             '/contests',
             files={
                 'yaml': (
                     'contest.yaml',
-                    yaml.dump(contest_yaml()),
+                    yaml.dump(data),
                     'application/x-yaml',
                 )
             },
@@ -328,13 +336,16 @@ def export_problems(problems, cid):
 
     # Uploading problems.yaml
     try:
+        data = "".join(open("problems.yaml", "r").readlines())
+        verbose("Uploading problems.yaml:")
+        verbose(data)
         r = call_api(
             'POST',
             f'/contests/{cid}/problems/add-data',
             files={
                 'data': (
-                    'contest.yaml',
-                    yaml.dump(problems_yaml()),
+                    'problems.yaml',
+                    data,
                     'application/x-yaml',
                 )
             },
@@ -386,8 +397,8 @@ def export_contest_and_problems(problems):
     cid = contest_yaml().get('contest_id')
     if cid is not None and cid != '':
         log(f'Reusing contest id {cid} from contest.yaml')
-    else:
-        cid = export_contest(problems)
+    if not any(contest['id'] == cid for contest in get_contests()):
+        cid = export_contest()
 
     # Query the internal DOMjudge problem IDs.
     ccs_problems = None
