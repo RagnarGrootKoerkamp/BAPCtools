@@ -1,3 +1,4 @@
+import datetime
 import sys
 import argparse
 import os
@@ -235,6 +236,12 @@ def export_contest():
     cid = get_contest_id()
     if cid:
         data['id'] = cid
+
+    data['start_time'] = data['start_time'].isoformat() + ('+00:00' if has_ryaml else '')
+    if not has_ryaml:
+        for key in ('duration', 'scoreboard_freeze_duration'):
+            if key in data:
+                data[key] = str(datetime.timedelta(seconds=data[key]))
 
     try:
         verbose("Uploading contest.yaml:")
