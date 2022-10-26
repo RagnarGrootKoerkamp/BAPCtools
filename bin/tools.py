@@ -112,12 +112,14 @@ def get_problems():
         for p in problemlist:
             shortname = p['id']
             if 'label' not in p:
-                fatal(f'Found no label for problem {shortname}.')
+                fatal(f'Found no label for problem {shortname} in problems.yaml.')
             label = p['label']
             if label == '':
-                fatal(f'Found empty label for problem {shortname}.')
+                fatal(f'Found empty label for problem {shortname} in problems.yaml.')
             if label in labels:
-                fatal(f'label {label} found twice for problem {shortname} and {labels[label]}.')
+                fatal(
+                    f'problems.yaml: label {label} found twice for problem {shortname} and {labels[label]}.'
+                )
             labels[label] = shortname
             if Path(shortname).is_dir():
                 problems.append((shortname, label))

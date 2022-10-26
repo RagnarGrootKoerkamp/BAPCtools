@@ -363,6 +363,8 @@
 \makeatletter
 \counterwithout{figure}{chapter}
 \counterwithout{table}{chapter}
+\@addtoreset{figure}{section} % Added from https://tex.stackexchange.com/a/45931:
+\@addtoreset{table}{section}  % Makes sure that hyperlinks go to correct problem
 \renewcommand\@memfront@floats{}
 \renewcommand\@memmain@floats{}
 \renewcommand\@memback@floats{}

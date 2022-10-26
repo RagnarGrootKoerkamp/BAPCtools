@@ -197,7 +197,6 @@ def find_logo():
 
 
 # Build a pdf for an entire problemset. Explanation in latex/readme.md
-# TODO: Extract data from DomJudge API using RGL tools.
 def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     builddir = tmpdir / contest
     builddir.mkdir(parents=True, exist_ok=True)
@@ -221,8 +220,13 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     config_data['testsession'] = '\\testsession' if config_data.get('testsession') else ''
     config_data['logofile'] = find_logo().as_posix()
 
+    local_contest_data = Path('contest-data.tex')
     util.copy_and_substitute(
-        config.tools_root / 'latex/contest-data.tex', builddir / 'contest_data.tex', config_data
+        local_contest_data
+        if local_contest_data.is_file()
+        else config.tools_root / 'latex/contest-data.tex',
+        builddir / 'contest_data.tex',
+        config_data,
     )
 
     problems_data = ''
@@ -233,7 +237,12 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
         if headertex.exists():
             problems_data += f'\\input{{{headertex}}}\n'
 
-    per_problem_data = (config.tools_root / 'latex' / f'contest-{build_type}.tex').read_text()
+    local_per_problem_data = Path(f'contest-{build_type}.tex')
+    per_problem_data = (
+        local_per_problem_data
+        if local_per_problem_data.is_file()
+        else config.tools_root / 'latex' / f'contest-{build_type}.tex'
+    ).read_text()
 
     for problem in problems:
         if build_type == 'problem':
@@ -252,6 +261,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
                 'problemauthor': problem.settings.author,
                 'timelimit': get_tl(problem),
                 'problemdir': problem.path.absolute().as_posix(),
+                'problemdirname': problem.name,
                 'builddir': problem.tmpdir.as_posix(),
             },
         )
@@ -264,7 +274,7 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
-    return build_latex_pdf(builddir, config.tools_root / 'latex' / main_file)
+    return build_latex_pdf(builddir, Path(main_file))
 
 
 def generate_solvestats(problems):
