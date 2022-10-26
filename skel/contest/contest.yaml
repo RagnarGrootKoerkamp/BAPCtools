@@ -5,9 +5,9 @@
 id:                         {%dirname%}
 name:                       {%title%}
 #formal_name:                {%title%}
-start_time:                 2021-01-01T12:00:00Z
+start_time:                 2023-01-01T12:00:00Z
 duration:                   5:00:00
-#scoreboard_freeze_duration: 1:00:00
+scoreboard_freeze_duration: 1:00:00
 #penalty_time:               20
 
 # Latex fields:

@@ -1,3 +1,4 @@
+import datetime
 import sys
 import argparse
 import os
@@ -20,12 +21,20 @@ except:
 
 # Replace \problemyamlname by the value of `name:` in problems.yaml in all .tex files.
 def fix_problem_yaml_name(problem):
+    reverts = []
     for f in (problem.path / 'problem_statement').iterdir():
         if f.is_file() and f.suffix == '.tex':
             t = f.read_text()
             if r'\problemyamlname' in t:
+                reverts.append((f, t))
                 t = t.replace(r'\problemyamlname', problem.settings.name)
                 f.write_text(t)
+
+    def revert():
+        for f, t in reverts:
+            f.write_text(t)
+
+    return revert
 
 
 def build_samples_zip(problems):
@@ -122,8 +131,6 @@ def build_problem_zip(problem, output):
 
     print("Preparing to make ZIP file for problem dir %s" % problem.path, file=sys.stderr)
 
-    fix_problem_yaml_name(problem)
-
     # Build list of files to store in ZIP file.
     copyfiles = set()
 
@@ -144,25 +151,26 @@ def build_problem_zip(problem, output):
     # Build .ZIP file.
     print("writing ZIP file:", output, file=sys.stderr)
 
-    zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
+    revert_problem_yaml_name = fix_problem_yaml_name(problem)
 
-    # For kattis, write to problemname/<file> instead of just <file>.
-    root = ''
-    if config.args.kattis:
-        root = os.path.basename(os.path.normpath(problem.path))
-        root = re.sub(r'[^a-z0-9]', '', root.lower())
-    for fname in sorted(copyfiles):
-        source = fname
-        target = fname
-        if isinstance(fname, tuple):
-            source = fname[0]
-            target = fname[1]
-        zf.write(source, target, compress_type=zipfile.ZIP_DEFLATED)
+    try:
+        zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
-    # Done.
-    zf.close()
-    print("done", file=sys.stderr)
-    print(file=sys.stderr)
+        for fname in sorted(copyfiles):
+            source = fname
+            target = fname
+            if isinstance(fname, tuple):
+                source = fname[0]
+                target = fname[1]
+            zf.write(source, target, compress_type=zipfile.ZIP_DEFLATED)
+
+        # Done.
+        zf.close()
+        print("done", file=sys.stderr)
+        print(file=sys.stderr)
+
+    finally:
+        revert_problem_yaml_name()
 
     return True
 
@@ -219,18 +227,32 @@ def update_contest_id(cid):
         error('ruamel.yaml library not found. Update the id manually.')
 
 
-def export_contest(problems):
-    if not contest_yaml():
+def export_contest():
+    data = contest_yaml()
+
+    if not data:
         fatal('Exporting a contest only works if contest.yaml is available and not empty.')
 
+    cid = get_contest_id()
+    if cid:
+        data['id'] = cid
+
+    data['start_time'] = data['start_time'].isoformat() + ('+00:00' if has_ryaml else '')
+    if not has_ryaml:
+        for key in ('duration', 'scoreboard_freeze_duration'):
+            if key in data:
+                data[key] = str(datetime.timedelta(seconds=data[key]))
+
     try:
+        verbose("Uploading contest.yaml:")
+        verbose(data)
         r = call_api(
             'POST',
             '/contests',
             files={
                 'yaml': (
                     'contest.yaml',
-                    yaml.dump(contest_yaml()),
+                    yaml.dump(data),
                     'application/x-yaml',
                 )
             },
@@ -241,14 +263,16 @@ def export_contest(problems):
         if msg is not None and 'message' in msg:
             msg = msg['message']
         fatal(f'{msg}\n{e}')
-    cid = yaml.load(r.text, Loader=yaml.SafeLoader)
-    log(f'Uploaded the contest to contest_id {cid}.')
-    log('Update contest_id in contest.yaml automatically? [Y/n]')
-    a = input().lower()
-    if a == '' or a[0] == 'y':
-        update_contest_id(cid)
-        log(f'Updated contest_id to {cid}')
-    return cid
+
+    new_cid = yaml.load(r.text, Loader=yaml.SafeLoader)
+    log(f'Uploaded the contest to contest_id {new_cid}.')
+    if new_cid != cid:
+        log('Update contest_id in contest.yaml automatically? [Y/n]')
+        a = input().lower()
+        if a == '' or a[0] == 'y':
+            update_contest_id(new_cid)
+            log(f'Updated contest_id to {new_cid}')
+    return new_cid
 
 
 def update_problems_yaml(problems):
@@ -319,13 +343,16 @@ def export_problems(problems, cid):
 
     # Uploading problems.yaml
     try:
+        data = "".join(open("problems.yaml", "r").readlines())
+        verbose("Uploading problems.yaml:")
+        verbose(data)
         r = call_api(
             'POST',
             f'/contests/{cid}/problems/add-data',
             files={
                 'data': (
-                    'contest.yaml',
-                    yaml.dump(problems_yaml()),
+                    'problems.yaml',
+                    data,
                     'application/x-yaml',
                 )
             },
@@ -377,8 +404,8 @@ def export_contest_and_problems(problems):
     cid = contest_yaml().get('contest_id')
     if cid is not None and cid != '':
         log(f'Reusing contest id {cid} from contest.yaml')
-    else:
-        cid = export_contest(problems)
+    if not any(contest['id'] == cid for contest in get_contests()):
+        cid = export_contest()
 
     # Query the internal DOMjudge problem IDs.
     ccs_problems = None
