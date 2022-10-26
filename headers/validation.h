@@ -47,6 +47,11 @@ bool operator<(const source_location& l, const source_location& r) {
 	return l.line() < r.line();
 }
 } // namespace std
+namespace std::experimental::fundamentals_v2 {
+bool operator<(const source_location& l, const source_location& r) {
+	return l.line() < r.line();
+}
+} // namespace std::experimental::fundamentals_v2
 #else
 constexpr bool has_source_location = false;
 struct source_location {
@@ -511,7 +516,7 @@ struct ChoiceGenerator {
 
 		auto args = parse_arguments(s, Pack<typename G::Args>{});
 		// Construct the resulting generator in-place in the variant..
-		std::apply([&](const auto&... args) { out.emplace(std::in_place_type_t<G>{}, args...); },
+		std::apply([&](const auto&... _args) { out.emplace(std::in_place_type_t<G>{}, _args...); },
 		           args);
 	}
 
@@ -573,7 +578,7 @@ struct ChoiceGenerator {
 		for(size_t i = 0; i < generators_.size(); ++i) {
 			x -= generators_[i].second;
 			if(x <= 0)
-				return std::visit([&](auto& x) { return x(low, high, rng); }, generators_[i].first);
+				return std::visit([&](auto& g) { return g(low, high, rng); }, generators_[i].first);
 		}
 		assert(false);
 	}
@@ -779,7 +784,7 @@ class Validator {
 	void check_string(const std::string& name, int low, int high, const std::string& v,
 	                  Tag /*unused*/, source_location loc) {
 		using T = std::string;
-		if(v.size() < low or v.size() > high) {
+		if((int) v.size() < low or (int) v.size() > high) {
 			expected(name + ": " + "string with" + " length between " + std::to_string(low) +
 			             " and " + std::to_string(high),
 			         v);
@@ -838,11 +843,6 @@ class Validator {
 					} while(!seen_here.insert(v).second);
 
 					struct CountIterator {
-						using value_type        = T;
-						using reference         = T&;
-						using pointer           = T;
-						using difference_type   = T;
-						using iterator_category = std::input_iterator_tag;
 						T v;
 						T& operator*() { return v; }
 						T& operator++() { return ++v; }
@@ -1431,6 +1431,7 @@ class Validator {
 	void eof() {
 		if(gen) {
 			out.flush();
+			fclose(stdout);
 			return;
 		}
 		if(in.eof()) return;
