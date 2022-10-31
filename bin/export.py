@@ -285,7 +285,7 @@ def update_problems_yaml(problems, colors=None):
 
     log('Updating problems.yaml')
     path = Path('problems.yaml')
-    data = read_yaml(path) if path.is_file() else []
+    data = path.is_file() and read_yaml(path) or []
 
     change = False
     for problem in problems:
