@@ -698,6 +698,10 @@ Run this from one of:
         parents=[global_parser],
         help='Update the problems.yaml with current names and timelimits.',
     )
+    updateproblemsyamlparser.add_argument(
+        '--colors',
+        help='Set the colors of the problems. Comma-separated list of hex-codes.',
+    )
 
     # Print the corresponding temporary directory.
     tmpparser = subparsers.add_parser(
@@ -966,7 +970,9 @@ def run_parsed_arguments(args):
         if action in ['export']:
             export.export_contest_and_problems(problems)
         if action in ['update_problems_yaml']:
-            export.update_problems_yaml(problems)
+            export.update_problems_yaml(
+                problems, config.args.colors.split(",") if config.args.colors else None
+            )
 
     if not success or config.n_error > 0 or config.n_warn > 0:
         sys.exit(1)

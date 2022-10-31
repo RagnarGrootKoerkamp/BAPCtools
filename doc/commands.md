@@ -36,6 +36,7 @@ This lists all subcommands and their most important options.
 - Misc
   - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated]`](#all)
   - [`bt sort`](#sort)
+  - [`bt update_problems_yaml [--colors COLORS]`](#update_problems_yaml)
   - [`bt tmp [--clean]`](#tmp)
   - `bt create_slack_channels --token xoxb-...`
 
@@ -532,6 +533,16 @@ A : appealtotheaudience
 B : breakingbranches
 ...
 ```
+
+## `update_problems_yaml`
+
+`bt update_problems_yaml` updates the `problems.yaml` file of the contest.
+This file should contain a list of problems, with for every problem the keys `id`, `label`, `name`, `rgb`, and `time_limit`.
+
+**Flags**
+
+- `--colors`: Apply the given list of colors to the list of problems, in the same order as in `problems.yaml`.
+  Should be a comma-separated list of colors (hash-sign is optional), e.g.: `--colors ff0000,00ff00,0000ff`.
 
 ## `tmp`
 
