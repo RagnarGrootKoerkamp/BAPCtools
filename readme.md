@@ -90,7 +90,9 @@ $ docker pull archlinux:latest
 $ docker login
 $ docker build . -t ragnargrootkoerkamp/bapctools
 $ docker push ragnargrootkoerkamp/bapctools
+$ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools
 ```
+The last step is needed when your CI server is not automatically pulling the latest version.
 
 ## Usage
 
