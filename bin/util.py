@@ -663,8 +663,8 @@ def crop_output(output):
     numlines = len(lines)
     cropped = False
     # Cap number of lines
-    if numlines > 10:
-        output = '\n'.join(lines[:8])
+    if numlines > 30:
+        output = '\n'.join(lines[:25])
         output += '\n'
         cropped = True
 
