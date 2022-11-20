@@ -407,7 +407,7 @@ Run this from one of:
         '--watch',
         '-w',
         action='store_true',
-        help='Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.',
+        help='Continuously compile the pdf whenever a `problem.*.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.',
     )
     pdfparser.add_argument(
         '--open',
@@ -418,6 +418,34 @@ Run this from one of:
         help='Open the continuously compiled pdf (with a specified program).',
     )
     pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
+    pdfparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
+
+    # Problem slides
+    pdfparser = subparsers.add_parser(
+        'problem_slides', parents=[global_parser], help='Build the problem slides pdf.'
+    )
+    # pdfparser.add_argument(
+    #     '--all',
+    #     '-a',
+    #     action='store_true',
+    #     help='Create problem statements for individual problems as well.',
+    # )
+    pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
+    pdfparser.add_argument(
+        '--watch',
+        '-w',
+        action='store_true',
+        help='Continuously compile the pdf whenever a `problem-slide.*.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.',
+    )
+    pdfparser.add_argument(
+        '--open',
+        '-o',
+        nargs='?',
+        const=True,
+        type=Path,
+        help='Open the continuously compiled pdf (with a specified program).',
+    )
+    # pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     pdfparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
 
     # Solution slides
@@ -442,7 +470,7 @@ Run this from one of:
         '--watch',
         '-w',
         action='store_true',
-        help='Continuously compile the pdf whenever a `solution.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.',
+        help='Continuously compile the pdf whenever a `solution.*.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.',
     )
     solparser.add_argument(
         '--open',
@@ -1060,7 +1088,16 @@ def run_parsed_arguments(args):
 
         if action in ['solutions']:
             success &= latex.build_contest_pdfs(
-                contest, problems, tmpdir, solutions=True, web=config.args.web
+                contest, problems, tmpdir, build_type=latex.PdfType.SOLUTION, web=config.args.web
+            )
+
+        if action in ['problem_slides']:
+            success &= latex.build_contest_pdfs(
+                contest,
+                problems,
+                tmpdir,
+                build_type=latex.PdfType.PROBLEM_SLIDE,
+                web=config.args.web,
             )
 
         if action in ['zip']:
@@ -1074,11 +1111,27 @@ def run_parsed_arguments(args):
                     contest, problems, tmpdir, statement_language, web=True
                 )
                 if not config.args.no_solutions:
-                    success &= latex.build_contest_pdfs(
-                        contest, problems, tmpdir, statement_language, solutions=True
+                    success &= latex.build_contest_pdf(
+                        contest,
+                        problems,
+                        tmpdir,
+                        statement_language,
+                        build_type=latex.PdfType.SOLUTION,
                     )
-                    success &= latex.build_contest_pdfs(
-                        contest, problems, tmpdir, statement_language, solutions=True, web=True
+                    success &= latex.build_contest_pdf(
+                        contest,
+                        problems,
+                        tmpdir,
+                        statement_language,
+                        build_type=latex.PdfType.SOLUTION,
+                        web=True,
+                    )
+                    success &= latex.build_contest_pdf(
+                        contest,
+                        problems,
+                        tmpdir,
+                        statement_language,
+                        build_type=latex.PdfType.PROBLEM_SLIDE,
                     )
 
             outfile = contest + '.zip'
