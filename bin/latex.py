@@ -4,13 +4,14 @@ import os
 import re
 import shutil
 import sys
+from enum import Enum
 from pathlib import Path
 from typing import Optional
 
 from colorama import Fore, Style
 
 import config
-from contest import contest_yaml
+from contest import contest_yaml, problems_yaml
 import problem
 from util import (
     copy_and_substitute,
@@ -387,19 +388,27 @@ def find_logo() -> Path:
     return config.tools_root / 'latex' / 'images' / 'logo-not-found.pdf'
 
 
+class PdfType(str, Enum):
+    PROBLEM = 'problem'
+    PROBLEM_SLIDE = 'problem-slide'
+    SOLUTION = 'solution'
+
+
 def build_contest_pdf(
     contest: str,
     problems: list["problem.Problem"],
     tmpdir: Path,
     language: str,
-    solutions=False,
+    build_type=PdfType.PROBLEM,
     web=False,
 ) -> bool:
     builddir = tmpdir / contest / 'latex' / language
     builddir.mkdir(parents=True, exist_ok=True)
-    build_type = 'solution' if solutions else 'problem'
 
-    main_file = 'solutions' if solutions else 'contest'
+    problem_slides = build_type == PdfType.PROBLEM_SLIDE
+    solutions = build_type == PdfType.SOLUTION
+
+    main_file = 'problem-slides' if problem_slides else 'solutions' if solutions else 'contest'
     main_file += '-web.tex' if web else '.tex'
 
     bar = PrintBar(f'{main_file[:-3]}{language}.pdf')
@@ -441,15 +450,17 @@ def build_contest_pdf(
         elif headertex.exists():
             problems_data += f'\\input{{{headertex}}}\n'
 
-    local_per_problem_data = Path(f'contest-{build_type}.tex')
+    local_per_problem_data = Path(f'contest-{build_type.value}.tex')
     per_problem_data = (
         local_per_problem_data
         if local_per_problem_data.is_file()
-        else config.tools_root / 'latex' / f'contest-{build_type}.tex'
+        else config.tools_root / 'latex' / f'contest-{build_type.value}.tex'
     ).read_text()
 
+    probyaml = problems_yaml()
+
     for problem in problems:
-        if build_type == 'problem':
+        if build_type == PdfType.PROBLEM:
             prepare_problem(problem, language)
 
         if solutions:
@@ -465,12 +476,28 @@ def build_contest_pdf(
                 bar.warn(f'solution.{language}.tex not found', problem.name)
                 continue
 
+        background = next(
+            (p['rgb'] for p in probyaml if p['id'] == str(problem.path) and 'rgb' in p), '#ffffff'
+        )[1:]
+        # Source: https://github.com/DOMjudge/domjudge/blob/095854650facda41dbb40966e70199840b887e33/webapp/src/Twig/TwigExtension.php#L1056
+        foreground = (
+            '000000'
+            if sum(int(background[i : i + 2], 16) for i in range(0, 6, 2)) > 450
+            else 'ffffff'
+        )
+        border = "".join(
+            ("00" + hex(max(0, int(background[i : i + 2], 16) - 64))[2:])[-2:]
+            for i in range(0, 6, 2)
+        )
         problems_data += substitute(
             per_problem_data,
             {
                 'problemlabel': problem.label,
                 'problemyamlname': problem.settings.name[language].replace('_', ' '),
                 'problemauthor': problem.settings.author,
+                'problembackground': background,
+                'problemforeground': foreground,
+                'problemborder': border,
                 'timelimit': get_tl(problem),
                 'problemdir': problem.path.absolute().as_posix(),
                 'problemdirname': problem.name,
@@ -487,14 +514,14 @@ def build_contest_pdf(
         elif footertex.exists():
             problems_data += f'\\input{{{footertex}}}\n'
 
-    (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
+    (builddir / f'contest-{build_type.value}s.tex').write_text(problems_data)
 
     return build_latex_pdf(builddir, Path(main_file), language, bar)
 
 
-def build_contest_pdfs(contest, problems, tmpdir, lang=None, solutions=False, web=False):
+def build_contest_pdfs(contest, problems, tmpdir, lang=None, build_type=PdfType.PROBLEM, web=False):
     if lang:
-        return build_contest_pdf(contest, problems, tmpdir, lang, solutions, web)
+        return build_contest_pdf(contest, problems, tmpdir, lang, build_type, web)
 
     """Build contest PDFs for all available languages"""
     statement_languages = set.intersection(*(set(p.statement_languages) for p in problems))
@@ -519,7 +546,7 @@ def build_contest_pdfs(contest, problems, tmpdir, lang=None, solutions=False, we
             color_type=MessageType.FATAL,
         )
     return all(
-        [build_contest_pdf(contest, problems, tmpdir, lang, solutions, web) for lang in languages]
+        build_contest_pdf(contest, problems, tmpdir, lang, build_type, web) for lang in languages
     )
 
 
