@@ -258,6 +258,7 @@ def build_contest_zip(problems, zipfiles, outfile, statement_language):
             ]
             + list(Path('.').glob(f'contest*.{statement_language}.pdf'))
             + list(Path('.').glob(f'solutions*.{statement_language}.pdf'))
+            + list(Path('.').glob(f'problem-slides*.{statement_language}.pdf'))
         ):
             if Path(fname).is_file():
                 zf.write(
