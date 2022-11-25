@@ -1576,6 +1576,11 @@ class GeneratorConfig:
         def clean_directory(d):
             bar.start(str(d.path))
 
+            # Skip non existent directories
+            if not Path(d.path).exists():
+                bar.done()
+                return
+
             # Skip the data/bad directory.
             if len(d.path.parts) > 0 and d.path.parts[0] == 'bad':
                 bar.done()
