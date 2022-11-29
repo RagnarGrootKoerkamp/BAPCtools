@@ -180,9 +180,9 @@ class VisualizerInvocation(Invocation):
         result = self.program.run(cwd, args=self._sub_args(name=name))
 
         if result.ok == -9:
-            bar.error(f'TIMEOUT after {result.duration}s')
+            bar.error(f'Visualizer Timeout after {result.duration}s')
         elif result.ok is not True:
-            bar.error('Failed', result.err)
+            bar.error('Visualizer Failed', result.err)
 
         if result.ok is True and config.args.error and result.err:
             bar.log('stderr', result.err)
@@ -660,8 +660,7 @@ class TestcaseRule(Rule):
 
         # Generate visualization
         if not config.args.skip_visualizer and t.config.visualizer:
-            if t.config.visualizer.run(bar, cwd, t.name).ok is not True:
-                return
+            t.config.visualizer.run(bar, cwd, t.name)
 
         if t.path.parents[0] == Path('sample'):
             msg = '; supply -f --samples to overwrite'
