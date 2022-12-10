@@ -1,8 +1,14 @@
 # BAPC/NWERC Jury process
 
-This doc contains some remarks on things we do in the BAPC and NWERC jury.
+This WIP doc contains some remarks on things we do in the BAPC and NWERC jury.
 
-## Notes
+## Ideal scoreboard
+
+## Problem selection
+
+## Schedule
+
+## Random notes
 
 - The head of jury must not be assigned a problem.
   Keeping track of all other problems is work enough.
