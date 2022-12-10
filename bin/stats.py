@@ -88,14 +88,11 @@ def stats(problems):
             for x in generate.generated_testcases(problem)
         }
 
-        def count(path, depth = 0):
+        def count(path):
             if type(path) is list:
-                return set.union(*(count(p, depth + 1) for p in path))
+                return set.union(*(count(p) for p in path))
             if callable(path):
-                if depth == 0:
-                    return path(problem)
-                else:
-                    return path(generated_testcases)
+                return path(generated_testcases)
             results = set()
             for p in glob(problem.path, path):
                 # Exclude files containing 'TODO: Remove'.
@@ -123,9 +120,12 @@ def stats(problems):
             return results
 
         def value(x):
-            return x if isinstance(x, numbers.Number) else len(x)
+            if x[0] == '  time':
+                return x[1](problem)
+            else:
+                return len(count(x[1]))
 
-        counts = [value(count(s[1])) for s in stats]
+        counts = [value(s) for s in stats]
         for i in range(0, len(stats)):
             cumulative[i] = cumulative[i] + counts[i]
 
@@ -143,7 +143,7 @@ def stats(problems):
         else:
             comment = Fore.YELLOW + comment + Style.RESET_ALL
 
-        #print(format_string)
+        # print(format_string)
         print(
             format_string.format(
                 problem.label + ' ' + problem.name,
