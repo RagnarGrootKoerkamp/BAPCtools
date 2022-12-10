@@ -76,18 +76,18 @@ and only consist of English lowercase letters (`a-z`).
   spaces may vary, do write this).
 - Use itemize even when there is only a single item.
 
-| Don't                                                                                                          | Do                                                                                  |
-| -------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `One line without a period`                                                                                    | `One line ending in a period.`                                                      |
-| `A line with ...`, `One line containing ...`                                                                   | `One line with ... `                                                                |
-| `One line with an integer $n$ not separated by a comma.`                                                       | `One line with an integer $n$, separated by a comma.`                               |
-| `One line with a single integer $n$.`                                                                          | `One line with an integer $n$.`                                                     |
-| `Then follow $n$ lines with ...`                                                                               | `$n$ lines with ...`                                                                |
-| `One line with $n$ (..), the number of X, and $m$ (..), the number of Y.`                                      | `One line with two integers $n$ and $m$ (..), the number of X and the number of Y.` |
-| `One line with an integer $x$ ($-100 \leq x \leq 100$)`                                                        | `One line with an integer $x$ ($\left \vert x \right \vert \leq 100$)`              |
-| `$n$ lines each containing an integer $x_i$`                                                                   | `$n$ lines, the $i$th of which contains an integer $x_i$`                           |
-| `One line with $n$ integers $x_i$ ($1 \le x_i \le 100$)`                                                       | `One line with $n$ integers $x_1, \ldots, x_n$ ($1 \le x_i \le 100$ for all $i$)`   |
-| `$n$ lines, the $i$th of which contains an integer $x_i$ ($0 \le x_i \le 10$)` without refering to the $x_i$s  | `$n$ lines, each containing an integer $x$ ($0 \le x \le 10$)`                      |
+| Don't                                                                                                         | Do                                                                                  |
+| ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `One line without a period`                                                                                   | `One line ending in a period.`                                                      |
+| `A line with ...`, `One line containing ...`                                                                  | `One line with ... `                                                                |
+| `One line with an integer $n$ not separated by a comma.`                                                      | `One line with an integer $n$, separated by a comma.`                               |
+| `One line with a single integer $n$.`                                                                         | `One line with an integer $n$.`                                                     |
+| `Then follow $n$ lines with ...`                                                                              | `$n$ lines with ...`                                                                |
+| `One line with $n$ (..), the number of X, and $m$ (..), the number of Y.`                                     | `One line with two integers $n$ and $m$ (..), the number of X and the number of Y.` |
+| `One line with an integer $x$ ($-100 \leq x \leq 100$)`                                                       | `One line with an integer $x$ ($\left \vert x \right \vert \leq 100$)`              |
+| `$n$ lines each containing an integer $x_i$`                                                                  | `$n$ lines, the $i$th of which contains an integer $x_i$`                           |
+| `One line with $n$ integers $x_i$ ($1 \le x_i \le 100$)`                                                      | `One line with $n$ integers $x_1, \ldots, x_n$ ($1 \le x_i \le 100$ for all $i$)`   |
+| `$n$ lines, the $i$th of which contains an integer $x_i$ ($0 \le x_i \le 10$)` without refering to the $x_i$s | `$n$ lines, each containing an integer $x$ ($0 \le x \le 10$)`                      |
 
 ## Output Sections
 
@@ -111,6 +111,14 @@ and only consist of English lowercase letters (`a-z`).
   (c.f. NWERC 2018 Circuit Design and NWERC 2018 Game Design).
 - Do not use itemize.
 
+## Samples
+
+- For each problems, make friendly samples that show all cases.
+- Ensure samples are as 'free' as allows:
+  - When input is not guaranteed to be sorted, include non-sorted sample.
+  - When input is arbitrary integers, do not only include positive integers.
+  - ...
+
 ## General guidelines
 
 Try to keep the Latex code as clean as possible, avoiding contorted
@@ -119,6 +127,7 @@ possible to convert the problem statement to both pdf and html
 reliably.
 
 - We use British English for the statements.
+- Use Oxford commas when needed.
 - Variable names: use lower case `$n$`, `$m$`, etc for numeric variables.
   For other types of variables, e.g. set-valued variables, upper case may be better.
 - The default is to use $1$-based indexing of e.g. nodes in graphs and
@@ -183,10 +192,15 @@ would be:
 ```
 \begin{figure}[!h]
 \centering
-\includegraphics[width=0.5\textwidth]{snarks}
-\caption{The seven different snarks}
-\label{fig:snarks}
+\includegraphics[width=0.5\textwidth]{a}
+\caption{Illustration of Sample Input/Output 1, where the answer is 42.}
+\label{fig:a}
 \end{figure}
 ```
 
-The figure can (and should!) then be referenced by writing `Figure~\ref{fig:snarks}` in the text.
+The figure can (and should!) then be referenced, e.g. by ending the input
+section with:
+
+```
+See Figure~\ref{fig:a} for an example.
+```

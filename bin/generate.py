@@ -180,9 +180,9 @@ class VisualizerInvocation(Invocation):
         result = self.program.run(cwd, args=self._sub_args(name=name))
 
         if result.ok == -9:
-            bar.error(f'TIMEOUT after {result.duration}s')
+            bar.error(f'Visualizer timeout after {result.duration}s')
         elif result.ok is not True:
-            bar.error('Failed', result.err)
+            bar.error('Visualizer failed', result.err)
 
         if result.ok is True and config.args.error and result.err:
             bar.log('stderr', result.err)
@@ -660,8 +660,8 @@ class TestcaseRule(Rule):
 
         # Generate visualization
         if not config.args.skip_visualizer and t.config.visualizer:
-            if t.config.visualizer.run(bar, cwd, t.name).ok is not True:
-                return
+            # Note that the .in/.ans are generated even when the visualizer fails.
+            t.config.visualizer.run(bar, cwd, t.name)
 
         if t.path.parents[0] == Path('sample'):
             msg = '; supply -f --samples to overwrite'
@@ -1575,6 +1575,11 @@ class GeneratorConfig:
         # For listed directories, delete non-testcase files.
         def clean_directory(d):
             bar.start(str(d.path))
+
+            # Skip non existent directories
+            if not Path(d.path).exists():
+                bar.done()
+                return
 
             # Skip the data/bad directory.
             if len(d.path.parts) > 0 and d.path.parts[0] == 'bad':

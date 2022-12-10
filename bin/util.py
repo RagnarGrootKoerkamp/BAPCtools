@@ -797,14 +797,14 @@ def crop_output(output):
     numlines = len(lines)
     cropped = False
     # Cap number of lines
-    if numlines > 10:
-        output = '\n'.join(lines[:8])
+    if numlines > 30:
+        output = '\n'.join(lines[:25])
         output += '\n'
         cropped = True
 
-    # Cap line length.
-    if len(output) > 200:
-        output = output[:200]
+    # Cap total length.
+    if len(output) > 2000:
+        output = output[:2000]
         output += ' ...\n'
         cropped = True
 

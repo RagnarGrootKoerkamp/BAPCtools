@@ -2,6 +2,7 @@ from util import *
 from colorama import Fore, Style
 import generate
 import sys
+import numbers
 
 
 # This prints the number belonging to the count.
@@ -23,6 +24,7 @@ def _get_stat(count, threshold=True, upper_bound=None):
 def stats(problems):
     stats = [
         # Roughly in order of importance
+        ('  time', lambda p: p.settings.timelimit, 0),
         ('yaml', 'problem.yaml'),
         ('tex', 'problem_statement/problem*.tex'),
         ('sol', 'problem_statement/solution.tex'),
@@ -63,12 +65,15 @@ def stats(problems):
     header_string = ''
     format_string = ''
     for header in headers:
-        if header in ['problem', 'comment']:
+        if header == 'problem':
             width = len(header)
             for problem in problems:
                 width = max(width, len(problem.label + ' ' + problem.name))
             header_string += '{:<' + str(width) + '}'
             format_string += '{:<' + str(width) + '}'
+        elif header == '  comment':
+            header_string += '{}'
+            format_string += '{}'
         else:
             width = len(header)
             header_string += ' {:>' + str(width) + '}'
@@ -114,7 +119,13 @@ def stats(problems):
                         results.add(p)
             return results
 
-        counts = [len(count(s[1])) for s in stats]
+        def value(x):
+            if x[0] == '  time':
+                return x[1](problem)
+            else:
+                return len(count(x[1]))
+
+        counts = [value(s) for s in stats]
         for i in range(0, len(stats)):
             cumulative[i] = cumulative[i] + counts[i]
 
@@ -132,6 +143,7 @@ def stats(problems):
         else:
             comment = Fore.YELLOW + comment + Style.RESET_ALL
 
+        # print(format_string)
         print(
             format_string.format(
                 problem.label + ' ' + problem.name,
