@@ -127,7 +127,8 @@ possible to convert the problem statement to both pdf and html
 reliably.
 
 - We use British English for the statements.
-- Use Oxford commas when needed.
+    - Use Oxford commas when needed.
+    - Use en-dash when needed -- do not use the longer em dash.
 - Variable names: use lower case `$n$`, `$m$`, etc for numeric variables.
   For other types of variables, e.g. set-valued variables, upper case may be better.
 - The default is to use $1$-based indexing of e.g. nodes in graphs and
