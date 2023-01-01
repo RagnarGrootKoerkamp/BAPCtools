@@ -43,6 +43,7 @@ KNOWN_DATA_EXTENSIONS = [
     '.svg',
     '.pdf',
     '.gif',
+    '.bmp',
 ]
 
 SEED_DEPENDENCY_RETRIES = 10
