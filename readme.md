@@ -34,12 +34,14 @@ Otherwise, clone this repository and install the required dependencies manually.
 
 Optional dependencies, required for some subcommands:
 
-- The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python[3]-ruamel-yaml` Arch Linux package.
+- The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python-ruamel-yaml` Arch Linux package (`python3-ruamel.yaml` on Debian derivatives).
   - This is only needed for commands that update `generators.yaml`.
 - The `latexmk` and `pdflatex` commands, provided by `texlive-bin` on Arch Linux and
   potentially some specific LaTeX packages (like tikz) provided by
   `texlive-extra`.
   These are only needed for building `pdf` files, not for `run` and `validate` and such.
+- The [matplotlib library](https://pypi.org/project/matplotlib/) via `pip install matplotlib` or the `python[3]-matplotlib` Linux package.
+  - This is optional and only used by the `solve_stats` command.
 - The [questionary library](https://pypi.org/project/questionary/) via `pip install questionary`.
   - This is optional and only used by the `new_contest` and `new_problem` commands.
 
