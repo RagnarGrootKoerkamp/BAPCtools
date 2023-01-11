@@ -11,11 +11,12 @@ RUN pacman -Syu --noconfirm \
 	python \
 	pypy \
 	pypy3 \
-	python-yaml \
-	python-colorama \
 	python-argcomplete \
+	python-colorama \
+	python-matplotlib \
 	python-pytest \
 	python-ruamel-yaml \
+	python-yaml \
 	python2 \
 	jdk17-openjdk \
 	kotlin \
