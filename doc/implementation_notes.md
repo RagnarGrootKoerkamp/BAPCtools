@@ -141,7 +141,7 @@ Solutions are rendered in a similar way to the contest pdf. It uses the `problem
 
 ### Solve stats
 
-There is some special support for handling _solve stats_: after contest data on how often each problem was solved. To use this, create the following directory layout in your contest directory.
+There is some special support for handling _solve stats_: post-contest data on how often each problem was solved. To use this, create the following directory layout in your contest directory.
 
 - `<contest>/solve_stats/problem_stats.tex`: Contains one line for each problem label:
   ```
@@ -151,11 +151,11 @@ There is some special support for handling _solve stats_: after contest data on 
   ```
   Statistics: 15 submissions, 3 accepted, 8 unknown
   ```
-- `<contest>/solve_stats/languages.tex`: a (standalone) plot of the language distribution of all submission. This may be included directly by the `solution_header.tex` or `solution_footer.tex`. (BAPCtools doesn't do anything special here.)
+- `<contest>/solve_stats/language_stats.pdf`: a plot of the language distribution of all submissions. This may be included directly by the `solution_header.tex` or `solution_footer.tex`. (BAPCtools doesn't do anything special here.)
 
-- `<contest>/solve_stats/activity/<label>.tex`: One file per problem, containing a (standalone) plot of the submissions over time. These will automatically be included on the solution slides for each problem when available.
+- `<contest>/solve_stats/activity/<label>.pdf`: One file per problem, containing a plot of the submissions over time. These will automatically be included on the solution slides for each problem when available.
 
-All the files in the `<contest>/solve_stats` directory can be generated using https://github.com/hex539/scoreboard. See also [this issue](https://github.com/hex539/scoreboard/issues/7).
+All the files in the `<contest>/solve_stats` directory can be generated using `bt solve_stats`. More details [here](commands.md#solve_stats).
 
 # Constraints checking
 
