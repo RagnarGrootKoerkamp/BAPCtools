@@ -391,7 +391,7 @@ class Submission(program.Program):
                             continue
                     if arg not in config.VERDICTS:
                         error(
-                            f'@EXPECTED_RESULT@: `{arg}` for submission {self.short_path} is not valid'
+                            f'@EXPECTED_RESULTS@: `{arg}` for submission {self.short_path} is not valid'
                         )
                         continue
                     verdicts.append(arg)
@@ -401,15 +401,19 @@ class Submission(program.Program):
                 # Skip files where the key does not occur.
                 pass
 
-        subdir = self.short_path.parts[0].upper()
-        if subdir in config.VERDICTS:
-            if len(verdicts) > 0 and subdir not in verdicts:
-                error(
-                    f'Submission {self.short_path} must have implicit verdict {subdir} listed in @EXPECTED_RESULTS@.'
-                )
-                verdicts = [subdir] + verdicts
-            elif len(verdicts) == 0:
+        if self.path.parts[-3] == 'submissions':
+            # Submissions in any of config.VERDICTS should not have `@EXPECTED_RESULTS@: `, and vice versa.
+            # See https://github.com/DOMjudge/domjudge/issues/1861
+            subdir = self.short_path.parts[0].upper()
+            if subdir in config.VERDICTS:
+                if len(verdicts) != 0:
+                    warn(f'@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.')
                 verdicts = [subdir]
+            else:
+                if len(verdicts) == 0:
+                    error(
+                        f'Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to AC.'
+                    )
 
         if len(verdicts) == 0:
             verdicts = ['ACCEPTED']

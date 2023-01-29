@@ -215,8 +215,7 @@ class Problem:
                 s = resolve_path_argument(problem, submission, 'submissions')
                 if s:
                     if s == problem.path / 'submissions':
-                        for verdict in config.VERDICTS:
-                            paths += glob(s / verdict.lower(), '*')
+                        paths += glob(s, '*/*')
                     elif s.parent == problem.path / 'submissions':
                         for s in glob(s, '*'):
                             add(s)
@@ -225,15 +224,15 @@ class Problem:
                         if config.level == 'problem' or is_relative_to(problem.path, s):
                             add(s)
         else:
-            for verdict in ['ACCEPTED'] if accepted_only else config.VERDICTS:
+            for s in glob(problem.path / 'submissions', ('accepted/*' if accepted_only else '*/*')):
                 if (
-                    verdict == 'TIME_LIMIT_EXCEEDED'
+                    s.parent.name == 'time_limit_exceeded'
                     and config.RUNNING_TEST
                     and not config.TEST_TLE_SUBMISSIONS
                 ):
                     continue
 
-                paths += glob(problem.path / 'submissions' / verdict.lower(), '*')
+                paths.append(s)
 
         if len(paths) == 0:
             error('No submissions found!')

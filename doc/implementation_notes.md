@@ -5,13 +5,15 @@ This document explains some miscellaneous parts of the implementation of BAPCtoo
 # Extensions of problem format
 
 ## `@EXPECTED_RESULTS@: `
-Submissions may contain the string `@EXPECTED_RESULTS@: ` anywhere in their source to indicate which verdicts are allowed for this submission.
+
+Submissions with more than one allowed verdict must contain the string `@EXPECTED_RESULTS@: ` anywhere in their source to indicate which verdicts are allowed for this submission.
 
 - The final verdict of the submission must be in this list.
-- Each testcase must either be accepted or have a verdict in this list. (This is to prevent issues with lazy judging/changing verdict priorities where the first non accepted testcase will be the final verdict.)
+- Each testcase must either be accepted or have a verdict in this list. (This is to prevent issues with lazy judging/changing verdict priorities where the first non-accepted testcase will be the final verdict.)
 
+A submission with an `@EXPECTED_RESULTS@: ` tag should not be placed in one of the four [standard](https://icpc.io/problem-package-format/#submissions-correct-and-incorrect) submission directories, because [DOMjudge will ignore the tag](https://github.com/DOMjudge/domjudge/issues/1861) in this case. Directory names like `mixed/` or `rejected/` are typically used in this case.
 
-The `@EXPECTED_RESULTS@: ` tag should be followed by a comma separated list of verdicts from
+The `@EXPECTED_RESULTS@: ` tag should be followed by a comma-separated list of verdicts from
 
 - `ACCEPTED`,
 - `WRONG_ANSWER`,
@@ -27,9 +29,9 @@ Additionally, the following DOMjudge equivalents may be used:
 - `COMPILER-ERROR`: this is not supported and will be ignored.
 
 
-Matching is case insensitive and extra white space is allowed. Examples:
+Matching is case-insensitive and extra white space is allowed. Examples:
 - `// @EXPECTED_RESULTS@: WRONG_ANSWER`
-- `# @expected_results@: accepted,time_limit_exceeded, no-output`
+- `# @expected_results@:  accepted,time_limit_exceeded, no-output`
 
 ## Non-standard `generators.yaml` keys
 
