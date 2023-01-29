@@ -1,4 +1,5 @@
 from os import makedirs
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 
@@ -120,7 +121,7 @@ def generate_solve_stats(post_freeze):
         )
         bar.done()
 
-    open(f'solve_stats/problem_stats.tex', 'w').write(problem_stats)
+    Path('solve_stats/problem_stats.tex').write_text(problem_stats)
 
     bar.start('Language Stats')
     fig, ax = plt.subplots(figsize=(8, 4))
