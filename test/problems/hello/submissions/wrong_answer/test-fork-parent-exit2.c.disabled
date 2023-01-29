@@ -12,8 +12,6 @@
  * - If not bound to a single core, the cpu time should be the factor
  *   of the number of cores higher than wall clock time, and probably
  *   give a TIMELIMIT.
- *
- * @EXPECTED_RESULTS@: CHECK-MANUALLY
  */
 
 #include <unistd.h>
