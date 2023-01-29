@@ -47,7 +47,8 @@ def generate_solve_stats(post_freeze):
     judgement_colors = {'AC': 'lime', 'WA': 'red', 'TLE': '#c0f', 'RTE': 'orange', '': 'skyblue'}
 
     for j in req('judgements'):
-        # Note that the submissions list only contains submissions that were submitted on time,
+        # Firstly, only one judgement should be 'valid': in case of rejudgings, this should be the "active" judgement.
+        # Secondly, note that the submissions list only contains submissions that were submitted on time,
         # while the judgements list contains all judgements, therefore the submission might not exist.
         if j['valid'] and j['submission_id'] in submissions:
             # Add judgement to submission.
