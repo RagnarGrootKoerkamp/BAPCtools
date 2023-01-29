@@ -7,8 +7,6 @@
  * This a minor bug that doesn't provide a team any advantages. It
  * could be fixed by having runguard write the submission stderr to a
  * separate file.
- *
- * @EXPECTED_RESULTS@: NO-OUTPUT
  */
 
 #include <stdio.h>

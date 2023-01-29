@@ -1,8 +1,6 @@
 /*
  * This tries to read testcase files and output them, so will
  * give CORRECT when this is possible or RUN-ERROR when not.
- *
- * @EXPECTED_RESULTS@: RUN-ERROR
  */
 
 #include <fstream>
