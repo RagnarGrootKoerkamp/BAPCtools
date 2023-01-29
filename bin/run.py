@@ -412,7 +412,7 @@ class Submission(program.Program):
             else:
                 if len(verdicts) == 0:
                     error(
-                        f'Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to AC.'
+                        f'Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to ACCEPTED.'
                     )
 
         if len(verdicts) == 0:
