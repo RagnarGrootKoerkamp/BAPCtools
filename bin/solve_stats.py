@@ -49,8 +49,8 @@ def generate_solve_stats(post_freeze):
         # Note that the submissions list only contains submissions that were submitted on time,
         # while the judgements list contains all judgements, therefore the submission might not exist.
         if j['valid'] and j['submission_id'] in submissions:
-            # Merge judgement with submission. Keys of judgement are overwritten by keys of submission.
-            submissions[j['submission_id']] = {**j, **submissions[j['submission_id']]}
+            # Add judgement to submission.
+            submissions[j['submission_id']]['judgement'] = j
 
     bar.finalize()
 
@@ -67,7 +67,7 @@ def generate_solve_stats(post_freeze):
             jt = (
                 ''
                 if not post_freeze and minute >= contest_duration - freeze_duration
-                else s['judgement_type_id']
+                else s['judgement']['judgement_type_id']
             )
             if jt is None:
                 continue
