@@ -171,8 +171,11 @@ def build_problem_pdf(problem, solutions=False):
 
     builddir = problem.tmpdir
 
+    local_data = Path(main_file)
     util.copy_and_substitute(
-        config.tools_root / 'latex' / main_file,
+        local_data
+        if local_data.is_file()
+        else config.tools_root / 'latex' / main_file,
         builddir / main_file,
         {
             'problemlabel': problem.label,
