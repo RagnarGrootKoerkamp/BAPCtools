@@ -131,7 +131,7 @@ def build_latex_pdf(builddir, tex_path, problem_path=None):
         latexmk_command.append("-pvc")
     if getattr(config.args, '1'):
         latexmk_command.extend(['-e', '$max_repeat=1'])
-    latexmk_command.extend([f'-output-directory={builddir}', tex_path])
+    latexmk_command.extend([f'-output-directory={builddir}', tex_path.absolute()])
 
     ret = util.exec_command(
         latexmk_command,
