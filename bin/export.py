@@ -275,7 +275,7 @@ def export_contest():
     return new_cid
 
 
-def update_problems_yaml(problems):
+def update_problems_yaml(problems, colors=None):
     # Update name and timelimit values.
     if not has_ryaml:
         log(
@@ -285,7 +285,7 @@ def update_problems_yaml(problems):
 
     log('Updating problems.yaml')
     path = Path('problems.yaml')
-    data = read_yaml(path) if path.is_file() else []
+    data = path.is_file() and read_yaml(path) or []
 
     change = False
     for problem in problems:
@@ -320,6 +320,17 @@ def update_problems_yaml(problems):
                     'time_limit': problem.settings.timelimit,
                 }
             )
+
+    if colors:
+        if len(data) != len(colors):
+            warn(
+                f'Number of colors ({len(colors)}) is not equal to the number of problems ({len(data)})'
+            )
+        for d, c in zip(data, colors):
+            color = ('' if c.startswith('#') else '#') + c
+            if 'rgb' not in d or d['rgb'] != color:
+                change = True
+            d['rgb'] = color
 
     if change:
         if config.args.action in ['update_problems_yaml']:

@@ -35,7 +35,9 @@ This lists all subcommands and their most important options.
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
 - Misc
   - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated]`](#all)
+  - [`bt solve_stats [--contest-id CONTESTID] [--post-freeze]`](#solve_stats)
   - [`bt sort`](#sort)
+  - [`bt update_problems_yaml [--colors COLORS]`](#update_problems_yaml)
   - [`bt tmp [--clean]`](#tmp)
   - `bt create_slack_channels --token xoxb-...`
 
@@ -68,7 +70,7 @@ By default, this prints one summary line per submission containing the slowest t
 If the submission failed, it also prints the testcases for which it failed.
 Use `bt run -v` to show results for all testcases.
 
-**FLAGS**
+**Flags**
 
 - `[<submissions and/or testcases>]`: Submissions and testcases may be freely mixed. The arguments containing `data/` or having `.in` or `.ans` as extension will be treated as testcases. All other arguments are interpreted as submissions. This argument is only allowed when running directly from a problem directory, and does not work with `--problem` and `--contest`.
 
@@ -522,6 +524,20 @@ This is a convenience command (mostly for use in CI) that runs the following sub
 
 This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand and the `--skip-testcase-sanity-checks` flag from `validate`.
 
+## `solve_stats`
+
+Generates solve statistics that can be used in the solution presentation.
+This command uses Matplotlib to generate one PDF for every problem (shown in the top-right of the slide),
+one PDF for the language statistics (optionally included in `solution_footer.tex`),
+and one TeX file that provides the data for the `\solvestats` command.
+
+This command uses the `/teams?public=1` API endpoint of DOMjudge, so all teams on the public scoreboard are included (including spectator/company teams).
+
+**Flags**
+
+- `--contest-id`: Contest ID to use when reading from the API. Defaults to value of `contest_id` in `contest.yaml`.
+- `--post-freeze`: When given, the solve stats will include submissions from after the scoreboard freeze.
+
 ## `sort`
 
 Prints a list of all problems in the current contest (or single problem), together with their letter/ID:
@@ -532,6 +548,16 @@ A : appealtotheaudience
 B : breakingbranches
 ...
 ```
+
+## `update_problems_yaml`
+
+`bt update_problems_yaml` updates the `problems.yaml` file of the contest.
+This file should contain a list of problems, with for every problem the keys `id`, `label`, `name`, `rgb`, and `time_limit`.
+
+**Flags**
+
+- `--colors`: Apply the given list of colors to the list of problems, in the same order as in `problems.yaml`.
+  Should be a comma-separated list of colors (hash-sign is optional), e.g.: `--colors ff0000,00ff00,0000ff`.
 
 ## `tmp`
 

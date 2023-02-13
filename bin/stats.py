@@ -143,7 +143,6 @@ def stats(problems):
         else:
             comment = Fore.YELLOW + comment + Style.RESET_ALL
 
-        # print(format_string)
         print(
             format_string.format(
                 problem.label + ' ' + problem.name,

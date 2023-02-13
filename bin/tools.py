@@ -35,6 +35,7 @@ import latex
 import run
 import skel
 import slack
+import solve_stats
 import stats
 import validate
 import signal
@@ -698,6 +699,10 @@ Run this from one of:
         parents=[global_parser],
         help='Update the problems.yaml with current names and timelimits.',
     )
+    updateproblemsyamlparser.add_argument(
+        '--colors',
+        help='Set the colors of the problems. Comma-separated list of hex-codes.',
+    )
 
     # Print the corresponding temporary directory.
     tmpparser = subparsers.add_parser(
@@ -712,19 +717,19 @@ Run this from one of:
     )
 
     solvestatsparser = subparsers.add_parser(
-        'solvestats',
+        'solve_stats',
         parents=[global_parser],
-        help='Make solvestats plots using https://github.com/hex539/scoreboard.',
-    )
-    solvestatsparser.add_argument(
-        '--scoreboard-repo',
-        type=Path,
-        help='The path to the root of the hex539/scoreboard repository. Can also be set in contest.yaml.',
+        help='Make solve stats plots using Matplotlib. All teams on the public scoreboard are included (including spectator/company teams).',
     )
     solvestatsparser.add_argument(
         '--contest-id',
         action='store',
         help='Contest ID to use when reading from the API. Defaults to value of contest_id in contest.yaml.',
+    )
+    solvestatsparser.add_argument(
+        '--post-freeze',
+        action='store_true',
+        help='When given, the solve stats will include submissions from after the scoreboard freeze.',
     )
 
     create_slack_channel_parser = subparsers.add_parser(
@@ -842,10 +847,10 @@ def run_parsed_arguments(args):
         skel.copy_skel_dir(problems)
         return
 
-    if action == 'solvestats':
+    if action == 'solve_stats':
         if level == 'problem':
-            fatal('solvestats only works for a contest')
-        latex.generate_solvestats(problems)
+            fatal('solve_stats only works for a contest')
+        solve_stats.generate_solve_stats(config.args.post_freeze)
         return
 
     if action == 'create_slack_channels':
@@ -966,7 +971,9 @@ def run_parsed_arguments(args):
         if action in ['export']:
             export.export_contest_and_problems(problems)
         if action in ['update_problems_yaml']:
-            export.update_problems_yaml(problems)
+            export.update_problems_yaml(
+                problems, config.args.colors.split(",") if config.args.colors else None
+            )
 
     if not success or config.n_error > 0 or config.n_warn > 0:
         sys.exit(1)

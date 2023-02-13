@@ -131,7 +131,7 @@ def build_latex_pdf(builddir, tex_path, problem_path=None):
         latexmk_command.append("-pvc")
     if getattr(config.args, '1'):
         latexmk_command.extend(['-e', '$max_repeat=1'])
-    latexmk_command.extend([f'-output-directory={builddir}', tex_path])
+    latexmk_command.extend([f'-output-directory={builddir}', tex_path.absolute()])
 
     ret = util.exec_command(
         latexmk_command,
@@ -171,8 +171,11 @@ def build_problem_pdf(problem, solutions=False):
 
     builddir = problem.tmpdir
 
+    local_data = Path(main_file)
     util.copy_and_substitute(
-        config.tools_root / 'latex' / main_file,
+        local_data
+        if local_data.is_file()
+        else config.tools_root / 'latex' / main_file,
         builddir / main_file,
         {
             'problemlabel': problem.label,
@@ -275,65 +278,3 @@ def build_contest_pdf(contest, problems, tmpdir, solutions=False, web=False):
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
     return build_latex_pdf(builddir, Path(main_file))
-
-
-def generate_solvestats(problems):
-    solve_stats_dir = Path('solve_stats').resolve()
-    problem_stats = Path('solve_stats/problem_stats.tex')
-    solve_stats_dir.mkdir(exist_ok=True)
-    scoreboard_repo = config.args.scoreboard_repo or contest_yaml().get('scoreboard_repo')
-    if not scoreboard_repo:
-        fatal('scoreboard_repo must be set in contest.yaml or passed as an argument')
-    scoreboard_repo = Path(scoreboard_repo).expanduser()
-
-    # Run the necessary shell commands
-    contest_dir = Path().cwd()
-
-    log('Generating plots')
-    if config.args.username is None:
-        fatal('Username must be set')
-    if config.args.password is None:
-        fatal('Password must be set')
-    subprocess.run(
-        [
-            'bazel',
-            'run',
-            'analysis:activity',
-            '--',
-            '--url',
-            get_api(),
-            '--contest',
-            get_contest_id(),
-            '--prefreeze',
-            '-l',
-            config.args.username,
-            '-p',
-            config.args.password,
-            solve_stats_dir,
-        ],
-        cwd=scoreboard_repo,
-    )
-    log('Generating plots done')
-    log('Generating solvestats')
-    subprocess.run(
-        [
-            'bazel',
-            'run',
-            'analysis:activity',
-            '--',
-            '--url',
-            get_api(),
-            '--contest',
-            get_contest_id(),
-            '--prefreeze',
-            '-l',
-            config.args.username,
-            '-p',
-            config.args.password,
-            '--solvestats',
-            solve_stats_dir,
-        ],
-        cwd=scoreboard_repo,
-        stdout=problem_stats.open('w'),
-    )
-    log('Generating solvestats done')

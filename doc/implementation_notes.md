@@ -5,13 +5,15 @@ This document explains some miscellaneous parts of the implementation of BAPCtoo
 # Extensions of problem format
 
 ## `@EXPECTED_RESULTS@: `
-Submissions may contain the string `@EXPECTED_RESULTS@: ` anywhere in their source to indicate which verdicts are allowed for this submission.
+
+Submissions with more than one allowed verdict must contain the string `@EXPECTED_RESULTS@: ` anywhere in their source to indicate which verdicts are allowed for this submission.
 
 - The final verdict of the submission must be in this list.
-- Each testcase must either be accepted or have a verdict in this list. (This is to prevent issues with lazy judging/changing verdict priorities where the first non accepted testcase will be the final verdict.)
+- Each testcase must either be accepted or have a verdict in this list. (This is to prevent issues with lazy judging/changing verdict priorities where the first non-accepted testcase will be the final verdict.)
 
+A submission with an `@EXPECTED_RESULTS@: ` tag should not be placed in one of the four [standard](https://icpc.io/problem-package-format/#submissions-correct-and-incorrect) submission directories, because [DOMjudge will ignore the tag](https://github.com/DOMjudge/domjudge/issues/1861) in this case. Directory names like `mixed/` or `rejected/` are typically used in this case.
 
-The `@EXPECTED_RESULTS@: ` tag should be followed by a comma separated list of verdicts from
+The `@EXPECTED_RESULTS@: ` tag should be followed by a comma-separated list of verdicts from
 
 - `ACCEPTED`,
 - `WRONG_ANSWER`,
@@ -27,9 +29,9 @@ Additionally, the following DOMjudge equivalents may be used:
 - `COMPILER-ERROR`: this is not supported and will be ignored.
 
 
-Matching is case insensitive and extra white space is allowed. Examples:
+Matching is case-insensitive and extra white space is allowed. Examples:
 - `// @EXPECTED_RESULTS@: WRONG_ANSWER`
-- `# @expected_results@: accepted,time_limit_exceeded, no-output`
+- `# @expected_results@:  accepted,time_limit_exceeded, no-output`
 
 ## Non-standard `generators.yaml` keys
 
@@ -139,7 +141,7 @@ Solutions are rendered in a similar way to the contest pdf. It uses the `problem
 
 ### Solve stats
 
-There is some special support for handling _solve stats_: after contest data on how often each problem was solved. To use this, create the following directory layout in your contest directory.
+There is some special support for handling _solve stats_: post-contest data on how often each problem was solved. To use this, create the following directory layout in your contest directory.
 
 - `<contest>/solve_stats/problem_stats.tex`: Contains one line for each problem label:
   ```
@@ -149,11 +151,11 @@ There is some special support for handling _solve stats_: after contest data on 
   ```
   Statistics: 15 submissions, 3 accepted, 8 unknown
   ```
-- `<contest>/solve_stats/languages.tex`: a (standalone) plot of the language distribution of all submission. This may be included directly by the `solution_header.tex` or `solution_footer.tex`. (BAPCtools doesn't do anything special here.)
+- `<contest>/solve_stats/language_stats.pdf`: a plot of the language distribution of all submissions. This may be included directly by the `solution_header.tex` or `solution_footer.tex`. (BAPCtools doesn't do anything special here.)
 
-- `<contest>/solve_stats/activity/<label>.tex`: One file per problem, containing a (standalone) plot of the submissions over time. These will automatically be included on the solution slides for each problem when available.
+- `<contest>/solve_stats/activity/<label>.pdf`: One file per problem, containing a plot of the submissions over time. These will automatically be included on the solution slides for each problem when available.
 
-All the files in the `<contest>/solve_stats` directory can be generated using https://github.com/hex539/scoreboard. See also [this issue](https://github.com/hex539/scoreboard/issues/7).
+All the files in the `<contest>/solve_stats` directory can be generated using `bt solve_stats`. More details [here](commands.md#solve_stats).
 
 # Constraints checking
 

@@ -30,13 +30,6 @@
 \usepackage{multicol}
 \usepackage{wrapfig}
 
-% Needed for solve stats.
-\providecolor{Accepted}{named}{LimeGreen}
-\providecolor{WrongAnswer}{named}{Red}
-\providecolor{TimeLimit}{named}{Plum}
-\providecolor{RunError}{named}{Goldenrod}
-\providecolor{Pending}{named}{SkyBlue}
-
 \lstset{
 	backgroundcolor=\color{white},
 	tabsize=4,
@@ -56,11 +49,11 @@
 \newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 \newcommand{\problemtitle}{\problemlabel: \problemyamlname}
 
-% If solve_stats/activity/A.tex exists, define the \activitychart command
-\IfFileExists{A.tex}{
+% If solve_stats/activity/A.pdf exists, define the \activitychart command
+\IfFileExists{solve_stats/activity/A.pdf}{
 	\newcommand{\activitychart}{
 	  \ifdefempty{\problemlabel}{}{%
-        \includegraphics[width=\textwidth]{solve_stats/activity/\problemlabel}%
+        \includegraphics[width=\textwidth,height=0.1\textheight]{solve_stats/activity/\problemlabel}%
 	  }%
 	}
 }{
@@ -70,7 +63,7 @@
 \newcommand{\printsolvestats}[3]{%
 	\vfill%
     \onslide<+->%
-	Statistics: #1 submissions, #2 accepted, #3 unknown%
+	Statistics: #1 submissions, #2 accepted\ifnum#3=0\else, #3 unknown\fi%
 }
 
 % Define \solvestats for the current problem if the file exists.

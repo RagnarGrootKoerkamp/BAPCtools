@@ -1,8 +1,6 @@
 /*
  * This should fail with WRONG-ANSWER (C++ doesn't give floating point
  * errors when dividing by zero).
- *
- * @EXPECTED_RESULTS@: WRONG-ANSWER
  */
 
 #include <vector>

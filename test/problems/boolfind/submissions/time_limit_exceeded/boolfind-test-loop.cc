@@ -1,8 +1,6 @@
 /*
  * Tests that we correctly abort submissions that do not write out incorrect
  * results, i.e. where the jury program keeps on reading.
- *
- * @EXPECTED_RESULTS@: TIMELIMIT
  */
 #include <iostream>
 

@@ -4,8 +4,6 @@
  *
  * Note: This may try to create a coredump on exit and time out. This
  * can be prevented with `ulimit -c 0`.
- *
- * @EXPECTED_RESULTS@: RUN-ERROR
  */
 
 #include <iostream>

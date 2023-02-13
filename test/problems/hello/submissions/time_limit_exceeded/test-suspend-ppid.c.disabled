@@ -4,8 +4,6 @@
  * suspended and not terminate the command after the timelimit.
  *
  * This should give TIMELIMIT on the default problem 'hello'.
- *
- * @EXPECTED_RESULTS@: TIMELIMIT
  */
 
 #include <signal.h>

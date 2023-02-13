@@ -1,8 +1,6 @@
 /*
  * This program test binary output and should give WRONG-ANSWER, but
  * display diff correctly.
- *
- * @EXPECTED_RESULTS@: WRONG-ANSWER
  */
 
 #include <stdio.h>

@@ -1,8 +1,6 @@
 /*
  * This should give WRONG ANSWER on the problem 'fltcmp' for inputs
  * 0, 1 and INF.
- *
- * @EXPECTED_RESULTS@: WRONG-ANSWER
  */
 
 #include <stdio.h>

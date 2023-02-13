@@ -1,8 +1,6 @@
 /* This tries to read from some file that is group root, but not world
  * readable. It should fail with WRONG-ANSWER, because we first check.
  * If anything is not as expected it should generate a RUN-ERROR.
- *
- * @EXPECTED_RESULTS@: WRONG-ANSWER
  */
 
 #include <stdio.h>
