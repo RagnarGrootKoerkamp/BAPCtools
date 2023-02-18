@@ -430,7 +430,7 @@ def export_contest_and_problems(problems):
         r.raise_for_status()
         ccs_problems = yaml.load(r.text, Loader=yaml.SafeLoader)
 
-    # TODO: Make sure the user is associated to a team.
+    check_if_user_has_team()
 
     def get_problem_id(problem):
         nonlocal ccs_problems
@@ -441,3 +441,16 @@ def export_contest_and_problems(problems):
     for problem in problems:
         pid = get_problem_id(problem)
         export_problem(problem, cid, pid)
+
+
+def check_if_user_has_team():
+    # Not using the /users/{uid} route, because {uid} is either numeric or a string depending on the DOMjudge config.
+    r = call_api('GET', f'/users')
+    r.raise_for_status()
+    if not any(user['username'] == config.args.username and user['team'] for user in r.json()):
+        warn(f'User "{config.args.username}" is not associated with a team.')
+        warn('Therefore, the jury submissions will not be run by the judgehosts.')
+        log('Continue export to DOMjudge? [N/y]')
+        a = input().lower()
+        if not a or a[0] != 'y':
+            fatal('Aborted.')
