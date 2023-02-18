@@ -33,6 +33,7 @@ This lists all subcommands and their most important options.
 - Exporting
   - [`bt samplezip`](#samplezip)
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
+  - [`bt export`](#export)
 - Misc
   - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated]`](#all)
   - [`bt solve_stats [--contest-id CONTESTID] [--post-freeze]`](#solve_stats)
@@ -508,6 +509,13 @@ When run for a contest:
   - The contest level zip is written to `contest/<contest>-kattis.zip`
   - Kattis needs the `input_validators` directory, while DOMjudge doesn't use this.
   - Kattis problem zips get an additional top level directory named after the problem shortname.
+
+## `export`
+
+This command uploads the `contest.yaml`, `problems.yaml`, and problem zips to DOMjudge.
+Make sure to run the [`bt zip`](#zip) command before exporting, this does not happen automatically.
+
+When run for a single problem, `contest.yaml` and `problems.yaml` are uploaded for the entire contest, but only the zip for the selected problem is uploaded.
 
 # Misc
 
