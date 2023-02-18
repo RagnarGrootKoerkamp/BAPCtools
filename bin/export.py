@@ -376,7 +376,7 @@ def export_problems(problems, cid):
         fatal(f'{msg}\n{e}')
     log(f'Uploaded problems.yaml for contest_id {cid}.')
     data = yaml.load(r.text, Loader=yaml.SafeLoader)
-    return data
+    return data  # Returns the API IDs of the added problems.
 
 
 # Export a single problem to the specified contest ID.
@@ -418,17 +418,17 @@ def export_contest_and_problems(problems):
     if not any(contest['id'] == cid for contest in get_contests()):
         cid = export_contest()
 
-    # Query the internal DOMjudge problem IDs.
-    ccs_problems = None
-    r = call_api('GET', f'/contests/{cid}/problems')
-    r.raise_for_status()
-    ccs_problems = yaml.load(r.text, Loader=yaml.SafeLoader)
-    if not ccs_problems:
-        export_problems(problems, cid)
-        # TODO: Could output from export_problems instead of querying the API again.
+    def get_problems():
         r = call_api('GET', f'/contests/{cid}/problems')
         r.raise_for_status()
-        ccs_problems = yaml.load(r.text, Loader=yaml.SafeLoader)
+        return yaml.load(r.text, Loader=yaml.SafeLoader)
+
+    # Query the internal DOMjudge problem IDs.
+    ccs_problems = get_problems()
+    if not ccs_problems:
+        export_problems(problems, cid)
+        # Need to query the API again, because `/problems/add-data` returns a list of IDs, not the full problem objects.
+        ccs_problems = get_problems()
 
     check_if_user_has_team()
 
