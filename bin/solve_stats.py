@@ -9,7 +9,7 @@ except:
     has_matplotlib = False
 
 from contest import call_api, get_contest_id
-from util import ProgressBar
+from util import error, ProgressBar
 
 
 def generate_solve_stats(post_freeze):
