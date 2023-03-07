@@ -1,13 +1,24 @@
 from os import makedirs
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+try:
+    import matplotlib.pyplot as plt
+
+    has_matplotlib = True
+except:
+    has_matplotlib = False
 
 from contest import call_api, get_contest_id
 from util import ProgressBar
 
 
 def generate_solve_stats(post_freeze):
+    if not has_matplotlib:
+        error(
+            'Generating solve stats needs the matplotlib python3 library. Install python[3]-matplotlib.'
+        )
+        return
+
     contest_id = get_contest_id()
 
     # The endpoint should not start with a slash
