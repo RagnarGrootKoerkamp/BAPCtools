@@ -1,23 +1,13 @@
 from os import makedirs
 from pathlib import Path
 
-try:
-    import matplotlib.pyplot as plt
-
-    has_matplotlib = True
-except:
-    has_matplotlib = False
-
 from contest import call_api, get_contest_id
-from util import error, ProgressBar
+from util import ProgressBar
 
 
 def generate_solve_stats(post_freeze):
-    if not has_matplotlib:
-        error(
-            'Generating solve stats needs the matplotlib python3 library. Install python[3]-matplotlib.'
-        )
-        return
+    # Import takes more than 1000 ms to evaluate, so only import inside function (when it is actually needed)
+    import matplotlib.pyplot as plt
 
     contest_id = get_contest_id()
 
