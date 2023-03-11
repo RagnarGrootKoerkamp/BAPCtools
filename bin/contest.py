@@ -1,12 +1,7 @@
 from pathlib import Path
-from util import *
 import json
 
-# Optional, only needed for API stuff
-try:
-    import requests
-except:
-    pass
+from util import *
 
 # Read the contest.yaml, if available
 _contest_yaml = None
@@ -86,6 +81,8 @@ def get_contests():
 
 
 def call_api(method, endpoint, **kwargs):
+    import requests  # Slow import, so only import it inside this function.
+
     url = get_api() + endpoint
     verbose(f'{method} {url}')
     r = requests.request(
