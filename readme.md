@@ -42,6 +42,8 @@ Optional dependencies, required for some subcommands:
   These are only needed for building `pdf` files, not for `run` and `validate` and such.
 - The [matplotlib library](https://pypi.org/project/matplotlib/) via `pip install matplotlib` or the `python[3]-matplotlib` Linux package.
   - This is optional and only used by the `solve_stats` command.
+- The [requests library](https://pypi.org/project/requests/) via `pip install requests` or the `python[3]-requests` Linux package.
+  - This is optional and only used by the commands that call the DOMjudge API (`export`, `solutions --order-from-css`, and `solve_stats`) or the Slack API (`create_slack_channels` command).
 - The [questionary library](https://pypi.org/project/questionary/) via `pip install questionary`.
   - This is optional and only used by the `new_contest` and `new_problem` commands.
 

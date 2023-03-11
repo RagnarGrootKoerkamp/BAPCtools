@@ -185,7 +185,6 @@ def get_problems():
             # Sort by increasing difficulty, extracted from the CCS api.
             # Get active contest.
 
-            api = get_api()
             cid = get_contest_id()
             solves = dict()
 
