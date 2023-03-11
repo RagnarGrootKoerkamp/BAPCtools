@@ -13,11 +13,6 @@ from pathlib import Path
 
 from contest import *
 
-try:
-    import requests
-except:
-    pass
-
 
 # Replace \problemyamlname by the value of `name:` in problems.yaml in all .tex files.
 def fix_problem_yaml_name(problem):
@@ -243,26 +238,22 @@ def export_contest():
             if key in data:
                 data[key] = str(datetime.timedelta(seconds=data[key]))
 
-    try:
-        verbose("Uploading contest.yaml:")
-        verbose(data)
-        r = call_api(
-            'POST',
-            '/contests',
-            files={
-                'yaml': (
-                    'contest.yaml',
-                    yaml.dump(data),
-                    'application/x-yaml',
-                )
-            },
-        )
-        r.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        msg = parse_yaml(r.text)
-        if msg is not None and 'message' in msg:
-            msg = msg['message']
-        fatal(f'{msg}\n{e}')
+    verbose("Uploading contest.yaml:")
+    verbose(data)
+    r = call_api(
+        'POST',
+        '/contests',
+        files={
+            'yaml': (
+                'contest.yaml',
+                yaml.dump(data),
+                'application/x-yaml',
+            )
+        },
+    )
+    if r.status_code == 400:
+        fatal(parse_yaml(r.text)['message'])
+    r.raise_for_status()
 
     new_cid = yaml.load(r.text, Loader=yaml.SafeLoader)
     log(f'Uploaded the contest to contest_id {new_cid}.')
@@ -353,27 +344,24 @@ def export_problems(problems, cid):
     update_problems_yaml(problems)
 
     # Uploading problems.yaml
-    try:
-        data = "".join(open("problems.yaml", "r").readlines())
-        verbose("Uploading problems.yaml:")
-        verbose(data)
-        r = call_api(
-            'POST',
-            f'/contests/{cid}/problems/add-data',
-            files={
-                'data': (
-                    'problems.yaml',
-                    data,
-                    'application/x-yaml',
-                )
-            },
-        )
-        r.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        msg = parse_yaml(r.text)
-        if msg is not None and 'message' in msg:
-            msg = msg['message']
-        fatal(f'{msg}\n{e}')
+    data = "".join(open("problems.yaml", "r").readlines())
+    verbose("Uploading problems.yaml:")
+    verbose(data)
+    r = call_api(
+        'POST',
+        f'/contests/{cid}/problems/add-data',
+        files={
+            'data': (
+                'problems.yaml',
+                data,
+                'application/x-yaml',
+            )
+        },
+    )
+    if r.status_code == 400:
+        fatal(parse_yaml(r.text)['message'])
+    r.raise_for_status()
+
     log(f'Uploaded problems.yaml for contest_id {cid}.')
     data = yaml.load(r.text, Loader=yaml.SafeLoader)
     return data  # Returns the API IDs of the added problems.
