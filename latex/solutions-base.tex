@@ -63,7 +63,7 @@
 \newcommand{\printsolvestats}[3]{%
 	\vfill%
     \onslide<+->%
-	Statistics: #1 submissions, #2 accepted\ifnum#3=0\else, #3 unknown\fi%
+	Statistics: #1 submissions, #2 accepted\ifthenelse{\equal{#3}0}{}{, #3 unknown}%
 }
 
 % Define \solvestats for the current problem if the file exists.
