@@ -31,6 +31,18 @@ def is_mac():
     return sys.platform in ['darwin']
 
 
+def is_freebsd():
+    return "freebsd" in sys.platform
+
+
+def is_aquabsd():
+    return "aquabsd" in sys.platform
+
+
+def is_bsd():
+    return is_mac() or is_freebsd() or is_aquabsd()
+
+
 if not is_windows():
     import resource
 
@@ -716,7 +728,7 @@ def limit_setter(command, timeout, memory_limit):
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
 
         # Increase the max stack size from default to the max available.
-        if not is_mac():
+        if not is_bsd():
             resource.setrlimit(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
