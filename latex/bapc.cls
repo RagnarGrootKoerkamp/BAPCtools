@@ -23,7 +23,7 @@
 % it is decorated with the text "This is not a blank page".
 %-------------------------------------------------------------------------------
 
-\newcommand{\defaultblankpagetext}{This page is intentionally left blank.}
+\newcommand{\defaultblankpagetext}{\langblank{}}
 
 \newcommand{\ThisIsNotABlankPage}{
 	\cleartooddpage[
@@ -73,10 +73,10 @@
 
 \newcommand{\todo}[1]{{\color{red}[#1]}}
 
-\newcommand{\timelimit}{TIMELIMIT MISSING}
+\newcommand{\timelimit}{\langtimelimitmissing{}}
 \newcommand{\problemlabel}{} % Empty to hide activity chart
-\newcommand{\problemyamlname}{Problem name}
-\newcommand{\problemauthor}{Problem author}
+\newcommand{\problemyamlname}{\langproblemname{}}
+\newcommand{\problemauthor}{\langproblemauthor{}}
 \newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 
 %-------------------------------------------------------------------------------
@@ -86,7 +86,7 @@
 % turned out to be a lot easier in terms of custom formatting.
 %-------------------------------------------------------------------------------
 \renewcommand{\thesection}{\problemlabel}
-\newcommand{\listofproblemsname}{Problems}
+\newcommand{\listofproblemsname}{\langproblems{}}
 \newlistof{listofproblems}{lop}{\listofproblemsname}
 \newlistentry{problem}{lop}{0}
 \newcounter{SampleCount}
@@ -114,7 +114,7 @@
 	}
 	\vspace{-2.3em}
 	\hfill
-	\ifdefempty{\timelimit}{}{{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}}
+	\ifdefempty{\timelimit}{}{{\color{darkgray}\fontfamily{qcr}\langtimelimit{}: \timelimit{}s}}
 
 	\setcounter{SampleCount}{0}
 	\setcounter{figure}{0}
@@ -143,7 +143,7 @@
 %-------------------------------------------------------------------------------
 \copypagestyle{bapc}{headings}
 \makepsmarks{bapc}{
-	\createmark{section}{both}{shownumber}{Problem }{: }
+	\createmark{section}{both}{shownumber}{\langproblem{} }{: }
 }
 \pagestyle{bapc}
 \nouppercaseheads
@@ -153,16 +153,16 @@
 % Environments for specifying Input, Output, Interaction, and sample Explanation/Notes.
 %-------------------------------------------------------------------------------
 \newenvironment{Input}{
-	\subsection*{Input}
+	\subsection*{\langinput{}}
 }{}
 \newenvironment{Output}{
-	\subsection*{Output}
+	\subsection*{\langoutput{}}
 }{}
 \newenvironment{Interaction}{
-	\subsection*{Interaction}
+	\subsection*{\langinteraction{}}
 }{}
 \newenvironment{Explanation}{
-	\subsection*{Explanation of samples}
+	\subsection*{\langexplanation{}}
 }{}
 % Use xparse to get the contents of the environment as a variable (using `+b`) and store
 % them with the heading in `\notesContent`, which is automatically rendered at
@@ -197,7 +197,7 @@
 % A solution to this problem was found on http://tex.stackexchange.com/a/111488 .
 %-------------------------------------------------------------------------------
 \newcommand{\mySampleHeading}[1]{
-	\multicolumn{1}{l}{\large \bfseries\textrm{Sample #1 \arabic{SampleCount}}}
+	\multicolumn{1}{l}{\large \bfseries\textrm{\langsample{} #1 \arabic{SampleCount}}}
 }
 \newcommand{\SampleListing}[1]{
   	\lstinputlisting[aboveskip=-0.7\baselineskip,belowskip=-0.9\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
@@ -212,7 +212,7 @@
 	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
 	\begin{tabularx}{\textwidth}{|X|X|}%             http://tex.stackexchange.com/a/31704
-		\mySampleHeading{Input} & \mySampleHeading{Output} \\
+		\mySampleHeading{\langinputsample{}} & \mySampleHeading{\langoutputsample{}} \\
 		\hline
 	  	\SampleListing{#1}
 		&
@@ -230,7 +230,7 @@
 	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
 	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
-		\mySampleHeading{Input} \\
+		\mySampleHeading{\langinput{}} \\
 		\hline
 	  	\SampleListing{#1} \\
 		\hline
@@ -239,7 +239,7 @@
     \par
     \noindent
 	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
-	  	\mySampleHeading{Output} \\
+	  	\mySampleHeading{\langoutput{}} \\
 		\hline
 	  	\SampleListing{#2} \\
 		\hline
@@ -279,11 +279,11 @@
 	\normalsize%
 	\stepcounter{SampleCount}%
 	\begin{tabularx}{0.983\textwidth}{XXX}%
-		\large\bfseries\textrm{Read} \hfill%
+		\large\bfseries\textrm{\langread{}} \hfill%
 		& %
-		\centering \large\bfseries\textrm{Sample Interaction \arabic{SampleCount}}%
+		\centering \large\bfseries\textrm{\langsampleinteraction{} \arabic{SampleCount}}%
 		& %
-		\hfill \large\bfseries\textrm{Write}\\%
+		\hfill \large\bfseries\textrm{\langwrite{}}\\%
 	\end{tabularx}
 	\nopagebreak
 	\vspace{-1.0em}

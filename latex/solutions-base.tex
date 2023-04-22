@@ -63,7 +63,7 @@
 \newcommand{\printsolvestats}[3]{%
     \vfill%
     \onslide<+->%
-    Statistics: #1 submissions, #2 accepted\ifthenelse{\equal{#3}0}{}{, #3 unknown}%
+    \langstatistics{}: #1 \langsubmissions{}, #2 \langdaccepted{}\ifthenelse{\equal{#3}0}{}{, #3 \langunknown{}}%
 }
 
 % Define \solvestats for the current problem if the file exists.
