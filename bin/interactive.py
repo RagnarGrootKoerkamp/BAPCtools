@@ -184,30 +184,6 @@ def run_interactive_testcase(
     else:
         team_error_in, team_error_out = None, team_error
 
-    validator = subprocess.Popen(
-        validator_command,
-        stdin=val_in,
-        stdout=val_out,
-        # TODO: Make a flag to pass validator error directly to terminal.
-        stderr=validator_error_out,
-        cwd=validator_dir,
-        preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
-    )
-    validator_pid = validator.pid
-    # add all programs to the same group (for simiplcity we take the pid of the validator)
-    # then we can wait for all program ins the same group
-    gid = validator_pid
-
-    submission = subprocess.Popen(
-        submission_command,
-        stdin=team_in,
-        stdout=team_out,
-        stderr=team_error_out,
-        cwd=submission_dir,
-        preexec_fn=limit_setter(submission_command, timeout, memory_limit, gid),
-    )
-    submission_pid = submission.pid
-
     if interaction:
         # Connect pipes with tee.
         TEE_CODE = R'''
@@ -224,22 +200,48 @@ while True:
     sys.stderr.flush()
     new = l=='\n'
 '''
+
+    validator = subprocess.Popen(
+        validator_command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        # TODO: Make a flag to pass validator error directly to terminal.
+        stderr=validator_error_out,
+        cwd=validator_dir,
+        preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
+    )
+    validator_pid = validator.pid
+    # add all programs to the same group (for simiplcity we take the pid of the validator)
+    # then we can wait for all program ins the same group
+    gid = validator_pid
+
+    if interaction:
         team_tee = subprocess.Popen(
             ['python3', '-c', TEE_CODE, '>'],
-            stdin=team_log_in,
-            stdout=team_log_out,
+            stdin=subprocess.PIPE,
+            stdout=validator.stdin,
             stderr=interaction_file,
             preexec_fn=limit_setter(None, None, None, gid),
         )
         team_tee_pid = team_tee.pid
         val_tee = subprocess.Popen(
             ['python3', '-c', TEE_CODE, '<'],
-            stdin=val_log_in,
-            stdout=val_log_out,
+            stdin=validator.stdout,
+            stdout=subprocess.PIPE,
             stderr=interaction_file,
             preexec_fn=limit_setter(None, None, None, gid),
         )
         val_tee_pid = val_tee.pid
+
+    submission = subprocess.Popen(
+        submission_command,
+        stdin=(val_tee if interaction else validator).stdout,
+        stdout=(team_tee if interaction else validator).stdin,
+        stderr=team_error_out,
+        cwd=submission_dir,
+        preexec_fn=limit_setter(submission_command, timeout, memory_limit, gid),
+    )
+    submission_pid = submission.pid
 
     stop_kill_handler = threading.Event()
     def kill_handler_function():
@@ -279,8 +281,10 @@ while True:
             validator_status = status
 
             # Close the output stream.
+            validator.stdout.close()
             os.close(val_out)
             if interaction:
+                val_tee.stdout.close()
                 os.close(val_log_out)
 
             # Kill the team submission and everything else in case we already know it's WA.
@@ -294,8 +298,10 @@ while True:
             submission_status = status
 
             # Close the output stream.
+            validator.stdin.close()
             os.close(team_out)
             if interaction:
+                team_tee.stdin.close()
                 os.close(team_log_out)
 
             # Possibly already written by the alarm.
