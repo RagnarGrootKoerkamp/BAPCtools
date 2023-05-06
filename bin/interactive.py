@@ -88,7 +88,6 @@ def run_interactive_testcase(
             stdout=subprocess.PIPE,
             stderr=validator_error,
             cwd=validator_dir,
-            bufsize=BUFFER_SIZE,
         )
 
         # Start and time the submission.
@@ -142,8 +141,6 @@ def run_interactive_testcase(
         )
 
     # On Linux:
-    # - Create 2 pipes
-    # - Update the size to 1MB
     # - Start validator
     # - Start submission, limiting CPU time to timelimit+1s
     # - Set alarm for timelimit+1s, and kill submission on SIGALRM if needed.
@@ -152,39 +149,12 @@ def run_interactive_testcase(
     # - Close remaining program + write end of pipe
     # - Close remaining read end of pipes
 
-    def mkpipe():
-        # TODO: is os.O_CLOEXEC needed here?
-        r, w = os.pipe2(os.O_CLOEXEC)
-        F_SETPIPE_SZ = 1031
-        fcntl.fcntl(w, F_SETPIPE_SZ, BUFFER_SIZE)
-        return r, w
-
     interaction_file = None
     # TODO: Print interaction when needed.
     if interaction:
         interaction_file = None if interaction is True else interaction.open('a')
         interaction = True
 
-    team_log_in, team_out = mkpipe()
-    val_log_in, val_out = mkpipe()
-    if interaction:
-        val_in, team_log_out = mkpipe()
-        team_in, val_log_out = mkpipe()
-    else:
-        val_in = team_log_in
-        team_in = val_log_in
-
-    # Use manual pipes with a large buffer instead of subprocess.PIPE for validator and team output.
-    if validator_error is False:
-        validator_error_in, validator_error_out = mkpipe()
-    else:
-        validator_error_in, validator_error_out = None, validator_error
-    if team_error is False:
-        team_error_in, team_error_out = mkpipe()
-    else:
-        team_error_in, team_error_out = None, team_error
-
-    if interaction:
         # Connect pipes with tee.
         TEE_CODE = R'''
 import sys
@@ -206,7 +176,7 @@ while True:
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         # TODO: Make a flag to pass validator error directly to terminal.
-        stderr=validator_error_out,
+        stderr=subprocess.PIPE if validator_error is False else None,
         cwd=validator_dir,
         preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
     )
@@ -237,7 +207,7 @@ while True:
         submission_command,
         stdin=(val_tee if interaction else validator).stdout,
         stdout=(team_tee if interaction else validator).stdin,
-        stderr=team_error_out,
+        stderr=subprocess.PIPE if team_error is False else None,
         cwd=submission_dir,
         preexec_fn=limit_setter(submission_command, timeout, memory_limit, gid),
     )
@@ -282,10 +252,8 @@ while True:
 
             # Close the output stream.
             validator.stdout.close()
-            os.close(val_out)
             if interaction:
                 val_tee.stdout.close()
-                os.close(val_log_out)
 
             # Kill the team submission and everything else in case we already know it's WA.
             if first_done and validator_status != config.RTV_AC:
@@ -299,10 +267,8 @@ while True:
 
             # Close the output stream.
             validator.stdin.close()
-            os.close(team_out)
             if interaction:
                 team_tee.stdin.close()
-                os.close(team_log_out)
 
             # Possibly already written by the alarm.
             if submission_time is None:
@@ -320,13 +286,6 @@ while True:
         left -= 1
 
     stop_kill_handler.set()
-
-    os.close(val_in)
-    if interaction:
-        os.close(val_log_in)
-    os.close(team_in)
-    if interaction:
-        os.close(team_log_in)
 
     did_timeout = submission_time > timelimit
     aborted = submission_time >= timeout
@@ -370,15 +329,9 @@ while True:
 
     val_err = None
     if validator_error is False:
-        os.close(validator_error_out)
-        val_err = os.fdopen(validator_error_in).read()
-    elif validator_error is not None:
         val_err = validator.stderr.read().decode('utf-8', 'replace')
     team_err = None
     if team_error is False:
-        os.close(team_error_out)
-        team_err = os.fdopen(team_error_in).read()
-    elif team_error is not None:
         team_err = submission.stderr.read().decode('utf-8', 'replace')
 
     return ExecResult(True, submission_time, val_err, team_err, verdict, print_verdict)
