@@ -4,7 +4,7 @@
 // You should also check properties of the input.
 // E.g., check that a graph is connected.
 
-int main(int argc, char** argv) {
+int main(int argc, char *argv[]) {
     InputValidator v(argc, argv);
     int n = v.read_integer("n", 0, 100000);
     v.space();
