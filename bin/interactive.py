@@ -11,7 +11,7 @@ if not is_windows():
     import fcntl
     import resource
 
-BUFFER_SIZE = 2 ** 20
+BUFFER_SIZE = 2**20
 
 
 # Return a ExecResult object amended with verdict.
@@ -132,7 +132,12 @@ def run_interactive_testcase(
 
         # Set result.err to validator error and result.out to team error.
         return ExecResult(
-            True, tend - tstart, validator_err.decode('utf-8', 'replace'), exec_res.err, verdict, print_verdict
+            True,
+            tend - tstart,
+            validator_err.decode('utf-8', 'replace'),
+            exec_res.err,
+            verdict,
+            print_verdict,
         )
 
     # On Linux:
