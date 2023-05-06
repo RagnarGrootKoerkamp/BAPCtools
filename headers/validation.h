@@ -1307,10 +1307,7 @@ class Validator {
 
 	[[noreturn]] void expected(const std::string& exp = "", const std::string& s = "") {
 		assert(!gen && "Expected is not supported for generators.");
-		if(!s.empty())
-			WA("Expected ", exp, ", found ", s);
-		else
-			WA(exp);
+		WA("Expected ", exp, ", found ", s.empty() ? "empty string" : s);
 	}
 
 	template <typename T>
