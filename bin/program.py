@@ -171,6 +171,7 @@ class Program:
         best = (None, [], 0)
         message = None
         fallback = False
+        candidates = []
         for lang in languages():
             lang_conf = languages()[lang]
             name = lang_conf['name']
@@ -186,6 +187,12 @@ class Program:
             if len(matching_files) == 0:
                 continue
 
+            candidates.append(
+                (priority // 1000, len(matching_files), priority, lang, matching_files)
+            )
+        candidates.sort(reverse=True)
+
+        for _, _, priority, lang, files in candidates:
             # Make sure we can run programs for this language.
             if 'compile' in lang_conf:
                 exe = lang_conf['compile'].split()[0]
@@ -212,62 +219,55 @@ class Program:
                             )
                 continue
 
-            if (priority // 1000, len(matching_files), priority) > (
-                best[2] // 1000,
-                len(best[1]),
-                best[2],
-            ):
-                best = (lang, matching_files, priority)
+            if fallback:
+                if lang not in Program.warn_cache:
+                    if config.args.verbose:
+                        Program.warn_cache.add(lang)
+                        self.bar.debug(f'Falling back to {languages()[lang]["name"]}.')
 
-        lang, files, priority = best
+            if len(files) == 0:
+                self.ok = False
+                self.bar.error(f'No file detected for language {name} at {self.path}.')
+                return False
 
-        if lang is None:
-            self.ok = False
-            self.bar.error(f'No language detected for {self.path}.')
-            return False
-
-        if fallback:
-            if lang not in Program.warn_cache:
-                if config.args.verbose:
-                    Program.warn_cache.add(lang)
-                    self.bar.debug(f'Falling back to {languages()[lang]["name"]}.')
-
-        if len(files) == 0:
-            self.ok = False
-            self.bar.error(f'No file detected for language {name} at {self.path}.')
-            return False
-
-        self.language = lang
-        mainfile = None
-        if not self.has_deps:
-            if len(files) == 1:
-                mainfile = files[0]
+            self.language = lang
+            mainfile = None
+            if not self.has_deps:
+                if len(files) == 1:
+                    mainfile = files[0]
+                else:
+                    for f in files:
+                        if f.name.lower().startswith('main'):
+                            mainfile = f
+                    mainfile = mainfile or sorted(files)[0]
             else:
-                for f in files:
-                    if f.name.lower().startswith('main'):
-                        mainfile = f
-                mainfile = mainfile or sorted(files)[0]
-        else:
-            mainfile = self.tmpdir / deps[0].name
+                mainfile = self.tmpdir / deps[0].name
 
-        mainclass = str(mainfile.with_suffix('').name)
-        self.env = {
-            'path': str(self.tmpdir),
-            # NOTE: This only contains files matching the winning language.
-            'files': ' '.join(str(f) for f in files),
-            'binary': self.tmpdir / 'run',
-            'mainfile': str(mainfile),
-            'mainclass': mainclass,
-            'Mainclass': mainclass[0].upper() + mainclass[1:],
-            # Memory limit in MB.
-            'memlim': (get_memory_limit() or 1024),
-            # Out-of-spec variables used by 'manual' and 'Viva' languages.
-            'build': self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else '',
-            'run': self.tmpdir / 'run',
-            'viva_jar': config.tools_root / 'third_party/viva/viva.jar',
-        }
+            mainclass = str(mainfile.with_suffix('').name)
+            self.env = {
+                'path': str(self.tmpdir),
+                # NOTE: This only contains files matching the winning language.
+                'files': ' '.join(str(f) for f in files),
+                'binary': self.tmpdir / 'run',
+                'mainfile': str(mainfile),
+                'mainclass': mainclass,
+                'Mainclass': mainclass[0].upper() + mainclass[1:],
+                # Memory limit in MB.
+                'memlim': (get_memory_limit() or 1024),
+                # Out-of-spec variables used by 'manual' and 'Viva' languages.
+                'build': self.tmpdir / 'build'
+                if (self.tmpdir / 'build') in self.input_files
+                else '',
+                'run': self.tmpdir / 'run',
+                'viva_jar': config.tools_root / 'third_party/viva/viva.jar',
+            }
 
-        return True
+            return True
+
+        # The for loop did not find a suitable language.
+        self.ok = False
+        self.bar.error(f'No language detected for {self.path}.')
+        return False
 
     def _checks(self):
         # Make sure c++ does not depend on stdc++.h, because it's not portable.
