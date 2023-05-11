@@ -174,7 +174,6 @@ class Program:
         candidates = []
         for lang in languages():
             lang_conf = languages()[lang]
-            name = lang_conf['name']
             globs = lang_conf['files'].split() or []
             shebang = re.compile(lang_conf['shebang']) if lang_conf.get('shebang') else None
             priority = int(lang_conf['priority'])
@@ -193,6 +192,9 @@ class Program:
         candidates.sort(reverse=True)
 
         for _, _, priority, lang, files in candidates:
+            lang_conf = languages()[lang]
+            name = lang_conf['name']
+
             # Make sure we can run programs for this language.
             if 'compile' in lang_conf:
                 exe = lang_conf['compile'].split()[0]
