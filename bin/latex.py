@@ -179,11 +179,12 @@ def build_problem_pdf(problem, solutions=False):
         builddir / main_file,
         {
             'problemlabel': problem.label,
-            'problemyamlname': problem.settings.name.replace('_', ' '),
+            'problemyamlname': problem.settings.name[problem.language].replace('_', ' '),
             'problemauthor': problem.settings.author,
             'timelimit': get_tl(problem),
             'problemdir': problem.path.absolute().as_posix(),
             'builddir': problem.tmpdir.as_posix(),
+            'stmlang': problem.language
         },
     )
 

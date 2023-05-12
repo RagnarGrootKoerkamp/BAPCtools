@@ -387,6 +387,7 @@ Run this from one of:
         action='store_true',
         help='Create problem statements for individual problems as well.',
     )
+    pdfparser.add_argument('--language', type=str, help='Set statement language.')
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     pdfparser.add_argument(
         '--watch',

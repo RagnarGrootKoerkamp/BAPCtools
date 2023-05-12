@@ -49,6 +49,43 @@ class Problem:
                 f'Problem has a bad shortname: {self.name} does not match {self._SHORTNAME_REGEX_STRING}'
             )
 
+        self.language = self._determine_statement_language()
+
+    def _determine_statement_language(self):
+        """Determine the languages that are both mentioned in the problem.yaml under name
+        and have a corresponding problem statement.
+
+        If problem.yaml's name key is a string, convert into dict.
+        From the specification:
+        > If a string this is the name of the problem
+        > in English. If a map the keys are language codes and the values are
+        > the name of the problem in that language. It is an error for a
+        > language to be missing if there exists a problem statement for that
+        > language.
+        """
+        if isinstance(self.settings.name, str):
+            self.settings.name = {'en': self.settings.name}
+        statement_languages = set(
+            texfile.suffixes[0][1:]
+            for texfile in glob(self.path, 'problem_statement/problem.*.tex')
+        )
+        for lang in statement_languages:
+            if lang not in self.settings.name:
+                warn(
+                    f"Found problem_statement/problem.{lang}.tex, but no corresponding name in problem.yaml."
+                )
+        for lang in self.settings.name:
+            if lang not in statement_languages:
+                warn(
+                    f"Found problem name for language {lang} in problem.yaml, but no problem_statement/problem.{lang}.tex."
+                )
+        
+        available_languages = statement_languages & set(self.settings.name)
+        lang = config.args.language or self.settings.language
+        if lang not in available_languages:
+            fatal(f"Unable to build statement for language {lang}")
+        return lang
+
     def _read_settings(self):
         # some defaults
         self.settings = {
@@ -59,6 +96,7 @@ class Problem:
             'validation': 'default',
             'validator_flags': [],
             'author': '',
+            'language': 'en',
         }
 
         # parse problem.yaml
