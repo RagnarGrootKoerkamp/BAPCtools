@@ -74,7 +74,7 @@ grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_
 grep -Ev '^(h|jobs|time|verbose)$' | sed "s/^/'/;s/$/',/" | tr '\n' ' ' | sed 's/^/args_list = [/;s/, $/]\n/'
 """
 # fmt: off
-args_list = ['1', 'add_manual', 'all', 'api', 'author', 'check_deterministic', 'clean', 'clean_generated', 'cleanup_generated', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'cpp_flags', 'default_solution', 'directory', 'error', 'force', 'force_build', 'ignore_validators', 'input', 'interaction', 'interactive', 'kattis', 'memory', 'move_to', 'no_bar', 'no_generate', 'no_solutions', 'no_timelimit', 'order', 'order_from_ccs', 'output', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'samples', 'skel', 'skip', 'skip_solution', 'skip_testcase_sanity_checks', 'skip_visualizer', 'submissions', 'table', 'testcases', 'timelimit', 'timeout', 'token', 'username', 'validation', 'watch', 'web']
+args_list = ['1', 'add_manual', 'all', 'api', 'author', 'check_deterministic', 'clean', 'clean_generated', 'cleanup_generated', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'cpp_flags', 'default_solution', 'directory', 'error', 'force', 'force_build', 'language', 'ignore_validators', 'input', 'interaction', 'interactive', 'kattis', 'memory', 'move_to', 'no_bar', 'no_generate', 'no_solutions', 'no_timelimit', 'order', 'order_from_ccs', 'output', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'samples', 'skel', 'skip', 'skip_solution', 'skip_testcase_sanity_checks', 'skip_visualizer', 'submissions', 'table', 'testcases', 'timelimit', 'timeout', 'token', 'username', 'validation', 'watch', 'web']
 # fmt: on
 
 
@@ -86,7 +86,6 @@ def set_default_args():
     for arg, value in default_args.items():
         if not hasattr(args, arg):
             setattr(args, arg, value)
-
 
 level = None
 
