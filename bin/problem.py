@@ -49,9 +49,9 @@ class Problem:
                 f'Problem has a bad shortname: {self.name} does not match {self._SHORTNAME_REGEX_STRING}'
             )
 
-        self.language = self._determine_statement_language()
+        self.statement_languages = self._determine_statement_languages()
 
-    def _determine_statement_language(self):
+    def _determine_statement_languages(self):
         """Determine the languages that are both mentioned in the problem.yaml under name
         and have a corresponding problem statement.
 
@@ -65,26 +65,25 @@ class Problem:
         """
         if isinstance(self.settings.name, str):
             self.settings.name = {'en': self.settings.name}
-        statement_languages = set(
-            texfile.suffixes[0][1:]
-            for texfile in glob(self.path, 'problem_statement/problem.*.tex')
+        texfiles = set(
+            path.suffixes[0][1:]
+            for path in glob(self.path, 'problem_statement/problem.*.tex')
         )
-        for lang in statement_languages:
+        for lang in texfiles:
             if lang not in self.settings.name:
-                warn(
+                error(
                     f"Found problem_statement/problem.{lang}.tex, but no corresponding name in problem.yaml."
                 )
         for lang in self.settings.name:
-            if lang not in statement_languages:
+            if lang not in texfiles:
                 warn(
                     f"Found problem name for language {lang} in problem.yaml, but no problem_statement/problem.{lang}.tex."
                 )
         
-        available_languages = statement_languages & set(self.settings.name)
-        lang = config.args.language or self.settings.language
-        if lang not in available_languages:
-            fatal(f"Unable to build statement for language {lang}")
-        return lang
+        #lang = config.args.language or self.settings.language
+        #if lang not in available_languages:
+        #    fatal(f"Unable to build statement for language {lang}")
+        return texfiles & set(self.settings.name)
 
     def _read_settings(self):
         # some defaults
@@ -96,7 +95,6 @@ class Problem:
             'validation': 'default',
             'validator_flags': [],
             'author': '',
-            'language': 'en',
         }
 
         # parse problem.yaml

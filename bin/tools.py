@@ -899,10 +899,10 @@ def run_parsed_arguments(args):
             # only build the pdf on the problem level, or on the contest level when
             # --all is passed.
             if level == 'problem' or (level == 'problemset' and config.args.all):
-                success &= latex.build_problem_pdf(problem)
+                success &= latex.build_problem_pdfs(problem)
         if action in ['solutions']:
             if level == 'problem':
-                success &= latex.build_problem_pdf(problem, solutions=True)
+                success &= latex.build_problem_pdfs(problem, solutions=True)
         if action in ['validate', 'all']:
             if not (action == 'validate' and config.args.output):
                 success &= problem.validate_format('input_format')
@@ -933,7 +933,7 @@ def run_parsed_arguments(args):
                 success &= generate.generate(problem)
                 config.args = old_args
 
-                success &= latex.build_problem_pdf(problem)
+                success &= latex.build_problem_pdfs(problem)
                 if not config.args.force:
                     success &= problem.validate_format('input_format', constraints={})
                     success &= problem.validate_format('output_format', constraints={})
