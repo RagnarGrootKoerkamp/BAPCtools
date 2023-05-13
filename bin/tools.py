@@ -955,7 +955,7 @@ def run_parsed_arguments(args):
 
         # build pdf for the entire contest
         if action in ['pdf']:
-            success &= latex.build_contest_pdf(contest, problems, tmpdir, web=config.args.web)
+            success &= latex.build_contest_pdfs(contest, problems, tmpdir, web=config.args.web)
 
         if action in ['solutions']:
             success &= latex.build_contest_pdf(
