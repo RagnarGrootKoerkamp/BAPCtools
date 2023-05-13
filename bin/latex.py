@@ -116,7 +116,7 @@ def make_environment():
     return env
 
 
-def build_latex_pdf(builddir, tex_path, problem_path=None):
+def build_latex_pdf(builddir, tex_path, problem_path=None, language_suffix=None):
     env = make_environment()
 
     if shutil.which('latexmk') == None:
@@ -153,7 +153,9 @@ def build_latex_pdf(builddir, tex_path, problem_path=None):
         return False
 
     # link the output pdf
-    output_pdf = Path(tex_path.name).with_suffix('.pdf')
+    output_pdf = Path(tex_path.name).with_suffix(
+        f'.{language_suffix}.pdf' if language_suffix is not None else '.pdf'
+    )
     dest_path = output_pdf if problem_path is None else problem_path / output_pdf
     ensure_symlink(dest_path, builddir / output_pdf, True)
 
@@ -167,7 +169,8 @@ def build_latex_pdf(builddir, tex_path, problem_path=None):
 # 3. Link bapc.cls
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run latexmk and link the resulting problem.pdf into the problem directory.
-def build_problem_pdf(problem, solutions=False):
+def build_problem_pdf(problem, statement_language, solutions=False):
+    log(f'Building PDF for language {statement_language}')
     main_file = 'solution.tex' if solutions else 'problem.tex'
     prepare_problem(problem)
 
@@ -179,16 +182,31 @@ def build_problem_pdf(problem, solutions=False):
         builddir / main_file,
         {
             'problemlabel': problem.label,
-            'problemyamlname': problem.settings.name[problem.language].replace('_', ' '),
+            'problemyamlname': problem.settings.name[statement_language].replace('_', ' '),
             'problemauthor': problem.settings.author,
             'timelimit': get_tl(problem),
             'problemdir': problem.path.absolute().as_posix(),
             'builddir': problem.tmpdir.as_posix(),
-            'stmlang': problem.language
+            'stmlang': statement_language,
         },
     )
 
-    return build_latex_pdf(builddir, builddir / main_file, problem.path)
+    return build_latex_pdf(
+        builddir, builddir / main_file, problem.path, language_suffix=statement_language
+    )
+
+
+def build_problem_pdfs(problem, solution=False):
+    if config.args.language is not None:
+        lang = config.args.language
+        if lang not in problem.statement_languages:
+            fatal(f"Unable to build statement for language {lang}")
+        else:
+            languages = [lang]
+    else:
+        languages = problem.statement_languages
+
+    return all(build_problem_pdf(problem, lang, solution) for lang in languages)
 
 
 def find_logo():
