@@ -115,7 +115,7 @@ def make_environment():
     return env
 
 
-def build_latex_pdf(builddir, tex_path, problem_path=None, language_suffix=None):
+def build_latex_pdf(builddir, tex_path, problem_path=None, language=None):
     env = make_environment()
 
     if shutil.which('latexmk') == None:
@@ -151,9 +151,8 @@ def build_latex_pdf(builddir, tex_path, problem_path=None, language_suffix=None)
         error(f'duration {ret.duration}')
         return False
 
-    # rename output problem.pdf to problem.<language>.pdf and symlink it
-    built_pdf = (tex_path.parent / tex_path.stem).with_suffix(".pdf")
-    built_pdf = built_pdf.rename((tex_path.parent / tex_path.stem).with_suffix(f".{language_suffix}.pdf"))
+    # rename output filename.pdf to filename.<language>.pdf and symlink it
+    built_pdf = rename_with_language((builddir / tex_path.name).with_suffix(".pdf"), language)
     output_pdf = Path(built_pdf.name)
     dest_path = output_pdf if problem_path is None else problem_path / output_pdf
     ensure_symlink(dest_path, builddir / output_pdf, True)
@@ -191,7 +190,7 @@ def build_problem_pdf(problem, statement_language, solutions=False):
     )
 
     return build_latex_pdf(
-        builddir, builddir / main_file, problem.path, language_suffix=statement_language
+        builddir, builddir / main_file, problem.path, language=statement_language
     )
 
 
@@ -217,7 +216,7 @@ def find_logo():
     return config.tools_root / 'latex/images/logo-not-found.pdf'
 
 
-# Build a pdf for an entire problemset. Explanation in latex/readme.md
+# Build a pdf for an entire problemset in the given language. Explanation in latex/readme.md
 def build_contest_pdf(contest, problems, tmpdir, statement_language='en', solutions=False, web=False):
     log(f"Building contest PDF for language {statement_language}")
     builddir = tmpdir / contest
@@ -297,7 +296,7 @@ def build_contest_pdf(contest, problems, tmpdir, statement_language='en', soluti
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
-    return build_latex_pdf(builddir, Path(main_file))
+    return build_latex_pdf(builddir, Path(main_file), language=statement_language)
 
 def build_contest_pdfs(contest, problems, tmpdir, solutions=False, web=False):
     """ Build contest PDFs for all available languages """
@@ -311,4 +310,3 @@ def build_contest_pdfs(contest, problems, tmpdir, solutions=False, web=False):
         else:
             languages = [lang]
     return all(build_contest_pdf(contest, problems, tmpdir, statement_language=lang, solutions=False, web=False) for lang in languages)
-
