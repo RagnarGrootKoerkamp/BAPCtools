@@ -167,9 +167,9 @@ def build_latex_pdf(builddir, tex_path, problem_path=None, language=None):
 # 3. Link bapc.cls
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run latexmk and link the resulting problem.pdf into the problem directory.
-def build_problem_pdf(problem, statement_language, solutions=False):
+def build_problem_pdf(problem, statement_language, solution=False):
     log(f'Building PDF for language {statement_language}')
-    main_file = 'solution.tex' if solutions else 'problem.tex'
+    main_file = 'solution.tex' if solution else 'problem.tex'
     prepare_problem(problem)
 
     builddir = problem.tmpdir
@@ -194,7 +194,7 @@ def build_problem_pdf(problem, statement_language, solutions=False):
     )
 
 
-def build_problem_pdfs(problem, solution=False):
+def build_problem_pdfs(problem, solutions=False):
     if config.args.language is not None:
         lang = config.args.language
         if lang not in problem.statement_languages:
@@ -204,7 +204,7 @@ def build_problem_pdfs(problem, solution=False):
     else:
         languages = problem.statement_languages
 
-    return all(build_problem_pdf(problem, lang, solution) for lang in languages)
+    return all(build_problem_pdf(problem, lang, solutions) for lang in languages)
 
 
 def find_logo():
