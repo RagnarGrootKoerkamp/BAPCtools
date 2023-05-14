@@ -436,6 +436,17 @@ def print_name(path, keep_type=False):
     return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
+def rename_with_language(path: Path, language: str):
+    """Rename the given file to use the given language suffix.
+    
+    >>> p = rename_with_language(Path("mycontest/hello/solutions.pdf"), 'en')
+    PosixPath('mycontest/hello/solutions.en.pdf')
+    
+    Return a new Path instance pointing to target. 
+    """
+    return path if language is None else path.rename(path.with_suffix(f".{language}{path.suffix}"))
+
+
 try:
     import ruamel.yaml
 
