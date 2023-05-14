@@ -70,6 +70,19 @@ def _ask_variable_choice(name, choices, default=None):
         text = f' ({default})' if default else ''
         return _ask_variable(name + text, default if default else '')
 
+def _ask_variable_checkbox(name, choices, default=None):
+    if has_questionary:
+        try:
+            plain = questionary.Style([('selected', 'noreverse')])
+            return questionary.checkbox(
+                name + ':', choices=choices, default=default, style=plain
+            ).unsafe_ask()
+        except KeyboardInterrupt:
+            fatal('Running interrupted')
+    else:
+        default = default or choices[0]
+        text = f' ({default})' if default else ''
+        return _ask_variable(name + text, default if default else '').split()
 
 def _license_choices():
     return ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown']
@@ -134,13 +147,26 @@ def new_problem():
     if config.args.problem:
         fatal('--problem does not work for new_problem.')
 
-    problemname = (
-        config.args.problemname if config.args.problemname else _ask_variable_string('problem name')
+    statement_languages = (
+        _ask_variable_checkbox(
+            'statement languages', 
+            ['da', 'de', 'en', 'fr', 'lb', 'nl'],  # Add your languages here!
+            default='en')
     )
+    # move `en' to the front so that statement_languages[0] is a useful default
+    if 'en' in statement_languages:
+        statement_languages.remove('en')
+        statement_languages.insert(0, 'en')
+
+    problemname = {
+        lang:
+        config.args.problemname if config.args.problemname else _ask_variable_string(f'problem name ({lang})')
+        for lang in statement_languages
+    }
     dirname = (
         _alpha_num(problemname)
         if config.args.problemname
-        else _ask_variable_string('dirname', _alpha_num(problemname))
+        else _ask_variable_string('dirname', _alpha_num(problemname[statement_languages[0]]))
     )
     author = config.args.author if config.args.author else _ask_variable_string('author')
 
@@ -220,20 +246,23 @@ def rename_problem(problem):
     if not has_ryaml:
         fatal('ruamel.yaml library not found.')
 
-    problemname = (
-        config.args.problemname if config.args.problemname else _ask_variable_string('problem name')
-    )
-    dirname = (
-        _alpha_num(problemname)
+    newname = {
+        lang: config.args.problemname
         if config.args.problemname
-        else _ask_variable_string('dirname', _alpha_num(problemname))
+        else _ask_variable_string(f'New problem name ({lang})', problem.settings.name[lang])
+        for lang in problem.statement_languages
+    }
+    dirname = (
+        _alpha_num(config.args.problemname)
+        if config.args.problemname
+        else _ask_variable_string('dirname', _alpha_num(newname[problem.statement_languages[0]]))
     )
 
     shutil.move(problem.name, dirname)
 
     problem_yaml = Path(dirname) / 'problem.yaml'
     data = read_yaml(problem_yaml)
-    data['name'] = problemname
+    data['name'] = newname
     write_yaml(data, problem_yaml)
 
     problems_yaml = Path('problems.yaml')
@@ -242,7 +271,7 @@ def rename_problem(problem):
         prob = next((p for p in data if p['id'] == problem.name), None)
         if prob is not None:
             prob['id'] = dirname
-            prob['name'] = problemname
+            prob['name'] = newname
             write_yaml(data, problems_yaml)
 
 
