@@ -55,35 +55,20 @@ class Problem:
         """Determine the languages that are both mentioned in the problem.yaml under name
         and have a corresponding problem statement.
 
-        If problem.yaml's name key is a string, convert into dict.
-        From the specification:
-        > If a string this is the name of the problem
-        > in English. If a map the keys are language codes and the values are
-        > the name of the problem in that language. It is an error for a
-        > language to be missing if there exists a problem statement for that
-        > language.
+        If problem.yaml's name key is a string, convert into dict; assume `en` as default language.
         """
         if isinstance(self.settings.name, str):
             self.settings.name = {'en': self.settings.name}
+        yamlnames = set(self.settings.name)
         texfiles = set(
             path.suffixes[0][1:]
             for path in glob(self.path, 'problem_statement/problem.*.tex')
         )
-        for lang in texfiles:
-            if lang not in self.settings.name:
-                error(
-                    f"Found problem_statement/problem.{lang}.tex, but no corresponding name in problem.yaml."
-                )
-        for lang in self.settings.name:
-            if lang not in texfiles:
-                warn(
-                    f"Found problem name for language {lang} in problem.yaml, but no problem_statement/problem.{lang}.tex."
-                )
-        
-        #lang = config.args.language or self.settings.language
-        #if lang not in available_languages:
-        #    fatal(f"Unable to build statement for language {lang}")
-        return texfiles & set(self.settings.name)
+        for lang in texfiles - yamlnames:
+            error(f"Found problem.{lang}.tex, but no corresponding name in problem.yaml.")
+        for lang in yamlnames - texfiles:
+            error(f"Found name for language {lang} in problem.yaml, but not problem.{lang}.tex.")
+        return texfiles & yamlnames
 
     def _read_settings(self):
         # some defaults
