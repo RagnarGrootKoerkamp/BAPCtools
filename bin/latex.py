@@ -1,3 +1,4 @@
+# Subcommands for building problem pdfs from the latex source.
 
 import os
 import util
@@ -195,24 +196,24 @@ def build_problem_pdf(problem, language, use_suffix, solution=False):
     )
 
     return build_latex_pdf(
-        builddir, builddir / main_file, language if use_suffix else None , problem.path
+        builddir, builddir / main_file, language if use_suffix else None, problem.path
     )
 
 
 def build_problem_pdfs(problem, solutions=False):
-    """ Build PDFs for various languages. If list of languages is specified,
+    """Build PDFs for various languages. If list of languages is specified,
     (either via config files or --language arguments), build those. Otherwise
     build all languages for which there is a statement latex source.
     """
-    if config.args.language is not None:
-        for lang in config.args.language:
+    if config.args.languages is not None:
+        for lang in config.args.languages:
             if lang not in problem.statement_languages:
                 fatal(f"No statement source for language {lang}")
-        languages = config.args.language
+        languages = config.args.languages
     else:
         languages = problem.statement_languages
 
-    use_suffix = bool(len(languages) > 1) # use .en.pdf only for > 1 language, otherwise .pdf
+    use_suffix = bool(len(languages) > 1)  # use .en.pdf only for > 1 language, otherwise .pdf
     return all(build_problem_pdf(problem, lang, use_suffix, solutions) for lang in languages)
 
 
@@ -226,7 +227,7 @@ def find_logo():
 
 
 # Build a pdf for an entire problemset in the given language. Explanation in latex/readme.md
-def build_contest_pdf(contest, problems, tmpdir, language='en', solutions=False, web=False):
+def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=False):
     log(f"Building contest PDF for language {language}")
     builddir = tmpdir / contest
     builddir.mkdir(parents=True, exist_ok=True)
@@ -293,7 +294,7 @@ def build_contest_pdf(contest, problems, tmpdir, language='en', solutions=False,
                 'problemdir': problem.path.absolute().as_posix(),
                 'problemdirname': problem.name,
                 'builddir': problem.tmpdir.as_posix(),
-                'stmlang': language
+                'stmlang': language,
             },
         )
 
@@ -307,15 +308,19 @@ def build_contest_pdf(contest, problems, tmpdir, language='en', solutions=False,
 
     return build_latex_pdf(builddir, Path(main_file), language)
 
+
 def build_contest_pdfs(contest, problems, tmpdir, solutions=False, web=False):
-    """ Build contest PDFs for all available languages """
-    languages = set.intersection(*(set(p.statement_languages) for p in problems))
-    if not languages:
+    """Build contest PDFs for all available languages"""
+    statement_languages = set.intersection(*(set(p.statement_languages) for p in problems))
+    if not statement_languages:
         fatal("No statement language present in every problem.")
-    if config.args.language is not None:
-        lang = config.args.language
-        if lang not in languages:
-            fatal(f"Unable to build statement for language {lang}")
-        else:
-            languages = [lang]
-    return all(build_contest_pdf(contest, problems, tmpdir, language=lang, solutions=False, web=False) for lang in languages)
+    if config.args.languages is not None:
+        languages = config.args.languages
+        for lang in set(languages) - statement_languages:
+            fatal(f"Unable to build all statement for language {lang}")
+    else:
+        languages = statement_languages
+    return all(
+        build_contest_pdf(contest, problems, tmpdir, lang, solutions=False, web=False)
+        for lang in languages
+    )

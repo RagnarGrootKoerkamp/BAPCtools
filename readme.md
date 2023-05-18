@@ -179,7 +179,7 @@ This can also be used to create the contest pdf by running it from the contest d
 
 For some command-line flags, it is convenient if they are always set to the same value, which differs per user
 (e.g., `--username` or `--password` for commands that access a CCS like DOMjudge,
-or `--jobs` to limit parallel execution).
+or `--jobs` to limit parallel execution) or per contest (e.g., which statement languages are used).
 For this, you can create a configuration YAML file containing key-value pairs
 in one of the following locations, from low to high priority:
 

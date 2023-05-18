@@ -21,12 +21,12 @@ The default language for BAPCtools is English, but multiple languages can be spe
 
 In short,
 
-1. configure `language` in `.bapctools.yaml`.
+1. configure `languages` in `.bapctools.yaml`.
 2. add a skeleton for `problem.LANG.tex` in `skel/problem/problem_statement`.
 
 ### Configure `language`
 
-To create a contest supporting French, Dutch, and Luxembourgish, set the configurartion key `language` to the list `['nl', 'fr', 'lt']`.
+To create a contest supporting French, Dutch, and Luxembourgish, set the configurartion key `languages` to the list `['nl', 'fr', 'lt']`.
 Configuration keys can be set in many ways, see **Personal configuration file** in the BAPCtools documentation, but an easy way is to create a new contest:
 
 ```sh
@@ -35,7 +35,7 @@ bt new_contest
 
 and then create or extend the file `<contestdirectory>/.bapctools.yaml` with
 ```yaml
-language:
+languages:
 - nl
 - fr
 - lt
@@ -44,7 +44,7 @@ language:
 ### Add skeleton statements
 
 The skeleton directory for a new problem statement (see `bt skel` and `bt new_problem`) by default only supports English and will populate `<problem_name>/problem_statement/problem.en.tex` with a default statement.
-To support, German, you need to add `problem.de.tex`.
+To support, *e.g.*, German, you need to add `problem.de.tex`.
 To do this automatically for each `bt new_problem`, create a problem skeleton in `<contestdirectory>/skel/problem`, and add `problem_statement/problem.de.tex`, for instance like this: 
 ```tex
 \problemname{\problemyamlname} % replaced by name['de'] from problem.yaml
@@ -71,8 +71,8 @@ To create a problem,
 bt new_problem
 ```
 
-will look for the `language` configuration (for intance, at constest level) and use that by default.
-Thus, if the contest is set up as above, you need to do nothing.
+will look for the `languages` configuration (for intance, at constest level) and use that by default.
+Thus, if the contest is set up as above, you need to do nothing extra.
 
 With arguments, or outside of a contest directory,
 ```sh
@@ -101,4 +101,4 @@ The exception is if only a single statement is produced, in which case it it mov
 
 # Contest and solution PDFs, Export
 
-Multiple-language support of `bt pdf` and contest level, `bt solutions`, and `bt export` is incomplete.
+Multiple-language support of `bt pdf` at contest level, `bt solutions`, and `bt export` is incomplete and inconsistent.
