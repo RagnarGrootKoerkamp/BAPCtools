@@ -357,6 +357,7 @@ Run this from one of:
         choices=['default', 'custom', 'custom interactive'],
     )
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
+    problemparser.add_argument('--language', action='append', help='Statement language')
 
     # Copy directory from skel.
     skelparser = subparsers.add_parser(
