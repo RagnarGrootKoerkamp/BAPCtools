@@ -115,7 +115,7 @@ def make_environment():
     return env
 
 
-def build_latex_pdf(builddir, tex_path, problem_path=None, language=None):
+def build_latex_pdf(builddir, tex_path, language, problem_path=None):
     env = make_environment()
 
     if shutil.which('latexmk') == None:
@@ -167,7 +167,12 @@ def build_latex_pdf(builddir, tex_path, problem_path=None, language=None):
 # 3. Link bapc.cls
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run latexmk and link the resulting problem.pdf into the problem directory.
-def build_problem_pdf(problem, language, solution=False):
+def build_problem_pdf(problem, language, use_suffix, solution=False):
+    """
+    Argumements:
+    -- language: str, the two-latter language code appearing the file name, such as problem.en.tex
+    -- use_suffix: if true, create {problem|solution}.en.pdf, otherwise {problem|solution}.pdf
+    """
     log(f'Building PDF for language {language}')
     main_file = 'solution.tex' if solution else 'problem.tex'
     prepare_problem(problem)
@@ -190,21 +195,25 @@ def build_problem_pdf(problem, language, solution=False):
     )
 
     return build_latex_pdf(
-        builddir, builddir / main_file, problem.path, language=language
+        builddir, builddir / main_file, language if use_suffix else None , problem.path
     )
 
 
 def build_problem_pdfs(problem, solutions=False):
+    """ Build PDFs for various languages. If list of languages is specified,
+    (either via config files or --language arguments), build those. Otherwise
+    build all languages for which there is a statement latex source.
+    """
     if config.args.language is not None:
-        lang = config.args.language
-        if lang not in problem.statement_languages:
-            fatal(f"Unable to build statement for language {lang}")
-        else:
-            languages = [lang]
+        for lang in config.args.language:
+            if lang not in problem.statement_languages:
+                fatal(f"No statement source for language {lang}")
+        languages = config.args.language
     else:
         languages = problem.statement_languages
 
-    return all(build_problem_pdf(problem, lang, solutions) for lang in languages)
+    use_suffix = bool(len(languages) > 1) # use .en.pdf only for > 1 language, otherwise .pdf
+    return all(build_problem_pdf(problem, lang, use_suffix, solutions) for lang in languages)
 
 
 def find_logo():
@@ -296,7 +305,7 @@ def build_contest_pdf(contest, problems, tmpdir, language='en', solutions=False,
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
-    return build_latex_pdf(builddir, Path(main_file), language=language)
+    return build_latex_pdf(builddir, Path(main_file), language)
 
 def build_contest_pdfs(contest, problems, tmpdir, solutions=False, web=False):
     """ Build contest PDFs for all available languages """
