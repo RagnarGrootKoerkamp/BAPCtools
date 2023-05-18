@@ -70,19 +70,6 @@ def _ask_variable_choice(name, choices, default=None):
         text = f' ({default})' if default else ''
         return _ask_variable(name + text, default if default else '')
 
-def _ask_variable_checkbox(name, choices, default=None):
-    if has_questionary:
-        try:
-            plain = questionary.Style([('selected', 'noreverse')])
-            return questionary.checkbox(
-                name + ':', choices=choices, default=default, style=plain
-            ).unsafe_ask()
-        except KeyboardInterrupt:
-            fatal('Running interrupted')
-    else:
-        default = default or choices[0]
-        text = f' ({default})' if default else ''
-        return _ask_variable(name + text, default if default else '').split()
 
 def _license_choices():
     return ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown']
@@ -147,20 +134,12 @@ def new_problem():
     if config.args.problem:
         fatal('--problem does not work for new_problem.')
 
-    statement_languages = (
-        _ask_variable_checkbox(
-            'statement languages', 
-            ['da', 'de', 'en', 'fr', 'lb', 'nl'],  # Add your languages here!
-            default='en')
-    )
-    # move `en' to the front so that statement_languages[0] is a useful default
-    if 'en' in statement_languages:
-        statement_languages.remove('en')
-        statement_languages.insert(0, 'en')
+    statement_languages = config.args.language if config.args.language else ['en']
 
     problemname = {
-        lang:
-        config.args.problemname if config.args.problemname else _ask_variable_string(f'problem name ({lang})')
+        lang: config.args.problemname
+        if config.args.problemname
+        else _ask_variable_string(f'problem name ({lang})')
         for lang in statement_languages
     }
     dirname = (

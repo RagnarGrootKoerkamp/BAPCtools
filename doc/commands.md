@@ -26,7 +26,7 @@ This lists all subcommands and their most important options.
   - [`bt constraints [-v]`](#constraints)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
-  - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--skel SKEL]`](#new_problem)
+  - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--language LANG] [--skel SKEL]`](#new_problem)
   - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
   - [`bt rename_problem [problemname]`](#rename_problem)
   - [`bt gitlabci`](#gitlabci)
@@ -347,7 +347,7 @@ Create a new problem directory and fill it with skel files. If `problems.yaml` i
 
 ```
 ~nwerc2020 % bt new_problem
-problem name: Test Problem
+problem name (en): Test Problem
 dirname [testproblem]:
 author: Ragnar Groot Koerkamp
 validation (default/custom/custom interactive) [default]:
@@ -369,6 +369,24 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 - `[<problem name>]`: The name of the problem. Will be asked interactively if not specified.
 - `--author`: The author of the problem. Will be asked interactively if not specified.
 - `--validation`: The validation mode to use. Must be one of `default`, `custom`, `custom interactive`.
+- `--language`: The (natural) language used for the problem name and statement, default `en`.
+
+**Multiple languages**
+
+A problem have problem statements (and names) in multiple languages, which is specified by using the `--language` flag multiple times, such as
+
+```
+bt new_problem --language en --language nl --language fr
+```
+
+It makes sense to specify these contest-wide, in the configuration file `<contestdir>/.bapctools.yaml`, such as
+
+```
+language:
+- en
+- nl
+- fr
+```
 
 ## `skel`
 
