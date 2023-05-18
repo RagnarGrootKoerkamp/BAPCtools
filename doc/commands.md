@@ -369,24 +369,7 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 - `[<problem name>]`: The name of the problem. Will be asked interactively if not specified.
 - `--author`: The author of the problem. Will be asked interactively if not specified.
 - `--validation`: The validation mode to use. Must be one of `default`, `custom`, `custom interactive`.
-- `--language`: The (natural) language used for the problem name and statement, default `en`.
-
-**Multiple languages**
-
-A problem have problem statements (and names) in multiple languages, which is specified by using the `--language` flag multiple times, such as
-
-```
-bt new_problem --language en --language nl --language fr
-```
-
-It makes sense to specify these contest-wide, in the configuration file `<contestdir>/.bapctools.yaml`, such as
-
-```
-language:
-- en
-- nl
-- fr
-```
+- `--language`: The (natural) language used for the problem name and statement, default `en`. See more about [multiple languages](multiple_languages.md).
 
 ## `skel`
 

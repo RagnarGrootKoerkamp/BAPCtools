@@ -134,7 +134,7 @@ def new_problem():
     if config.args.problem:
         fatal('--problem does not work for new_problem.')
 
-    statement_languages = config.args.language if config.args.language else ['en']
+    statement_languages = config.args.languages if config.args.languages else ['en']
 
     problemname = {
         lang: config.args.problemname

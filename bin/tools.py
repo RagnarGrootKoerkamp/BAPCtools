@@ -357,7 +357,7 @@ Run this from one of:
         choices=['default', 'custom', 'custom interactive'],
     )
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
-    problemparser.add_argument('--language', action='append', help='Statement language')
+    problemparser.add_argument('--language', dest='languages', action='append', help='Statement language')
 
     # Copy directory from skel.
     skelparser = subparsers.add_parser(
@@ -388,7 +388,7 @@ Run this from one of:
         action='store_true',
         help='Create problem statements for individual problems as well.',
     )
-    pdfparser.add_argument('--language', action='append', help='Set statement language.')
+    pdfparser.add_argument('--language', dest='languages', action='append', help='Set statement language.')
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     pdfparser.add_argument(
         '--watch',
