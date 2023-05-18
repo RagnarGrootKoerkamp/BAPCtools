@@ -68,7 +68,7 @@ class Problem:
             error(f"Found problem.{lang}.tex, but no corresponding name in problem.yaml.")
         for lang in yamlnames - texfiles:
             error(f"Found name for language {lang} in problem.yaml, but not problem.{lang}.tex.")
-        return texfiles & yamlnames
+        return list(texfiles & yamlnames)
 
     def _read_settings(self):
         # some defaults
