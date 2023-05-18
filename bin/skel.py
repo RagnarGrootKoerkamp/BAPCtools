@@ -219,6 +219,12 @@ def new_problem():
     copytree_and_substitute(
         skeldir, target_dir / dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks
     )
+    # Warn about missing problem statement skeletons for non-en languages
+    for lang in statement_languages:
+        filename = f"problem.{lang}.tex"
+        statement_path = target_dir / dirname / 'problem_statement' / filename
+        if not statement_path.is_file():
+            warn(f'No skeleton for {filename} found. Create it manually or update skel/problem.')
 
 
 def rename_problem(problem):
