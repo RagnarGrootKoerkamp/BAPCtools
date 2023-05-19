@@ -425,6 +425,7 @@ Run this from one of:
     )
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
+    solparser.add_argument('--language', dest='languages', action='append', help='Set solution language.')
 
     # Validation
     validate_parser = subparsers.add_parser(
@@ -959,7 +960,7 @@ def run_parsed_arguments(args):
             success &= latex.build_contest_pdfs(contest, problems, tmpdir, web=config.args.web)
 
         if action in ['solutions']:
-            success &= latex.build_contest_pdf(
+            success &= latex.build_contest_pdfs(
                 contest, problems, tmpdir, solutions=True, web=config.args.web
             )
 

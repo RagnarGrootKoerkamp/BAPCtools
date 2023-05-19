@@ -174,7 +174,7 @@ def build_problem_pdf(problem, language, use_suffix, solution=False):
     -- language: str, the two-latter language code appearing the file name, such as problem.en.tex
     -- use_suffix: if true, create {problem|solution}.en.pdf, otherwise {problem|solution}.pdf
     """
-    log(f'Building PDF for language {language}')
+    log(f"Building {('statement' if not solution else 'solution')} PDF for language {language}")
     main_file = 'solution.tex' if solution else 'problem.tex'
     prepare_problem(problem)
 
@@ -228,7 +228,7 @@ def find_logo():
 
 # Build a pdf for an entire problemset in the given language. Explanation in latex/readme.md
 def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=False):
-    log(f"Building contest PDF for language {language}")
+    log(f"Building contest {'statements' if not solutions else 'solutions'} PDF for language {language} ")
     builddir = tmpdir / contest
     builddir.mkdir(parents=True, exist_ok=True)
     build_type = 'solution' if solutions else 'problem'
@@ -317,10 +317,10 @@ def build_contest_pdfs(contest, problems, tmpdir, solutions=False, web=False):
     if config.args.languages is not None:
         languages = config.args.languages
         for lang in set(languages) - statement_languages:
-            fatal(f"Unable to build all statement for language {lang}")
+            fatal(f"Unable to build all statements for language {lang}")
     else:
         languages = statement_languages
     return all(
-        build_contest_pdf(contest, problems, tmpdir, lang, solutions=False, web=False)
+        build_contest_pdf(contest, problems, tmpdir, lang, solutions, web)
         for lang in languages
     )
