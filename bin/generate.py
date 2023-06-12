@@ -534,9 +534,8 @@ class TestcaseRule(Rule):
         def up_to_date():
             # The testcase is up to date if:
             # - both target infile ans ansfile exist
-            # - meta_ exists with a timestamp newer than the 3 Invocation timestamps (Generator/Submission/Visualizer).
             # - meta_ exists with a timestamp newer than target infile ans ansfile
-            # - meta_ contains exactly the right content
+            # - meta_ contains exactly the right content (commands and hashes)
             #
             # Use generate --all to skip this check.
 
@@ -547,15 +546,15 @@ class TestcaseRule(Rule):
                 t.cache_data['source'] = str(t.source)
             else:
                 if t.generator.program is not None:
-                    last_change = max(last_change, t.generator.program.timestamp)
+                    t.cache_data['generator_hash'] = t.generator.program.hash
                 t.cache_data['generator'] = t.generator.cache_command(seed=t.seed)
             if t.config.solution:
                 if t.config.solution.program is not None:
-                    last_change = max(last_change, t.config.solution.program.timestamp)
+                    t.cache_data['solution_hash'] = t.config.solution.program.hash
                 t.cache_data['solution'] = t.config.solution.cache_command()
             if t.config.visualizer:
                 if t.config.visualizer.program is not None:
-                    last_change = max(last_change, t.config.visualizer.program.timestamp)
+                    t.cache_data['visualizer_hash'] = t.config.visualizer.program.hash
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
             if config.args.all:
@@ -592,9 +591,9 @@ class TestcaseRule(Rule):
 
         # Generate .in
         if t.manual:
-            # Clean the directory, but not the meta_ file.
+            # Clean the directory, but not the meta_.yaml file.
             for f in cwd.iterdir():
-                if f.name in ['meta_', 'meta_.yaml']:
+                if f.name == 'meta_.yaml':
                     continue
                 f.unlink()
 
@@ -741,7 +740,7 @@ class TestcaseRule(Rule):
 
         # Clean the directory.
         for f in cwd.glob('*'):
-            if f.name == 'meta_':
+            if f.name == 'meta_.yaml':
                 continue
             f.unlink()
 

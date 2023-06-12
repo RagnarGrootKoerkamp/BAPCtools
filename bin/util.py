@@ -10,6 +10,7 @@ import os
 import re
 import threading
 import signal
+import hashlib
 
 from pathlib import Path
 from colorama import Fore, Style
@@ -881,3 +882,15 @@ def inc_label(label):
             return label
         label = label[:x] + 'A' + label[x + 1 :]
     return 'A' + label
+
+def hash_file(file):
+    assert file.is_file()
+    with file.open('rb') as f:
+        return hashlib.file_digest(f, hashlib.sha256).hexdigest()
+
+def combine_hashes(list):
+    list.sort()
+    hasher = hashlib.sha256()
+    for item in list:
+        hasher.update(item.encode())
+    return hasher.hexdigest()
