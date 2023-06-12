@@ -31,14 +31,14 @@
 \usepackage{wrapfig}
 
 \lstset{
-	backgroundcolor=\color{white},
-	tabsize=4,
-	language=python,
-	basicstyle=\footnotesize\ttfamily,
-	breaklines=true,
-	keywordstyle=\color[rgb]{0, 0, 1},
-	commentstyle=\color[rgb]{0, 0.5, 0},
-	stringstyle=\color{red}
+    backgroundcolor=\color{white},
+    tabsize=4,
+    language=python,
+    basicstyle=\footnotesize\ttfamily,
+    breaklines=true,
+    keywordstyle=\color[rgb]{0, 0, 1},
+    commentstyle=\color[rgb]{0, 0.5, 0},
+    stringstyle=\color{red}
 }
 
 \newcommand{\timelimit}{0.0s}
@@ -51,28 +51,28 @@
 
 % If solve_stats/activity/A.pdf exists, define the \activitychart command
 \IfFileExists{solve_stats/activity/A.pdf}{
-	\newcommand{\activitychart}{
-	  \ifdefempty{\problemlabel}{}{%
+    \newcommand{\activitychart}{
+      \ifdefempty{\problemlabel}{}{%
         \includegraphics[width=\textwidth,height=0.1\textheight]{solve_stats/activity/\problemlabel}%
-	  }%
-	}
+      }%
+    }
 }{
-	\newcommand{\activitychart}{}
+    \newcommand{\activitychart}{}
 }
 
 \newcommand{\printsolvestats}[3]{%
-	\vfill%
+    \vfill%
     \onslide<+->%
-	Statistics: #1 submissions, #2 accepted\ifnum#3=0\else, #3 unknown\fi%
+    Statistics: #1 submissions, #2 accepted\ifthenelse{\equal{#3}0}{}{, #3 unknown}%
 }
 
 % Define \solvestats for the current problem if the file exists.
 \IfFileExists{problem_stats.tex}{
-	\newcommand{\solvestats}{\csname solvestats\problemlabel \endcsname}
-	\input{problem_stats.tex}
+    \newcommand{\solvestats}{\csname solvestats\problemlabel \endcsname}
+    \input{problem_stats.tex}
 }{
-	% If the file does not exist, use a placeholder.
-	\newcommand{\solvestats}{\printsolvestats{\ldots}{\ldots}{\ldots}}
+    % If the file does not exist, use a placeholder.
+    \newcommand{\solvestats}{\printsolvestats{\ldots}{\ldots}{\ldots}}
 }
 
 \usetheme[numbering=none,block=fill]{metropolis}
@@ -89,15 +89,15 @@
     \rule{0ex}{5.5ex}%
     \end{minipage}
     \begin{minipage}{0.4\paperwidth}%
-	\ifdefempty{\problemlabel}{%
-		\insertframetitle\strut%
-	}{%
-		\problemtitle%
-		\\[0.3em]%
-		\tiny%
-		Problem Author: \problemauthor%
+    \ifdefempty{\problemlabel}{%
+        \insertframetitle\strut%
+    }{%
+        \problemtitle%
+        \\[0.3em]%
+        \tiny%
+        Problem Author: \problemauthor%
         \strut%
-	}%
+    }%
     \end{minipage}%
     \hfill%
     \begin{minipage}{0.5\paperwidth}%

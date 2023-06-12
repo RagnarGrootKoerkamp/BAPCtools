@@ -55,7 +55,7 @@ def create_samples_file(problem):
                 interaction_file.write_text(cur)
 
                 mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
-                samples_data += f'\\{mode}{{{interaction_file}}}\n'
+                samples_data += f'\\{mode}{{{interaction_file.as_posix()}}}\n'
                 interaction_id += 1
 
             for line in lines.splitlines():
@@ -71,7 +71,9 @@ def create_samples_file(problem):
             # Already handled above.
             if sample.in_path.with_suffix('.interaction').is_file():
                 continue
-            samples_data += f'\\Sample{{{sample.in_path}}}{{{sample.ans_path}}}\n'
+            samples_data += (
+                f'\\Sample{{{sample.in_path.as_posix()}}}{{{sample.ans_path.as_posix()}}}\n'
+            )
     samples_file_path.write_text(samples_data)
 
 
@@ -173,9 +175,7 @@ def build_problem_pdf(problem, solutions=False):
 
     local_data = Path(main_file)
     util.copy_and_substitute(
-        local_data
-        if local_data.is_file()
-        else config.tools_root / 'latex' / main_file,
+        local_data if local_data.is_file() else config.tools_root / 'latex' / main_file,
         builddir / main_file,
         {
             'problemlabel': problem.label,

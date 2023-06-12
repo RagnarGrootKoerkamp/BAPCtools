@@ -1,9 +1,5 @@
-try:
-    import requests
-except:
-    pass
-
 from util import *
+
 
 # Function to create a slack channel for each problem
 def create_slack_channels(problems):
@@ -14,13 +10,7 @@ def create_slack_channels(problems):
 # The slack user token is of the form xoxp-...
 def create_slack_channel(name):
     verbose(f'Creating channel {name}')
-    r = requests.post(
-        'https://slack.com/api/conversations.create',
-        {
-            'token': config.args.token,
-            'name': name,
-        },
-    )
+    r = call_slack_api('conversations.create', name=name)
     if not r.ok:
         error(r.text)
         return
@@ -33,12 +23,7 @@ def create_slack_channel(name):
 
 def join_slack_channels(problems):
     verbose('Reading conversations list')
-    r = requests.post(
-        'https://slack.com/api/conversations.list',
-        {
-            'token': config.args.token,
-        },
-    ).json()
+    r = call_slack_api('conversations.list').json()
     if not r['ok']:
         error(r['error'])
         return
@@ -53,13 +38,7 @@ def join_slack_channels(problems):
 
 def join_slack_channel(name, id):
     verbose(f'joining channel {name} id {id}')
-    r = requests.post(
-        'https://slack.com/api/conversations.join',
-        {
-            'token': config.args.token,
-            'channel': id,
-        },
-    )
+    r = call_slack_api('conversations.join', channel=id)
     if not r.ok:
         error(r.text)
         return
@@ -68,3 +47,12 @@ def join_slack_channel(name, id):
         error(response['error'])
         return
     log(f'Created and joined channel {name}')
+
+
+def call_slack_api(path, **kwargs):
+    import requests  # Slow import, so only import it inside this function.
+
+    return requests.post(
+        f'https://slack.com/api/{path}',
+        {'token': config.args.token, **kwargs},
+    )

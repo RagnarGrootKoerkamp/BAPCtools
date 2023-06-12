@@ -1,13 +1,14 @@
 from os import makedirs
 from pathlib import Path
 
-import matplotlib.pyplot as plt
-
 from contest import call_api, get_contest_id
 from util import ProgressBar
 
 
 def generate_solve_stats(post_freeze):
+    # Import takes more than 1000 ms to evaluate, so only import inside function (when it is actually needed)
+    import matplotlib.pyplot as plt
+
     contest_id = get_contest_id()
 
     # The endpoint should not start with a slash

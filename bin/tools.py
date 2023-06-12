@@ -185,7 +185,6 @@ def get_problems():
             # Sort by increasing difficulty, extracted from the CCS api.
             # Get active contest.
 
-            api = get_api()
             cid = get_contest_id()
             solves = dict()
 
@@ -942,6 +941,9 @@ def run_parsed_arguments(args):
         if len(problems) > 1:
             print(file=sys.stderr)
 
+    if action in ['export']:
+        export.export_contest_and_problems(problems)
+
     if level == 'problemset':
         print(f'{Style.BRIGHT}CONTEST {contest}{Style.RESET_ALL}', file=sys.stderr)
 
@@ -968,8 +970,6 @@ def run_parsed_arguments(args):
             if config.args.kattis:
                 outfile = contest + '-kattis.zip'
             export.build_contest_zip(problems, problem_zips, outfile, config.args)
-        if action in ['export']:
-            export.export_contest_and_problems(problems)
         if action in ['update_problems_yaml']:
             export.update_problems_yaml(
                 problems, config.args.colors.split(",") if config.args.colors else None

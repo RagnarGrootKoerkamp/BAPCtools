@@ -13,11 +13,6 @@ from pathlib import Path
 
 from contest import *
 
-try:
-    import requests
-except:
-    pass
-
 
 # Replace \problemyamlname by the value of `name:` in problems.yaml in all .tex files.
 def fix_problem_yaml_name(problem):
@@ -243,26 +238,22 @@ def export_contest():
             if key in data:
                 data[key] = str(datetime.timedelta(seconds=data[key]))
 
-    try:
-        verbose("Uploading contest.yaml:")
-        verbose(data)
-        r = call_api(
-            'POST',
-            '/contests',
-            files={
-                'yaml': (
-                    'contest.yaml',
-                    yaml.dump(data),
-                    'application/x-yaml',
-                )
-            },
-        )
-        r.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        msg = parse_yaml(r.text)
-        if msg is not None and 'message' in msg:
-            msg = msg['message']
-        fatal(f'{msg}\n{e}')
+    verbose("Uploading contest.yaml:")
+    verbose(data)
+    r = call_api(
+        'POST',
+        '/contests',
+        files={
+            'yaml': (
+                'contest.yaml',
+                yaml.dump(data),
+                'application/x-yaml',
+            )
+        },
+    )
+    if r.status_code == 400:
+        fatal(parse_yaml(r.text)['message'])
+    r.raise_for_status()
 
     new_cid = yaml.load(r.text, Loader=yaml.SafeLoader)
     log(f'Uploaded the contest to contest_id {new_cid}.')
@@ -353,30 +344,27 @@ def export_problems(problems, cid):
     update_problems_yaml(problems)
 
     # Uploading problems.yaml
-    try:
-        data = "".join(open("problems.yaml", "r").readlines())
-        verbose("Uploading problems.yaml:")
-        verbose(data)
-        r = call_api(
-            'POST',
-            f'/contests/{cid}/problems/add-data',
-            files={
-                'data': (
-                    'problems.yaml',
-                    data,
-                    'application/x-yaml',
-                )
-            },
-        )
-        r.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        msg = parse_yaml(r.text)
-        if msg is not None and 'message' in msg:
-            msg = msg['message']
-        fatal(f'{msg}\n{e}')
+    data = "".join(open("problems.yaml", "r").readlines())
+    verbose("Uploading problems.yaml:")
+    verbose(data)
+    r = call_api(
+        'POST',
+        f'/contests/{cid}/problems/add-data',
+        files={
+            'data': (
+                'problems.yaml',
+                data,
+                'application/x-yaml',
+            )
+        },
+    )
+    if r.status_code == 400:
+        fatal(parse_yaml(r.text)['message'])
+    r.raise_for_status()
+
     log(f'Uploaded problems.yaml for contest_id {cid}.')
     data = yaml.load(r.text, Loader=yaml.SafeLoader)
-    return data
+    return data  # Returns the API IDs of the added problems.
 
 
 # Export a single problem to the specified contest ID.
@@ -418,19 +406,19 @@ def export_contest_and_problems(problems):
     if not any(contest['id'] == cid for contest in get_contests()):
         cid = export_contest()
 
-    # Query the internal DOMjudge problem IDs.
-    ccs_problems = None
-    r = call_api('GET', f'/contests/{cid}/problems')
-    r.raise_for_status()
-    ccs_problems = yaml.load(r.text, Loader=yaml.SafeLoader)
-    if not ccs_problems:
-        export_problems(problems, cid)
-        # TODO: Could output from export_problems instead of querying the API again.
+    def get_problems():
         r = call_api('GET', f'/contests/{cid}/problems')
         r.raise_for_status()
-        ccs_problems = yaml.load(r.text, Loader=yaml.SafeLoader)
+        return yaml.load(r.text, Loader=yaml.SafeLoader)
 
-    # TODO: Make sure the user is associated to a team.
+    # Query the internal DOMjudge problem IDs.
+    ccs_problems = get_problems()
+    if not ccs_problems:
+        export_problems(problems, cid)
+        # Need to query the API again, because `/problems/add-data` returns a list of IDs, not the full problem objects.
+        ccs_problems = get_problems()
+
+    check_if_user_has_team()
 
     def get_problem_id(problem):
         nonlocal ccs_problems
@@ -441,3 +429,16 @@ def export_contest_and_problems(problems):
     for problem in problems:
         pid = get_problem_id(problem)
         export_problem(problem, cid, pid)
+
+
+def check_if_user_has_team():
+    # Not using the /users/{uid} route, because {uid} is either numeric or a string depending on the DOMjudge config.
+    r = call_api('GET', f'/users')
+    r.raise_for_status()
+    if not any(user['username'] == config.args.username and user['team'] for user in r.json()):
+        warn(f'User "{config.args.username}" is not associated with a team.')
+        warn('Therefore, the jury submissions will not be run by the judgehosts.')
+        log('Continue export to DOMjudge? [N/y]')
+        a = input().lower()
+        if not a or a[0] != 'y':
+            fatal('Aborted.')
