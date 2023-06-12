@@ -124,6 +124,13 @@ class Invocation:
             command_string = self.SEED_REGEX.sub(str(seed), command_string)
         return command_string
 
+    def hash(self, seed=None):
+        list = []
+        if self.program is not None:
+            list.append(self.program.hash)
+        list.append(self.cache_command(seed))
+        return combine_hashes(list)
+
     # Return the full command to be executed.
     def _sub_args(self, *, name, seed=None):
         if self.uses_seed:
@@ -545,16 +552,13 @@ class TestcaseRule(Rule):
                 last_change = max(last_change, (problem.path / t.source).stat().st_mtime)
                 t.cache_data['source'] = str(t.source)
             else:
-                if t.generator.program is not None:
-                    t.cache_data['generator_hash'] = t.generator.program.hash
+                t.cache_data['generator_hash'] = t.generator.hash(seed=t.seed)
                 t.cache_data['generator'] = t.generator.cache_command(seed=t.seed)
             if t.config.solution:
-                if t.config.solution.program is not None:
-                    t.cache_data['solution_hash'] = t.config.solution.program.hash
+                t.cache_data['solution_hash'] = t.config.solution.hash()
                 t.cache_data['solution'] = t.config.solution.cache_command()
             if t.config.visualizer:
-                if t.config.visualizer.program is not None:
-                    t.cache_data['visualizer_hash'] = t.config.visualizer.program.hash
+                t.cache_data['visualizer_hash'] = t.config.visualizer.hash()
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
             if config.args.all:
