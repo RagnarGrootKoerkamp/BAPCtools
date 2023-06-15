@@ -497,15 +497,7 @@ Run this from one of:
 
     genparser_group = genparser.add_mutually_exclusive_group()
     genparser_group.add_argument(
-        '--add-manual', action='store_true', help='Add manual cases to generators.yaml.'
-    )
-    genparser_group.add_argument(
-        '--move-manual',
-        nargs='?',
-        type=Path,
-        const='generators/manual',
-        help='Move tracked inline manual cases to the given directory.',
-        metavar='TARGET_DIRECTORY=generators/manual',
+        '--add-manual', action='store_true', help='Add cases in generators/manual/ to generators.yaml.'
     )
     genparser_group.add_argument(
         '--clean', '-C', action='store_true', help='Delete unlisted files.'
@@ -794,14 +786,6 @@ def run_parsed_arguments(args):
     if action != 'generate' and config.args.testcases and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
 
-    if config.args.move_manual:
-        # Path *must* be inside generators/.
-        try:
-            config.args.move_manual = (problems[0].path / config.args.move_manual).resolve()
-            config.args.move_manual.relative_to(problems[0].path.resolve() / 'generators')
-        except Exception as e:
-            fatal('Directory given to move_manual must be inside generators/.')
-
     # Handle one-off subcommands.
     if action == 'tmp':
         if level == 'problem':
@@ -881,7 +865,6 @@ def run_parsed_arguments(args):
             config.args.check_deterministic = action in ['all', 'constraints']
             config.args.jobs = os.cpu_count() // 2
             config.args.add_manual = False
-            config.args.move_manual = False
             config.args.verbose = 0
             config.args.skip_visualizer = True
             success &= generate.generate(problem)
@@ -920,7 +903,6 @@ def run_parsed_arguments(args):
                 config.args.check_deterministic = not config.args.force
                 config.args.jobs = None
                 config.args.add_manual = False
-                config.args.move_manual = False
                 config.args.verbose = 0
                 config.args.testcases = None
                 config.args.force = False

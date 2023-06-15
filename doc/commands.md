@@ -160,8 +160,7 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--samples`: Even with `--force`, samples won't be overwritten by default. `--force --samples` also overwrites samples. (Samples usually have a manually curated input and output that should not be overwritten easily.)
 - `--all`/`-a`: Fully regenerate all test cases, skipping the up-to-date check.
 - `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check. This is implicitly set to true for `bt all`.
-- `--add-manual`: Testcases and directories in `data/` that do not have a corresponding entry in `generators.yaml` are automatically added.
-- `--move-manual [directory]`: Move all inline testcases to the specified directory (which defaults to `generators/manual`) and update `generators.yaml`. Implies `--add-manual`.
+- `--add-manual`: Testcases `generator/manaul/` that do not have a corresponding entry in `generators.yaml` are automatically added.
 - `--clean`: Delete all files/testcases not listed in `generators.yaml`. Without `-f`, this does a dry-run.
 - `--clean-generated`: Delete all generated files. Useful to save on disk space, since all this data can be regenerated.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
