@@ -1010,6 +1010,10 @@ class GeneratorConfig:
 
             return d
 
+        #if config.args.add_manual:
+        #    TODO add manual rules here?
+        #    pass
+
         self.root_dir = parse('', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
@@ -1113,31 +1117,17 @@ class GeneratorConfig:
                 )
                 return
 
-            generators_yaml = self.problem.path / 'generators/generators.yaml'
-    
-            # Round-trip parsing.
-            data = read_yaml(generators_yaml)
-        
-            #if data is None:
-            #    data = ruamel.yaml.comments.CommentedMap()
-            #if 'data' not in data or data['data'] is None:
-            #    data['data'] = ruamel.yaml.comments.CommentedMap()
-            #yaml = data['data']
-            #if 'secret' not in yaml or yaml['secret'] is None:
-            #    yaml['secret'] = ruamel.yaml.comments.CommentedMap()
-            #yaml = yaml['secret']
-            
-            manual = self.problem.path / 'generators/manual'
-            if not manual.is_dir():
-                error('generators/manual/ not found.')
-            else:
-                for file in manual.glob('*.in'):
-                    # TODO: check if testcase with same source exists
-                    # if not add new rule
-                    pass
-
+            #generators_yaml = self.problem.path / 'generators/generators.yaml'
+            #manual = self.problem.path / 'generators/manual'
+            #if not manual.is_dir():
+            #    error('generators/manual/ not found.')
+            #else:
+            #    for file in manual.glob('*.in'):
+            #        # TODO: check if testcase with same source exists
+            #        # if not add new rule
+            #        pass
             # Overwrite generators.yaml.
-            write_yaml(data, generators_yaml)
+            #write_yaml(data, generators_yaml)
             return
 
         bar = ProgressBar('Generate', items=item_names)
@@ -1234,40 +1224,6 @@ class GeneratorConfig:
             gitignorefile.write_text(content)
             if config.args.verbose:
                 log('Updated data/.gitignore.')
-
-    def lookup_yaml(self, yaml, name):
-        import ruamel.yaml
-
-        yaml = yaml['data']
-        if isinstance(yaml, ruamel.yaml.comments.CommentedMap):
-            yaml = yaml[name]
-        else:
-            # Split the testcase/name name in a number and remaining part.
-            parts = name.split('-', maxsplit=1)
-            id = parts[0]
-            name = '' if len(parts) == 1 else parts[1]
-            yaml = yaml[int(id) - 1][name]
-        return yaml
-
-    def set_yaml(self, yaml, name, value):
-        import ruamel.yaml
-
-        yaml = yaml['data']
-        if isinstance(yaml, ruamel.yaml.comments.CommentedMap):
-            yaml[name] = value
-        else:
-            # Split the testcase/name name in a number and remaining part.
-            parts = name.split('-', maxsplit=1)
-            id = parts[0]
-            name = '' if len(parts) == 1 else parts[1]
-            yaml[int(id) - 1][name] = value
-
-    # Given a yaml object and a directory/testcase, find the
-    # parent yaml object. This works for both named and numbered cases.
-    def traverse_yaml(self, yaml, dt):
-        for name in dt.path.parts:
-            yaml = self.lookup_yaml(yaml, name)
-        return yaml
 
     def clean_generated(self):
         item_names = []
