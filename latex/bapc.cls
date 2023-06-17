@@ -67,6 +67,7 @@
 \RequirePackage{float}
 \RequirePackage{listingsutf8}
 \RequirePackage{tocloft}
+\RequirePackage{xparse}
 
 \RequirePackage[hidelinks,bookmarks=true,pdfusetitle]{hyperref}
 
@@ -163,6 +164,14 @@
 \newenvironment{Explanation}{
 	\subsection*{Explanation of samples}
 }{}
+\def\notesContent{}
+\NewDocumentEnvironment{Notes}{+b}{}{
+	\gdef\notesContent{
+		\subsection*{Notes}
+		#1
+		\gdef\notesContent{}
+	}
+}
 
 %-------------------------------------------------------------------------------
 % Environment for specifying Samples.
