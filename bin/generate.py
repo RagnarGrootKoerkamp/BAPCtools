@@ -4,12 +4,13 @@ import re
 import shutil
 import yaml as yamllib
 
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PurePath
 
 import config
 import program
 import run
 import parallel
+import inspect
 
 from util import *
 
@@ -595,7 +596,7 @@ class TestcaseRule(Rule):
                         continue
 
         def add_testdata_to_cache():
-            # Store the generated testdata for deduplication of unlisted manual cases.
+            # Store the generated testdata for deduplication test cases.
             test_hash = hash_file(target_infile)
             if test_hash not in generator_config.generated_testdata:
                 generator_config.generated_testdata[test_hash] = t
@@ -1009,11 +1010,6 @@ class GeneratorConfig:
                         d.data.append(c)
 
             return d
-
-        #if config.args.add_manual:
-        #    TODO add manual rules here?
-        #    pass
-
         self.root_dir = parse('', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
@@ -1096,6 +1092,60 @@ class GeneratorConfig:
 
         self.root_dir.walk(cleanup_build_failures, dir_f=None)
 
+    def add_manual(self):
+        if not has_ryaml:
+            error(
+                'generate --add-manual needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
+            )
+            return
+
+        manual = 'generators/manual/'
+        if not (self.problem.path / manual).is_dir():
+            error('generators/manual/ not found.')
+            return
+        known_manual = {path for path, x in self.rules_cache if isinstance(path, PurePath) and path.is_relative_to(manual)}
+
+        generators_yaml = self.problem.path / 'generators/generators.yaml'
+        data = read_yaml(generators_yaml)
+        if data is None:
+            data = ruamel.yaml.comments.CommentedMap()
+
+        def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
+            assert(isinstance(data, ruamel.yaml.comments.CommentedMap))
+            if not key in yaml or yaml[key] is None:
+                if inspect.isclass(t):
+                    yaml[key] = t()
+                else:
+                    yaml[key] = t
+            if inspect.isclass(t):
+                assert(isinstance(yaml[key], t))
+            else:
+                assert(yaml[key] == t)
+            return yaml[key]
+
+        parent = get_or_add(data, 'data')
+        parent = get_or_add(parent, 'secret')
+        get_or_add(parent, 'type', 'directory')
+        entry = get_or_add(parent, 'data', ruamel.yaml.comments.CommentedSeq)
+
+        manual_cases = [test.relative_to(self.problem.path) for test in (self.problem.path / manual).glob('*.in')]
+        missing_cases = [test for test in manual_cases if test not in known_manual]
+
+        bar = ProgressBar('Add manual', items=missing_cases)
+        for test in sorted(missing_cases, key=lambda x: x.name):
+            bar.start(str(test))
+            entry.append(ruamel.yaml.comments.CommentedMap())
+            entry[-1][f'manual_{test.stem}'] = str(test.relative_to('generators'))
+            bar.log('added to generators.yaml')
+            bar.done()
+
+        if len(parent['data']) == 0:
+            parent['data'] = None
+
+        write_yaml(data, generators_yaml)
+        bar.finalize()
+        return
+
     def run(self):
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
@@ -1111,23 +1161,7 @@ class GeneratorConfig:
             return
 
         if config.args.add_manual:
-            if not has_ryaml:
-                error(
-                    'generate --add-manual needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
-                )
-                return
-
-            #generators_yaml = self.problem.path / 'generators/generators.yaml'
-            #manual = self.problem.path / 'generators/manual'
-            #if not manual.is_dir():
-            #    error('generators/manual/ not found.')
-            #else:
-            #    for file in manual.glob('*.in'):
-            #        # TODO: check if testcase with same source exists
-            #        # if not add new rule
-            #        pass
-            # Overwrite generators.yaml.
-            #write_yaml(data, generators_yaml)
+            self.add_manual()
             return
 
         bar = ProgressBar('Generate', items=item_names)
