@@ -77,7 +77,7 @@ def _try_generator_invocation(problem, t, submissions, i):
         return
     bar.done()
 
-    testcase = run.Testcase(problem, infile, short_path=Path('fuzz') / 'testcase.in')
+    testcase = run.Testcase(problem, infile, short_path=Path('fuzz') / (name + '.in'))
 
     # Validate the manual or generated .in.
     bar.start('validate input')
