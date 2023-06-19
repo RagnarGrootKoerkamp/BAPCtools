@@ -877,7 +877,6 @@ def run_parsed_arguments(args):
         if action in ['all', 'constraints', 'run'] and not config.args.no_generate:
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
-            config.args.check_deterministic = action in ['all', 'constraints']
             config.args.jobs = os.cpu_count() // 2
             config.args.add_manual = False
             config.args.verbose = 0
