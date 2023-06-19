@@ -899,6 +899,6 @@ def hash_file(file, buffer_size=65536):
 def combine_hashes(list):
     list.sort()
     hasher = hashlib.sha256(usedforsecurity=False)
-    for item in sorted(list):
+    for item in list:
         hasher.update(item.encode())
     return hasher.hexdigest()
