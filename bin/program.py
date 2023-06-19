@@ -96,9 +96,6 @@ class Program:
         # Make sure we never try to build the same program twice. That'd be stupid.
         if not skip_double_build_warning:
             if path in problem._programs:
-                print('aaaa', file=sys.stderr)
-                import traceback
-                traceback.print_stack()
                 error(f'Why would you build {path} twice?')
                 assert path not in problem._programs
             problem._programs[path] = self
