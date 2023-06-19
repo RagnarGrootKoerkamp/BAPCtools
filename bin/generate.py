@@ -679,7 +679,7 @@ class TestcaseRule(Rule):
                         testcase.ans_path.write_text('')
                     # For interactive problems, run the interactive solution and generate a .interaction.
                     if t.config.solution and (testcase.sample or config.args.interaction):
-                        if not t.config.solution.run_interactive(problem, bar, cwd, infile.stem):
+                        if not t.config.solution.run_interactive(problem, bar, cwd, t):
                             return
 
             # Generate visualization
