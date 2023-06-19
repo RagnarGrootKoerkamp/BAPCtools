@@ -150,7 +150,7 @@
 
 
 %-------------------------------------------------------------------------------
-% Environments for specifying Input, Output and optionally Explanation.
+% Environments for specifying Input, Output, Interaction, and sample Explanation/Notes.
 %-------------------------------------------------------------------------------
 \newenvironment{Input}{
 	\subsection*{Input}
@@ -164,6 +164,9 @@
 \newenvironment{Explanation}{
 	\subsection*{Explanation of samples}
 }{}
+% Use xparse to get the contents of the environment as a variable (using `+b`) and store
+% them with the heading in `\notesContent`, which is automatically rendered at
+% the end of each problem. `gdef` overwrites the global definition of `notesContent`.
 \def\notesContent{}
 \NewDocumentEnvironment{Notes}{+b}{}{
 	\gdef\notesContent{
