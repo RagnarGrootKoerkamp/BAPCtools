@@ -414,7 +414,20 @@ class TestcaseRule(Rule):
 
         # Hints for unlisted testcases
         if not t.listed and generator_config.has_yaml:
-            bar.warn(f'Testcase not listed in generator.yaml (delete using --clean).')
+            if config.args.force:
+                manual_data = problem.path / t.source
+                assert manual_data.is_file()
+                test_hash = hash_file(manual_data)
+                if test_hash in generator_config.generated_testdata:
+                    for ext in config.KNOWN_DATA_EXTENSIONS:
+                        ext_file = manual_data.with_suffix(ext)
+                        if ext_file.is_file():
+                            ext_file.unlink()
+                    bar.log(f'Testcase not listed and duplicate of {generator_config.generated_testdata[test_hash].name} => deleted.')
+                    bar.done()
+                    return
+            bar.done(False, f'Testcase not listed in generator.yaml (delete using --clean).')
+            return
 
         if t.manual:
             hash = hash_file(problem.path / t.source)
