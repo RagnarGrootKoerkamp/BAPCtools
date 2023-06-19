@@ -55,7 +55,7 @@ def _try_generator_invocation(problem, t, submissions, i):
     # GENERATE THE TEST DATA
     cwd = problem.tmpdir / 'data' / 'fuzz'
     cwd.mkdir(parents=True, exist_ok=True)
-    name = 'tmp'
+    name = 'testcase'
     infile = cwd / (name + '.in')
     ansfile = cwd / (name + '.ans')
 
@@ -77,7 +77,7 @@ def _try_generator_invocation(problem, t, submissions, i):
         return
     bar.done()
 
-    testcase = run.Testcase(problem, infile, short_path=Path('fuzz') / (name + '.in'))
+    testcase = run.Testcase(problem, infile, short_path=Path('fuzz') / 'testcase.in')
 
     # Validate the manual or generated .in.
     bar.start('validate input')
