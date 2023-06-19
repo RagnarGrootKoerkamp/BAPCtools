@@ -661,6 +661,11 @@ Run this from one of:
         action='store_true',
         help='Skip sanity checks on testcases.',
     )
+    allparser.add_argument(
+        '--check-deterministic',
+        action='store_true',
+        help='Rerun all generators to make sure generators are deterministic.',
+    )
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser(

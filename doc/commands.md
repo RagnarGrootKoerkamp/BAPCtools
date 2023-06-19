@@ -35,7 +35,7 @@ This lists all subcommands and their most important options.
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
   - [`bt export`](#export)
 - Misc
-  - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated]`](#all)
+  - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated] [--check-deterministic]`](#all)
   - [`bt solve_stats [--contest-id CONTESTID] [--post-freeze]`](#solve_stats)
   - [`bt sort`](#sort)
   - [`bt update_problems_yaml [--colors COLORS]`](#update_problems_yaml)
@@ -159,7 +159,7 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--force`/`-f`: By default, `generate` will not overwrite any files, but instead warn that they will change. Pass `--force` to overwrite existing files.
 - `--samples`: Even with `--force`, samples won't be overwritten by default. `--force --samples` also overwrites samples. (Samples usually have a manually curated input and output that should not be overwritten easily.)
 - `--all`/`-a`: Fully regenerate all test cases, skipping the up-to-date check.
-- `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check. This is implicitly set to true for `bt all`.
+- `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check.
 - `--add-manual [directory]`: All testcases in the specified directory that do not have a corresponding entry in `generators.yaml` are added.
 - `--clean`: Delete all files/testcases not listed in `generators.yaml`. Without `-f`, this does a dry-run.
 - `--clean-generated`: Delete all generated files. Useful to save on disk space, since all this data can be regenerated.
