@@ -1,7 +1,7 @@
 solution: /submissions/accepted/author.py
 # The visualizer is disabled to speed up testing.
 #visualizer: /visualizers {name}
-random_salt: 'abc'
+random_salt: "abc"
 
 generators:
   main.py:
@@ -20,10 +20,10 @@ data:
     #solution:
     data:
       # Both the empty value and ~ parse as None.
-      '1':
-      '2': ~
-      '3': manual/sample.in
-      '4': manual/inans.in
+      "1":
+      "2": ~
+      "3": manual/sample.in
+      "4": manual/inans.in
 
   secret:
     type: directory
@@ -52,38 +52,38 @@ data:
         data:
           # Both ~ (None) and the empty string can be used to have only numbers as testcase names.
           - ~: stdout.py 123 # 01.in
-          - '': stdout.py 124
-          - '': stdout.py 125
-          - '': stdout.py 126
-          - '': stdout.py 127
-          - '': stdout.py 128
-          - '': stdout.py 129
-          - '': stdout.py 130
-          - '': stdout.py 131
-          - '': stdout.py 132 # 10.in
+          - "": stdout.py 124
+          - "": stdout.py 125
+          - "": stdout.py 126
+          - "": stdout.py 127
+          - "": stdout.py 128
+          - "": stdout.py 129
+          - "": stdout.py 130
+          - "": stdout.py 131
+          - "": stdout.py 132 # 10.in
       seeding:
         type: directory
         testdata.yaml:
           arbitrary_key: some_value
         solution: /submissions/accepted/author.cpp
-        random_salt: 'def'
+        random_salt: "def"
         data:
-          - '': random_gen.py {seed}
-          - '': random_gen.py  {seed} # the entire argument is hashed, so the double space matters.
-          - '': random_gen.py {seed:1}
-          - '': random_gen.py {seed:01} # :01 is part of the command string, so the hash is different.
+          - "": random_gen.py {seed}
+          - "": random_gen.py  {seed} # the entire argument is hashed, so the double space matters.
+          - "": random_gen.py {seed:1}
+          - "": random_gen.py {seed:01} # :01 is part of the command string, so the hash is different.
           # Random_salt must be a string.
-          - '':
-              random_salt: '1.0'
+          - "":
+              random_salt: "1.0"
               input: random_gen.py {seed}
-          - '':
-              random_salt: '1.00'
+          - "":
+              random_salt: "1.00"
               input: random_gen.py {seed}
-          - '':
-              random_salt: 'yes'
+          - "":
+              random_salt: "yes"
               input: random_gen.py {seed}
-          - '':
-              random_salt: 'true'
+          - "":
+              random_salt: "true"
               input: random_gen.py {seed}
       testcase_dict_1:
         input: random_gen.py {seed:6}
@@ -93,11 +93,6 @@ data:
       testcase_dict_3:
         visualizer:
         input: random_gen.py {seed:8}
-      testcase_dict_4:
-        solution:
-        visualizer:
-        random_salt: xyz
-        input: random_gen.py {seed:9}
       unused_args_1: > # Spread arguments over multiple lines.
         random_gen.py
         {seed}
@@ -149,8 +144,13 @@ data:
       empty_group_6:
         type: directory
         data:
-          - '': stdout.py 503
-      json: {type: directory, data: [{'': stdout.py 600, '1': stdout.py 601}, {'': stdout.py 602}]}
+          - "": stdout.py 503
+      json:
+        {
+          type: directory,
+          data:
+            [{ "": stdout.py 600, "1": stdout.py 601 }, { "": stdout.py 602 }],
+        }
     unknown_key:
 
 unknown_key:
