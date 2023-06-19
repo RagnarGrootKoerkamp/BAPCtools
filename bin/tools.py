@@ -497,7 +497,12 @@ Run this from one of:
 
     genparser_group = genparser.add_mutually_exclusive_group()
     genparser_group.add_argument(
-        '--add-manual', action='store_true', help='Add cases in generators/manual/ to generators.yaml.'
+        '--add-manual',
+        nargs='?',
+        type=Path,
+        const='generators/manual',
+        help='Add manual cases to generators.yaml.',
+        metavar='TARGET_DIRECTORY=generators/manual',
     )
     genparser_group.add_argument(
         '--clean', '-C', action='store_true', help='Delete unlisted files.'
@@ -785,6 +790,16 @@ def run_parsed_arguments(args):
 
     if action != 'generate' and config.args.testcases and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
+
+    if config.args.add_manual:
+        # Path *must* be inside generators/.
+        try:
+            config.args.add_manual = (problems[0].path / config.args.add_manual).resolve().relative_to(problems[0].path.resolve())
+            config.args.add_manual.relative_to('generators')
+        except Exception as e:
+            fatal('Directory given to add_manual must match "generators/*".')
+        if not (problems[0].path / config.args.add_manual).is_dir():
+            fatal(f'"{config.args.add_manual}" not found.')
 
     # Handle one-off subcommands.
     if action == 'tmp':
