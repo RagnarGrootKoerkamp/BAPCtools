@@ -219,7 +219,7 @@ class SolutionInvocation(Invocation):
             bar.log('stderr', result.err)
         return result
 
-    def run_interactive(self, problem, bar, cwd, name):
+    def run_interactive(self, problem, bar, cwd, t):
         in_path = cwd / 'testcase.in'
         interaction_path = cwd / 'testcase.interaction'
         if interaction_path.is_file():
@@ -404,10 +404,6 @@ class TestcaseRule(Rule):
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
-        # Hints for unlisted testcases
-        if not t.listed:
-            bar.warn(f'Testcase not listed in generator.yaml (delete using --clean).')
-
         if not t.manual and t.generator.program is None:
             bar.done(False, f'Generator didn\'t build.')
             return
@@ -415,6 +411,10 @@ class TestcaseRule(Rule):
         if t.manual and not (problem.path / t.source).is_file():
             bar.done(False, f'Source for manual case not found: {t.source}')
             return
+
+        # Hints for unlisted testcases
+        if not t.listed and generator_config.has_yaml:
+            bar.warn(f'Testcase not listed in generator.yaml (delete using --clean).')
 
         if t.manual:
             hash = hash_file(problem.path / t.source)
@@ -894,8 +894,10 @@ class GeneratorConfig:
 
         if yaml_path.is_file():
             yaml = read_yaml(yaml_path)
+            self.has_yaml = True
         else:
             yaml = None
+            self.has_yaml = False
             if config.args.action == 'generate':
                 log('Did not find generators/generators.yaml')
 
