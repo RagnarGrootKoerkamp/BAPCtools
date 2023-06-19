@@ -1013,7 +1013,7 @@ class GeneratorConfig:
         self.root_dir = parse('', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
-        if config.args.add_manual:
+        if config.args.add_manual or config.args.clean or config.args.clean_generated:
             return
 
         generators_used = set()
