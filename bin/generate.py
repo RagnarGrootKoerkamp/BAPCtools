@@ -1150,7 +1150,7 @@ class GeneratorConfig:
             name = manual.relative_to('generators').as_posix().replace('/','_')
             entry[-1][f'{name}_{test.stem}'] = test.relative_to('generators').as_posix()
             bar.log('added to generators.yaml')
-            bar.done()
+        bar.done()
 
         if len(parent['data']) == 0:
             parent['data'] = None
