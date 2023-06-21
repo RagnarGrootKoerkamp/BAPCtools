@@ -804,11 +804,14 @@ class Directory(Rule):
 
     def generate(d, problem, generator_config, bar):
         # Generate the current directory:
-        # - create the directory
-        # - write testdata.yaml
-        # - include linked testcases
+        # - Create the directory.
+        # - Write testdata.yaml.
+        # - Link included testcases.
+        #   - Input of included testcases are re-validated with the
+        #     directory-specific input validator flags.
         bar.start(str(d.path))
 
+        # Create the directory.
         dir_path = problem.path / 'data' / d.path
         dir_path.mkdir(parents=True, exist_ok=True)
 
@@ -829,10 +832,31 @@ class Directory(Rule):
 
             if d.testdata_yaml == '' and testdata_yaml_path.is_file():
                 testdata_yaml_path.unlink()
+        bar.done()
 
         for target in d.includes.values():
+            new_case = d.path / target.name
+            bar.start(str(new_case))
+            infile = problem.path / 'data' / target.parent / (target.name + '.in')
+
+            # Validate the testcase input.
+            # TODO: Do an up-to-date check to prevent validating includes when nothing changed.
+            testcase = run.Testcase(problem, infile, short_path=new_case)
+            if not testcase.validate_format(
+                'input_format',
+                bar=bar,
+                constraints=None,
+                warn_instead_of_error=config.args.ignore_validators,
+            ):
+                if not ignore_validators:
+                    bar.debug('Use generate --ignore-validators to ignore validation results.')
+                    bar.done()
+                    continue
+
+            # TODO: Validate the testcase output as well?
+
             for ext in config.KNOWN_DATA_EXTENSIONS:
-                t = problem.path / 'data' / target.parent / (target.name + ext)
+                t = infile.with_suffix(ext)
                 if t.is_file():
                     # TODO: In case a distinct file/symlink already exists, warn
                     # and require -f, like for usual testcases.
@@ -842,8 +866,7 @@ class Directory(Rule):
                     # TODO: Maybe we can update `ensure_symlink` to return
                     # whether anything (an existing symlink/copy) was changed.
                     bar.debug(f'INCLUDED {t.name}')
-
-        bar.done()
+            bar.done()
         return True
 
 
@@ -1215,7 +1238,7 @@ class GeneratorConfig:
             name = manual.relative_to('generators').as_posix().replace('/', '_')
             entry[-1][f'{name}_{test.stem}'] = test.relative_to('generators').as_posix()
             bar.log('added to generators.yaml')
-        bar.done()
+            bar.done()
 
         if len(parent['data']) == 0:
             parent['data'] = None
@@ -1241,6 +1264,9 @@ class GeneratorConfig:
 
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
+        self.root_dir.walk(
+            None, lambda d: [item_names.append(d.path / name) for name in d.includes]
+        )
         bar = ProgressBar('Generate', items=item_names)
 
         # Testcases are generated in two step:
