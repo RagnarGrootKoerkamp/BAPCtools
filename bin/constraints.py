@@ -22,28 +22,6 @@ def check_constraints(problem):
     problem.validate_format('output_format', constraints=ans_constraints)
     print()
 
-    vinput = problem.path / 'input_validators/input_validator/input_validator.cpp'
-    voutput = problem.path / 'output_validators/output_validator/output_validator.cpp'
-
-    cpp_statement = [
-        (
-            re.compile(
-                r'^(const\s+|constexpr\s+)?(int|string|long long|float|double)\s+(\w+)\s*[=]\s*(.*);'
-            ),
-            3,
-            4,
-            None,
-        ),
-        (
-            re.compile(
-                r'(?:(\w*)\s*=\s*.*)?\.read_(?:number|integer|float|string|long_long|int|double|long_double)\((?:\s*([^,]+)\s*,)?\s*([0-9-e.,\']+)\s*[,\)]'
-            ),
-            1,
-            2,
-            3,
-        ),
-    ]
-
     validator_values = set()
     defs_validators = []
 
