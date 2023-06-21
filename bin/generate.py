@@ -395,6 +395,15 @@ class TestcaseRule(Rule):
             self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
             self.generator = GeneratorInvocation(problem, inpt)
 
+        # TODO: Include the testcase input_validator_flags in the hash.
+        if self.manual:
+            self.hash = hash_file(problem.path / self.source)
+        else:
+            self.hash = self.generator.hash(self.seed)
+
+        # Filled during generate(), since `self.config.solution` will only be set later for the default solution.
+        self.cache_data = {}
+
         key = (inpt, self.config.random_salt)
         if key in generator_config.rules_cache:
             error(
@@ -417,28 +426,21 @@ class TestcaseRule(Rule):
         if not t.listed and generator_config.has_yaml:
             if config.args.force:
                 manual_data = problem.path / t.source
-                assert manual_data.is_file()
-                test_hash = hash_file(manual_data)
-                if test_hash in generator_config.generated_testdata:
+                if t.hash in generator_config.generated_testdata:
                     for ext in config.KNOWN_DATA_EXTENSIONS:
                         ext_file = manual_data.with_suffix(ext)
                         if ext_file.is_file():
                             ext_file.unlink()
                     bar.log(
-                        f'Testcase not listed and duplicate of {generator_config.generated_testdata[test_hash].name} => deleted.'
+                        f'Testcase not listed and duplicate of {generator_config.generated_testdata[t.hash].name} => deleted.'
                     )
                     bar.done()
                     return
             bar.done(False, f'Testcase not listed in generator.yaml (delete using --clean).')
             return
 
-        if t.manual:
-            hash = hash_file(problem.path / t.source)
-        else:
-            hash = t.generator.hash(t.seed)
-
         # E.g. bapctmp/problem/data/<hash>.in
-        cwd = problem.tmpdir / 'data' / hash
+        cwd = problem.tmpdir / 'data' / t.hash
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / 'testcase.in'
         ansfile = cwd / 'testcase.ans'
@@ -454,10 +456,9 @@ class TestcaseRule(Rule):
             # - both target infile ans ansfile exist
             # - meta_ exists with a timestamp newer than target infile ans ansfile
             # - meta_ contains exactly the right content (commands and hashes)
-
-            t.cache_data = {}
+            # - each validator with correct flags has been run already.
             if t.manual:
-                t.cache_data['source_hash'] = hash
+                t.cache_data['source_hash'] = t.hash
             else:
                 t.cache_data['generator_hash'] = t.generator.hash(seed=t.seed)
                 t.cache_data['generator'] = t.generator.cache_command(seed=t.seed)
