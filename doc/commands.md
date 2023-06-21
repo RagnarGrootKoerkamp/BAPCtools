@@ -14,7 +14,7 @@ This lists all subcommands and their most important options.
 - Problem development:
   - [`bt run [-v] [-t TIMELIMIT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-manual] [--move-manual [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS] [testcases [testcases ...]]`](#generate)
+  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-manual [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS] [testcases [testcases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
@@ -35,7 +35,7 @@ This lists all subcommands and their most important options.
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
   - [`bt export`](#export)
 - Misc
-  - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated]`](#all)
+  - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated] [--check-deterministic]`](#all)
   - [`bt solve_stats [--contest-id CONTESTID] [--post-freeze]`](#solve_stats)
   - [`bt sort`](#sort)
   - [`bt update_problems_yaml [--colors COLORS]`](#update_problems_yaml)
@@ -159,9 +159,8 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--force`/`-f`: By default, `generate` will not overwrite any files, but instead warn that they will change. Pass `--force` to overwrite existing files.
 - `--samples`: Even with `--force`, samples won't be overwritten by default. `--force --samples` also overwrites samples. (Samples usually have a manually curated input and output that should not be overwritten easily.)
 - `--all`/`-a`: Fully regenerate all test cases, skipping the up-to-date check.
-- `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check. This is implicitly set to true for `bt all`.
-- `--add-manual`: Testcases and directories in `data/` that do not have a corresponding entry in `generators.yaml` are automatically added.
-- `--move-manual [directory]`: Move all inline testcases to the specified directory (which defaults to `generators/manual`) and update `generators.yaml`. Implies `--add-manual`.
+- `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check.
+- `--add-manual [directory]`: All testcases in the specified directory that do not have a corresponding entry in `generators.yaml` are added.
 - `--clean`: Delete all files/testcases not listed in `generators.yaml`. Without `-f`, this does a dry-run.
 - `--clean-generated`: Delete all generated files. Useful to save on disk space, since all this data can be regenerated.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.

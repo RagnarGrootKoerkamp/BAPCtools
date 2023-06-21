@@ -497,14 +497,11 @@ Run this from one of:
 
     genparser_group = genparser.add_mutually_exclusive_group()
     genparser_group.add_argument(
-        '--add-manual', action='store_true', help='Add manual cases to generators.yaml.'
-    )
-    genparser_group.add_argument(
-        '--move-manual',
+        '--add-manual',
         nargs='?',
         type=Path,
         const='generators/manual',
-        help='Move tracked inline manual cases to the given directory.',
+        help='Add manual cases to generators.yaml.',
         metavar='TARGET_DIRECTORY=generators/manual',
     )
     genparser_group.add_argument(
@@ -664,6 +661,11 @@ Run this from one of:
         action='store_true',
         help='Skip sanity checks on testcases.',
     )
+    allparser.add_argument(
+        '--check-deterministic',
+        action='store_true',
+        help='Rerun all generators to make sure generators are deterministic.',
+    )
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser(
@@ -794,13 +796,15 @@ def run_parsed_arguments(args):
     if action != 'generate' and config.args.testcases and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
 
-    if config.args.move_manual:
+    if config.args.add_manual:
         # Path *must* be inside generators/.
         try:
-            config.args.move_manual = (problems[0].path / config.args.move_manual).resolve()
-            config.args.move_manual.relative_to(problems[0].path.resolve() / 'generators')
+            config.args.add_manual = (problems[0].path / config.args.add_manual).resolve().relative_to(problems[0].path.resolve())
+            config.args.add_manual.relative_to('generators')
         except Exception as e:
-            fatal('Directory given to move_manual must be inside generators/.')
+            fatal('Directory given to add_manual must match "generators/*".')
+        if not (problems[0].path / config.args.add_manual).is_dir():
+            fatal(f'"{config.args.add_manual}" not found.')
 
     # Handle one-off subcommands.
     if action == 'tmp':
@@ -878,10 +882,8 @@ def run_parsed_arguments(args):
         if action in ['all', 'constraints', 'run'] and not config.args.no_generate:
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
-            config.args.check_deterministic = action in ['all', 'constraints']
             config.args.jobs = os.cpu_count() // 2
             config.args.add_manual = False
-            config.args.move_manual = False
             config.args.verbose = 0
             config.args.skip_visualizer = True
             success &= generate.generate(problem)
@@ -920,7 +922,6 @@ def run_parsed_arguments(args):
                 config.args.check_deterministic = not config.args.force
                 config.args.jobs = None
                 config.args.add_manual = False
-                config.args.move_manual = False
                 config.args.verbose = 0
                 config.args.testcases = None
                 config.args.force = False

@@ -67,6 +67,7 @@
 \RequirePackage{float}
 \RequirePackage{listingsutf8}
 \RequirePackage{tocloft}
+\RequirePackage{xparse}
 
 \RequirePackage[hidelinks,bookmarks=true,pdfusetitle]{hyperref}
 
@@ -149,7 +150,7 @@
 
 
 %-------------------------------------------------------------------------------
-% Environments for specifying Input, Output and optionally Explanation.
+% Environments for specifying Input, Output, Interaction, and sample Explanation/Notes.
 %-------------------------------------------------------------------------------
 \newenvironment{Input}{
 	\subsection*{Input}
@@ -163,6 +164,17 @@
 \newenvironment{Explanation}{
 	\subsection*{Explanation of samples}
 }{}
+% Use xparse to get the contents of the environment as a variable (using `+b`) and store
+% them with the heading in `\notesContent`, which is automatically rendered at
+% the end of each problem. `gdef` overwrites the global definition of `notesContent`.
+\def\notesContent{}
+\NewDocumentEnvironment{Notes}{+b}{}{
+	\gdef\notesContent{
+		\subsection*{Notes}
+		#1
+		\gdef\notesContent{}
+	}
+}
 
 %-------------------------------------------------------------------------------
 % Environment for specifying Samples.

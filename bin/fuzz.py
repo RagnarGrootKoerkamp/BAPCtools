@@ -55,7 +55,7 @@ def _try_generator_invocation(problem, t, submissions, i):
     # GENERATE THE TEST DATA
     cwd = problem.tmpdir / 'data' / 'fuzz'
     cwd.mkdir(parents=True, exist_ok=True)
-    name = 'tmp'
+    name = 'testcase'
     infile = cwd / (name + '.in')
     ansfile = cwd / (name + '.ans')
 

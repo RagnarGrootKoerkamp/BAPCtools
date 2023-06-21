@@ -3,6 +3,7 @@ import shutil
 import stat
 import subprocess
 import threading
+import yaml as yamllib
 
 from util import *
 from colorama import Fore
@@ -71,11 +72,11 @@ def languages():
 # Member variables are:
 # - path:           source file/directory
 # - short_path:     the path relative to problem/subdir/, or None
-# - tmpdir:        the build directory in tmpfs. This is only created when build() is called.
+# - tmpdir:         the build directory in tmpfs. This is only created when build() is called.
 # - input_files:    list of source files linked into tmpdir
 # - language:       the detected language
 # - env:            the environment variables used for compile/run command substitution
-# - timestamp:      time of last change to the source files
+# - hash:           a hash of all of the program including all source files
 #
 # After build() has been called, the following are available:
 # - run_command:    command to be executed. E.g. ['/path/to/run'] or ['python3', '/path/to/main.py']. `None` if something failed.
@@ -124,7 +125,7 @@ class Program:
         self.compile_command = None
         self.check_constraints = check_constraints
         self.run_command = None
-        self.timestamp = None
+        self.hash = None
         self.env = {}
 
         self.ok = True
@@ -334,7 +335,7 @@ class Program:
 
     # Return True on success.
     def _compile(self):
-        meta_path = self.tmpdir / 'meta_'
+        meta_path = self.tmpdir / 'meta_.yaml'
 
         # Remove all non-source files.
         for f in self.tmpdir.glob('*'):
@@ -372,7 +373,10 @@ class Program:
             self.bar.error('Failed', data)
             return False
 
-        meta_path.write_text(' '.join(self.compile_command))
+        yamllib.dump({
+            'hash' : self.hash,
+            'command' : ' '.join(self.compile_command)
+        }, meta_path.open('w'))
         return True
 
     # Return True on success, False on failure.
@@ -403,20 +407,21 @@ class Program:
         if self.tmpdir.is_file():
             self.tmpdir.unlink()
         self.tmpdir.mkdir(parents=True, exist_ok=True)
-        self.timestamp = 0
         self.input_files = []
+        hashes = []
         for f in self.source_files:
             ensure_symlink(self.tmpdir / f.name, f)
             self.input_files.append(self.tmpdir / f.name)
-            self.timestamp = max(self.timestamp, f.stat().st_mtime)
+            hashes.append(hash_file(f))
+        self.hash = combine_hashes(hashes)
 
         if not self._get_language(self.source_files):
             return False
 
         self._checks()
 
-        # A file containing the compile command. Timestamp is used as last build time.
-        meta_path = self.tmpdir / 'meta_'
+        # A file containing the compile command and hash.
+        meta_path = self.tmpdir / 'meta_.yaml'
 
         lang_config = languages()[self.language]
 
@@ -427,12 +432,14 @@ class Program:
         run_command = lang_config['run']
         self.run_command = run_command.format(**self.env).split()
 
-        # Compare the latest source timestamp (self.timestamp) to the last build.
-        up_to_date = (
-            meta_path.is_file()
-            and meta_path.stat().st_mtime >= self.timestamp
-            and meta_path.read_text() == ' '.join(self.compile_command)
-        )
+        # Compare the hash to the last build.
+        up_to_date = False
+        if meta_path.is_file():
+            meta_yaml = read_yaml(meta_path)
+            up_to_date = (
+                meta_yaml['hash'] == self.hash
+                and meta_yaml['command'] == ' '.join(self.compile_command)
+            )
 
         if not up_to_date or config.args.force_build:
             if not self._compile():
@@ -462,9 +469,9 @@ class Generator(Program):
         in_path = cwd / (name + '.in')
         stdout_path = cwd / (name + '.in_')
 
-        # Clean the directory, but not the meta_ file.
+        # Clean the directory, but not the meta_.yaml file.
         for f in cwd.iterdir():
-            if f.name in ['meta_', 'meta_.yaml']:
+            if f.name == 'meta_.yaml':
                 continue
             if f.is_dir() and not f.is_symlink():
                 shutil.rmtree(f)

@@ -74,7 +74,10 @@ class InputValidator(Validator):
     # `args`: Optional list of additional arguments to pass. Used from testdata.yaml configuration.
     # Return ExecResult
     def run(self, testcase, constraints=None, args=None):
-        cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
+        if testcase.in_path.is_relative_to(self.problem.tmpdir):
+            cwd = testcase.in_path.with_suffix('.feedbackdir')
+        else:
+            cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
         cwd.mkdir(parents=True, exist_ok=True)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
@@ -121,7 +124,10 @@ class OutputValidator(Validator):
     def run(self, testcase, run=None, constraints=None, args=None):
         if run is None:
             # When used as a format validator, act like an InputValidator.
-            cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
+            if testcase.in_path.is_relative_to(self.problem.tmpdir):
+                cwd = testcase.in_path.with_suffix('.feedbackdir')
+            else:
+                cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
             cwd.mkdir(parents=True, exist_ok=True)
 
             if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
