@@ -1322,7 +1322,8 @@ class GeneratorConfig:
 
         self.root_dir.walk(clean_testcase, clean_directory, dir_last=True)
         #TODO should this be an extra command?
-        shutil.rmtree(self.problem.tmpdir / 'data')
+        if (self.problem.tmpdir / 'data').exists():
+            shutil.rmtree(self.problem.tmpdir / 'data')
         bar.finalize()
 
     # Remove all unlisted files. Runs in dry-run mode without -f.
