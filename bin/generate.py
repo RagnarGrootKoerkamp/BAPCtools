@@ -423,7 +423,9 @@ class TestcaseRule(Rule):
                         ext_file = manual_data.with_suffix(ext)
                         if ext_file.is_file():
                             ext_file.unlink()
-                    bar.log(f'Testcase not listed and duplicate of {generator_config.generated_testdata[test_hash].name} => deleted.')
+                    bar.log(
+                        f'Testcase not listed and duplicate of {generator_config.generated_testdata[test_hash].name} => deleted.'
+                    )
                     bar.done()
                     return
             bar.done(False, f'Testcase not listed in generator.yaml (delete using --clean).')
@@ -614,7 +616,9 @@ class TestcaseRule(Rule):
             if test_hash not in generator_config.generated_testdata:
                 generator_config.generated_testdata[test_hash] = t
             else:
-                bar.warn(f'Testcase {t.path} is equal to {generator_config.generated_testdata[test_hash].path}.')
+                bar.warn(
+                    f'Testcase {t.path} is equal to {generator_config.generated_testdata[test_hash].path}.'
+                )
 
         if not up_to_date():
             # clear all generated files
@@ -804,8 +808,6 @@ class Directory(Rule):
         dir_path = problem.path / 'data' / d.path
         dir_path.mkdir(parents=True, exist_ok=True)
 
-        files_created = []
-
         # Write the testdata.yaml, or remove it when the key is set but empty.
         testdata_yaml_path = dir_path / 'testdata.yaml'
         if d.testdata_yaml is not None:
@@ -821,7 +823,6 @@ class Directory(Rule):
                         else:
                             bar.warn(f'SKIPPED: testdata.yaml')
 
-                files_created.append(testdata_yaml_path)
             if d.testdata_yaml == '' and testdata_yaml_path.is_file():
                 testdata_yaml_path.unlink()
 
@@ -841,7 +842,6 @@ class Directory(Rule):
                 ext_file = case.with_suffix(ext)
                 if ext_file.is_file():
                     ensure_symlink(dir_path / ext_file.name, ext_file, relative=True)
-                    files_created.append(dir_path / ext_file.name)
 
         bar.done()
         return True
@@ -931,7 +931,6 @@ class GeneratorConfig:
 
         # Main recursive parsing function.
         def parse(name, yaml, parent, listed=True):
-
             # Skip unlisted `data/bad` directory: we should not generate .ans files there.
             if name == 'bad' and parent.path == Path('.') and listed is False:
                 return None
@@ -977,7 +976,6 @@ class GeneratorConfig:
             # First loop over explicitly mentioned testcases/directories, and then find remaining on-disk files/dirs.
             done = set()
             if 'data' in yaml and yaml['data']:
-
                 for id, dictionary in enumerate(yaml['data'], start=1):
                     check_type('Elements of data', dictionary, dict, d.path)
                     for key in dictionary:
@@ -1025,6 +1023,7 @@ class GeneratorConfig:
                         d.data.append(c)
 
             return d
+
         self.root_dir = parse('', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
@@ -1115,7 +1114,11 @@ class GeneratorConfig:
             return
 
         manual = config.args.add_manual
-        known_manual = {path for path, x in self.rules_cache if isinstance(path, PurePath) and path.is_relative_to(manual)}
+        known_manual = {
+            path
+            for path, x in self.rules_cache
+            if isinstance(path, PurePath) and path.is_relative_to(manual)
+        }
 
         generators_yaml = self.problem.path / 'generators/generators.yaml'
         data = read_yaml(generators_yaml)
@@ -1123,16 +1126,16 @@ class GeneratorConfig:
             data = ruamel.yaml.comments.CommentedMap()
 
         def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
-            assert(isinstance(data, ruamel.yaml.comments.CommentedMap))
+            assert isinstance(data, ruamel.yaml.comments.CommentedMap)
             if not key in yaml or yaml[key] is None:
                 if inspect.isclass(t):
                     yaml[key] = t()
                 else:
                     yaml[key] = t
             if inspect.isclass(t):
-                assert(isinstance(yaml[key], t))
+                assert isinstance(yaml[key], t)
             else:
-                assert(yaml[key] == t)
+                assert yaml[key] == t
             return yaml[key]
 
         parent = get_or_add(data, 'data')
@@ -1140,14 +1143,17 @@ class GeneratorConfig:
         get_or_add(parent, 'type', 'directory')
         entry = get_or_add(parent, 'data', ruamel.yaml.comments.CommentedSeq)
 
-        manual_cases = [test.relative_to(self.problem.path) for test in (self.problem.path / manual).glob('*.in')]
+        manual_cases = [
+            test.relative_to(self.problem.path)
+            for test in (self.problem.path / manual).glob('*.in')
+        ]
         missing_cases = [test for test in manual_cases if test not in known_manual]
 
         bar = ProgressBar('Add manual', items=missing_cases)
         for test in sorted(missing_cases, key=lambda x: x.name):
             bar.start(str(test))
             entry.append(ruamel.yaml.comments.CommentedMap())
-            name = manual.relative_to('generators').as_posix().replace('/','_')
+            name = manual.relative_to('generators').as_posix().replace('/', '_')
             entry[-1][f'{name}_{test.stem}'] = test.relative_to('generators').as_posix()
             bar.log('added to generators.yaml')
         bar.done()
@@ -1160,9 +1166,6 @@ class GeneratorConfig:
         return
 
     def run(self):
-        item_names = []
-        self.root_dir.walk(lambda x: item_names.append(x.path))
-
         self.problem.reset_testcase_hashes()
 
         if config.args.clean:
@@ -1177,6 +1180,8 @@ class GeneratorConfig:
             self.add_manual()
             return
 
+        item_names = []
+        self.root_dir.walk(lambda x: item_names.append(x.path))
         bar = ProgressBar('Generate', items=item_names)
 
         in_parallel = True
@@ -1321,7 +1326,7 @@ class GeneratorConfig:
             bar.done()
 
         self.root_dir.walk(clean_testcase, clean_directory, dir_last=True)
-        #TODO should this be an extra command?
+        # TODO should this be an extra command?
         if (self.problem.tmpdir / 'data').exists():
             shutil.rmtree(self.problem.tmpdir / 'data')
         bar.finalize()
