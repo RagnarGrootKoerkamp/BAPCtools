@@ -45,6 +45,10 @@ def _has_consecutive_whitespaces(bytes):
 
 
 class Testcase:
+    # Testcases outside problem/data must pass in the short_path explicitly.
+    # In that case, `path` is the (absolute) path to the `.in` file being
+    # tested, and `short_path` is the name of the testcase relative to
+    # `problem.path / 'data'`.
     def __init__(self, problem, path, *, short_path=None):
         assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
 
@@ -56,7 +60,6 @@ class Testcase:
             if path.suffix == '.in'
             else self.in_path.with_name(self.in_path.with_suffix('').stem + '.ans.statement')
         )
-        # Note: testcases outside problem/data must pass in the short_path explicitly.
         if short_path is None:
             try:
                 self.short_path = path.relative_to(problem.path / 'data')

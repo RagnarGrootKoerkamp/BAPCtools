@@ -113,11 +113,11 @@ class Problem:
 
         self.interactive = self.settings.validation == 'custom interactive'
 
-    # Walk up from the in_path directory looking for the first testdata.yaml
+    # Walk up from absolute `path` (a file or directory) looking for the first testdata.yaml
     # file, and return its contents, or None if no testdata.yaml is found.
-    def get_testdata_yaml(p, in_path):
-        for parent in in_path.parents:
-            f = parent / 'testdata.yaml'
+    def get_testdata_yaml(p, path):
+        for dir in [path] + list(path.parents):
+            f = dir / 'testdata.yaml'
 
             if f.is_file():
                 # Store testdata.yaml files in a cache.
@@ -126,7 +126,7 @@ class Problem:
                 return p._testdata_yamls[f]
 
             # Do not go above the data directory.
-            if parent == p.path / 'data':
+            if dir == p.path / 'data':
                 break
         return None
 
