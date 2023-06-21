@@ -614,7 +614,7 @@ class TestcaseRule(Rule):
             if test_hash not in generator_config.generated_testdata:
                 generator_config.generated_testdata[test_hash] = t
             else:
-                bar.warn(f'Testcase {t.name} is equal to {generator_config.generated_testdata[test_hash].name}.')
+                bar.warn(f'Testcase {t.path} is equal to {generator_config.generated_testdata[test_hash].path}.')
 
         if not up_to_date():
             # clear all generated files
