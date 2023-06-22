@@ -447,17 +447,24 @@ except:
     has_ryaml = False
 
 
+# For some reasong ryaml.load doesn't work well in parallel.
+ruamel_lock = threading.Lock()
+
+
 def parse_yaml(data, path=None):
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
     if has_ryaml:
+        ruamel_lock.acquire()
         try:
-            return ryaml.load(data)
+            ret = ryaml.load(data)
         except ruamel.yaml.constructor.DuplicateKeyError as error:
             if path is not None:
                 fatal(f'Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}')
             else:
                 fatal(f'Duplicate key in yaml object!\n{str(error)}')
+        ruamel_lock.release()
+        return ret
 
     else:
         try:
