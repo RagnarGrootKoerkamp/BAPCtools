@@ -901,6 +901,7 @@ def inc_label(label):
         label = label[:x] + 'A' + label[x + 1 :]
     return 'A' + label
 
+
 def hash_file(file, buffer_size=65536):
     assert file.is_file()
     sha = hashlib.sha256(usedforsecurity=False)
@@ -912,11 +913,21 @@ def hash_file(file, buffer_size=65536):
                 break
             sha.update(data)
 
-    return sha.hexdigest();
+    return sha.hexdigest()
+
 
 def combine_hashes(list):
     list.sort()
     hasher = hashlib.sha256(usedforsecurity=False)
     for item in list:
         hasher.update(item.encode())
+    return hasher.hexdigest()
+
+
+def combine_hashes_dict(d):
+    hasher = hashlib.sha256(usedforsecurity=False)
+    for key in d:
+        hasher.update(key.encode())
+        if d[key] is not None:
+            hasher.update(d[key].encode())
     return hasher.hexdigest()
