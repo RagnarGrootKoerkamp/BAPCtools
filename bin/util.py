@@ -736,7 +736,7 @@ def limit_setter(command, timeout, memory_limit):
         if (
             memory_limit
             and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']
-            and not is_mac()
+            and not is_bsd()
         ):
             resource.setrlimit(
                 resource.RLIMIT_AS, (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024)
