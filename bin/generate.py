@@ -488,13 +488,13 @@ class TestcaseRule(Rule):
                 return (False, False)
 
             meta_yaml = read_yaml(meta_path)
-            if meta_yaml['cache_data'] != t.cache_data:
+            if meta_yaml.get('cache_data') != t.cache_data:
                 return (False, False)
 
             # Check whether all input validators have been run.
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
             for h in testcase.validator_hashes('input_format'):
-                if h not in meta_yaml['validator_hashes']:
+                if h not in meta_yaml.get('validator_hashes'):
                     return (True, False)
             return (True, True)
 
@@ -709,12 +709,18 @@ class TestcaseRule(Rule):
 
                 check_deterministic(True)
 
+            meta_yaml = read_yaml(meta_path)
+            meta_yaml['cache_data'] = t.cache_data
+            if generator_up_to_date:
+                hashes = testcase.validator_hashes('input_format')
+                for h in hashes:
+                    meta_yaml['validator_hashes'][h] = hashes[h]
+            else:
+                meta_yaml['validator_hashes'] = testcase.validator_hashes('input_format')
+
             # Update metadata
             yamllib.dump(
-                {
-                    'cache_data': t.cache_data,
-                    'validator_hashes': testcase.validator_hashes('input_format'),
-                },
+                meta_yaml,
                 meta_path.open('w'),
             )
             message = ''
@@ -772,8 +778,7 @@ class Directory(Rule):
 
         # List of child TestcaseRule/Directory objects, filled by parse().
         self.data = []
-        # Map of name => included short_path, filled by parse().
-        # eg '1' => 'sample/1'
+        # Map of short_name => TestcaseRule, filled by parse().
         self.includes = dict()
 
         # Sanity checks for possibly empty data.
@@ -856,7 +861,8 @@ class Directory(Rule):
                 testdata_yaml_path.unlink()
         bar.done()
 
-        for target in d.includes.values():
+        for t in d.includes.values():
+            target = t.path
             new_case = d.path / target.name
             bar.start(str(new_case))
             infile = problem.path / 'data' / target.parent / (target.name + '.in')
@@ -866,19 +872,43 @@ class Directory(Rule):
                 bar.done()
                 continue
 
-            # Validate the testcase input.
-            # TODO: Do an up-to-date check to prevent validating includes when nothing changed.
-            testcase = run.Testcase(problem, infile, short_path=new_case)
-            if not testcase.validate_format(
-                'input_format',
-                bar=bar,
-                constraints=None,
-                warn_instead_of_error=config.args.ignore_validators,
-            ):
-                if not ignore_validators:
-                    bar.debug('Use generate --ignore-validators to ignore validation results.')
-                    bar.done()
-                    continue
+            # Check if the testcase was already validated.
+            # TODO: Dedup some of this with TestcaseRule.generate?
+            cwd = problem.tmpdir / 'data' / t.hash
+            meta_path = cwd / 'meta_.yaml'
+            meta_yaml = read_yaml(meta_path)
+            testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
+            hashes = testcase.validator_hashes('input_format')
+
+            # All hashes validated before?
+            def up_to_date():
+                for h in hashes:
+                    if h not in meta_yaml.get('validator_hashes'):
+                        return False
+                return True
+
+            if not up_to_date():
+                # Validate the testcase input.
+                testcase = run.Testcase(problem, infile, short_path=new_case)
+                if not testcase.validate_format(
+                    'input_format',
+                    bar=bar,
+                    constraints=None,
+                    warn_instead_of_error=config.args.ignore_validators,
+                ):
+                    if not config.args.ignore_validators:
+                        bar.debug('Use generate --ignore-validators to ignore validation results.')
+                        bar.done()
+                        continue
+                # Add hashes to the cache.
+                for h in hashes:
+                    meta_yaml['validator_hashes'][h] = hashes[h]
+
+                # Update metadata
+                yamllib.dump(
+                    meta_yaml,
+                    meta_path.open('w'),
+                )
 
             # TODO: Validate the testcase output as well?
 
@@ -945,8 +975,8 @@ class GeneratorConfig:
         yaml_path = self.problem.path / 'generators/generators.yaml'
         self.ok = True
 
-        # A map of paths `secret/testgroup/testcase` to their canonical location.
-        # For generated cases this is the path itself.
+        # A map of paths `secret/testgroup/testcase` to their canonical TestcaseRule.
+        # For generated cases this is the rule itself.
         # For included cases, this is the 'resolved' location of the testcase that is included.
         self.known_cases = dict()
         # A set of paths `secret/testgroup`.
