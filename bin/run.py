@@ -127,6 +127,34 @@ class Testcase:
         # Configuration was found but this validator was not listed.
         return False
 
+    # Returns a dict of objects
+    # hash =>
+    # - name
+    # - flags
+    # - hash
+    # indicating which validators will be run for the current testcase.
+    def validator_hashes(self, validator_type):
+        assert validator_type in ['input_format', 'output_format']
+        validators = self.problem.validators(validator_type) or []
+
+        d = dict()
+
+        for validator in validators:
+            flags = self.testdata_yaml_validator_flags(validator_type, validator)
+            if flags is False:
+                continue
+            o = {
+                'name': validator.name,
+                'flags': flags,
+                'hash': validator.hash,
+            }
+            h = combine_hashes_dict(o)
+            # Don't actually store the somewhat useless validator hash.
+            del o['hash']
+            d[h] = o
+
+        return d
+
     # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
     def validate_format(
         self, validator_type, *, bar, constraints=None, warn_instead_of_error=False

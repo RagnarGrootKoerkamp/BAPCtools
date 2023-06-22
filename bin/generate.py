@@ -450,7 +450,8 @@ class TestcaseRule(Rule):
         target_infile = target_dir / (t.name + '.in')
         target_ansfile = target_dir / (t.name + '.ans')
 
-        # The expected contents of the meta_ file.
+        # Check whether the generated data and validation are up to date.
+        # Returns (generator/input up to date, validation up to date)
         def up_to_date():
             # The testcase is up to date if:
             # - both target infile ans ansfile exist
@@ -470,24 +471,32 @@ class TestcaseRule(Rule):
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
             if config.args.all:
-                return False
+                return (False, False)
 
             if not infile.is_file():
-                return False
+                return (False, False)
             if not ansfile.is_file():
-                return False
+                return (False, False)
             if (
                 problem.interactive
                 and t.sample
                 and not ansfile.with_suffix('.interaction').is_file()
             ):
-                return False
+                return (False, False)
 
             if not meta_path.is_file():
-                return False
+                return (False, False)
 
             meta_yaml = read_yaml(meta_path)
-            return meta_yaml == t.cache_data
+            if meta_yaml['cache_data'] != t.cache_data:
+                return (False, False)
+
+            # Check whether all input validators have been run.
+            testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
+            for h in testcase.validator_hashes('input_format'):
+                if h not in meta_yaml['validator_hashes']:
+                    return (True, False)
+            return (True, True)
 
         # For each generated .in file check that they
         # use a deterministic generator by rerunning the generator with the
@@ -622,29 +631,31 @@ class TestcaseRule(Rule):
                     f'Testcase {t.path} is equal to {generator_config.generated_testdata[test_hash].path}.'
                 )
 
-        if not up_to_date():
-            # clear all generated files
-            shutil.rmtree(cwd)
-            cwd.mkdir(parents=True, exist_ok=True)
+        generator_up_to_date, validator_up_to_date = up_to_date()
+        if not validator_up_to_date:
+            if not generator_up_to_date:
+                # clear all generated files
+                shutil.rmtree(cwd)
+                cwd.mkdir(parents=True, exist_ok=True)
 
-            # Generate .in
-            if t.manual:
-                manual_data = problem.path / t.source
-                assert manual_data.is_file()
+                # Generate .in
+                if t.manual:
+                    manual_data = problem.path / t.source
+                    assert manual_data.is_file()
 
-                # For manual cases outside of the data/ directory, copy all related files.
-                # Inside data/, only use the .in.
+                    # For manual cases outside of the data/ directory, copy all related files.
+                    # Inside data/, only use the .in.
 
-                # We make sure to not silently overwrite changes to files in data/
-                # that are copied from generators/.
-                for ext in config.KNOWN_DATA_EXTENSIONS:
-                    ext_file = manual_data.with_suffix(ext)
-                    if ext_file.is_file():
-                        shutil.copy(ext_file, infile.with_suffix(ext), follow_symlinks=True)
-            else:
-                result = t.generator.run(bar, cwd, infile.stem, t.seed, t.config.retries)
-                if result.ok is not True:
-                    return
+                    # We make sure to not silently overwrite changes to files in data/
+                    # that are copied from generators/.
+                    for ext in config.KNOWN_DATA_EXTENSIONS:
+                        ext_file = manual_data.with_suffix(ext)
+                        if ext_file.is_file():
+                            shutil.copy(ext_file, infile.with_suffix(ext), follow_symlinks=True)
+                else:
+                    result = t.generator.run(bar, cwd, infile.stem, t.seed, t.config.retries)
+                    if result.ok is not True:
+                        return
 
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
 
@@ -658,44 +669,54 @@ class TestcaseRule(Rule):
                     bar.debug('Use generate --ignore-validators to ignore validation results.')
                     return
 
-            # Generate .ans and .interaction if needed.
-            if not config.args.skip_solution and not (testcase.bad_input or testcase.bad_output):
-                if not problem.interactive:
-                    if t.config.solution:
-                        if testcase.ans_path.is_file():
-                            testcase.ans_path.unlink()
-                        # Run the solution
-                        if t.config.solution.run(bar, cwd, infile.stem).ok is not True:
-                            return
-
-                    # Validate the ans file.
-                    if ansfile.is_file():
-                        if not testcase.validate_format(
-                            'output_format', bar=bar, warn_instead_of_error=ignore_validators
-                        ):
-                            if not ignore_validators:
-                                bar.debug(
-                                    'Use generate --ignore-validators to ignore validation results.'
-                                )
+            if not generator_up_to_date:
+                # Generate .ans and .interaction if needed.
+                if not config.args.skip_solution and not (
+                    testcase.bad_input or testcase.bad_output
+                ):
+                    if not problem.interactive:
+                        if t.config.solution:
+                            if testcase.ans_path.is_file():
+                                testcase.ans_path.unlink()
+                            # Run the solution
+                            if t.config.solution.run(bar, cwd, infile.stem).ok is not True:
                                 return
+
+                        # Validate the ans file.
+                        if ansfile.is_file():
+                            if not testcase.validate_format(
+                                'output_format', bar=bar, warn_instead_of_error=ignore_validators
+                            ):
+                                if not ignore_validators:
+                                    bar.debug(
+                                        'Use generate --ignore-validators to ignore validation results.'
+                                    )
+                                    return
+                        else:
+                            bar.warn(f'{ansfile.name} does not exist and was not generated.')
                     else:
-                        bar.warn(f'{ansfile.name} does not exist and was not generated.')
-                else:
-                    if not testcase.ans_path.is_file():
-                        testcase.ans_path.write_text('')
-                    # For interactive problems, run the interactive solution and generate a .interaction.
-                    if t.config.solution and (testcase.sample or config.args.interaction):
-                        if not t.config.solution.run_interactive(problem, bar, cwd, t):
-                            return
+                        if not testcase.ans_path.is_file():
+                            testcase.ans_path.write_text('')
+                        # For interactive problems, run the interactive solution and generate a .interaction.
+                        if t.config.solution and (testcase.sample or config.args.interaction):
+                            if not t.config.solution.run_interactive(problem, bar, cwd, t):
+                                return
 
-            # Generate visualization
-            if not config.args.skip_visualizer and t.config.visualizer:
-                # Note that the .in/.ans are generated even when the visualizer fails.
-                t.config.visualizer.run(bar, cwd, infile.stem)
+                # Generate visualization
+                if not config.args.skip_visualizer and t.config.visualizer:
+                    # Note that the .in/.ans are generated even when the visualizer fails.
+                    t.config.visualizer.run(bar, cwd, infile.stem)
 
-            check_deterministic(True)
+                check_deterministic(True)
+
             # Update metadata
-            yamllib.dump(t.cache_data, meta_path.open('w'))
+            yamllib.dump(
+                {
+                    'cache_data': t.cache_data,
+                    'validator_hashes': testcase.validator_hashes('input_format'),
+                },
+                meta_path.open('w'),
+            )
             message = ''
         else:
             if config.args.action != 'generate':
