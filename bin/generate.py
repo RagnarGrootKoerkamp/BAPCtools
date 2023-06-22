@@ -861,6 +861,11 @@ class Directory(Rule):
             bar.start(str(new_case))
             infile = problem.path / 'data' / target.parent / (target.name + '.in')
 
+            if not infile.is_file():
+                bar.warn(f'{target}.in does not exist.')
+                bar.done()
+                continue
+
             # Validate the testcase input.
             # TODO: Do an up-to-date check to prevent validating includes when nothing changed.
             testcase = run.Testcase(problem, infile, short_path=new_case)
