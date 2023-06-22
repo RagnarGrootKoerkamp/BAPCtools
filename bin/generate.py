@@ -709,7 +709,9 @@ class TestcaseRule(Rule):
 
                 check_deterministic(True)
 
-            meta_yaml = read_yaml(meta_path)
+            meta_yaml = (
+                read_yaml(meta_path) if meta_path.is_file() else {'validator_hashes': dict()}
+            )
             meta_yaml['cache_data'] = t.cache_data
             if generator_up_to_date:
                 hashes = testcase.validator_hashes('input_format')
