@@ -40,7 +40,7 @@ class Parallel:
         while True:
             with self.mutex:
                 # if self.abort we need no item in the queue and can stop
-                # if self.finifh we may need to wake up if all tasks were completed earlier
+                # if self.finish we may need to wake up if all tasks were completed earlier
                 # else we need an item to handle
                 self.todo.wait_for(lambda: len(self.tasks) > 0 or self.abort or self.finish)
                 
@@ -54,8 +54,8 @@ class Parallel:
                     # get item from queue (update self.missing after the task is done)
                     task = self.tasks.pop(0)
             
-            # call f and catch all exeption occuring in f
-            # store the first expetion for later
+            # call f and catch all exceptions occurring in f
+            # store the first exception for later
             try:
                 current_error = None
                 self.f(task)
@@ -82,7 +82,7 @@ class Parallel:
 
         with self.mutex:
             # no task should be added after .done() was called
-            assert(not self.finish)
+            assert not self.finish
             # no task will be handled after self.abort anyway so 
             # we can skip adding
             if not self.abort:
