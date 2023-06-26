@@ -36,8 +36,7 @@ class Parallel:
     def _worker(self):
         while True:
             with self.mutex:
-                if len(self.tasks) == 0:
-                    self.todo.wait_for(lambda: len(self.tasks) > 0 or self.abort or self.finish)
+                self.todo.wait_for(lambda: len(self.tasks) > 0 or self.abort or self.finish)
                 
                 if self.abort or len(self.tasks) == 0:
                     break
@@ -79,8 +78,7 @@ class Parallel:
             return
 
         with self.all_done:
-            if self.missing > 0:
-                self.all_done.wait_for(lambda: self.missing == 0)
+            self.all_done.wait_for(lambda: self.missing == 0)
             if self.first_error:
                 raise self.first_error
 
