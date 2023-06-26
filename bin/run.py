@@ -534,7 +534,7 @@ class Submission(program.Program):
                 bar.count = None
                 p.stop()
 
-        p = parallel.Parallel(lambda run: process_run(run, p), not self.problem.interactive)
+        p = parallel.Parallel(lambda run: process_run(run, p))
 
         for run in runs:
             p.put(run)

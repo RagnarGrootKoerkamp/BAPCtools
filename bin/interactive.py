@@ -173,6 +173,37 @@ def run_interactive_testcase(
         val_in = team_log_in
         team_in = val_log_in
 
+    # Use manual pipes with a large buffer instead of subprocess.PIPE for validator and team output.
+    if validator_error is False:
+        validator_error_in, validator_error_out = mkpipe()
+    else:
+        validator_error_in, validator_error_out = None, validator_error
+    if team_error is False:
+        team_error_in, team_error_out = mkpipe()
+    else:
+        team_error_in, team_error_out = None, team_error
+
+    validator = subprocess.Popen(
+        validator_command,
+        stdin=val_in,
+        stdout=val_out,
+        # TODO: Make a flag to pass validator error directly to terminal.
+        stderr=validator_error_out,
+        cwd=validator_dir,
+        preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
+    )
+    validator_pid = validator.pid
+
+    submission = subprocess.Popen(
+        submission_command,
+        stdin=team_in,
+        stdout=team_out,
+        stderr=team_error_out,
+        cwd=submission_dir,
+        preexec_fn=limit_setter(submission_command, timeout, memory_limit, validator_pid),
+    )
+    submission_pid = submission.pid
+
     if interaction:
         # Connect pipes with tee.
         TEE_CODE = R'''
@@ -194,6 +225,7 @@ while True:
             stdin=team_log_in,
             stdout=team_log_out,
             stderr=interaction_file,
+            preexec_fn=limit_setter(None, None, None, validator_pid),
         )
         team_tee_pid = team_tee.pid
         val_tee = subprocess.Popen(
@@ -201,39 +233,9 @@ while True:
             stdin=val_log_in,
             stdout=val_log_out,
             stderr=interaction_file,
+            preexec_fn=limit_setter(None, None, None, validator_pid),
         )
         val_tee_pid = val_tee.pid
-
-    # Use manual pipes with a large buffer instead of subprocess.PIPE for validator and team output.
-    if validator_error is False:
-        validator_error_in, validator_error_out = mkpipe()
-    else:
-        validator_error_in, validator_error_out = None, validator_error
-    if team_error is False:
-        team_error_in, team_error_out = mkpipe()
-    else:
-        team_error_in, team_error_out = None, team_error
-
-    validator = subprocess.Popen(
-        validator_command,
-        stdin=val_in,
-        stdout=val_out,
-        # TODO: Make a flag to pass validator error directly to terminal.
-        stderr=validator_error_out,
-        cwd=validator_dir,
-        preexec_fn=limit_setter(validator_command, validator_timeout, None),
-    )
-    validator_pid = validator.pid
-
-    submission = subprocess.Popen(
-        submission_command,
-        stdin=team_in,
-        stdout=team_out,
-        stderr=team_error_out,
-        cwd=submission_dir,
-        preexec_fn=limit_setter(submission_command, timeout, memory_limit),
-    )
-    submission_pid = submission.pid
 
     # Will be filled in the loop below.
     validator_status = None
@@ -241,35 +243,11 @@ while True:
     submission_time = None
     first = None
 
-    kill_submission = False
-
-    def kill_submission_handler(signal, frame):
-        nonlocal submission_time
-        if not kill_submission:
-            submission_time = timeout
-        submission.kill()
-        try:
-            validator.kill()
-        except ProcessLookupError:
-            # Validator already exited.
-            pass
-        if interaction:
-            team_tee.kill()
-            val_tee.kill()
-
-    signal.signal(signal.SIGALRM, kill_submission_handler)
-
-    # Raise alarm after timeout reached
-    signal.alarm(timeout)
-
     # Wait for first to finish
     left = 4 if interaction else 2
     first_done = True
     while left > 0:
-        if kill_submission:
-            # Kill the submission asynchronously.
-            signal.setitimer(signal.ITIMER_REAL, 0.001, 0)
-        pid, status, rusage = os.wait3(0)
+        pid, status, rusage = os.wait4(-validator_pid, 0)
 
         # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
@@ -284,15 +262,18 @@ while True:
             if interaction:
                 os.close(val_log_out)
 
-            # Kill the team submission in case we already know it's WA.
-            if first_done and validator_status != config.RTV_AC:
-                kill_submission = True
             left -= 1
             first_done = False
+
+            # Kill the team submission in case we already know it's WA.
+            if first_done and validator_status != config.RTV_AC:
+                os.kill(submission_pid, signal.SIGKILL)
+                if interaction:
+                    os.kill(team_tee_pid, signal.SIGKILL)
+                    os.kill(val_tee_pid, signal.SIGKILL)
             continue
 
         if pid == submission_pid:
-            signal.alarm(0)
             if first is None:
                 first = 'submission'
             submission_status = status

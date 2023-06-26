@@ -722,7 +722,7 @@ class ExecResult:
         return self.verdict
 
 
-def limit_setter(command, timeout, memory_limit):
+def limit_setter(command, timeout, memory_limit, group=None):
     def setlimits():
         if timeout:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
@@ -741,6 +741,12 @@ def limit_setter(command, timeout, memory_limit):
             resource.setrlimit(
                 resource.RLIMIT_AS, (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024)
             )
+
+        if group is not None:
+            assert not is_windows()
+            assert not is_wsl()
+            assert not is_bsd()
+            os.setpgid(0, group)
 
         # Disable coredumps.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
