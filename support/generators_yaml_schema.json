@@ -1,0 +1,118 @@
+{
+  "title": "Generator",
+  "type": "object",
+  "properties": {
+    "solution": {
+      "type": "string",
+      "description": "Absolute path to the model solution, such as `/submissions/accepted/sol.py`"
+    },
+    "visualizer": {
+      "type": "string",
+      "description": "Absolute path to a visualizer, such as `/visualizers/asy.py`"
+    },
+    "random_salt": {
+      "type": "string",
+      "description": "Salt to add to {seed} variables, such as `abcd`"
+    },
+    "generators": {
+      "type": "object"
+    },
+    "data": {
+      "description": "Top-level test group container",
+      "type": "object",
+      "properties": {
+        "sample": { "$ref": "#/$defs/testgroup" },
+        "secret": { "$ref": "#/$defs/testgroup" },
+        "testdata.yaml": { "$ref": "#/$defs/testdata_settings" }
+      },
+      "additionalProperties": false,
+      "required": ["sample", "secret"]
+    },
+    "additionalProperties": false
+  },
+  "required": ["data"],
+  "$defs": {
+    "testgroup": {
+      "type": "object",
+      "description": "A testgroup",
+      "properties": {
+        "data": {
+          "description": "Commands or subgroups defining the testdata in this testgroup",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": { "$ref": "#/$defs/data_dict" }
+            },
+            { "$ref": "#/$defs/data_dict" }
+          ]
+        },
+        "include": {
+          "type": "array",
+          "description": "Testcases to be included in this testgroup",
+          "items": { "type": "string" }
+        },
+        "testdata.yaml": { "$ref": "#/$defs/testdata_settings" },
+        "solution": { "oneOf": [{ "type": "string" }, { "type": "null" }] }
+      },
+      "additionalProperties": false
+    },
+    "testdata_settings": {
+      "type": "object",
+      "description": "Testdata settings for this testgroup",
+      "properties": {
+        "on_reject": { "enum": ["break", "continue"] },
+        "grading": { "enum": ["default", "custom"] },
+        "grader_flags": { "type": "string" },
+        "input_validator_flags": { "type": "string" },
+        "accept_score": { "type": "string" },
+        "reject_score": { "type": "string" },
+        "range": { "type": "string" }
+      }
+    },
+    "data_dict": {
+      "type": "object",
+      "patternProperties": {
+        "^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9])$": {
+          "oneOf": [
+            { "$ref": "#/$defs/testgroup" },
+            { "$ref": "#/$defs/generator" },
+            { "type": "null" }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "generator": {
+      "oneOf": [
+        { "$ref": "#/$defs/command" },
+        {
+          "description": "Per-testcase generator invocation",
+          "type": "object",
+          "properties": {
+            "type": "testcase",
+            "input": { "type": "string" },
+            "visualizer": {
+              "type": ["string", "null"],
+              "description": "Absolute path to a visualizer; or empty to skip visualization"
+            },
+            "random_salt": {
+              "type": "string",
+              "description": "Salt to add to {seed} variables, such as `abcd`"
+            },
+            "solution": {
+              "type": ["string", "null"],
+              "description": "Path to solution; or empty"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "command": {
+      "description": "A generator invocation creating the named test case",
+      "type": "string",
+      "pattern": "^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$"
+    }
+  }
+}
