@@ -1,4 +1,5 @@
 # Example generators.yaml
+# A .json schema for editor autocompletion is in ../support/generators_yaml_schema.json.
 
 # The solution is used to generate a .ans for each generated .in which doesn't
 # yet have a corresponding .ans. If there are generators that don't write a .ans
