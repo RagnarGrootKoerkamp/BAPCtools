@@ -31,19 +31,11 @@ def check_type(name, obj, types, path=None):
 
 
 def is_testcase(yaml):
-    return (
-        yaml == None
-        or isinstance(yaml, str)
-        or (
-            isinstance(yaml, dict)
-            and 'input' in yaml
-            and not ('type' in yaml and yaml['type'] != 'testcase')
-        )
-    )
+    return yaml == None or isinstance(yaml, str) or (isinstance(yaml, dict) and 'input' in yaml)
 
 
 def is_directory(yaml):
-    return isinstance(yaml, dict) and 'type' in yaml and yaml['type'] == 'directory'
+    return isinstance(yaml, dict)
 
 
 # Returns the given path relative to the problem root.
@@ -1007,7 +999,6 @@ class GeneratorConfig:
         check_type('Root yaml', yaml, [type(None), dict])
         if yaml is None:
             yaml = dict()
-        yaml['type'] = 'directory'
 
         # Read root level configuration
         for key, default, func in GeneratorConfig.ROOT_KEYS:
@@ -1038,9 +1029,7 @@ class GeneratorConfig:
 
             check_type('Testcase/directory', yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
-                fatal(
-                    f'Could not parse {parent.path / name} as a testcase or directory. Try setting the type: key.'
-                )
+                fatal(f'Could not parse {parent.path / name} as a testcase or directory.')
 
             if is_testcase(yaml):
                 if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
@@ -1156,8 +1145,7 @@ class GeneratorConfig:
                     # Generate stub yaml so we can call `parse` recursively.
                     child_yaml = None
                     if f.is_dir():
-                        # Only set the one required key to interpret this as directory.
-                        child_yaml = {'type': 'directory'}
+                        child_yaml = {}
 
                     c = parse(f.name, child_yaml, d, listed=False)
                     if c is not None:
@@ -1281,7 +1269,6 @@ class GeneratorConfig:
 
         parent = get_or_add(data, 'data')
         parent = get_or_add(parent, 'secret')
-        get_or_add(parent, 'type', 'directory')
         entry = get_or_add(parent, 'data', ruamel.yaml.comments.CommentedSeq)
 
         manual_cases = [
