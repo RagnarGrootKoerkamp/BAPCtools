@@ -5,7 +5,6 @@
 
 data:
   sample:
-    type: directory
     # Uncomment to disable generating ans files for sample cases.
     #solution:
     data:
@@ -14,7 +13,6 @@ data:
       #'2':
 
   secret:
-    type: directory
     data:
       # You can re-use the input validator by symlinking it as `generator` in
       # this directory. Below is some inspiration for test cases.
