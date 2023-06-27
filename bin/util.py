@@ -744,8 +744,7 @@ def limit_setter(command, timeout, memory_limit, group=None):
 
         if group is not None:
             assert not is_windows()
-            assert not is_wsl()
-            assert not is_bsd()
+            assert not is_mac()
             os.setpgid(0, group)
 
         # Disable coredumps.
