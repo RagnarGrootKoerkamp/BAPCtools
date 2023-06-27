@@ -76,7 +76,6 @@ generators:
 data:
   # Introduce the `sample` directory.
   sample:
-    type: directory
     solution: # empty to disable generating .ans files here
     data:
       '1': stdout.py 1  # prints `1` to stdout, which is piped to 1.in
@@ -96,7 +95,6 @@ data:
      #'4':
 
   secret:
-    type: directory
     data:
 
 # Types of generator programs.
@@ -157,10 +155,9 @@ data:
         random_salt: '123'
 
 
-# Introduce a testgroup by adding a dictionary with `type: directory` set.
+# Introduce a testgroup.
 # The top-level `data:` key is always assumed to be a directory.
       hard_cases_group:
-        type: directory
 
 # Directories may contain a testdata.yaml that will be written as specified.
         testdata.yaml:
@@ -188,7 +185,6 @@ data:
           - a: stdout.py a
             b: stdout.py b
           - testgroup:
-              type: directory
               data:
                 - c: stdout.py c
                   d: stdout.py d
@@ -213,7 +209,6 @@ data:
        #  01-a: stdout.py a
        #  01-b: stdout.py b
        #  02-testgroup:
-       #    type: directory
        #    data:
        #      1-c: stdout.py c
        #      1-d: stdout.py d
@@ -227,5 +222,5 @@ data:
        #  10-l: stdout.py l
 
 # Unknown keys are allowed inside directory dictionaries for tooling-specific
-# extensions. This includes both the global scope and explicit directories with type: directory.
+# extensions. This includes both the global scope and explicit directories.
 unknown_key: tool_specific_config

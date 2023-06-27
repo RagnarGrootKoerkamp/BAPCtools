@@ -97,24 +97,6 @@ data:
 data:
   a : []
 ---
-data:
-  - ab:
-      type: testcase
-      data: x
----
-data:
-  - ab:
-      type: directory
-      input: x
----
-data:
-  - ab:
-      type: scrambled
----
-data:
-  ab:
-    type: scrambled
----
 # Command must not contain {seed} twice.
 data:
   ab: gen {seed} {seed}
@@ -157,7 +139,6 @@ data:
   - ab:
       input: gen {seed}
   - bb:
-      type: directory
       data:
         cc: gen {seed}
 ---
@@ -167,9 +148,6 @@ data:
 ---
 data:
   ab: 1
----
-data:
-  ab: {}
 ---
 data:
   ab: []
@@ -189,16 +167,6 @@ data:
 data:
   ab:
     input: []
----
-data:
-  ab:
-    type: not_testcase
-    input: abc
----
-data:
-  ab:
-    type: directory
-    input: abc
 ---
 # Manual cases must not have an absolute path.
 data:
@@ -240,15 +208,10 @@ input: xyz
 ---
 data:
   ab:
-    type: directory
     input: x
----
-# Testcases may not have data:.
-data:
-  ab:
-    type: testcase
     data:
 ---
+# Testcases may not have data:.
 data:
   ab:
     input: abc
