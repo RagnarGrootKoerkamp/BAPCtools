@@ -149,6 +149,15 @@ def run_interactive_testcase(
     # - Close remaining program + write end of pipe
     # - Close remaining read end of pipes
 
+    def set_pipe_size(pipe):
+        # Somehow, setting the pipe buffer size is necessary to avoid hanging in larger interactions.
+        # Note that this is equivalent to Popen's `pipesize` argument in Python 3.10,
+        # but we backported this for compatibility with older Python versions:
+        # https://github.com/python/cpython/pull/21921/files#diff-619941af4b328b6abf2dc02c54e774fc17acc1ac4172c14db27d6097cbbff92aR1590
+        # See also: https://github.com/RagnarGrootKoerkamp/BAPCtools/pull/251#issuecomment-1609353538
+        # Note: 1031 = fcntl.F_SETPIPE_SZ, but that constant is also only available in Python 3.10.
+        fcntl.fcntl(pipe, 1031, BUFFER_SIZE)
+
     interaction_file = None
     # TODO: Print interaction when needed.
     if interaction:
@@ -185,6 +194,11 @@ while True:
     # then we can wait for all program ins the same group
     gid = validator_pid
 
+    set_pipe_size(validator.stdin)
+    set_pipe_size(validator.stdout)
+    if validator_error is False:
+        set_pipe_size(validator.stderr)
+
     if interaction:
         team_tee = subprocess.Popen(
             ['python3', '-c', TEE_CODE, '>'],
@@ -203,6 +217,9 @@ while True:
         )
         val_tee_pid = val_tee.pid
 
+        set_pipe_size(team_tee.stdin)
+        set_pipe_size(val_tee.stdout)
+
     submission = subprocess.Popen(
         submission_command,
         stdin=(val_tee if interaction else validator).stdout,
@@ -213,7 +230,11 @@ while True:
     )
     submission_pid = submission.pid
 
+    if team_error is False:
+        set_pipe_size(submission.stderr)
+
     stop_kill_handler = threading.Event()
+
     def kill_handler_function():
         if stop_kill_handler.wait(timeout + 1):
             return
