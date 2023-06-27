@@ -797,10 +797,10 @@ class Directory(Rule):
             if len(data) == 0:
                 return
 
-        for d in data:
-            if isinstance(d, dict):
-                if len(d) == 0:
-                    fatal(f'Dictionaries in data should not be empty: {self.path}')
+            for d in data:
+                check_type('Numbered case', d, dict)
+                if len(d) != 1:
+                    fatal(f'Dictionary must contain exactly one named testcase/group: {self.path}')
 
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f

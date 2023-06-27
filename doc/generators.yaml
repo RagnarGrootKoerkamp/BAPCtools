@@ -167,12 +167,12 @@ data:
           grader_flags: min
 
 # To enable automatic numbering of testcases, data: may also contain a list of
-# dictionaries instead of a single dictionary. In this case, testcases and/or
-# groups will be numbered in the order they appear, starting at 1. The system
-# will determine the required number of digits to use and numbers will be
-# zero-padded accordingly, using a dash as separator from the given name (when
-# the given name is not empty). All items in a given dictionary will get the
-# same number. Use a list of 1-item dictionaries for incremental numbering.
+# single-element dictionaries instead of a single dictionary. In this case,
+# testcases and/or groups will be numbered in the order they appear, starting at
+# 1. The system will determine the required number of digits to use and numbers
+# will be zero-padded accordingly, using a dash as separator from the given name
+# (when the given name is not empty). Each dictionary in the list must contain a
+# single item.
 #
 # Any testgroup inside a list must contain a list object as `data:`. Thus, if
 # in a directory/testgroup the test cases are numbered (i.e. `data:`) contains
@@ -183,11 +183,11 @@ data:
 # and alphabetical for dictionaries.
         data:
           - a: stdout.py a
-            b: stdout.py b
+          - b: stdout.py b
           - testgroup:
               data:
                 - c: stdout.py c
-                  d: stdout.py d
+                - d: stdout.py d
 # Replacing the `data:` object above (a list) with the following (a dictionary)
 # is forbidden because the parent directory (`hard_cases_group`) is numbered, and
 # unnumbered dictionaries are not allowed to appear within numbered directories.

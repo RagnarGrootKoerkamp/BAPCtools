@@ -38,7 +38,7 @@ data:
       numbered_group:
         data:
           - dir: dir 300
-            dir2: dir 301
+          - dir2: dir 301
           - dir: dir/ 306
           - dir_run: dir_run 303
           - dir_build: dir_build 304
@@ -129,7 +129,7 @@ data:
       empty_group_5:
         data:
           - a: stdout.py 501 # 1-a
-            b: stdout.py 502 # 1-b
+          - b: stdout.py 502 # 2-b
       empty_group_6:
         data:
           - "": stdout.py 503
@@ -138,7 +138,11 @@ data:
       json:
         {
           data:
-            [{ "": stdout.py 600, "1": stdout.py 601 }, { "": stdout.py 602 }],
+            [
+              { "": stdout.py 600 },
+              { "1": stdout.py 601 },
+              { "": stdout.py 602 },
+            ],
         }
     unknown_key:
 

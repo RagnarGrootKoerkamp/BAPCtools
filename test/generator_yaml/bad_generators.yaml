@@ -77,8 +77,6 @@ data: {1: 2}
 ---
 data: [{}]
 ---
-data: {}
----
 data:
   - true
 ---
@@ -254,3 +252,28 @@ data:
     x
     y
     z
+---
+# Numbered cases must contain exactly one testcase
+data:
+  -
+---
+data:
+  - a:
+    b:
+---
+# Numbered testcases must contain a dict
+data:
+  - 1
+---
+data:
+  - string
+---
+data:
+  - []
+---
+data:
+  - {}
+---
+data: [{}]
+---
+data: [{}]
