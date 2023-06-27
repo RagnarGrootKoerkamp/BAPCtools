@@ -28,12 +28,12 @@ random_salt: abcd
 # We support three types of generators:
 # - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
 #   be compiled if required and run the same way as submissions.
-# - Directories, like
+# - Directories, like generators/gen containing files:
 #   - generators/gen/tree.cpp
 #   - generators/gen/lib.h
 #   This will be compiled and run the same way as directory validators. Build
-#   and run scripts may be used.
-# - 'implicit' generators whose dependencies are specified in the generators:
+#   and run scripts may be used, as explained in ../spec/problem_package_format#programs.
+# - 'implicit' generators whose dependencies are specified in the `generators:`
 #   key below. The dependencies may refer to any files relative to generators/.
 #   The generator will be built and run as if they formed a separate directory.
 #   The first item in the list will be used as entry point.
@@ -41,10 +41,10 @@ random_salt: abcd
 #   - generators/tree/tree.py
 #   - generators/tree/lib.py
 #
-# When a generator is used as a command to generate a .in file, we first check
-# if the name is a key in the generators: dictionary below. If that is the case,
-# the corresponding generator is used. If not, we will use the file/directory
-# generator in the generator/ directory directly.
+# For each generator name specified in a command to generate a .in
+# file, we first check if this name is a key in the `generators:` dictionary below. If so,
+# the corresponding generator is used. If not, we will use the generator with that
+# file/directory name in the `generators/` directory directly.
 generators:
 # A generator that depends on two files, lib.py and tree.py, directly in the
 # generators directory.
@@ -81,8 +81,9 @@ data:
     data:
       '1': stdout.py 1  # prints `1` to stdout, which is piped to 1.in
 
-# To indicate a manual testcase, specify it with an empty value.
-# Prefer specifying a path to a .in file as below.
+# To indicate a manual testcase already present in the corresponding directory, specify it with an empty value.
+# Prefer specifying a path to a .in file as in case `3` below.
+# E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
       '2':
 # Any key that matches the glob `*.in` is a manual testcase that will be copied
 # from the given directory into the target testcase. The given directory
@@ -90,8 +91,8 @@ data:
 # If a solution is specified, .ans files will be generated for manual cases
 # that don't provide a .ans.
       '3': manual_cases/sample/3.in
-# Every testcase must be listed.
-# TOOLING: may allow this and print a warning.
+# Every testcase present in the directory must be listed.
+# TOOLING: may still allow unlisted testcases and warn about them.
      #'4':
 
   secret:
@@ -100,14 +101,15 @@ data:
 
 # Types of generator programs.
       '01': stdout.py  3   # stdout of the command is written to 01.in.
-      '02': stdout.cpp 4   # c++ is compiled as for validators
+      '02': stdout.cpp 4   # c++ is compiled as for validators, and the resulting binary is run with argument `4`.
       '03': dir 5          # directories are OK as for validators
       '04': tree 5         # keys from the global generators: dictionary may also be used.
       '05': a 5            # idem
 
-# Arguments are split on white space: this will pass two arguments: `"a` and `b"`.
+# Arguments are split on white space: this will pass two arguments: `"a` and `b"`, so probably not what is intended.
       06-string: stdout.py "a b"
-# This will pass two arguments: a and b
+# This will pass two arguments: a and b, using YAML multiline string syntax.
+# Passing arguments containing whitespace is not possible.
       07-string: |
         stdout.py
         a
@@ -127,19 +129,21 @@ data:
      #01-second: stdout.py 6                     # Collision with rule 01 above.
      #hard_cases_group-01: stdout.py 7           # Collision with hard_cases_group below.
 
-# {name} may be used to reference the current test case name/dictionary key.
+# {name} may be used to reference the current test case.
+# It is equal to the name of the testcase, including the number if this is a numbered testcases.
+# The value of {name} is unspecified, and it may point to a file outside of the
+# current working directory.
 #
-# Commands are allowed to write files in the current working directory as long
-# as they do not overwrite existing files. Files starting with the current
-# {name} may always be written to.
-# Commands may only read files that they have written themselves.
+# Commands are only allowed to read and write files of the form
+# {name}.<ext>, where <ext> is a known file extension in
+# .in, .ans, .hint, .desc, .png, .jpg, .svg.
+# Any such written files will be saved.
 #
-# Any written files matching {name}.ext where ext is a know extension in
-# .in, .ans, .hint, .desc, .png, .jpg, ..svg
-# will be saved.
+# In case a generator program writes {name}.in, its stdout will be ignored.
+# In case {name}.in is not created, stdout will be used as the input for the testcase.
 #
-# In case a program writes {name}.in, stdout will be ignored.
-# In case {name}.in is not created, stdout will be used as input.
+# The generator below generates and writes both {name}.in and {name}.ans, and
+# the optionally specified `solution:` will not be called.
       '12': write_in_and_ans.py {name}
 
 
@@ -153,9 +157,8 @@ data:
         random_salt: '123'
 
 
-
 # Introduce a testgroup by adding a dictionary with `type: directory` set.
-# The top-level is always assumed to be a directory.
+# The top-level `data:` key is always assumed to be a directory.
       hard_cases_group:
         type: directory
 
@@ -174,7 +177,10 @@ data:
 # the given name is not empty). All items in a given dictionary will get the
 # same number. Use a list of 1-item dictionaries for incremental numbering.
 #
-# Any testgroup inside a list must contain a list object as data:.
+# Any testgroup inside a list must contain a list object as `data:`. Thus, if
+# in a directory/testgroup the test cases are numbered (i.e. `data:`) contains
+# a list), then `data:` must contain a list in all directories/testgroups below
+# it.
 #
 # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
 # and alphabetical for dictionaries.
@@ -186,7 +192,9 @@ data:
               data:
                 - c: stdout.py c
                   d: stdout.py d
-# This is forbidden because data: dictionaries may not appear within data: lists.
+# Replacing the `data:` object above (a list) with the following (a dictionary)
+# is forbidden because the parent directory (`hard_cases_group`) is numbered, and
+# unnumbered dictionaries are not allowed to appear within numbered directories.
              #data:
              #  c: stdout.py c
           - e: stdout.py e
@@ -196,7 +204,9 @@ data:
           - i: stdout.py i
           - j: stdout.py j
           - k: stdout.py k
-          - l: stdout.py l
+          # {name} May also be used in numbered lists.
+          # In this case, it will be equal to `11-l`.
+          - l: stdout.py {name}
 
 # The above data: list is equivalent to the map:
        #data:
