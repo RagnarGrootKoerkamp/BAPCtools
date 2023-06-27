@@ -193,6 +193,8 @@ def run_interactive_testcase(
         preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
     )
     validator_pid = validator.pid
+    # add all programs to the same group (for simiplcity we take the pid of the validator)
+    # then we can wait for all program ins the same group
     gid = validator_pid
 
     submission = subprocess.Popen(
@@ -263,12 +265,10 @@ while True:
             if interaction:
                 os.close(val_log_out)
 
-            # Kill the team submission in case we already know it's WA.
+            # Kill the team submission and everything else in case we already know it's WA.
             if first_done and validator_status != config.RTV_AC:
-                os.kill(submission_pid, signal.SIGKILL)
-                if interaction:
-                    os.kill(team_tee_pid, signal.SIGKILL)
-                    os.kill(val_tee_pid, signal.SIGKILL)
+                os.killpg(validator_pid, signal.SIGKILL)
+            first_done = False
         elif pid == submission_pid:
             if first is None:
                 first = 'submission'
@@ -282,6 +282,8 @@ while True:
             # Possibly already written by the alarm.
             if submission_time is None:
                 submission_time = rusage.ru_utime + rusage.ru_stime
+
+            first_done = False
         elif interaction:
             if pid == team_tee_pid or pid == val_tee_pid:
                 pass
@@ -291,7 +293,6 @@ while True:
             assert False
 
         left -= 1
-        first_done = False
 
     os.close(val_in)
     if interaction:
