@@ -193,6 +193,7 @@ def run_interactive_testcase(
         preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
     )
     validator_pid = validator.pid
+    gid = validator_pid
 
     submission = subprocess.Popen(
         submission_command,
@@ -200,7 +201,7 @@ def run_interactive_testcase(
         stdout=team_out,
         stderr=team_error_out,
         cwd=submission_dir,
-        preexec_fn=limit_setter(submission_command, timeout, memory_limit, validator_pid),
+        preexec_fn=limit_setter(submission_command, timeout, memory_limit, gid),
     )
     submission_pid = submission.pid
 
@@ -225,7 +226,7 @@ while True:
             stdin=team_log_in,
             stdout=team_log_out,
             stderr=interaction_file,
-            preexec_fn=limit_setter(None, None, None, validator_pid),
+            preexec_fn=limit_setter(None, None, None, gid),
         )
         team_tee_pid = team_tee.pid
         val_tee = subprocess.Popen(
@@ -233,7 +234,7 @@ while True:
             stdin=val_log_in,
             stdout=val_log_out,
             stderr=interaction_file,
-            preexec_fn=limit_setter(None, None, None, validator_pid),
+            preexec_fn=limit_setter(None, None, None, gid),
         )
         val_tee_pid = val_tee.pid
 
@@ -247,7 +248,7 @@ while True:
     left = 4 if interaction else 2
     first_done = True
     while left > 0:
-        pid, status, rusage = os.wait4(-validator_pid, 0)
+        pid, status, rusage = os.wait4(-gid, 0)
 
         # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
@@ -262,18 +263,13 @@ while True:
             if interaction:
                 os.close(val_log_out)
 
-            left -= 1
-            first_done = False
-
             # Kill the team submission in case we already know it's WA.
             if first_done and validator_status != config.RTV_AC:
                 os.kill(submission_pid, signal.SIGKILL)
                 if interaction:
                     os.kill(team_tee_pid, signal.SIGKILL)
                     os.kill(val_tee_pid, signal.SIGKILL)
-            continue
-
-        if pid == submission_pid:
+        elif pid == submission_pid:
             if first is None:
                 first = 'submission'
             submission_status = status
@@ -286,15 +282,16 @@ while True:
             # Possibly already written by the alarm.
             if submission_time is None:
                 submission_time = rusage.ru_utime + rusage.ru_stime
-            left -= 1
-            first_done = False
-            continue
-
-        if interaction:
+        elif interaction:
             if pid == team_tee_pid or pid == val_tee_pid:
-                left -= 1
-                first_done = False
-                continue
+                pass
+            else:
+                assert False
+        else:
+            assert False
+
+        left -= 1
+        first_done = False
 
     os.close(val_in)
     if interaction:
