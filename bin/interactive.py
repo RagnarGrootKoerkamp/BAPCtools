@@ -2,6 +2,7 @@ import signal
 import time
 import subprocess
 import sys
+import threading
 
 import config
 
@@ -240,6 +241,23 @@ while True:
         )
         val_tee_pid = val_tee.pid
 
+    stop_kill_handler = threading.Event()
+    def kill_handler_function():
+        if stop_kill_handler.wait(timeout + 1):
+            return
+        nonlocal submission_time
+        submission_time = timeout + 1
+        try:
+            os.kill(submission_pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        if validator_timeout > timeout and stop_kill_handler.wait(validator_timeout - timeout):
+            return
+        os.killpg(gid, signal.SIGKILL)
+
+    kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
+    kill_handler.start()
+
     # Will be filled in the loop below.
     validator_status = None
     submission_status = None
@@ -267,7 +285,8 @@ while True:
 
             # Kill the team submission and everything else in case we already know it's WA.
             if first_done and validator_status != config.RTV_AC:
-                os.killpg(validator_pid, signal.SIGKILL)
+                stop_kill_handler.set()
+                os.killpg(gid, signal.SIGKILL)
             first_done = False
         elif pid == submission_pid:
             if first is None:
@@ -293,6 +312,8 @@ while True:
             assert False
 
         left -= 1
+
+    stop_kill_handler.set()
 
     os.close(val_in)
     if interaction:

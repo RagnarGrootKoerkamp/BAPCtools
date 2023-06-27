@@ -742,6 +742,7 @@ def limit_setter(command, timeout, memory_limit, group=None):
                 resource.RLIMIT_AS, (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024)
             )
 
+        # TODO: with python 3.11 it is better to use Popen(process_group=group)
         if group is not None:
             assert not is_windows()
             assert not is_mac()
