@@ -163,7 +163,7 @@ data:
 # Directories may contain a testdata.yaml that will be written as specified.
         testdata.yaml:
           on_reject: break
-          accept_score: 25
+          accept_score: "25"
           range: 0 25
           grader_flags: min
 
