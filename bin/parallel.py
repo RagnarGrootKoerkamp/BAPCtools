@@ -85,7 +85,8 @@ class Parallel:
             # no task will be handled after self.abort
             if not self.abort:
                 self.f(task)
-                return
+            
+            return
 
         with self.mutex:
             # no task should be added after .done() was called
