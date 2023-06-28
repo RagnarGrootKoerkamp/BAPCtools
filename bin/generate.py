@@ -918,19 +918,14 @@ class Directory(Rule):
 
 
 # Returns a pair (numbered_name, basename)
-def numbered_testcase_name(basename, i, n, existing_prefix=False):
+def numbered_testcase_name(basename, i, n):
     width = len(str(n))
     number_prefix = f'{i:0{width}}'
     if basename:
-        # The file already has the right number. No need to prepend it another time.
-        if existing_prefix:
-            parts = basename.split('-', maxsplit=1)
-            if parts[0] == number_prefix:
-                return basename, '' if len(parts) == 1 else parts[1]
-        return number_prefix + '-' + basename, basename
+        return number_prefix + '-' + basename
     else:
         assert basename is None or basename == ''
-        return number_prefix, ''
+        return number_prefix
 
 
 class GeneratorConfig:
@@ -1058,9 +1053,7 @@ class GeneratorConfig:
 
                     for child_name, child_yaml in sorted(dictionary.items()):
                         if d.numbered:
-                            child_name, child_basename = numbered_testcase_name(
-                                child_name, id, len(yaml['data'])
-                            )
+                            child_name = numbered_testcase_name(child_name, id, len(yaml['data']))
                         else:
                             if not child_name:
                                 fatal(
