@@ -175,27 +175,19 @@ data:
 # (when the given name is not empty). Each dictionary in the list must contain a
 # single item.
 #
-# Any testgroup inside a list must contain a list object as `data:`. Thus, if
-# in a directory/testgroup the test cases are numbered (i.e. `data:`) contains
-# a list), then `data:` must contain a list in all directories/testgroups below
-# it.
-#
 # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
 # and alphabetical for dictionaries.
         data:
           - a: stdout.py a
           - b: stdout.py b
-          - testgroup:
+          - numbered_testgroup:
               data:
                 - c: stdout.py c
                 - d: stdout.py d
-# Replacing the `data:` object above (a list) with the following (a dictionary)
-# is forbidden because the parent directory (`hard_cases_group`) is numbered, and
-# unnumbered dictionaries are not allowed to appear within numbered directories.
-             #data:
-             #  c: stdout.py c
-          - e: stdout.py e
-          - f: stdout.py f
+          - named_testgroup:
+              data:
+                e: stdout.py e
+                f: stdout.py f
           - g: stdout.py g
           - h: stdout.py h
           - i: stdout.py i
