@@ -126,13 +126,12 @@ class Invocation:
         return combine_hashes(list)
 
     # Return the full command to be executed.
-    def _sub_args(self, *, name, seed=None):
+    def _sub_args(self, *, seed=None):
         if self.uses_seed:
             assert seed is not None
 
         def sub(arg):
-            if name:
-                arg = self.NAME_REGEX.sub(str(name), arg)
+            arg = self.NAME_REGEX.sub('testcase', arg)
             if self.uses_seed:
                 arg = self.SEED_REGEX.sub(str(seed), arg)
             return arg
@@ -151,9 +150,7 @@ class GeneratorInvocation(Invocation):
     # Try running the generator |retries| times, incrementing seed by 1 each time.
     def run(self, bar, cwd, name, seed, retries=1):
         for retry in range(retries):
-            result = self.program.run(
-                bar, cwd, name, args=self._sub_args(name=name, seed=seed + retry)
-            )
+            result = self.program.run(bar, cwd, name, args=self._sub_args(seed=seed + retry))
             if result.ok is True:
                 break
             if not result.retry:
@@ -178,7 +175,7 @@ class VisualizerInvocation(Invocation):
     # Run the visualizer, taking {name} as a command line argument.
     # Stdin and stdout are not used.
     def run(self, bar, cwd, name):
-        result = self.program.run(cwd, args=self._sub_args(name=name))
+        result = self.program.run(cwd, args=self._sub_args())
 
         if result.ok == -9:
             bar.error(f'Visualizer timeout after {result.duration}s')

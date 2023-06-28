@@ -12,15 +12,15 @@
 solution: /submissions/accepted/sol.py
 
 # The visualizer is used when no suitable image was generated already.
-# This should read {name}.in and/or {name}.ans from the current working
-# directory, and write {name}.ext for an extension in:
+# This should read `testcase.in` and/or `testcase.ans` from the current working
+# directory, and write `testcase.ext` for an extension in:
 # .png, .jpg, .svg
 #
 # This must be the absolute path, starting in the problem root.
 #
 # TOOLING: may provide a flag to make running this optional, as it can be slow
 # and usually isn't required.
-visualizer: /visualizers/asy.py {name}
+visualizer: /visualizers/asy.py
 
 # Optionally, a salt for generating the {seed} variables. Will be prepended to
 # the command being run.
@@ -128,22 +128,17 @@ data:
      #01-second: stdout.py 6                     # Collision with rule 01 above.
      #hard_cases_group-01: stdout.py 7           # Collision with hard_cases_group below.
 
-# {name} may be used to reference the current test case.
-# It is equal to the name of the testcase, including the number if this is a numbered testcases.
-# The value of {name} is unspecified, and it may point to a file outside of the
-# current working directory.
-#
 # Commands are only allowed to read and write files of the form
-# {name}.<ext>, where <ext> is a known file extension in
+# `testcsae.<ext>`, where <ext> is a known file extension in
 # .in, .ans, .hint, .desc, .png, .jpg, .svg.
 # Any such written files will be saved.
 #
-# In case a generator program writes {name}.in, its stdout will be ignored.
-# In case {name}.in is not created, stdout will be used as the input for the testcase.
+# In case a generator program writes testcase.in, its stdout will be ignored.
+# In case testcase.in is not created, stdout will be used as the input for the testcase.
 #
-# The generator below generates and writes both {name}.in and {name}.ans, and
+# The generator below generates and writes both testcase.in and testcase.ans, and
 # the optionally specified `solution:` will not be called.
-      '12': write_in_and_ans.py {name}
+      '12': write_in_and_ans.py
 
 
 # To override the global/testgroup configuration on a per-testcase basis,
@@ -200,9 +195,6 @@ data:
           - i: stdout.py i
           - j: stdout.py j
           - k: stdout.py k
-          # {name} May also be used in numbered lists.
-          # In this case, it will be equal to `11-l`.
-          - l: stdout.py {name}
 
 # The above data: list is equivalent to the map:
        #data:

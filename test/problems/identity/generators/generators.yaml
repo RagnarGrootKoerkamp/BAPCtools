@@ -1,6 +1,6 @@
 solution: /submissions/accepted/author.py
 # The visualizer is disabled to speed up testing.
-#visualizer: /visualizers {name}
+#visualizer: /visualizers
 random_salt: "abc"
 
 generators:
@@ -30,8 +30,10 @@ data:
         data:
           stdoutpy: stdout.py 200
           stdoutcpp: stdout.cpp 201
-          inans: write_in_and_ans.py {name} 202
-          hintdesc: hint_desc.py {name} 203
+          # {name} should always just be `testcase` now.
+          inans_old: write_in_and_ans_old.py {name} 212
+          inans: write_in_and_ans.py 202
+          hintdesc: hint_desc.py 203
           main.py: main.py 204
           main.c: main.c 205
           main.cpp: main.cpp 206
