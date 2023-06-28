@@ -176,18 +176,17 @@ class Problem:
             t = run.Testcase(p, f)
             # Require both in and ans files
             if needinteraction and not t.in_path.with_suffix('.interaction').is_file():
-                if not t.bad_input:
-                    warn(f'Found input file {str(f)} without a .interaction file. Skipping.')
+                assert only_sample
+                warn(f'Found input file {f} without a .interaction file. Skipping.')
                 continue
             if needans and not t.ans_path.is_file():
                 if not t.bad_input:
-                    warn(f'Found input file {str(f)} without a .ans file. Skipping.')
+                    warn(f'Found input file {f} without a .ans file. Skipping.')
                 continue
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            # For interactive problems, allow 0 samples.
             if needinteraction:
                 warn(f'Didn\'t find any testcases with interaction for {p.name}')
             else:
