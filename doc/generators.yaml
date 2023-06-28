@@ -1,4 +1,5 @@
 # Example generators.yaml
+# A .json schema for editor autocompletion is in ../support/generators_yaml_schema.json.
 
 # The solution is used to generate a .ans for each generated .in which doesn't
 # yet have a corresponding .ans. If there are generators that don't write a .ans
@@ -11,15 +12,15 @@
 solution: /submissions/accepted/sol.py
 
 # The visualizer is used when no suitable image was generated already.
-# This should read {name}.in and/or {name}.ans from the current working
-# directory, and write {name}.ext for an extension in:
+# This should read `testcase.in` and/or `testcase.ans` from the current working
+# directory, and write `testcase.ext` for an extension in:
 # .png, .jpg, .svg
 #
 # This must be the absolute path, starting in the problem root.
 #
 # TOOLING: may provide a flag to make running this optional, as it can be slow
 # and usually isn't required.
-visualizer: /visualizers/asy.py {name}
+visualizer: /visualizers/asy.py
 
 # Optionally, a salt for generating the {seed} variables. Will be prepended to
 # the command being run.
@@ -28,12 +29,12 @@ random_salt: abcd
 # We support three types of generators:
 # - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
 #   be compiled if required and run the same way as submissions.
-# - Directories, like
+# - Directories, like generators/gen containing files:
 #   - generators/gen/tree.cpp
 #   - generators/gen/lib.h
 #   This will be compiled and run the same way as directory validators. Build
-#   and run scripts may be used.
-# - 'implicit' generators whose dependencies are specified in the generators:
+#   and run scripts may be used, as explained in ../spec/problem_package_format#programs.
+# - 'implicit' generators whose dependencies are specified in the `generators:`
 #   key below. The dependencies may refer to any files relative to generators/.
 #   The generator will be built and run as if they formed a separate directory.
 #   The first item in the list will be used as entry point.
@@ -41,10 +42,10 @@ random_salt: abcd
 #   - generators/tree/tree.py
 #   - generators/tree/lib.py
 #
-# When a generator is used as a command to generate a .in file, we first check
-# if the name is a key in the generators: dictionary below. If that is the case,
-# the corresponding generator is used. If not, we will use the file/directory
-# generator in the generator/ directory directly.
+# For each generator name specified in a command to generate a .in
+# file, we first check if this name is a key in the `generators:` dictionary below. If so,
+# the corresponding generator is used. If not, we will use the generator with that
+# file/directory name in the `generators/` directory directly.
 generators:
 # A generator that depends on two files, lib.py and tree.py, directly in the
 # generators directory.
@@ -76,13 +77,13 @@ generators:
 data:
   # Introduce the `sample` directory.
   sample:
-    type: directory
     solution: # empty to disable generating .ans files here
     data:
       '1': stdout.py 1  # prints `1` to stdout, which is piped to 1.in
 
-# To indicate a manual testcase, specify it with an empty value.
-# Prefer specifying a path to a .in file as below.
+# To indicate a manual testcase already present in the corresponding directory, specify it with an empty value.
+# Prefer specifying a path to a .in file as in case `3` below.
+# E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
       '2':
 # Any key that matches the glob `*.in` is a manual testcase that will be copied
 # from the given directory into the target testcase. The given directory
@@ -90,24 +91,24 @@ data:
 # If a solution is specified, .ans files will be generated for manual cases
 # that don't provide a .ans.
       '3': manual_cases/sample/3.in
-# Every testcase must be listed.
-# TOOLING: may allow this and print a warning.
+# Every testcase present in the directory must be listed.
+# TOOLING: may still allow unlisted testcases and warn about them.
      #'4':
 
   secret:
-    type: directory
     data:
 
 # Types of generator programs.
       '01': stdout.py  3   # stdout of the command is written to 01.in.
-      '02': stdout.cpp 4   # c++ is compiled as for validators
+      '02': stdout.cpp 4   # c++ is compiled as for validators, and the resulting binary is run with argument `4`.
       '03': dir 5          # directories are OK as for validators
       '04': tree 5         # keys from the global generators: dictionary may also be used.
       '05': a 5            # idem
 
-# Arguments are split on white space: this will pass two arguments: `"a` and `b"`.
+# Arguments are split on white space: this will pass two arguments: `"a` and `b"`, so probably not what is intended.
       06-string: stdout.py "a b"
-# This will pass two arguments: a and b
+# This will pass two arguments: a and b, using YAML multiline string syntax.
+# Passing arguments containing whitespace is not possible.
       07-string: |
         stdout.py
         a
@@ -127,20 +128,17 @@ data:
      #01-second: stdout.py 6                     # Collision with rule 01 above.
      #hard_cases_group-01: stdout.py 7           # Collision with hard_cases_group below.
 
-# {name} may be used to reference the current test case name/dictionary key.
+# Commands are only allowed to read and write files of the form
+# `testcsae.<ext>`, where <ext> is a known file extension in
+# .in, .ans, .hint, .desc, .png, .jpg, .svg.
+# Any such written files will be saved.
 #
-# Commands are allowed to write files in the current working directory as long
-# as they do not overwrite existing files. Files starting with the current
-# {name} may always be written to.
-# Commands may only read files that they have written themselves.
+# In case a generator program writes testcase.in, its stdout will be ignored.
+# In case testcase.in is not created, stdout will be used as the input for the testcase.
 #
-# Any written files matching {name}.ext where ext is a know extension in
-# .in, .ans, .hint, .desc, .png, .jpg, ..svg
-# will be saved.
-#
-# In case a program writes {name}.in, stdout will be ignored.
-# In case {name}.in is not created, stdout will be used as input.
-      '12': write_in_and_ans.py {name}
+# The generator below generates and writes both testcase.in and testcase.ans, and
+# the optionally specified `solution:` will not be called.
+      '12': write_in_and_ans.py
 
 
 # To override the global/testgroup configuration on a per-testcase basis,
@@ -153,57 +151,56 @@ data:
         random_salt: '123'
 
 
-
-# Introduce a testgroup by adding a dictionary with `type: directory` set.
-# The top-level is always assumed to be a directory.
+# Introduce a testgroup.
+# The top-level `data:` key is always assumed to be a directory.
       hard_cases_group:
-        type: directory
 
 # Directories may contain a testdata.yaml that will be written as specified.
         testdata.yaml:
           on_reject: break
-          accept_score: 25
+          accept_score: "25"
           range: 0 25
           grader_flags: min
 
 # To enable automatic numbering of testcases, data: may also contain a list of
-# dictionaries instead of a single dictionary. In this case, testcases and/or
-# groups will be numbered in the order they appear, starting at 1. The system
-# will determine the required number of digits to use and numbers will be
-# zero-padded accordingly, using a dash as separator from the given name (when
-# the given name is not empty). All items in a given dictionary will get the
-# same number. Use a list of 1-item dictionaries for incremental numbering.
-#
-# Any testgroup inside a list must contain a list object as data:.
+# single-element dictionaries instead of a single dictionary. In this case,
+# testcases and/or groups will be numbered in the order they appear, starting at
+# 1. The system will determine the required number of digits to use and numbers
+# will be zero-padded accordingly, using a dash as separator from the given name
+# (when the given name is not empty). Each dictionary in the list must contain a
+# single item.
 #
 # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
 # and alphabetical for dictionaries.
         data:
+          # 1.in
+          - '': stdout.py empty
+          # 2-a.in
           - a: stdout.py a
-            b: stdout.py b
-          - testgroup:
-              type: directory
+          # 3-a.in
+          - a: stdout.py a
+          # 4-b.in
+          - b: stdout.py b
+          # 5-numbered_testgroup
+          - numbered_testgroup:
               data:
                 - c: stdout.py c
-                  d: stdout.py d
-# This is forbidden because data: dictionaries may not appear within data: lists.
-             #data:
-             #  c: stdout.py c
-          - e: stdout.py e
-          - f: stdout.py f
+                - d: stdout.py d
+          - named_testgroup:
+              data:
+                e: stdout.py e
+                f: stdout.py f
           - g: stdout.py g
           - h: stdout.py h
           - i: stdout.py i
           - j: stdout.py j
           - k: stdout.py k
-          - l: stdout.py l
 
 # The above data: list is equivalent to the map:
        #data:
        #  01-a: stdout.py a
        #  01-b: stdout.py b
        #  02-testgroup:
-       #    type: directory
        #    data:
        #      1-c: stdout.py c
        #      1-d: stdout.py d
@@ -217,5 +214,5 @@ data:
        #  10-l: stdout.py l
 
 # Unknown keys are allowed inside directory dictionaries for tooling-specific
-# extensions. This includes both the global scope and explicit directories with type: directory.
+# extensions. This includes both the global scope and explicit directories.
 unknown_key: tool_specific_config

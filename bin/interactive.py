@@ -2,6 +2,7 @@ import signal
 import time
 import subprocess
 import sys
+import threading
 
 import config
 
@@ -11,7 +12,7 @@ if not is_windows():
     import fcntl
     import resource
 
-BUFFER_SIZE = 2 ** 20
+BUFFER_SIZE = 2**20
 
 
 # Return a ExecResult object amended with verdict.
@@ -87,7 +88,6 @@ def run_interactive_testcase(
             stdout=subprocess.PIPE,
             stderr=validator_error,
             cwd=validator_dir,
-            bufsize=BUFFER_SIZE,
         )
 
         # Start and time the submission.
@@ -132,12 +132,15 @@ def run_interactive_testcase(
 
         # Set result.err to validator error and result.out to team error.
         return ExecResult(
-            True, tend - tstart, validator_err.decode('utf-8', 'replace'), exec_res.err, verdict, print_verdict
+            True,
+            tend - tstart,
+            validator_err.decode('utf-8', 'replace'),
+            exec_res.err,
+            verdict,
+            print_verdict,
         )
 
     # On Linux:
-    # - Create 2 pipes
-    # - Update the size to 1MB
     # - Start validator
     # - Start submission, limiting CPU time to timelimit+1s
     # - Set alarm for timelimit+1s, and kill submission on SIGALRM if needed.
@@ -146,12 +149,14 @@ def run_interactive_testcase(
     # - Close remaining program + write end of pipe
     # - Close remaining read end of pipes
 
-    def mkpipe():
-        # TODO: is os.O_CLOEXEC needed here?
-        r, w = os.pipe2(os.O_CLOEXEC)
-        F_SETPIPE_SZ = 1031
-        fcntl.fcntl(w, F_SETPIPE_SZ, BUFFER_SIZE)
-        return r, w
+    def set_pipe_size(pipe):
+        # Somehow, setting the pipe buffer size is necessary to avoid hanging in larger interactions.
+        # Note that this is equivalent to Popen's `pipesize` argument in Python 3.10,
+        # but we backported this for compatibility with older Python versions:
+        # https://github.com/python/cpython/pull/21921/files#diff-619941af4b328b6abf2dc02c54e774fc17acc1ac4172c14db27d6097cbbff92aR1590
+        # See also: https://github.com/RagnarGrootKoerkamp/BAPCtools/pull/251#issuecomment-1609353538
+        # Note: 1031 = fcntl.F_SETPIPE_SZ, but that constant is also only available in Python 3.10.
+        fcntl.fcntl(pipe, 1031, BUFFER_SIZE)
 
     interaction_file = None
     # TODO: Print interaction when needed.
@@ -159,16 +164,6 @@ def run_interactive_testcase(
         interaction_file = None if interaction is True else interaction.open('a')
         interaction = True
 
-    team_log_in, team_out = mkpipe()
-    val_log_in, val_out = mkpipe()
-    if interaction:
-        val_in, team_log_out = mkpipe()
-        team_in, val_log_out = mkpipe()
-    else:
-        val_in = team_log_in
-        team_in = val_log_in
-
-    if interaction:
         # Connect pipes with tee.
         TEE_CODE = R'''
 import sys
@@ -184,51 +179,77 @@ while True:
     sys.stderr.flush()
     new = l=='\n'
 '''
+
+    validator = subprocess.Popen(
+        validator_command,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        # TODO: Make a flag to pass validator error directly to terminal.
+        stderr=subprocess.PIPE if validator_error is False else None,
+        cwd=validator_dir,
+        preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
+    )
+    validator_pid = validator.pid
+    # add all programs to the same group (for simiplcity we take the pid of the validator)
+    # then we can wait for all program ins the same group
+    gid = validator_pid
+
+    set_pipe_size(validator.stdin)
+    set_pipe_size(validator.stdout)
+    if validator_error is False:
+        set_pipe_size(validator.stderr)
+
+    if interaction:
         team_tee = subprocess.Popen(
             ['python3', '-c', TEE_CODE, '>'],
-            stdin=team_log_in,
-            stdout=team_log_out,
+            stdin=subprocess.PIPE,
+            stdout=validator.stdin,
             stderr=interaction_file,
+            preexec_fn=limit_setter(None, None, None, gid),
         )
         team_tee_pid = team_tee.pid
         val_tee = subprocess.Popen(
             ['python3', '-c', TEE_CODE, '<'],
-            stdin=val_log_in,
-            stdout=val_log_out,
+            stdin=validator.stdout,
+            stdout=subprocess.PIPE,
             stderr=interaction_file,
+            preexec_fn=limit_setter(None, None, None, gid),
         )
         val_tee_pid = val_tee.pid
 
-    # Use manual pipes with a large buffer instead of subprocess.PIPE for validator and team output.
-    if validator_error is False:
-        validator_error_in, validator_error_out = mkpipe()
-    else:
-        validator_error_in, validator_error_out = None, validator_error
-    if team_error is False:
-        team_error_in, team_error_out = mkpipe()
-    else:
-        team_error_in, team_error_out = None, team_error
-
-    validator = subprocess.Popen(
-        validator_command,
-        stdin=val_in,
-        stdout=val_out,
-        # TODO: Make a flag to pass validator error directly to terminal.
-        stderr=validator_error_out,
-        cwd=validator_dir,
-        preexec_fn=limit_setter(validator_command, validator_timeout, None),
-    )
-    validator_pid = validator.pid
+        set_pipe_size(team_tee.stdin)
+        set_pipe_size(val_tee.stdout)
 
     submission = subprocess.Popen(
         submission_command,
-        stdin=team_in,
-        stdout=team_out,
-        stderr=team_error_out,
+        stdin=(val_tee if interaction else validator).stdout,
+        stdout=(team_tee if interaction else validator).stdin,
+        stderr=subprocess.PIPE if team_error is False else None,
         cwd=submission_dir,
-        preexec_fn=limit_setter(submission_command, timeout, memory_limit),
+        preexec_fn=limit_setter(submission_command, timeout, memory_limit, gid),
     )
     submission_pid = submission.pid
+
+    if team_error is False:
+        set_pipe_size(submission.stderr)
+
+    stop_kill_handler = threading.Event()
+
+    def kill_handler_function():
+        if stop_kill_handler.wait(timeout + 1):
+            return
+        nonlocal submission_time
+        submission_time = timeout + 1
+        try:
+            os.kill(submission_pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        if validator_timeout > timeout and stop_kill_handler.wait(validator_timeout - timeout):
+            return
+        os.killpg(gid, signal.SIGKILL)
+
+    kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
+    kill_handler.start()
 
     # Will be filled in the loop below.
     validator_status = None
@@ -236,35 +257,11 @@ while True:
     submission_time = None
     first = None
 
-    kill_submission = False
-
-    def kill_submission_handler(signal, frame):
-        nonlocal submission_time
-        if not kill_submission:
-            submission_time = timeout
-        submission.kill()
-        try:
-            validator.kill()
-        except ProcessLookupError:
-            # Validator already exited.
-            pass
-        if interaction:
-            team_tee.kill()
-            val_tee.kill()
-
-    signal.signal(signal.SIGALRM, kill_submission_handler)
-
-    # Raise alarm after timeout reached
-    signal.alarm(timeout)
-
     # Wait for first to finish
     left = 4 if interaction else 2
     first_done = True
     while left > 0:
-        if kill_submission:
-            # Kill the submission asynchronously.
-            signal.setitimer(signal.ITIMER_REAL, 0.001, 0)
-        pid, status, rusage = os.wait3(0)
+        pid, status, rusage = os.wait4(-gid, 0)
 
         # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
         status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
@@ -275,47 +272,41 @@ while True:
             validator_status = status
 
             # Close the output stream.
-            os.close(val_out)
+            validator.stdout.close()
             if interaction:
-                os.close(val_log_out)
+                val_tee.stdout.close()
 
-            # Kill the team submission in case we already know it's WA.
+            # Kill the team submission and everything else in case we already know it's WA.
             if first_done and validator_status != config.RTV_AC:
-                kill_submission = True
-            left -= 1
+                stop_kill_handler.set()
+                os.killpg(gid, signal.SIGKILL)
             first_done = False
-            continue
-
-        if pid == submission_pid:
-            signal.alarm(0)
+        elif pid == submission_pid:
             if first is None:
                 first = 'submission'
             submission_status = status
 
             # Close the output stream.
-            os.close(team_out)
+            validator.stdin.close()
             if interaction:
-                os.close(team_log_out)
+                team_tee.stdin.close()
 
             # Possibly already written by the alarm.
             if submission_time is None:
                 submission_time = rusage.ru_utime + rusage.ru_stime
-            left -= 1
+
             first_done = False
-            continue
-
-        if interaction:
+        elif interaction:
             if pid == team_tee_pid or pid == val_tee_pid:
-                left -= 1
-                first_done = False
-                continue
+                pass
+            else:
+                assert False
+        else:
+            assert False
 
-    os.close(val_in)
-    if interaction:
-        os.close(val_log_in)
-    os.close(team_in)
-    if interaction:
-        os.close(team_log_in)
+        left -= 1
+
+    stop_kill_handler.set()
 
     did_timeout = submission_time > timelimit
     aborted = submission_time >= timeout
@@ -359,15 +350,9 @@ while True:
 
     val_err = None
     if validator_error is False:
-        os.close(validator_error_out)
-        val_err = os.fdopen(validator_error_in).read()
-    elif validator_error is not None:
         val_err = validator.stderr.read().decode('utf-8', 'replace')
     team_err = None
     if team_error is False:
-        os.close(team_error_out)
-        team_err = os.fdopen(team_error_in).read()
-    elif team_error is not None:
         team_err = submission.stderr.read().decode('utf-8', 'replace')
 
     return ExecResult(True, submission_time, val_err, team_err, verdict, print_verdict)

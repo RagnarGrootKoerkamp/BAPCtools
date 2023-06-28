@@ -31,6 +31,18 @@ def is_mac():
     return sys.platform in ['darwin']
 
 
+def is_freebsd():
+    return "freebsd" in sys.platform
+
+
+def is_aquabsd():
+    return "aquabsd" in sys.platform
+
+
+def is_bsd():
+    return is_mac() or is_freebsd() or is_aquabsd()
+
+
 if not is_windows():
     import resource
 
@@ -569,17 +581,24 @@ except:
     has_ryaml = False
 
 
+# For some reasong ryaml.load doesn't work well in parallel.
+ruamel_lock = threading.Lock()
+
+
 def parse_yaml(data, path=None):
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
     if has_ryaml:
+        ruamel_lock.acquire()
         try:
-            return ryaml.load(data)
+            ret = ryaml.load(data)
         except ruamel.yaml.constructor.DuplicateKeyError as error:
             if path is not None:
                 fatal(f'Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}')
             else:
                 fatal(f'Duplicate key in yaml object!\n{str(error)}')
+        ruamel_lock.release()
+        return ret
 
     else:
         try:
@@ -844,13 +863,13 @@ class ExecResult:
         return self.verdict
 
 
-def limit_setter(command, timeout, memory_limit):
+def limit_setter(command, timeout, memory_limit, group=None):
     def setlimits():
         if timeout:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
 
         # Increase the max stack size from default to the max available.
-        if not is_mac():
+        if not is_bsd():
             resource.setrlimit(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
@@ -858,11 +877,17 @@ def limit_setter(command, timeout, memory_limit):
         if (
             memory_limit
             and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']
-            and not is_mac()
+            and not is_bsd()
         ):
             resource.setrlimit(
                 resource.RLIMIT_AS, (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024)
             )
+
+        # TODO: with python 3.11 it is better to use Popen(process_group=group)
+        if group is not None:
+            assert not is_windows()
+            assert not is_mac()
+            os.setpgid(0, group)
 
         # Disable coredumps.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
@@ -1017,6 +1042,7 @@ def inc_label(label):
         label = label[:x] + 'A' + label[x + 1 :]
     return 'A' + label
 
+
 def hash_file(file, buffer_size=65536):
     assert file.is_file()
     sha = hashlib.sha256(usedforsecurity=False)
@@ -1028,11 +1054,21 @@ def hash_file(file, buffer_size=65536):
                 break
             sha.update(data)
 
-    return sha.hexdigest();
+    return sha.hexdigest()
+
 
 def combine_hashes(list):
     list.sort()
     hasher = hashlib.sha256(usedforsecurity=False)
     for item in list:
         hasher.update(item.encode())
+    return hasher.hexdigest()
+
+
+def combine_hashes_dict(d):
+    hasher = hashlib.sha256(usedforsecurity=False)
+    for key in d:
+        hasher.update(key.encode())
+        if d[key] is not None:
+            hasher.update(d[key].encode())
     return hasher.hexdigest()

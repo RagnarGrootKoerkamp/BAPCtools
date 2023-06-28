@@ -229,7 +229,7 @@ def get_problems():
                     if is_relative_to(problem.path, x):
                         return True
             for t in testcases:
-                x = resolve_path_argument(problem, t, 'data', suffixed=['.in'])
+                x = resolve_path_argument(problem, t, 'data', suffixes=['.in'])
                 if x:
                     if is_relative_to(problem.path, x):
                         return True
@@ -799,7 +799,11 @@ def run_parsed_arguments(args):
     if config.args.add_manual:
         # Path *must* be inside generators/.
         try:
-            config.args.add_manual = (problems[0].path / config.args.add_manual).resolve().relative_to(problems[0].path.resolve())
+            config.args.add_manual = (
+                (problems[0].path / config.args.add_manual)
+                .resolve()
+                .relative_to(problems[0].path.resolve())
+            )
             config.args.add_manual.relative_to('generators')
         except Exception as e:
             fatal('Directory given to add_manual must match "generators/*".')
@@ -973,7 +977,8 @@ def run_parsed_arguments(args):
             export.build_contest_zip(problems, problem_zips, outfile, config.args)
         if action in ['update_problems_yaml']:
             export.update_problems_yaml(
-                problems, config.args.colors.split(",") if config.args.colors else None
+                problems,
+                re.split("[^#0-9A-Za-z]", config.args.colors) if config.args.colors else None,
             )
 
     if not success or config.n_error > 0 or config.n_warn > 0:

@@ -34,7 +34,6 @@ def _save_test(problem, command):
         data['data'] = ruamel.yaml.comments.CommentedMap()
     if ('fuzz' not in data['data']) or (data['data']['fuzz'] is None):
         data['data']['fuzz'] = ruamel.yaml.comments.CommentedMap()
-    data['data']['fuzz']['type'] = 'directory'
     if ('data' not in data['data']['fuzz']) or (data['data']['fuzz']['data'] is None):
         data['data']['fuzz']['data'] = ruamel.yaml.comments.CommentedSeq()
     if not isinstance(data['data']['fuzz']['data'], ruamel.yaml.comments.CommentedSeq):
@@ -62,7 +61,7 @@ def _try_generator_invocation(problem, t, submissions, i):
     assert generator.program is not None
 
     # Pick a random seed.
-    seed = random.randint(0, 2 ** 31 - 1)
+    seed = random.randint(0, 2**31 - 1)
 
     command = generator.cache_command(seed=seed)
 
@@ -131,11 +130,7 @@ def _try_generator_invocation(problem, t, submissions, i):
         localbar.done()
 
     # Run all submissions against the testcase.
-    in_parallel = True
-    if problem.interactive:
-        in_parallel = False
-        verbose('Disabling parallelization for interactive problem.')
-    p = parallel.Parallel(run_submission, in_parallel)
+    p = parallel.Parallel(run_submission)
     for submission in submissions:
         p.put(submission)
     p.done()
