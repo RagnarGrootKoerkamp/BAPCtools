@@ -112,20 +112,11 @@ class Testcase:
         )
         if key not in self.testdata_yaml:
             return None
-        data = self.testdata_yaml[key]
-        if isinstance(data, str):
-            data = {'name': data}
-        if isinstance(data, dict):
-            data = [data]
-        for d in data:
-            if d['name'] == validator.path.name:
-                if 'flags' in d:
-                    # Split the string into a list of arguments.
-                    return d['flags'].split()
-                return None
-
-        # Configuration was found but this validator was not listed.
-        return False
+        flags = self.testdata_yaml[key]
+        # Note: support for lists/dicts for was removed in #259.
+        if not isinstance(flags, str):
+            fatal(f'{key} must be a string in testdata.yaml')
+        return flags.split()
 
     # Returns a dict of objects
     # hash =>
