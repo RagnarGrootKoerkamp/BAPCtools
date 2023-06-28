@@ -27,12 +27,12 @@
       },
       "additionalProperties": false,
       "required": ["sample", "secret"]
-    },
-    "additionalProperties": false
+    }
   },
   "required": ["data"],
 
   "$defs": {
+
     "testgroup": {
       "type": "object",
       "description": "A testgroup",
@@ -42,7 +42,7 @@
           "oneOf": [
             {
               "type": "array",
-              "items": { "$ref": "#/$defs/singleton_data_dict" }
+              "items": { "allOf" : [{ "$ref": "#/$defs/data_dict" }, {"maxProperties": 1}] }
             },
             { "$ref": "#/$defs/data_dict" }
           ]
@@ -57,6 +57,7 @@
       },
       "additionalProperties": false
     },
+
     "testdata_settings": {
       "type": "object",
       "description": "Testdata settings for this testgroup",
@@ -70,10 +71,11 @@
         "range": { "type": "string" }
       }
     },
+
     "data_dict": {
       "type": "object",
       "patternProperties": {
-        "^([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9])$": {
+        "^([a-zA-Z0-9_.-]*$": {
           "oneOf": [
             { "$ref": "#/$defs/testgroup" },
             { "$ref": "#/$defs/generator" },
@@ -84,7 +86,7 @@
       "additionalProperties": false,
       "minProperties": 1
     },
-    "singleton_data_dict": { "allOf" : [{ "$ref": "#/$defs/data_dict" }, {"maxProperties": 1}] },
+
     "generator": {
       "oneOf": [
         { "$ref": "#/$defs/command" },
@@ -107,10 +109,12 @@
               "description": "Path to solution; or empty"
             }
           },
+          "required": ["input"],
           "additionalProperties": false
         }
       ]
     },
+
     "command": {
       "description": "A generator invocation creating the named test case",
       "type": "string",
