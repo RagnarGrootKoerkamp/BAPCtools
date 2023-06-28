@@ -45,6 +45,10 @@ def _has_consecutive_whitespaces(bytes):
 
 
 class Testcase:
+    # Testcases outside problem/data must pass in the short_path explicitly.
+    # In that case, `path` is the (absolute) path to the `.in` file being
+    # tested, and `short_path` is the name of the testcase relative to
+    # `problem.path / 'data'`.
     def __init__(self, problem, path, *, short_path=None):
         assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
 
@@ -56,7 +60,6 @@ class Testcase:
             if path.suffix == '.in'
             else self.in_path.with_name(self.in_path.with_suffix('').stem + '.ans.statement')
         )
-        # Note: testcases outside problem/data must pass in the short_path explicitly.
         if short_path is None:
             try:
                 self.short_path = path.relative_to(problem.path / 'data')
@@ -123,6 +126,34 @@ class Testcase:
 
         # Configuration was found but this validator was not listed.
         return False
+
+    # Returns a dict of objects
+    # hash =>
+    # - name
+    # - flags
+    # - hash
+    # indicating which validators will be run for the current testcase.
+    def validator_hashes(self, validator_type):
+        assert validator_type in ['input_format', 'output_format']
+        validators = self.problem.validators(validator_type) or []
+
+        d = dict()
+
+        for validator in validators:
+            flags = self.testdata_yaml_validator_flags(validator_type, validator)
+            if flags is False:
+                continue
+            o = {
+                'name': validator.name,
+                'flags': flags,
+                'hash': validator.hash,
+            }
+            h = combine_hashes_dict(o)
+            # Don't actually store the somewhat useless validator hash.
+            del o['hash']
+            d[h] = o
+
+        return d
 
     # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
     def validate_format(
@@ -539,7 +570,7 @@ class Submission(program.Program):
                 bar.count = None
                 p.stop()
 
-        p = parallel.Parallel(lambda run: process_run(run, p), not self.problem.interactive)
+        p = parallel.Parallel(lambda run: process_run(run, p))
 
         for run in runs:
             p.put(run)
