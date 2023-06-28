@@ -46,7 +46,7 @@ class Parallel:
                 # if self.finish we may need to wake up if all tasks were completed earlier
                 # else we need an item to handle
                 self.todo.wait_for(lambda: len(self.tasks) > 0 or self.abort or self.finish)
-                
+
                 if self.abort:
                     # we dont handle the queue on abort
                     break
@@ -56,7 +56,7 @@ class Parallel:
                 else:
                     # get item from queue (update self.missing after the task is done)
                     task = self.tasks.pop(0)
-            
+
             # call f and catch all exceptions occurring in f
             # store the first exception for later
             try:
@@ -79,22 +79,23 @@ class Parallel:
 
     # Add one task.
     def put(self, task):
-        # no task should be added after .done() was called
-        assert not self.finish
-
-        # no task will be handled after self.abort
-        if self.abort:
-            return
-
         if not self.num_threads:
-            self.f(task)
-            return
+            # no task should be added after .done() was called
+            assert not self.finish
+            # no task will be handled after self.abort
+            if not self.abort:
+                self.f(task)
+                return
 
         with self.mutex:
-            # mark task as to be done and notify workers
-            self.missing += 1
-            self.tasks.append(task)
-            self.todo.notify()
+            # no task should be added after .done() was called
+            assert not self.finish
+            # no task will be handled after self.abort so skip adding
+            if not self.abort:
+                # mark task as to be done and notify workers
+                self.missing += 1
+                self.tasks.append(task)
+                self.todo.notify()
 
     def join(self):
         if not self.num_threads:
@@ -130,7 +131,7 @@ class Parallel:
     # Call done() to join the threads.
     def stop(self):
         self.abort = True
-        
+
         if not self.num_threads:
             return
 
