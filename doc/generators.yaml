@@ -178,8 +178,15 @@ data:
 # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
 # and alphabetical for dictionaries.
         data:
+          # 1.in
+          - '': stdout.py empty
+          # 2-a.in
           - a: stdout.py a
+          # 3-a.in
+          - a: stdout.py a
+          # 4-b.in
           - b: stdout.py b
+          # 5-numbered_testgroup
           - numbered_testgroup:
               data:
                 - c: stdout.py c
