@@ -1,5 +1,4 @@
 import re
-import glob
 import argparse
 import hashlib
 import random
