@@ -1179,11 +1179,6 @@ class GeneratorConfig:
 
         bar = ProgressBar('Generate', items=item_names)
 
-        in_parallel = True
-        if self.problem.interactive:
-            in_parallel = False
-            verbose('Disabling parallelization for interactive problem.')
-
         # Testcases are generated in two step:
         # 1. Generate directories and testcases listed in generators.yaml.
         #    Each directory is only started after previous directories have
@@ -1193,9 +1188,7 @@ class GeneratorConfig:
         #    after to deduplicate them against generated testcases.
 
         # 1
-        p = parallel.Parallel(
-            lambda t: t.listed and t.generate(self.problem, self, bar), in_parallel
-        )
+        p = parallel.Parallel(lambda t: t.listed and t.generate(self.problem, self, bar))
 
         def generate_dir(d):
             p.join()
@@ -1205,9 +1198,7 @@ class GeneratorConfig:
         p.done()
 
         # 2
-        p = parallel.Parallel(
-            lambda t: not t.listed and t.generate(self.problem, self, bar), in_parallel
-        )
+        p = parallel.Parallel(lambda t: not t.listed and t.generate(self.problem, self, bar))
         # Directories have already been generated so can be skipped now.
         self.root_dir.walk(p.put, None)
         p.done()
