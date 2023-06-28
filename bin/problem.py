@@ -131,7 +131,7 @@ class Problem:
 
     # statement_samples end in .in.statement and .ans.statement and are only used in the statement.
     def testcases(
-        p, needans=True, only_sample=False, statement_samples=False, include_bad=False, copy=False
+        p, *, needans=True, needinteraction=False, only_sample=False, statement_samples=False, include_bad=False, copy=False,
     ):
         def maybe_copy(x):
             return x.copy() if copy and isinstance(x, (list, dict)) else x
@@ -175,6 +175,10 @@ class Problem:
         for f in in_paths:
             t = run.Testcase(p, f)
             # Require both in and ans files
+            if needinteraction and not t.in_path.with_suffix('.interaction').is_file():
+                if not t.bad_input:
+                    warn(f'Found input file {str(f)} without a .interaction file. Skipping.')
+                continue
             if needans and not t.ans_path.is_file():
                 if not t.bad_input:
                     warn(f'Found input file {str(f)} without a .ans file. Skipping.')
@@ -184,9 +188,11 @@ class Problem:
 
         if len(testcases) == 0:
             # For interactive problems, allow 0 samples.
-            if not (p.interactive and only_sample):
+            if needinteraction:
+                warn(f'Didn\'t find any testcases with interaction for {p.name}')
+            else:
                 warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
-                testcases = False
+            testcases = False
 
         p._testcases[key] = testcases
         return maybe_copy(testcases)
