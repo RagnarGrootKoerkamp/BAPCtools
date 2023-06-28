@@ -12,7 +12,7 @@ class Parallel:
     #              None/False/0: disable parallelization
     def __init__(self, f, num_threads=True):
         self.f = f
-        self.num_threads = config.args.jobs if num_threads is True else num_threads
+        self.num_threads = max(config.args.jobs or 1, 1) if num_threads is True else num_threads
 
         # mutex to lock parallel access
         self.mutex = threading.Lock()
@@ -43,7 +43,7 @@ class Parallel:
                 # if self.finish we may need to wake up if all tasks were completed earlier
                 # else we need an item to handle
                 self.todo.wait_for(lambda: len(self.tasks) > 0 or self.abort or self.finish)
-                
+
                 if self.abort:
                     # we dont handle the queue on abort
                     break
@@ -53,7 +53,7 @@ class Parallel:
                 else:
                     # get item from queue (update self.missing after the task is done)
                     task = self.tasks.pop(0)
-            
+
             # call f and catch all exceptions occurring in f
             # store the first exception for later
             try:
@@ -83,8 +83,7 @@ class Parallel:
         with self.mutex:
             # no task should be added after .done() was called
             assert not self.finish
-            # no task will be handled after self.abort anyway so 
-            # we can skip adding
+            # no task will be handled after self.abort anyway so we can skip adding
             if not self.abort:
                 # mark task as to be done and notify workers
                 self.missing += 1
