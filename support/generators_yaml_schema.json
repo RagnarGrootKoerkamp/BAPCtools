@@ -31,6 +31,7 @@
     "additionalProperties": false
   },
   "required": ["data"],
+
   "$defs": {
     "testgroup": {
       "type": "object",
@@ -41,7 +42,7 @@
           "oneOf": [
             {
               "type": "array",
-              "items": { "$ref": "#/$defs/data_dict" }
+              "items": { "$ref": "#/$defs/singleton_data_dict" }
             },
             { "$ref": "#/$defs/data_dict" }
           ]
@@ -83,6 +84,7 @@
       "additionalProperties": false,
       "minProperties": 1
     },
+    "singleton_data_dict": { "allOf" : [{ "$ref": "#/$defs/data_dict" }, {"maxProperties": 1}] },
     "generator": {
       "oneOf": [
         { "$ref": "#/$defs/command" },
