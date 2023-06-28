@@ -788,10 +788,6 @@ class Directory(Rule):
         if isinstance(data, dict):
             yaml['data'] = [data]
             data = yaml['data']
-            if parent.numbered is True:
-                fatal(
-                    f'Unnumbered data dictionaries may not appear inside numbered data lists at {self.path}.'
-                )
         else:
             self.numbered = True
             if len(data) == 0:
