@@ -83,9 +83,11 @@ team submission is correct.
 
 ```
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
-  <output_validator_flags> [--constraints_file <path>] \
+  <problem_yaml_flags> <output_validator_flags> \
   < team_output
 ```
+
+- `<problem_yaml_flags>` is the value of `validator_flags` in `problem.yaml`.
 
 - Team output is given on `stdin`.
 
