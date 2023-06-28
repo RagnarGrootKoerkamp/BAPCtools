@@ -131,11 +131,7 @@ def _try_generator_invocation(problem, t, submissions, i):
         localbar.done()
 
     # Run all submissions against the testcase.
-    in_parallel = True
-    if problem.interactive:
-        in_parallel = False
-        verbose('Disabling parallelization for interactive problem.')
-    p = parallel.Parallel(run_submission, in_parallel)
+    p = parallel.Parallel(run_submission)
     for submission in submissions:
         p.put(submission)
     p.done()
