@@ -4,7 +4,6 @@ from util import *
 
 
 class Validator(program.Program):
-
     # NOTE: This only works for checktestdata and Viva validators.
     FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']
 
@@ -83,17 +82,17 @@ class InputValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
 
-        run_command = self.run_command + ['case_sensitive', 'space_change_sensitive']
+        run_command = self.run_command.copy()
+
+        if args is not None:
+            assert isinstance(args, list)
+            run_command += args
 
         if constraints is not None:
             constraints_path = cwd / 'input_constraints_'
             if constraints_path.is_file():
                 constraints_path.unlink()
             run_command += ['--constraints_file', constraints_path]
-
-        if args is not None:
-            assert isinstance(args, list)
-            run_command += args
 
         with testcase.in_path.open() as in_file:
             ret = exec_command(
@@ -141,15 +140,15 @@ class OutputValidator(Validator):
                 'space_change_sensitive',
             ]
 
+            if args is not None:
+                assert isinstance(args, list)
+                run_command += args
+
             if constraints is not None:
                 constraints_path = cwd / 'output_constraints_'
                 if constraints_path.is_file():
                     constraints_path.unlink()
                 run_command += ['--constraints_file', constraints_path]
-
-            if args is not None:
-                assert isinstance(args, list)
-                run_command += args
 
             with testcase.ans_path.open() as ans_file:
                 ret = exec_command(
