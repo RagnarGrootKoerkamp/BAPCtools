@@ -2,23 +2,13 @@
   "title": "Generator",
   "type": "object",
   "properties": {
-    "solution": {
-      "type": "string",
-      "description": "Absolute path to the model solution, such as `/submissions/accepted/sol.py`"
-    },
-    "visualizer": {
-      "type": "string",
-      "description": "Absolute path to a visualizer, such as `/visualizers/asy.py`"
-    },
-    "random_salt": {
-      "type": "string",
-      "description": "Salt to add to {seed} variables, such as `abcd`"
-    },
-    "generators": {
-      "type": "object"
-    },
+    "solution": { "$ref": "#/$defs/solution" },
+    "visualizer": { "$ref": "#/$defs/visualizer" },
+    "random_salt": { "$ref": "#/$defs/random_salt" },
+    "generators": { "title": "Generators for this problem", "type": "object" },
     "data": {
-      "description": "Top-level test group container",
+      "title": "Testdata root",
+      "description": "The root test group. Must contain the testgroups 'sample' and 'secret'.",
       "type": "object",
       "properties": {
         "sample": { "$ref": "#/$defs/testgroup" },
@@ -29,6 +19,7 @@
       "required": ["sample", "secret"]
     }
   },
+  "additionalProperties": true,
   "required": ["data"],
 
   "$defs": {
@@ -38,7 +29,7 @@
       "description": "A testgroup",
       "properties": {
         "data": {
-          "description": "Commands or subgroups defining the testdata in this testgroup",
+          "description": "Commands or dictionaries defining the testdata in this testgroup",
           "oneOf": [
             {
               "type": "array",
@@ -49,7 +40,7 @@
         },
         "include": {
           "type": "array",
-          "description": "Testcases to be included in this testgroup",
+          "description": "Testcases and testgroups to be included in this testgroup from elsewhere.",
           "items": { "type": "string" }
         },
         "testdata.yaml": { "$ref": "#/$defs/testdata_settings" },
@@ -60,11 +51,12 @@
 
     "testdata_settings": {
       "type": "object",
-      "description": "Testdata settings for this testgroup",
+      "title": "Testdata settings",
+      "description": "Testdata settings for this testgroup. Will be copied to its `testdata.yaml`.",
       "properties": {
-        "on_reject": { "enum": ["break", "continue"] },
+        "on_reject": { "enum": ["break", "continue"], "default": "break" },
         "grading": { "enum": ["default", "custom"] },
-        "grader_flags": { "type": "string" },
+        "grader_flags": { "type": "string", "examples": ["min", "sum"]},
         "input_validator_flags": { "type": "string" },
         "accept_score": { "type": "string" },
         "reject_score": { "type": "string" },
@@ -75,7 +67,7 @@
     "data_dict": {
       "type": "object",
       "patternProperties": {
-        "^([a-zA-Z0-9_.-]*$": {
+        "^[a-zA-Z0-9_.-]*$": {
           "oneOf": [
             { "$ref": "#/$defs/testgroup" },
             { "$ref": "#/$defs/generator" },
@@ -88,26 +80,19 @@
     },
 
     "generator": {
+      "title": "Generator invocation",
+      "description": "Generator invocation for a testcase",
       "oneOf": [
         { "$ref": "#/$defs/command" },
         {
-          "description": "Per-testcase generator invocation",
+          "title": "Generator invocation dictionary",
+          "description": "Generator invocation given as a dictionary. Useful for overriding 'visualizer' and 'solution'.",
           "type": "object",
           "properties": {
-            "type": "testcase",
             "input": { "type": "string" },
-            "visualizer": {
-              "type": ["string", "null"],
-              "description": "Absolute path to a visualizer; or empty to skip visualization"
-            },
-            "random_salt": {
-              "type": "string",
-              "description": "Salt to add to {seed} variables, such as `abcd`"
-            },
-            "solution": {
-              "type": ["string", "null"],
-              "description": "Path to solution; or empty"
-            }
+            "visualizer": { "oneOf": [{"$ref": "#/$defs/visualizer"}, {"type": "null" }] },
+            "random_salt": { "$ref": "#/$defs/random_salt" },
+            "solution": { "oneOf": [ { "$ref": "#/$defs/solution" }, { "type": "null" }]}
           },
           "required": ["input"],
           "additionalProperties": false
@@ -115,8 +100,31 @@
       ]
     },
 
+    "visualizer": {
+        "title": "Visualizer",
+        "type": "string",
+        "description": "Absolute path to a visualizer",
+        "examples": ["/visualizers/asy.py {name}"]
+      },
+
+    "random_salt": {
+        "title": "Random salt",
+        "type": "string",
+        "description": "Salt to add to {seed} variables",
+        "examples": ["abcd"]
+      },
+
+    "solution": {
+        "type": "string",
+        "title": "Solution",
+        "description": "Absolute path to a solution for this problem or testcase.",
+        "examples": ["/submissions/accepted/sol.py"]
+      },
+
     "command": {
-      "description": "A generator invocation creating the named test case",
+      "title": "Generator invocation",
+      "description": "Invocation of a generator creating the named test case",
+      "examples": ["forest --n 40 --connected", "path.cpp 20", "random {seed}"],
       "type": "string",
       "pattern": "^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$"
     }
