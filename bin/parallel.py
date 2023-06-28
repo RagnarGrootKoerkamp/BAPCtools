@@ -21,9 +21,12 @@ class Parallel:
         # condition used to notify join that the queue is empty
         self.all_done = threading.Condition(self.mutex)
 
+        # only used in parallel mode
         self.first_error = None
         self.tasks = []
         self.missing = 0
+
+        # also used if num_threads is false
         self.abort = False
         self.finish = False
 
@@ -76,20 +79,22 @@ class Parallel:
 
     # Add one task.
     def put(self, task):
+        # no task should be added after .done() was called
+        assert not self.finish
+
+        # no task will be handled after self.abort
+        if self.abort:
+            return
+
         if not self.num_threads:
             self.f(task)
             return
 
         with self.mutex:
-            # no task should be added after .done() was called
-            assert not self.finish
-            # no task will be handled after self.abort anyway so 
-            # we can skip adding
-            if not self.abort:
-                # mark task as to be done and notify workers
-                self.missing += 1
-                self.tasks.append(task)
-                self.todo.notify()
+            # mark task as to be done and notify workers
+            self.missing += 1
+            self.tasks.append(task)
+            self.todo.notify()
 
     def join(self):
         if not self.num_threads:
@@ -103,12 +108,13 @@ class Parallel:
 
     # Wait for all tasks to be done and stop all threads
     def done(self):
+        self.finish = True
+
         if not self.num_threads:
             return
 
         # notify all workes with permission to leave main loop
         with self.todo:
-            self.finish = True
             self.todo.notify_all()
 
         # wait for all workers to leave main loop
@@ -123,6 +129,8 @@ class Parallel:
     # Discard all remaining work in the queue and stop all workers.
     # Call done() to join the threads.
     def stop(self):
+        self.abort = True
+        
         if not self.num_threads:
             return
 
@@ -130,7 +138,6 @@ class Parallel:
             # drop all items in the queue at once
             self.missing -= len(self.tasks)
             self.tasks = []
-            self.abort = True
             # notify all workers to stop waiting for tasks
             self.todo.notify_all()
             # notify .join() if queue runs empty
