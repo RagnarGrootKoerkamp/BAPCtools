@@ -6,6 +6,8 @@
 // The `generator_reserved` and `directory_reserved` objects indicate keys that
 // work only for `generator`/`directory` and should not be reused in other places.
 
+import "struct"
+
 command: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
 file_config: {
 	solution?:    command | null
@@ -19,14 +21,14 @@ generator: command | {
 	...
 }
 
-data_dict: [string]: directory | generator | null // [string] fails to match ""
+data_dict: [string]: directory | generator | null // ERROR: fails to match against ""
 
 directory: {
 	file_config
 	"testdata.yaml"?: {
 		...
 	}
-	data?: data_dict | [...data_dict]
+	data?: data_dict | [...{data_dict & struct.MaxFields(1)}]
 	generator_reserved
 	...
 }
