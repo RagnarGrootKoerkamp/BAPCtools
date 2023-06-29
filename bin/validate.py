@@ -180,3 +180,79 @@ class OutputValidator(Validator):
                 cwd=run.feedbackdir,
                 timeout=config.get_timeout(),
             )
+
+# Testcase input is only allowed to contain newlines and printable characters
+def _is_invalid_input_byte(byte):
+    if byte == ord('\n'):
+        return False
+    if byte >= 0x20 and byte < 0x7F:
+        return False
+    return True
+
+
+# User output is additionally allowed to contain all other types of whitespaces
+def _is_invalid_output_byte(byte):
+    if byte == ord('\t'):
+        return False
+    if byte == ord('\r'):
+        return False
+    if byte == ord('\v'):
+        return False
+    if byte == ord('\f'):
+        return False
+    return _is_invalid_input_byte(byte)
+
+
+# assumes that the only possible whitespaces are space and newline
+# allows \n\n
+def _has_consecutive_whitespaces(bytes):
+    last = -1
+    for byte in bytes:
+        cur_whitespace = byte == ord(' ') or byte == ord('\n')
+        if last == ord(' ') and cur_whitespace:
+            return True
+        if last == ord('\n') and byte == ord(' '):
+            return True
+        last = byte
+    return False
+
+def generic_validation(validator_type, file, *, bar, sample_ans=False):
+    assert validator_type in ['input', 'output']
+    if config.args.skip_testcase_sanity_checks:
+        return
+
+    #Todo we could check for more stuff that is likely an error like `.*-0.*`
+    if validator_type == 'input' and file.exists():
+        bytes = file.read_bytes()
+        if any(_is_invalid_input_byte(b) for b in bytes):
+            bar.warn('Testcase contains unexpected characters but was accepted!')
+        elif len(bytes) == 0:
+            bar.warn('Testcase is empty but was accepted!')
+        elif bytes[0] == ord(' ') or bytes[0] == ord('\n'):
+            bar.warn('Testcase starts with whitespace but was accepted!')
+        elif bytes[-1] != ord('\n'):
+            bar.warn('Testcase does not end with a newline but was accepted!')
+        elif _has_consecutive_whitespaces(bytes):
+            bar.warn(
+                'Testcase contains consecutive whitespace characters but was accepted!'
+            )
+        elif len(bytes) > 20_000_000:
+            bar.warn('Testcase is larger than 20MB!')
+
+    if validator_type == 'output' and file.exists():
+        bytes = file.read_bytes()
+        if any(_is_invalid_output_byte(b) for b in bytes):
+            bar.warn('Answer contains unexpected characters but was accepted!')
+        elif len(bytes) == 0:
+            bar.warn('Answer is empty but was accepted!')
+        elif len(bytes) > 20_000_000_000:
+            bar.warn('Output is larger than 20Mb!')
+        elif sample_ans:
+            if bytes[0] == ord(' ') or bytes[0] == ord('\n'):
+                bar.warn('Sample answer starts with whitespace but was accepted!')
+            elif bytes[-1] != ord('\n'):
+                bar.warn('Sample answer does not end with a newline but was accepted!')
+            elif _has_consecutive_whitespaces(bytes):
+                bar.warn(
+                    'Sample answer contains consecutive whitespace characters but was accepted!'
+                )
