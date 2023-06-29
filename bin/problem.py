@@ -82,7 +82,8 @@ class Problem:
             verbose('domjudge-problem.ini is DEPRECATED. Use a .timelimit file instead.')
             for line in domjudge_path.read_text().splitlines():
                 key, var = map(str.strip, line.strip().split('='))
-                var = var[1:-1]
+                if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
+                    var = var[1:-1]
                 if key == 'timelimit':
                     self.settings[key] = float(var)
                     self.settings['timelimit_is_default'] = False
