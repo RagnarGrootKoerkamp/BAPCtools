@@ -439,7 +439,7 @@ Run this from one of:
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
     move_or_remove_group.add_argument(
-        '--remove', action='store_true', help='Remove failing testcsaes.'
+        '--remove', action='store_true', help='Remove failing testcases.'
     )
     move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
 
