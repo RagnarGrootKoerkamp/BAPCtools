@@ -8,41 +8,41 @@
 
 command: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
 file_config: {
-    solution?: command | null
-    visualizer?: command | null
-    random_salt?: string
+	solution?:    command | null
+	visualizer?:  command | null
+	random_salt?: string
 }
 generator: command | {
-    input: command
-    file_config
-    directory_reserved
-    ...
+	input: command
+	file_config
+	directory_reserved
+	...
 }
-data_dict: {
-    [string]: directory | generator | null
-}
+
+data_dict: [string]: directory | generator | null // [string] fails to match ""
+
 directory: {
-    file_config
-    "testdata.yaml"?: {
-        ...
-    }
-    data?: data_dict | [...data_dict]
-    generator_reserved
-    ...
+	file_config
+	"testdata.yaml"?: {
+		...
+	}
+	data?: data_dict | [...data_dict]
+	generator_reserved
+	...
 }
 Generators: {
-    generators?: {
-        [string]: [...string]
-    }
-    directory
+	generators?: {
+		[string]: [...string]
+	}
+	directory
 }
 generator_reserved: {
-    input?: _|_
-    ...
+	input?: _|_
+	...
 }
 directory_reserved: {
-    data?: _|_
-    include?: _|_
-    "testdata.yaml"?: _|_
-    ...
+	data?:            _|_
+	include?:         _|_
+	"testdata.yaml"?: _|_
+	...
 }
