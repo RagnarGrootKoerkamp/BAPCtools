@@ -836,7 +836,8 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     def interrupt_handler(sig, frame):
         nonlocal process
-        process.kill()
+        if process is not None:
+            process.kill()
         # Extra newline to not overwrite progress bars
         print(file=sys.stderr)
         fatal('Running interrupted')
@@ -941,3 +942,6 @@ def combine_hashes_dict(d):
         if d[key] is not None:
             hasher.update(d[key].encode())
     return hasher.hexdigest()
+
+def bit_reverse(x, bits):
+    return sum(1<<(bits-1-i) for i in range(bits) if x>>i&1)
