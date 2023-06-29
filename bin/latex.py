@@ -213,7 +213,8 @@ def build_problem_pdfs(problem, solutions=False):
     else:
         languages = problem.statement_languages
 
-    use_suffix = bool(len(languages) > 1)  # use .en.pdf only for > 1 language, otherwise .pdf
+    # use .en.pdf only for > 1 language, otherwise .pdf
+    use_suffix = len(problem.statement_languages) > 1
     return all(build_problem_pdf(problem, lang, use_suffix, solutions) for lang in languages)
 
 
