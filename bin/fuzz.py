@@ -130,7 +130,7 @@ def _try_generator_invocation(problem, t, submissions, i):
         localbar.done()
 
     # Run all submissions against the testcase.
-    p = parallel.Parallel(run_submission)
+    p = parallel.Parallel(run_submission, pin=True)
     for submission in submissions:
         p.put(submission)
     p.done()

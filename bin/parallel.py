@@ -2,6 +2,8 @@
 import threading
 import signal
 
+import os
+
 import config
 import util
 
@@ -10,7 +12,7 @@ class Parallel:
     # f(task): the function to run on each queue item.
     # num_threads: True: the configured default
     #              None/False/0: disable parallelization
-    def __init__(self, f, num_threads=True):
+    def __init__(self, f, num_threads=True, pin=False):
         self.f = f
         self.num_threads = config.args.jobs if num_threads is True else num_threads
 
@@ -31,15 +33,29 @@ class Parallel:
         self.finish = False
 
         if self.num_threads:
+            if pin:
+                cores = list(os.sched_getaffinity(0))
+                if len(cores) > self.num_threads:
+                    self.num_threads = len(cores)
+                    util.log(f'{num_threads} jobs requested but only {len(cores)} cores found. Using only {len(cores)} jobs!')
+                num_bits = max(map(lambda c: c.bit_length(), cores))
+                cores.sort(key=lambda c: util.bit_reverse(c, num_bits))
+
             self.threads = []
-            for _ in range(self.num_threads):
-                t = threading.Thread(target=self._worker, daemon=True)
+            for i in range(self.num_threads):
+                args = [cores[i]] if pin else []
+                t = threading.Thread(target=self._worker, args=args, daemon=True)
                 t.start()
                 self.threads.append(t)
 
             signal.signal(signal.SIGINT, self._interrupt_handler)
 
-    def _worker(self):
+    def _worker(self, pin=False):
+        if pin != False:
+            #TODO store this threadlocal...
+            #TODO read this in limit_setter
+            #storage = threading.local()
+            #storage.__setattr__('pin', pin)
         while True:
             with self.mutex:
                 # if self.abort we need no item in the queue and can stop
