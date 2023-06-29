@@ -193,10 +193,10 @@ class Testcase:
 
         if success and not bad_testcase:
             if validator_type == 'input_format':
-                validate.generic_validation('input', self.in_path, bar=bar)
+                validate.generic_validation(validator_type, self.in_path, bar=bar)
 
             if validator_type == 'output_format':
-                validate.generic_validation('output', self.ans_path, bar=bar, sample_ans=True)
+                validate.generic_validation(validator_type, self.ans_path, bar=bar)
 
         return success
 
