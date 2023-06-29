@@ -1,0 +1,34 @@
+solution: /submissions/accepted/th.py
+data:
+  sample:
+    type: directory
+    data:
+      "1": stdout.py 1 2
+      "2": stdout.py 1 -3
+  secret:
+    type: directory
+    data:
+      - small:
+          type: directory
+          data:
+            - positive:
+                type: directory
+                data:
+                  - "sm-all-pos": stdout.py 4 6
+                  - "sm-zero": stdout.py 4 1
+                include:
+                  - "1"
+            - general:
+                type: directory
+                data:
+                  - "sm-mixed": stdout.py 4 -6
+                  - "sm-all-neg": stdout.py -4 -6
+                include:
+                  - "2"
+      - general:
+          type: directory
+          data:
+            - "lg": stdout.py 83413870413975664 -11
+          include:
+            - "small"
+            - "sample"
