@@ -35,7 +35,7 @@ def is_testcase(yaml):
 
 
 def is_directory(yaml):
-    return isinstance(yaml, dict)
+    return isinstance(yaml, dict) and not 'input' in yaml
 
 
 # Returns the given path relative to the problem root.
@@ -306,7 +306,9 @@ class Config:
 
 
 class Rule:
-    def __init__(self, problem, name, yaml, parent):
+    # key: the dictionary key in the yaml file, i.e. `testcase`
+    # name: the numbered testcase name, i.e. `01-testcase`
+    def __init__(self, problem, key, name, yaml, parent):
         assert parent is not None
 
         self.parent = parent
@@ -316,14 +318,16 @@ class Rule:
         else:
             self.config = parent.config
 
-        # Directory key of the current directory/testcase.
+        # Yaml key of the current directory/testcase.
+        self.key = key
+        # Filename of the current directory/testcase.
         self.name = name
         # Path of the current directory/testcase relative to data/.
         self.path: Path = parent.path / self.name
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, generator_config, name: str, yaml, parent, listed):
+    def __init__(self, problem, generator_config, key, name: str, yaml, parent, listed):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
@@ -333,7 +337,7 @@ class TestcaseRule(Rule):
 
         # Manual cases are either unlisted .in files, or listed rules ending in .in.
         self.manual = False
-        # Inline: cases where the soure is in the data/ directory.
+        # Inline: cases where the source is in the data/ directory.
         self.inline = False
         # Listed: cases mentioned in generators.yaml.
         self.listed = listed
@@ -364,7 +368,7 @@ class TestcaseRule(Rule):
         if self.inline:
             assert self.manual
 
-        super().__init__(problem, name, yaml, parent)
+        super().__init__(problem, key, name, yaml, parent)
 
         for key in yaml:
             if key in RESERVED_TESTCASE_KEYS:
@@ -421,7 +425,7 @@ class TestcaseRule(Rule):
                         if ext_file.is_file():
                             ext_file.unlink()
                     bar.log(
-                        f'Testcase not listed and duplicate of {generator_config.generated_testdata[t.hash].name} => deleted.'
+                        f'Testcase not listed and duplicate of {generator_config.generated_testdata[t.hash].path} => deleted.'
                     )
                     bar.done()
                     return
@@ -735,14 +739,14 @@ class RootDirectory:
 
 class Directory(Rule):
     # Process yaml object for a directory.
-    def __init__(self, problem, name: str, yaml: dict = None, parent=None, listed=True):
+    def __init__(self, problem, key, name: str, yaml: dict = None, parent=None, listed=True):
         assert is_directory(yaml)
         # The root Directory object has name ''.
         if name != '':
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
                 fatal(f'Directory "{name}" does not have a valid name.')
 
-        super().__init__(problem, name, yaml, parent)
+        super().__init__(problem, key, name, yaml, parent)
 
         if name == '':
             for key in yaml:
@@ -848,7 +852,8 @@ class Directory(Rule):
                 testdata_yaml_path.unlink()
         bar.done()
 
-        for t in d.includes.values():
+        for key in d.includes:
+            t = d.includes[key]
             target = t.path
             new_case = d.path / target.name
             bar.start(str(new_case))
@@ -995,13 +1000,9 @@ class GeneratorConfig:
             else:
                 setattr(self, key, default)
 
-        def add_known(obj):
+        def add_known(obj, listed):
             path = obj.path
             name = path.name
-            key = self.known_keys[name]
-            key[1].append(obj)
-            if key[0] and len(key[1]) == 2:
-                error(f'{d.path}: Included key {include} exists more than once.')
             if isinstance(obj, TestcaseRule):
                 self.known_cases[path] = obj
             elif isinstance(obj, Directory):
@@ -1009,8 +1010,42 @@ class GeneratorConfig:
             else:
                 assert False
 
+            if listed:
+                key = self.known_keys[obj.key]
+                key[1].append(obj)
+                if key[0] and len(key[1]) == 2:
+                    error(
+                        f'{obj.path}: Included key {name} exists more than once as {key[1][0].path} and {key[1][1].path}.'
+                    )
+
+        num_numbered_testcases = 0
+        testcase_id = 0
+
+        # Count the number of testcases in the given directory yaml.
+        # This parser is quite forgiving,
+        def count(yaml):
+            ds = yaml.get('data')
+            if isinstance(ds, dict):
+                ds = [ds]
+                numbered = False
+            else:
+                numbered = True
+            if not isinstance(ds, list):
+                return
+            for d in ds:
+                if is_testcase(ds) and numbered:
+                    # TODO (#271): Count the number of generated cases for `count:` and/or variables.
+                    num_numbered_testcases += 1
+                elif is_directory(ds):
+                    count(ds)
+
+        count(yaml)
+
         # Main recursive parsing function.
-        def parse(name, yaml, parent, listed=True):
+        # key: the yaml key e.g. 'testcase'
+        # name: the possibly numbered name e.g. '01-testcase'
+        def parse(key, name, yaml, parent, listed=True):
+            nonlocal testcase_id
             # Skip unlisted `data/bad` directory: we should not generate .ans files there.
             if name == 'bad' and parent.path == Path('.') and listed is False:
                 return None
@@ -1028,57 +1063,84 @@ class GeneratorConfig:
                 if not process_testcase(self.problem, parent.path / name):
                     return None
 
-                t = TestcaseRule(self.problem, self, name, yaml, parent, listed=listed)
+                t = TestcaseRule(self.problem, self, key, name, yaml, parent, listed=listed)
                 assert t.path not in self.known_cases, f"{t.path} was already parsed"
-                add_known(t)
+                add_known(t, listed)
                 return t
 
             assert is_directory(yaml)
 
-            d = Directory(self.problem, name, yaml, parent, listed=listed)
+            d = Directory(self.problem, key, name, yaml, parent, listed=listed)
             assert d.path not in self.known_cases
             assert d.path not in self.known_directories
-            add_known(d)
+            add_known(d, listed)
 
             # Parse child directories/testcases.
             # First loop over explicitly mentioned testcases/directories, and then find remaining on-disk files/dirs.
             if 'data' in yaml and yaml['data']:
-                for id, dictionary in enumerate(yaml['data'], start=1):
+                # Count the number of child testgroups.
+                num_testgroups = 0
+                for dictionary in d.data:
                     check_type('Elements of data', dictionary, dict, d.path)
+                    for child_name, child_yaml in sorted(dictionary.items()):
+                        if is_directory(child_yaml):
+                            num_testgroups += 1
+
+                testgroup_id = 0
+                for dictionary in yaml['data']:
                     for key in dictionary:
                         check_type('Testcase/directory name', key, [type(None), str], d.path)
 
-                    for child_name, child_yaml in sorted(dictionary.items()):
+                    for child_key, child_yaml in sorted(dictionary.items()):
                         if d.numbered:
-                            child_name = numbered_testcase_name(child_name, id, len(yaml['data']))
+                            if is_directory(child_yaml):
+                                testgroup_id += 1
+                                child_name = numbered_testcase_name(
+                                    child_key, testgroup_id, num_testgroups
+                                )
+                            elif is_testcase(child_yaml):
+                                # TODO: For now, testcases are numbered per testgroup. This will change soon.
+                                testcase_id += 1
+                                child_name = numbered_testcase_name(
+                                    child_key, testcase_id, num_numbered_testcases
+                                )
+                            else:
+                                # Use error will be given inside parse(child).
+                                child_name = ''
+
                         else:
+                            child_name = child_key
                             if not child_name:
                                 fatal(
                                     f'Unnumbered testcases must not have an empty key: {Path("data") / d.path / child_name}/\'\''
                                 )
-                        c = parse(child_name, child_yaml, d, listed=listed)
+                        c = parse(child_key, child_name, child_yaml, d, listed=listed)
                         if c is not None:
                             d.data.append(c)
 
+            # Include TestcaseRule t for the current directory.
+            def add_included_case(t):
+                # Unlisted cases are never included.
+                if not t.listed:
+                    return
+
+                target = t.path
+                name = target.name
+                p = d.path / name
+                if p in self.known_cases:
+                    if target != self.known_cases[p].path:
+                        if self.known_cases[p].path == p:
+                            error(f'{d.path/name} conflicts with included case {target}.')
+                        else:
+                            error(
+                                f'{d.path/name} is included with multiple targets {target} and {self.known_cases[p].path}.'
+                            )
+                    return
+                self.known_cases[p] = t
+                d.includes[name] = t
+
             if 'include' in yaml:
                 check_type('includes', yaml['include'], list, d.path)
-
-                # Include TestcaseRule t for the current directory.
-                def add_included_case(t):
-                    target = t.path
-                    name = target.name
-                    p = d.path / name
-                    if p in self.known_cases:
-                        if target != self.known_cases[p].path:
-                            if self.known_cases[p].path == p:
-                                error(f'{d.path/name} conflicts with included case {target}.')
-                            else:
-                                error(
-                                    f'{d.path/name} is included with multiple targets {target} and {self.known_cases[p].path}.'
-                                )
-                        return
-                    self.known_cases[p] = t
-                    d.includes[name] = t
 
                 for include in yaml['include']:
                     check_type('include', include, str, d.path)
@@ -1099,6 +1161,7 @@ class GeneratorConfig:
                         if isinstance(obj, TestcaseRule):
                             add_included_case(obj)
                         else:
+                            # NOTE: Only listed cases are included
                             obj.walk(
                                 add_included_case,
                                 lambda d: [add_included_case(t) for t in d.includes.values()],
@@ -1106,7 +1169,7 @@ class GeneratorConfig:
                             pass
                     else:
                         error(
-                            f'{d.path}: Include {include} is not a know testcase/testgroup name. Make sure to only refer to lexicographically smaller entries.'
+                            f'{d.path}: Unknown include key {include} does not refer to a lexicographically smaller testcase.'
                         )
                         continue
 
@@ -1120,6 +1183,7 @@ class GeneratorConfig:
 
                     # Testcases are always passed as name without suffix.
                     if not f.is_dir():
+                        f_in = f
                         f = f.with_suffix('')
 
                     # Skip already processed cases.
@@ -1128,18 +1192,32 @@ class GeneratorConfig:
                     ):
                         continue
 
+                    # Broken symlink
+                    if not f.is_dir() and not f_in.exists():
+                        if not config.args.clean:
+                            error(
+                                f'{d.path / f.name}: include target {f_in.readlink()} does not exist.'
+                            )
+                        continue
+
+                    # Working symlink
+                    if f.is_symlink():
+                        target = f.resolve().relative_to(self.problem.path / 'data')
+                        add_included_case(target)
+                        continue
+
                     # Generate stub yaml so we can call `parse` recursively.
                     child_yaml = None
                     if f.is_dir():
                         child_yaml = {}
 
-                    c = parse(f.name, child_yaml, d, listed=False)
+                    c = parse(f.name, f.name, child_yaml, d, listed=False)
                     if c is not None:
                         d.data.append(c)
 
             return d
 
-        self.root_dir = parse('', yaml, RootDirectory())
+        self.root_dir = parse('', '', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
         if config.args.add_manual or config.args.clean or config.args.clean_generated:
@@ -1474,8 +1552,10 @@ class GeneratorConfig:
         def clean_directory(d):
             bar.start(str(d.path))
 
+            path = self.problem.path / 'data' / d.path
+
             # Skip non existent directories
-            if not Path(d.path).exists():
+            if not path.exists():
                 bar.done()
                 return
 
@@ -1484,7 +1564,6 @@ class GeneratorConfig:
                 bar.done()
                 return
 
-            path = self.problem.path / 'data' / d.path
             if not d.listed:
                 if process_testcase(self.problem, d.path):
                     if not config.args.force:
