@@ -476,7 +476,7 @@ def parse_yaml(data, path=None):
 
 
 def read_yaml(path):
-    assert path.is_file()
+    assert path.is_file(), f'File {path} does not exist'
     return parse_yaml(path.read_text(), path=path)
 
 
@@ -910,7 +910,7 @@ def inc_label(label):
 
 
 def hash_file(file, buffer_size=65536):
-    assert file.is_file()
+    assert file.is_file(), f"File {file} does not exist"
     sha = hashlib.sha256(usedforsecurity=False)
 
     with open(file, 'rb') as f:
