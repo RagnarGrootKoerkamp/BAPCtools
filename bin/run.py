@@ -323,6 +323,17 @@ class Submission(program.Program):
         # The first element will match the directory the file is in, if possible.
         self.expected_verdicts = self._get_expected_verdicts()
 
+        # NOTE: Judging of interactive problems on systems without `os.wait4` is
+        # suboptimal because we cannot determine which of the submission and
+        # interactor exits first. Thus, we don't distinguish the different non-AC
+        # verdicts.
+        if self.problem.interactive and (is_windows() or is_bsd()):
+            wrong_verdicts = ['WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']
+            for wrong_verdict in wrong_verdicts:
+                if wrong_verdict in self.expected_verdicts:
+                    self.expected_verdicts += wrong_verdicts
+                    break
+
     def _get_expected_verdicts(self):
         verdicts = []
 
