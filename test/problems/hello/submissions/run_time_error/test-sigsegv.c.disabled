@@ -3,6 +3,9 @@
  * giving an exitcode 139.
  */
 
+// Disabled because the array-bounds violation does not consistently crash, 
+// e.g., on Mac OS X
+
 int main()
 {
 	int a[10];

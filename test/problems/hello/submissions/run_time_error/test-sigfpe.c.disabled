@@ -3,6 +3,8 @@
  * giving an exitcode 136.
  */
 
+// Disabled because the result of division by zero is actually undefined
+
 #include <stdio.h>
 
 int main()
