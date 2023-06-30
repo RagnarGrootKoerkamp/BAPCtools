@@ -425,11 +425,11 @@ class TestcaseRule(Rule):
                         if ext_file.is_file():
                             ext_file.unlink()
                     bar.log(
-                        f'Unlisted and duplicate of {generator_config.generated_testdata[t.hash].path} => deleted.'
+                        f'DELETED unlisted duplicate of {generator_config.generated_testdata[t.hash].path}'
                     )
                 else:
                     bar.log(
-                        f'Unlisted and duplicate of {generator_config.generated_testdata[t.hash].path} => delete with --force.'
+                        f'Unlisted duplicate of {generator_config.generated_testdata[t.hash].path} => delete with --force.'
                     )
             else:
                 bar.error(f'Testcase not listed in generator.yaml (delete using --clean).')
@@ -1052,6 +1052,7 @@ class GeneratorConfig:
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
         def count(yaml):
+            nonlocal num_numbered_testcases
             ds = yaml.get('data')
             if isinstance(ds, dict):
                 ds = [ds]
@@ -1060,12 +1061,14 @@ class GeneratorConfig:
                 numbered = True
             if not isinstance(ds, list):
                 return
-            for d in ds:
-                if is_testcase(ds) and numbered:
-                    # TODO (#271): Count the number of generated cases for `count:` and/or variables.
-                    num_numbered_testcases += 1
-                elif is_directory(ds):
-                    count(ds)
+            for elem in ds:
+                if isinstance(elem, dict):
+                    for key in elem:
+                        if is_testcase(elem[key]) and numbered:
+                            # TODO (#271): Count the number of generated cases for `count:` and/or variables.
+                            num_numbered_testcases += 1
+                        elif is_directory(elem[key]):
+                            count(elem[key])
 
         count(yaml)
 
