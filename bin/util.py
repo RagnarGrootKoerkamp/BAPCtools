@@ -758,7 +758,9 @@ def limit_setter(command, timeout, memory_limit, group=None, cores=False):
             assert not is_mac()
             os.setpgid(0, group)
 
-        if cores is not False:
+        if cores is not False
+            and not is_windows()
+            and not is_bsd():
             os.sched_setaffinity(0, cores)
 
         # Disable coredumps.
