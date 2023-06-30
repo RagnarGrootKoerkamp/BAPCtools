@@ -487,7 +487,7 @@ class TestcaseRule(Rule):
             # Check whether all input validators have been run.
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
             for h in testcase.validator_hashes('input_format'):
-                if h not in meta_yaml.get('validator_hashes'):
+                if h not in meta_yaml.get('validator_hashes', []):
                     return (True, False)
             return (True, True)
 
@@ -714,10 +714,7 @@ class TestcaseRule(Rule):
                 meta_yaml['validator_hashes'] = testcase.validator_hashes('input_format')
 
             # Update metadata
-            yamllib.dump(
-                meta_yaml,
-                meta_path.open('w'),
-            )
+            write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
             message = ''
         else:
             if config.args.action != 'generate':
@@ -875,7 +872,7 @@ class Directory(Rule):
             # All hashes validated before?
             def up_to_date():
                 for h in hashes:
-                    if h not in meta_yaml.get('validator_hashes'):
+                    if h not in meta_yaml.get('validator_hashes', []):
                         return False
                 return True
 
@@ -894,6 +891,8 @@ class Directory(Rule):
                         continue
                 # Add hashes to the cache.
                 for h in hashes:
+                    if 'validator_hashes' not in meta_yaml:
+                        meta_yaml['validator_hashes'] = dict()
                     meta_yaml['validator_hashes'][h] = hashes[h]
 
                 # Update metadata
