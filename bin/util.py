@@ -943,6 +943,12 @@ def inc_label(label):
     return 'A' + label
 
 
+def hash_string(string):
+    sha = hashlib.sha256(usedforsecurity=False)
+    sha.update(string.encode())
+    return sha.hexdigest()
+
+
 def hash_file(file, buffer_size=65536):
     assert file.is_file(), f"File {file} does not exist"
     sha = hashlib.sha256(usedforsecurity=False)

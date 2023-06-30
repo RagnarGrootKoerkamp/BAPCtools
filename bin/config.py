@@ -45,6 +45,15 @@ KNOWN_DATA_EXTENSIONS = [
     '.gif',
 ]
 
+KNOWN_TEXT_DATA_EXTENSIONS = [
+    '.in',
+    '.ans',
+    '.interaction',
+    '.hint',
+    '.desc',
+]
+
+
 SEED_DEPENDENCY_RETRIES = 10
 
 # The root directory of the BAPCtools repository.
