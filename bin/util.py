@@ -807,7 +807,7 @@ class ResourcePopen(subprocess.Popen):
 
 
 # Run `command`, returning stderr if the return code is unexpected.
-def exec_command(command, expect=0, crop=True, cores=False, **kwargs):
+def exec_command(command, expect=0, crop=True, **kwargs):
     # By default: discard stdout, return stderr
     if 'stdout' not in kwargs or kwargs['stdout'] is True:
         kwargs['stdout'] = subprocess.PIPE
@@ -858,7 +858,7 @@ def exec_command(command, expect=0, crop=True, cores=False, **kwargs):
         if not is_windows() and not is_wsl():
             process = ResourcePopen(
                 command,
-                preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs), cores=cores),
+                preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs)),
                 **kwargs,
             )
         else:

@@ -224,13 +224,13 @@ class Run:
                 shutil.rmtree(f)
 
     # Return an ExecResult object amended with verdict.
-    def run(self, *, interaction=None, submission_args=None, cores=False):
+    def run(self, *, interaction=None, submission_args=None):
         if self.problem.interactive:
             result = interactive.run_interactive_testcase(
-                self, interaction=interaction, submission_args=submission_args, cores=cores
+                self, interaction=interaction, submission_args=submission_args
             )
         else:
-            result = self.submission.run(self.testcase.in_path, self.out_path, cores=cores)
+            result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
                 if result.duration >= self.problem.settings.timeout:
@@ -405,7 +405,7 @@ class Submission(program.Program):
     # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
     # args is used by SubmissionInvocation to pass on additional arguments.
     # Returns ExecResult
-    def run(self, in_path, out_path, crop=True, args=[], cwd=None, cores=False):
+    def run(self, in_path, out_path, crop=True, args=[], cwd=None):
         assert self.run_command is not None
         # Just for safety reasons, change the cwd.
         if cwd is None:
@@ -422,7 +422,6 @@ class Submission(program.Program):
                 stderr=None if out_file is None else True,
                 timeout=self.problem.settings.timeout,
                 cwd=cwd,
-                cores=cores,
             )
             if out_file:
                 out_file.close()
@@ -448,11 +447,11 @@ class Submission(program.Program):
         verdict = (-100, 'ACCEPTED', 'ACCEPTED', 0)  # priority, verdict, print_verdict, duration
         verdict_run = None
 
-        def process_run(run, p, cores):
+        def process_run(run, p):
             nonlocal max_duration, verdict, verdict_run
 
             localbar = bar.start(run)
-            result = run.run(cores=cores)
+            result = run.run()
 
             if result.verdict == 'ACCEPTED':
                 validate.generic_validation('output', run.out_path, bar=localbar)
@@ -518,7 +517,7 @@ class Submission(program.Program):
                 bar.count = None
                 p.stop()
 
-        p = parallel.Parallel(lambda run, c: process_run(run, p, cores=c), pin=True)
+        p = parallel.Parallel(lambda run: process_run(run, p), pin=True)
 
         for run in runs:
             p.put(run)

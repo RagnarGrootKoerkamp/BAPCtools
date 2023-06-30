@@ -28,7 +28,6 @@ def run_interactive_testcase(
     # else: path
     interaction=False,
     submission_args=None,
-    cores=False,
 ):
     output_validators = run.problem.validators('output')
     if output_validators is False:
@@ -186,7 +185,7 @@ while True:
         # TODO: Make a flag to pass validator error directly to terminal.
         stderr=subprocess.PIPE if validator_error is False else None,
         cwd=validator_dir,
-        preexec_fn=limit_setter(validator_command, validator_timeout, None, 0, cores),
+        preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
     )
     validator_pid = validator.pid
     # add all programs to the same group (for simiplcity we take the pid of the validator)
@@ -204,7 +203,7 @@ while True:
             stdin=subprocess.PIPE,
             stdout=validator.stdin,
             stderr=interaction_file,
-            preexec_fn=limit_setter(None, None, None, gid, cores),
+            preexec_fn=limit_setter(None, None, None, gid),
         )
         team_tee_pid = team_tee.pid
         val_tee = subprocess.Popen(
@@ -212,7 +211,7 @@ while True:
             stdin=validator.stdout,
             stdout=subprocess.PIPE,
             stderr=interaction_file,
-            preexec_fn=limit_setter(None, None, None, gid, cores),
+            preexec_fn=limit_setter(None, None, None, gid),
         )
         val_tee_pid = val_tee.pid
 
@@ -225,7 +224,7 @@ while True:
         stdout=(team_tee if interaction else validator).stdin,
         stderr=subprocess.PIPE if team_error is False else None,
         cwd=submission_dir,
-        preexec_fn=limit_setter(submission_command, timeout, memory_limit, gid, cores),
+        preexec_fn=limit_setter(submission_command, timeout, memory_limit, gid),
     )
     submission_pid = submission.pid
 
