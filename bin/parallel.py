@@ -34,28 +34,26 @@ class Parallel:
 
         if self.num_threads:
             if pin:
+                # only use available cores
                 cores = list(os.sched_getaffinity(0))
-                if len(cores) > self.num_threads:
+                if self.num_threads > len(cores):
                     self.num_threads = len(cores)
-                    util.log(f'{num_threads} jobs requested but only {len(cores)} cores found. Using only {len(cores)} jobs!')
+
+                # sort cores by reversed id. If num_threads << len(cores) this ensures that we 
+                # use different physical cores instead of hyperthreads
                 num_bits = max(map(lambda c: c.bit_length(), cores))
                 cores.sort(key=lambda c: util.bit_reverse(c, num_bits))
 
             self.threads = []
             for i in range(self.num_threads):
-                args = [cores[i]] if pin else []
+                args = [{cores[i]}] if pin else []
                 t = threading.Thread(target=self._worker, args=args, daemon=True)
                 t.start()
                 self.threads.append(t)
 
             signal.signal(signal.SIGINT, self._interrupt_handler)
 
-    def _worker(self, pin=False):
-        if pin != False:
-            #TODO store this threadlocal...
-            #TODO read this in limit_setter
-            #storage = threading.local()
-            #storage.__setattr__('pin', pin)
+    def _worker(self, cores=False):
         while True:
             with self.mutex:
                 # if self.abort we need no item in the queue and can stop
@@ -77,7 +75,10 @@ class Parallel:
             # store the first exception for later
             try:
                 current_error = None
-                self.f(task)
+                if cores is False:
+                    self.f(task)
+                else:
+                    self.f(task, cores)
             except Exception as e:
                 self.stop()
                 current_error = e

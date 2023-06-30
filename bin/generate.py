@@ -1419,7 +1419,7 @@ class GeneratorConfig:
         #    after to deduplicate them against generated testcases.
 
         # 1
-        p = parallel.Parallel(lambda t: t.listed and t.generate(self.problem, self, bar), pin=True)
+        p = parallel.Parallel(lambda t: t.listed and t.generate(self.problem, self, bar))
 
         def generate_dir(d):
             p.join()
@@ -1429,7 +1429,7 @@ class GeneratorConfig:
         p.done()
 
         # 2
-        p = parallel.Parallel(lambda t: not t.listed and t.generate(self.problem, self, bar). pin=True)
+        p = parallel.Parallel(lambda t: not t.listed and t.generate(self.problem, self, bar))
 
         def generate_dir_unlisted(d):
             p.join()

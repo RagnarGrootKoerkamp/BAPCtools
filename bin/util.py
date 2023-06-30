@@ -732,7 +732,7 @@ class ExecResult:
         return self.verdict
 
 
-def limit_setter(command, timeout, memory_limit, group=None):
+def limit_setter(command, timeout, memory_limit, group=None, cores=False):
     def setlimits():
         if timeout:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
@@ -757,6 +757,9 @@ def limit_setter(command, timeout, memory_limit, group=None):
             assert not is_windows()
             assert not is_mac()
             os.setpgid(0, group)
+
+        if cores is not False:
+            os.sched_setaffinity(0, cores)
 
         # Disable coredumps.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
@@ -801,7 +804,7 @@ class ResourcePopen(subprocess.Popen):
 
 
 # Run `command`, returning stderr if the return code is unexpected.
-def exec_command(command, expect=0, crop=True, **kwargs):
+def exec_command(command, expect=0, crop=True, cores=False, **kwargs):
     # By default: discard stdout, return stderr
     if 'stdout' not in kwargs or kwargs['stdout'] is True:
         kwargs['stdout'] = subprocess.PIPE
@@ -852,7 +855,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         if not is_windows() and not is_wsl():
             process = ResourcePopen(
                 command,
-                preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs)),
+                preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs), cores=cores),
                 **kwargs,
             )
         else:
