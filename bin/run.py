@@ -65,7 +65,8 @@ class Testcase:
 
     # Return the flags specified in testdata.yaml for the given validator,
     # None if no flags were found, or False if this validator should be skipped.
-    def testdata_yaml_validator_flags(self, validator_type, validator):
+    # If `split`, split the string by spaces.
+    def testdata_yaml_validator_flags(self, validator_type, validator, split=True):
         # Do not use flags when using the default output validator.
         if self.problem.settings.validation == 'default' and validator_type == 'output':
             return None
@@ -83,7 +84,7 @@ class Testcase:
         # Note: support for lists/dicts for was removed in #259.
         if not isinstance(flags, str):
             fatal(f'{key} must be a string in testdata.yaml')
-        return flags.split()
+        return flags.split() if split else flags
 
     # Returns a dict of objects
     # hash =>
@@ -98,7 +99,7 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator_type, validator)
+            flags = self.testdata_yaml_validator_flags(validator_type, validator, split=False)
             if flags is False:
                 continue
             o = {
@@ -305,7 +306,7 @@ class Run:
             if ret.ok is not True:
                 return ret
 
-            last_result = ret        
+            last_result = ret
 
         return last_result
 

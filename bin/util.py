@@ -499,12 +499,15 @@ write_yaml_lock = threading.Lock()
 
 
 # Writing a yaml file only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
-def write_yaml(data, path):
+def write_yaml(data, path, allow_yamllib=False):
     if not has_ryaml:
-        error(
-            'This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
-        )
-        exit(1)
+        if not allow_yamllib:
+            error(
+                'This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
+            )
+            exit(1)
+        yamllib.dump(data, path)
+        return
     with write_yaml_lock:
         ryaml.dump(
             data,
