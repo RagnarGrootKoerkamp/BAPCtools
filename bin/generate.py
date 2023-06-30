@@ -776,6 +776,8 @@ class Directory(Rule):
         self.data = []
         # Map of short_name => TestcaseRule, filled by parse().
         self.includes = dict()
+        # List of unlisted included symlinks, filled by parse().
+        self.unlisted_includes = []
 
         # Sanity checks for possibly empty data.
         if 'data' not in yaml:
@@ -919,6 +921,29 @@ class Directory(Rule):
                     # whether anything (an existing symlink/copy) was changed.
                     bar.debug(f'INCLUDED {t.name}')
             bar.done()
+
+    # Clean up or warn for unlisted includes.
+    # Separate function that's run after the generation of listed dirs/cases.
+    def generate_unlisted(d, problem, generator_config, bar):
+        for name in d.unlisted_includes:
+            f = problem.path / 'data' / d.path / (name + '.in')
+            assert f.is_symlink()
+            target = f.readlink()
+            bar.start(str(d.path / name))
+            # Broken symlink
+            if not f.exists():
+                if config.args.force:
+                    for ext in config.KNOWN_DATA_EXTENSIONS:
+                        ext_file = f.with_suffix(ext)
+                        if ext_file.is_symlink():
+                            ext_file.unlink()
+                    bar.log(f'Deleted broken include to {target}.')
+                else:
+                    bar.error(f'Include with target {target} does not exist.')
+            else:
+                bar.log(f'Include target {target} exists')
+            bar.done()
+
         return True
 
 
@@ -1185,8 +1210,8 @@ class GeneratorConfig:
                         continue
 
                     # Testcases are always passed as name without suffix.
+                    f_in = f
                     if not f.is_dir():
-                        f_in = f
                         f = f.with_suffix('')
 
                     # Skip already processed cases.
@@ -1195,18 +1220,9 @@ class GeneratorConfig:
                     ):
                         continue
 
-                    # Broken symlink
-                    if not f.is_dir() and not f_in.exists():
-                        if not config.args.clean:
-                            error(
-                                f'{d.path / f.name}: include target {f_in.readlink()} does not exist.'
-                            )
-                        continue
-
-                    # Working symlink
-                    if f.is_symlink():
-                        target = f.resolve().relative_to(self.problem.path / 'data')
-                        add_included_case(target)
+                    # Broken or valid symlink.
+                    if f_in.is_symlink():
+                        d.unlisted_includes.append(f.name)
                         continue
 
                     # Generate stub yaml so we can call `parse` recursively.
@@ -1377,9 +1393,14 @@ class GeneratorConfig:
 
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
-        self.root_dir.walk(
-            None, lambda d: [item_names.append(d.path / name) for name in d.includes]
-        )
+
+        def count_dir(d):
+            for name in d.includes:
+                item_names.append(d.path / name)
+            for name in d.unlisted_includes:
+                item_names.append(d.path / name)
+
+        self.root_dir.walk(None, count_dir)
         bar = ProgressBar('Generate', items=item_names)
 
         # Testcases are generated in two step:
@@ -1402,8 +1423,12 @@ class GeneratorConfig:
 
         # 2
         p = parallel.Parallel(lambda t: not t.listed and t.generate(self.problem, self, bar))
-        # Directories have already been generated so can be skipped now.
-        self.root_dir.walk(p.put, None)
+
+        def generate_dir_unlisted(d):
+            p.join()
+            d.generate_unlisted(self.problem, self, bar)
+
+        self.root_dir.walk(p.put, generate_dir_unlisted)
         p.done()
 
         bar.finalize()
