@@ -7,9 +7,12 @@ from pathlib import Path
 import tools
 import problem
 import config
+import util
 
 # Run `bt run` on these problems.
-PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'guess']
+PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'guess'] + [
+    'hellounix' if not util.is_mac() and not util.is_windows() else []
+]
 
 # Run various specific commands on this problem.
 IDENTITY_PROBLEMS = ['identity']
