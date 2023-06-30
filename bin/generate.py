@@ -767,7 +767,7 @@ class Directory(Rule):
         if 'testdata.yaml' in yaml:
             self.testdata_yaml = yaml['testdata.yaml']
         else:
-            self.testdata_yaml = None
+            self.testdata_yaml = False
 
         self.listed = listed
         self.numbered = False
@@ -838,7 +838,10 @@ class Directory(Rule):
 
         # Write the testdata.yaml, or remove it when the key is set but empty.
         testdata_yaml_path = dir_path / 'testdata.yaml'
-        if d.testdata_yaml is not None:
+        if d.testdata_yaml is False:
+            if testdata_yaml_path.is_file():
+                bar.error(f'Unlisted testdata.yaml (delete using --clean)')
+        else:
             if d.testdata_yaml:
                 yaml_text = yamllib.dump(dict(d.testdata_yaml))
                 if not testdata_yaml_path.is_file():
@@ -852,6 +855,7 @@ class Directory(Rule):
                             bar.warn(f'SKIPPED: testdata.yaml')
 
             if d.testdata_yaml == '' and testdata_yaml_path.is_file():
+                bar.log(f'DELETED: testdata.yaml')
                 testdata_yaml_path.unlink()
         bar.done()
 
@@ -1589,6 +1593,15 @@ class GeneratorConfig:
             if not path.exists():
                 bar.done()
                 return
+
+            # Remove testdata.yaml when the key is not present.
+            testdata_yaml_path = path / 'testdata.yaml'
+            if testdata_yaml_path.is_file() and d.testdata_yaml is False:
+                if not config.args.force:
+                    bar.warn(f'Delete unlisted testdata.yaml with -f')
+                else:
+                    bar.log(f'Deleting unlisted testdata.yaml')
+                    testdata_yaml_path.unlink()
 
             # Skip the data/bad directory.
             if len(d.path.parts) > 0 and d.path.parts[0] == 'bad':
