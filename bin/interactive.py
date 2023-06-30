@@ -29,7 +29,6 @@ def run_interactive_testcase(
     interaction=False,
     submission_args=None
 ):
-
     output_validators = run.problem.validators('output')
     if output_validators is False:
         fatal('No output validators found!')
@@ -74,8 +73,7 @@ def run_interactive_testcase(
     # - Wait for the validator to complete.
     # This cannot handle cases where the validator reports WA and the submission timeout out
     # afterwards.
-    if is_windows() or is_mac():
-
+    if is_windows() or is_bsd():
         if validator_error is False:
             validator_error = subprocess.PIPE
         if team_error is False:
