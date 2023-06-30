@@ -34,7 +34,7 @@ class Parallel:
 
         if self.num_threads:
             if pin and not util.is_windows() and not util.is_bsd():
-                # only use available cores
+                # only use available cores and reserve one
                 cores = list(os.sched_getaffinity(0))
                 if self.num_threads > len(cores) - 1:
                     self.num_threads = len(cores) - 1
@@ -53,7 +53,10 @@ class Parallel:
             signal.signal(signal.SIGINT, self._interrupt_handler)
 
     def _worker(self, cores=False):
+        if cores is not False:
+            os.sched_setaffinity(0, cores)
         while True:
+            print(os.getpid(), os.sched_getaffinity(0))
             with self.mutex:
                 # if self.abort we need no item in the queue and can stop
                 # if self.finish we may need to wake up if all tasks were completed earlier
@@ -74,10 +77,7 @@ class Parallel:
             # store the first exception for later
             try:
                 current_error = None
-                if cores is False:
-                    self.f(task)
-                else:
-                    self.f(task, cores)
+                self.f(task)
             except Exception as e:
                 self.stop()
                 current_error = e

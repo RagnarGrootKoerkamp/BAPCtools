@@ -114,11 +114,11 @@ def _try_generator_invocation(problem, t, submissions, i):
 
     saved = False
 
-    def run_submission(submission, cores):
+    def run_submission(submission):
         nonlocal saved
         r = run.Run(problem, submission, testcase)
         localbar = bar.start(submission)
-        result = r.run(cores=cores)
+        result = r.run()
         if result.verdict != 'ACCEPTED':
             if not saved:
                 saved = True
