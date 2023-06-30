@@ -33,16 +33,15 @@ class Parallel:
         self.finish = False
 
         if self.num_threads:
-            if pin:
+            if pin and not util.is_windows() and not util.is_bsd():
                 # only use available cores
                 cores = list(os.sched_getaffinity(0))
-                if self.num_threads > len(cores):
-                    self.num_threads = len(cores)
+                if self.num_threads > len(cores) - 1:
+                    self.num_threads = len(cores) - 1
 
-                # sort cores by reversed id. If num_threads << len(cores) this ensures that we 
+                # sort cores by id. If num_threads << len(cores) this ensures that we 
                 # use different physical cores instead of hyperthreads
-                num_bits = max(map(lambda c: c.bit_length(), cores))
-                cores.sort(key=lambda c: util.bit_reverse(c, num_bits))
+                cores.sort()
 
             self.threads = []
             for i in range(self.num_threads):
