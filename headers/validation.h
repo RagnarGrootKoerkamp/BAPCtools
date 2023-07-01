@@ -42,16 +42,6 @@
 #include <experimental/source_location>
 constexpr bool has_source_location = true;
 using std::experimental::source_location;
-namespace std {
-bool operator<(const source_location& l, const source_location& r) {
-	return l.line() < r.line();
-}
-} // namespace std
-namespace std::experimental::fundamentals_v2 {
-bool operator<(const source_location& l, const source_location& r) {
-	return l.line() < r.line();
-}
-} // namespace std::experimental::fundamentals_v2
 #else
 constexpr bool has_source_location = false;
 struct source_location {
@@ -59,9 +49,6 @@ struct source_location {
 	[[nodiscard]] int line() const { return 0; }               // NOLINT
 	[[nodiscard]] std::string file_name() const { return ""; } // NOLINT
 };
-inline bool operator<(const source_location& l, const source_location& r) {
-	return l.line() < r.line();
-}
 #endif
 
 inline std::string location_to_string(source_location loc) {
@@ -86,8 +73,12 @@ inline struct UniqueTag : ArbitraryTag {
 	static constexpr bool increasing = false;
 	static constexpr bool decreasing = false;
 } Unique;
-inline struct IncreasingTag : ArbitraryTag { static constexpr bool increasing = true; } Increasing;
-inline struct DecreasingTag : ArbitraryTag { static constexpr bool decreasing = true; } Decreasing;
+inline struct IncreasingTag : ArbitraryTag {
+	static constexpr bool increasing = true;
+} Increasing;
+inline struct DecreasingTag : ArbitraryTag {
+	static constexpr bool decreasing = true;
+} Decreasing;
 inline struct StrictlyIncreasingTag : ArbitraryTag {
 	static constexpr bool strict     = true;
 	static constexpr bool increasing = true;
@@ -229,10 +220,10 @@ struct UniformGenerator {
 			// Rejection sampling is not as fast as possible but definitely unbiased.
 			auto ul    = static_cast<unsigned long long>(low);
 			auto uh    = static_cast<unsigned long long>(high);
-			int shifts = cpp20::countl_zero(uh - ul);
+			int shitfs = cpp20::countl_zero(uh - ul);
 			unsigned long long res;
 			do {
-				res = Random::bits64(rng) >> shifts;
+				res = Random::bits64(rng) >> shitfs;
 			} while(res > uh - ul);
 			return static_cast<long long>(res + ul);
 		} else {
@@ -601,10 +592,10 @@ class Validator {
 
   public:
 	// No copying, no moving.
-	Validator(const Validator&) = delete;
-	Validator(Validator&&)      = delete;
+	Validator(const Validator&)      = delete;
+	Validator(Validator&&)           = delete;
 	void operator=(const Validator&) = delete;
-	void operator=(Validator&&) = delete;
+	void operator=(Validator&&)      = delete;
 
 	// At the end of the scope, check whether the EOF has been reached.
 	// If so, return AC. Otherwise, return WA.
@@ -661,25 +652,25 @@ class Validator {
 
 	template <typename T>
 	auto& seen() {
-		static std::map<source_location, std::set<T>> seen;
+		static std::unordered_map<std::string, std::set<T>> seen;
 		return seen;
 	}
 	template <typename T>
 	auto& last_seen() {
-		static std::map<source_location, T> last_seen;
+		static std::unordered_map<std::string, T> last_seen;
 		return last_seen;
 	}
 	template <typename T>
 	auto& integers_seen() {
-		static std::map<source_location, std::tuple<std::set<T>, std::vector<T>, bool>>
+		static std::unordered_map<std::string, std::tuple<std::set<T>, std::vector<T>, bool>>
 		    integers_seen;
 		return integers_seen;
 	}
 	template <typename T>
-	void reset(source_location loc) {
-		seen<T>().erase(loc);
-		last_seen<T>().erase(loc);
-		integers_seen<T>().erase(loc);
+	void reset(std::string name) {
+		seen<T>().erase(name);
+		last_seen<T>().erase(name);
+		integers_seen<T>().erase(name);
 	}
 
 	template <typename T, typename Tag>
@@ -700,10 +691,10 @@ class Validator {
 		}
 		log_constraint(name, low, high, v, loc);
 		if constexpr(Tag::unique) {
-			auto [it, inserted] = seen<T>()[loc].emplace(v);
+			auto [it, inserted] = seen<T>()[name].emplace(v);
 			check(inserted, name, ": Value ", v, " seen twice, but must be unique!");
 		} else {
-			auto [it, inserted] = last_seen<T>().emplace(loc, v);
+			auto [it, inserted] = last_seen<T>().emplace(name, v);
 			if(inserted) return;
 
 			auto last  = it->second;
@@ -722,19 +713,17 @@ class Validator {
 	void check_string(const std::string& name, int low, int high, const std::string& v,
 	                  Tag /*unused*/, source_location loc) {
 		using T = std::string;
-		if((int) v.size() < low or (int) v.size() > high) {
+		if((int)v.size() < low or (int) v.size() > high) {
 			expected(name + ": " + "string with" + " length between " + std::to_string(low) +
 			             " and " + std::to_string(high),
 			         v);
 		}
 		log_constraint(name, low, high, static_cast<int>(v.size()), loc);
 		if constexpr(Tag::unique) {
-			// static map<source_location, set<T>> seen;
-			auto [it, inserted] = seen<T>()[loc].emplace(v);
+			auto [it, inserted] = seen<T>()[name].emplace(v);
 			check(inserted, name, ": Value ", v, " seen twice, but must be unique!");
 		} else if(Tag::increasing or Tag::decreasing) {
-			// static map<source_location, T> last_seen;
-			auto [it, inserted] = last_seen<T>().emplace(loc, v);
+			auto [it, inserted] = last_seen<T>().emplace(name, v);
 			if(inserted) return;
 
 			auto last  = it->second;
@@ -769,7 +758,7 @@ class Validator {
 			assert(params.find(name) == params.end() &&
 			       "Parameters are not supported for unique values.");
 			if constexpr(std::is_integral<T>::value) {
-				auto& [seen_here, remaining_here, use_remaining] = integers_seen<T>()[loc];
+				auto& [seen_here, remaining_here, use_remaining] = integers_seen<T>()[name];
 
 				if(use_remaining) {
 					check(!remaining_here.empty(), name, ": no unique values left");
@@ -797,7 +786,7 @@ class Validator {
 				}
 			} else {
 				// For floats, just regenerate numbers until success.
-				auto& seen_here = seen<T>()[loc];
+				auto& seen_here = seen<T>()[name];
 				do {
 					v = uniform_number(low, high);
 				} while(!seen_here.insert(v).second);
@@ -987,7 +976,7 @@ class Validator {
 
 			return v;
 		}
-		reset<T>(loc);
+		reset<T>(name);
 		std::vector<T> v(count);
 		for(int i = 0; i < count; ++i) {
 			if constexpr(std::is_integral<T>::value)
@@ -1032,7 +1021,7 @@ class Validator {
 	                                      const std::string_view chars = "", Tag tag = Tag(),
 	                                      Separator sep       = Space,
 	                                      source_location loc = source_location::current()) {
-		reset<std::string>(loc);
+		reset<std::string>(name);
 		if(gen) return gen_strings(name, count, min, max, chars, tag, sep, loc);
 		assert(!gen);
 		std::vector<std::string> v(count);
@@ -1235,7 +1224,7 @@ class Validator {
 		// All integer types get bounds as long long, all floating point types as long_double.
 		using U = Bounds<std::conditional_t<std::is_integral_v<T>, long long, long double>>;
 
-		auto [it, inserted] = bounds.emplace(loc, U(name, v, v, low, high));
+		auto [it, inserted] = bounds.emplace(name, U(name, v, v, low, high, loc));
 		assert(std::holds_alternative<U>(it->second));
 		auto& done = std::get<U>(it->second);
 		if(inserted) {
@@ -1264,14 +1253,15 @@ class Validator {
 			WA(name, ": Want integer, found nothing");
 		}
 		long long v;
-		auto begin = s.c_str(), end = begin + s.size();
-		auto [ptr, ec] = std::from_chars(begin, end, v);
-		if(ec == std::errc::result_out_of_range){
+		try {
+			auto begin = s.c_str(), end = begin + s.size();
+			auto [ptr, ec] = std::from_chars(begin, end, v);
+			if(ptr != end or ec != std::errc{})
+				WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
+		} catch(const std::out_of_range& e) {
 			WA(name, ": Number " + s + " does not fit in a long long!");
-		} else if(ptr != end) {
-			WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
-		} else if (ec != std::errc{}) {
-			WA(name, ": Parsing " + s + " as long long failed!");
+		} catch(const std::invalid_argument& e) {
+			WA("Parsing " + s + " as long long failed!");
 		}
 		// Check for leading zero.
 		if(v == 0) {
@@ -1389,27 +1379,29 @@ class Validator {
 	// Keep track of the min/max value read at every call site.
 	template <typename T>
 	struct Bounds {
-		Bounds(std::string name_, T min_, T max_, T low_, T high_)
-		    : name(std::move(name_)), min(min_), max(max_), low(low_), high(high_) {} // NOLINT
+		Bounds(std::string name_, T min_, T max_, T low_, T high_, source_location loc_)
+		    : name(std::move(name_)), min(min_), max(max_), low(low_), high(high_), loc(loc_) {
+		} // NOLINT
 		std::string name;
 		T min, max;  // Smallest / largest value observed
 		T low, high; // Bounds
 		bool has_min = false, has_max = false;
+		source_location loc;
 	};
 
-	std::map<source_location, std::variant<Bounds<long long>, Bounds<long double>>> bounds;
+	std::unordered_map<std::string, std::variant<Bounds<long long>, Bounds<long double>>> bounds;
 
 	void write_constraints() {
 		if(constraints_file_path.empty()) return;
 
 		std::ofstream os(constraints_file_path);
 
-		for(const auto& [location, bound] : bounds) {
-			os << location_to_string(location) << " ";
+		for(const auto& [name, bound] : bounds) {
 			std::visit(
 			    [&](const auto& b) {
-				    os << b.name << " " << b.has_min << " " << b.has_max << " " << b.min << " "
-				       << b.max << " " << b.low << " " << b.high << std::endl;
+				    os << location_to_string(b.loc) << " " << b.name << " " << b.has_min << " "
+				       << b.has_max << " " << b.min << " " << b.max << " " << b.low << " " << b.high
+				       << std::endl;
 			    },
 			    bound);
 		}
