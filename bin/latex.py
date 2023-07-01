@@ -274,8 +274,11 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
 
     if solutions:
         # include a header slide in the solutions PDF
+        headerlangtex = Path(f'solution_header.{language}.tex')
         headertex = Path('solution_header.tex')
-        if headertex.exists():
+        if headerlangtex.exists():
+            problems_data += f'\\input{{{headerlangtex}}}\n'
+        elif headertex.exists():
             problems_data += f'\\input{{{headertex}}}\n'
 
     local_per_problem_data = Path(f'contest-{build_type}.tex')
@@ -290,8 +293,16 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
             prepare_problem(problem)
 
         if solutions:
-            if not (problem.path / 'problem_statement/solution.tex').is_file():
-                warn(f'solution.tex not found for problem {problem.name}')
+            solutiontex = problem.path / 'problem_statement/solution.tex'
+            solutionlangtex = problem.path / f'problem_statement/solution.{language}.tex'
+            if solutionlangtex.is_file():
+                # All is good
+                pass
+            elif solutiontex.is_file():
+                warn(f'{problem.name}: Rename solution.tex to solution.{language}.tex')
+                continue
+            else:
+                warn(f'{problem.name}: solution.{language}.tex not found')
                 continue
 
         problems_data += util.substitute(
@@ -309,10 +320,13 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
         )
 
     if solutions:
-        # include a statistics slide in the solutions PDF
-        footer_tex = Path('solution_footer.tex')
-        if footer_tex.exists():
-            problems_data += f'\\input{{{footer_tex}}}\n'
+        # include a footer slide in the solutions PDF
+        footerlangtex = Path(f'solution_footer.{language}.tex')
+        footertex = Path('solution_footer.tex')
+        if footerlangtex.exists():
+            problems_data += f'\\input{{{footerlangtex}}}\n'
+        elif footertex.exists():
+            problems_data += f'\\input{{{footertex}}}\n'
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
