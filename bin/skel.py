@@ -143,7 +143,7 @@ def new_problem():
         for lang in statement_languages
     }
     dirname = (
-        _alpha_num(problemname)
+        _alpha_num(config.args.problemname)
         if config.args.problemname
         else _ask_variable_string('dirname', _alpha_num(problemname[statement_languages[0]]))
     )

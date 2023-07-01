@@ -194,6 +194,6 @@ class TestNewContestProblem:
 class TestReadProblemConfig:
     def test_read_problem_config(self):
         p = problem.Problem(RUN_DIR / 'test/problems/test_problem_config', Path('/tmp/xyz'))
-        assert p.settings.name == 'ABC XYZ'
+        assert p.settings.name['en'] == 'ABC XYZ'
         assert p.settings.validation == 'custom'
         assert p.settings.timelimit == 3.0

@@ -18,12 +18,16 @@ from contest import *
 def fix_problem_yaml_name(problem):
     reverts = []
     for f in (problem.path / 'problem_statement').iterdir():
-        if f.is_file() and f.suffix == '.tex':
+        if f.is_file() and f.suffix == '.tex' and len(f.suffixes) >= 2:
+            lang = f.suffixes[-2][1:]
             t = f.read_text()
             if r'\problemyamlname' in t:
-                reverts.append((f, t))
-                t = t.replace(r'\problemyamlname', problem.settings.name)
-                f.write_text(t)
+                if lang in problem.settings.name:
+                    reverts.append((f, t))
+                    t = t.replace(r'\problemyamlname', problem.settings.name[lang])
+                    f.write_text(t)
+                else:
+                    util.error(f'{f}: no name set for language {lang}.')
 
     def revert():
         for f, t in reverts:
