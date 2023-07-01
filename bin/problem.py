@@ -65,9 +65,13 @@ class Problem:
             for path in glob(self.path, 'problem_statement/problem.*.tex')
         )
         for lang in texfiles - yamlnames:
-            error(f"Found problem.{lang}.tex, but no corresponding name in problem.yaml.")
+            error(
+                f"{self.name}: Found problem.{lang}.tex, but no corresponding name in problem.yaml."
+            )
         for lang in yamlnames - texfiles:
-            error(f"Found name for language {lang} in problem.yaml, but not problem.{lang}.tex.")
+            error(
+                f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
+            )
         return list(texfiles & yamlnames)
 
     def _read_settings(self):
