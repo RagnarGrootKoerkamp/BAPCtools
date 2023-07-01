@@ -373,10 +373,9 @@ class Program:
             self.bar.error('Failed', data)
             return False
 
-        yamllib.dump({
-            'hash' : self.hash,
-            'command' : ' '.join(self.compile_command)
-        }, meta_path.open('w'))
+        yamllib.dump(
+            {'hash': self.hash, 'command': ' '.join(self.compile_command)}, meta_path.open('w')
+        )
         return True
 
     # Return True on success, False on failure.
@@ -426,8 +425,6 @@ class Program:
         lang_config = languages()[self.language]
 
         compile_command = lang_config['compile'] if 'compile' in lang_config else ''
-        if self.check_constraints and self.language == 'cpp':
-            compile_command += ' -Duse_source_location'
         self.compile_command = compile_command.format(**self.env).split()
         run_command = lang_config['run']
         self.run_command = run_command.format(**self.env).split()
@@ -436,9 +433,8 @@ class Program:
         up_to_date = False
         if meta_path.is_file():
             meta_yaml = read_yaml(meta_path)
-            up_to_date = (
-                meta_yaml['hash'] == self.hash
-                and meta_yaml['command'] == ' '.join(self.compile_command)
+            up_to_date = meta_yaml['hash'] == self.hash and meta_yaml['command'] == ' '.join(
+                self.compile_command
             )
 
         if not up_to_date or config.args.force_build:

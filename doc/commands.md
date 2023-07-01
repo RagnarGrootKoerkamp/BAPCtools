@@ -287,8 +287,6 @@ It supports the following flags when run for a single problem:
 
 See the [implementation notes](implementation_notes.md#constraints-checking) for more info.
 
-NOTE: Validators based on [headers/validation.h](../headers/validation.h) require C++20 to compile `std::source_location`.
-
 **Verify testcase**
 
 Validators that accept the `--constraints_file <path>` option are run on all testcases to check whether the bounds specified in the validator are actually reached by the testdata. A warning is raised when this is not the case.
