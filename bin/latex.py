@@ -19,7 +19,13 @@ def create_samples_file(problem):
 
     # create the samples.tex file
     # For samples, find all .in/.ans/.interaction pairs.
-    samples = problem.testcases(needans=not problem.interactive, needinteraction=problem.interactive, only_sample=True, statement_samples=True, copy=True)
+    samples = problem.testcases(
+        needans=not problem.interactive,
+        needinteraction=problem.interactive,
+        only_sample=True,
+        statement_samples=True,
+        copy=True,
+    )
     if samples is False:
         samples = []
 
@@ -229,7 +235,9 @@ def find_logo():
 
 # Build a pdf for an entire problemset in the given language. Explanation in latex/readme.md
 def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=False):
-    log(f"Building contest {'statements' if not solutions else 'solutions'} PDF for language {language} ")
+    log(
+        f"Building contest {'statements' if not solutions else 'solutions'} PDF for language {language} "
+    )
     builddir = tmpdir / contest
     builddir.mkdir(parents=True, exist_ok=True)
     build_type = 'solution' if solutions else 'problem'
@@ -251,12 +259,13 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
             config_data[x] = default_config_data[x]
     config_data['testsession'] = '\\testsession' if config_data.get('testsession') else ''
     config_data['logofile'] = find_logo().as_posix()
+    config_data['stmlang'] = language
 
-    local_contest_data = Path('contest-data.tex')
+    local_contest_data = Path('contest_data.tex')
     util.copy_and_substitute(
         local_contest_data
         if local_contest_data.is_file()
-        else config.tools_root / 'latex/contest-data.tex',
+        else config.tools_root / 'latex/contest_data.tex',
         builddir / 'contest_data.tex',
         config_data,
     )
@@ -322,6 +331,5 @@ def build_contest_pdfs(contest, problems, tmpdir, solutions=False, web=False):
     else:
         languages = statement_languages
     return all(
-        build_contest_pdf(contest, problems, tmpdir, lang, solutions, web)
-        for lang in languages
+        build_contest_pdf(contest, problems, tmpdir, lang, solutions, web) for lang in languages
     )
