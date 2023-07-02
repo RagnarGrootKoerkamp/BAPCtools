@@ -91,9 +91,25 @@ data:
       # If a solution is specified, .ans files will be generated for manual cases
       # that don't provide a .ans.
       "3": manual_cases/sample/3.in
+      # Small testcases can be specified explictly:
+      "4":
+        in: 1 0
+        ans: "1"
+        desc: Right identity for addition
+        hint: Make sure addition with zero also works
+      # Use YAML multiline syntax for multiline testcases
+      "5":
+        in: |
+          10 13
+          0 0
+          -5 1
+        ans: |
+          23
+          0
+          -4
   # Every testcase present in the directory must be listed.
   # TOOLING: may still allow unlisted testcases and warn about them.
-  #'4':
+  #'5':
 
   secret:
     data:
