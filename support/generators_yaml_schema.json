@@ -89,7 +89,7 @@
           "description": "Generator invocation given as a dictionary. Useful for overriding 'visualizer' and 'solution'.",
           "type": "object",
           "properties": {
-            "input": { "type": "string" },
+            "command": { "$ref":  "#/$defs/command" } ,
             "in": { "type": "string" },
             "ans": { "type": "string" },
             "desc": { "type": "string" },
