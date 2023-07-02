@@ -130,17 +130,17 @@ data:
 ---
 data:
   ab:
-    input: gen {seed}
+    command: gen {seed}
   b: gen {seed}
 ---
 data:
   - ab:
-      input: gen {seed}
+      command: gen {seed}
   - bb:
       data:
         cc: gen {seed}
 ---
-# Testcase object must be command string or contain input.
+# Testcase object must be command string or contain command.
 data:
   ab: true
 ---
@@ -152,19 +152,19 @@ data:
 ---
 data:
   ab:
-    input: true
+    command: true
 ---
 data:
   ab:
-    input: 1
+    command: 1
 ---
 data:
   ab:
-    input: {}
+    command: {}
 ---
 data:
   ab:
-    input: []
+    command: []
 ---
 # Manual cases must not have an absolute path.
 data:
@@ -201,18 +201,18 @@ visualizer: a 1 2
 ---
 visualizer: a {name}
 ---
-# Directories may not have input:.
-input: xyz
+# Directories may not have command:.
+command: xyz
 ---
 data:
   ab:
-    input: x
+    command: x
     data:
 ---
 # Testcases may not have data:.
 data:
   ab:
-    input: abc
+    command: abc
     data: {}
 ---
 # File names must be >= 2 letters
