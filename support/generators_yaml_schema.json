@@ -90,11 +90,14 @@
           "type": "object",
           "properties": {
             "input": { "type": "string" },
+            "in": { "type": "string" },
+            "ans": { "type": "string" },
+            "desc": { "type": "string" },
+            "hint": { "type": "string" },
             "visualizer": { "oneOf": [{"$ref": "#/$defs/visualizer"}, {"type": "null" }] },
             "random_salt": { "$ref": "#/$defs/random_salt" },
             "solution": { "oneOf": [ { "$ref": "#/$defs/solution" }, { "type": "null" }]}
           },
-          "required": ["input"],
           "additionalProperties": false
         }
       ]
