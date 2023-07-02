@@ -90,10 +90,10 @@
           "type": "object",
           "properties": {
             "command": { "$ref":  "#/$defs/command" } ,
-            "in": { "type": "string" },
-            "ans": { "type": "string" },
-            "desc": { "type": "string" },
-            "hint": { "type": "string" },
+            "in": { "type": "string", "description": "Explicit testcase input" },
+            "ans": { "type": "string", "description": "Explicit testcase anwer" },
+            "desc": { "type": "string", "description": "Privileged information explaining the purpose of this testcase" },
+            "hint": { "type": "string", "description": "Feedback shown to the solver about this testcase"},
             "visualizer": { "oneOf": [{"$ref": "#/$defs/visualizer"}, {"type": "null" }] },
             "random_salt": { "$ref": "#/$defs/random_salt" },
             "solution": { "oneOf": [ { "$ref": "#/$defs/solution" }, { "type": "null" }]}
