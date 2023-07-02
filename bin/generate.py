@@ -35,12 +35,12 @@ def is_testcase(yaml):
     return (
         yaml == None
         or isinstance(yaml, str)
-        or (isinstance(yaml, dict) and ('input' in yaml or 'in' in yaml))
+        or (isinstance(yaml, dict) and ('command' in yaml or 'in' in yaml))
     )
 
 
 def is_directory(yaml):
-    return isinstance(yaml, dict) and not ('input' in yaml or 'in' in yaml)
+    return isinstance(yaml, dict) and not ('command' in yaml or 'in' in yaml)
 
 
 # Returns the given path relative to the problem root.
@@ -286,7 +286,7 @@ class DefaultSolutionInvocation(SolutionInvocation):
         return 'default_solution'
 
 
-KNOWN_TESTCASE_KEYS = ['type', 'input', 'solution', 'visualizer', 'random_salt', 'retries'] + [
+KNOWN_TESTCASE_KEYS = ['type', 'command', 'solution', 'visualizer', 'random_salt', 'retries'] + [
     e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS
 ]
 RESERVED_TESTCASE_KEYS = ['data', 'testdata.yaml', 'include']
@@ -300,7 +300,7 @@ KNOWN_DIRECTORY_KEYS = [
     'random_salt',
     'retries',
 ]
-RESERVED_DIRECTORY_KEYS = ['input']
+RESERVED_DIRECTORY_KEYS = ['command']
 KNOWN_ROOT_KEYS = ['generators', 'parallel', 'gitignore_generated']
 
 
@@ -402,16 +402,16 @@ class TestcaseRule(Rule):
         if yaml is None:
             self.manual = True
             self.inline = True
-            yaml = {'input': Path('data') / parent.path / (name + '.in')}
+            yaml = {'command': Path('data') / parent.path / (name + '.in')}
         elif isinstance(yaml, str) and yaml.endswith('.in'):
             self.manual = True
-            yaml = {'input': resolve_path(yaml, allow_absolute=False, allow_relative=True)}
+            yaml = {'command': resolve_path(yaml, allow_absolute=False, allow_relative=True)}
         elif isinstance(yaml, str):
-            yaml = {'input': yaml}
+            yaml = {'command': yaml}
         elif isinstance(yaml, dict):
-            assert 'input' in yaml or 'in' in yaml
-            if 'input' in yaml:
-                check_type('Input', yaml['input'], [type(None), str])
+            assert 'command' in yaml or 'in' in yaml
+            if 'command' in yaml:
+                check_type('command', yaml['command'], [type(None), str])
             for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
                 if ext[1:] in yaml:
                     value = yaml[ext[1:]]
@@ -436,7 +436,7 @@ class TestcaseRule(Rule):
                 if config.args.action == 'generate':
                     log(f'Unknown testcase level key: {key} in {self.path}')
 
-        inpt = yaml.get('input')
+        inpt = yaml.get('command')
 
         self.generator = None
         if self.manual:
@@ -766,7 +766,11 @@ class TestcaseRule(Rule):
                         if not testcase.ans_path.is_file():
                             testcase.ans_path.write_text('')
                         # For interactive problems, run the interactive solution and generate a .interaction.
-                        if t.config.solution and (testcase.sample or config.args.interaction) and '.interaction' not in t.hardcoded:
+                        if (
+                            t.config.solution
+                            and (testcase.sample or config.args.interaction)
+                            and '.interaction' not in t.hardcoded
+                        ):
                             if not t.config.solution.run_interactive(problem, bar, cwd, t):
                                 return
 

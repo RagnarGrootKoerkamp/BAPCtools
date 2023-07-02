@@ -71,24 +71,24 @@ data:
           # Random_salt must be a string.
           - "":
               random_salt: "1.0"
-              input: random_gen.py {seed}
+              command: random_gen.py {seed}
           - "":
               random_salt: "1.00"
-              input: random_gen.py {seed}
+              command: random_gen.py {seed}
           - "":
               random_salt: "yes"
-              input: random_gen.py {seed}
+              command: random_gen.py {seed}
           - "":
               random_salt: "true"
-              input: random_gen.py {seed}
+              command: random_gen.py {seed}
       testcase_dict_1:
-        input: random_gen.py {seed:6}
+        command: random_gen.py {seed:6}
       testcase_dict_2:
         solution: /generators/solution.c
-        input: random_gen.py {seed:7}
+        command: random_gen.py {seed:7}
       testcase_dict_3:
         visualizer:
-        input: random_gen.py {seed:8}
+        command: random_gen.py {seed:8}
       unused_args_1: > # Spread arguments over multiple lines.
         random_gen.py
         {seed}
@@ -110,16 +110,16 @@ data:
       # Commands should always be strings.
       boolean_generator_yes:
         solution: /generators/yes
-        input: y
+        command: y
       boolean_generator_no:
         solution: /generators/no
-        input: n
+        command: n
       boolean_generator_true:
         solution: /generators/true
-        input: t
+        command: t
       boolean_generator_false:
         solution: /generators/false
-        input: f
+        command: f
         unknown_key:
       empty_group_1: {}
       empty_group_2:
