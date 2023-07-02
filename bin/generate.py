@@ -491,18 +491,13 @@ class TestcaseRule(Rule):
         if not t.listed and generator_config.has_yaml:
             manual_data = problem.path / t.source
             if t.input_hash in generator_config.generated_testdata:
-                if config.args.force:
-                    for ext in config.KNOWN_DATA_EXTENSIONS:
-                        ext_file = manual_data.with_suffix(ext)
-                        if ext_file.is_file():
-                            ext_file.unlink()
-                    bar.log(
-                        f'DELETED unlisted duplicate of {generator_config.generated_testdata[t.input_hash].path}'
-                    )
-                else:
-                    bar.log(
-                        f'Unlisted duplicate of {generator_config.generated_testdata[t.input_hash].path} => delete with --force.'
-                    )
+                for ext in config.KNOWN_DATA_EXTENSIONS:
+                    ext_file = manual_data.with_suffix(ext)
+                    if ext_file.is_file():
+                        ext_file.unlink()
+                bar.debug(
+                    f'DELETED unlisted duplicate of {generator_config.generated_testdata[t.input_hash].path}'
+                )
             else:
                 bar.error(f'Testcase not listed in generator.yaml (delete using --clean).')
             bar.done()
