@@ -15,6 +15,7 @@ class Parallel:
     def __init__(self, f, num_threads=True, pin=False):
         self.f = f
         self.num_threads = config.args.jobs if num_threads is True else num_threads
+        self.pin = pin and not util.is_windows() and not util.is_bsd()
 
         # mutex to lock parallel access
         self.mutex = threading.Lock()
@@ -33,7 +34,7 @@ class Parallel:
         self.finish = False
 
         if self.num_threads:
-            if pin and not util.is_windows() and not util.is_bsd():
+            if self.pin:
                 # only use available cores and reserve one
                 cores = list(os.sched_getaffinity(0))
                 if self.num_threads > len(cores) - 1:
@@ -99,8 +100,15 @@ class Parallel:
             assert not self.finish
             # no task will be handled after self.abort
             if not self.abort:
-                self.f(task)
-            
+                if self.pin:
+                    cores = list(os.sched_getaffinity(0))
+                    os.sched_setaffinity(0, {cores[0]})
+                    self.f(task)
+                    os.sched_setaffinity(0, cores)
+                else:
+                    self.f(task)
+                
+
             return
 
         with self.mutex:
