@@ -466,9 +466,11 @@ class TestcaseRule(Rule):
         # Filled during generate(), since `self.config.solution` will only be set later for the default solution.
         self.cache_data = {}
 
-        if self.input_hash in generator_config.rules_cache:
+        # Unlisted cases are warned for later -- no need to additionally warn if they're duplicate.
+        # Also prevents warning for unlisted cases because of renumbering.
+        if self.listed and self.input_hash in generator_config.rules_cache:
             error(
-                f'Found duplicate rule "{inpt}" at {generator_config.rules_cache[self.input_hash]} and {self.path}'
+                f'Found identical input at {generator_config.rules_cache[self.input_hash]} and {self.path}'
             )
         generator_config.rules_cache[self.input_hash] = self.path
 
