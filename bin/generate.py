@@ -882,7 +882,14 @@ class Directory(Rule):
             for d in data:
                 check_type('Numbered case', d, dict)
                 if len(d) != 1:
-                    fatal(f'Dictionary must contain exactly one named testcase/group: {self.path}')
+                    if 'in' in d or 'ans' in d:
+                        fatal(
+                            f'{self.path}: Dictionary must contain exactly one named testcase/group.\nTo specify hardcoded input/answer, indent one more level.'
+                        )
+                    else:
+                        fatal(
+                            f'{self.path}: Dictionary must contain exactly one named testcase/group.'
+                        )
 
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
