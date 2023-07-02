@@ -410,6 +410,13 @@ class TestcaseRule(Rule):
             yaml = {'command': yaml}
         elif isinstance(yaml, dict):
             assert 'command' in yaml or 'in' in yaml
+            assert not (
+                'command' in yaml and 'in' in yaml
+            ), f'{parent.path / name}: cannot specify both "command" and "in".'
+            assert not (
+                'submission' in yaml and 'ans' in yaml
+            ), f'{parent.path / name}: cannot specify both "submissions" and "ans".'
+
             if 'command' in yaml:
                 check_type('command', yaml['command'], [type(None), str])
             for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
