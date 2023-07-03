@@ -691,6 +691,7 @@ Run this from one of:
         help='Make a zip more following the kattis problemarchive.com format.',
     )
     zipparser.add_argument('--no-solutions', action='store_true', help='Do not compile solutions')
+    zipparser.add_argument('--language', help='Language for DOMjudge pdf statements')
 
     # Build a zip with all samples.
     subparsers.add_parser(
@@ -946,9 +947,18 @@ def run_parsed_arguments(args):
                     success &= problem.validate_format('input_format', constraints={})
                     success &= problem.validate_format('output_format', constraints={})
 
+                """Build contest PDFs for all available languages"""
+                if config.args.language:
+                    statement_language = config.args.language
+                else:
+                    all_languages = set.union(*(set(p.statement_languages) for p in problems))
+                    if len(all_languages) > 1:
+                        fatal('Multiple languages found, please specify one with --language')
+                    statement_language = all_languages.pop()
+
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
-                success &= export.build_problem_zip(problem, output)
+                success &= export.build_problem_zip(problem, output, statement_language)
         if action == 'all' and config.args.cleanup_generated:
             success &= generate.cleanup_generated(problem)
 
