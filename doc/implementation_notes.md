@@ -100,6 +100,21 @@ Testcases are only re-generated when changes were made. This is done with the fo
 
 # Building LaTeX files
 
+BAPCtools comes with a set of latex classes/headers to automatically render
+problem, contest, and solution PDFs. These files are available in [`/latex/`](../latex).
+
+To customize the style, you can provide your own modified copy of any of the
+header files in `<contestdirectory>/` and they will be used instead of the
+BACPtools provided files. For example, you can provide your own
+`<contestdirectory>/contest.tex` as replacement entrypoint for building contest
+PDFs. You can either manually include problems there, or use
+`\input{./contest-problems.tex}` to include the automatically generated content.
+This will instantiate the [`contest-problem.tex`](../latex/contest-problem.tex)
+template once for each problem in the contest. This template itself can also be
+modified if desired.
+
+See also the docs on using multiple languages [here](./multiple_languages.md).
+
 ## Problem statement pdfs
 
 ### Per-problem pdf
@@ -138,10 +153,14 @@ latexmk -cd -g -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error'
 
 ## Solution slides
 
-Solutions are rendered in a similar way to the contest pdf. It uses the `problem_statement/solution.tex` files as inputs. The main difference is the additional inclusion of
+Solutions are rendered in a similar way to the contest pdf. It uses the
+`problem_statement/solution.tex` files as inputs. The main difference is that
+you can provide additional files in `<contestdirectory>/`:
 
-- `solutions_header.tex`: slides prepended to the first problem.
-- `solutions_footer.tex`: slides appended after the last problem.
+- `solutions_header.xy.tex`: slides prepended to the first problem, for the
+  current language.
+- `solutions_footer.xy.tex`: slides appended after the last problem, for the
+  current language.
 
 ### Solve stats
 
