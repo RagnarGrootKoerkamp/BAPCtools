@@ -169,11 +169,11 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
 
 
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/problem.tex,
-# substituting variables.
+#    substituting variables.
 # 2. Link tmpdir/<problem>/problem_statement to the problem problem_statement directory.
 # 3. Link bapc.cls
 # 4. Create tmpdir/<problem>/samples.tex.
-# 5. Run latexmk and link the resulting problem.pdf into the problem directory.
+# 5. Run latexmk and link the resulting problem.xy.pdf into the problem directory.
 def build_problem_pdf(problem, language, solution=False):
     """
     Arguments:

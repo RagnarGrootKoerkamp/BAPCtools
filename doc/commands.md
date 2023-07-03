@@ -196,14 +196,14 @@ If there are problem statements (and problem names in `problem.yaml`) present fo
 - `--all`/`-a`: When run from the contest level, this enables building pdfs for all problems in the contest as well.
 - `--cp`: Instead of symlinking the final pdf, copy it into the problem/contest directory.
 - `--no-timelimit`: When passed, time limits will not be shown in the problem/contest pdfs.
-- `--watch`/`-w`: Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
 - `-1`: Run the LaTeX compiler only once.
 - `--language LANG`: Render only for `LANG`, which is a language code like `en` or `nl`.
 
 ## `solutions`
 
-Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
+Renders a pdf for the current problem or contest. The pdf is written to `solution.en.pdf` or `solutionss.en.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
 See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
 
 **Flags**
@@ -378,7 +378,7 @@ The skel directory is found as with the `new_problem` command and can be overrid
 
 ## `rename_problem`
 
-Rename a problem, including its problem directory. If `problems.yaml` is present, also rename the problem in this file. 
+Rename a problem, including its problem directory. If `problems.yaml` is present, also rename the problem in this file.
 For multilingual problmems, asks for problem names in all languages;
 the default problem directory name is based on the English problem name (if present.)
 Do not forget to pass a `--problem` to rename when running this from a contest directory.
