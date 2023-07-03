@@ -94,10 +94,13 @@ data:
       # Small testcases can be specified explictly:
       "4":
         in: 1 0
+        # Ans must be a string, so `1` is wrapped in quotes.
         ans: "1"
         desc: Right identity for addition
         hint: Make sure addition with zero also works
       # Use YAML multiline syntax for multiline testcases
+      # The pipe | preserves newlines, but strips indentation whitespace.
+      # See also https://yaml-multiline.info/
       "5":
         in: |
           10 13
