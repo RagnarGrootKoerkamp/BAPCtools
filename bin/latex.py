@@ -174,11 +174,10 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
 # 3. Link bapc.cls
 # 4. Create tmpdir/<problem>/samples.tex.
 # 5. Run latexmk and link the resulting problem.pdf into the problem directory.
-def build_problem_pdf(problem, language, use_suffix, solution=False):
+def build_problem_pdf(problem, language, solution=False):
     """
-    Argumements:
+    Arguments:
     -- language: str, the two-latter language code appearing the file name, such as problem.en.tex
-    -- use_suffix: if true, create {problem|solution}.en.pdf, otherwise {problem|solution}.pdf
     """
     log(f"Building {('statement' if not solution else 'solution')} PDF for language {language}")
     main_file = 'solution.tex' if solution else 'problem.tex'
@@ -201,9 +200,7 @@ def build_problem_pdf(problem, language, use_suffix, solution=False):
         },
     )
 
-    return build_latex_pdf(
-        builddir, builddir / main_file, language if use_suffix else None, problem.path
-    )
+    return build_latex_pdf(builddir, builddir / main_file, language, problem.path)
 
 
 def build_problem_pdfs(problem, solutions=False):
@@ -219,9 +216,7 @@ def build_problem_pdfs(problem, solutions=False):
     else:
         languages = problem.statement_languages
 
-    # use .en.pdf only for > 1 language, otherwise .pdf
-    use_suffix = len(problem.statement_languages) > 1
-    return all(build_problem_pdf(problem, lang, use_suffix, solutions) for lang in languages)
+    return all(build_problem_pdf(problem, lang, solutions) for lang in languages)
 
 
 def find_logo():
