@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 #
 # Merge scoreboards using the DOMjudge socreboard:merge tool.
 # Run `sudo docker-compose up` in the domjudge git repo before running this script.
