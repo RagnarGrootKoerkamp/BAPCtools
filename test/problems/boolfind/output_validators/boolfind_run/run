@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 TESTIN="$1";  shift
 TESTANS="$1"; shift
 FEEDBACKDIR="$1"; shift

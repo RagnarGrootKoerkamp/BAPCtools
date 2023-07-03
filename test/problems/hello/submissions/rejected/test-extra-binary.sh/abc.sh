@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env sh
 
 # This program tries to execute a submitted version of 'bc'. Although
 # this in itself is not very harmful (in a chroot, bc is probably
