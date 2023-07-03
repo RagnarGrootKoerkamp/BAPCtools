@@ -69,6 +69,7 @@ if not os.getenv('GITLAB_CI', False):
 # Make sure f-strings are supported.
 f'f-strings are not supported by your python version. You need at least python 3.6.'
 
+
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort
 # by shortname.
@@ -357,7 +358,9 @@ Run this from one of:
         choices=['default', 'custom', 'custom interactive'],
     )
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
-    problemparser.add_argument('--language', dest='languages', action='append', help='Statement language')
+    problemparser.add_argument(
+        '--language', dest='languages', action='append', help='Statement language'
+    )
 
     # Copy directory from skel.
     skelparser = subparsers.add_parser(
@@ -388,7 +391,9 @@ Run this from one of:
         action='store_true',
         help='Create problem statements for individual problems as well.',
     )
-    pdfparser.add_argument('--language', dest='languages', action='append', help='Set statement language.')
+    pdfparser.add_argument(
+        '--language', dest='languages', action='append', help='Set statement language.'
+    )
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     pdfparser.add_argument(
         '--watch',
@@ -425,7 +430,9 @@ Run this from one of:
     )
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
-    solparser.add_argument('--language', dest='languages', action='append', help='Set solution language.')
+    solparser.add_argument(
+        '--language', dest='languages', action='append', help='Set solution language.'
+    )
 
     # Validation
     validate_parser = subparsers.add_parser(
@@ -923,7 +930,6 @@ def run_parsed_arguments(args):
 
             problem_zips.append(output)
             if not config.args.skip:
-
                 # Set up arguments for generate.
                 old_args = argparse.Namespace(**vars(config.args))
                 config.args.check_deterministic = not config.args.force
