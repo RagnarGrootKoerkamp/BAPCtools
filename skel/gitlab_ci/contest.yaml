@@ -11,5 +11,5 @@ contest_pdf_{%contest%}:
   artifacts:
     expire_in: 1 week
     paths:
-      - {%contest%}/contest.pdf
-      - {%contest%}/solutions.pdf
+      - {%contest%}/contest*.pdf
+      - {%contest%}/solution*.pdf

@@ -413,8 +413,8 @@ contest_pdf_nwerc2020:
   artifacts:
     expire_in: 1 week
     paths:
-      - nwerc2020/contest.pdf
-      - nwerc2020/solutions.pdf
+      - nwerc2020/solution*.pdf
+      - nwerc2020/contest*.pdf
 
 verify_testproblem:
   script:
@@ -425,7 +425,7 @@ verify_testproblem:
   artifacts:
     expire_in: 1 week
     paths:
-      - nwerc2020/testproblem/problem.pdf
+      - nwerc2020/testproblem/problem*.pdf
 ```
 
 The default behaviour is:
