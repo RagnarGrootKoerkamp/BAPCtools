@@ -96,6 +96,7 @@ $ docker build . -t ragnargrootkoerkamp/bapctools
 $ docker push ragnargrootkoerkamp/bapctools
 $ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools
 ```
+
 The last step is needed when your CI server is not automatically pulling the latest version.
 
 ## Usage
@@ -170,8 +171,8 @@ them to a separate directory.
 
 - `bt pdf [-v]`
 
-Use this command to compile the `problem.pdf` from the `problem_statement/problem.en.tex` LaTeX statement.
-`problem.pdf` is written to the problem directory itself.
+Use this command to compile the `problem.en.pdf` from the `problem_statement/problem.en.tex` LaTeX statement.
+`problem.en.pdf` is written to the problem directory itself.
 
 This can also be used to create the contest pdf by running it from the contest directory.
 

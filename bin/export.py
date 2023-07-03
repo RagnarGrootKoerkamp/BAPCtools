@@ -40,7 +40,7 @@ def build_samples_zip(problems):
     zf = zipfile.ZipFile(
         'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False
     )
-    for fname in ['contest.pdf', 'contest-web.pdf']:
+    for fname in glob('.', 'contest*.pdf'):
         if Path(fname).is_file():
             zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 
@@ -175,9 +175,8 @@ def build_problem_zip(problem, output):
 
 
 # Assumes the current working directory has: the zipfiles and
-# contest.pdf
-# contest-web.pdf
-# solutions.pdf
+# contest*.pdf
+# solutions*.pdf
 # Output is <outfile>
 def build_contest_zip(problems, zipfiles, outfile, args):
     print("writing ZIP file %s" % outfile, file=sys.stderr)
@@ -193,15 +192,15 @@ def build_contest_zip(problems, zipfiles, outfile, args):
     if not args.kattis:
         build_samples_zip(problems)
 
-        for fname in [
-            'problems.yaml',
-            'contest.yaml',
-            'contest.pdf',
-            'contest-web.pdf',
-            'solutions.pdf',
-            'solutions-web.pdf',
-            'samples.zip',
-        ]:
+        for fname in (
+            [
+                'problems.yaml',
+                'contest.yaml',
+                'samples.zip',
+            ]
+            + glob('.', 'contest*.pdf')
+            + glob('.', 'solutions*.pdf')
+        ):
             if Path(fname).is_file():
                 zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 
