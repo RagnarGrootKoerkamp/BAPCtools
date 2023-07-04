@@ -85,12 +85,13 @@ data:
       # Prefer specifying a path to a .in file as in case `3` below.
       # E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
       "2":
-      # Any key that matches the glob `*.in` is a manual testcase that will be copied
+      # The path: key indicates a manual testcase that will be copied
       # from the given directory into the target testcase. The given directory
       # must not start with a / and will be relative to generators/.
       # If a solution is specified, .ans files will be generated for manual cases
       # that don't provide a .ans.
-      "3": manual_cases/sample/3.in
+      "3":
+        path: manual_cases/sample/3
       # Small testcases can be specified explictly:
       "4":
         in: 1 0
