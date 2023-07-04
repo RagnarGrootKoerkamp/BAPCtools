@@ -47,7 +47,7 @@ class Parallel:
 
             self.threads = []
             for i in range(self.num_threads):
-                args = [{cores[i]}] if pin else []
+                args = [{cores[i]}] if self.pin else []
                 t = threading.Thread(target=self._worker, args=args, daemon=True)
                 t.start()
                 self.threads.append(t)
