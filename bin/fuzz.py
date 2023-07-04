@@ -16,13 +16,117 @@ from util import *
 #      data/fuzz/1.in: <generator rule with hardcoded seed>
 #    by using a numbered directory data/fuzz.
 
+class GeneratorTask:
+    def __init__(self, fuzz, t, i, tmp_id):
+        self.fuzz = fuzz
+        self.generator = t.generator
+        self.solution = t.config.solution
+        self.i = i
+        self.tmp_id = tmp_id
+
+        # Pick a random seed.
+        assert self.generator.program is not None
+        self.seed = random.randint(0, 2**31 - 1)
+        self.command = self.generator.cache_command(seed=self.seed)
+
+        self.save_mutex = threading.Lock()
+        self.saved = False
+
+    def run(self, bar):
+        # GENERATE THE TEST DATA
+        dir = f'fuzz{self.tmp_id}'#use some other name...
+        cwd = self.fuzz.problem.tmpdir / 'data' / dir
+        cwd.mkdir(parents=True, exist_ok=True)
+        name = 'testcase'
+        infile = cwd / (name + '.in')
+        ansfile = cwd / (name + '.ans')        
+
+        localbar = bar.start(f'{self.i}: generate {self.command}')
+        result = self.generator.run(bar, cwd, name, self.seed)
+        if result.ok is not True:
+            bar.finalize()
+            return
+        localbar.done()
+
+        testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
+
+        # Validate the manual or generated .in.
+        localbar = bar.start(f'{self.i}: validate input')
+        if not testcase.validate_format('input_format', bar=bar, constraints=None):
+            bar.finalize()
+            return
+        localbar.done()
+
+        # Generate .ans.
+        if not self.fuzz.problem.interactive:
+            if self.solution and not testcase.ans_path.is_file():
+                if testcase.ans_path.is_file():
+                    testcase.ans_path.unlink()
+                # Run the solution and validate the generated .ans.
+                localbar = bar.start(f'{self.i}: generate ans')
+                if self.solution.run(bar, cwd, name).ok is not True:
+                    localbar.done()
+                    return
+                localbar.done()
+
+            if ansfile.is_file():
+                localbar = bar.start(f'{self.i}: validate output')
+                if not testcase.validate_format('output_format', bar=bar):
+                    localbar.done()
+                    return
+                localbar.done()
+            else:
+                if not target_ansfile.is_file():
+                    bar.error(f'{self.i}: {ansfile.name} does not exist and was not generated.')
+                    return
+        else:
+            if not testcase.ans_path.is_file():
+                testcase.ans_path.write_text('')
+
+        # Run all submissions against the testcase.
+        with self.fuzz.queue.mutex:
+            for submission in self.fuzz.submissions:
+                self.fuzz.queue.put(SubmissionTask(self, submission, testcase, self.tmp_id))
+        self.fuzz.finish_task(self.tmp_id)
+
+    def save_test(self, bar):
+        if self.saved:
+            return
+        save = False
+        # emulate atomic swap of save and self.saved
+        with self.save_mutex:
+            if not self.saved:
+                self.saved = True
+                save = True
+        # only save rule if we set self.saved to True
+        if save:
+            bar.log('Saving testcase in generators.yaml.')
+            self.fuzz.save_test(self.command)
+
+class SubmissionTask:    
+    def __init__(self, generator_task, submission, testcase, tmp_id):
+        self.generator_task = generator_task
+        self.submission = submission
+        self.testcase = testcase
+        self.tmp_id = tmp_id
+
+    def run(self, bar):
+        r = run.Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
+        localbar = bar.start(f'{self.generator_task.i}: {self.submission.name}')
+        result = r.run()
+        if result.verdict != 'ACCEPTED':
+            self.generator_task.save_test(localbar)
+            localbar.error(f'{result.verdict}!')
+        localbar.done()
+        self.generator_task.fuzz.finish_task(self.tmp_id)
+
 class Fuzz:
     def __init__(self, problem):
         self.generators_yaml_mutex = threading.Lock()
         self.problem = problem
 
         # GENERATOR INVOCATIONS
-        generator_config = generate.GeneratorConfig(problem)
+        generator_config = generate.GeneratorConfig(self.problem)
         self.testcase_rules = []
         if generator_config.ok:
             # Filter to only keep rules depending on seed.
@@ -42,10 +146,10 @@ class Fuzz:
             generator_config.build(build_visualizers=False)
 
         # BUILD VALIDATORS
-        problem.validators('output')
+        self.problem.validators('output')
 
         # SUBMISSIONS
-        self.submissions = problem.submissions(accepted_only=True)
+        self.submissions = self.problem.submissions(accepted_only=True)
 
     def run(self):
         if not has_ryaml:
@@ -61,20 +165,59 @@ class Fuzz:
             error('No submissions found.')
             return False
 
-        self.max_submission_len = max(len(s.name) for s in self.submissions)
-
         # config.args.no_bar = True
-        tstart = time.monotonic()
-        i = 0
+        #max(len(s.name) for s in self.submissions)
+        bar = ProgressBar(f'Fuzz', max_len=45)
+        self.start_time = time.monotonic()
+        self.iteration = 0
+        self.tasks = 0
+        self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
         
-        while True:
-            for testcase_rule in self.testcase_rules:
-                if time.monotonic() - tstart > config.args.time:
-                    return True
-                i += 1
-                self._run_generator(testcase_rule, i)
+        # pool of ids used for generators
+        tmp_ids = self.queue.num_threads + 1
+        self.free_tmp_id = {*range(tmp_ids)}
+        self.tmp_id_count = [0]*tmp_ids
 
-    def _save_test(self, command):
+        #add first generator task
+        self.finish_task()
+        
+        # wait for the queue to run empty (after config.args.time)
+        self.queue.join()
+        self.queue.done()
+        bar.done()
+        return True
+
+    # finish task from generator with tmp_id
+    # also add new tasks if queue becomes too empty
+    def finish_task(self, tmp_id = None):
+        with self.queue.mutex:
+            # return tmp_id (and reuse it if all submissions are finished)
+            if tmp_id is not None:
+                self.tasks -= 1
+                self.tmp_id_count[tmp_id] -= 1
+                if self.tmp_id_count[tmp_id] == 0:
+                    self.free_tmp_id.add(tmp_id)
+
+            # don't add new tasks after time is up
+            if time.monotonic() - self.start_time > config.args.time:
+                return
+
+            # add new generator runs to fill up queue
+            while self.tasks <= 2*self.queue.num_threads:
+                testcase_rule = self.testcase_rules[self.iteration % len(self.testcase_rules)]
+                self.iteration += 1
+                # 1 new generator tasks which will also create one task per submission
+                new_tasks = 1 + len(self.submissions)
+                tmp_id = min(self.free_tmp_id)
+                self.free_tmp_id.remove(tmp_id)
+                self.tmp_id_count[tmp_id] = new_tasks
+                self.tasks += new_tasks
+                self.queue.put(GeneratorTask(self, testcase_rule, self.iteration, tmp_id))
+
+
+    # Write new rule to yaml
+    # lock between read and write to ensure that no rule gets lost
+    def save_test(self, command):
         with self.generators_yaml_mutex:
             generators_yaml = self.problem.path / 'generators/generators.yaml'
             data = None
@@ -99,91 +242,3 @@ class Fuzz:
 
             # Overwrite generators.yaml.
             write_yaml(data, generators_yaml)
-
-    def _run_generator(self, t, i):
-        generator = t.generator
-        solution = t.config.solution
-
-        # GENERATE THE TEST DATA
-        cwd = self.problem.tmpdir / 'data' / 'fuzz'
-        cwd.mkdir(parents=True, exist_ok=True)
-        name = 'testcase'
-        infile = cwd / (name + '.in')
-        ansfile = cwd / (name + '.ans')
-
-        assert generator.program is not None
-
-        # Pick a random seed.
-        seed = random.randint(0, 2**31 - 1)
-
-        command = generator.cache_command(seed=seed)
-
-        bar = ProgressBar(f'Fuzz {i}: {command}', max_len=self.max_submission_len)
-
-        bar.start(f'generate {command}')
-        result = generator.run(bar, cwd, name, seed)
-        if result.ok is not True:
-            bar.finalize()
-            return
-        bar.done()
-
-        testcase = run.Testcase(self.problem, infile, short_path=Path('fuzz') / (name + '.in'))
-
-        # Validate the manual or generated .in.
-        bar.start('validate input')
-        if not testcase.validate_format('input_format', bar=bar, constraints=None):
-            bar.finalize()
-            return
-        bar.done()
-
-        # Generate .ans.
-        if not self.problem.interactive:
-            if solution and not testcase.ans_path.is_file():
-                if testcase.ans_path.is_file():
-                    testcase.ans_path.unlink()
-                # Run the solution and validate the generated .ans.
-                bar.start('generate ans')
-                if solution.run(bar, cwd, name).ok is not True:
-                    bar.finalize()
-                    return
-                bar.done()
-
-            if ansfile.is_file():
-                bar.start('validate output')
-                if not testcase.validate_format('output_format', bar=bar):
-                    bar.finalize()
-                    return
-                bar.done()
-            else:
-                if not target_ansfile.is_file():
-                    bar.error(f'{ansfile.name} does not exist and was not generated.')
-                    bar.finalize()
-                    return
-        else:
-            if not testcase.ans_path.is_file():
-                testcase.ans_path.write_text('')
-        
-        bar.start('Run submissions')
-        save = False
-        def run_submission(submission):
-            nonlocal save
-            r = run.Run(self.problem, submission, testcase)
-            localbar = bar.start(submission)
-            result = r.run()
-            if result.verdict != 'ACCEPTED':
-                save = True
-                localbar.error(f'{result.verdict}!')
-            localbar.done()
-
-        # Run all submissions against the testcase.
-        p = parallel.Parallel(run_submission, pin=True)
-        for submission in self.submissions:
-            p.put(submission)
-        p.done()
-        if save:
-            bar.log('Saving testcase in generators.yaml.')
-            self._save_test(command)
-        bar.done()
-
-        bar.global_logged = False
-        bar.finalize(print_done=False)
