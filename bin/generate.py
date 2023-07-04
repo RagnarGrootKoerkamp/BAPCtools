@@ -35,12 +35,15 @@ def is_testcase(yaml):
     return (
         yaml == None
         or isinstance(yaml, str)
-        or (isinstance(yaml, dict) and ('command' in yaml or 'in' in yaml))
+        or (
+            isinstance(yaml, dict)
+            and any(key in yaml for key in ['path', 'command', 'in', 'ans', 'hint', 'desc'])
+        )
     )
 
 
 def is_directory(yaml):
-    return isinstance(yaml, dict) and not ('command' in yaml or 'in' in yaml)
+    return isinstance(yaml, dict) and not is_testcase(yaml)
 
 
 # Returns the given path relative to the problem root.
@@ -384,32 +387,45 @@ class TestcaseRule(Rule):
             error(f'Testcase names should not end with \'.in\': {parent.path / name}')
             name = name[:-3]
 
-        # Manual cases are either unlisted .in files, or listed rules ending in .in.
-        self.manual = False
-        # Inline: cases where the source is in the data/ directory.
-        self.inline = False
-        # Cases where the source is in the yaml file itself.
-        self.hardcoded = {}
         # Listed: cases mentioned in generators.yaml.
         self.listed = listed
+        # Whether this testcase is a sample.
         self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == 'sample'
 
-        if isinstance(yaml, str) and len(yaml) == 0:
-            fatal(
-                f'Manual testcase should be None or a relative path, not empty string at {parent.path / name}.'
-            )
+        # 0. Inline: cases where the source is in the data/ directory.
+        #    This is disjoint from the other options.
+        self.inline = False
+        # 1. Generator
+        self.generator = None
+        # 2. Files are copied form this source.
+        #    This variable already includes the .in extension, to `.with_suffix()` works nicely.
+        self.source = None
+        # 3. Hardcoded cases where the source is in the yaml file itself.
+        self.hardcoded = {}
+
+        # Hash of the .in file, for caching.
+        self.input_hash = None
+        # Filled during generate(), since `self.config.solution` will only be set later for the default solution.
+        self.cache_data = {}
+
+        super().__init__(problem, key, name, yaml, parent)
 
         if yaml is None:
-            self.manual = True
             self.inline = True
-            yaml = {'command': Path('data') / parent.path / (name + '.in')}
-        elif isinstance(yaml, str) and yaml.endswith('.in'):
-            self.manual = True
-            yaml = {'command': resolve_path(yaml, allow_absolute=False, allow_relative=True)}
-        elif isinstance(yaml, str):
-            yaml = {'command': yaml}
-        elif isinstance(yaml, dict):
-            assert 'command' in yaml or 'in' in yaml
+            yaml = dict()
+            target_infile = problem.path / 'data' / self.path.parent / (self.path.name + '.in')
+            if not target_infile.exists():
+                fatal(f'Could not find .in for inline case {intarget}')
+            self.input_hash = hash_file(target_infile)
+        else:
+            check_type('testcase', yaml, [str, dict])
+            if isinstance(yaml, str):
+                yaml = {'command': yaml}
+                if yaml['command'].endswith('.in'):
+                    error(f"Use the new `path: path/to/case` key instead of {yaml['command']}.")
+                    yaml = {'path': yaml['command'][:-3]}
+
+            # checks
             assert not (
                 'command' in yaml and 'in' in yaml
             ), f'{parent.path / name}: cannot specify both "command" and "in".'
@@ -417,8 +433,33 @@ class TestcaseRule(Rule):
                 'submission' in yaml and 'ans' in yaml
             ), f'{parent.path / name}: cannot specify both "submissions" and "ans".'
 
+            # 1. command
             if 'command' in yaml:
-                check_type('command', yaml['command'], [type(None), str])
+                check_type('command', yaml['command'], str)
+                if len(yaml['command']) == 0:
+                    fatal(f'Command must not be empty')
+
+                self.generator = GeneratorInvocation(problem, yaml['command'])
+
+                # TODO: Should the seed depend on white space? For now it does, but
+                # leading and trailing whitespace is stripped.
+                seed_value = self.config.random_salt + yaml['command'].strip()
+                self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (
+                    2**31
+                )
+                self.input_hash = self.generator.hash(self.seed)
+
+            # 2. path
+            if 'path' in yaml:
+                check_type('command', yaml['path'], str)
+                if yaml['path'].endswith('.in'):
+                    error(f"`path: {yaml['path']}` should not include the extension.")
+                self.source = resolve_path(yaml['path'], allow_absolute=False, allow_relative=True)
+                self.source = problem.path / self.source.parent / (self.source.name + '.in')
+                if self.source.is_file():
+                    self.input_hash = hash_file(self.source)
+
+            # 3. hardcoded
             for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
                 if ext[1:] in yaml:
                     value = yaml[ext[1:]]
@@ -426,16 +467,11 @@ class TestcaseRule(Rule):
                     if len(value) > 0 and value[-1] != '\n':
                         value += '\n'
                     self.hardcoded[ext] = value
-        else:
-            assert False
 
-        if not listed:
-            assert self.manual
-        if self.inline:
-            assert self.manual
+            if '.in' in self.hardcoded:
+                self.input_hash = hash_string(self.hardcoded['.in'])
 
-        super().__init__(problem, key, name, yaml, parent)
-
+        # Warn/Error for unknown keys.
         for key in yaml:
             if key in RESERVED_TESTCASE_KEYS:
                 fatal('Testcase must not contain reserved key {key}.')
@@ -443,31 +479,7 @@ class TestcaseRule(Rule):
                 if config.args.action == 'generate':
                     log(f'Unknown testcase level key: {key} in {self.path}')
 
-        inpt = yaml.get('command')
-
-        self.generator = None
-        if self.manual:
-            self.source = inpt
-        elif inpt:
-            # TODO: Should the seed depend on white space? For now it does, but
-            # leading and trailing whitespace is stripped.
-            seed_value = self.config.random_salt + inpt.strip()
-            self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (2**31)
-            self.generator = GeneratorInvocation(problem, inpt)
-
-        # TODO: Include the testcase input_validator_flags in the hash.
-        if self.manual:
-            self.input_hash = hash_file(problem.path / self.source)
-        elif '.in' in self.hardcoded:
-            self.input_hash = hash_string(self.hardcoded['.in'])
-        else:
-            self.input_hash = self.generator.hash(self.seed)
-
-        # Filled during generate(), since `self.config.solution` will only be set later for the default solution.
-        self.cache_data = {}
-
-        # Unlisted cases are warned for later -- no need to additionally warn if they're duplicate.
-        # Also prevents warning for unlisted cases because of renumbering.
+        # Error for listed cases with identical input.
         if self.listed and self.input_hash in generator_config.rules_cache:
             error(
                 f'Found identical input at {generator_config.rules_cache[self.input_hash]} and {self.path}'
@@ -479,20 +491,16 @@ class TestcaseRule(Rule):
 
         t.generate_success = False
 
-        if not t.manual and t.generator and t.generator.program is None:
+        # Some early checks.
+        if t.generator and t.generator.program is None:
             bar.done(False, f'Generator didn\'t build.')
             return
 
-        if t.manual and not (problem.path / t.source).is_file():
-            bar.done(False, f'Source for manual case not found: {t.source}')
-            return
-
-        # Hints for unlisted testcases
+        # Clean up duplicate unlisted testcases, or warn if distinct.
         if not t.listed and generator_config.has_yaml:
-            manual_data = problem.path / t.source
             if t.input_hash in generator_config.generated_testdata:
                 for ext in config.KNOWN_DATA_EXTENSIONS:
-                    ext_file = manual_data.with_suffix(ext)
+                    ext_file = t.source.with_suffix(ext)
                     if ext_file.is_file():
                         ext_file.unlink()
                 bar.debug(
@@ -522,7 +530,7 @@ class TestcaseRule(Rule):
             # - meta_ exists with a timestamp newer than target infile ans ansfile
             # - meta_ contains exactly the right content (commands and hashes)
             # - each validator with correct flags has been run already.
-            if t.manual:
+            if t.source:
                 t.cache_data['source_hash'] = t.input_hash
             for ext, string in t.hardcoded.items():
                 t.cache_data['hardcoded_' + ext[1:]] = hash_string(string)
@@ -635,7 +643,11 @@ class TestcaseRule(Rule):
                 forced = config.args.force
 
             all_done = True
-            for ext in config.KNOWN_DATA_EXTENSIONS:
+
+            # For inline cases, only copy the (possibly) generated .ans.
+            # Any other files in the directory are kept without warning.
+            extentions = ['.ans'] if t.inline else config.KNOWN_DATA_EXTENSIONS
+            for ext in extentions:
                 source = infile.with_suffix(ext)
                 target = target_infile.with_suffix(ext)
 
@@ -685,6 +697,7 @@ class TestcaseRule(Rule):
                             bar.log(f'REMOVED {target.name}')
                             target.unlink()
                     else:
+                        # both source and target do not exist
                         continue
             return all_done
 
@@ -705,30 +718,48 @@ class TestcaseRule(Rule):
                 shutil.rmtree(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
 
-                # Generate .in
-                if t.manual:
-                    manual_data = problem.path / t.source
-                    assert manual_data.is_file()
-
-                    # For manual cases outside of the data/ directory, copy all related files.
-                    # Inside data/, only use the .in.
-
-                    # We make sure to not silently overwrite changes to files in data/
-                    # that are copied from generators/.
-                    for ext in config.KNOWN_DATA_EXTENSIONS:
-                        ext_file = manual_data.with_suffix(ext)
-                        if ext_file.is_file():
-                            shutil.copy(ext_file, infile.with_suffix(ext), follow_symlinks=True)
-
+                # Step 1: run `command:` if present.
                 if t.generator:
                     result = t.generator.run(bar, cwd, infile.stem, t.seed, t.config.retries)
                     if result.ok is not True:
                         return
 
-                # Copy in hardcoded files.
-                for ext, contents in t.hardcoded.items():
-                    infile.with_suffix(ext).write_text(contents)
+                # Step 2: Copy `path:` files for all known extensions.
+                if t.source:
+                    # We make sure to not silently overwrite changes to files in data/
+                    # that are copied from generators/.
+                    copied = False
+                    for ext in config.KNOWN_DATA_EXTENSIONS:
+                        ext_file = t.source.with_suffix(ext)
+                        if ext_file.is_file():
+                            shutil.copy(ext_file, infile.with_suffix(ext), follow_symlinks=True)
+                            copied = True
+                    if not copied:
+                        bar.warn(f'No source files copied from {t.source}.')
 
+                # Step 3: Write hardcoded files.
+                for ext, contents in t.hardcoded.items():
+                    if contents == '':
+                        bar.error(f'Hardcoded {ext} data may not be empty!')
+                    else:
+                        infile.with_suffix(ext).write_text(contents)
+
+                # Step 4: If inline copy the source file.
+                if t.inline:
+                    if not target_infile.is_file():
+                        # Step 5a: Error if target_infile for inline case does not exist.
+                        bar.error(f'No .in file was found for inline testcase')
+                        bar.done()
+                        return
+                    shutil.copy(target_infile, infile, follow_symlinks=True)
+                else:
+                    if not infile.is_file():
+                        # Step 5b: Error if infile was not generated.
+                        bar.error(f'No .in file was generated!')
+                        bar.done()
+                        return
+
+            assert infile.is_file(), f'Expected .in file not found in cache: {infile}'
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
 
             # Validate the manual or generated .in.
@@ -747,25 +778,38 @@ class TestcaseRule(Rule):
                     testcase.bad_input or testcase.bad_output
                 ):
                     if not problem.interactive:
-                        if t.config.solution and '.ans' not in t.hardcoded:
-                            if testcase.ans_path.is_file():
-                                testcase.ans_path.unlink()
-                            # Run the solution
-                            if t.config.solution.run(bar, cwd, infile.stem).ok is not True:
+                        # Generate a .ans if not already generated by earlier steps.
+                        if not testcase.ans_path.is_file():
+                            # Run the solution if available.
+                            if t.config.solution:
+                                if t.config.solution.run(bar, cwd, infile.stem).ok is not True:
+                                    return
+                            elif t.inline:
+                                # Otherwise, copy the .ans for inline cases.
+                                if not target_ansfile.is_file():
+                                    # Error if target_ansfile and `solution` for inline cases both do not exist.
+                                    bar.error(
+                                        f'No solution or .ans file was found for inline testcase'
+                                    )
+                                    bar.done()
+                                    return
+                                shutil.copy(target_ansfile, ansfile, follow_symlinks=True)
+                            else:
+                                # Otherwise, it's a hard error.
+                                bar.error(f'{ansfile.name} does not exist and was not generated.')
+                                bar.done()
                                 return
 
                         # Validate the ans file.
-                        if ansfile.is_file():
-                            if not testcase.validate_format(
-                                'output_format', bar=bar, warn_instead_of_error=ignore_validators
-                            ):
-                                if not ignore_validators:
-                                    bar.debug(
-                                        'Use generate --ignore-validators to ignore validation results.'
-                                    )
-                                    return
-                        else:
-                            bar.warn(f'{ansfile.name} does not exist and was not generated.')
+                        assert ansfile.is_file(), f'Failed to generate ans file: {ansfile}'
+                        if not testcase.validate_format(
+                            'output_format', bar=bar, warn_instead_of_error=ignore_validators
+                        ):
+                            if not ignore_validators:
+                                bar.debug(
+                                    'Use generate --ignore-validators to ignore validation results.'
+                                )
+                                return
                     else:
                         if not testcase.ans_path.is_file():
                             testcase.ans_path.write_text('')
@@ -1356,7 +1400,7 @@ class GeneratorConfig:
 
         def collect_programs(t):
             if isinstance(t, TestcaseRule):
-                if not t.manual and t.generator:
+                if t.generator:
                     generators_used.add(t.generator.program_path)
             if t.config.solution:
                 if config.args.skip_solution:
