@@ -52,6 +52,12 @@ class Parallel:
 
             signal.signal(signal.SIGINT, self._interrupt_handler)
 
+    def __enter__(self):
+        self.mutex.__enter__()
+
+    def __exit__(self, *args):
+        self.mutex.__exit__(*args)
+
     def _worker(self, cores=False):
         if cores is not False:
             os.sched_setaffinity(0, cores)
