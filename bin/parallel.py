@@ -34,13 +34,14 @@ class Parallel:
         self.finish = False
 
         if self.num_threads:
+            cores = None
             if self.pin:
                 # only use available cores and reserve one
                 cores = list(os.sched_getaffinity(0))
                 if self.num_threads > len(cores) - 1:
                     self.num_threads = len(cores) - 1
 
-                # sort cores by id. If num_threads << len(cores) this ensures that we 
+                # sort cores by id. If num_threads << len(cores) this ensures that we
                 # use different physical cores instead of hyperthreads
                 cores.sort()
 
@@ -107,7 +108,6 @@ class Parallel:
                     os.sched_setaffinity(0, cores)
                 else:
                     self.f(task)
-                
 
             return
 
