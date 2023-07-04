@@ -7,7 +7,6 @@ import os
 import config
 import util
 
-
 class Parallel:
     # f(task): the function to run on each queue item.
     # num_threads: True: the configured default
@@ -18,7 +17,7 @@ class Parallel:
         self.pin = pin and not util.is_windows() and not util.is_bsd()
 
         # mutex to lock parallel access
-        self.mutex = threading.Lock()
+        self.mutex = threading.RLock()
         # condition used to notify worker if the queue has changed
         self.todo = threading.Condition(self.mutex)
         # condition used to notify join that the queue is empty
