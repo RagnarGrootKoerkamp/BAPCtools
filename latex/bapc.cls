@@ -329,7 +329,6 @@
 %-------------------------------------------------------------------------------
 % The following are required for the overall layout:
 %-------------------------------------------------------------------------------
-\usepackage[english]{babel}
 \usepackage{lmodern}
 \usepackage{graphicx}
 \usepackage{courier}
