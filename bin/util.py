@@ -88,7 +88,7 @@ def fatal(msg):
 # final message on bar.done() will be ignored.
 class ProgressBar:
     # Lock on all IO via this class.
-    lock = threading.Lock()
+    lock = threading.RLock()
 
     current_bar = None
 
@@ -168,7 +168,6 @@ class ProgressBar:
     def clearline(self):
         if config.args.no_bar:
             return
-        assert self.lock.locked()
         print(self.carriage_return, end='', flush=True, file=sys.stderr)
 
     def action(prefix, item, width=None, total_width=None):
@@ -208,7 +207,6 @@ class ProgressBar:
     # Resume the ongoing progress bar after a log/done.
     # Should only be called for the root.
     def _resume(self):
-        assert self.lock.locked()
         assert self.parent is None
 
         if config.args.no_bar:
@@ -227,30 +225,27 @@ class ProgressBar:
                 print(self.get_prefix(), bar, sep='', end='\r', flush=True, file=sys.stderr)
 
     def start(self, item=''):
-        self.lock.acquire()
-        # start may only be called on the root bar.
-        assert self.parent is None
-        self.i += 1
-        assert self.count is None or self.i <= self.count
+        with self.lock:
+            # start may only be called on the root bar.
+            assert self.parent is None
+            self.i += 1
+            assert self.count is None or self.i <= self.count
 
-        # assert self.item is None
-        self.item = item
-        self.logged = False
-        self.in_progress.add(item)
-        bar_copy = copy.copy(self)
-        bar_copy.parent = self
+            # assert self.item is None
+            self.item = item
+            self.logged = False
+            self.in_progress.add(item)
+            bar_copy = copy.copy(self)
+            bar_copy.parent = self
 
-        if config.args.no_bar:
-            self.lock.release()
-            return bar_copy
+            if config.args.no_bar:
+                return bar_copy
 
-        bar = self.get_bar()
-        if bar is None or bar == '':
-            print(self.get_prefix(), end='\r', flush=True, file=sys.stderr)
-        else:
-            print(self.get_prefix(), bar, sep='', end='\r', flush=True, file=sys.stderr)
-
-        self.lock.release()
+            bar = self.get_bar()
+            if bar is None or bar == '':
+                print(self.get_prefix(), end='\r', flush=True, file=sys.stderr)
+            else:
+                print(self.get_prefix(), bar, sep='', end='\r', flush=True, file=sys.stderr)
         return bar_copy
 
     @staticmethod
@@ -262,86 +257,74 @@ class ProgressBar:
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message='', data='', color=Fore.GREEN, *, needs_lock=True, resume=True):
-        if needs_lock:
-            self.lock.acquire()
+    def log(self, message='', data='', color=Fore.GREEN, *, resume=True):
+        with self.lock:
+            if message is None:
+                message = ''
+            self.clearline()
+            self.logged = True
 
-        if message is None:
-            message = ''
-        self.clearline()
-        self.logged = True
-
-        if self.parent:
-            self.parent.global_logged = True
-            if self.parent.needs_leading_newline:
-                print(file=sys.stderr)
-                self.parent.needs_leading_newline = False
-        else:
-            self.global_logged = True
-            if self.needs_leading_newline:
-                print(file=sys.stderr)
-                self.needs_leading_newline = False
-
-        print(
-            self.get_prefix(),
-            color,
-            message,
-            ProgressBar._format_data(data),
-            Style.RESET_ALL,
-            sep='',
-            flush=True,
-            file=sys.stderr,
-        )
-
-        if resume:
             if self.parent:
-                self.parent._resume()
+                self.parent.global_logged = True
+                if self.parent.needs_leading_newline:
+                    print(file=sys.stderr)
+                    self.parent.needs_leading_newline = False
             else:
-                self._resume()
+                self.global_logged = True
+                if self.needs_leading_newline:
+                    print(file=sys.stderr)
+                    self.needs_leading_newline = False
 
-        if needs_lock:
-            self.lock.release()
+            print(
+                self.get_prefix(),
+                color,
+                message,
+                ProgressBar._format_data(data),
+                Style.RESET_ALL,
+                sep='',
+                flush=True,
+                file=sys.stderr,
+            )
+
+            if resume:
+                if self.parent:
+                    self.parent._resume()
+                else:
+                    self._resume()
 
     # Same as log, but only in verbose mode.
     def debug(self, message, data=''):
         if config.args.verbose:
             self.log(message, data)
 
-    def warn(self, message='', data='', needs_lock=True):
+    def warn(self, message='', data=''):
         config.n_warn += 1
-        self.log(message, data, Fore.YELLOW, needs_lock=needs_lock)
+        self.log(message, data, Fore.YELLOW)
 
     # Error removes the current item from the in_progress set.
-    def error(self, message='', data='', needs_lock=True):
-        if needs_lock:
-            self.lock.acquire()
-        config.n_error += 1
-        self.log(message, data, Fore.RED, needs_lock=False, resume=False)
-        self._release_item()
-        if needs_lock:
-            self.lock.release()
+    def error(self, message='', data=''):
+        with self.lock:
+            config.n_error += 1
+            self.log(message, data, Fore.RED, resume=False)
+            self._release_item()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(self, success=True, message='', data=''):
-        self.lock.acquire()
-        self.clearline()
+        with self.lock:
+            self.clearline()
 
-        if self.item is None:
-            self.lock.release()
-            return
+            if self.item is None:
+                return
 
-        if not self.logged:
-            if not success:
-                config.n_error += 1
-            if config.args.verbose or not success:
-                self.log(message, data, needs_lock=False, color=Fore.GREEN if success else Fore.RED)
+            if not self.logged:
+                if not success:
+                    config.n_error += 1
+                if config.args.verbose or not success:
+                    self.log(message, data, color=Fore.GREEN if success else Fore.RED)
 
-        self._release_item()
-        if self.parent:
-            self.parent._resume()
-
-        self.lock.release()
-        return
+            self._release_item()
+            if self.parent:
+                self.parent._resume()
 
     # Log an intermediate line if it's an error or we're in verbose mode.
     # Return True when something was printed
@@ -349,48 +332,45 @@ class ProgressBar:
         if not success:
             config.n_error += 1
         if config.args.verbose or not success:
-            self.lock.acquire()
-            if success:
-                self.log(message, data, needs_lock=False)
-            else:
-                if warn_instead_of_error:
-                    self.warn(message, data, needs_lock=False)
+            with self.lock:
+                if success:
+                    self.log(message, data)
                 else:
-                    self.error(message, data, needs_lock=False)
-            if self.parent:
-                self.parent._resume()
-            self.lock.release()
+                    if warn_instead_of_error:
+                        self.warn(message, data)
+                    else:
+                        self.error(message, data)
+                if self.parent:
+                    self.parent._resume()
             return True
         return False
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
     def finalize(self, *, print_done=True, message=None):
-        self.lock.acquire()
-        self.clearline()
-        assert self.parent is None
-        assert self.count is None or self.i == self.count
-        assert self.item is None
-        # At most one of print_done and message may be passed.
-        if message:
-            assert print_done is True
+        with self.lock:
+            self.clearline()
+            assert self.parent is None
+            assert self.count is None or self.i == self.count
+            assert self.item is None
+            # At most one of print_done and message may be passed.
+            if message:
+                assert print_done is True
 
-        # If nothing was logged, we don't need the super wide spacing before the final 'DONE'.
-        if not self.global_logged and not message:
-            self.item_width = 0
+            # If nothing was logged, we don't need the super wide spacing before the final 'DONE'.
+            if not self.global_logged and not message:
+                self.item_width = 0
 
-        # Print 'DONE' when nothing was printed yet but a summary was requested.
-        if print_done and not self.global_logged and not message:
-            message = f'{Fore.GREEN}Done{Style.RESET_ALL}'
+            # Print 'DONE' when nothing was printed yet but a summary was requested.
+            if print_done and not self.global_logged and not message:
+                message = f'{Fore.GREEN}Done{Style.RESET_ALL}'
 
-        if message:
-            print(self.get_prefix(), message, sep='', file=sys.stderr)
+            if message:
+                print(self.get_prefix(), message, sep='', file=sys.stderr)
 
-        # When something was printed, add a newline between parts.
-        if self.global_logged:
-            print(file=sys.stderr)
-
-        self.lock.release()
+            # When something was printed, add a newline between parts.
+            if self.global_logged:
+                print(file=sys.stderr)
 
         assert ProgressBar.current_bar is not None
         ProgressBar.current_bar = None
@@ -469,15 +449,14 @@ def parse_yaml(data, path=None):
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
     if has_ryaml:
-        ruamel_lock.acquire()
-        try:
-            ret = ryaml.load(data)
-        except ruamel.yaml.constructor.DuplicateKeyError as error:
-            if path is not None:
-                fatal(f'Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}')
-            else:
-                fatal(f'Duplicate key in yaml object!\n{str(error)}')
-        ruamel_lock.release()
+        with ruamel_lock:
+            try:
+                ret = ryaml.load(data)
+            except ruamel.yaml.constructor.DuplicateKeyError as error:
+                if path is not None:
+                    fatal(f'Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}')
+                else:
+                    fatal(f'Duplicate key in yaml object!\n{str(error)}')
         return ret
 
     else:
