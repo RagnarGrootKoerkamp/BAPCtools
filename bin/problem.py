@@ -61,8 +61,7 @@ class Problem:
             self.settings.name = {'en': self.settings.name}
         yamlnames = set(self.settings.name)
         texfiles = set(
-            path.suffixes[0][1:]
-            for path in glob(self.path, 'problem_statement/problem.*.tex')
+            path.suffixes[0][1:] for path in glob(self.path, 'problem_statement/problem.*.tex')
         )
         for lang in texfiles - yamlnames:
             error(
@@ -72,7 +71,7 @@ class Problem:
             error(
                 f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
             )
-        return list(texfiles & yamlnames)
+        return sorted(texfiles & yamlnames)
 
     def _read_settings(self):
         # some defaults
@@ -157,7 +156,14 @@ class Problem:
 
     # statement_samples end in .in.statement and .ans.statement and are only used in the statement.
     def testcases(
-        p, *, needans=True, needinteraction=False, only_sample=False, statement_samples=False, include_bad=False, copy=False,
+        p,
+        *,
+        needans=True,
+        needinteraction=False,
+        only_sample=False,
+        statement_samples=False,
+        include_bad=False,
+        copy=False,
     ):
         def maybe_copy(x):
             return x.copy() if copy and isinstance(x, (list, dict)) else x
