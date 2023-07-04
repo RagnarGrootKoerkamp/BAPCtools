@@ -88,7 +88,7 @@ class GeneratorTask:
                 testcase.ans_path.write_text('')
 
         # Run all submissions against the testcase.
-        with self.fuzz.queue.mutex:
+        with self.fuzz.queue:
             for submission in self.fuzz.submissions:
                 self.fuzz.queue.put(SubmissionTask(self, submission, testcase, self.tmp_id))
         self.fuzz.finish_task(self.tmp_id)
@@ -104,7 +104,9 @@ class GeneratorTask:
                 save = True
         # only save rule if we set self.saved to True
         if save:
-            bar.log('Saving testcase in generators.yaml.')
+            localbar = bar.start(f'{self.i}: {self.command}')
+            localbar.log('Saving testcase in generators.yaml.')
+            localbar.done()
             self.fuzz.save_test(self.command)
 
 class SubmissionTask:    
@@ -119,7 +121,7 @@ class SubmissionTask:
         localbar = bar.start(f'{self.generator_task.i}: {self.submission.name}')
         result = r.run()
         if result.verdict != 'ACCEPTED':
-            self.generator_task.save_test(localbar)
+            self.generator_task.save_test(bar)
             localbar.error(f'{result.verdict}!')
         localbar.done()
         self.generator_task.fuzz.finish_task(self.tmp_id)
@@ -194,7 +196,7 @@ class Fuzz:
     # finish task from generator with tmp_id
     # also add new tasks if queue becomes too empty
     def finish_task(self, tmp_id = None):
-        with self.queue.mutex:
+        with self.queue:
             # return tmp_id (and reuse it if all submissions are finished)
             if tmp_id is not None:
                 self.tasks -= 1
