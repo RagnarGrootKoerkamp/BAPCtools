@@ -220,11 +220,13 @@ def build_problem_pdfs(problem, solutions=False):
         languages = problem.statement_languages
         # For solutions, filter for `solution.xy.tex` files that exist.
         if solutions:
-            languages = [
-                lang
-                for lang in languages
-                if (problem.path / f"problem_statement/solution.{lang}.tex").exists()
-            ]
+            filtered_languages = []
+            for lang in languages:
+                if (problem.path / f"problem_statement/solution.{lang}.tex").exists():
+                    filtered_languages.append(lang)
+                else:
+                    warn(f'{problem.name}: solution.{language}.tex not found')
+            languages = filtered_languages
 
     return all(build_problem_pdf(problem, lang, solutions) for lang in languages)
 
