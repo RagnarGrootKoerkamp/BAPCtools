@@ -215,6 +215,13 @@ def build_problem_pdfs(problem, solutions=False):
         languages = config.args.languages
     else:
         languages = problem.statement_languages
+        # For solutions, filter for `solution.xy.tex` files that exist.
+        if solutions:
+            languages = [
+                lang
+                for lang in languages
+                if (problem.path / f"problem_statement/solution.{lang}.tex").exists()
+            ]
 
     return all(build_problem_pdf(problem, lang, solutions) for lang in languages)
 
