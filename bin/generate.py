@@ -1347,14 +1347,8 @@ class GeneratorConfig:
         def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
             assert isinstance(data, ruamel.yaml.comments.CommentedMap)
             if not key in yaml or yaml[key] is None:
-                if inspect.isclass(t):
-                    yaml[key] = t()
-                else:
-                    yaml[key] = t
-            if inspect.isclass(t):
-                assert isinstance(yaml[key], t)
-            else:
-                assert yaml[key] == t
+                yaml[key] = t()
+            assert isinstance(yaml[key], t)
             return yaml[key]
 
         parent = get_or_add(data, 'data')

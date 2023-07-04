@@ -904,7 +904,7 @@ def run_parsed_arguments(args):
             success &= generate.generate(problem)
             config.args = old_args
         if action in ['fuzz']:
-            success &= fuzz.fuzz(problem)
+            success &= fuzz.Fuzz(problem).run()
         if action in ['pdf', 'all']:
             # only build the pdf on the problem level, or on the contest level when
             # --all is passed.
