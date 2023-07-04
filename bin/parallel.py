@@ -34,7 +34,6 @@ class Parallel:
         self.finish = False
 
         if self.num_threads:
-            cores = None
             if self.pin:
                 # only use available cores and reserve one
                 cores = list(os.sched_getaffinity(0))
