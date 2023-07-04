@@ -132,8 +132,12 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         'latexmk',
         '-cd',
         '-g',
+        f'-usepretex="\\\\newcommand\\\\lang{{{language}}}"',
         '-pdf',
-        '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error',
+        # %P passes the pretex to pdflatex.
+        # %O makes sure other default options (like the working directory) are passed correctly.
+        # See https://texdoc.org/serve/latexmk/0
+        '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error %O %P',
     ]
     if config.args.watch:
         latexmk_command.append("-pvc")
@@ -196,7 +200,6 @@ def build_problem_pdf(problem, language, solution=False):
             'timelimit': get_tl(problem),
             'problemdir': problem.path.absolute().as_posix(),
             'builddir': problem.tmpdir.as_posix(),
-            'stmlang': language,
         },
     )
 
@@ -261,7 +264,6 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
             config_data[x] = default_config_data[x]
     config_data['testsession'] = '\\testsession' if config_data.get('testsession') else ''
     config_data['logofile'] = find_logo().as_posix()
-    config_data['stmlang'] = language
 
     local_contest_data = Path('contest_data.tex')
     util.copy_and_substitute(
@@ -317,7 +319,6 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
                 'problemdir': problem.path.absolute().as_posix(),
                 'problemdirname': problem.name,
                 'builddir': problem.tmpdir.as_posix(),
-                'stmlang': language,
             },
         )
 

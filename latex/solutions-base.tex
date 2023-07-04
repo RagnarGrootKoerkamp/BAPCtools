@@ -2,6 +2,9 @@
 \DeclareTextSymbolDefault{\dh}{T1}
 \usepackage{lmodern}
 
+\providecommand{\lang}{en}% fallback definition, should be defined as -usepretex to latexmk
+\input{lang/\lang.tex}
+
 %-------------------------------------------------------------------------------
 % The following are required for most problems:
 %-------------------------------------------------------------------------------

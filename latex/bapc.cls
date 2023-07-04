@@ -16,6 +16,9 @@
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{bapc}
 
+\providecommand{\lang}{en}% fallback definition, should be defined as -usepretex to latexmk
+\input{lang/\lang.tex}
+
 %\RequirePackage{frcursive}
 
 %-------------------------------------------------------------------------------
@@ -329,6 +332,7 @@
 %-------------------------------------------------------------------------------
 % The following are required for the overall layout:
 %-------------------------------------------------------------------------------
+\usepackage[\langbabel]{babel}
 \usepackage{lmodern}
 \usepackage{graphicx}
 \usepackage{courier}
