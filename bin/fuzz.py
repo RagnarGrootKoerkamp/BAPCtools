@@ -41,7 +41,11 @@ class GeneratorTask:
         infile = cwd / (name + '.in')
         ansfile = cwd / (name + '.ans')        
 
-        localbar = bar.start(f'{self.i}: generate {self.command}')
+        localbar = bar.start(f'{self.i}: {self.command}')
+        localbar.log()
+        localbar.done()
+
+        localbar = bar.start(f'{self.i}: generate')
         result = self.generator.run(bar, cwd, name, self.seed)
         if result.ok is not True:
             bar.finalize()
@@ -167,7 +171,7 @@ class Fuzz:
 
         # config.args.no_bar = True
         #max(len(s.name) for s in self.submissions)
-        bar = ProgressBar(f'Fuzz', max_len=45)
+        bar = ProgressBar(f'Fuzz', max_len=60)
         self.start_time = time.monotonic()
         self.iteration = 0
         self.tasks = 0
