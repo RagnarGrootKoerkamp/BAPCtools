@@ -1,11 +1,11 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 from sys import stdin
 import sys
 import re
 
 integer = "(0|-?[1-9]\d*)"
 
-MAX = 10 ** 15
+MAX = 10**15
 
 cases = 0
 
