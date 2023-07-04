@@ -21,8 +21,10 @@ data:
       # Both the empty value and ~ parse as None.
       "1":
       "2": ~
-      "3": manual/sample.in
-      "4": manual/inans.in
+      "3":
+        path: manual/sample
+      "4":
+        path: manual/inans
 
   secret:
     data:
