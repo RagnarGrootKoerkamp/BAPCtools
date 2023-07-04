@@ -225,7 +225,7 @@ def build_problem_pdfs(problem, solutions=False):
                 if (problem.path / f"problem_statement/solution.{lang}.tex").exists():
                     filtered_languages.append(lang)
                 else:
-                    warn(f'{problem.name}: solution.{language}.tex not found')
+                    warn(f'{problem.name}: solution.{lang}.tex not found')
             languages = filtered_languages
 
     return all(build_problem_pdf(problem, lang, solutions) for lang in languages)
