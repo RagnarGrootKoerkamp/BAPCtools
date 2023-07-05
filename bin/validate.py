@@ -232,7 +232,7 @@ def generic_validation(validator_type, file, *, bar):
         name = 'Testcase'
         strict = True
     elif validator_type == 'output_format':
-        name = 'Sample answer'
+        name = 'Expected answer'
         strict = True
     elif validator_type == 'output':
         name = 'Answer'
