@@ -10,12 +10,16 @@ import util
 
 
 class ParallelItem:
-    def __init__(self, task, priority):
+    def __init__(self, task, priority, id):
         self.task = task
         self.priority = priority
+        self.id = id
 
     def __lt__(self, other):
-        return self.priority > other.priority
+        if self.priority != other.priority:
+            return self.priority > other.priority
+        else:
+            return self.id < other.id
 
 
 class Parallel:
@@ -38,6 +42,7 @@ class Parallel:
         self.first_error = None
         # min heap
         self.tasks = []
+        self.total_tasks = 0
         self.missing = 0
 
         # also used if num_threads is false
@@ -133,7 +138,8 @@ class Parallel:
             if not self.abort:
                 # mark task as to be done and notify workers
                 self.missing += 1
-                heapq.heappush(self.tasks, ParallelItem(task, priority))
+                self.total_tasks += 1
+                heapq.heappush(self.tasks, ParallelItem(task, priority, self.total_tasks))
                 self.todo.notify()
 
     def join(self):
