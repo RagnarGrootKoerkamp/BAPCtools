@@ -227,7 +227,7 @@ class Fuzz:
                 self.free_tmp_id.remove(tmp_id)
                 self.tmp_id_count[tmp_id] = new_tasks
                 self.tasks += new_tasks
-                self.queue.put(GeneratorTask(self, testcase_rule, self.iteration, tmp_id))
+                self.queue.put(GeneratorTask(self, testcase_rule, self.iteration, tmp_id), priority=1)
 
 
     # Write new rule to yaml

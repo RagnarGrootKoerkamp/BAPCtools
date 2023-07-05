@@ -1,11 +1,22 @@
 #!/usr/bin/env python3
 import threading
 import signal
+import heapq
 
 import os
 
 import config
 import util
+
+
+class ParallelItem:
+    def __init__(self, task, priority):
+        self.task = task
+        self.priority = priority
+
+    def __lt__(self, other):
+        return self.priority > other.priority
+
 
 class Parallel:
     # f(task): the function to run on each queue item.
@@ -25,6 +36,7 @@ class Parallel:
 
         # only used in parallel mode
         self.first_error = None
+        # min heap
         self.tasks = []
         self.missing = 0
 
@@ -76,7 +88,7 @@ class Parallel:
                     break
                 else:
                     # get item from queue (update self.missing after the task is done)
-                    task = self.tasks.pop(0)
+                    task = heapq.heappop(self.tasks).task
 
             # call f and catch all exceptions occurring in f
             # store the first exception for later
@@ -99,7 +111,7 @@ class Parallel:
         util.fatal('Running interrupted')
 
     # Add one task.
-    def put(self, task):
+    def put(self, task, priority=0):
         if not self.num_threads:
             # no task should be added after .done() was called
             assert not self.finish
@@ -112,7 +124,6 @@ class Parallel:
                     os.sched_setaffinity(0, cores)
                 else:
                     self.f(task)
-
             return
 
         with self.mutex:
@@ -122,7 +133,7 @@ class Parallel:
             if not self.abort:
                 # mark task as to be done and notify workers
                 self.missing += 1
-                self.tasks.append(task)
+                heapq.heappush(self.tasks, ParallelItem(task, priority))
                 self.todo.notify()
 
     def join(self):
