@@ -33,6 +33,12 @@ class GeneratorTask:
         self.saved = False
 
     def run(self, bar):
+        if self._run(bar):
+            self.fuzz.finish_task(self.tmp_id)
+        else:
+            self.fuzz.finish_task(self.tmp_id, 1 + len(self.fuzz.submissions))
+
+    def _run(self, bar):
         # GENERATE THE TEST DATA
         dir = f'fuzz{self.tmp_id}'#use some other name...
         cwd = self.fuzz.problem.tmpdir / 'data' / dir
@@ -48,17 +54,17 @@ class GeneratorTask:
         localbar = bar.start(f'{self.i}: generate')
         result = self.generator.run(bar, cwd, name, self.seed)
         if result.ok is not True:
-            bar.finalize()
-            return
+            localbar.done()
+            return False
         localbar.done()
 
         testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
 
         # Validate the manual or generated .in.
         localbar = bar.start(f'{self.i}: validate input')
-        if not testcase.validate_format('input_format', bar=bar, constraints=None):
-            bar.finalize()
-            return
+        if not testcase.validate_format('input_format', bar=localbar, constraints=None):
+            localbar.done()
+            return False
         localbar.done()
 
         # Generate .ans.
@@ -70,19 +76,19 @@ class GeneratorTask:
                 localbar = bar.start(f'{self.i}: generate ans')
                 if self.solution.run(bar, cwd, name).ok is not True:
                     localbar.done()
-                    return
+                    return False
                 localbar.done()
 
             if ansfile.is_file():
                 localbar = bar.start(f'{self.i}: validate output')
-                if not testcase.validate_format('output_format', bar=bar):
+                if not testcase.validate_format('output_format', bar=localbar):
                     localbar.done()
-                    return
+                    return False
                 localbar.done()
             else:
                 if not target_ansfile.is_file():
                     bar.error(f'{self.i}: {ansfile.name} does not exist and was not generated.')
-                    return
+                    return False
         else:
             if not testcase.ans_path.is_file():
                 testcase.ans_path.write_text('')
@@ -91,7 +97,7 @@ class GeneratorTask:
         with self.fuzz.queue:
             for submission in self.fuzz.submissions:
                 self.fuzz.queue.put(SubmissionTask(self, submission, testcase, self.tmp_id))
-        self.fuzz.finish_task(self.tmp_id)
+        return True
 
     def save_test(self, bar):
         if self.saved:
@@ -117,6 +123,10 @@ class SubmissionTask:
         self.tmp_id = tmp_id
 
     def run(self, bar):
+        self._run(bar)
+        self.generator_task.fuzz.finish_task(self.tmp_id)
+
+    def _run(self, bar):
         r = run.Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
         localbar = bar.start(f'{self.generator_task.i}: {self.submission.name}')
         result = r.run()
@@ -124,7 +134,6 @@ class SubmissionTask:
             self.generator_task.save_test(bar)
             localbar.error(f'{result.verdict}!')
         localbar.done()
-        self.generator_task.fuzz.finish_task(self.tmp_id)
 
 class Fuzz:
     def __init__(self, problem):
@@ -180,7 +189,7 @@ class Fuzz:
         self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
         
         # pool of ids used for generators
-        tmp_ids = self.queue.num_threads + 1
+        tmp_ids = 2 * self.queue.num_threads + 1
         self.free_tmp_id = {*range(tmp_ids)}
         self.tmp_id_count = [0]*tmp_ids
 
@@ -195,12 +204,12 @@ class Fuzz:
 
     # finish task from generator with tmp_id
     # also add new tasks if queue becomes too empty
-    def finish_task(self, tmp_id = None):
+    def finish_task(self, tmp_id = None, count=1):
         with self.queue:
             # return tmp_id (and reuse it if all submissions are finished)
             if tmp_id is not None:
-                self.tasks -= 1
-                self.tmp_id_count[tmp_id] -= 1
+                self.tasks -= count
+                self.tmp_id_count[tmp_id] -= count
                 if self.tmp_id_count[tmp_id] == 0:
                     self.free_tmp_id.add(tmp_id)
 
