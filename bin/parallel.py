@@ -110,7 +110,7 @@ class Parallel:
     def _interrupt_handler(self, sig, frame):
         util.fatal('Running interrupted')
 
-    # Add one task.
+    # Add one task. Higher priority => done first
     def put(self, task, priority=0):
         if not self.num_threads:
             # no task should be added after .done() was called
