@@ -95,7 +95,7 @@ data:
 data:
   a : []
 ---
-# Command must not contain {seed} twice.
+# generate must not contain {seed} twice.
 data:
   ab: gen {seed} {seed}
 ---
@@ -115,7 +115,7 @@ data:
 data:
   ab: ''
 ---
-# All commands must be different
+# All generate calls must be different
 data:
   ab: gen
   b: gen
@@ -130,17 +130,17 @@ data:
 ---
 data:
   ab:
-    command: gen {seed}
+    generate: gen {seed}
   b: gen {seed}
 ---
 data:
   - ab:
-      command: gen {seed}
+      generate: gen {seed}
   - bb:
       data:
         cc: gen {seed}
 ---
-# Testcase object must be command string or contain command.
+# Testcase object must be command string or contain generate.
 data:
   ab: true
 ---
@@ -152,19 +152,19 @@ data:
 ---
 data:
   ab:
-    command: true
+    generate: true
 ---
 data:
   ab:
-    command: 1
+    generate: 1
 ---
 data:
   ab:
-    command: {}
+    generate: {}
 ---
 data:
   ab:
-    command: []
+    generate: []
 ---
 # Manual cases must not have an absolute path.
 data:
@@ -201,18 +201,18 @@ visualizer: a 1 2
 ---
 visualizer: a {name}
 ---
-# Directories may not have command:.
-command: xyz
+# Directories may not have generate:.
+generate: xyz
 ---
 data:
   ab:
-    command: x
+    generate: x
     data:
 ---
 # Testcases may not have data:.
 data:
   ab:
-    command: abc
+    generate: abc
     data: {}
 ---
 # File names must be >= 2 letters

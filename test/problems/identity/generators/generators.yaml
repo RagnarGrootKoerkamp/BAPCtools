@@ -22,9 +22,9 @@ data:
       "1":
       "2": ~
       "3":
-        path: manual/sample
+        copy: manual/sample
       "4":
-        path: manual/inans
+        copy: manual/inans
 
   secret:
     data:
@@ -73,24 +73,24 @@ data:
           # Random_salt must be a string.
           - "":
               random_salt: "1.0"
-              command: random_gen.py {seed}
+              generate: random_gen.py {seed}
           - "":
               random_salt: "1.00"
-              command: random_gen.py {seed}
+              generate: random_gen.py {seed}
           - "":
               random_salt: "yes"
-              command: random_gen.py {seed}
+              generate: random_gen.py {seed}
           - "":
               random_salt: "true"
-              command: random_gen.py {seed}
+              generate: random_gen.py {seed}
       testcase_dict_1:
-        command: random_gen.py {seed:6}
+        generate: random_gen.py {seed:6}
       testcase_dict_2:
         solution: /generators/solution.c
-        command: random_gen.py {seed:7}
+        generate: random_gen.py {seed:7}
       testcase_dict_3:
         visualizer:
-        command: random_gen.py {seed:8}
+        generate: random_gen.py {seed:8}
       unused_args_1: > # Spread arguments over multiple lines.
         random_gen.py
         {seed}
@@ -112,16 +112,16 @@ data:
       # Commands should always be strings.
       boolean_generator_yes:
         solution: /generators/yes
-        command: y
+        generate: y
       boolean_generator_no:
         solution: /generators/no
-        command: n
+        generate: n
       boolean_generator_true:
         solution: /generators/true
-        command: t
+        generate: t
       boolean_generator_false:
         solution: /generators/false
-        command: f
+        generate: f
         unknown_key:
       empty_group_1: {}
       empty_group_2:
