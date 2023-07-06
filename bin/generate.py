@@ -37,7 +37,7 @@ def is_testcase(yaml):
         or isinstance(yaml, str)
         or (
             isinstance(yaml, dict)
-            and any(key in yaml for key in ['copy', 'command', 'in', 'ans', 'hint', 'desc'])
+            and any(key in yaml for key in ['copy', 'generate', 'in', 'ans', 'hint', 'desc'])
         )
     )
 
@@ -289,9 +289,15 @@ class DefaultSolutionInvocation(SolutionInvocation):
         return 'default_solution'
 
 
-KNOWN_TESTCASE_KEYS = ['type', 'command', 'solution', 'visualizer', 'random_salt', 'retries'] + [
-    e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS
-]
+KNOWN_TESTCASE_KEYS = [
+    'type',
+    'generate',
+    'copy',
+    'solution',
+    'visualizer',
+    'random_salt',
+    'retries',
+] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
 RESERVED_TESTCASE_KEYS = ['data', 'testdata.yaml', 'include']
 KNOWN_DIRECTORY_KEYS = [
     'type',
@@ -420,30 +426,30 @@ class TestcaseRule(Rule):
         else:
             check_type('testcase', yaml, [str, dict])
             if isinstance(yaml, str):
-                yaml = {'command': yaml}
-                if yaml['command'].endswith('.in'):
-                    error(f"Use the new `copy: path/to/case` key instead of {yaml['command']}.")
-                    yaml = {'copy': yaml['command'][:-3]}
+                yaml = {'generate': yaml}
+                if yaml['generate'].endswith('.in'):
+                    error(f"Use the new `copy: path/to/case` key instead of {yaml['generate']}.")
+                    yaml = {'copy': yaml['generate'][:-3]}
 
             # checks
             assert (
-                'command' in yaml or 'copy' in yaml or 'in' in yaml
-            ), f'{parent.path / name}: Testcase requires at least one key in "command", "copy", "in".'
+                'generate' in yaml or 'copy' in yaml or 'in' in yaml
+            ), f'{parent.path / name}: Testcase requires at least one key in "generate", "copy", "in".'
             assert not (
                 'submission' in yaml and 'ans' in yaml
             ), f'{parent.path / name}: cannot specify both "submissions" and "ans".'
 
-            # 1. command
-            if 'command' in yaml:
-                check_type('command', yaml['command'], str)
-                if len(yaml['command']) == 0:
-                    fatal(f'Command must not be empty')
+            # 1. generate
+            if 'generate' in yaml:
+                check_type('generate', yaml['generate'], str)
+                if len(yaml['generate']) == 0:
+                    fatal(f'`generate` must not be empty')
 
-                self.generator = GeneratorInvocation(problem, yaml['command'])
+                self.generator = GeneratorInvocation(problem, yaml['generate'])
 
                 # TODO: Should the seed depend on white space? For now it does, but
                 # leading and trailing whitespace is stripped.
-                seed_value = self.config.random_salt + yaml['command'].strip()
+                seed_value = self.config.random_salt + yaml['generate'].strip()
                 self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (
                     2**31
                 )
@@ -451,7 +457,7 @@ class TestcaseRule(Rule):
 
             # 2. path
             if 'copy' in yaml:
-                check_type('command', yaml['copy'], str)
+                check_type('`copy`', yaml['copy'], str)
                 if yaml['copy'].endswith('.in'):
                     error(f"`copy: {yaml['copy']}` should not include the extension.")
                 self.copy = resolve_path(yaml['copy'], allow_absolute=False, allow_relative=True)
@@ -718,7 +724,7 @@ class TestcaseRule(Rule):
                 shutil.rmtree(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
 
-                # Step 1: run `command:` if present.
+                # Step 1: run `generate:` if present.
                 if t.generator:
                     result = t.generator.run(bar, cwd, infile.stem, t.seed, t.config.retries)
                     if result.ok is not True:
