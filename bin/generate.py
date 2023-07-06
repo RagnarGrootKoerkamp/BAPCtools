@@ -426,9 +426,9 @@ class TestcaseRule(Rule):
                     yaml = {'path': yaml['command'][:-3]}
 
             # checks
-            assert not (
-                'command' in yaml and 'in' in yaml
-            ), f'{parent.path / name}: cannot specify both "command" and "in".'
+            assert (
+                'command' in yaml or 'path' in yaml or 'in' in yaml
+            ), f'{parent.path / name}: Testcase requires at least one key in "command", "path", "in".'
             assert not (
                 'submission' in yaml and 'ans' in yaml
             ), f'{parent.path / name}: cannot specify both "submissions" and "ans".'
