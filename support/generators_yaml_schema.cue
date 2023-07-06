@@ -15,7 +15,7 @@ file_config: {
 	random_salt?: string
 }
 generator: command | {
-	command: command
+	generate: command
 	file_config
 	directory_reserved
 	...
@@ -39,7 +39,7 @@ Generators: {
 	directory
 }
 generator_reserved: {
-	command?: _|_
+	generate?: _|_
 	...
 }
 directory_reserved: {

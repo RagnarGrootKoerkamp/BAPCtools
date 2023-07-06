@@ -85,13 +85,13 @@ data:
       # Prefer specifying a path to a .in file as in case `3` below.
       # E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
       "2":
-      # The path: key indicates a manual testcase that will be copied
+      # The copy: key indicates a manual testcase that will be copied
       # from the given directory into the target testcase. The given directory
       # must not start with a / and will be relative to generators/.
       # If a solution is specified, .ans files will be generated for manual cases
       # that don't provide a .ans.
       "3":
-        path: manual_cases/sample/3
+        copy: manual_cases/sample/3
       # Small testcases can be specified explictly:
       "4":
         in: 1 0
@@ -161,9 +161,9 @@ data:
 
       # To override the global/testgroup configuration on a per-testcase basis,
       # a dictionary may be used. This allows the solution: and visualizer: keys,
-      # as well as the command: key which contains the command to execute.
+      # as well as the generate: key which contains the command to execute.
       13_no_visualizer:
-        command: large_case_generator.py 1000000
+        generate: large_case_generator.py 1000000
         solution: /generators/gnu_multi_precision.cpp
         visualizer: # Empty to disable the visualizer here.
         random_salt: "123"
