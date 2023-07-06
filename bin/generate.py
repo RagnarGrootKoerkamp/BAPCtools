@@ -37,7 +37,7 @@ def is_testcase(yaml):
         or isinstance(yaml, str)
         or (
             isinstance(yaml, dict)
-            and any(key in yaml for key in ['path', 'command', 'in', 'ans', 'hint', 'desc'])
+            and any(key in yaml for key in ['copy', 'command', 'in', 'ans', 'hint', 'desc'])
         )
     )
 
@@ -392,14 +392,14 @@ class TestcaseRule(Rule):
         # Whether this testcase is a sample.
         self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == 'sample'
 
-        # 0. Inline: cases where the source is in the data/ directory.
+        # 0. Inline: cases where the source is directly in the data/ directory.
         #    This is disjoint from the other options.
         self.inline = False
         # 1. Generator
         self.generator = None
-        # 2. Files are copied form this source.
-        #    This variable already includes the .in extension, to `.with_suffix()` works nicely.
-        self.source = None
+        # 2. Files are copied form this path.
+        #    This variable already includes the .in extension, so `.with_suffix()` works nicely.
+        self.copy = None
         # 3. Hardcoded cases where the source is in the yaml file itself.
         self.hardcoded = {}
 
@@ -422,13 +422,13 @@ class TestcaseRule(Rule):
             if isinstance(yaml, str):
                 yaml = {'command': yaml}
                 if yaml['command'].endswith('.in'):
-                    error(f"Use the new `path: path/to/case` key instead of {yaml['command']}.")
-                    yaml = {'path': yaml['command'][:-3]}
+                    error(f"Use the new `copy: path/to/case` key instead of {yaml['command']}.")
+                    yaml = {'copy': yaml['command'][:-3]}
 
             # checks
             assert (
-                'command' in yaml or 'path' in yaml or 'in' in yaml
-            ), f'{parent.path / name}: Testcase requires at least one key in "command", "path", "in".'
+                'command' in yaml or 'copy' in yaml or 'in' in yaml
+            ), f'{parent.path / name}: Testcase requires at least one key in "command", "copy", "in".'
             assert not (
                 'submission' in yaml and 'ans' in yaml
             ), f'{parent.path / name}: cannot specify both "submissions" and "ans".'
@@ -450,14 +450,14 @@ class TestcaseRule(Rule):
                 self.input_hash = self.generator.hash(self.seed)
 
             # 2. path
-            if 'path' in yaml:
-                check_type('command', yaml['path'], str)
-                if yaml['path'].endswith('.in'):
-                    error(f"`path: {yaml['path']}` should not include the extension.")
-                self.source = resolve_path(yaml['path'], allow_absolute=False, allow_relative=True)
-                self.source = problem.path / self.source.parent / (self.source.name + '.in')
-                if self.source.is_file():
-                    self.input_hash = hash_file(self.source)
+            if 'copy' in yaml:
+                check_type('command', yaml['copy'], str)
+                if yaml['copy'].endswith('.in'):
+                    error(f"`copy: {yaml['copy']}` should not include the extension.")
+                self.copy = resolve_path(yaml['copy'], allow_absolute=False, allow_relative=True)
+                self.copy = problem.path / self.copy.parent / (self.copy.name + '.in')
+                if self.copy.is_file():
+                    self.input_hash = hash_file(self.copy)
 
             # 3. hardcoded
             for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
@@ -500,7 +500,7 @@ class TestcaseRule(Rule):
         if not t.listed and generator_config.has_yaml:
             if t.input_hash in generator_config.generated_testdata:
                 for ext in config.KNOWN_DATA_EXTENSIONS:
-                    ext_file = t.source.with_suffix(ext)
+                    ext_file = t.copy.with_suffix(ext)
                     if ext_file.is_file():
                         ext_file.unlink()
                 bar.debug(
@@ -530,7 +530,7 @@ class TestcaseRule(Rule):
             # - meta_ exists with a timestamp newer than target infile ans ansfile
             # - meta_ contains exactly the right content (commands and hashes)
             # - each validator with correct flags has been run already.
-            if t.source:
+            if t.copy:
                 t.cache_data['source_hash'] = t.input_hash
             for ext, string in t.hardcoded.items():
                 t.cache_data['hardcoded_' + ext[1:]] = hash_string(string)
@@ -724,18 +724,18 @@ class TestcaseRule(Rule):
                     if result.ok is not True:
                         return
 
-                # Step 2: Copy `path:` files for all known extensions.
-                if t.source:
+                # Step 2: Copy `copy:` files for all known extensions.
+                if t.copy:
                     # We make sure to not silently overwrite changes to files in data/
                     # that are copied from generators/.
                     copied = False
                     for ext in config.KNOWN_DATA_EXTENSIONS:
-                        ext_file = t.source.with_suffix(ext)
+                        ext_file = t.copy.with_suffix(ext)
                         if ext_file.is_file():
                             shutil.copy(ext_file, infile.with_suffix(ext), follow_symlinks=True)
                             copied = True
                     if not copied:
-                        bar.warn(f'No source files copied from {t.source}.')
+                        bar.warn(f'No files copied from {t.copy}.')
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
