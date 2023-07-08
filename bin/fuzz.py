@@ -61,7 +61,7 @@ class GeneratorTask:
 
         testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
 
-        # Validate the manual or generated .in.
+        # Validate the generated .in.
         localbar = bar.start(f'{self.i}: validate input')
         if not testcase.validate_format('input_format', bar=localbar, constraints=None):
             localbar.done()
@@ -151,19 +151,11 @@ class Fuzz:
             return
 
         # Filter to only keep rules depending on seed.
-        def filter_dir(d):
-            d.data = list(
-                filter(
-                    lambda t: isinstance(t, generate.Directory)
-                    # TODO: Fix this for hardcoded testcases.
-                    or (not t.manual and t.generator.uses_seed),
-                    d.data,
-                )
-            )
+        def add_testcase(t):
+            if t.in_is_generated and t.generator.uses_seed:
+                self.testcase_rules.append(t)
 
-        generator_config.root_dir.walk(
-            lambda t: self.testcase_rules.append(t), dir_f=filter_dir, dir_last=False
-        )
+        generator_config.root_dir.walk(add_testcase, dir_f=None)
         if len(self.testcase_rules) == 0:
             return
 
