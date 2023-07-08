@@ -414,6 +414,9 @@ class TestcaseRule(Rule):
         # Filled during generate(), since `self.config.solution` will only be set later for the default solution.
         self.cache_data = {}
 
+        # Used by `fuzz`
+        self.in_is_generated = False
+
         super().__init__(problem, key, name, yaml, parent)
 
         if yaml is None:
@@ -454,6 +457,7 @@ class TestcaseRule(Rule):
                     2**31
                 )
                 self.input_hash = self.generator.hash(self.seed)
+                self.in_is_generated = True
 
             # 2. path
             if 'copy' in yaml:
@@ -464,6 +468,7 @@ class TestcaseRule(Rule):
                 self.copy = problem.path / self.copy.parent / (self.copy.name + '.in')
                 if self.copy.is_file():
                     self.input_hash = hash_file(self.copy)
+                    self.in_is_generated = False
 
             # 3. hardcoded
             for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
@@ -476,6 +481,7 @@ class TestcaseRule(Rule):
 
             if '.in' in self.hardcoded:
                 self.input_hash = hash_string(self.hardcoded['.in'])
+                self.in_is_generated = False
 
         # Warn/Error for unknown keys.
         for key in yaml:
