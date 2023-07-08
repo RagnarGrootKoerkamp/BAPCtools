@@ -485,6 +485,10 @@ class TestcaseRule(Rule):
                 if config.args.action == 'generate':
                     log(f'Unknown testcase level key: {key} in {self.path}')
 
+        if self.input_hash is None:
+            # An error is shown during generate.
+            return
+
         # Error for listed cases with identical input.
         if self.listed and self.input_hash in generator_config.rules_cache:
             error(
@@ -515,6 +519,12 @@ class TestcaseRule(Rule):
             else:
                 bar.error(f'Testcase not listed in generator.yaml (delete using --clean).')
             bar.done()
+            return
+
+        # Input can only be missing when the `copy:` does not have a corresponding `.in` file.
+        # (When `generate:` or `in:` is used, the input is always present.)
+        if t.input_hash is None:
+            bar.done(False, f'{t.copy} does not exist.')
             return
 
         # E.g. bapctmp/problem/data/<hash>.in
