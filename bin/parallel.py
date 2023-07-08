@@ -17,8 +17,11 @@ class ParallelItem:
 
     def __lt__(self, other):
         if self.priority != other.priority:
+            # python priority queue is a min heap but larger priority
+            # items should come first => reverse compare
             return self.priority > other.priority
         else:
+            # items with same priority should be handled in FIFO order
             return self.id < other.id
 
 
