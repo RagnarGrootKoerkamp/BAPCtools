@@ -428,7 +428,7 @@ class TestcaseRule(Rule):
             if isinstance(yaml, str):
                 yaml = {'generate': yaml}
                 if yaml['generate'].endswith('.in'):
-                    error(f"Use the new `copy: path/to/case` key instead of {yaml['generate']}.")
+                    warn(f"Use the new `copy: path/to/case` key instead of {yaml['generate']}.")
                     yaml = {'copy': yaml['generate'][:-3]}
 
             # checks
@@ -458,8 +458,8 @@ class TestcaseRule(Rule):
             # 2. path
             if 'copy' in yaml:
                 check_type('`copy`', yaml['copy'], str)
-                if yaml['copy'].endswith('.in'):
-                    error(f"`copy: {yaml['copy']}` should not include the extension.")
+                if Path(yaml['copy']).suffix in config.KNOWN_TEXT_DATA_EXTENSIONS:
+                    warn(f"`copy: {yaml['copy']}` should not include the extension.")
                 self.copy = resolve_path(yaml['copy'], allow_absolute=False, allow_relative=True)
                 self.copy = problem.path / self.copy.parent / (self.copy.name + '.in')
                 if self.copy.is_file():
