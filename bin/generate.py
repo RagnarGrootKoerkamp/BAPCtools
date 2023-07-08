@@ -93,6 +93,7 @@ class Invocation:
             command, allow_absolute=allow_absolute, allow_relative=allow_relative
         )
 
+        # NOTE: This is also used by `fuzz`.
         self.uses_seed = self.SEED_REGEX.search(self.command_string)
 
         # Make sure that {seed} occurs at most once.

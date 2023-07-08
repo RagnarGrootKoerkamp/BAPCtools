@@ -15,6 +15,7 @@ class ParallelItem:
         self.priority = priority
         self.id = id
 
+    # Note: heapq uses a min heap, so higher priorities are 'smaller'.
     def __lt__(self, other):
         if self.priority != other.priority:
             # python priority queue is a min heap but larger priority
