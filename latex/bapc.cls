@@ -332,6 +332,7 @@
 %-------------------------------------------------------------------------------
 % The following are required for the overall layout:
 %-------------------------------------------------------------------------------
+\let\sffamilyFB\sffamily% Prevent error if babel fr loads \sffamilyFB in cache
 \usepackage[\langbabel]{babel}
 \usepackage{lmodern}
 \usepackage{graphicx}
