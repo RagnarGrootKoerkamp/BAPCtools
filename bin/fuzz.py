@@ -16,6 +16,7 @@ from util import *
 #      data/fuzz/1.in: <generator rule with hardcoded seed>
 #    by using a numbered directory data/fuzz.
 
+
 class GeneratorTask:
     def __init__(self, fuzz, t, i, tmp_id):
         self.fuzz = fuzz
@@ -40,12 +41,12 @@ class GeneratorTask:
 
     def _run(self, bar):
         # GENERATE THE TEST DATA
-        dir = f'fuzz{self.tmp_id}'#use some other name...
+        dir = f'fuzz{self.tmp_id}'  # use some other name...
         cwd = self.fuzz.problem.tmpdir / 'data' / dir
         cwd.mkdir(parents=True, exist_ok=True)
         name = 'testcase'
         infile = cwd / (name + '.in')
-        ansfile = cwd / (name + '.ans')        
+        ansfile = cwd / (name + '.ans')
 
         localbar = bar.start(f'{self.i}: {self.command}')
         localbar.log()
@@ -115,7 +116,8 @@ class GeneratorTask:
             localbar.done()
             self.fuzz.save_test(self.command)
 
-class SubmissionTask:    
+
+class SubmissionTask:
     def __init__(self, generator_task, submission, testcase, tmp_id):
         self.generator_task = generator_task
         self.submission = submission
@@ -132,8 +134,10 @@ class SubmissionTask:
         result = r.run()
         if result.verdict != 'ACCEPTED':
             self.generator_task.save_test(bar)
-            localbar.error(f'{result.verdict}!')
-        localbar.done()
+            localbar.done(False, f'{result.verdict}!')
+        else:
+            localbar.done()
+
 
 class Fuzz:
     def __init__(self, problem):
@@ -143,22 +147,27 @@ class Fuzz:
         # GENERATOR INVOCATIONS
         generator_config = generate.GeneratorConfig(self.problem)
         self.testcase_rules = []
-        if generator_config.ok:
-            # Filter to only keep rules depending on seed.
-            def filter_dir(d):
-                d.data = list(
-                    filter(
-                        lambda t: isinstance(t, generate.Directory)
-                        or (not t.manual and t.generator.uses_seed),
-                        d.data,
-                    )
-                )
+        if not generator_config.ok:
+            return
 
-            
-            generator_config.root_dir.walk(
-                lambda t: self.testcase_rules.append(t), dir_f=filter_dir, dir_last=False
+        # Filter to only keep rules depending on seed.
+        def filter_dir(d):
+            d.data = list(
+                filter(
+                    lambda t: isinstance(t, generate.Directory)
+                    # TODO: Fix this for hardcoded testcases.
+                    or (not t.manual and t.generator.uses_seed),
+                    d.data,
+                )
             )
-            generator_config.build(build_visualizers=False)
+
+        generator_config.root_dir.walk(
+            lambda t: self.testcase_rules.append(t), dir_f=filter_dir, dir_last=False
+        )
+        if len(self.testcase_rules) == 0:
+            return
+
+        generator_config.build(build_visualizers=False)
 
         # BUILD VALIDATORS
         self.problem.validators('output')
@@ -175,36 +184,36 @@ class Fuzz:
             error('No invocations depending on {seed} found.')
             return False
 
-
         if len(self.submissions) == 0:
             error('No submissions found.')
             return False
 
         # config.args.no_bar = True
-        #max(len(s.name) for s in self.submissions)
+        # max(len(s.name) for s in self.submissions)
         bar = ProgressBar(f'Fuzz', max_len=60)
         self.start_time = time.monotonic()
         self.iteration = 0
         self.tasks = 0
         self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
-        
+
         # pool of ids used for generators
         tmp_ids = 2 * self.queue.num_threads + 1
         self.free_tmp_id = {*range(tmp_ids)}
-        self.tmp_id_count = [0]*tmp_ids
+        self.tmp_id_count = [0] * tmp_ids
 
-        #add first generator task
+        # add first generator task
         self.finish_task()
-        
+
         # wait for the queue to run empty (after config.args.time)
         self.queue.join()
+        # At this point, no new tasks may be started anymore.
         self.queue.done()
         bar.done()
         return True
 
     # finish task from generator with tmp_id
     # also add new tasks if queue becomes too empty
-    def finish_task(self, tmp_id = None, count=1):
+    def finish_task(self, tmp_id=None, count=1):
         with self.queue:
             # return tmp_id (and reuse it if all submissions are finished)
             if tmp_id is not None:
@@ -218,7 +227,7 @@ class Fuzz:
                 return
 
             # add new generator runs to fill up queue
-            while self.tasks <= 2*self.queue.num_threads:
+            while self.tasks <= 2 * self.queue.num_threads:
                 testcase_rule = self.testcase_rules[self.iteration % len(self.testcase_rules)]
                 self.iteration += 1
                 # 1 new generator tasks which will also create one task per submission
@@ -227,8 +236,9 @@ class Fuzz:
                 self.free_tmp_id.remove(tmp_id)
                 self.tmp_id_count[tmp_id] = new_tasks
                 self.tasks += new_tasks
-                self.queue.put(GeneratorTask(self, testcase_rule, self.iteration, tmp_id), priority=1)
-
+                self.queue.put(
+                    GeneratorTask(self, testcase_rule, self.iteration, tmp_id), priority=1
+                )
 
     # Write new rule to yaml
     # lock between read and write to ensure that no rule gets lost
