@@ -14,7 +14,7 @@ This lists all subcommands and their most important options.
 - Problem development:
   - [`bt run [-v] [-t TIMELIMIT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-manual [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS][--ignore-validators] [--skip-visualizer] [testcases [testcases ...]]`](#generate)
+  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-unlisted [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS][--ignore-validators] [--skip-visualizer] [testcases [testcases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit] [--language LANG]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
@@ -160,7 +160,7 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--samples`: Even with `--force`, samples won't be overwritten by default. `--force --samples` also overwrites samples. (Samples usually have a manually curated input and output that should not be overwritten easily.)
 - `--all`/`-a`: Fully regenerate all test cases, skipping the up-to-date check.
 - `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check.
-- `--add-manual [directory]`: All testcases in the specified directory that do not have a corresponding entry in `generators.yaml` are added.
+- `--add-unlisted [directory]`: All testcases in the specified directory that do not have a corresponding entry in `generators.yaml` are added.
 - `--clean`: Delete all files/testcases not listed in `generators.yaml`. Without `-f`, this does a dry-run.
 - `--clean-generated`: Delete all generated files. Useful to save on disk space, since all this data can be regenerated.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
