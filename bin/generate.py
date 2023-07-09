@@ -1409,7 +1409,7 @@ class GeneratorConfig:
         self.root_dir = parse('', '', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
-        if config.args.add_manual or config.args.clean or config.args.clean_generated:
+        if config.args.add_unlisted or config.args.clean or config.args.clean_generated:
             return
 
         generators_used = set()
@@ -1488,18 +1488,18 @@ class GeneratorConfig:
 
         self.root_dir.walk(cleanup_build_failures, dir_f=None)
 
-    def add_manual(self):
+    def add_unlisted(self):
         if not has_ryaml:
             error(
-                'generate --add-manual needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
+                'generate --add-unlisted needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
             )
             return
 
-        manual = config.args.add_manual
-        known_manual = {
+        unlisted = config.args.add_unlisted
+        known_unlisted = {
             path
             for path, x in self.rules_cache
-            if isinstance(path, PurePath) and path.is_relative_to(manual)
+            if isinstance(path, PurePath) and path.is_relative_to(unlisted)
         }
 
         generators_yaml = self.problem.path / 'generators/generators.yaml'
@@ -1518,18 +1518,18 @@ class GeneratorConfig:
         parent = get_or_add(parent, 'secret')
         entry = get_or_add(parent, 'data', ruamel.yaml.comments.CommentedSeq)
 
-        manual_cases = [
+        unlisted_cases = [
             test.relative_to(self.problem.path)
-            for test in (self.problem.path / manual).glob('*.in')
+            for test in (self.problem.path / unlisted).glob('*.in')
         ]
-        missing_cases = [test for test in manual_cases if test not in known_manual]
+        missing_cases = [test for test in unlisted_cases if test not in known_unlisted]
 
-        bar = ProgressBar('Add manual', items=missing_cases)
+        bar = ProgressBar('Add unlisted', items=missing_cases)
         for test in sorted(missing_cases, key=lambda x: x.name):
             bar.start(str(test))
             entry.append(ruamel.yaml.comments.CommentedMap())
-            name = manual.relative_to('generators').as_posix().replace('/', '_')
-            entry[-1][f'{name}_{test.stem}'] = test.relative_to('generators').as_posix()
+            name = unlisted.relative_to('generators').as_posix().replace('/', '_')
+            entry[-1][f'{name}_{test.stem}'] = {'copy': test.relative_to('generators').as_posix()}
             bar.log('added to generators.yaml')
             bar.done()
 
@@ -1551,8 +1551,8 @@ class GeneratorConfig:
             self.clean_generated()
             return
 
-        if config.args.add_manual:
-            self.add_manual()
+        if config.args.add_unlisted:
+            self.add_unlisted()
             return
 
         item_names = []
