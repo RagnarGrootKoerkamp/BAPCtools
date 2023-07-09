@@ -3,7 +3,7 @@
 
 # The solution is used to generate a .ans for each generated .in which doesn't
 # yet have a corresponding .ans. If there are generators that don't write a .ans
-# file themselves, this must be specified.
+# file themselves, a solution must be specified.
 # This should read the input from stdin and write to stdout.
 #
 # This must be the absolute path to the solution, starting in the problem root.
@@ -88,8 +88,6 @@ data:
       # The copy: key indicates a manual testcase that will be copied
       # from the given directory into the target testcase. The given directory
       # must not start with a /, not include an extension and will be relative to generators/.
-      # If a solution is specified, .ans files will be generated for manual cases
-      # that don't provide a .ans.
       "3":
         copy: manual_cases/sample/3
       # Small testcases can be specified explictly:
