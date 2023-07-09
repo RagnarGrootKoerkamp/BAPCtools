@@ -81,14 +81,14 @@ data:
     data:
       "1": stdout.py 1 # prints `1` to stdout, which is piped to 1.in
 
-      # To indicate a manual testcase already present in the corresponding directory, specify it with an empty value.
+      # To indicate a unlisted testcase already present in the corresponding directory, specify it with an empty value.
       # Prefer specifying a path to a .in file as in case `3` below.
       # E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
       "2":
       # The copy: key indicates a manual testcase that will be copied
       # from the given directory into the target testcase. The given directory
       # must not start with a / and will be relative to generators/.
-      # If a solution is specified, .ans files will be generated for manual cases
+      # If a solution is specified, .ans files will be generated for unlisted cases
       # that don't provide a .ans.
       "3":
         copy: manual_cases/sample/3

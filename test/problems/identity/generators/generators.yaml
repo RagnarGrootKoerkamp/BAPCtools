@@ -20,7 +20,17 @@ data:
     data:
       # Both the empty value and ~ parse as None.
       "1":
-      "2": ~
+        in: 1 2
+        # 3 is quoted since only strings are allowed to prevent conversion issues.
+        ans: "3"
+      "2":
+        # Use | to preserve newlines
+        in: |
+          1 2
+          3 4
+        ans: |
+          3
+          7
       "3":
         copy: manual/sample
       "4":

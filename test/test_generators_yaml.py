@@ -35,7 +35,7 @@ class MockGeneratorConfig(generate.GeneratorConfig):
         # A set of testcase rules, including seeds.
         self.rules_cache = dict()
         # The set of generated testcases keyed by testdata.
-        # Used to delete duplicated unlisted manual cases.
+        # Used to delete duplicated unlisted cases.
         self.generated_testdata = dict()
 
 

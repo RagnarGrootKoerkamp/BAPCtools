@@ -111,7 +111,7 @@ data:
 data:
   ab: gen {seed:1} {seed:2}
 ---
-# Manual cases should be null, not empty string
+# Unlisted cases should be null, not empty string
 data:
   ab: ''
 ---
@@ -166,15 +166,18 @@ data:
   ab:
     generate: []
 ---
-# Manual cases must not have an absolute path.
+# Copied cases must not have an absolute path.
 data:
-  ab: /a/b/c.in
+  ab: /a/b/c
 ---
 data:
-  ab: /c.in
+  ab: {copy: /a/b/c}
 ---
 data:
-  ab: /generators/c.in
+  ab: /c
+---
+data:
+  ab: {copy: /generators/c}
 ---
 # Generator invocations must not have an absolute path.
 data:
