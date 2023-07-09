@@ -598,7 +598,7 @@ class TestcaseRule(Rule):
         # use a deterministic generator by rerunning the generator with the
         # same arguments.  This is done when --check-deterministic is passed,
         # which is also set to True when running `bt all`.
-        # This doesn't do anything for manual cases.
+        # This doesn't do anything for non-generated cases.
         # It also checks that the input changes when the seed changes.
         def check_deterministic(force=False):
             if not force and not config.args.check_deterministic:
@@ -698,7 +698,7 @@ class TestcaseRule(Rule):
                         # Make sure that we write to target, and not to the file pointed to by target.
                         target.unlink()
 
-                    # We always copy file contents. Manual cases are copied as well.
+                    # We always copy file contents. Unlisted cases are copied as well.
                     shutil.copy(source, target, follow_symlinks=True)
                 else:
                     if target.is_file():
@@ -784,7 +784,7 @@ class TestcaseRule(Rule):
             assert infile.is_file(), f'Expected .in file not found in cache: {infile}'
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
 
-            # Validate the manual or generated .in.
+            # Validate the in.
             ignore_validators = config.args.ignore_validators
 
             if not testcase.validate_format(
@@ -1611,7 +1611,7 @@ class GeneratorConfig:
                     log('Deleted data/.gitignore.')
             return
 
-        # Collect all generated testcases and all non inline manual testcases
+        # Collect all listed testcases
         # and gitignore them in the data/ directory.
         # Sample cases are never ignored.
         # When only generating a subset of testcases, we also keep existing
@@ -1663,7 +1663,7 @@ class GeneratorConfig:
         def clean_testcase(t):
             bar.start(str(t.path))
 
-            # Skip cleaning manual cases that are their own source.
+            # Skip cleaning unlisted cases.
             if not process_testcase(self.problem, t.path) or t.inline:
                 bar.done()
                 return

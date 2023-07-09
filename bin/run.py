@@ -51,7 +51,7 @@ class Testcase:
             if is_relative_to(problem.path / 'data', include_target):
                 self.included = True
             else:
-                # The case is a manual cases included from generators/.
+                # The case is an unlisted cases included from generators/.
                 pass
 
         # Get the testdata.yaml content for this testcase.
