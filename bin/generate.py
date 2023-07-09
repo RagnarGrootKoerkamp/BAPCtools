@@ -512,11 +512,15 @@ class TestcaseRule(Rule):
             bar.done(False, f'Generator didn\'t build.')
             return
 
+        target_dir = problem.path / 'data' / t.path.parent
+        target_infile = target_dir / (t.name + '.in')
+        target_ansfile = target_dir / (t.name + '.ans')
+
         # Clean up duplicate unlisted testcases, or warn if distinct.
         if not t.listed and generator_config.has_yaml:
             if t.input_hash in generator_config.generated_testdata:
                 for ext in config.KNOWN_DATA_EXTENSIONS:
-                    ext_file = t.copy.with_suffix(ext)
+                    ext_file = target_infile.with_suffix(ext)
                     if ext_file.is_file():
                         ext_file.unlink()
                 bar.debug(
@@ -539,10 +543,6 @@ class TestcaseRule(Rule):
         infile = cwd / 'testcase.in'
         ansfile = cwd / 'testcase.ans'
         meta_path = cwd / 'meta_.yaml'
-
-        target_dir = problem.path / 'data' / t.path.parent
-        target_infile = target_dir / (t.name + '.in')
-        target_ansfile = target_dir / (t.name + '.ans')
 
         # Check whether the generated data and validation are up to date.
         # Returns (generator/input up to date, validation up to date)
