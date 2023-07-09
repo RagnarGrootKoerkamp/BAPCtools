@@ -20,7 +20,7 @@ solution: /submissions/accepted/sol.py
 #
 # TOOLING: may provide a flag to make running this optional, as it can be slow
 # and usually isn't required.
-visualizer: /visualizers/asy.py
+visualizer: /visualizers/vis.py
 
 # Optionally, a salt for generating the {seed} variables. Will be prepended to
 # the command being run.
@@ -81,14 +81,14 @@ data:
     data:
       "1": stdout.py 1 # prints `1` to stdout, which is piped to 1.in
 
-      # To indicate a unlisted testcase already present in the corresponding directory, specify it with an empty value.
+      # To indicate an unlisted testcase already present in the corresponding directory, specify it with an empty value.
       # Prefer specifying a path to a .in file as in case `3` below.
       # E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
       "2":
       # The copy: key indicates a manual testcase that will be copied
       # from the given directory into the target testcase. The given directory
-      # must not start with a / and will be relative to generators/.
-      # If a solution is specified, .ans files will be generated for unlisted cases
+      # must not start with a /, not include an extension and will be relative to generators/.
+      # If a solution is specified, .ans files will be generated for manual cases
       # that don't provide a .ans.
       "3":
         copy: manual_cases/sample/3
@@ -113,14 +113,14 @@ data:
           -4
   # Every testcase present in the directory must be listed.
   # TOOLING: may still allow unlisted testcases and warn about them.
-  #'5':
+  #'6':
 
   secret:
     data:
       # Types of generator programs.
       "01": stdout.py  3 # stdout of the command is written to 01.in.
-      "02": stdout.cpp 4 # c++ is compiled as for validators, and the resulting binary is run with argument `4`.
-      "03": dir 5 # directories are OK as for validators
+      "02": stdout.cpp 4 # c++ is compiled, just like validators, and the resulting binary is run with argument `4`.
+      "03": dir 5 # directories are OK, just like validators
       "04": tree 5 # keys from the global generators: dictionary may also be used.
       "05": a 5 # idem
 
