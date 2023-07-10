@@ -158,6 +158,7 @@ class Testcase:
                     data = ret.err
                 elif ret.out:
                     data = ret.out
+                data += f'in {shorten_path(self.problem, self.in_path.parent) / self.in_path.name}\n'
             else:
                 data = ret.err
 
