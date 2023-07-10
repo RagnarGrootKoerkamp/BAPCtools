@@ -411,6 +411,15 @@ def resolve_path_argument(problem, path, type, suffixes=[]):
     return None
 
 
+def shorten_path(problem, path):
+    short_hash = hashlib.sha256(bytes(path)).hexdigest()[-6:]
+    dir = problem.tmpdir / 'links'
+    dir.mkdir(parents=True, exist_ok=True)
+    short_path = dir / short_hash
+    ensure_symlink(short_path, path)
+    return short_path
+
+
 # Drops the first two path components <problem>/<type>/
 def print_name(path, keep_type=False):
     return str(Path(*path.parts[1 if keep_type else 2 :]))
@@ -553,15 +562,8 @@ def strip_newline(s):
 
 # When output is True, copy the file when args.cp is true.
 def ensure_symlink(link, target, output=False, relative=False):
-    # On windows, always copy.
-    if is_windows():
-        if link.exists() or link.is_symlink():
-            link.unlink()
-        shutil.copyfile(target, link)
-        return
-
     # For output files: copy them on Windows, or when --cp is passed.
-    if output and (is_windows() or config.args.cp):
+    if output and config.args.cp:
         if link.exists() or link.is_symlink():
             link.unlink()
         shutil.copyfile(target, link)
@@ -575,16 +577,15 @@ def ensure_symlink(link, target, output=False, relative=False):
         # if relative and not is_absolute: return
 
     if link.is_symlink() or link.exists():
-        if link.is_dir():
+        if link.is_dir() and not link.is_symlink():
             shutil.rmtree(link)
         else:
             link.unlink()
     if relative:
         # Rewrite target to be relative to link.
-        rel_target = os.path.relpath(target, link.parent)
-        os.symlink(rel_target, link)
+        link.symlink_to(target.relative_to(link.parent), target.is_dir())
     else:
-        link.symlink_to(target.resolve())
+        link.symlink_to(target.resolve(), target.is_dir())
 
 
 def substitute(data, variables):
