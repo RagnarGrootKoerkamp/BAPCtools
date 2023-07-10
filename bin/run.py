@@ -158,7 +158,12 @@ class Testcase:
                     data = ret.err
                 elif ret.out:
                     data = ret.out
-                data += f'in {shorten_path(self.problem, self.in_path.parent) / self.in_path.name}\n'
+
+                if validator_type == 'input_format':
+                    file = self.in_path
+                if validator_type == 'output_format':
+                    file = self.ans_path
+                data += f'in {shorten_path(self.problem, file.parent) / file.name}\n'
             else:
                 data = ret.err
 
