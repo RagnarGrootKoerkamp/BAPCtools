@@ -11,39 +11,6 @@ from util import *
 from colorama import Fore, Style
 
 
-# Testcase input is only allowed to contain newlines and printable characters
-def _is_invalid_input_byte(byte):
-    if byte == ord('\n'):
-        return False
-    if byte >= 0x20 and byte < 0x7F:
-        return False
-    return True
-
-
-# User output is additionally allowed to contain all other types of whitespaces
-def _is_invalid_output_byte(byte):
-    if byte == ord('\t'):
-        return False
-    if byte == ord('\r'):
-        return False
-    if byte == ord('\v'):
-        return False
-    if byte == ord('\f'):
-        return False
-    return _is_invalid_input_byte(byte)
-
-
-# assumes that the only possible whitespaces are space and newline
-def _has_consecutive_whitespaces(bytes):
-    last_whitespace = False
-    for byte in bytes:
-        cur_whitespace = byte == ord(' ') or byte == ord('\n')
-        if cur_whitespace and last_whitespace:
-            return True
-        last_whitespace = cur_whitespace
-    return False
-
-
 class Testcase:
     # Testcases outside problem/data must pass in the short_path explicitly.
     # In that case, `path` is the (absolute) path to the `.in` file being
@@ -98,7 +65,8 @@ class Testcase:
 
     # Return the flags specified in testdata.yaml for the given validator,
     # None if no flags were found, or False if this validator should be skipped.
-    def testdata_yaml_validator_flags(self, validator_type, validator):
+    # If `split`, split the string by spaces.
+    def testdata_yaml_validator_flags(self, validator_type, validator, split=True):
         # Do not use flags when using the default output validator.
         if self.problem.settings.validation == 'default' and validator_type == 'output':
             return None
@@ -112,20 +80,11 @@ class Testcase:
         )
         if key not in self.testdata_yaml:
             return None
-        data = self.testdata_yaml[key]
-        if isinstance(data, str):
-            data = {'name': data}
-        if isinstance(data, dict):
-            data = [data]
-        for d in data:
-            if d['name'] == validator.path.name:
-                if 'flags' in d:
-                    # Split the string into a list of arguments.
-                    return d['flags'].split()
-                return None
-
-        # Configuration was found but this validator was not listed.
-        return False
+        flags = self.testdata_yaml[key]
+        # Note: support for lists/dicts for was removed in #259.
+        if not isinstance(flags, str):
+            fatal(f'{key} must be a string in testdata.yaml')
+        return flags.split() if split else flags
 
     # Returns a dict of objects
     # hash =>
@@ -140,7 +99,7 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator_type, validator)
+            flags = self.testdata_yaml_validator_flags(validator_type, validator, split=False)
             if flags is False:
                 continue
             o = {
@@ -233,30 +192,12 @@ class Testcase:
 
             break
 
-        if not config.args.skip_testcase_sanity_checks and success and not bad_testcase:
-            if validator_type == 'input_format' and self.in_path.exists():
-                bytes = self.in_path.read_bytes()
-                if any(_is_invalid_input_byte(b) for b in bytes):
-                    bar.warn('Testcase contains unexpected characters but was accepted!')
-                elif len(bytes) == 0:
-                    bar.warn('Testcase is empty but was accepted!')
-                elif bytes[0] == ord(' ') or bytes[0] == ord('\n'):
-                    bar.warn('Testcase starts with whitespace but was accepted!')
-                elif bytes[-1] != ord('\n'):
-                    bar.warn('Testcase does not end with a newline but was accepted!')
-                elif _has_consecutive_whitespaces(bytes):
-                    bar.warn(
-                        'Testcase contains consecutive whitespace characters but was accepted!'
-                    )
-                elif len(bytes) > 20_000_000:
-                    bar.warn('Testcase is larger than 20MB!')
+        if success and not bad_testcase:
+            if validator_type == 'input_format':
+                validate.generic_validation(validator_type, self.in_path, bar=bar)
 
-            if validator_type == 'output_format' and self.ans_path.exists():
-                bytes = self.ans_path.read_bytes()
-                if any(_is_invalid_output_byte(b) for b in bytes):
-                    bar.warn('Answere contains unexpected characters but was accepted!')
-                elif len(bytes) > 20_000_000_000:
-                    bar.warn('Output is larger than 20Mb!')
+            if validator_type == 'output_format':
+                validate.generic_validation(validator_type, self.ans_path, bar=bar)
 
         return success
 
@@ -381,6 +322,17 @@ class Submission(program.Program):
 
         # The first element will match the directory the file is in, if possible.
         self.expected_verdicts = self._get_expected_verdicts()
+
+        # NOTE: Judging of interactive problems on systems without `os.wait4` is
+        # suboptimal because we cannot determine which of the submission and
+        # interactor exits first. Thus, we don't distinguish the different non-AC
+        # verdicts.
+        if self.problem.interactive and (is_windows() or is_bsd()):
+            wrong_verdicts = ['WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']
+            for wrong_verdict in wrong_verdicts:
+                if wrong_verdict in self.expected_verdicts:
+                    self.expected_verdicts += wrong_verdicts
+                    break
 
     def _get_expected_verdicts(self):
         verdicts = []
@@ -509,6 +461,9 @@ class Submission(program.Program):
             localbar = bar.start(run)
             result = run.run()
 
+            if result.verdict == 'ACCEPTED':
+                validate.generic_validation('output', run.out_path, bar=localbar)
+
             new_verdict = (
                 config.PRIORITY[result.verdict],
                 result.verdict,
@@ -570,7 +525,7 @@ class Submission(program.Program):
                 bar.count = None
                 p.stop()
 
-        p = parallel.Parallel(lambda run: process_run(run, p))
+        p = parallel.Parallel(lambda run: process_run(run, p), pin=True)
 
         for run in runs:
             p.put(run)

@@ -7,9 +7,12 @@ from pathlib import Path
 import tools
 import problem
 import config
+import util
 
 # Run `bt run` on these problems.
-PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'guess']
+PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'guess'] + [
+    'hellounix' if not util.is_mac() and not util.is_windows() else []
+]
 
 # Run various specific commands on this problem.
 IDENTITY_PROBLEMS = ['identity']
@@ -182,15 +185,14 @@ class TestNewContestProblem:
         with pytest.raises(SystemExit) as e:
             tools.test(['pdf', '--contest', 'contest_name'])
         assert config.n_warn == 2
-        assert Path('contest_name/contest.pdf').is_file()
-        # TODO: Fix -- it's broken currently.
-        # tools.test(['solutions', '--contest', 'contest_name'])
+        assert Path('contest_name/contest.en.pdf').is_file()
+        tools.test(['solutions', '--contest', 'contest_name'])
         tools.test(['tmp', '--clean', '--contest', 'contest_name'])
 
 
 class TestReadProblemConfig:
     def test_read_problem_config(self):
         p = problem.Problem(RUN_DIR / 'test/problems/test_problem_config', Path('/tmp/xyz'))
-        assert p.settings.name == 'ABC XYZ'
+        assert p.settings.name['en'] == 'ABC XYZ'
         assert p.settings.validation == 'custom'
         assert p.settings.timelimit == 3.0

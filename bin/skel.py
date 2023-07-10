@@ -134,13 +134,18 @@ def new_problem():
     if config.args.problem:
         fatal('--problem does not work for new_problem.')
 
-    problemname = (
-        config.args.problemname if config.args.problemname else _ask_variable_string('problem name')
-    )
-    dirname = (
-        _alpha_num(problemname)
+    statement_languages = config.args.languages if config.args.languages else ['en']
+
+    problemname = {
+        lang: config.args.problemname
         if config.args.problemname
-        else _ask_variable_string('dirname', _alpha_num(problemname))
+        else _ask_variable_string(f'problem name ({lang})')
+        for lang in statement_languages
+    }
+    dirname = (
+        _alpha_num(config.args.problemname)
+        if config.args.problemname
+        else _ask_variable_string('dirname', _alpha_num(problemname[statement_languages[0]]))
     )
     author = config.args.author if config.args.author else _ask_variable_string('author')
 
@@ -214,26 +219,35 @@ def new_problem():
     copytree_and_substitute(
         skeldir, target_dir / dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks
     )
+    # Warn about missing problem statement skeletons for non-en languages
+    for lang in statement_languages:
+        filename = f"problem.{lang}.tex"
+        statement_path = target_dir / dirname / 'problem_statement' / filename
+        if not statement_path.is_file():
+            warn(f'No skeleton for {filename} found. Create it manually or update skel/problem.')
 
 
 def rename_problem(problem):
     if not has_ryaml:
         fatal('ruamel.yaml library not found.')
 
-    problemname = (
-        config.args.problemname if config.args.problemname else _ask_variable_string('problem name')
-    )
-    dirname = (
-        _alpha_num(problemname)
+    newname = {
+        lang: config.args.problemname
         if config.args.problemname
-        else _ask_variable_string('dirname', _alpha_num(problemname))
+        else _ask_variable_string(f'New problem name ({lang})', problem.settings.name[lang])
+        for lang in problem.statement_languages
+    }
+    dirname = (
+        _alpha_num(config.args.problemname)
+        if config.args.problemname
+        else _ask_variable_string('dirname', _alpha_num(newname[problem.statement_languages[0]]))
     )
 
     shutil.move(problem.name, dirname)
 
     problem_yaml = Path(dirname) / 'problem.yaml'
     data = read_yaml(problem_yaml)
-    data['name'] = problemname
+    data['name'] = newname
     write_yaml(data, problem_yaml)
 
     problems_yaml = Path('problems.yaml')
@@ -242,7 +256,7 @@ def rename_problem(problem):
         prob = next((p for p in data if p['id'] == problem.name), None)
         if prob is not None:
             prob['id'] = dirname
-            prob['name'] = problemname
+            prob['name'] = newname
             write_yaml(data, problems_yaml)
 
 

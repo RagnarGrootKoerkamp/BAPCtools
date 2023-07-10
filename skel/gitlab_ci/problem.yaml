@@ -18,4 +18,4 @@ verify_{%problem%}:
   artifacts:
     expire_in: 1 week
     paths:
-      - {%contest%}/{%problem%}/problem.pdf
+      - {%contest%}/{%problem%}/problem*.pdf

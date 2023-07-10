@@ -69,6 +69,7 @@ if not os.getenv('GITLAB_CI', False):
 # Make sure f-strings are supported.
 f'f-strings are not supported by your python version. You need at least python 3.6.'
 
+
 # Get the list of relevant problems.
 # Either use the problems.yaml, or check the existence of problem.yaml and sort
 # by shortname.
@@ -357,6 +358,9 @@ Run this from one of:
         choices=['default', 'custom', 'custom interactive'],
     )
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
+    problemparser.add_argument(
+        '--language', dest='languages', action='append', help='Statement language'
+    )
 
     # Copy directory from skel.
     skelparser = subparsers.add_parser(
@@ -386,6 +390,9 @@ Run this from one of:
         '-a',
         action='store_true',
         help='Create problem statements for individual problems as well.',
+    )
+    pdfparser.add_argument(
+        '--language', dest='languages', action='append', help='Set statement language.'
     )
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     pdfparser.add_argument(
@@ -423,6 +430,9 @@ Run this from one of:
     )
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
+    solparser.add_argument(
+        '--language', dest='languages', action='append', help='Set solution language.'
+    )
 
     # Validation
     validate_parser = subparsers.add_parser(
@@ -439,7 +449,7 @@ Run this from one of:
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
     move_or_remove_group.add_argument(
-        '--remove', action='store_true', help='Remove failing testcsaes.'
+        '--remove', action='store_true', help='Remove failing testcases.'
     )
     move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
 
@@ -681,6 +691,7 @@ Run this from one of:
         help='Make a zip more following the kattis problemarchive.com format.',
     )
     zipparser.add_argument('--no-solutions', action='store_true', help='Do not compile solutions')
+    zipparser.add_argument('--language', help='Language for DOMjudge pdf statements')
 
     # Build a zip with all samples.
     subparsers.add_parser(
@@ -893,15 +904,15 @@ def run_parsed_arguments(args):
             success &= generate.generate(problem)
             config.args = old_args
         if action in ['fuzz']:
-            success &= fuzz.fuzz(problem)
+            success &= fuzz.Fuzz(problem).run()
         if action in ['pdf', 'all']:
             # only build the pdf on the problem level, or on the contest level when
             # --all is passed.
             if level == 'problem' or (level == 'problemset' and config.args.all):
-                success &= latex.build_problem_pdf(problem)
+                success &= latex.build_problem_pdfs(problem)
         if action in ['solutions']:
             if level == 'problem':
-                success &= latex.build_problem_pdf(problem, solutions=True)
+                success &= latex.build_problem_pdfs(problem, solutions=True)
         if action in ['validate', 'all']:
             if not (action == 'validate' and config.args.output):
                 success &= problem.validate_format('input_format')
@@ -920,7 +931,6 @@ def run_parsed_arguments(args):
 
             problem_zips.append(output)
             if not config.args.skip:
-
                 # Set up arguments for generate.
                 old_args = argparse.Namespace(**vars(config.args))
                 config.args.check_deterministic = not config.args.force
@@ -932,14 +942,23 @@ def run_parsed_arguments(args):
                 success &= generate.generate(problem)
                 config.args = old_args
 
-                success &= latex.build_problem_pdf(problem)
+                success &= latex.build_problem_pdfs(problem)
                 if not config.args.force:
                     success &= problem.validate_format('input_format', constraints={})
                     success &= problem.validate_format('output_format', constraints={})
 
+                """Build contest PDFs for all available languages"""
+                if config.args.language:
+                    statement_language = config.args.language
+                else:
+                    all_languages = set.union(*(set(p.statement_languages) for p in problems))
+                    if len(all_languages) > 1:
+                        fatal('Multiple languages found, please specify one with --language')
+                    statement_language = all_languages.pop()
+
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
-                success &= export.build_problem_zip(problem, output)
+                success &= export.build_problem_zip(problem, output, statement_language)
         if action == 'all' and config.args.cleanup_generated:
             success &= generate.cleanup_generated(problem)
 
@@ -954,10 +973,10 @@ def run_parsed_arguments(args):
 
         # build pdf for the entire contest
         if action in ['pdf']:
-            success &= latex.build_contest_pdf(contest, problems, tmpdir, web=config.args.web)
+            success &= latex.build_contest_pdfs(contest, problems, tmpdir, web=config.args.web)
 
         if action in ['solutions']:
-            success &= latex.build_contest_pdf(
+            success &= latex.build_contest_pdfs(
                 contest, problems, tmpdir, solutions=True, web=config.args.web
             )
 

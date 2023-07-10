@@ -11,7 +11,15 @@ When `generators/generators.yaml` is present, _all_ test cases in
 some testcases while not mentioning others. Testcases must be explicitly
 listed as manually created to prevent this issue.
 
-Below are an explanation of the specification and a formal [CUE specification](#cue-specification).
+See [`./generators.yaml`](./generators.yaml) for an exhaustive example file with explanations.
+
+A Json schema can be found [here](../support/generators_yaml_schema.json), which
+can be used together with most YAML LSP's to provide autocompletion and
+validation when editing `generator.yaml` files.
+
+A [CUE](https://cuelang.org/docs/references/spec/) specification can be found [here](../support/generators_yaml_schema.cue).
+A `generators.yaml` file can be validated against this spec using the `cue`
+command line tool.
 
 ## Specification
 
@@ -49,51 +57,3 @@ The root of the `generators.yaml` is a `directory` object with one optional addi
   Generators specified in the `generators` dictionary are built by coping the list of files into a new directory, and then building the resulting program as usual. The first dependency listed will be used to determine the entry point.
 
   Other generators are built as (file or directory) [programs](./Problem_Format#Programs).
-
-## CUE specification.
-
-Below is a formal [CUE](https://cuelang.org/docs/references/spec/) specification for the `generators.yaml` file with a root object `Generators`. Note that the `...` in `generator` and `directory` indicate that additional keys unknown to the spec are allowed. The `generator_reserved` and `directory_reserved` objects indicate keys that work only for `generator`/`directory` and should not be reused in other places.
-
-```
-command :: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
-file_config :: {
-    solution?: command | null
-    visualizer?: command | null
-    random_salt?: string
-}
-generator :: command | {
-    input: command
-    file_config
-    directory_reserved
-    ...
-}
-data_dict :: {
-    [string]: directory | generator | null
-}
-directory :: {
-    file_config
-    "testdata.yaml"?: {
-        ...
-    }
-    data?: data_dict | [...data_dict]
-    generator_reserved
-    ...
-}
-Generators :: {
-    generators?: {
-        [string]: [...string]
-    }
-    directory
-}
-
-generator_reserved :: {
-    input?: _|_
-    ...
-}
-directory_reserved :: {
-    data?: _|_
-    include?: _|_
-    "testdata.yaml"?: _|_
-    ...
-}
-```

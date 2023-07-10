@@ -129,7 +129,7 @@ data:
      #hard_cases_group-01: stdout.py 7           # Collision with hard_cases_group below.
 
 # Commands are only allowed to read and write files of the form
-# `testcsae.<ext>`, where <ext> is a known file extension in
+# `testcase.<ext>`, where <ext> is a known file extension in
 # .in, .ans, .hint, .desc, .png, .jpg, .svg.
 # Any such written files will be saved.
 #

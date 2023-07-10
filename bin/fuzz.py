@@ -3,6 +3,7 @@ import run
 import random
 import generate
 import time
+import threading
 
 import parallel
 from util import *
@@ -16,172 +17,253 @@ from util import *
 #    by using a numbered directory data/fuzz.
 
 
-def _save_test(problem, command):
-    if not has_ryaml:
-        error('Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.')
-        return
+class GeneratorTask:
+    def __init__(self, fuzz, t, i, tmp_id):
+        self.fuzz = fuzz
+        self.generator = t.generator
+        self.solution = t.config.solution
+        self.i = i
+        self.tmp_id = tmp_id
 
-    generators_yaml = problem.path / 'generators/generators.yaml'
-    if not generators_yaml.is_file():
-        generators_yaml.write_text('')
+        # Pick a random seed.
+        assert self.generator.program is not None
+        self.seed = random.randint(0, 2**31 - 1)
+        self.command = self.generator.cache_command(seed=self.seed)
 
-    data = read_yaml(generators_yaml)
+        self.save_mutex = threading.Lock()
+        self.saved = False
 
-    if data is None:
-        data = ruamel.yaml.comments.CommentedMap()
-
-    if ('data' not in data) or (data['data'] is None):
-        data['data'] = ruamel.yaml.comments.CommentedMap()
-    if ('fuzz' not in data['data']) or (data['data']['fuzz'] is None):
-        data['data']['fuzz'] = ruamel.yaml.comments.CommentedMap()
-    if ('data' not in data['data']['fuzz']) or (data['data']['fuzz']['data'] is None):
-        data['data']['fuzz']['data'] = ruamel.yaml.comments.CommentedSeq()
-    if not isinstance(data['data']['fuzz']['data'], ruamel.yaml.comments.CommentedSeq):
-        fatal('data.fuzz.data must be a sequence, not a dictionary.')
-
-    item = ruamel.yaml.comments.CommentedMap()
-    item[''] = command
-    data['data']['fuzz']['data'].append(item)
-
-    # Overwrite generators.yaml.
-    write_yaml(data, generators_yaml)
-
-
-def _try_generator_invocation(problem, t, submissions, i):
-    generator = t.generator
-    solution = t.config.solution
-
-    # GENERATE THE TEST DATA
-    cwd = problem.tmpdir / 'data' / 'fuzz'
-    cwd.mkdir(parents=True, exist_ok=True)
-    name = 'testcase'
-    infile = cwd / (name + '.in')
-    ansfile = cwd / (name + '.ans')
-
-    assert generator.program is not None
-
-    # Pick a random seed.
-    seed = random.randint(0, 2**31 - 1)
-
-    command = generator.cache_command(seed=seed)
-
-    bar = ProgressBar(
-        'Fuzz ' + str(i) + ': ' + command, max_len=max(len(s.name) for s in submissions)
-    )
-
-    bar.start('generate')
-    result = generator.run(bar, cwd, name, seed)
-    if result.ok is not True:
-        bar.finalize()
-        return
-    bar.done()
-
-    testcase = run.Testcase(problem, infile, short_path=Path('fuzz') / (name + '.in'))
-
-    # Validate the manual or generated .in.
-    bar.start('validate input')
-    if not testcase.validate_format('input_format', bar=bar, constraints=None):
-        bar.finalize()
-        return
-    bar.done()
-
-    # Generate .ans.
-    if not problem.interactive:
-        if solution and not testcase.ans_path.is_file():
-            if testcase.ans_path.is_file():
-                testcase.ans_path.unlink()
-            # Run the solution and validate the generated .ans.
-            bar.start('generate ans')
-            if solution.run(bar, cwd, name).ok is not True:
-                bar.finalize()
-                return
-            bar.done()
-
-        if ansfile.is_file():
-            bar.start('validate output')
-            if not testcase.validate_format('output_format', bar=bar):
-                bar.finalize()
-                return
-            bar.done()
+    def run(self, bar):
+        if self._run(bar):
+            self.fuzz.finish_task(self.tmp_id)
         else:
-            if not target_ansfile.is_file():
-                bar.error(f'{ansfile.name} does not exist and was not generated.')
-                bar.finalize()
-                return
-    else:
-        if not testcase.ans_path.is_file():
-            testcase.ans_path.write_text('')
+            self.fuzz.finish_task(self.tmp_id, 1 + len(self.fuzz.submissions))
 
-    saved = False
+    def _run(self, bar):
+        # GENERATE THE TEST DATA
+        dir = f'fuzz{self.tmp_id}'  # use some other name...
+        cwd = self.fuzz.problem.tmpdir / 'data' / dir
+        cwd.mkdir(parents=True, exist_ok=True)
+        name = 'testcase'
+        infile = cwd / (name + '.in')
+        ansfile = cwd / (name + '.ans')
 
-    def run_submission(submission):
-        nonlocal saved
-        r = run.Run(problem, submission, testcase)
-        localbar = bar.start(submission)
-        result = r.run()
-        if result.verdict != 'ACCEPTED':
-            if not saved:
-                saved = True
-                localbar.error(f'{result.verdict}! Saving testcase in generators.yaml.')
-                _save_test(problem, command)
-                return
-            else:
-                localbar.error(f'{result.verdict}!')
+        localbar = bar.start(f'{self.i}: {self.command}')
+        localbar.log()
         localbar.done()
 
-    # Run all submissions against the testcase.
-    p = parallel.Parallel(run_submission)
-    for submission in submissions:
-        p.put(submission)
-    p.done()
-    bar.global_logged = False
-    bar.finalize(print_done=False)
+        localbar = bar.start(f'{self.i}: generate')
+        result = self.generator.run(bar, cwd, name, self.seed)
+        if result.ok is not True:
+            localbar.done()
+            return False
+        localbar.done()
+
+        testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
+
+        # Validate the manual or generated .in.
+        localbar = bar.start(f'{self.i}: validate input')
+        if not testcase.validate_format('input_format', bar=localbar, constraints=None):
+            localbar.done()
+            return False
+        localbar.done()
+
+        # Generate .ans.
+        if not self.fuzz.problem.interactive:
+            if self.solution and not testcase.ans_path.is_file():
+                if testcase.ans_path.is_file():
+                    testcase.ans_path.unlink()
+                # Run the solution and validate the generated .ans.
+                localbar = bar.start(f'{self.i}: generate ans')
+                if self.solution.run(bar, cwd, name).ok is not True:
+                    localbar.done()
+                    return False
+                localbar.done()
+
+            if ansfile.is_file():
+                localbar = bar.start(f'{self.i}: validate output')
+                if not testcase.validate_format('output_format', bar=localbar):
+                    localbar.done()
+                    return False
+                localbar.done()
+            else:
+                if not target_ansfile.is_file():
+                    bar.error(f'{self.i}: {ansfile.name} does not exist and was not generated.')
+                    return False
+        else:
+            if not testcase.ans_path.is_file():
+                testcase.ans_path.write_text('')
+
+        # Run all submissions against the testcase.
+        with self.fuzz.queue:
+            for submission in self.fuzz.submissions:
+                self.fuzz.queue.put(SubmissionTask(self, submission, testcase, self.tmp_id))
+        return True
+
+    def save_test(self, bar):
+        if self.saved:
+            return
+        save = False
+        # emulate atomic swap of save and self.saved
+        with self.save_mutex:
+            if not self.saved:
+                self.saved = True
+                save = True
+        # only save rule if we set self.saved to True
+        if save:
+            localbar = bar.start(f'{self.i}: {self.command}')
+            localbar.log('Saving testcase in generators.yaml.')
+            localbar.done()
+            self.fuzz.save_test(self.command)
 
 
-def fuzz(problem):
-    if not has_ryaml:
-        error('Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.')
-        return
+class SubmissionTask:
+    def __init__(self, generator_task, submission, testcase, tmp_id):
+        self.generator_task = generator_task
+        self.submission = submission
+        self.testcase = testcase
+        self.tmp_id = tmp_id
 
-    # config.args.no_bar = True
+    def run(self, bar):
+        self._run(bar)
+        self.generator_task.fuzz.finish_task(self.tmp_id)
 
-    # GENERATOR INVOCATIONS
-    generator_config = generate.GeneratorConfig(problem)
-    if not generator_config.ok:
-        return False
+    def _run(self, bar):
+        r = run.Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
+        localbar = bar.start(f'{self.generator_task.i}: {self.submission.name}')
+        result = r.run()
+        if result.verdict != 'ACCEPTED':
+            self.generator_task.save_test(bar)
+            localbar.done(False, f'{result.verdict}!')
+        else:
+            localbar.done()
 
-    # Filter to only keep rules depending on seed.
-    def filter_dir(d):
-        d.data = list(
-            filter(
-                lambda t: isinstance(t, generate.Directory)
-                or (not t.manual and t.generator.uses_seed),
-                d.data,
+
+class Fuzz:
+    def __init__(self, problem):
+        self.generators_yaml_mutex = threading.Lock()
+        self.problem = problem
+
+        # GENERATOR INVOCATIONS
+        generator_config = generate.GeneratorConfig(self.problem)
+        self.testcase_rules = []
+        if not generator_config.ok:
+            return
+
+        # Filter to only keep rules depending on seed.
+        def filter_dir(d):
+            d.data = list(
+                filter(
+                    lambda t: isinstance(t, generate.Directory)
+                    # TODO: Fix this for hardcoded testcases.
+                    or (not t.manual and t.generator.uses_seed),
+                    d.data,
+                )
             )
+
+        generator_config.root_dir.walk(
+            lambda t: self.testcase_rules.append(t), dir_f=filter_dir, dir_last=False
         )
+        if len(self.testcase_rules) == 0:
+            return
 
-    testcase_rules = []
-    generator_config.root_dir.walk(
-        lambda t: testcase_rules.append(t), dir_f=filter_dir, dir_last=False
-    )
+        generator_config.build(build_visualizers=False)
 
-    if len(testcase_rules) == 0:
-        fatal('No invocations depending on {seed} found.')
+        # BUILD VALIDATORS
+        self.problem.validators('output')
 
-    generator_config.build(build_visualizers=False)
-    problem.validators('output')
+        # SUBMISSIONS
+        self.submissions = self.problem.submissions(accepted_only=True)
 
-    # SUBMISSIONS
-    submissions = problem.submissions(accepted_only=True)
+    def run(self):
+        if not has_ryaml:
+            error('Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.')
+            return False
 
-    if len(submissions) == 0:
-        fatal('No submissions found.')
+        if len(self.testcase_rules) == 0:
+            error('No invocations depending on {seed} found.')
+            return False
 
-    tstart = time.monotonic()
-    i = 0
-    while True:
-        for testcase_rule in testcase_rules:
-            if time.monotonic() - tstart > config.args.time:
-                return True
-            i += 1
-            _try_generator_invocation(problem, testcase_rule, submissions, i)
+        if len(self.submissions) == 0:
+            error('No submissions found.')
+            return False
+
+        # config.args.no_bar = True
+        # max(len(s.name) for s in self.submissions)
+        bar = ProgressBar(f'Fuzz', max_len=60)
+        self.start_time = time.monotonic()
+        self.iteration = 0
+        self.tasks = 0
+        self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
+
+        # pool of ids used for generators
+        tmp_ids = 2 * self.queue.num_threads + 1
+        self.free_tmp_id = {*range(tmp_ids)}
+        self.tmp_id_count = [0] * tmp_ids
+
+        # add first generator task
+        self.finish_task()
+
+        # wait for the queue to run empty (after config.args.time)
+        self.queue.join()
+        # At this point, no new tasks may be started anymore.
+        self.queue.done()
+        bar.done()
+        return True
+
+    # finish task from generator with tmp_id
+    # also add new tasks if queue becomes too empty
+    def finish_task(self, tmp_id=None, count=1):
+        with self.queue:
+            # return tmp_id (and reuse it if all submissions are finished)
+            if tmp_id is not None:
+                self.tasks -= count
+                self.tmp_id_count[tmp_id] -= count
+                if self.tmp_id_count[tmp_id] == 0:
+                    self.free_tmp_id.add(tmp_id)
+
+            # don't add new tasks after time is up
+            if time.monotonic() - self.start_time > config.args.time:
+                return
+
+            # add new generator runs to fill up queue
+            while self.tasks <= 2 * self.queue.num_threads:
+                testcase_rule = self.testcase_rules[self.iteration % len(self.testcase_rules)]
+                self.iteration += 1
+                # 1 new generator tasks which will also create one task per submission
+                new_tasks = 1 + len(self.submissions)
+                tmp_id = min(self.free_tmp_id)
+                self.free_tmp_id.remove(tmp_id)
+                self.tmp_id_count[tmp_id] = new_tasks
+                self.tasks += new_tasks
+                self.queue.put(
+                    GeneratorTask(self, testcase_rule, self.iteration, tmp_id), priority=1
+                )
+
+    # Write new rule to yaml
+    # lock between read and write to ensure that no rule gets lost
+    def save_test(self, command):
+        with self.generators_yaml_mutex:
+            generators_yaml = self.problem.path / 'generators/generators.yaml'
+            data = None
+            if generators_yaml.is_file():
+                data = read_yaml(generators_yaml)
+            if data is None:
+                data = ruamel.yaml.comments.CommentedMap()
+
+            def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
+                assert isinstance(data, ruamel.yaml.comments.CommentedMap)
+                if not key in yaml or yaml[key] is None:
+                    yaml[key] = t()
+                assert isinstance(yaml[key], t)
+                return yaml[key]
+
+            parent = get_or_add(data, 'data')
+            parent = get_or_add(parent, 'fuzz')
+            entry = get_or_add(parent, 'data', ruamel.yaml.comments.CommentedSeq)
+
+            entry.append(ruamel.yaml.comments.CommentedMap())
+            entry[-1][''] = command
+
+            # Overwrite generators.yaml.
+            write_yaml(data, generators_yaml)

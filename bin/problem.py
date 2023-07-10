@@ -1,5 +1,4 @@
 import re
-import glob
 import argparse
 import hashlib
 import random
@@ -50,6 +49,30 @@ class Problem:
                 f'Problem has a bad shortname: {self.name} does not match {self._SHORTNAME_REGEX_STRING}'
             )
 
+        self.statement_languages = self._determine_statement_languages()
+
+    def _determine_statement_languages(self):
+        """Determine the languages that are both mentioned in the problem.yaml under name
+        and have a corresponding problem statement.
+
+        If problem.yaml's name key is a string, convert into dict; assume `en` as default language.
+        """
+        if isinstance(self.settings.name, str):
+            self.settings.name = {'en': self.settings.name}
+        yamlnames = set(self.settings.name)
+        texfiles = set(
+            path.suffixes[0][1:] for path in glob(self.path, 'problem_statement/problem.*.tex')
+        )
+        for lang in texfiles - yamlnames:
+            error(
+                f"{self.name}: Found problem.{lang}.tex, but no corresponding name in problem.yaml."
+            )
+        for lang in yamlnames - texfiles:
+            error(
+                f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
+            )
+        return sorted(texfiles & yamlnames)
+
     def _read_settings(self):
         # some defaults
         self.settings = {
@@ -83,7 +106,8 @@ class Problem:
             verbose('domjudge-problem.ini is DEPRECATED. Use a .timelimit file instead.')
             for line in domjudge_path.read_text().splitlines():
                 key, var = map(str.strip, line.strip().split('='))
-                var = var[1:-1]
+                if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
+                    var = var[1:-1]
                 if key == 'timelimit':
                     self.settings[key] = float(var)
                     self.settings['timelimit_is_default'] = False
@@ -132,7 +156,14 @@ class Problem:
 
     # statement_samples end in .in.statement and .ans.statement and are only used in the statement.
     def testcases(
-        p, needans=True, only_sample=False, statement_samples=False, include_bad=False, copy=False
+        p,
+        *,
+        needans=True,
+        needinteraction=False,
+        only_sample=False,
+        statement_samples=False,
+        include_bad=False,
+        copy=False,
     ):
         def maybe_copy(x):
             return x.copy() if copy and isinstance(x, (list, dict)) else x
@@ -176,18 +207,23 @@ class Problem:
         for f in in_paths:
             t = run.Testcase(p, f)
             # Require both in and ans files
+            if needinteraction and not t.in_path.with_suffix('.interaction').is_file():
+                assert only_sample
+                warn(f'Found input file {f} without a .interaction file. Skipping.')
+                continue
             if needans and not t.ans_path.is_file():
                 if not t.bad_input:
-                    warn(f'Found input file {str(f)} without a .ans file. Skipping.')
+                    warn(f'Found input file {f} without a .ans file. Skipping.')
                 continue
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            # For interactive problems, allow 0 samples.
-            if not (p.interactive and only_sample):
+            if needinteraction:
+                warn(f'Didn\'t find any testcases with interaction for {p.name}')
+            else:
                 warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
-                testcases = False
+            testcases = False
 
         p._testcases[key] = testcases
         return maybe_copy(testcases)

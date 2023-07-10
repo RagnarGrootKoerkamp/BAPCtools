@@ -11,9 +11,6 @@
 // space_change_sensitive flags should be passed. When validating team output,
 // the flags in problem.yaml should be used.
 
-// Compile with -Duse_source_location to enable
-// std::experimental::source_location. This is needed for constraints checking.
-
 #include <algorithm>
 #include <array>
 #include <bitset>
@@ -38,36 +35,6 @@
 #include <variant>
 #include <vector>
 
-#ifdef use_source_location
-#include <experimental/source_location>
-constexpr bool has_source_location = true;
-using std::experimental::source_location;
-namespace std {
-bool operator<(const source_location& l, const source_location& r) {
-	return l.line() < r.line();
-}
-} // namespace std
-namespace std::experimental::fundamentals_v2 {
-bool operator<(const source_location& l, const source_location& r) {
-	return l.line() < r.line();
-}
-} // namespace std::experimental::fundamentals_v2
-#else
-constexpr bool has_source_location = false;
-struct source_location {
-	static source_location current() { return {}; }
-	[[nodiscard]] int line() const { return 0; }               // NOLINT
-	[[nodiscard]] std::string file_name() const { return ""; } // NOLINT
-};
-inline bool operator<(const source_location& l, const source_location& r) {
-	return l.line() < r.line();
-}
-#endif
-
-inline std::string location_to_string(source_location loc) {
-	return std::string(loc.file_name()) + ":" + std::to_string(loc.line());
-}
-
 const std::string_view case_sensitive_flag       = "case_sensitive";
 const std::string_view ws_sensitive_flag         = "space_change_sensitive";
 const std::string_view constraints_file_flag     = "--constraints_file";
@@ -86,8 +53,12 @@ inline struct UniqueTag : ArbitraryTag {
 	static constexpr bool increasing = false;
 	static constexpr bool decreasing = false;
 } Unique;
-inline struct IncreasingTag : ArbitraryTag { static constexpr bool increasing = true; } Increasing;
-inline struct DecreasingTag : ArbitraryTag { static constexpr bool decreasing = true; } Decreasing;
+inline struct IncreasingTag : ArbitraryTag {
+	static constexpr bool increasing = true;
+} Increasing;
+inline struct DecreasingTag : ArbitraryTag {
+	static constexpr bool decreasing = true;
+} Decreasing;
 inline struct StrictlyIncreasingTag : ArbitraryTag {
 	static constexpr bool strict     = true;
 	static constexpr bool increasing = true;
@@ -229,10 +200,10 @@ struct UniformGenerator {
 			// Rejection sampling is not as fast as possible but definitely unbiased.
 			auto ul    = static_cast<unsigned long long>(low);
 			auto uh    = static_cast<unsigned long long>(high);
-			int shifts = cpp20::countl_zero(uh - ul);
+			int shitfs = cpp20::countl_zero(uh - ul);
 			unsigned long long res;
 			do {
-				res = Random::bits64(rng) >> shifts;
+				res = Random::bits64(rng) >> shitfs;
 			} while(res > uh - ul);
 			return static_cast<long long>(res + ul);
 		} else {
@@ -593,18 +564,14 @@ class Validator {
 			in >> std::noskipws;
 		else
 			in >> std::skipws;
-
-		if(!constraints_file_path.empty()) {
-			assert(has_source_location); // NOLINT
-		}
 	}
 
   public:
 	// No copying, no moving.
-	Validator(const Validator&) = delete;
-	Validator(Validator&&)      = delete;
+	Validator(const Validator&)      = delete;
+	Validator(Validator&&)           = delete;
 	void operator=(const Validator&) = delete;
-	void operator=(Validator&&) = delete;
+	void operator=(Validator&&)      = delete;
 
 	// At the end of the scope, check whether the EOF has been reached.
 	// If so, return AC. Otherwise, return WA.
@@ -661,30 +628,29 @@ class Validator {
 
 	template <typename T>
 	auto& seen() {
-		static std::map<source_location, std::set<T>> seen;
+		static std::unordered_map<std::string, std::set<T>> seen;
 		return seen;
 	}
 	template <typename T>
 	auto& last_seen() {
-		static std::map<source_location, T> last_seen;
+		static std::unordered_map<std::string, T> last_seen;
 		return last_seen;
 	}
 	template <typename T>
 	auto& integers_seen() {
-		static std::map<source_location, std::tuple<std::set<T>, std::vector<T>, bool>>
+		static std::unordered_map<std::string, std::tuple<std::set<T>, std::vector<T>, bool>>
 		    integers_seen;
 		return integers_seen;
 	}
 	template <typename T>
-	void reset(source_location loc) {
-		seen<T>().erase(loc);
-		last_seen<T>().erase(loc);
-		integers_seen<T>().erase(loc);
+	void reset(std::string name) {
+		seen<T>().erase(name);
+		last_seen<T>().erase(name);
+		integers_seen<T>().erase(name);
 	}
 
 	template <typename T, typename Tag>
-	void check_number(const std::string& name, T low, T high, T v, Tag /*unused*/,
-	                  source_location loc) {
+	void check_number(const std::string& name, T low, T high, T v, Tag /*unused*/) {
 		static_assert(is_number_v<T>);
 		if(v < low or v > high) {
 			std::string type_name;
@@ -698,12 +664,12 @@ class Validator {
 			             std::to_string(high),
 			         std::to_string(v));
 		}
-		log_constraint(name, low, high, v, loc);
+		log_constraint(name, low, high, v);
 		if constexpr(Tag::unique) {
-			auto [it, inserted] = seen<T>()[loc].emplace(v);
+			auto [it, inserted] = seen<T>()[name].emplace(v);
 			check(inserted, name, ": Value ", v, " seen twice, but must be unique!");
 		} else {
-			auto [it, inserted] = last_seen<T>().emplace(loc, v);
+			auto [it, inserted] = last_seen<T>().emplace(name, v);
 			if(inserted) return;
 
 			auto last  = it->second;
@@ -720,21 +686,19 @@ class Validator {
 
 	template <typename Tag>
 	void check_string(const std::string& name, int low, int high, const std::string& v,
-	                  Tag /*unused*/, source_location loc) {
+	                  Tag /*unused*/) {
 		using T = std::string;
-		if((int) v.size() < low or (int) v.size() > high) {
+		if((int)v.size() < low or (int) v.size() > high) {
 			expected(name + ": " + "string with" + " length between " + std::to_string(low) +
 			             " and " + std::to_string(high),
 			         v);
 		}
-		log_constraint(name, low, high, static_cast<int>(v.size()), loc);
+		log_constraint(name, low, high, static_cast<int>(v.size()));
 		if constexpr(Tag::unique) {
-			// static map<source_location, set<T>> seen;
-			auto [it, inserted] = seen<T>()[loc].emplace(v);
+			auto [it, inserted] = seen<T>()[name].emplace(v);
 			check(inserted, name, ": Value ", v, " seen twice, but must be unique!");
 		} else if(Tag::increasing or Tag::decreasing) {
-			// static map<source_location, T> last_seen;
-			auto [it, inserted] = last_seen<T>().emplace(loc, v);
+			auto [it, inserted] = last_seen<T>().emplace(name, v);
 			if(inserted) return;
 
 			auto last  = it->second;
@@ -761,7 +725,7 @@ class Validator {
 	}
 
 	template <typename T, typename Tag>
-	T gen_number(const std::string& name, T low, T high, Tag /*unused*/, source_location loc) {
+	T gen_number(const std::string& name, T low, T high, Tag /*unused*/) {
 		static_assert(is_number_v<T>);
 		T v;
 
@@ -769,7 +733,7 @@ class Validator {
 			assert(params.find(name) == params.end() &&
 			       "Parameters are not supported for unique values.");
 			if constexpr(std::is_integral<T>::value) {
-				auto& [seen_here, remaining_here, use_remaining] = integers_seen<T>()[loc];
+				auto& [seen_here, remaining_here, use_remaining] = integers_seen<T>()[name];
 
 				if(use_remaining) {
 					check(!remaining_here.empty(), name, ": no unique values left");
@@ -797,7 +761,7 @@ class Validator {
 				}
 			} else {
 				// For floats, just regenerate numbers until success.
-				auto& seen_here = seen<T>()[loc];
+				auto& seen_here = seen<T>()[name];
 				do {
 					v = uniform_number(low, high);
 				} while(!seen_here.insert(v).second);
@@ -839,21 +803,19 @@ class Validator {
 
   public:
 	template <typename Tag = ArbitraryTag>
-	long long gen_integer(const std::string& name, long long low, long long high, Tag tag = Tag{},
-	                      source_location loc = source_location::current()) {
-		return gen_number(name, low, high, tag, loc);
+	long long gen_integer(const std::string& name, long long low, long long high, Tag tag = Tag{}) {
+		return gen_number(name, low, high, tag);
 	}
 
 	template <typename Tag = ArbitraryTag>
 	long double gen_float(const std::string& name, long double low, long double high,
-	                      Tag tag = Tag{}, source_location loc = source_location::current()) {
-		return gen_number(name, low, high, tag, loc);
+	                      Tag tag = Tag{}) {
+		return gen_number(name, low, high, tag);
 	}
 
   private:
 	template <typename T, typename Tag>
-	std::vector<T> gen_numbers(const std::string& name, int count, T low, T high, Tag /*unused*/,
-	                           source_location loc) {
+	std::vector<T> gen_numbers(const std::string& name, int count, T low, T high, Tag /*unused*/) {
 		static_assert(is_number_v<T>);
 		std::vector<T> v;
 		v.reserve(count);
@@ -939,23 +901,21 @@ class Validator {
   public:
 	template <typename Tag = ArbitraryTag>
 	std::vector<long long> gen_integers(const std::string& name, int count, long long low,
-	                                    long long high, Tag tag = Tag{},
-	                                    source_location loc = source_location::current()) {
-		return gen_numbers(name, count, low, high, tag, loc);
+	                                    long long high, Tag tag = Tag{}) {
+		return gen_numbers(name, count, low, high, tag);
 	}
 
 	template <typename Tag = ArbitraryTag>
 	std::vector<long double> gen_floats(const std::string& name, int count, long double low,
-	                                    long double high, Tag tag = Tag{},
-	                                    source_location loc = source_location::current()) {
-		return gen_numbers(name, count, low, high, tag, loc);
+	                                    long double high, Tag tag = Tag{}) {
+		return gen_numbers(name, count, low, high, tag);
 	}
 
   private:
 	template <typename T, typename Tag>
-	T read_number(const std::string& name, T low, T high, Tag tag, source_location loc) {
+	T read_number(const std::string& name, T low, T high, Tag tag) {
 		if(gen) {
-			auto v = gen_number(name, low, high, tag, loc);
+			auto v = gen_number(name, low, high, tag);
 			out << std::setprecision(10) << std::fixed << v;
 			return v;
 		}
@@ -967,16 +927,16 @@ class Validator {
 				return read_float(name);
 		}();
 
-		check_number(name, low, high, v, tag, loc);
+		check_number(name, low, high, v, tag);
 		return v;
 	}
 
 	// Read a vector of numbers, separated by spaces and ended by a newline.
 	template <typename T, typename Tag>
 	std::vector<T> read_numbers(const std::string& name, int count, T low, T high, Tag tag,
-	                            Separator sep, source_location loc) {
+	                            Separator sep) {
 		if(gen) {
-			auto v = gen_numbers(name, count, low, high, tag, loc);
+			auto v = gen_numbers(name, count, low, high, tag);
 
 			out << std::setprecision(10) << std::fixed;
 			for(int i = 0; i < count; ++i) {
@@ -987,14 +947,14 @@ class Validator {
 
 			return v;
 		}
-		reset<T>(loc);
+		reset<T>(name);
 		std::vector<T> v(count);
 		for(int i = 0; i < count; ++i) {
 			if constexpr(std::is_integral<T>::value)
 				v[i] = read_integer(name);
 			else
 				v[i] = read_float(name);
-			check_number(name, low, high, v[i], tag, loc);
+			check_number(name, low, high, v[i], tag);
 			if(i < count - 1) separator(sep);
 		}
 		newline();
@@ -1003,41 +963,38 @@ class Validator {
 
   public:
 	template <typename Tag = ArbitraryTag>
-	long long read_integer(const std::string& name, long long low, long long high, Tag tag = Tag{},
-	                       source_location loc = source_location::current()) {
-		return read_number(name, low, high, tag, loc);
+	long long read_integer(const std::string& name, long long low, long long high,
+	                       Tag tag = Tag{}) {
+		return read_number(name, low, high, tag);
 	}
 	template <typename Tag = ArbitraryTag>
 	std::vector<long long> read_integers(const std::string& name, int count, long long low,
-	                                     long long high, Tag tag = Tag{}, Separator sep = Space,
-	                                     source_location loc = source_location::current()) {
-		return read_numbers(name, count, low, high, tag, sep, loc);
+	                                     long long high, Tag tag = Tag{}, Separator sep = Space) {
+		return read_numbers(name, count, low, high, tag, sep);
 	}
 
 	template <typename Tag = ArbitraryTag>
 	long double read_float(const std::string& name, long double low, long double high,
-	                       Tag tag = Tag{}, source_location loc = source_location::current()) {
-		return read_number(name, low, high, tag, loc);
+	                       Tag tag = Tag{}) {
+		return read_number(name, low, high, tag);
 	}
 	template <typename Tag = ArbitraryTag>
 	std::vector<long double> read_floats(const std::string& name, int count, long double low,
-	                                     long double high, Tag tag = Tag{}, Separator sep = Space,
-	                                     source_location loc = source_location::current()) {
-		return read_numbers(name, count, low, high, tag, sep, loc);
+	                                     long double high, Tag tag = Tag{}, Separator sep = Space) {
+		return read_numbers(name, count, low, high, tag, sep);
 	}
 
 	// Read a vector of strings, separated by spaces and ended by a newline.
 	template <typename Tag = ArbitraryTag>
 	std::vector<std::string> read_strings(const std::string& name, int count, int min, int max,
 	                                      const std::string_view chars = "", Tag tag = Tag(),
-	                                      Separator sep       = Space,
-	                                      source_location loc = source_location::current()) {
-		reset<std::string>(loc);
-		if(gen) return gen_strings(name, count, min, max, chars, tag, sep, loc);
+	                                      Separator sep = Space) {
+		reset<std::string>(name);
+		if(gen) return gen_strings(name, count, min, max, chars, tag, sep);
 		assert(!gen);
 		std::vector<std::string> v(count);
 		for(int i = 0; i < count; ++i) {
-			v[i] = read_string(name, min, max, chars, tag, loc);
+			v[i] = read_string(name, min, max, chars, tag);
 			if(i < count - 1) separator(sep);
 		}
 		newline();
@@ -1047,7 +1004,7 @@ class Validator {
 	template <typename Tag>
 	std::vector<std::string> gen_strings(const std::string& name, int count, int min, int max,
 	                                     const std::string_view chars, Tag /*unused*/,
-	                                     Separator sep, source_location loc) {
+	                                     Separator sep) {
 		assert(!chars.empty());
 
 		std::vector<std::string> v(count);
@@ -1136,8 +1093,7 @@ class Validator {
 	// Read an arbitrary string of a given length.
 	template <typename Tag = ArbitraryTag>
 	std::string read_string(const std::string& name, long long min, long long max,
-	                        const std::string_view chars = "", Tag tag = Tag(),
-	                        source_location loc = source_location::current()) {
+	                        const std::string_view chars = "", Tag tag = Tag()) {
 		if(gen) {
 			return gen_string(name, min, max, chars);
 		}
@@ -1149,14 +1105,13 @@ class Validator {
 				check(ok_char[c], name, ": expected characters in ", chars, " but found character ",
 				      c, " in ", s);
 		}
-		check_string(name, min, max, s, tag, loc);
+		check_string(name, min, max, s, tag);
 		return s;
 	}
 
 	// Read an arbitrary line of a given length.
 	std::string read_line(const std::string& name, long long min, long long max,
-	                      const std::string_view chars = "",
-	                      source_location loc          = source_location::current()) {
+	                      const std::string_view chars = "") {
 		if(gen) {
 			// TODO: Params for lines.
 			assert(!chars.empty());
@@ -1188,7 +1143,7 @@ class Validator {
 				check(ok_char[c], name, ": expected characters in ", chars, " but found character ",
 				      c, " in ", s);
 		}
-		log_constraint(name, min, max, size, loc);
+		log_constraint(name, min, max, size);
 		return s;
 	}
 
@@ -1227,15 +1182,11 @@ class Validator {
 
 	// Log some value in a range.
 	template <typename T>
-	void log_constraint(const std::string& name, T low, T high, T v,
-	                    source_location loc = source_location::current()) {
-		// Do not log when line number is unknown/default/unsupported.
-		if(loc.line() == 0 or constraints_file_path.empty()) return;
-
+	void log_constraint(const std::string& name, T low, T high, T v) {
 		// All integer types get bounds as long long, all floating point types as long_double.
 		using U = Bounds<std::conditional_t<std::is_integral_v<T>, long long, long double>>;
 
-		auto [it, inserted] = bounds.emplace(loc, U(name, v, v, low, high));
+		auto [it, inserted] = bounds.emplace(name, U(name, v, v, low, high));
 		assert(std::holds_alternative<U>(it->second));
 		auto& done = std::get<U>(it->second);
 		if(inserted) {
@@ -1264,14 +1215,15 @@ class Validator {
 			WA(name, ": Want integer, found nothing");
 		}
 		long long v;
-		auto begin = s.c_str(), end = begin + s.size();
-		auto [ptr, ec] = std::from_chars(begin, end, v);
-		if(ec == std::errc::result_out_of_range){
+		try {
+			auto begin = s.c_str(), end = begin + s.size();
+			auto [ptr, ec] = std::from_chars(begin, end, v);
+			if(ptr != end or ec != std::errc{})
+				WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
+		} catch(const std::out_of_range& e) {
 			WA(name, ": Number " + s + " does not fit in a long long!");
-		} else if(ptr != end) {
-			WA(name, ": Parsing " + s + " as long long failed! Did not process all characters");
-		} else if (ec != std::errc{}) {
-			WA(name, ": Parsing " + s + " as long long failed!");
+		} catch(const std::invalid_argument& e) {
+			WA("Parsing " + s + " as long long failed!");
 		}
 		// Check for leading zero.
 		if(v == 0) {
@@ -1397,19 +1349,19 @@ class Validator {
 		bool has_min = false, has_max = false;
 	};
 
-	std::map<source_location, std::variant<Bounds<long long>, Bounds<long double>>> bounds;
+	std::unordered_map<std::string, std::variant<Bounds<long long>, Bounds<long double>>> bounds;
 
 	void write_constraints() {
 		if(constraints_file_path.empty()) return;
 
 		std::ofstream os(constraints_file_path);
 
-		for(const auto& [location, bound] : bounds) {
-			os << location_to_string(location) << " ";
+		for(const auto& [name, bound] : bounds) {
 			std::visit(
 			    [&](const auto& b) {
-				    os << b.name << " " << b.has_min << " " << b.has_max << " " << b.min << " "
-				       << b.max << " " << b.low << " " << b.high << std::endl;
+				    os << "LocationNotSupported:" << b.name << " " << b.name << " " << b.has_min
+				       << " " << b.has_max << " " << b.min << " " << b.max << " " << b.low << " "
+				       << b.high << std::endl;
 			    },
 			    bound);
 		}
