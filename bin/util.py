@@ -576,6 +576,7 @@ if is_windows() or True:
 
 # When output is True, copy the file when args.cp is true.
 def ensure_symlink(link, target, output=False, relative=False):
+    # on windows copy if necessary
     if is_windows() and not windows_can_symlink:
         if link.exists() or link.is_symlink():
             link.unlink()
