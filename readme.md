@@ -65,9 +65,7 @@ For Windows, you'll need the following in your
 Resource limits (memory limit/hard cpu time limit) are also not supported.
 
 BAPCtools makes use of symlinks for building programs. By default users are not allowed to create symlinks on Windows.
-This can be fixed by enabling Developer Mode on Windows (Only works for Windows 10, version 1703 or newer).
-
-(TODO: Copy instead of symlink files when symlinking is not allowed.)
+This can be fixed by enabling Developer Mode on Windows (Only since Windows 10, version 1703 or newer).
 
 ### Docker
 
