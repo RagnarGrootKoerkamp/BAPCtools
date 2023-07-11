@@ -11,6 +11,7 @@ import re
 import threading
 import signal
 import hashlib
+import tempfile
 
 from pathlib import Path
 from colorama import Fore, Style
@@ -45,7 +46,6 @@ def is_bsd():
 
 if not is_windows():
     import resource
-
 
 def debug(*msg):
     print(Fore.CYAN, end='', file=sys.stderr)
@@ -559,9 +559,29 @@ def strip_newline(s):
     else:
         return s
 
+# check if windows supports symlinks
+if is_windows() or True:
+    link_parent = Path(tempfile.gettempdir()) / 'bapctools'
+    link_dest = link_parent / 'dir'
+    link_dest.mkdir(parents=True, exist_ok=True)
+    link_src = link_parent / 'link'
+    if link_src.exists() or link_src.is_symlink():
+        link_src.unlink()
+    try:
+        link_src.symlink_to(link_dest, True)
+        windows_can_symlink = True
+    except:
+        windows_can_symlink = False
+        warn('Please enable the developer mode in Windows!')
 
 # When output is True, copy the file when args.cp is true.
 def ensure_symlink(link, target, output=False, relative=False):
+    if is_windows() and not windows_can_symlink:
+        if link.exists() or link.is_symlink():
+            link.unlink()
+        shutil.copyfile(target, link)
+        return
+
     # For output files: copy them on Windows, or when --cp is passed.
     if output and config.args.cp:
         if link.exists() or link.is_symlink():

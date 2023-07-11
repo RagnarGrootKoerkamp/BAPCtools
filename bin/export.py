@@ -243,7 +243,10 @@ def export_contest():
     if not has_ryaml:
         for key in ('duration', 'scoreboard_freeze_duration'):
             if key in data:
-                data[key] = str(datetime.timedelta(seconds=data[key]))
+                value = data[key]
+                if isinstance(value, int):
+                    str(datetime.timedelta(seconds=data[key]))
+                data[key] = value;
 
     verbose("Uploading contest.yaml:")
     verbose(data)
