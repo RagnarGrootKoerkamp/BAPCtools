@@ -410,7 +410,8 @@ def resolve_path_argument(problem, path, type, suffixes=[]):
     warn(f'{path} not found')
     return None
 
-
+# creates a shortened path to some file/dir in the problem.
+# The path is of the form "tmp/<contest_dir>/<problem_dir>/links/<hash>"
 def shorten_path(problem, path):
     short_hash = hashlib.sha256(bytes(path)).hexdigest()[-6:]
     dir = problem.tmpdir / 'links'
@@ -560,7 +561,7 @@ def strip_newline(s):
         return s
 
 # check if windows supports symlinks
-if is_windows() or True:
+if is_windows():
     link_parent = Path(tempfile.gettempdir()) / 'bapctools'
     link_dest = link_parent / 'dir'
     link_dest.mkdir(parents=True, exist_ok=True)
@@ -570,9 +571,15 @@ if is_windows() or True:
     try:
         link_src.symlink_to(link_dest, True)
         windows_can_symlink = True
-    except:
+    except OSError:
         windows_can_symlink = False
-        warn('Please enable the developer mode in Windows!')
+        warn('''Please enable the developer mode in Windows to enable symlinks!
+- Open the Windows Settings
+- Go to "Update & security"
+- Go to "For developers"
+- Enable the option "Developer Mode"
+''')
+
 
 # When output is True, copy the file when args.cp is true.
 def ensure_symlink(link, target, output=False, relative=False):
@@ -602,6 +609,8 @@ def ensure_symlink(link, target, output=False, relative=False):
             shutil.rmtree(link)
         else:
             link.unlink()
+
+    # for windows the symlink needs to know if it points to a directory or file
     if relative:
         # Rewrite target to be relative to link.
         link.symlink_to(target.relative_to(link.parent), target.is_dir())
