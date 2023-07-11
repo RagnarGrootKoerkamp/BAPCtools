@@ -163,7 +163,7 @@ class Testcase:
                     file = self.in_path
                 if validator_type == 'output_format':
                     file = self.ans_path
-                data += f'in {shorten_path(self.problem, file.parent) / file.name}\n'
+                data += f'{Style.RESET_ALL}in {shorten_path(self.problem, file.parent) / file.name}\n'
             else:
                 data = ret.err
 
