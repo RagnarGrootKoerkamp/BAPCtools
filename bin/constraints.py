@@ -3,6 +3,7 @@ import itertools
 import sys
 
 import validate
+from colorama import Fore, Style
 
 # Local imports
 from util import *
@@ -38,9 +39,8 @@ def check_validators(problem):
 
     return validator_values, validator_defs
 
-def check_statement(problem):
-    # TODO dont use .en
-    statement_file = problem.path / 'problem_statement/problem.en.tex'
+def check_statement(problem, language):
+    statement_file = problem.path / f'problem_statement/problem.{language}.tex'
     statement = statement_file.read_text()
 
     statement_values = set()
@@ -238,7 +238,17 @@ def check_statement(problem):
 
 def check_constraints(problem):
     validator_values, validator_defs = check_validators(problem)
-    statement_values, statement_defs = check_statement(problem)
+    statement_values = {}
+    statement_defs = {}
+    for lang in problem.statement_languages:
+        values, defs = check_statement(problem, lang)
+        for entry in values:
+            statement_values.setdefault(entry, set())
+            statement_values[entry].add(lang)        
+        for entry in defs:
+            statement_defs.setdefault(entry, set())
+            statement_defs[entry].add(lang)
+
 
     # print all the definitions.
     value_len = 12
@@ -246,7 +256,7 @@ def check_constraints(problem):
     left_width = 8 + name_len + 2 * value_len
 
     print(
-        '{:^{width}}|{:^30}'.format('VALIDATORS', '      PROBLEM STATEMENT', width=left_width),
+        '{:^{width}}|{:^40}'.format('VALIDATORS', 'PROBLEM STATEMENT', width=left_width),
         sep='',
     )
     for val, st in itertools.zip_longest(validator_defs, statement_defs):
@@ -265,22 +275,28 @@ def check_constraints(problem):
             print('{:^{width}}'.format('', width=left_width), sep='', end='')
         print('|', end='')
         if st is not None:
-            print('{:^30}'.format(st), sep='', end='')
+            languages = ','.join(statement_defs[st])
+            print('{:^40} {}'.format(st, languages), sep='', end='')
         else:
-            print('{:^30}'.format(''), sep='', end='')
+            print('{:^40}'.format(''), sep='', end='')
         print()
 
     print()
 
-    extra_in_validator = validator_values.difference(statement_values)
-    if extra_in_validator:
-        warn('Values in validators but not in statement:')
-        for v in extra_in_validator:
-            print(v)
-    extra_in_statement = statement_values.difference(validator_values)
+    warned = False
+    for value in validator_values:
+        languages = statement_values.get(value, set())
+        missing = problem.statement_languages - languages
+        if len(missing) > 0:
+            if not warned:
+                warned = True
+                warn('Values in validators but missing in some statement:')
+            print(f'{Fore.YELLOW}{value}{Style.RESET_ALL} missing in',','.join(missing))
+
+    extra_in_statement = set(statement_values.keys()).difference(validator_values)
     if extra_in_statement:
-        warn('Values in statement but not in input validators:')
-        for v in extra_in_statement:
-            print(v)
+        warn('Values in some statement but not in input validators:')
+        for value in extra_in_statement:
+            print(f'{Fore.YELLOW}{value}{Style.RESET_ALL} in',','.join(statement_values[value]))
 
     return True
