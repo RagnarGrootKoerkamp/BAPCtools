@@ -286,7 +286,7 @@ def check_constraints(problem):
     warned = False
     for value in validator_values:
         languages = statement_values.get(value, set())
-        missing = problem.statement_languages - languages
+        missing = sorted(set(problem.statement_languages) - languages)
         if len(missing) > 0:
             if not warned:
                 warned = True
@@ -297,6 +297,6 @@ def check_constraints(problem):
     if extra_in_statement:
         warn('Values in some statement but not in input validators:')
         for value in extra_in_statement:
-            print(f'{Fore.YELLOW}{value}{Style.RESET_ALL} in',','.join(statement_values[value]))
+            print(f'{Fore.YELLOW}{value}{Style.RESET_ALL} in',','.join(sorted(statement_values[value])))
 
     return True
