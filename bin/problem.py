@@ -662,8 +662,6 @@ class Problem:
             solution = random.choice(solutions)
         solution_short_path = solution.relative_to(problem.path / 'submissions')
 
-        # Only show these warning when generate was called.
-        # For normal 'run' output this isn't important enough.
         if fixed:
             log(
                 f'''Prefer setting the solution in generators/generators.yaml:
