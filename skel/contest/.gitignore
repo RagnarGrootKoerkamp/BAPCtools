@@ -1,4 +1,4 @@
-contest.pdf
-contest-web.pdf
-solutions.pdf
-solutions-web.pdf
+problem*.pdf
+contest*.pdf
+solution*.pdf
+*.pyc

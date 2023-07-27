@@ -1,0 +1,25 @@
+name: generatorincludes
+author: Thore Husfeldt
+# Contest name and year
+source: Problems
+# contest.region.eu
+source_url: 
+license: cc by-sa
+rights_owner: author
+# 'default', 'custom', or 'custom interactive'
+validation: default
+
+# One or more of:
+# case_sensitive
+# space_change_sensitive
+# float_absolute_tolerance eps
+# float_relative_tolerance eps
+# float_tolerance eps
+#validator_flags:
+
+# To change the time limit factors for problemtools/Kattis, use:
+# limits:
+# Time limit is 2*slowest accepted submission: (default: 5)
+#     time_multiplier: 2
+# Warning for submissions within 50% of time limit
+#     time_safety_margin: 1.5

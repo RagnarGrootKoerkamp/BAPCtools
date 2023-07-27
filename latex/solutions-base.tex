@@ -1,7 +1,9 @@
 \usepackage[T1, OT1]{fontenc}
 \DeclareTextSymbolDefault{\dh}{T1}
-\usepackage[english]{babel}
 \usepackage{lmodern}
+
+\providecommand{\lang}{en}% fallback definition, should be defined as -usepretex to latexmk
+\input{lang/\lang.tex}
 
 %-------------------------------------------------------------------------------
 % The following are required for most problems:
@@ -41,6 +43,10 @@
     stringstyle=\color{red}
 }
 
+% To parse contest_data.tex
+\newcommand\testsession{}
+\newcommand\copyrightyear[1]{}
+
 \newcommand{\timelimit}{0.0s}
 \newcommand{\problemlabel}{} % Empty to hide activity chart
 \newcommand{\problemauthor}{Problem author}
@@ -63,7 +69,7 @@
 \newcommand{\printsolvestats}[3]{%
     \vfill%
     \onslide<+->%
-    Statistics: #1 submissions, #2 accepted\ifthenelse{\equal{#3}0}{}{, #3 unknown}%
+    \langstatistics{}: #1 \langsubmissions{}, #2 \langaccepted{}\ifthenelse{\equal{#3}0}{}{, #3 \langunknown{}}%
 }
 
 % Define \solvestats for the current problem if the file exists.

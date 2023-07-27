@@ -18,12 +18,16 @@ from contest import *
 def fix_problem_yaml_name(problem):
     reverts = []
     for f in (problem.path / 'problem_statement').iterdir():
-        if f.is_file() and f.suffix == '.tex':
+        if f.is_file() and f.suffix == '.tex' and len(f.suffixes) >= 2:
+            lang = f.suffixes[-2][1:]
             t = f.read_text()
             if r'\problemyamlname' in t:
-                reverts.append((f, t))
-                t = t.replace(r'\problemyamlname', problem.settings.name)
-                f.write_text(t)
+                if lang in problem.settings.name:
+                    reverts.append((f, t))
+                    t = t.replace(r'\problemyamlname', problem.settings.name[lang])
+                    f.write_text(t)
+                else:
+                    util.error(f'{f}: no name set for language {lang}.')
 
     def revert():
         for f, t in reverts:
@@ -36,7 +40,7 @@ def build_samples_zip(problems):
     zf = zipfile.ZipFile(
         'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False
     )
-    for fname in ['contest.pdf', 'contest-web.pdf']:
+    for fname in glob(Path('.'), 'contest*.pdf'):
         if Path(fname).is_file():
             zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 
@@ -80,7 +84,7 @@ def build_samples_zip(problems):
     print("Wrote zip to samples.zip", file=sys.stderr)
 
 
-def build_problem_zip(problem, output):
+def build_problem_zip(problem, output, statement_language):
     """Make DOMjudge ZIP file for specified problem."""
 
     if not problem.interactive:
@@ -89,7 +93,7 @@ def build_problem_zip(problem, output):
             ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
             ('problem.yaml', True),
             ('.timelimit', True),
-            ('problem.pdf', True),
+            (f'problem.{statement_language}.pdf', True),
             ('problem_statement/*', True),
             ('data/sample/*.in', True),
             ('data/sample/*.ans', True),
@@ -104,7 +108,7 @@ def build_problem_zip(problem, output):
             ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
             ('problem.yaml', True),
             ('.timelimit', True),
-            ('problem.pdf', True),
+            (f'problem.{statement_language}.pdf', True),
             ('problem_statement/*', True),
             # Either .interaction or .in.statement should be present, but we only care about .interaction here.
             ('data/sample/*.interaction', False),
@@ -138,6 +142,10 @@ def build_problem_zip(problem, output):
             # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
                 out = f.relative_to(problem.path)
+                # Write any .lang.pdf files to .pdf.
+                if out.suffixes == ['.' + statement_language, '.pdf']:
+                    out = out.with_suffix('')
+                    out = out.with_suffix('.pdf')
                 # For Kattis, prepend the problem shortname to all files.
                 if config.args.kattis:
                     out = problem.name / out
@@ -171,9 +179,8 @@ def build_problem_zip(problem, output):
 
 
 # Assumes the current working directory has: the zipfiles and
-# contest.pdf
-# contest-web.pdf
-# solutions.pdf
+# contest*.pdf
+# solutions*.pdf
 # Output is <outfile>
 def build_contest_zip(problems, zipfiles, outfile, args):
     print("writing ZIP file %s" % outfile, file=sys.stderr)
@@ -189,15 +196,15 @@ def build_contest_zip(problems, zipfiles, outfile, args):
     if not args.kattis:
         build_samples_zip(problems)
 
-        for fname in [
-            'problems.yaml',
-            'contest.yaml',
-            'contest.pdf',
-            'contest-web.pdf',
-            'solutions.pdf',
-            'solutions-web.pdf',
-            'samples.zip',
-        ]:
+        for fname in (
+            [
+                'problems.yaml',
+                'contest.yaml',
+                'samples.zip',
+            ]
+            + glob(Path('.'), 'contest*.pdf')
+            + glob(Path('.'), 'solutions*.pdf')
+        ):
             if Path(fname).is_file():
                 zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 

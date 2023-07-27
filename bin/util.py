@@ -88,7 +88,8 @@ def fatal(msg):
 # final message on bar.done() will be ignored.
 class ProgressBar:
     # Lock on all IO via this class.
-    lock = threading.Lock()
+    lock = threading.RLock()
+    lock_depth = 0
 
     current_bar = None
 
@@ -109,6 +110,9 @@ class ProgressBar:
         if isinstance(item, Path):
             return len(str(item))
         return len(item.name)
+
+    def _is_locked(self):
+        return ProgressBar.lock_depth > 0
 
     # When needs_leading_newline is True, this will print an additional empty line before the first log message.
     def __init__(
@@ -146,13 +150,13 @@ class ProgressBar:
 
         self.needs_leading_newline = needs_leading_newline
 
-    def _acquire_lock(self, required=True):
-        if required:
-            self.lock.acquire()
+    def __enter__(self):
+        ProgressBar.lock.__enter__()
+        ProgressBar.lock_depth += 1
 
-    def _release_lock(self, required=True):
-        if required:
-            self.lock.release()
+    def __exit__(self, *args):
+        ProgressBar.lock_depth -= 1
+        ProgressBar.lock.__exit__(*args)
 
     def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
         print(*objects, sep=sep, end=end, file=file, flush=flush)
@@ -179,7 +183,7 @@ class ProgressBar:
     def clearline(self):
         if config.args.no_bar:
             return
-        assert self.lock.locked()
+        assert self._is_locked()
         self._print(self.carriage_return, end='', flush=False)
 
     def action(prefix, item, width=None, total_width=None):
@@ -219,7 +223,7 @@ class ProgressBar:
     # Resume the ongoing progress bar after a log/done.
     # Should only be called for the root.
     def _resume(self):
-        assert self.lock.locked()
+        assert self._is_locked()
         assert self.parent is None
 
         if config.args.no_bar:
@@ -238,30 +242,28 @@ class ProgressBar:
                 self._print(self.get_prefix(), bar, end='\r')
 
     def start(self, item=''):
-        self._acquire_lock()
-        # start may only be called on the root bar.
-        assert self.parent is None
-        self.i += 1
-        assert self.count is None or self.i <= self.count
+        with self:
+            # start may only be called on the root bar.
+            assert self.parent is None
+            self.i += 1
+            assert self.count is None or self.i <= self.count
 
-        # assert self.item is None
-        self.item = item
-        self.logged = False
-        self.in_progress.add(item)
-        bar_copy = copy.copy(self)
-        bar_copy.parent = self
+            # assert self.item is None
+            self.item = item
+            self.logged = False
+            self.in_progress.add(item)
+            bar_copy = copy.copy(self)
+            bar_copy.parent = self
 
-        if config.args.no_bar:
-            self._release_lock()
-            return bar_copy
+            if config.args.no_bar:
+                return bar_copy
 
-        bar = self.get_bar()
-        if bar is None or bar == '':
-            self._print(self.get_prefix(), end='\r')
-        else:
-            self._print(self.get_prefix(), bar, end='\r')
+            bar = self.get_bar()
+            if bar is None or bar == '':
+                self._print(self.get_prefix(), end='\r')
+            else:
+                self._print(self.get_prefix(), bar, end='\r')
 
-        self._release_lock()
         return bar_copy
 
     @staticmethod
@@ -273,79 +275,71 @@ class ProgressBar:
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message='', data='', color=Fore.GREEN, *, needs_lock=True, resume=True):
-        self._acquire_lock(needs_lock)
+    def log(self, message='', data='', color=Fore.GREEN, *, resume=True):
+        with self:
+            if message is None:
+                message = ''
+            self.clearline()
+            self.logged = True
 
-        if message is None:
-            message = ''
-        self.clearline()
-        self.logged = True
-
-        if self.parent:
-            self.parent.global_logged = True
-            if self.parent.needs_leading_newline:
-                self._print()
-                self.parent.needs_leading_newline = False
-        else:
-            self.global_logged = True
-            if self.needs_leading_newline:
-                self._print()
-                self.needs_leading_newline = False
-
-        self._print(
-            self.get_prefix(),
-            color,
-            message,
-            ProgressBar._format_data(data),
-            Style.RESET_ALL,
-        )
-
-        if resume:
             if self.parent:
-                self.parent._resume()
+                self.parent.global_logged = True
+                if self.parent.needs_leading_newline:
+                    self._print()
+                    self.parent.needs_leading_newline = False
             else:
-                self._resume()
+                self.global_logged = True
+                if self.needs_leading_newline:
+                    self._print()
+                    self.needs_leading_newline = False
 
-        self._release_lock(needs_lock)
+            self._print(
+                self.get_prefix(),
+                color,
+                message,
+                ProgressBar._format_data(data),
+                Style.RESET_ALL,
+            )
+
+            if resume:
+                if self.parent:
+                    self.parent._resume()
+                else:
+                    self._resume()
 
     # Same as log, but only in verbose mode.
     def debug(self, message, data=''):
         if config.args.verbose:
             self.log(message, data)
 
-    def warn(self, message='', data='', needs_lock=True):
+    def warn(self, message='', data=''):
         config.n_warn += 1
-        self.log(message, data, Fore.YELLOW, needs_lock=needs_lock)
+        self.log(message, data, Fore.YELLOW)
 
     # Error removes the current item from the in_progress set.
-    def error(self, message='', data='', needs_lock=True):
-        self._acquire_lock(needs_lock)
-        config.n_error += 1
-        self.log(message, data, Fore.RED, needs_lock=False, resume=False)
-        self._release_item()
-        self._release_lock(needs_lock)
+    def error(self, message='', data=''):
+        with self:
+            config.n_error += 1
+            self.log(message, data, Fore.RED, resume=False)
+            self._release_item()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(self, success=True, message='', data=''):
-        self._acquire_lock()
-        self.clearline()
+        with self:
+            self.clearline()
 
-        if self.item is None:
-            self._release_lock()
-            return
+            if self.item is None:
+                return
 
-        if not self.logged:
-            if not success:
-                config.n_error += 1
-            if config.args.verbose or not success:
-                self.log(message, data, needs_lock=False, color=Fore.GREEN if success else Fore.RED)
+            if not self.logged:
+                if not success:
+                    config.n_error += 1
+                if config.args.verbose or not success:
+                    self.log(message, data, color=Fore.GREEN if success else Fore.RED)
 
-        self._release_item()
-        if self.parent:
-            self.parent._resume()
-
-        self._release_lock()
-        return
+            self._release_item()
+            if self.parent:
+                self.parent._resume()
 
     # Log an intermediate line if it's an error or we're in verbose mode.
     # Return True when something was printed
@@ -353,48 +347,45 @@ class ProgressBar:
         if not success:
             config.n_error += 1
         if config.args.verbose or not success:
-            self._acquire_lock()
-            if success:
-                self.log(message, data, needs_lock=False)
-            else:
-                if warn_instead_of_error:
-                    self.warn(message, data, needs_lock=False)
+            with self:
+                if success:
+                    self.log(message, data)
                 else:
-                    self.error(message, data, needs_lock=False)
-            if self.parent:
-                self.parent._resume()
-            self._release_lock()
+                    if warn_instead_of_error:
+                        self.warn(message, data)
+                    else:
+                        self.error(message, data)
+                if self.parent:
+                    self.parent._resume()
             return True
         return False
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
     def finalize(self, *, print_done=True, message=None):
-        self._acquire_lock()
-        self.clearline()
-        assert self.parent is None
-        assert self.count is None or self.i == self.count
-        assert self.item is None
-        # At most one of print_done and message may be passed.
-        if message:
-            assert print_done is True
+        with self:
+            self.clearline()
+            assert self.parent is None
+            assert self.count is None or self.i == self.count
+            assert self.item is None
+            # At most one of print_done and message may be passed.
+            if message:
+                assert print_done is True
 
-        # If nothing was logged, we don't need the super wide spacing before the final 'DONE'.
-        if not self.global_logged and not message:
-            self.item_width = 0
+            # If nothing was logged, we don't need the super wide spacing before the final 'DONE'.
+            if not self.global_logged and not message:
+                self.item_width = 0
 
-        # Print 'DONE' when nothing was printed yet but a summary was requested.
-        if print_done and not self.global_logged and not message:
-            message = f'{Fore.GREEN}Done{Style.RESET_ALL}'
+            # Print 'DONE' when nothing was printed yet but a summary was requested.
+            if print_done and not self.global_logged and not message:
+                message = f'{Fore.GREEN}Done{Style.RESET_ALL}'
 
-        if message:
-            self._print(self.get_prefix(), message)
+            if message:
+                self._print(self.get_prefix(), message)
 
-        # When something was printed, add a newline between parts.
-        if self.global_logged:
-            self._print()
-
-        self._release_lock()
+            # When something was printed, add a newline between parts.
+            if self.global_logged:
+                self._print()
 
         assert ProgressBar.current_bar is not None
         ProgressBar.current_bar = None
@@ -402,29 +393,29 @@ class ProgressBar:
         return self.global_logged
 
 
-class TableProgressBar(ProgressBar):
+class TableProgressBar(ProgressBar):    
     def __init__(self, table, prefix, max_len, count, *, items, needs_leading_newline):
         super().__init__(prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline)
         self.table = table
 
     # at the begin of any IO the progress bar locks so we can clear the table at this point
-    def _acquire_lock(self, required=True):
-        if required:
-            super()._acquire_lock(required)
+    def __enter__(self):
+        super().__enter__()
+        if ProgressBar.lock_depth == 1:
             self.reset_line_buffering = sys.stderr.line_buffering
             sys.stderr.reconfigure(line_buffering=False)
             self.table.clear(force=False)
 
     # at the end of any IO the progress bar unlocks so we can reprint the table at this point
-    def _release_lock(self, required=True):
-        if required:
+    def __exit__(self, *args):
+        if ProgressBar.lock_depth == 1:
             self.table.print(force=False)
             sys.stderr.reconfigure(line_buffering=self.reset_line_buffering)
             print(end='', flush=True, file=sys.stderr)
-            super()._release_lock(required)
+        super().__exit__(*args)
 
     def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
-        assert self.lock.locked()
+        assert self._is_locked()
         # drop all flushes...
         print(*objects, sep=sep, end=end, file=file, flush=False)
 
@@ -436,9 +427,10 @@ class TableProgressBar(ProgressBar):
         return super().done(success, message, data)
 
     def finalize(self, *, print_done=True, message=None):
-        res = super().finalize(print_done=print_done, message=message)
-        self.table.clear(force=True)
-        return res
+        with self:
+            res = super().finalize(print_done=print_done, message=message)
+            self.table.clear(force=True)
+            return res
 
 
 class VerdictTable:
@@ -570,6 +562,20 @@ def print_name(path, keep_type=False):
     return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
+def rename_with_language(path: Path, language: str):
+    """Rename the given file to use the given language suffix.
+    
+    ```
+    >>> p = rename_with_language(Path("mycontest/hello/solutions.pdf"), 'en')
+    PosixPath('mycontest/hello/solutions.en.pdf')
+    ```
+   
+    If language is None, path is unchanged.
+    Return a new Path instance pointing to target. 
+    """
+    return path if language is None else path.rename(path.with_suffix(f".{language}{path.suffix}"))
+
+
 try:
     import ruamel.yaml
 
@@ -589,15 +595,14 @@ def parse_yaml(data, path=None):
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
     if has_ryaml:
-        ruamel_lock.acquire()
-        try:
-            ret = ryaml.load(data)
-        except ruamel.yaml.constructor.DuplicateKeyError as error:
-            if path is not None:
-                fatal(f'Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}')
-            else:
-                fatal(f'Duplicate key in yaml object!\n{str(error)}')
-        ruamel_lock.release()
+        with ruamel_lock:
+            try:
+                ret = ryaml.load(data)
+            except ruamel.yaml.constructor.DuplicateKeyError as error:
+                if path is not None:
+                    fatal(f'Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}')
+                else:
+                    fatal(f'Duplicate key in yaml object!\n{str(error)}')
         return ret
 
     else:
@@ -610,7 +615,7 @@ def parse_yaml(data, path=None):
 
 
 def read_yaml(path):
-    assert path.is_file()
+    assert path.is_file(), f'File {path} does not exist'
     return parse_yaml(path.read_text(), path=path)
 
 
@@ -633,12 +638,15 @@ write_yaml_lock = threading.Lock()
 
 
 # Writing a yaml file only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
-def write_yaml(data, path):
+def write_yaml(data, path, allow_yamllib=False):
     if not has_ryaml:
-        error(
-            'This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
-        )
-        exit(1)
+        if not allow_yamllib:
+            error(
+                'This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
+            )
+            exit(1)
+        yamllib.dump(data, path)
+        return
     with write_yaml_lock:
         ryaml.dump(
             data,
@@ -863,7 +871,7 @@ class ExecResult:
         return self.verdict
 
 
-def limit_setter(command, timeout, memory_limit, group=None):
+def limit_setter(command, timeout, memory_limit, group=None, cores=False):
     def setlimits():
         if timeout:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
@@ -888,6 +896,12 @@ def limit_setter(command, timeout, memory_limit, group=None):
             assert not is_windows()
             assert not is_mac()
             os.setpgid(0, group)
+
+        if (cores is not False
+            and not is_windows()
+            and not is_bsd()
+        ):
+            os.sched_setaffinity(0, cores)
 
         # Disable coredumps.
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
@@ -967,7 +981,8 @@ def exec_command(command, expect=0, crop=True, **kwargs):
 
     def interrupt_handler(sig, frame):
         nonlocal process
-        process.kill()
+        if process is not None:
+            process.kill()
         # Extra newline to not overwrite progress bars
         print(file=sys.stderr)
         fatal('Running interrupted')
@@ -1044,7 +1059,7 @@ def inc_label(label):
 
 
 def hash_file(file, buffer_size=65536):
-    assert file.is_file()
+    assert file.is_file(), f"File {file} does not exist"
     sha = hashlib.sha256(usedforsecurity=False)
 
     with open(file, 'rb') as f:

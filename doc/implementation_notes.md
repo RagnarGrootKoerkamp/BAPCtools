@@ -21,6 +21,7 @@ The `@EXPECTED_RESULTS@: ` tag should be followed by a comma-separated list of v
 - `RUN_TIME_ERROR`.
 
 Additionally, the following DOMjudge equivalents may be used:
+
 - `CORRECT`,
 - `WRONG-ANSWER` / `NO-OUTPUT`,
 - `TIMELIMIT`,
@@ -28,22 +29,24 @@ Additionally, the following DOMjudge equivalents may be used:
 - `CHECK-MANUALLY`: this is not supported and will be ignored,
 - `COMPILER-ERROR`: this is not supported and will be ignored.
 
-
 Matching is case-insensitive and extra white space is allowed. Examples:
+
 - `// @EXPECTED_RESULTS@: WRONG_ANSWER`
 - `# @expected_results@:  accepted,time_limit_exceeded, no-output`
 
 ## Non-standard `generators.yaml` keys
 
 The following non-standard top-level `generators/generators.yaml` keys are supported:
+
 - `gitignore_generatred` (default `False`): Can be used to automatically write a `data/.gitignore` containing a single gitignore line like `secret/testcase.*` for each generated testcase.
   This file should not be modified manually as it will be overwritten each time testcases are regenerated.
 
 # Building and running in tmpfs
 
 For efficiency, BAPCtools tries to minimize the number of disk writes. This means that it will do as many things as possible in RAM. In practice, `tmpfs` (temporary file system in RAM) is used for this.
-* On Linux, this is typically `/tmp/bapctools_6dhash/`, with one temporary directory per contest.
-* On Windows, this may be `c:\temp\bapctools_6dhash\`.
+
+- On Linux, this is typically `/tmp/bapctools_6dhash/`, with one temporary directory per contest.
+- On Windows, this may be `c:\temp\bapctools_6dhash\`.
 
 From here on, let `~tmp` be the root temporary directory, e.g. `/tmp/bapctools_6dhash/`.
 `~tmp` contains a directory structure that tries to mirror the directory structure of the problem archive itself.
@@ -76,20 +79,20 @@ Testcases are generated inside `~tmp/<problemname>/data/(<group>/)*<testcase>/` 
 Testcases are only re-generated when changes were made. This is done with the following steps:
 
 1. Check if the current data in `~testcase/meta_.yaml` is up to date. A testcase is up to date when all of the following hold:
-    - `~testcase/meta_.yaml` must exist
-    - `testcase.in` and `testcase.ans` must exist.
-    - `~testcase/meta_.yaml` must be newer than the last modification to
-        - the generator (or testcase source for manual cases)
-        - the solution
-        - the visualizer
-        - the `testcase.in` file
-        - the `testcase.ans` file.
-    - the current generator invocation, solution invocation, and visualizer invocation must match the invocations stored in `~testcase/meta_.yaml`.
+   - `~testcase/meta_.yaml` must exist
+   - `testcase.in` and `testcase.ans` must exist.
+   - `~testcase/meta_.yaml` must be newer than the last modification to
+     - the generator (or testcase source for manual cases)
+     - the solution
+     - the visualizer
+     - the `testcase.in` file
+     - the `testcase.ans` file.
+   - the current generator invocation, solution invocation, and visualizer invocation must match the invocations stored in `~testcase/meta_.yaml`.
 1. For manual testcases, symlink the given file to `~testcase/<testcase>.in`
 1. For other cases, run the given generator with current working directory `~testcase`.
 1. Validate the generated `~testcase/<testcase>.in` file.
 1. If `~testcase/<testcase>.ans` was not generated and a solution was provided, run the solution with working directory `~testcase` to generate `~testcase/<testcase>.ans`.
-    - For interactive problems, create an empty `~testcase/<testcase>.ans` and run the given submission to create a `~testcase/<testcase>.interaction`.
+   - For interactive problems, create an empty `~testcase/<testcase>.ans` and run the given submission to create a `~testcase/<testcase>.interaction`.
 1. Validate the generated `~testcase/<testcase>.ans` file.
 1. If provided, run the visualizer with working directory `~testcase`.
 1. Copy generated files to the `data/` directory. For changed files, `--force` is needed to overwrite them.
@@ -97,18 +100,34 @@ Testcases are only re-generated when changes were made. This is done with the fo
 
 # Building LaTeX files
 
+BAPCtools comes with a set of latex classes/headers to automatically render
+problem, contest, and solution PDFs. These files are available in [`/latex/`](../latex).
+
+To customize the style, you can provide your own modified copy of any of the
+header files in `<contestdirectory>/` and they will be used instead of the
+BACPtools provided files. For example, you can provide your own
+`<contestdirectory>/contest.tex` as replacement entrypoint for building contest
+PDFs. You can either manually include problems there, or use
+`\input{./contest-problems.tex}` to include the automatically generated content.
+This will instantiate the [`contest-problem.tex`](../latex/contest-problem.tex)
+template once for each problem in the contest. This template itself can also be
+modified if desired.
+
+See also the docs on using multiple languages [here](./multiple_languages.md).
+
 ## Problem statement pdfs
 
 ### Per-problem pdf
 
 The per-problem pdfs are created inside `<tmpdir>/<problemname>`:
 
-* `~tmp/<problemname>/problem_statement/`: a symlink to the `problem_statement/` directory.
-* `~tmp/<problemname>/samples.tex`: a generated table containing the sample cases.
-* `~tmp/<problemname>/bapc.cls`: a symlink to the latex class.
-* `~tmp/<problemname>/problem.tex`: a wrapper to compile the problem statement and samples into a pdf.
+- `~tmp/<problemname>/problem_statement/`: a symlink to the `problem_statement/` directory.
+- `~tmp/<problemname>/samples.tex`: a generated table containing the sample cases.
+- `~tmp/<problemname>/bapc.cls`: a symlink to the latex class.
+- `~tmp/<problemname>/problem.tex`: a wrapper to compile the problem statement and samples into a pdf.
 
 The statement is compiled using:
+
 ```
 latexmk -cd -g -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error' [-pvc] [-e $max_repeat=1] -output-directory=~tmpdir/<problemname> ~tmpdir/<problemname>/problem.tex
 ```
@@ -120,11 +139,11 @@ The `-e $max_repeat=1` option is only passed to `latexmk` when `-1` is passed to
 
 After creating the `samples.tex` for each problem, the contest pdf is created in `~tmpdir/<contestname>` like this:
 
-* `~tmp/<contestname>/contest_data.tex`: a filled in copy of [contest_data.tex](../latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
-* `~tmp/<contestname>/bapc.cls`: a symlink to the latex class.
-* `~tmp/<contestname>/logo.{pdf,png,jpg}`: a symlink to the contest logo provided in the contest directory or the one above.
-* `~tmp/<contestname>/contest-problems.tex`: filled in copies of [contest-problem.tex](../latex/contest-problem.tex) containing the files to include for each problem.
-* `~tmp/<contestname>/contest[-web].tex`: a wrapper to compile the contest. This includes `contest_data.tex` and `contest-problems.tex`.
+- `~tmp/<contestname>/contest_data.tex`: a filled in copy of [contest_data.tex](../latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
+- `~tmp/<contestname>/bapc.cls`: a symlink to the latex class.
+- `~tmp/<contestname>/logo.{pdf,png,jpg}`: a symlink to the contest logo provided in the contest directory or the one above.
+- `~tmp/<contestname>/contest-problems.tex`: filled in copies of [contest-problem.tex](../latex/contest-problem.tex) containing the files to include for each problem.
+- `~tmp/<contestname>/contest[-web].tex`: a wrapper to compile the contest. This includes `contest_data.tex` and `contest-problems.tex`.
 
 The statement is compiled using:
 
@@ -134,10 +153,14 @@ latexmk -cd -g -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error'
 
 ## Solution slides
 
-Solutions are rendered in a similar way to the contest pdf. It uses the `problem_statement/solution.tex` files as inputs. The main difference is the additional inclusion of
+Solutions are rendered in a similar way to the contest pdf. It uses the
+`problem_statement/solution.tex` files as inputs. The main difference is that
+you can provide additional files in `<contestdirectory>/`:
 
-- `solutions_header.tex`: slides prepended to the first problem.
-- `solutions_footer.tex`: slides appended after the last problem.
+- `solutions_header.xy.tex`: slides prepended to the first problem, for the
+  current language.
+- `solutions_footer.xy.tex`: slides appended after the last problem, for the
+  current language.
 
 ### Solve stats
 
@@ -161,24 +184,29 @@ All the files in the `<contest>/solve_stats` directory can be generated using `b
 
 Validators based on [headers/validation.h](../headers/validation.h) can take a `--constraints_file <file_path>` flag.
 After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output. Each line in the output file will look like:
+
 ```
 <source_location> <bool reached minimum> <bool reached maximum> <minimum allowed> <maximum allowed> <minimum seen> <maximum seen>
 ```
 
 For example, the code `v.read_integer("a", 1, 1000)` on line `7` could generate the line:
+
 ```
 /tmp/bapctools_abcdef/findmyfamily/input_validators/input_validator/input_validator.cpp:7 0 0 999 999 1 1000
 ```
+
+(`source_location` has now been removed from `validation.h` since BAPCtools
+doesn't use it, and is replacd by some default string.)
 
 Everything up to and including `:7` is the file and line of the `read_integer` statement. The two zeros indicate that the minimum and maximum value were not reached (i.e. boolean false). The `999 999` indicate that `a` was read, and the smallest and largest value of `a` we encountered was `999`. The final `1 1000` indicate the valid range of `a`.
 
 BAPCtools will accumulate these values over all testcases, and print a warning when the minimum or maximum value of a `read` statement was never reached.
 
-This system works for any validator that accepts the `--constraints_file` flag. This is determined by searching all sources for `constraints_file`.
-
-Note: `validation.h` requires `std::source_location`, which is available since C++20. BAPCtools will automatically add this as an additional C++ flag when needed. This may not work on systems not supporting C++20.
+This system works for any validator that accepts the `--constraints_file` flag.
+This is determined by searching all sources for the string `constraints_file`.
 
 The following regexes are used to extract bounds from the problem statement:
+
 - `{\\(\w+)}{(.*)}`: `\newcommand{\maxa}{1000}`
 - `([0-9-e,.^]+)\s*(?:\\leq|\\geq|\\le|\\ge|<|>|=)\s*(\w*)`: `0 \leq a`
 - `(\w*)\s*(?:\\leq|\\geq|\\le|\\ge|<|>|=)\s*([0-9-e,.^]+)`: `a < 10^9`

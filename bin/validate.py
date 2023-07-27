@@ -4,7 +4,6 @@ from util import *
 
 
 class Validator(program.Program):
-
     # NOTE: This only works for checktestdata and Viva validators.
     FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']
 
@@ -83,17 +82,17 @@ class InputValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
 
-        run_command = self.run_command + ['case_sensitive', 'space_change_sensitive']
+        run_command = self.run_command.copy()
+
+        if args is not None:
+            assert isinstance(args, list)
+            run_command += args
 
         if constraints is not None:
             constraints_path = cwd / 'input_constraints_'
             if constraints_path.is_file():
                 constraints_path.unlink()
             run_command += ['--constraints_file', constraints_path]
-
-        if args is not None:
-            assert isinstance(args, list)
-            run_command += args
 
         with testcase.in_path.open() as in_file:
             ret = exec_command(
@@ -141,15 +140,15 @@ class OutputValidator(Validator):
                 'space_change_sensitive',
             ]
 
+            if args is not None:
+                assert isinstance(args, list)
+                run_command += args
+
             if constraints is not None:
                 constraints_path = cwd / 'output_constraints_'
                 if constraints_path.is_file():
                     constraints_path.unlink()
                 run_command += ['--constraints_file', constraints_path]
-
-            if args is not None:
-                assert isinstance(args, list)
-                run_command += args
 
             with testcase.ans_path.open() as ans_file:
                 ret = exec_command(
@@ -181,3 +180,78 @@ class OutputValidator(Validator):
                 cwd=run.feedbackdir,
                 timeout=config.get_timeout(),
             )
+
+# Checks if byte is printable or whitespace
+def _in_invalid_byte(byte, *, other_whitespaces=False):
+    if other_whitespaces:
+        if byte == ord('\t'):
+            return False
+        if byte == ord('\r'):
+            return False
+        if byte == ord('\v'):
+            return False
+        if byte == ord('\f'):
+            return False
+    if byte == ord('\n'):
+        return False
+    if byte >= 0x20 and byte < 0x7F:
+        return False
+    return True
+
+def _has_invalid_byte(bytes, *, other_whitespaces=False):
+    return any(_in_invalid_byte(b, other_whitespaces=other_whitespaces) for b in bytes)
+
+# assumes that the only possible whitespaces are space and newline
+# allows \n\n
+def _has_consecutive_whitespaces(bytes):
+    last = -1
+    for byte in bytes:
+        cur_whitespace = byte == ord(' ') or byte == ord('\n')
+        if last == ord(' ') and cur_whitespace:
+            return True
+        if last == ord('\n') and byte == ord(' '):
+            return True
+        last = byte
+    return False
+
+# Does some generic checks on input/output:
+# - no unreadable characters
+# - no weird consecutive whitespaces ('  ', '\n ', ' \n')
+# - no whitespace at start of file
+# - ensures newline at end of file
+# - not too large
+# if any of this is violated a warning is printed
+# use --skip-testcase-sanity-checks to skip this
+def generic_validation(validator_type, file, *, bar):
+    assert validator_type in ['input_format', 'output_format', 'output']
+    if config.args.skip_testcase_sanity_checks:
+        return
+
+    #Todo we could check for more stuff that is likely an error like `.*-0.*`
+    if validator_type == 'input_format':
+        name = 'Testcase'
+        strict = True
+    elif validator_type == 'output_format':
+        name = 'Expected answer'
+        strict = True
+    elif validator_type == 'output':
+        name = 'Answer'
+        strict = False
+
+    if file.exists():
+        bytes = file.read_bytes()
+        if _has_invalid_byte(bytes, other_whitespaces=not strict):
+            bar.warn(f'{name} contains unexpected characters but was accepted!')
+        elif len(bytes) == 0:
+            bar.warn(f'{name} is empty but was accepted!')
+        elif len(bytes) > 20_000_000:
+            bar.warn(f'{name} is larger than 20Mb!')
+        elif strict:
+            if bytes[0] == ord(' ') or bytes[0] == ord('\n'):
+                bar.warn(f'{name} starts with whitespace but was accepted!')
+            elif bytes[-1] != ord('\n'):
+                bar.warn(f'{name} does not end with a newline but was accepted!')
+            elif _has_consecutive_whitespaces(bytes):
+                bar.warn(
+                    f'{name} contains consecutive whitespace characters but was accepted!'
+                )

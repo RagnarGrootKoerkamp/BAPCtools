@@ -96,6 +96,7 @@ $ docker build . -t ragnargrootkoerkamp/bapctools
 $ docker push ragnargrootkoerkamp/bapctools
 $ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools
 ```
+
 The last step is needed when your CI server is not automatically pulling the latest version.
 
 ## Usage
@@ -170,8 +171,8 @@ them to a separate directory.
 
 - `bt pdf [-v]`
 
-Use this command to compile the `problem.pdf` from the `problem_statement/problem.en.tex` LaTeX statement.
-`problem.pdf` is written to the problem directory itself.
+Use this command to compile the `problem.en.pdf` from the `problem_statement/problem.en.tex` LaTeX statement.
+`problem.en.pdf` is written to the problem directory itself.
 
 This can also be used to create the contest pdf by running it from the contest directory.
 
@@ -179,7 +180,7 @@ This can also be used to create the contest pdf by running it from the contest d
 
 For some command-line flags, it is convenient if they are always set to the same value, which differs per user
 (e.g., `--username` or `--password` for commands that access a CCS like DOMjudge,
-or `--jobs` to limit parallel execution).
+or `--jobs` to limit parallel execution) or per contest (e.g., which statement languages are used).
 For this, you can create a configuration YAML file containing key-value pairs
 in one of the following locations, from low to high priority:
 

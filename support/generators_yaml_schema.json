@@ -104,7 +104,7 @@
         "title": "Visualizer",
         "type": "string",
         "description": "Absolute path to a visualizer",
-        "examples": ["/visualizers/asy.py {name}"]
+        "examples": ["/visualizers/asy.py"]
       },
 
     "random_salt": {

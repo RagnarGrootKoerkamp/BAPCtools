@@ -14,10 +14,8 @@ This lists all subcommands and their most important options.
 - Problem development:
   - [`bt run [-v] [-t TIMELIMIT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all]
-[--check-deterministic] [--add-manual [DIRECTORY]] [--clean]
-[--clean-generated] [--jobs JOBS] [--ignore-validators] [--skip-visualizer] [testcases [testcases ...]]`](#generate)
-  - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
+  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-manual [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS][--ignore-validators] [--skip-visualizer] [testcases [testcases ...]]`](#generate)
+  - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit] [--language LANG]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
   - [`bt fuzz [-v] [-t TIME] [--timeout TIMEOUT] [testcases [testcases ...]]`](#fuzz)
@@ -28,7 +26,7 @@ This lists all subcommands and their most important options.
   - [`bt constraints [-v]`](#constraints)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
-  - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--skel SKEL]`](#new_problem)
+  - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--language LANG] [--skel SKEL]`](#new_problem)
   - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
   - [`bt rename_problem [problemname]`](#rename_problem)
   - [`bt gitlabci`](#gitlabci)
@@ -188,7 +186,8 @@ Furthermore, it removes generated `testdata.yaml`.
 
 ## `pdf`
 
-Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively.
+Renders a pdf for the current problem or contest. The pdf is written to `problem.en.pdf` or `contest.en.pdf` respectively.
+If there are problem statements (and problem names in `problem.yaml`) present for other languages, creates those PDFs as well.
 
 **Note:** All LaTeX compilation is done in tmpfs (`/tmp/` on linux). The resulting pdfs will be symlinks into the temporary directory. See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
 
@@ -197,13 +196,14 @@ Renders a pdf for the current problem or contest. The pdf is written to `problem
 - `--all`/`-a`: When run from the contest level, this enables building pdfs for all problems in the contest as well.
 - `--cp`: Instead of symlinking the final pdf, copy it into the problem/contest directory.
 - `--no-timelimit`: When passed, time limits will not be shown in the problem/contest pdfs.
-- `--watch`/`-w`: Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
 - `-1`: Run the LaTeX compiler only once.
+- `--language LANG`: Render only for `LANG`, which is a language code like `en` or `nl`.
 
 ## `solutions`
 
-Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
+Renders a pdf for the current problem or contest. The pdf is written to `solution.en.pdf` or `solutionss.en.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
 See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
 
 **Flags**
@@ -287,8 +287,6 @@ It supports the following flags when run for a single problem:
 
 See the [implementation notes](implementation_notes.md#constraints-checking) for more info.
 
-NOTE: Validators based on [headers/validation.h](../headers/validation.h) require C++20 to compile `std::source_location`.
-
 **Verify testcase**
 
 Validators that accept the `--constraints_file <path>` option are run on all testcases to check whether the bounds specified in the validator are actually reached by the testdata. A warning is raised when this is not the case.
@@ -349,7 +347,7 @@ Create a new problem directory and fill it with skel files. If `problems.yaml` i
 
 ```
 ~nwerc2020 % bt new_problem
-problem name: Test Problem
+problem name (en): Test Problem
 dirname [testproblem]:
 author: Ragnar Groot Koerkamp
 validation (default/custom/custom interactive) [default]:
@@ -371,6 +369,7 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 - `[<problem name>]`: The name of the problem. Will be asked interactively if not specified.
 - `--author`: The author of the problem. Will be asked interactively if not specified.
 - `--validation`: The validation mode to use. Must be one of `default`, `custom`, `custom interactive`.
+- `--language`: The (natural) language used for the problem name and statement, default `en`. See more about [multiple languages](multiple_languages.md).
 
 ## `skel`
 
@@ -379,7 +378,10 @@ The skel directory is found as with the `new_problem` command and can be overrid
 
 ## `rename_problem`
 
-Rename a problem, including its problem directory. If `problems.yaml` is present, also rename the problem in this file. Do not forget to pass a `--problem` to rename when running this from a contest directory.
+Rename a problem, including its problem directory. If `problems.yaml` is present, also rename the problem in this file.
+For multilingual problmems, asks for problem names in all languages;
+the default problem directory name is based on the English problem name (if present.)
+Do not forget to pass a `--problem` to rename when running this from a contest directory.
 
 **Flags**
 
@@ -411,8 +413,8 @@ contest_pdf_nwerc2020:
   artifacts:
     expire_in: 1 week
     paths:
-      - nwerc2020/contest.pdf
-      - nwerc2020/solutions.pdf
+      - nwerc2020/solution*.pdf
+      - nwerc2020/contest*.pdf
 
 verify_testproblem:
   script:
@@ -423,7 +425,7 @@ verify_testproblem:
   artifacts:
     expire_in: 1 week
     paths:
-      - nwerc2020/testproblem/problem.pdf
+      - nwerc2020/testproblem/problem*.pdf
 ```
 
 The default behaviour is:
