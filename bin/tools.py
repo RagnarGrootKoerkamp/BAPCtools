@@ -982,11 +982,11 @@ def run_parsed_arguments(args):
 
         if action in ['zip']:
             if not config.args.kattis:
-                success &= latex.build_contest_pdf(contest, problems, tmpdir)
-                success &= latex.build_contest_pdf(contest, problems, tmpdir, web=True)
+                success &= latex.build_contest_pdfs(contest, problems, tmpdir)
+                success &= latex.build_contest_pdfs(contest, problems, tmpdir, web=True)
                 if not config.args.no_solutions:
-                    success &= latex.build_contest_pdf(contest, problems, tmpdir, solutions=True)
-                    success &= latex.build_contest_pdf(
+                    success &= latex.build_contest_pdfs(contest, problems, tmpdir, solutions=True)
+                    success &= latex.build_contest_pdfs(
                         contest, problems, tmpdir, solutions=True, web=True
                     )
 
