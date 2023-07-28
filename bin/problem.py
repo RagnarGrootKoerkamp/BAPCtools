@@ -1,7 +1,6 @@
 import re
 import argparse
 import hashlib
-import random
 import shlex
 import sys
 
@@ -641,36 +640,3 @@ class Problem:
                 success = False
 
         return success
-
-    # Return absolute path to default submission, starting from the submissions directory.
-    # This function will always raise a warning.
-    # Which submission is used is implementation defined, unless one is explicitly given on the command line.
-    def default_solution_path(problem):
-        if config.args.default_solution:
-            fixed = True
-            solution = problem.path / config.args.default_solution
-        else:
-            fixed = False
-            # Use one of the accepted submissions.
-            solutions = list(glob(problem.path, 'submissions/accepted/*'))
-            if len(solutions) == 0:
-                fatal(f'No solution specified and no accepted submissions found.')
-                return False
-
-            # Note: we explicitly random shuffle the submission that's used to generate answers to
-            # encourage setting it in generators.yaml.
-            solution = random.choice(solutions)
-        solution_short_path = solution.relative_to(problem.path / 'submissions')
-
-        if fixed:
-            log(
-                f'''Prefer setting the solution in generators/generators.yaml:
-> solution: /{solution.relative_to(problem.path)}'''
-            )
-        else:
-            warn(
-                f'''No solution specified. Using randomly chosen {solution_short_path} instead.
-Use `generate --default_solution` to use a fixed solution.'''
-            )
-
-        return Path('/') / solution.relative_to(problem.path)
