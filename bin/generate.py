@@ -263,7 +263,7 @@ solution: /{solution.relative_to(problem.path)}'''
             solution_short_path = solution.relative_to(problem.path / 'submissions')
             log(
                     f'''No solution specified. Using {solution_short_path} instead. Use
-generate --default_solution /{solution.relative_to(problem.path)}
+--default_solution {solution.relative_to(problem.path)}
 to use a fixed solution.'''
                 )
 
