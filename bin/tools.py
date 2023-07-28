@@ -596,6 +596,12 @@ Run this from one of:
         help='Do not run `generate` before running submissions.',
     )
     runparser.add_argument(
+        '--default-solution',
+        '-s',
+        type=Path,
+        help='The default solution to use for generating .ans files.',
+    )
+    runparser.add_argument(
         '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
     )
     runparser.add_argument(

@@ -1,4 +1,5 @@
 import hashlib
+import random
 import io
 import re
 import shutil
@@ -228,12 +229,52 @@ class SolutionInvocation(Invocation):
         return True
 
 
+# Return absolute path to default submission, starting from the submissions directory.
+# This function will always raise a warning.
+# Which submission is used is implementation defined, unless one is explicitly given on the command line.
+def default_solution_path(generator_config):
+    problem = generator_config.problem
+    if config.args.default_solution:
+        solution = problem.path / config.args.default_solution
+        if generator_config.has_yaml:
+            log(
+                    f'''Prefer setting the solution in generators/generators.yaml:
+> solution: /{solution.relative_to(problem.path)}'''
+                )
+    else:
+        # Use one of the accepted submissions.
+        solutions = list(glob(problem.path, 'submissions/accepted/*'))
+        if len(solutions) == 0:
+            fatal(f'No solution specified and no accepted submissions found.')
+            return False
+        if generator_config.has_yaml:
+            # Note: we explicitly random shuffle the submission that's used to generate answers to
+            # encourage setting it in generators.yaml.
+            solution = random.choice(solutions)
+            solution_short_path = solution.relative_to(problem.path / 'submissions')
+            warn(
+                f'''No solution specified. Using randomly chosen {solution_short_path} instead.
+Setting the solution in generators/generators.yaml:
+> solution: /{solution.relative_to(problem.path)}'''
+            )
+        else:
+            # if the generator.yaml is not used we can be friendly
+            solution = min(solutions, key=lambda s: s.name)
+            solution_short_path = solution.relative_to(problem.path / 'submissions')
+            log(
+                    f'''No solution specified. Using {solution_short_path} instead.
+Use `generate --default_solution` to use a fixed solution.'''
+                )
+
+    return Path('/') / solution.relative_to(problem.path)
+
+
 # A wrapper that lazily initializes the underlying SolutionInvocation on first
 # usage.  This is to prevent instantiating the default solution when it's not
 # actually needed.
 class DefaultSolutionInvocation(SolutionInvocation):
-    def __init__(self, problem):
-        super().__init__(problem, problem.default_solution_path())
+    def __init__(self, generator_config):
+        super().__init__(generator_config.problem, default_solution_path(generator_config))
 
     # Fix the cache_command to prevent regeneration from the random default solution.
     def cache_command(self, seed=None):
@@ -1270,7 +1311,7 @@ class GeneratorConfig:
                     if t.config.solution is True:
                         nonlocal default_solution
                         if default_solution is None:
-                            default_solution = DefaultSolutionInvocation(self.problem)
+                            default_solution = DefaultSolutionInvocation(self)
                         t.config.solution = default_solution
                     solutions_used.add(t.config.solution.program_path)
             if build_visualizers and t.config.visualizer:
