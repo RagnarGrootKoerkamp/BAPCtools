@@ -239,7 +239,7 @@ def default_solution_path(generator_config):
         if generator_config.has_yaml:
             log(
                     f'''Prefer setting the solution in generators/generators.yaml:
-> solution: /{solution.relative_to(problem.path)}'''
+solution: /{solution.relative_to(problem.path)}'''
                 )
     else:
         # Use one of the accepted submissions.
@@ -254,16 +254,17 @@ def default_solution_path(generator_config):
             solution_short_path = solution.relative_to(problem.path / 'submissions')
             warn(
                 f'''No solution specified. Using randomly chosen {solution_short_path} instead.
-Setting the solution in generators/generators.yaml:
-> solution: /{solution.relative_to(problem.path)}'''
+Set this solution in generators/generators.yaml:
+solution: /{solution.relative_to(problem.path)}'''
             )
         else:
             # if the generator.yaml is not used we can be friendly
             solution = min(solutions, key=lambda s: s.name)
             solution_short_path = solution.relative_to(problem.path / 'submissions')
             log(
-                    f'''No solution specified. Using {solution_short_path} instead.
-Use `generate --default_solution` to use a fixed solution.'''
+                    f'''No solution specified. Using {solution_short_path} instead. Use
+generate --default_solution {solution.relative_to(problem.path)}
+to use a fixed solution.'''
                 )
 
     return Path('/') / solution.relative_to(problem.path)
