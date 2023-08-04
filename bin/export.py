@@ -248,7 +248,7 @@ def export_contest():
                 # (YAML 1.2 parses it as a string.)
                 if isinstance(value, int):
                     str(datetime.timedelta(seconds=data[key]))
-                data[key] = value;
+                data[key] = value
 
     verbose("Uploading contest.yaml:")
     verbose(data)
@@ -296,7 +296,17 @@ def update_problems_yaml(problems, colors=None):
         for d in data:
             if d['id'] == problem.name:
                 found = True
-                if problem.settings.name and problem.settings.name != d.get('name'):
+                default_language = (
+                    'en'
+                    if 'en' in problem.statement_languages
+                    else next(iter(problem.statement_languages), None)
+                )
+                problem_name = (
+                    problem.settings.name
+                    and default_language
+                    and problem.settings.name[default_language]
+                )
+                if problem_name != d.get('name'):
                     change = True
                     d['name'] = problem.settings.name
 
