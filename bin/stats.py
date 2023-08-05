@@ -68,7 +68,7 @@ def stats(problems):
         if header == 'problem':
             width = len(header)
             for problem in problems:
-                width = max(width, len(problem.label + ' ' + problem.name))
+                width = max(width, len(problem.label + ' ' + problem.id))
             header_string += '{:<' + str(width) + '}'
             format_string += '{:<' + str(width) + '}'
         elif header == '  comment':
@@ -145,7 +145,7 @@ def stats(problems):
 
         print(
             format_string.format(
-                problem.label + ' ' + problem.name,
+                problem.label + ' ' + problem.id,
                 *[
                     _get_stat(
                         counts[i],

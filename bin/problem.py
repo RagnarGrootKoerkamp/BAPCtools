@@ -22,10 +22,10 @@ class Problem:
 
     def __init__(self, path, tmpdir, label=None):
         # The problem name/shortname, which is the name of the directory and used as a display name.
-        self.name = path.resolve().name
+        self.id = path.resolve().name
         # The Path of the problem directory.
         self.path = path
-        self.tmpdir = tmpdir / self.name
+        self.tmpdir = tmpdir / self.id
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
         self._read_settings()
 
@@ -43,15 +43,16 @@ class Problem:
 
         # TODO: transform this into nice warnings
         assert path.is_dir()
-        if not Problem._SHORTNAME_REGEX.match(self.name):
+        if not Problem._SHORTNAME_REGEX.match(self.id):
             warn(
-                f'Problem has a bad shortname: {self.name} does not match {self._SHORTNAME_REGEX_STRING}'
+                f'Problem has a bad shortname: {self.id} does not match {self._SHORTNAME_REGEX_STRING}'
             )
 
         self.statement_languages = self._determine_statement_languages()
 
     def _determine_statement_languages(self):
-        """Determine the languages that are both mentioned in the problem.yaml under name
+        """
+        Determine the languages that are both mentioned in the problem.yaml under name
         and have a corresponding problem statement.
 
         If problem.yaml's name key is a string, convert into dict; assume `en` as default language.
@@ -64,11 +65,11 @@ class Problem:
         )
         for lang in texfiles - yamlnames:
             error(
-                f"{self.name}: Found problem.{lang}.tex, but no corresponding name in problem.yaml."
+                f'{self.id}: Found problem.{lang}.tex, but no corresponding name in problem.yaml.'
             )
         for lang in yamlnames - texfiles:
             error(
-                f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
+                f'{self.id}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex.'
             )
         return sorted(texfiles & yamlnames)
 
@@ -219,9 +220,9 @@ class Problem:
 
         if len(testcases) == 0:
             if needinteraction:
-                warn(f'Didn\'t find any testcases with interaction for {p.name}')
+                warn(f'Didn\'t find any testcases with interaction for {p.id}')
             else:
-                warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
+                warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.id}')
             testcases = False
 
         p._testcases[key] = testcases

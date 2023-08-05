@@ -4,7 +4,7 @@ from util import *
 # Function to create a slack channel for each problem
 def create_slack_channels(problems):
     for p in problems:
-        create_slack_channel(p.name)
+        create_slack_channel(p.id)
 
 
 # The slack user token is of the form xoxp-...
@@ -33,7 +33,7 @@ def join_slack_channels(problems):
         channel_ids[c['name']] = c['id']
 
     for p in problems:
-        join_slack_channel(p.name, channel_ids[p.name])
+        join_slack_channel(p.id, channel_ids[p.id])
 
 
 def join_slack_channel(name, id):

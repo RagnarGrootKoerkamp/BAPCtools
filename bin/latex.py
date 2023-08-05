@@ -225,7 +225,7 @@ def build_problem_pdfs(problem, solutions=False):
                 if (problem.path / f"problem_statement/solution.{lang}.tex").exists():
                     filtered_languages.append(lang)
                 else:
-                    warn(f'{problem.name}: solution.{lang}.tex not found')
+                    warn(f'{problem.id}: solution.{lang}.tex not found')
             languages = filtered_languages
 
     return all(build_problem_pdf(problem, lang, solutions) for lang in languages)
@@ -305,10 +305,10 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
                 # All is good
                 pass
             elif solutiontex.is_file():
-                warn(f'{problem.name}: Rename solution.tex to solution.{language}.tex')
+                warn(f'{problem.id}: Rename solution.tex to solution.{language}.tex')
                 continue
             else:
-                warn(f'{problem.name}: solution.{language}.tex not found')
+                warn(f'{problem.id}: solution.{language}.tex not found')
                 continue
 
         problems_data += util.substitute(
@@ -319,7 +319,7 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
                 'problemauthor': problem.settings.author,
                 'timelimit': get_tl(problem),
                 'problemdir': problem.path.absolute().as_posix(),
-                'problemdirname': problem.name,
+                'problemdirname': problem.id,
                 'builddir': problem.tmpdir.as_posix(),
             },
         )

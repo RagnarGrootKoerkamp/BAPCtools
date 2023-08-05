@@ -49,9 +49,7 @@ def build_samples_zip(problems):
 
         attachments_dir = problem.path / 'attachments'
         if problem.interactive and not attachments_dir.is_dir():
-            util.error(
-                f'Interactive problem {problem.name} does not have an attachments/ directory.'
-            )
+            util.error(f'Interactive problem {problem.id} does not have an attachments/ directory.')
             continue
 
         empty = True
@@ -78,7 +76,7 @@ def build_samples_zip(problems):
                 empty = False
 
         if empty:
-            util.error(f'No attachments or samples found for problem {problem.name}.')
+            util.error(f'No attachments or samples found for problem {problem.id}.')
 
     zf.close()
     print("Wrote zip to samples.zip", file=sys.stderr)
@@ -148,7 +146,7 @@ def build_problem_zip(problem, output, statement_language):
                     out = out.with_suffix('.pdf')
                 # For Kattis, prepend the problem shortname to all files.
                 if config.args.kattis:
-                    out = problem.name / out
+                    out = problem.id / out
                 copyfiles.add((f, out))
 
     # Build .ZIP file.
@@ -248,7 +246,7 @@ def export_contest():
                 # (YAML 1.2 parses it as a string.)
                 if isinstance(value, int):
                     str(datetime.timedelta(seconds=data[key]))
-                data[key] = value;
+                data[key] = value
 
     verbose("Uploading contest.yaml:")
     verbose(data)
@@ -294,7 +292,7 @@ def update_problems_yaml(problems, colors=None):
     for problem in problems:
         found = False
         for d in data:
-            if d['id'] == problem.name:
+            if d['id'] == problem.id:
                 found = True
                 if problem.settings.name and problem.settings.name != d.get('name'):
                     change = True
@@ -313,10 +311,10 @@ def update_problems_yaml(problems, colors=None):
                 break
         if not found:
             change = True
-            log(f'Add problem {problem.name}')
+            log(f'Add problem {problem.id}')
             data.append(
                 {
-                    'id': problem.name,
+                    'id': problem.id,
                     'label': problem.label,
                     'name': problem.settings.name,
                     'rgb': '#000000',
@@ -382,16 +380,16 @@ def export_problems(problems, cid):
 # Export a single problem to the specified contest ID.
 def export_problem(problem, cid, pid):
     if pid:
-        log(f'Export {problem.name} to id {pid}')
+        log(f'Export {problem.id} to id {pid}')
     else:
-        log(f'Export {problem.name} to new id')
+        log(f'Export {problem.id} to new id')
 
-    zipfile = Path(problem.name).with_suffix('.zip')
+    zipfile = Path(problem.id).with_suffix('.zip')
     if not zipfile.is_file():
         error(f'Did not find {zipfile}. First run `bt zip`.')
         return
     data = None if pid is None else {'problem': pid}
-    zip_path = Path(problem.name).with_suffix('.zip')
+    zip_path = Path(problem.id).with_suffix('.zip')
     zipfile = zip_path.open('rb')
     r = call_api(
         'POST',
@@ -435,7 +433,7 @@ def export_contest_and_problems(problems):
     def get_problem_id(problem):
         nonlocal ccs_problems
         for p in ccs_problems:
-            if p['short_name'] == problem.name or p.get('externalid') == problem.name:
+            if p['short_name'] == problem.id or p.get('externalid') == problem.id:
                 return p['id']
 
     for problem in problems:

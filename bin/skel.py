@@ -243,7 +243,7 @@ def rename_problem(problem):
         else _ask_variable_string('dirname', _alpha_num(newname[problem.statement_languages[0]]))
     )
 
-    shutil.move(problem.name, dirname)
+    shutil.move(problem.id, dirname)
 
     problem_yaml = Path(dirname) / 'problem.yaml'
     data = read_yaml(problem_yaml)
@@ -253,7 +253,7 @@ def rename_problem(problem):
     problems_yaml = Path('problems.yaml')
     if problems_yaml.is_file():
         data = read_yaml(problems_yaml) or []
-        prob = next((p for p in data if p['id'] == problem.name), None)
+        prob = next((p for p in data if p['id'] == problem.id), None)
         if prob is not None:
             prob['id'] = dirname
             prob['name'] = newname
@@ -308,6 +308,6 @@ def create_gitlab_jobs(contest, problems):
     problem_yml = (config.tools_root / 'skel/gitlab_ci/problem.yaml').read_text()
     for problem_obj in problems:
         changesdir = problem_source_dir(problem_obj)
-        problem = problem_obj.name
+        problem = problem_obj.id
         print('\n')
         print(substitute(problem_yml, locals()), end='')
