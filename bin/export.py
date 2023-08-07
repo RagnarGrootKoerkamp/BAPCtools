@@ -293,19 +293,19 @@ def update_problems_yaml(problems, colors=None):
     change = False
     for problem in problems:
         found = False
+
+        default_language = (
+            'en'
+            if 'en' in problem.statement_languages
+            else next(iter(problem.statement_languages), None)
+        )
+        problem_name = (
+            problem.settings.name and default_language and problem.settings.name[default_language]
+        )
+
         for d in data:
             if d['id'] == problem.name:
                 found = True
-                default_language = (
-                    'en'
-                    if 'en' in problem.statement_languages
-                    else next(iter(problem.statement_languages), None)
-                )
-                problem_name = (
-                    problem.settings.name
-                    and default_language
-                    and problem.settings.name[default_language]
-                )
                 if problem_name != d.get('name'):
                     change = True
                     d['name'] = problem.settings.name
@@ -328,7 +328,7 @@ def update_problems_yaml(problems, colors=None):
                 {
                     'id': problem.name,
                     'label': problem.label,
-                    'name': problem.settings.name,
+                    'name': problem_name,
                     'rgb': '#000000',
                     'time_limit': problem.settings.timelimit,
                 }
