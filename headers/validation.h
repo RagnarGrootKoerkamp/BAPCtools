@@ -1331,6 +1331,7 @@ class Validator {
 		expected("EOF", got);
 	}
 
+  public:
 	// Convert a string to lowercase is matching is not case sensitive.
 	std::string& lowercase(std::string& s) const {
 		if(case_sensitive) return s;
@@ -1338,6 +1339,7 @@ class Validator {
 		return s;
 	}
 
+  private:
 	// Keep track of the min/max value read at every call site.
 	template <typename T>
 	struct Bounds {
