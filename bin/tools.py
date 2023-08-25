@@ -212,7 +212,7 @@ def get_problems():
 
             # Sort the problems
             # Use negative solves instead of reversed, to preserver stable order.
-            problems.sort(key=lambda p: (-solves[p.name], p.label))
+            problems.sort(key=lambda p: (-solves[p.id], p.label))
             order = ', '.join(map(lambda p: p.label, problems))
             verbose('order: ' + order)
 
@@ -830,7 +830,7 @@ def run_parsed_arguments(args):
     # Handle one-off subcommands.
     if action == 'tmp':
         if level == 'problem':
-            level_tmpdir = tmpdir / problems[0].name
+            level_tmpdir = tmpdir / problems[0].id
         else:
             level_tmpdir = tmpdir
 
@@ -896,7 +896,7 @@ def run_parsed_arguments(args):
             and not config.args.all
         ):
             continue
-        print(Style.BRIGHT, 'PROBLEM ', problem.name, Style.RESET_ALL, sep='', file=sys.stderr)
+        print(Style.BRIGHT, 'PROBLEM ', problem.id, Style.RESET_ALL, sep='', file=sys.stderr)
 
         if action in ['generate']:
             success &= generate.generate(problem)
