@@ -12,6 +12,9 @@ data:
       - small:
           testdata.yaml:
             input_validator_flags: --small
+            input_validators:
+              connected: --small
+              strongly-connected: --small
           data:
             - positive:
                 data:
@@ -24,6 +27,7 @@ data:
                   - "sm-mixed": stdout.py 4 -6
                   - "sm-all-neg": stdout.py -4 -6
                 include:
+                  - "1"
                   - "2"
       - general:
           data:

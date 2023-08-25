@@ -187,28 +187,41 @@ data:
         # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
         # and alphabetical for dictionaries.
         data:
-          # 1.in
+          # 01.in
           - "": stdout.py empty
-          # 2-a.in
+          # 02-a.in
           - a: stdout.py a
-          # 3-a.in
+          # 03-a.in
           - a: stdout.py a
-          # 4-b.in
+          # 04-b.in
           - b: stdout.py b
-          # 5-numbered_testgroup
+          # 05-g
+          - g: stdout.py g
+          # 06-h
+          - h: stdout.py h
+          # 07-h
+          - i: stdout.py i
+          # 08-h
+          - j: stdout.py j
+          # 09-h
+          - k: stdout.py k
+          # When mixing testcases and testgroups within a testgroup, testgroups
+          # must be last.
+          # Testgroup numbers are always prefixed with g when they are numbered.
+          # g1-numbered_testgroup
           - numbered_testgroup:
               data:
+                # 10-c
                 - c: stdout.py c
+                # 11-d
                 - d: stdout.py d
+          # g2-named_testgroup
           - named_testgroup:
               data:
+                # e
                 e: stdout.py e
+                # f
                 f: stdout.py f
-          - g: stdout.py g
-          - h: stdout.py h
-          - i: stdout.py i
-          - j: stdout.py j
-          - k: stdout.py k
 
 # The above data: list is equivalent to the map:
 #data:
