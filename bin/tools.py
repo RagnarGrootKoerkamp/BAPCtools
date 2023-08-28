@@ -755,18 +755,15 @@ Run this from one of:
         parents=[global_parser],
         help='Create a slack channel for each problem',
     )
-    create_slack_channel_parser.add_argument(
-        '--token', required=True, help='A user token is of the form xoxp-...'
-    )
+    create_slack_channel_parser.add_argument('--token', help='A user token is of the form xoxp-...')
 
     join_slack_channel_parser = subparsers.add_parser(
         'join_slack_channels',
         parents=[global_parser],
         help='Join a slack channel for each problem',
     )
-    join_slack_channel_parser.add_argument(
-        '--token', required=True, help='A user token is of the form xoxp-...'
-    )
+    join_slack_channel_parser.add_argument('--token', help='A bot/user token is of the form xox...')
+    join_slack_channel_parser.add_argument('username', help='Slack username')
 
     if not is_windows():
         argcomplete.autocomplete(parser)
@@ -882,7 +879,7 @@ def run_parsed_arguments(args):
         return
 
     if action == 'join_slack_channels':
-        slack.join_slack_channels(problems)
+        slack.join_slack_channels(problems, config.args.username)
         return
 
     problem_zips = []
