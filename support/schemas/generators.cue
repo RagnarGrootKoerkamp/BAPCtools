@@ -1,50 +1,45 @@
-// Below is a formal [CUE](https://cuelang.org/docs/references/spec/)
-// specification for the `generators.yaml` file with a root object `Generators`.
-//
-// The `...` in `generator` and `directory` indicate that additional keys
-// unknown to the spec are allowed.
-// The `generator_reserved` and `directory_reserved` objects indicate keys that
-// work only for `generator`/`directory` and should not be reused in other places.
+package problemformat
+
+// cue version 0.6
+// To validate generators.yaml using cue:
+// > cue vet generators.yaml *.cue -d "#Generators"
 
 import "struct"
 
-command: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
-file_config: {
-	solution?:    command | null
-	visualizer?:  command | null
+#command: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
+#file_config: {
+	solution?:    #command | null // TODO: null disallowed (specify #testcase.ans instead)
+	visualizer?:  #command | null // null means: skip visualisation
 	random_salt?: string
 }
-generator: command | {
-	generate: command
-	file_config
-	directory_reserved
-	...
+
+#testcase: 
+	#command |            // same as generate: #command
+	{
+		generate?: #command // invocation of a generator
+		copy?:     #path 
+		["in" | "ans" | "desc" | "hint" ]: string // explicit contents
+		#file_config
+	} 
+
+#data_dict: [string]: #testgroup | #testcase
+#singleton_data_dict: #data_dict & struct.MaxFields(1) // lists have exactly one key
+
+#testgroup: {
+	"testdata.yaml"?: #testdata_settings        // TODO should this field be called testdata_settings or settings?
+	data?: #data_dict | [...#singleton_data_dict]
+	#file_config
 }
 
-data_dict: [string]: directory | generator | null // ERROR: fails to match against ""
+#Generators: {
+	generators?: [string]: [...string]
+	#testgroup
+	... // Do allow unknown_key at top level for tooling
+} 
 
-directory: {
-	file_config
-	"testdata.yaml"?: {
-		...
-	}
-	data?: data_dict | [...{data_dict & struct.MaxFields(1)}]
-	generator_reserved
-	...
-}
-Generators: {
-	generators?: {
-		[string]: [...string]
-	}
-	directory
-}
-generator_reserved: {
-	generate?: _|_
-	...
-}
-directory_reserved: {
-	data?:            _|_
-	include?:         _|_
-	"testdata.yaml"?: _|_
-	...
-}
+#Generators: data: close({
+		// Restrict top level data to testgroups 'sample', 'secret', and possibly 'invalid_inputs'
+		sample!: #testgroup
+		secret!: #testgroup
+		invalid_inputs?: #testgroup
+	})
