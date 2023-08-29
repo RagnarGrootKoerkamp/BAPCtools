@@ -77,14 +77,13 @@ generators:
 data:
   # Introduce the `sample` directory.
   sample:
-    solution: # empty to disable generating .ans files here
     data:
       "1": stdout.py 1 # prints `1` to stdout, which is piped to 1.in
 
       # To indicate an unlisted testcase already present in the corresponding directory, specify it with an empty value.
       # Prefer specifying a path to a .in file as in case `3` below.
       # E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
-      "2":
+      #"2":
       # The copy: key indicates a manual testcase that will be copied
       # from the given directory into the target testcase. The given directory
       # must not start with a /, not include an extension and will be relative to generators/.
