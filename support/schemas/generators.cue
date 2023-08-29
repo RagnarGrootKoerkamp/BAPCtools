@@ -8,12 +8,13 @@ import "struct"
 
 #command: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
 #file_config: {
-	solution?:    #command | null // TODO: null disallowed (specify #testcase.ans instead)
+	solution?:    #command // TODO: null disallowed (specify #testcase.ans instead)
 	visualizer?:  #command | null // null means: skip visualisation
 	random_salt?: string
 }
 
 #testcase: 
+        // TODO: null disallowed
 	#command |            // same as generate: #command
 	{
 		generate?: #command // invocation of a generator
@@ -28,6 +29,7 @@ import "struct"
 #testgroup: {
 	"testdata.yaml"?: #testdata_settings        // TODO should this field be called testdata_settings or settings?
 	data?: #data_dict | [...#singleton_data_dict]
+	include?: [...string]
 	#file_config
 }
 
