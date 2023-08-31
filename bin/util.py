@@ -12,11 +12,26 @@ import threading
 import signal
 import hashlib
 import tempfile
+import yaml as yamllib
 
 from pathlib import Path
 from colorama import Fore, Style
 
 import config
+
+try:
+    import ruamel.yaml
+
+    has_ryaml = True
+    ryaml = ruamel.yaml.YAML(typ='rt')
+    ryaml.default_flow_style = False
+    ryaml.indent(mapping=2, sequence=4, offset=2)
+except:
+    has_ryaml = False
+
+
+# For some reasong ryaml.load doesn't work well in parallel.
+ruamel_lock = threading.Lock()
 
 
 def is_windows():
@@ -46,6 +61,7 @@ def is_bsd():
 
 if not is_windows():
     import resource
+
 
 def debug(*msg):
     print(Fore.CYAN, end='', file=sys.stderr)
@@ -410,6 +426,7 @@ def resolve_path_argument(problem, path, type, suffixes=[]):
     warn(f'{path} not found')
     return None
 
+
 # creates a shortened path to some file/dir in the problem.
 # The path is of the form "tmp/<contest_dir>/<problem_dir>/links/<hash>"
 def shorten_path(problem, path):
@@ -428,31 +445,16 @@ def print_name(path, keep_type=False):
 
 def rename_with_language(path: Path, language: str):
     """Rename the given file to use the given language suffix.
-    
+
     ```
     >>> p = rename_with_language(Path("mycontest/hello/solutions.pdf"), 'en')
     PosixPath('mycontest/hello/solutions.en.pdf')
     ```
-   
+
     If language is None, path is unchanged.
-    Return a new Path instance pointing to target. 
+    Return a new Path instance pointing to target.
     """
     return path if language is None else path.rename(path.with_suffix(f".{language}{path.suffix}"))
-
-
-try:
-    import ruamel.yaml
-
-    has_ryaml = True
-    ryaml = ruamel.yaml.YAML(typ='rt')
-    ryaml.default_flow_style = False
-    ryaml.indent(mapping=2, sequence=4, offset=2)
-except:
-    has_ryaml = False
-
-
-# For some reasong ryaml.load doesn't work well in parallel.
-ruamel_lock = threading.Lock()
 
 
 def parse_yaml(data, path=None):
@@ -560,6 +562,7 @@ def strip_newline(s):
     else:
         return s
 
+
 # check if windows supports symlinks
 if is_windows():
     link_parent = Path(tempfile.gettempdir()) / 'bapctools'
@@ -573,12 +576,14 @@ if is_windows():
         windows_can_symlink = True
     except OSError:
         windows_can_symlink = False
-        warn('''Please enable the developer mode in Windows to enable symlinks!
+        warn(
+            '''Please enable the developer mode in Windows to enable symlinks!
 - Open the Windows Settings
 - Go to "Update & security"
 - Go to "For developers"
 - Enable the option "Developer Mode"
-''')
+'''
+        )
 
 
 # When output is True, copy the file when args.cp is true.
@@ -782,10 +787,7 @@ def limit_setter(command, timeout, memory_limit, group=None, cores=False):
             assert not is_mac()
             os.setpgid(0, group)
 
-        if (cores is not False
-            and not is_windows()
-            and not is_bsd()
-        ):
+        if cores is not False and not is_windows() and not is_bsd():
             os.sched_setaffinity(0, cores)
 
         # Disable coredumps.
