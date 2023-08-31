@@ -28,8 +28,7 @@ def call_slack_api(path, **kwargs):
 def get_channel_ids():
     r = call_slack_api('conversations.list').json()
     if not r['ok']:
-        error(r['error'])
-        return
+        fatal(r['error'])
 
     channel_ids = {}
     for c in r['channels']:
@@ -38,8 +37,10 @@ def get_channel_ids():
 
 
 def get_user_id(username):
-    users = call_slack_api('users.list').json()
-    members = users['members']
+    r = call_slack_api('users.list').json()
+    if not r['ok']:
+        fatal(r['error'])
+    members = r['members']
     for m in members:
         if m['profile']['real_name'] == username or m['profile']['display_name'] == username:
             return m['id']
