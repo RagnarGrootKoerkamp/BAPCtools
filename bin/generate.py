@@ -245,9 +245,9 @@ def default_solution_path(generator_config):
         solution = problem.path / config.args.default_solution
         if generator_config.has_yaml:
             log(
-                    f'''Prefer setting the solution in generators/generators.yaml:
+                f'''Prefer setting the solution in generators/generators.yaml:
 solution: /{solution.relative_to(problem.path)}'''
-                )
+            )
     else:
         # Use one of the accepted submissions.
         solutions = list(glob(problem.path, 'submissions/accepted/*'))
@@ -269,10 +269,10 @@ solution: /{solution.relative_to(problem.path)}'''
             solution = min(solutions, key=lambda s: s.name)
             solution_short_path = solution.relative_to(problem.path / 'submissions')
             log(
-                    f'''No solution specified. Using {solution_short_path} instead. Use
+                f'''No solution specified. Using {solution_short_path} instead. Use
 --default_solution {solution.relative_to(problem.path)}
 to use a fixed solution.'''
-                )
+            )
 
     return Path('/') / solution.relative_to(problem.path)
 
@@ -584,6 +584,9 @@ class TestcaseRule(Rule):
                 return (False, False)
 
             meta_yaml = read_yaml(meta_path)
+            # In case meta_yaml is malformed, things are not up to date.
+            if not not isinstance(meta_yaml, dict):
+                return (False, False)
             if meta_yaml.get('cache_data') != t.cache_data:
                 return (False, False)
 
