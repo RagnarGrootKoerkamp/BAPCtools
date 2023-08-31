@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # This should give CORRECT on the default problem 'hello'.
 #
 # Note that by default the extension .py is (currently) associated to

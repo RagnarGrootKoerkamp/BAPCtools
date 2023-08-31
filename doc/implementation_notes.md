@@ -38,7 +38,7 @@ Matching is case-insensitive and extra white space is allowed. Examples:
 
 The following non-standard top-level `generators/generators.yaml` keys are supported:
 
-- `gitignore_generatred` (default `False`): Can be used to automatically write a `data/.gitignore` containing a single gitignore line like `secret/testcase.*` for each generated testcase.
+- `gitignore_generated` (default `False`): Can be used to automatically write a `data/.gitignore` containing a single gitignore line like `secret/testcase.*` for each generated testcase.
   This file should not be modified manually as it will be overwritten each time testcases are regenerated.
 
 # Building and running in tmpfs
@@ -78,25 +78,18 @@ Each program (submission/validator/generator/visualizer) is build in its own dir
 Testcases are generated inside `~tmp/<problemname>/data/(<group>/)*<testcase>/` (from now on `~testcase`).
 Testcases are only re-generated when changes were made. This is done with the following steps:
 
-1. Check if the current data in `~testcase/meta_.yaml` is up to date. A testcase is up to date when all of the following hold:
-   - `~testcase/meta_.yaml` must exist
-   - `testcase.in` and `testcase.ans` must exist.
-   - `~testcase/meta_.yaml` must be newer than the last modification to
-     - the generator (or testcase source for manual cases)
-     - the solution
-     - the visualizer
-     - the `testcase.in` file
-     - the `testcase.ans` file.
-   - the current generator invocation, solution invocation, and visualizer invocation must match the invocations stored in `~testcase/meta_.yaml`.
-1. For manual testcases, symlink the given file to `~testcase/<testcase>.in`
-1. For other cases, run the given generator with current working directory `~testcase`.
+1. Check if the current data in `~testcase/meta_.yaml` is up to date.
+1. Run the given generator with current working directory `~testcase/`.
+1. For copied testcases, copy files to `~testcase/`
+1. Write hardcoded files to`~testcase/`.
 1. Validate the generated `~testcase/<testcase>.in` file.
 1. If `~testcase/<testcase>.ans` was not generated and a solution was provided, run the solution with working directory `~testcase` to generate `~testcase/<testcase>.ans`.
    - For interactive problems, create an empty `~testcase/<testcase>.ans` and run the given submission to create a `~testcase/<testcase>.interaction`.
 1. Validate the generated `~testcase/<testcase>.ans` file.
-1. If provided, run the visualizer with working directory `~testcase`.
+1. If provided, run the visualizer with working directory `~testcase/`.
 1. Copy generated files to the `data/` directory. For changed files, `--force` is needed to overwrite them.
-1. Update the `~testcase/meta_.yaml` file with the invocations of the generator, solution, and visualizer.
+1. Update the `~testcase/meta_.yaml` file with the invocations of the generator,
+   solution, and visualizer and hash of the `.in` file.
 
 # Building LaTeX files
 

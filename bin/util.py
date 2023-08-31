@@ -11,11 +11,27 @@ import re
 import threading
 import signal
 import hashlib
+import tempfile
+import yaml as yamllib
 
 from pathlib import Path
 from colorama import Fore, Style
 
 import config
+
+try:
+    import ruamel.yaml
+
+    has_ryaml = True
+    ryaml = ruamel.yaml.YAML(typ='rt')
+    ryaml.default_flow_style = False
+    ryaml.indent(mapping=2, sequence=4, offset=2)
+except:
+    has_ryaml = False
+
+
+# For some reasong ryaml.load doesn't work well in parallel.
+ruamel_lock = threading.Lock()
 
 
 def is_windows():
@@ -54,28 +70,28 @@ def debug(*msg):
 
 
 def log(msg):
-    print(Fore.GREEN + 'LOG: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
+    print(f'{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}', file=sys.stderr)
 
 
 def verbose(msg):
     if config.args.verbose >= 1:
-        print(Fore.CYAN + 'VERBOSE: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
+        print(f'{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}', file=sys.stderr)
 
 
 def warn(msg):
-    print(Fore.YELLOW + 'WARNING: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
+    print(f'{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}', file=sys.stderr)
     config.n_warn += 1
 
 
 def error(msg):
     if config.RUNNING_TEST:
         fatal(msg)
-    print(Fore.RED + 'ERROR: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
+    print(f'{Fore.RED}ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
     config.n_error += 1
 
 
 def fatal(msg):
-    print(Fore.RED + 'FATAL ERROR: ' + str(msg) + Style.RESET_ALL, file=sys.stderr)
+    print(f'{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
     exit(1)
 
 
@@ -557,6 +573,17 @@ def resolve_path_argument(problem, path, type, suffixes=[]):
     return None
 
 
+# creates a shortened path to some file/dir in the problem.
+# The path is of the form "tmp/<contest_dir>/<problem_dir>/links/<hash>"
+def shorten_path(problem, path):
+    short_hash = hashlib.sha256(bytes(path)).hexdigest()[-6:]
+    dir = problem.tmpdir / 'links'
+    dir.mkdir(parents=True, exist_ok=True)
+    short_path = dir / short_hash
+    ensure_symlink(short_path, path)
+    return short_path
+
+
 # Drops the first two path components <problem>/<type>/
 def print_name(path, keep_type=False):
     return str(Path(*path.parts[1 if keep_type else 2 :]))
@@ -564,31 +591,16 @@ def print_name(path, keep_type=False):
 
 def rename_with_language(path: Path, language: str):
     """Rename the given file to use the given language suffix.
-    
+
     ```
     >>> p = rename_with_language(Path("mycontest/hello/solutions.pdf"), 'en')
     PosixPath('mycontest/hello/solutions.en.pdf')
     ```
-   
+
     If language is None, path is unchanged.
-    Return a new Path instance pointing to target. 
+    Return a new Path instance pointing to target.
     """
     return path if language is None else path.rename(path.with_suffix(f".{language}{path.suffix}"))
-
-
-try:
-    import ruamel.yaml
-
-    has_ryaml = True
-    ryaml = ruamel.yaml.YAML(typ='rt')
-    ryaml.default_flow_style = False
-    ryaml.indent(mapping=2, sequence=4, offset=2)
-except:
-    has_ryaml = False
-
-
-# For some reasong ryaml.load doesn't work well in parallel.
-ruamel_lock = threading.Lock()
 
 
 def parse_yaml(data, path=None):
@@ -697,17 +709,40 @@ def strip_newline(s):
         return s
 
 
+# check if windows supports symlinks
+if is_windows():
+    link_parent = Path(tempfile.gettempdir()) / 'bapctools'
+    link_dest = link_parent / 'dir'
+    link_dest.mkdir(parents=True, exist_ok=True)
+    link_src = link_parent / 'link'
+    if link_src.exists() or link_src.is_symlink():
+        link_src.unlink()
+    try:
+        link_src.symlink_to(link_dest, True)
+        windows_can_symlink = True
+    except OSError:
+        windows_can_symlink = False
+        warn(
+            '''Please enable the developer mode in Windows to enable symlinks!
+- Open the Windows Settings
+- Go to "Update & security"
+- Go to "For developers"
+- Enable the option "Developer Mode"
+'''
+        )
+
+
 # When output is True, copy the file when args.cp is true.
 def ensure_symlink(link, target, output=False, relative=False):
-    # On windows, always copy.
-    if is_windows():
+    # on windows copy if necessary
+    if is_windows() and not windows_can_symlink:
         if link.exists() or link.is_symlink():
             link.unlink()
         shutil.copyfile(target, link)
         return
 
     # For output files: copy them on Windows, or when --cp is passed.
-    if output and (is_windows() or config.args.cp):
+    if output and config.args.cp:
         if link.exists() or link.is_symlink():
             link.unlink()
         shutil.copyfile(target, link)
@@ -721,16 +756,17 @@ def ensure_symlink(link, target, output=False, relative=False):
         # if relative and not is_absolute: return
 
     if link.is_symlink() or link.exists():
-        if link.is_dir():
+        if link.is_dir() and not link.is_symlink():
             shutil.rmtree(link)
         else:
             link.unlink()
+
+    # for windows the symlink needs to know if it points to a directory or file
     if relative:
         # Rewrite target to be relative to link.
-        rel_target = os.path.relpath(target, link.parent)
-        os.symlink(rel_target, link)
+        link.symlink_to(target.relative_to(link.parent), target.is_dir())
     else:
-        link.symlink_to(target.resolve())
+        link.symlink_to(target.resolve(), target.is_dir())
 
 
 def substitute(data, variables):
@@ -897,10 +933,7 @@ def limit_setter(command, timeout, memory_limit, group=None, cores=False):
             assert not is_mac()
             os.setpgid(0, group)
 
-        if (cores is not False
-            and not is_windows()
-            and not is_bsd()
-        ):
+        if cores is not False and not is_windows() and not is_bsd():
             os.sched_setaffinity(0, cores)
 
         # Disable coredumps.
@@ -1056,6 +1089,12 @@ def inc_label(label):
             return label
         label = label[:x] + 'A' + label[x + 1 :]
     return 'A' + label
+
+
+def hash_string(string):
+    sha = hashlib.sha256(usedforsecurity=False)
+    sha.update(string.encode())
+    return sha.hexdigest()
 
 
 def hash_file(file, buffer_size=65536):

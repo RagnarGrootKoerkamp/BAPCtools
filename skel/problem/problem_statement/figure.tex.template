@@ -8,7 +8,7 @@
 \usetikzlibrary{patterns}
 \usetikzlibrary{positioning}
 \begin{document}
-\begin{tikzfigure}
+\begin{tikzpicture}
 
-\end{tikzfigure}
+\end{tikzpicture}
 \end{document}

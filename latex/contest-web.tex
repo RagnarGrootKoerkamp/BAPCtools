@@ -10,9 +10,9 @@
 \newcommand\subtitle[1]{\renewcommand\@subtitle{#1}}
 \newcommand\@subtitle{}
 
-% Use \author for name in licence, and \year for the year.
-\renewcommand\year[1]{\renewcommand\@year{#1}}
-\newcommand\@year{}
+% Use \author for name in licence, and \copyrightyear for the year.
+\newcommand\copyrightyear[1]{\renewcommand\@copyrightyear{#1}}
+\newcommand\@copyrightyear{}
 
 %-------------------------------------------------------------------------------
 % Actual document starts here.
@@ -49,7 +49,7 @@
 \begin{minipage}[b][3em][t]{.8\textwidth}
 \footnotesize
 \vspace*{-4mm}
-Copyright \copyright\ \@year\ by \@author.
+Copyright \copyright\ \@copyrightyear\ by \@author.
 This work is licensed under the
 \\
 Creative Commons Attribution-ShareAlike 4.0 International License.

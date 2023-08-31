@@ -3,7 +3,7 @@
 
 # The solution is used to generate a .ans for each generated .in which doesn't
 # yet have a corresponding .ans. If there are generators that don't write a .ans
-# file themselves, this must be specified.
+# file themselves, a solution must be specified.
 # This should read the input from stdin and write to stdout.
 #
 # This must be the absolute path to the solution, starting in the problem root.
@@ -20,7 +20,7 @@ solution: /submissions/accepted/sol.py
 #
 # TOOLING: may provide a flag to make running this optional, as it can be slow
 # and usually isn't required.
-visualizer: /visualizers/asy.py
+visualizer: /visualizers/vis.py
 
 # Optionally, a salt for generating the {seed} variables. Will be prepended to
 # the command being run.
@@ -47,26 +47,26 @@ random_salt: abcd
 # the corresponding generator is used. If not, we will use the generator with that
 # file/directory name in the `generators/` directory directly.
 generators:
-# A generator that depends on two files, lib.py and tree.py, directly in the
-# generators directory.
+  # A generator that depends on two files, lib.py and tree.py, directly in the
+  # generators directory.
   tree:
     - tree.py
     - lib.py
-# Another generator that also depends on the same lib.py.
+  # Another generator that also depends on the same lib.py.
   graph:
     - graph.py
     - lib.py
-# This also works for other languages.
+  # This also works for other languages.
   a:
     - a.cpp
     - a.h
-# Single-file generators may be specified, but can also be referred to as
-# b.cpp directly.
+  # Single-file generators may be specified, but can also be referred to as
+  # b.cpp directly.
   b:
     - b.cpp
-# It is allowed, but not required, to explicitly list single-file generators
-# as well. It is allowed to reuse the same name, but introducing a new name is
-# also fine.
+  # It is allowed, but not required, to explicitly list single-file generators
+  # as well. It is allowed to reuse the same name, but introducing a new name is
+  # also fine.
   c.py:
     - c.py
     - lib.py
@@ -79,139 +79,166 @@ data:
   sample:
     solution: # empty to disable generating .ans files here
     data:
-      '1': stdout.py 1  # prints `1` to stdout, which is piped to 1.in
+      "1": stdout.py 1 # prints `1` to stdout, which is piped to 1.in
 
-# To indicate a manual testcase already present in the corresponding directory, specify it with an empty value.
-# Prefer specifying a path to a .in file as in case `3` below.
-# E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
-      '2':
-# Any key that matches the glob `*.in` is a manual testcase that will be copied
-# from the given directory into the target testcase. The given directory
-# must not start with a / and will be relative to generators/.
-# If a solution is specified, .ans files will be generated for manual cases
-# that don't provide a .ans.
-      '3': manual_cases/sample/3.in
-# Every testcase present in the directory must be listed.
-# TOOLING: may still allow unlisted testcases and warn about them.
-     #'4':
+      # To indicate an unlisted testcase already present in the corresponding directory, specify it with an empty value.
+      # Prefer specifying a path to a .in file as in case `3` below.
+      # E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
+      "2":
+      # The copy: key indicates a manual testcase that will be copied
+      # from the given directory into the target testcase. The given directory
+      # must not start with a /, not include an extension and will be relative to generators/.
+      "3":
+        copy: manual_cases/sample/3
+      # Small testcases can be specified explictly:
+      "4":
+        in: 1 0
+        # Ans must be a string, so `1` is wrapped in quotes.
+        ans: "1"
+        desc: Right identity for addition
+        hint: Make sure addition with zero also works
+      # Use YAML multiline syntax for multiline testcases
+      # The pipe | preserves newlines, but strips indentation whitespace.
+      # See also https://yaml-multiline.info/
+      "5":
+        in: |
+          10 13
+          0 0
+          -5 1
+        ans: |
+          23
+          0
+          -4
+  # Every testcase present in the directory must be listed.
+  # TOOLING: may still allow unlisted testcases and warn about them.
+  #'6':
 
   secret:
     data:
+      # Types of generator programs.
+      "01": stdout.py  3 # stdout of the command is written to 01.in.
+      "02": stdout.cpp 4 # c++ is compiled, just like validators, and the resulting binary is run with argument `4`.
+      "03": dir 5 # directories are OK, just like validators
+      "04": tree 5 # keys from the global generators: dictionary may also be used.
+      "05": a 5 # idem
 
-# Types of generator programs.
-      '01': stdout.py  3   # stdout of the command is written to 01.in.
-      '02': stdout.cpp 4   # c++ is compiled as for validators, and the resulting binary is run with argument `4`.
-      '03': dir 5          # directories are OK as for validators
-      '04': tree 5         # keys from the global generators: dictionary may also be used.
-      '05': a 5            # idem
-
-# Arguments are split on white space: this will pass two arguments: `"a` and `b"`, so probably not what is intended.
+      # Arguments are split on white space: this will pass two arguments: `"a` and `b"`, so probably not what is intended.
       06-string: stdout.py "a b"
-# This will pass two arguments: a and b, using YAML multiline string syntax.
-# Passing arguments containing whitespace is not possible.
+      # This will pass two arguments: a and b, using YAML multiline string syntax.
+      # Passing arguments containing whitespace is not possible.
       07-string: |
         stdout.py
         a
         b
 
-# The regex \{seed(:[0-9]+)?\} (e.g. {seed} or {seed:1}) anywhere in the argument
-# string will be replaced by an integer hash of the entire command in [0, 2^31).
-# The regex may match at most once.
-# int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
-      08-random-1:    stdout.py {seed}
-     #09-random-1a:   stdout.py {seed}           # It's an error to use the exact same command twice.
-      10-random-2:    stdout.py {seed:2}         # Different seed, because of extra `2`
-      11-random-3:    stdout.py seed={seed:2}    # Different seed, because command isn't the same.
-     #11-random-4:    stdout.py {seed} {seed:2}  # Not allowed because the regex matches twice.
+      # The regex \{seed(:[0-9]+)?\} (e.g. {seed} or {seed:1}) anywhere in the argument
+      # string will be replaced by an integer hash of the entire command in [0, 2^31).
+      # The regex may match at most once.
+      # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
+      08-random-1: stdout.py {seed}
+      #09-random-1a:   stdout.py {seed}           # It's an error to use the exact same command twice.
+      10-random-2: stdout.py {seed:2} # Different seed, because of extra `2`
+      11-random-3: stdout.py seed={seed:2} # Different seed, because command isn't the same.
+      #11-random-4:    stdout.py {seed} {seed:2}  # Not allowed because the regex matches twice.
 
-# No key (testcase or testgroup) may be a prefix of another key.
-     #01-second: stdout.py 6                     # Collision with rule 01 above.
-     #hard_cases_group-01: stdout.py 7           # Collision with hard_cases_group below.
+      # No key (testcase or testgroup) may be a prefix of another key.
+      #01-second: stdout.py 6                     # Collision with rule 01 above.
+      #hard_cases_group-01: stdout.py 7           # Collision with hard_cases_group below.
 
-# Commands are only allowed to read and write files of the form
-# `testcase.<ext>`, where <ext> is a known file extension in
-# .in, .ans, .hint, .desc, .png, .jpg, .svg.
-# Any such written files will be saved.
-#
-# In case a generator program writes testcase.in, its stdout will be ignored.
-# In case testcase.in is not created, stdout will be used as the input for the testcase.
-#
-# The generator below generates and writes both testcase.in and testcase.ans, and
-# the optionally specified `solution:` will not be called.
-      '12': write_in_and_ans.py
+      # Commands are only allowed to read and write files of the form
+      # `testcase.<ext>`, where <ext> is a known file extension in
+      # .in, .ans, .hint, .desc, .png, .jpg, .svg.
+      # Any such written files will be saved.
+      #
+      # In case a generator program writes testcase.in, its stdout will be ignored.
+      # In case testcase.in is not created, stdout will be used as the input for the testcase.
+      #
+      # The generator below generates and writes both testcase.in and testcase.ans, and
+      # the optionally specified `solution:` will not be called.
+      "12": write_in_and_ans.py
 
-
-# To override the global/testgroup configuration on a per-testcase basis,
-# a dictionary may be used. This allows the solution: and visualizer: keys,
-# as well as the input: key which contains the command to execute.
+      # To override the global/testgroup configuration on a per-testcase basis,
+      # a dictionary may be used. This allows the solution: and visualizer: keys,
+      # as well as the generate: key which contains the command to execute.
       13_no_visualizer:
-        input: large_case_generator.py 1000000
+        generate: large_case_generator.py 1000000
         solution: /generators/gnu_multi_precision.cpp
-        visualizer:                         # Empty to disable the visualizer here.
-        random_salt: '123'
+        visualizer: # Empty to disable the visualizer here.
+        random_salt: "123"
 
-
-# Introduce a testgroup.
-# The top-level `data:` key is always assumed to be a directory.
+      # Introduce a testgroup.
+      # The top-level `data:` key is always assumed to be a directory.
       hard_cases_group:
-
-# Directories may contain a testdata.yaml that will be written as specified.
+        # Directories may contain a testdata.yaml that will be written as specified.
         testdata.yaml:
           on_reject: break
           accept_score: "25"
           range: 0 25
           grader_flags: min
 
-# To enable automatic numbering of testcases, data: may also contain a list of
-# single-element dictionaries instead of a single dictionary. In this case,
-# testcases and/or groups will be numbered in the order they appear, starting at
-# 1. The system will determine the required number of digits to use and numbers
-# will be zero-padded accordingly, using a dash as separator from the given name
-# (when the given name is not empty). Each dictionary in the list must contain a
-# single item.
-#
-# Numbering is per directory. Testcases/testgroups are ordered by the order of lists
-# and alphabetical for dictionaries.
+        # To enable automatic numbering of testcases, data: may also contain a list of
+        # single-element dictionaries instead of a single dictionary. In this case,
+        # testcases and/or groups will be numbered in the order they appear, starting at
+        # 1. The system will determine the required number of digits to use and numbers
+        # will be zero-padded accordingly, using a dash as separator from the given name
+        # (when the given name is not empty). Each dictionary in the list must contain a
+        # single item.
+        #
+        # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
+        # and alphabetical for dictionaries.
         data:
-          # 1.in
-          - '': stdout.py empty
-          # 2-a.in
+          # 01.in
+          - "": stdout.py empty
+          # 02-a.in
           - a: stdout.py a
-          # 3-a.in
+          # 03-a.in
           - a: stdout.py a
-          # 4-b.in
+          # 04-b.in
           - b: stdout.py b
-          # 5-numbered_testgroup
+          # 05-g
+          - g: stdout.py g
+          # 06-h
+          - h: stdout.py h
+          # 07-h
+          - i: stdout.py i
+          # 08-h
+          - j: stdout.py j
+          # 09-h
+          - k: stdout.py k
+          # When mixing testcases and testgroups within a testgroup, testgroups
+          # must be last.
+          # Testgroup numbers are always prefixed with g when they are numbered.
+          # g1-numbered_testgroup
           - numbered_testgroup:
               data:
+                # 10-c
                 - c: stdout.py c
+                # 11-d
                 - d: stdout.py d
+          # g2-named_testgroup
           - named_testgroup:
               data:
+                # e
                 e: stdout.py e
+                # f
                 f: stdout.py f
-          - g: stdout.py g
-          - h: stdout.py h
-          - i: stdout.py i
-          - j: stdout.py j
-          - k: stdout.py k
 
 # The above data: list is equivalent to the map:
-       #data:
-       #  01-a: stdout.py a
-       #  01-b: stdout.py b
-       #  02-testgroup:
-       #    data:
-       #      1-c: stdout.py c
-       #      1-d: stdout.py d
-       #  03-e: stdout.py e
-       #  04-f: stdout.py f
-       #  05-g: stdout.py g
-       #  06-h: stdout.py h
-       #  07-i: stdout.py i
-       #  08-j: stdout.py j
-       #  09-k: stdout.py k
-       #  10-l: stdout.py l
+#data:
+#  01-a: stdout.py a
+#  01-b: stdout.py b
+#  02-testgroup:
+#    data:
+#      1-c: stdout.py c
+#      1-d: stdout.py d
+#  03-e: stdout.py e
+#  04-f: stdout.py f
+#  05-g: stdout.py g
+#  06-h: stdout.py h
+#  07-i: stdout.py i
+#  08-j: stdout.py j
+#  09-k: stdout.py k
+#  10-l: stdout.py l
 
 # Unknown keys are allowed inside directory dictionaries for tooling-specific
 # extensions. This includes both the global scope and explicit directories.

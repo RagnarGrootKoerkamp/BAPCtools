@@ -20,9 +20,19 @@ data:
     data:
       # Both the empty value and ~ parse as None.
       "1":
-      "2": ~
-      "3": manual/sample.in
-      "4": manual/inans.in
+        in: "0"
+        # 3 is quoted since only strings are allowed to prevent conversion issues.
+        ans: "0"
+      "2":
+        # Use | for multi-line input
+        in: |
+          999
+        ans: |
+          999
+      "3":
+        copy: manual/sample
+      "4":
+        copy: manual/inans
 
   secret:
     data:
@@ -71,24 +81,24 @@ data:
           # Random_salt must be a string.
           - "":
               random_salt: "1.0"
-              input: random_gen.py {seed}
+              generate: random_gen.py {seed}
           - "":
               random_salt: "1.00"
-              input: random_gen.py {seed}
+              generate: random_gen.py {seed}
           - "":
               random_salt: "yes"
-              input: random_gen.py {seed}
+              generate: random_gen.py {seed}
           - "":
               random_salt: "true"
-              input: random_gen.py {seed}
+              generate: random_gen.py {seed}
       testcase_dict_1:
-        input: random_gen.py {seed:6}
+        generate: random_gen.py {seed:6}
       testcase_dict_2:
         solution: /generators/solution.c
-        input: random_gen.py {seed:7}
+        generate: random_gen.py {seed:7}
       testcase_dict_3:
         visualizer:
-        input: random_gen.py {seed:8}
+        generate: random_gen.py {seed:8}
       unused_args_1: > # Spread arguments over multiple lines.
         random_gen.py
         {seed}
@@ -110,16 +120,16 @@ data:
       # Commands should always be strings.
       boolean_generator_yes:
         solution: /generators/yes
-        input: y
+        generate: y
       boolean_generator_no:
         solution: /generators/no
-        input: n
+        generate: n
       boolean_generator_true:
         solution: /generators/true
-        input: t
+        generate: t
       boolean_generator_false:
         solution: /generators/false
-        input: f
+        generate: f
         unknown_key:
       empty_group_1: {}
       empty_group_2:

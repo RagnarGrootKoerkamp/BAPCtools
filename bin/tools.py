@@ -507,11 +507,11 @@ Run this from one of:
 
     genparser_group = genparser.add_mutually_exclusive_group()
     genparser_group.add_argument(
-        '--add-manual',
+        '--add-unlisted',
         nargs='?',
         type=Path,
         const='generators/manual',
-        help='Add manual cases to generators.yaml.',
+        help='Add unlisted cases to generators.yaml.',
         metavar='TARGET_DIRECTORY=generators/manual',
     )
     genparser_group.add_argument(
@@ -594,6 +594,12 @@ Run this from one of:
         '-G',
         action='store_true',
         help='Do not run `generate` before running submissions.',
+    )
+    runparser.add_argument(
+        '--default-solution',
+        '-s',
+        type=Path,
+        help='The default solution to use for generating .ans files.',
     )
     runparser.add_argument(
         '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
@@ -749,18 +755,15 @@ Run this from one of:
         parents=[global_parser],
         help='Create a slack channel for each problem',
     )
-    create_slack_channel_parser.add_argument(
-        '--token', required=True, help='A user token is of the form xoxp-...'
-    )
+    create_slack_channel_parser.add_argument('--token', help='A user token is of the form xoxp-...')
 
     join_slack_channel_parser = subparsers.add_parser(
         'join_slack_channels',
         parents=[global_parser],
         help='Join a slack channel for each problem',
     )
-    join_slack_channel_parser.add_argument(
-        '--token', required=True, help='A user token is of the form xoxp-...'
-    )
+    join_slack_channel_parser.add_argument('--token', help='A bot/user token is of the form xox...')
+    join_slack_channel_parser.add_argument('username', help='Slack username')
 
     if not is_windows():
         argcomplete.autocomplete(parser)
@@ -807,19 +810,19 @@ def run_parsed_arguments(args):
     if action != 'generate' and config.args.testcases and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
 
-    if config.args.add_manual:
+    if config.args.add_unlisted:
         # Path *must* be inside generators/.
         try:
-            config.args.add_manual = (
-                (problems[0].path / config.args.add_manual)
+            config.args.add_unlisted = (
+                (problems[0].path / config.args.add_unlisted)
                 .resolve()
                 .relative_to(problems[0].path.resolve())
             )
-            config.args.add_manual.relative_to('generators')
+            config.args.add_unlisted.relative_to('generators')
         except Exception as e:
-            fatal('Directory given to add_manual must match "generators/*".')
-        if not (problems[0].path / config.args.add_manual).is_dir():
-            fatal(f'"{config.args.add_manual}" not found.')
+            fatal('Directory given to add_unlisted must match "generators/*".')
+        if not (problems[0].path / config.args.add_unlisted).is_dir():
+            fatal(f'"{config.args.add_unlisted}" not found.')
 
     # Handle one-off subcommands.
     if action == 'tmp':
@@ -876,7 +879,7 @@ def run_parsed_arguments(args):
         return
 
     if action == 'join_slack_channels':
-        slack.join_slack_channels(problems)
+        slack.join_slack_channels(problems, config.args.username)
         return
 
     problem_zips = []
@@ -898,7 +901,7 @@ def run_parsed_arguments(args):
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.jobs = os.cpu_count() // 2
-            config.args.add_manual = False
+            config.args.add_unlisted = False
             config.args.verbose = 0
             config.args.skip_visualizer = True
             success &= generate.generate(problem)
@@ -935,7 +938,7 @@ def run_parsed_arguments(args):
                 old_args = argparse.Namespace(**vars(config.args))
                 config.args.check_deterministic = not config.args.force
                 config.args.jobs = None
-                config.args.add_manual = False
+                config.args.add_unlisted = False
                 config.args.verbose = 0
                 config.args.testcases = None
                 config.args.force = False
@@ -982,11 +985,11 @@ def run_parsed_arguments(args):
 
         if action in ['zip']:
             if not config.args.kattis:
-                success &= latex.build_contest_pdf(contest, problems, tmpdir)
-                success &= latex.build_contest_pdf(contest, problems, tmpdir, web=True)
+                success &= latex.build_contest_pdfs(contest, problems, tmpdir)
+                success &= latex.build_contest_pdfs(contest, problems, tmpdir, web=True)
                 if not config.args.no_solutions:
-                    success &= latex.build_contest_pdf(contest, problems, tmpdir, solutions=True)
-                    success &= latex.build_contest_pdf(
+                    success &= latex.build_contest_pdfs(contest, problems, tmpdir, solutions=True)
+                    success &= latex.build_contest_pdfs(
                         contest, problems, tmpdir, solutions=True, web=True
                     )
 
