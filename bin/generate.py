@@ -951,9 +951,9 @@ class Directory(Rule):
             for d in data:
                 check_type('Numbered case', d, dict)
                 if len(d) != 1:
-                    if 'in' in d or 'ans' in d:
+                    if 'in' in d or 'ans' in d or 'copy' in d:
                         fatal(
-                            f'{self.path}: Dictionary must contain exactly one named testcase/group.\nTo specify hardcoded input/answer, indent one more level.'
+                            f'{self.path}: Dictionary must contain exactly one named testcase/group.\nTo specify hardcoded in/ans/copy, indent one more level.'
                         )
                     else:
                         fatal(
