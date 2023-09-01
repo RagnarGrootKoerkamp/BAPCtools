@@ -1501,7 +1501,7 @@ class GeneratorConfig:
         unlisted = config.args.add_unlisted
         known_unlisted = {
             path
-            for path, x in self.rules_cache
+            for path in self.rules_cache
             if isinstance(path, PurePath) and path.is_relative_to(unlisted)
         }
 
@@ -1532,7 +1532,9 @@ class GeneratorConfig:
             bar.start(str(test))
             entry.append(ruamel.yaml.comments.CommentedMap())
             name = unlisted.relative_to('generators').as_posix().replace('/', '_')
-            entry[-1][f'{name}_{test.stem}'] = {'copy': test.relative_to('generators').as_posix()}
+            entry[-1][f'{name}_{test.stem}'] = {
+                'copy': test.relative_to('generators').with_suffix('').as_posix()
+            }
             bar.log('added to generators.yaml')
             bar.done()
 
