@@ -10,13 +10,14 @@ import "struct"
 
 #name: =~"^([[:alnum:]]|[[:alnum:]][[:alnum:]_-]*[[:alnum:]])$"
 let filename = "[[:alnum:]][[:alnum:]_.-]*[[:alnum:]]"
-#path: =~"^/\(filename)(/\(filename))*$"
+#path:     =~"^/\(filename)(/\(filename))*$"
 #copypath: =~"^(\(filename)/)*(\(filename)|[[:alnum:]])$"
 
 #file_config: {
-	solution?:    #path 
-	visualizer?:  #path | null
-	random_salt?: string
+	"testdata.yaml"?: #testdata_settings
+	solution?:        #path
+	visualizer?:      #path | null
+	random_salt?:     string
 }
 
 #testcase:
@@ -26,7 +27,7 @@ let filename = "[[:alnum:]][[:alnum:]_.-]*[[:alnum:]]"
 		copy?:                            #copypath
 		["in" | "ans" | "desc" | "hint"]: string
 		#file_config
-	} // same as generate: #command
+	}
 
 #data: close({[#name | ""]: #testgroup | #testcase})
 
@@ -34,21 +35,19 @@ let filename = "[[:alnum:]][[:alnum:]_.-]*[[:alnum:]]"
 #data_list: #data & struct.MinFields(1) & struct.MaxFields(1)
 
 #testgroup: {
-	"testdata.yaml"?: #testdata_settings
-	data?:            #data_dict | [...#data_list]
+	data?: #data_dict | [...#data_list]
 	include?: [...#name]
 	#file_config
 }
 
 #Generators: {
 	generators?: [string]: [...string]
-	#testgroup
+	data: {
+		sample!:         #testgroup
+		secret!:         #testgroup
+		invalid_inputs?: #testgroup
+	}
+	#file_config
 
 	... // Do allow unknown_key at top level for tooling
 }
-
-#Generators: data: close({
-	sample!:         #testgroup
-	secret!:         #testgroup
-	invalid_inputs?: #testgroup
-})
