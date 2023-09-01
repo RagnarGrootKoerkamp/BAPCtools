@@ -7,23 +7,26 @@ package problemformat
 import "struct"
 
 #command: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
-#name:    =~"^([A-Za-z0-9]{1,2}|[A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9])$"
-#path: string
+
+#name: =~"^([[:alnum:]]|[[:alnum:]][[:alnum:]_-]*[[:alnum:]])$"
+let filename = "[[:alnum:]][[:alnum:]_.-]*[[:alnum:]]"
+#path: =~"^/\(filename)(/\(filename))*$"
+#copypath: =~"^(\(filename)/)*(\(filename)|[[:alnum:]])$"
 
 #file_config: {
-	solution?:    #command
-	visualizer?:  #command | null
+	solution?:    #path 
+	visualizer?:  #path | null
 	random_salt?: string
 }
 
 #testcase:
-	#command | // same as generate: #command
+	#command |
 	{
 		generate?:                        #command
-		copy?:                            #path
+		copy?:                            #copypath
 		["in" | "ans" | "desc" | "hint"]: string
 		#file_config
-	} 
+	} // same as generate: #command
 
 #data: close({[#name | ""]: #testgroup | #testcase})
 
@@ -31,7 +34,7 @@ import "struct"
 #data_list: #data & struct.MinFields(1) & struct.MaxFields(1)
 
 #testgroup: {
-	"testdata.yaml"?: #testdata_settings // TODO should this field be called testdata_settings or settings?
+	"testdata.yaml"?: #testdata_settings
 	data?:            #data_dict | [...#data_list]
 	include?: [...#name]
 	#file_config
