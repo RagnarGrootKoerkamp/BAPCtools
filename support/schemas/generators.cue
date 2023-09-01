@@ -8,6 +8,8 @@ import "struct"
 
 #command: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
 #name:    =~"^([A-Za-z0-9]{1,2}|[A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9])$"
+#path: string
+
 #file_config: {
 	solution?:    #command
 	visualizer?:  #command | null
