@@ -78,13 +78,11 @@ data:
   # Introduce the `sample` directory.
   sample:
     data:
-      "1": stdout.py 1 # prints `1` to stdout, which is piped to 1.in
+      "1": tree --n 12 # runs the tree generator introduced above with given arguments
 
-      # To indicate an unlisted testcase already present in the corresponding directory, specify it with an empty value.
-      # Prefer specifying a path to a .in file as in case `3` below.
-      # E.g., this indicates that `data/sample/2.in` (and optionally `data/sample/2.ans`) are existing non-generated files.
-      #"2":
-      # The copy: key indicates a manual testcase that will be copied
+      "2":
+        in: 23 foo # generates the test case input file data/2.in with contents "23 foo"
+      # The copy key indicates a manual testcase that will be copied
       # from the given directory into the target testcase. The given directory
       # must not start with a /, not include an extension and will be relative to generators/.
       "3":
@@ -92,7 +90,7 @@ data:
       # Small testcases can be specified explictly:
       "4":
         in: 1 0
-        # Ans must be a string, so `1` is wrapped in quotes.
+        # Values must be a strings, so `1` is wrapped in quotes.
         ans: "1"
         desc: Right identity for addition
         hint: Make sure addition with zero also works
@@ -115,18 +113,20 @@ data:
   secret:
     data:
       # Types of generator programs.
-      "01": stdout.py  3 # stdout of the command is written to 01.in.
-      "02": stdout.cpp 4 # c++ is compiled, just like validators, and the resulting binary is run with argument `4`.
+      "01": 
+        in: "3" # string is written to 01.in.
+      "02": greedy.cpp 4 # c++ is compiled, just like validators, and the resulting binary is run with argument `4`.
       "03": dir 5 # directories are OK, just like validators
       "04": tree 5 # keys from the global generators: dictionary may also be used.
-      "05": a 5 # idem
+      "05": 
+        generate: tree 6 # same as above, but with different argument
 
       # Arguments are split on white space: this will pass two arguments: `"a` and `b"`, so probably not what is intended.
-      06-string: stdout.py "a b"
+      06-string: tree "a b"
       # This will pass two arguments: a and b, using YAML multiline string syntax.
       # Passing arguments containing whitespace is not possible.
       07-string: |
-        stdout.py
+        tree
         a
         b
 
@@ -134,15 +134,15 @@ data:
       # string will be replaced by an integer hash of the entire command in [0, 2^31).
       # The regex may match at most once.
       # int(hashlib.sha512((random_salt+command).encode('utf-8')).hexdigest(), 16)%(2**31)
-      08-random-1: stdout.py {seed}
-      #09-random-1a:   stdout.py {seed}           # It's an error to use the exact same command twice.
-      10-random-2: stdout.py {seed:2} # Different seed, because of extra `2`
-      11-random-3: stdout.py seed={seed:2} # Different seed, because command isn't the same.
-      #11-random-4:    stdout.py {seed} {seed:2}  # Not allowed because the regex matches twice.
+      08-random-1: graph {seed}
+      #09-random-1a: graph {seed}           # It's an error to use the exact same command twice.
+      10-random-2: graph {seed:2} # Different seed, because of extra `2`
+      11-random-3: graph seed={seed:2} # Different seed, because command isn't the same.
+      #11-random-4: graph {seed} {seed:2}  # Not allowed because the regex matches twice.
 
       # No key (testcase or testgroup) may be a prefix of another key.
-      #01-second: stdout.py 6                     # Collision with rule 01 above.
-      #hard_cases_group-01: stdout.py 7           # Collision with hard_cases_group below.
+      #01-second: graph 6                     # Collision with rule 01 above.
+      #hard_cases_group-01: graph 7           # Collision with hard_cases_group below.
 
       # Commands are only allowed to read and write files of the form
       # `testcase.<ext>`, where <ext> is a known file extension in
@@ -164,6 +164,13 @@ data:
         solution: /generators/gnu_multi_precision.cpp
         visualizer: # Empty to disable the visualizer here.
         random_salt: "123"
+
+      # An entry must include *some* key that produces an in-file,
+      # either by using 'in', 'copy', or 'generate'
+      # 14_no_input_produced: # this is an error
+      #   solution: /submissions/accepted/foo.py
+      #   desc: add two numbers
+      #   hint: check for maxint!
 
       # Introduce a testgroup.
       # The top-level `data:` key is always assumed to be a directory.
@@ -187,23 +194,23 @@ data:
         # and alphabetical for dictionaries.
         data:
           # 01.in
-          - "": stdout.py empty
+          - "": tree empty
           # 02-a.in
-          - a: stdout.py a
+          - a: tree a
           # 03-a.in
-          - a: stdout.py a
+          - a: tree a
           # 04-b.in
-          - b: stdout.py b
+          - b: tree b
           # 05-g
-          - g: stdout.py g
+          - g: tree g
           # 06-h
-          - h: stdout.py h
+          - h: tree h
           # 07-h
-          - i: stdout.py i
+          - i: tree i
           # 08-h
-          - j: stdout.py j
+          - j: tree j
           # 09-h
-          - k: stdout.py k
+          - k: tree k
           # When mixing testcases and testgroups within a testgroup, testgroups
           # must be last.
           # Testgroup numbers are always prefixed with g when they are numbered.
@@ -211,33 +218,33 @@ data:
           - numbered_testgroup:
               data:
                 # 10-c
-                - c: stdout.py c
+                - c: tree c
                 # 11-d
-                - d: stdout.py d
+                - d: tree d
           # g2-named_testgroup
           - named_testgroup:
               data:
                 # e
-                e: stdout.py e
+                e: tree e
                 # f
-                f: stdout.py f
+                f: tree f
 
 # The above data: list is equivalent to the map:
 #data:
-#  01-a: stdout.py a
-#  01-b: stdout.py b
+#  01-a: tree a
+#  01-b: tree b
 #  02-testgroup:
 #    data:
-#      1-c: stdout.py c
-#      1-d: stdout.py d
-#  03-e: stdout.py e
-#  04-f: stdout.py f
-#  05-g: stdout.py g
-#  06-h: stdout.py h
-#  07-i: stdout.py i
-#  08-j: stdout.py j
-#  09-k: stdout.py k
-#  10-l: stdout.py l
+#      1-c: tree c
+#      1-d: tree d
+#  03-e: tree e
+#  04-f: tree f
+#  05-g: tree g
+#  06-h: tree h
+#  07-i: tree i
+#  08-j: tree j
+#  09-k: tree k
+#  10-l: tree l
 
 # Unknown keys are allowed inside directory dictionaries for tooling-specific
 # extensions. This includes both the global scope and explicit directories.
