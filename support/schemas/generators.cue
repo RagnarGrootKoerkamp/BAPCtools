@@ -22,14 +22,15 @@ name: =~"^\(basename)$"
 let filename = "[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]"
 
 // Paths use forward slashes; 
-let filepath = "\(filename)(/\(filename))*"
+let filepath = "/?\(filename)(/\(filename))*"
+path: =~"^\(filepath)$"
 
 #config: {
 	"testdata.yaml"?: #testdata_settings
 	// Path to solution starts with slash, such as "/submissions/accepted/foo.py"
-	solution?: =~"^/\(filepath)$"
+	solution?: path & =~"^/"
 	// Path to visualiser can be omitted
-	visualizer?:  =~"^/\(filepath)$" | null
+	visualizer?:  path & =~"^/" | null
 	random_salt?: string
 }
 
@@ -57,7 +58,7 @@ let filepath = "\(filename)(/\(filename))*"
 	// Generators are named like files or testcases, like "tree.py" or "a".
 	// Each consists of a list of paths relative to "/generators/",
 	// such as "tree_generator/tree.h".
-	generators?: [name | =~"^\(filename)$"]: [...=~"^\(filepath)$"]
+	generators?: [name | =~"^\(filename)$"]: [...(path & !~"^/")]
 	data: {
 		sample!:         #testgroup
 		secret!:         #testgroup
