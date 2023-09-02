@@ -21,27 +21,25 @@ name: =~"^\(basename)$"
 // but not "huge_" or "a".
 let filename = "[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]"
 
-// Paths use forward slashes; they are relative to the problem root,
-// such as "/submissions/accepted/foo.py"
-path: =~"^/\(filename)(/\(filename))*$"
-
-// The "copy" key uses a path relative to "/generators/"
-// such as "/submissions/accepted/foo.py" ending in a testcase name,
-// such as "manual/samples/3"
-copypath: =~"^(\(filename)/)*\(basename)$"
+// Paths use forward slashes; 
+let filepath = "\(filename)(/\(filename))*"
 
 #config: {
 	"testdata.yaml"?: #testdata_settings
-	solution?:        path
-	visualizer?:      path | null
-	random_salt?:     string
+	// Path to solution starts with slash, such as "/submissions/accepted/foo.py"
+	solution?: =~"^/\(filepath)$"
+	// Path to visualiser can be omitted
+	visualizer?:  =~"^/\(filepath)$" | null
+	random_salt?: string
 }
 
 #testcase:
 	command |
 	{
-		generate?:                        command
-		copy?:                            copypath
+		generate?: command
+		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
+		// such as "manual/samples/3".
+		copy?:                            =~"^(\(filename)/)*\(basename)$"
 		["in" | "ans" | "desc" | "hint"]: string
 		#config
 	}
@@ -56,7 +54,10 @@ copypath: =~"^(\(filename)/)*\(basename)$"
 }
 
 #Generators: {
-	generators?: [string]: [...string]
+	// Generators are named like files or testcases, like "tree.py" or "a".
+	// Each consists of a list of paths relative to "/generators/",
+	// such as "tree_generator/tree.h".
+	generators?: [name | =~"^\(filename)$"]: [...=~"^\(filepath)$"]
 	data: {
 		sample!:         #testgroup
 		secret!:         #testgroup
