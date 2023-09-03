@@ -1,5 +1,6 @@
 {
-  "title": "generator",
+  "title": "Generator",
+  "description": "Generate test data for this prolem. Version 0.9.",
   "type": "object",
   "properties": {
     "solution": {
@@ -13,10 +14,10 @@
     },
     "generators": {
       "title": "Generators",
-      "description": "List of generators for this problem",
+      "description": "List of generators for this problem.",
       "type": "object",
       "patternProperties": {
-        "^[A-Za-z0-9_-]*$": {
+        "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])$": {
           "title": "Generator",
           "type": "array",
           "items": {
@@ -143,7 +144,7 @@
       "description": "Defines the contents of a test group",
       "type": "object",
       "patternProperties": {
-        "^[A-Za-z0-9_-]*$": {
+        "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9]|)$": {
           "oneOf": [
             {
               "$ref": "#/$defs/testgroup"
