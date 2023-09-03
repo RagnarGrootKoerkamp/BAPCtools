@@ -2,15 +2,27 @@
   "title": "generator",
   "type": "object",
   "properties": {
-    "solution": { "$ref": "#/$defs/solution" },
-    "visualizer": { "$ref": "#/$defs/visualizer" },
-    "random_salt": { "$ref": "#/$defs/random_salt" },
-    "generators": { 
-      "title": "Generators", 
-      "description": "List of generators for this problem", 
+    "solution": {
+      "$ref": "#/$defs/solution"
+    },
+    "visualizer": {
+      "$ref": "#/$defs/visualizer"
+    },
+    "random_salt": {
+      "$ref": "#/$defs/random_salt"
+    },
+    "generators": {
+      "title": "Generators",
+      "description": "List of generators for this problem",
       "type": "object",
       "patternProperties": {
-        "^[A-Za-z0-9_-]*$": { "title": "Generator", "type": "array", "items": { "type": "string" } }
+        "^[A-Za-z0-9_-]*$": {
+          "title": "Generator",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -19,18 +31,30 @@
       "description": "the root test group. must contain the testgroups 'sample' and 'secret'.",
       "type": "object",
       "properties": {
-        "sample": { "$ref": "#/$defs/testgroup" },
-        "secret": { "$ref": "#/$defs/testgroup" },
-        "invalid_inputs": { "$ref": "#/$defs/testgroup" },
-        "testdata.yaml": { "$ref": "#/$defs/testdata_settings" }
+        "sample": {
+          "$ref": "#/$defs/testgroup"
+        },
+        "secret": {
+          "$ref": "#/$defs/testgroup"
+        },
+        "invalid_inputs": {
+          "$ref": "#/$defs/testgroup"
+        },
+        "testdata.yaml": {
+          "$ref": "#/$defs/testdata_settings"
+        }
       },
       "additionalProperties": false,
-      "required": ["sample", "secret"]
+      "required": [
+        "sample",
+        "secret"
+      ]
     }
   },
   "additionalProperties": true,
-  "required": ["data"],
-
+  "required": [
+    "data"
+  ],
   "$defs": {
     "testgroup": {
       "type": "object",
@@ -42,103 +66,193 @@
           "oneOf": [
             {
               "type": "array",
-              "items": { "allOf" : [{ "$ref": "#/$defs/data_dict" }, {"maxProperties": 1}] }
+              "items": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/data_dict"
+                  },
+                  {
+                    "maxProperties": 1
+                  }
+                ]
+              }
             },
-            { "$ref": "#/$defs/data_dict" }
+            {
+              "$ref": "#/$defs/data_dict"
+            }
           ]
         },
         "include": {
           "title": "Inclusion",
           "type": "array",
           "description": "Test cases and test groups to be included in this testgroup from elsewhere.",
-          "items": { "type": "string" }
+          "items": {
+            "type": "string"
+          }
         },
-        "testdata.yaml": { "$ref": "#/$defs/testdata_settings" },
-        "solution": { "$ref": "#/$defs/solution" }
+        "testdata.yaml": {
+          "$ref": "#/$defs/testdata_settings"
+        },
+        "solution": {
+          "$ref": "#/$defs/solution"
+        }
       },
       "additionalProperties": false
     },
-
     "testdata_settings": {
       "type": "object",
       "title": "Testdata settings",
       "description": "The settings that apply to the testdata for this test group. Will be copied to this testgroup's `testdata.yaml`.",
       "properties": {
-        "on_reject": { "enum": ["break", "continue"], "default": "break" },
-        "grading": { "enum": ["default", "custom"] },
-        "grader_flags": { "type": "string", "examples": ["min", "sum"]},
-        "input_validator_flags": { "type": "string" },
-        "accept_score": { "type": "string" },
-        "reject_score": { "type": "string" },
-        "range": { "type": "string" }
+        "on_reject": {
+          "enum": [
+            "break",
+            "continue"
+          ],
+          "default": "break"
+        },
+        "grading": {
+          "enum": [
+            "default",
+            "custom"
+          ]
+        },
+        "grader_flags": {
+          "type": "string",
+          "examples": [
+            "min",
+            "sum"
+          ]
+        },
+        "input_validator_flags": {
+          "type": "string"
+        },
+        "accept_score": {
+          "type": "string"
+        },
+        "reject_score": {
+          "type": "string"
+        },
+        "range": {
+          "type": "string"
+        }
       }
     },
-
     "data_dict": {
       "title": "Data Dictionary",
       "description": "Defines the contents of a test group",
       "type": "object",
       "patternProperties": {
-        "^[A-Za-z0-9_-]*$": { "oneOf": [ { "$ref": "#/$defs/testgroup" }, { "$ref": "#/$defs/testcase" } ] }
+        "^[A-Za-z0-9_-]*$": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/testgroup"
+            },
+            {
+              "$ref": "#/$defs/testcase"
+            }
+          ]
+        }
       },
       "additionalProperties": false,
       "minProperties": 1
     },
-
     "testcase": {
       "title": "Test Case",
       "description": "A test case, i.e., a single instance to the problem.",
       "oneOf": [
-        { "$ref": "#/$defs/command" },
+        {
+          "$ref": "#/$defs/command"
+        },
         {
           "title": "Test case dictionary",
           "description": "Test case creation dictionary.",
           "type": "object",
           "properties": {
-            "generate": { "$ref":  "#/$defs/command"},
-            "copy": { "type": "string", 
-              "title": "Copy", 
-              "description": "Copy this testcase from the given path relative to `/generators/`.", 
-              "examples": ["manual_cases/sample/3"] 
-              },
-            "in": { "type": "string", "title": "Input", "description": "Explicit input given as a string" },
-            "ans": { "type": "string", "title": "Default Answer", "description": "Explicit default answer given as a string" },
-            "desc": { "type": "string", "title": "Description", "description": "Privileged information explaining the purpose of this test case given as a string" },
-            "hint": { "type": "string", "title": "Hint", "description": "Feedback shown to the solver about this test case given as a string"},
-            "visualizer": { "oneOf": [{"$ref": "#/$defs/visualizer"}, {"type": "null" }] },
-            "random_salt": { "$ref": "#/$defs/random_salt" },
-            "solution": {   "$ref": "#/$defs/solution" }
+            "generate": {
+              "$ref": "#/$defs/command"
+            },
+            "copy": {
+              "type": "string",
+              "title": "Copy",
+              "description": "Copy this testcase from the given path relative to `/generators/`.",
+              "examples": [
+                "manual_cases/sample/3"
+              ]
+            },
+            "in": {
+              "type": "string",
+              "title": "Input",
+              "description": "Explicit input given as a string"
+            },
+            "ans": {
+              "type": "string",
+              "title": "Default Answer",
+              "description": "Explicit default answer given as a string"
+            },
+            "desc": {
+              "type": "string",
+              "title": "Description",
+              "description": "Privileged information explaining the purpose of this test case given as a string"
+            },
+            "hint": {
+              "type": "string",
+              "title": "Hint",
+              "description": "Feedback shown to the solver about this test case given as a string"
+            },
+            "visualizer": {
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/visualizer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "random_salt": {
+              "$ref": "#/$defs/random_salt"
+            },
+            "solution": {
+              "$ref": "#/$defs/solution"
+            }
           },
           "additionalProperties": false
         }
       ]
     },
-
     "visualizer": {
-        "title": "Visualizer",
-        "type": "string",
-        "description": "Absolute path to a visualizer",
-        "examples": ["/visualizers/asy.py"]
-      },
-
+      "title": "Visualizer",
+      "type": "string",
+      "description": "Absolute path to a visualizer",
+      "examples": [
+        "/visualizers/asy.py"
+      ]
+    },
     "random_salt": {
-        "title": "Random Salt",
-        "type": "string",
-        "description": "“Salt” to add to {seed} variables",
-        "examples": ["abcd"]
-      },
-
+      "title": "Random Salt",
+      "type": "string",
+      "description": "“Salt” to add to {seed} variables",
+      "examples": [
+        "abcd"
+      ]
+    },
     "solution": {
-        "type": "string",
-        "title": "Default Solution",
-        "description": "Absolute path to a solution for this problem or testcase.",
-        "examples": ["/submissions/accepted/sol.py"]
-      },
-
+      "type": "string",
+      "title": "Default Solution",
+      "description": "Absolute path to a solution for this problem or testcase.",
+      "examples": [
+        "/submissions/accepted/sol.py"
+      ]
+    },
     "command": {
       "title": "Generator Invocation",
       "description": "Invocation of a generator to create this testcase",
-      "examples": ["forest --n 40 --connected", "path.cpp 20", "random {seed}"],
+      "examples": [
+        "forest --n 40 --connected",
+        "path.cpp 20",
+        "random {seed}"
+      ],
       "type": "string",
       "pattern": "^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$"
     }
