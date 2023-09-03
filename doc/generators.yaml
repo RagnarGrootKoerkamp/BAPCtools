@@ -65,9 +65,8 @@ generators:
   b:
     - b.cpp
   # It is allowed, but not required, to explicitly list single-file generators
-  # as well. It is allowed to reuse the same name, but introducing a new name is
-  # also fine.
-  c.py:
+  # as well. Names must not contain `.`, so `c.py` as a name is disallowed here.
+  cpy:
     - c.py
     - lib.py
 
@@ -113,12 +112,12 @@ data:
   secret:
     data:
       # Types of generator programs.
-      "01": 
+      "01":
         in: "3" # string is written to 01.in.
       "02": greedy.cpp 4 # c++ is compiled, just like validators, and the resulting binary is run with argument `4`.
       "03": dir 5 # directories are OK, just like validators
       "04": tree 5 # keys from the global generators: dictionary may also be used.
-      "05": 
+      "05":
         generate: tree 6 # same as above, but with different argument
 
       # Arguments are split on white space: this will pass two arguments: `"a` and `b"`, so probably not what is intended.
