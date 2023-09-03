@@ -20,6 +20,7 @@ RUN pacman -Syu --noconfirm \
 	jdk17-openjdk \
 	kotlin \
 	texlive-core \
+	texlive-binextra \
 	texlive-latexextra \
 	texlive-pictures \
 	texlive-science \
