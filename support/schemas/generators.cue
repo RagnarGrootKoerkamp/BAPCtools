@@ -22,7 +22,7 @@ casename: =~"^\(basename)$"
 let filename = "[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]"
 
 filepath: =~"^/?\(filename)(/\(filename))*$"
-casepath: =~"^/?\(filename)(/\(basename))*$"
+casepath: =~"^\(filename)(/\(basename))*$"
 
 #config: {
 	"testdata.yaml"?: #testdata_settings
@@ -39,7 +39,7 @@ casepath: =~"^/?\(filename)(/\(basename))*$"
 		generate?: command
 		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
 		// such as "manual/samples/3".
-		copy?:                            casepath & !~"^/"
+		copy?:                            casepath
 		["in" | "ans" | "desc" | "hint"]: string
 		#config
 	}
@@ -57,7 +57,7 @@ casepath: =~"^/?\(filename)(/\(basename))*$"
 	// Generators are named like files or testcases, like "tree.py" or "a".
 	// Each consists of a list of paths relative to "/generators/",
 	// such as "tree_generator/tree.h".
-	generators?: [casename | =~"^\(filename)$"]: [...(filepath & !~"^/")]
+	generators?: [casename]: [...(filepath & !~"^/")]
 	data: {
 		sample!:         #testgroup
 		secret!:         #testgroup
