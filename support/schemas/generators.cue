@@ -11,12 +11,12 @@ import "struct"
 // to things like "tree --random --seed {seed:5}"
 command: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
 
-// Testgroup and testcase names are alphanumerical with underscores
-// and hyphens; such as "huge" or "3" or "connected_graph-01".
+// Names for generators, testgroups, and testcases are alphanumerical with underscores
+// and hyphens; such as "huge", "make_tree", "3", or "connected_graph-01".
 let basename = "([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])"
-casename: =~"^\(basename)$"
+name: =~"^\(basename)$"
 
-// Filenames are somewhat like casenames, but can also contain '.' 
+// Filenames are somewhat like names, but can also contain '.' 
 // and have length at least 2, such as "good-solution_02.py"
 // but not "huge_" or "a".
 let filename = "[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]"
@@ -44,12 +44,12 @@ casepath: =~"^\(filename)(/\(basename))*$"
 		#config
 	}
 
-#data_dict: {[casename]: #testgroup | #testcase}
-#data_list: {[casename | ""]: #testgroup | #testcase} & struct.MinFields(1) & struct.MaxFields(1)
+#data_dict: {[name]: #testgroup | #testcase}
+#data_list: {[name | ""]: #testgroup | #testcase} & struct.MinFields(1) & struct.MaxFields(1)
 
 #testgroup: {
 	data?: #data_dict | [...#data_list]
-	include?: [...casename]
+	include?: [...name]
 	#config
 }
 
@@ -57,7 +57,7 @@ casepath: =~"^\(filename)(/\(basename))*$"
 	// Generators are named like files or testcases, like "tree.py" or "a".
 	// Each consists of a list of paths relative to "/generators/",
 	// such as "tree_generator/tree.h".
-	generators?: [casename]: [...(filepath & !~"^/")]
+	generators?: [name]: [...(filepath & !~"^/")]
 	data: {
 		sample!:         #testgroup
 		secret!:         #testgroup
