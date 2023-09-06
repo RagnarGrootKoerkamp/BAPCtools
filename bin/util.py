@@ -618,7 +618,8 @@ def ensure_symlink(link, target, output=False, relative=False):
     # for windows the symlink needs to know if it points to a directory or file
     if relative:
         # Rewrite target to be relative to link.
-        link.symlink_to(target.relative_to(link.parent), target.is_dir())
+        # Use os.path.relpath instead of Path.relative_to for non-subdirectories.
+        link.symlink_to(os.path.relpath(target, link.parent), target.is_dir())
     else:
         link.symlink_to(target.resolve(), target.is_dir())
 
