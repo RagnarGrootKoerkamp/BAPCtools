@@ -454,12 +454,14 @@ class Submission(program.Program):
 
         verdict = (-100, 'ACCEPTED', 'ACCEPTED', 0)  # priority, verdict, print_verdict, duration
         verdict_run = None
+        verdict_for_testcase = dict()
 
         def process_run(run, p):
-            nonlocal max_duration, verdict, verdict_run
+            nonlocal max_duration, verdict, verdict_run, verdict_for_testcase
 
             localbar = bar.start(run)
             result = run.run()
+            verdict_for_testcase[str(run.name)] = result.verdict
 
             if result.verdict == 'ACCEPTED':
                 validate.generic_validation('output', run.out_path, bar=localbar)
@@ -479,7 +481,7 @@ class Submission(program.Program):
                 table_dict[run.name] = result.verdict == 'ACCEPTED'
 
             #got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
-            got_expected = self.expectations.is_allowed_verdict(str(run.testcase), result.verdict)
+            got_expected = self.expectations.is_allowed_verdict(result.verdict, str(run.name))
 
             # Print stderr whenever something is printed
             if result.out and result.err:
@@ -537,16 +539,24 @@ class Submission(program.Program):
         self.print_verdict = verdict[2]
         self.duration = max_duration
 
+        # Check presence of required verdicts among testgroups
+        expectations = self.expectations
+        missing_verdicts = expectations.missing_required_verdicts(verdict_for_testcase)
+        for pattern, verdicts in missing_verdicts.items():
+            bar.log(f"Some test case in data/{pattern} must get {verdicts}",
+                    color=Fore.RED
+                    ) # should this be bar.error?
+
         # Use a bold summary line if things were printed before.
         if bar.logged:
             color = (
                 Style.BRIGHT + Fore.GREEN
-                if self.verdict in self.expected_verdicts
+                if expectations.is_allowed_verdict(self.verdict)
                 else Style.BRIGHT + Fore.RED
             )
             boldcolor = Style.BRIGHT
         else:
-            color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
+            color = Fore.GREEN if expectations.is_allowed_verdict(self.verdict) else Fore.RED
             boldcolor = ''
 
         printed_newline = bar.finalize(
