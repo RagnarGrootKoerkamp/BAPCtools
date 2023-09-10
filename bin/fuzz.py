@@ -201,6 +201,7 @@ class Fuzz:
         # At this point, no new tasks may be started anymore.
         self.queue.done()
         bar.done()
+        bar.finalize()
         return True
 
     # finish task from generator with tmp_id
