@@ -1,0 +1,5 @@
+accepted/: accepted
+wrong_answer/: wrong answer
+wrong_more_precise/:
+  sample: accepted
+  secret: wrong answer
