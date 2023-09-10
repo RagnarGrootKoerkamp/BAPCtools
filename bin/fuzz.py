@@ -214,12 +214,13 @@ class Fuzz:
                 if self.tmp_id_count[tmp_id] == 0:
                     self.free_tmp_id.add(tmp_id)
 
-            # don't add new tasks after time is up
-            if time.monotonic() - self.start_time > config.args.time:
-                return
-
             # add new generator runs to fill up queue
             while self.tasks < self.tmp_ids:
+
+                # don't add new tasks after time is up
+                if time.monotonic() - self.start_time > config.args.time:
+                    return
+
                 testcase_rule = self.testcase_rules[self.iteration % len(self.testcase_rules)]
                 self.iteration += 1
                 # 1 new generator tasks which will also create one task per submission
