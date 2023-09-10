@@ -137,7 +137,6 @@ class Expectations:
         def set_common(pattern, abbreviation):
             if abbreviation == "accepted":
                 self._allowed_verdicts[pattern] = set(["AC"])
-                self._required_verdicts[pattern] = set(["AC"])
             elif abbreviation == "wrong answer":
                 self._allowed_verdicts[pattern] = set(["AC", "WA"])
                 self._required_verdicts[pattern] = set(["WA"])
@@ -203,9 +202,9 @@ class Expectations:
 
         missing = dict()
         for pattern, required_verdicts in self._required_verdicts.items():
-            for tc, verdict in verdict_for_testcase.items():
+            for testcase, verdict in verdict_for_testcase.items():
                 verdict = shortform(verdict)
-                if tc.startswith(pattern) and verdict in required_verdicts:
+                if testcase.startswith(pattern) and verdict in required_verdicts:
                     break
             else:
                 missing[pattern] = required_verdicts
@@ -217,6 +216,9 @@ class Expectations:
         return all(self.is_allowed_verdict(path, results[path]) for path in results) and all(
             not missing_verdict for missing_verdict in missing.values()
         )
+
+    def __str__(self):
+        return f"allowed: {self._allowed_verdicts}\nrequired: {self._required_verdicts}"
 
 
 class Registry:
