@@ -189,7 +189,7 @@ class Fuzz:
         self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
 
         # pool of ids used for generators
-        self.tmp_ids = 2 * min(1, self.queue.num_threads) + 1
+        self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
         self.free_tmp_id = {*range(self.tmp_ids)}
         self.tmp_id_count = [0] * self.tmp_ids
 
