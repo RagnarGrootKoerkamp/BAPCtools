@@ -98,9 +98,9 @@ class Expectations:
     {'': {'WA'}}
     >>> e._allowed_verdicts == {'': {'AC', 'WA'}}
     True
-    >>> e.is_allowed_verdict("sample/1", "AC")
+    >>> e.is_allowed_verdict("AC", "sample/1")
     True
-    >>> e.is_allowed_verdict("sample/1", "RTE")
+    >>> e.is_allowed_verdict("RTE", "sample/1")
     False
     >>> unexpected_results = {"sample/1": "AC", "secret/1": "AC", "secret/2": "AC"}
     >>> expected_results = {"sample/1": "AC", "secret/1": "AC", "secret/2": "WA"}
@@ -176,7 +176,7 @@ class Expectations:
 
         parse_expectations("", expectations)
 
-    def is_allowed_verdict(self, path, verdict: str):
+    def is_allowed_verdict(self, verdict: str, path=""):
         """Is the result allowed for the testcase at the given path?"""
         verdict = shortform(verdict)
         for pattern, allowed in self._allowed_verdicts.items():
@@ -213,7 +213,7 @@ class Expectations:
     def is_satisfied_by(self, results: dict[str, str]) -> bool:
         """Are all requirements satisfied?"""
         missing = self.missing_required_verdicts(results)
-        return all(self.is_allowed_verdict(path, results[path]) for path in results) and all(
+        return all(self.is_allowed_verdict(results[path], path) for path in results) and all(
             not missing_verdict for missing_verdict in missing.values()
         )
 
