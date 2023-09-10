@@ -1,0 +1,7 @@
+accepted/: accepted
+wrong_answer/: wrong answer
+mixed/:
+  allowed: ["AC", "WA", "TLE", "RTE"]
+rejected/: not accepted
+run_time_error/: runtime exception
+time_limit_exceeded/: time limit exceeded

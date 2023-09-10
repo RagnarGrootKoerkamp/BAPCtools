@@ -139,7 +139,7 @@ class Expectations:
             elif abbreviation == "not accepted":
                 self._required_verdicts[pattern] = set(["RTE", "TLE", "WA"])
             else:
-                assert False  # unknown abbreviation
+                assert False, f"unknown abbreviation {abbreviation}"
 
         def parse_expectations(pattern, expectations):
             if isinstance(expectations, str):
@@ -165,6 +165,15 @@ class Expectations:
 
     def is_allowed_verdict(self, path, verdict: str):
         """Is the result allowed for the testcase at the given path?"""
+        for long, short in [
+                ("ACCEPTED", "AC"),
+                ("WRONG_ANSWER", "WA"),
+                ("TIME_LIMIT_EXCEEDED", "TLE"),
+                ("RUN_TIME_ERROR", "RTE")
+                ]:
+            if verdict == long:
+                verdict = short
+
         for pattern, allowed in self._allowed_verdicts.items():
             if path.startswith(pattern) and verdict not in allowed:
                 return False
@@ -198,6 +207,9 @@ class Registry:
     def __init__(self, registry):
         self.registry = { pat: Expectations(registry[pat]) for pat in registry }
 
+
+    def __str__(self):
+        return str(self.registry)
 
     @lru_cache
     def expectations(self, submission_path):

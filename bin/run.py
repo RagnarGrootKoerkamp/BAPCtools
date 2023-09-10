@@ -328,6 +328,8 @@ class Submission(program.Program):
 
         # The first element will match the directory the file is in, if possible.
         self.expected_verdicts = self._get_expected_verdicts()
+        registry = self.problem.get_expectations_registry()
+        self.expectations = registry.expectations(str(self.short_path))
 
         # NOTE: Judging of interactive problems on systems without `os.wait4` is
         # suboptimal because we cannot determine which of the submission and
@@ -476,7 +478,8 @@ class Submission(program.Program):
             if table_dict is not None:
                 table_dict[run.name] = result.verdict == 'ACCEPTED'
 
-            got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
+            #got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
+            got_expected = self.expectations.is_allowed_verdict(str(run.testcase), result.verdict)
 
             # Print stderr whenever something is printed
             if result.out and result.err:

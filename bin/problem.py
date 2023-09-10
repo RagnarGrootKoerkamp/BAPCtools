@@ -5,8 +5,10 @@ import shlex
 import sys
 
 from pathlib import Path
+from functools import lru_cache
 
 import config
+import expectations
 import parallel
 import program
 import run
@@ -37,6 +39,7 @@ class Problem:
         self._program_callbacks = dict()
         # Dictionary from path to parsed file contents.
         self._testdata_yamls = dict()
+        self._expectations_registry = None
 
         # The label for the problem: A, B, A1, A2, X, ...
         self.label = label
@@ -438,6 +441,23 @@ class Problem:
 
         problem._validators[key] = validators
         return validators
+    
+    # TODO Q from Thore: ok to use self here instead of problem?
+    def get_expectations_registry(self):
+        """ Parse yaml file (if any) describing the expectations for this problem.
+        """
+        if self._expectations_registry is None:
+            path = self.path / 'submissions' / 'expectations.yaml'
+            if has_ryaml:
+                try:
+                    yamldata = read_yaml_settings(path)
+                except ruamel.yaml.scanner.ScannerError:
+                    fatal('Make sure problem.yaml does not contain any more {% ... %}.')
+            else:
+                yamldata = read_yaml_settings(path)
+            self._expectations_registry  = expectations.Registry(yamldata)
+        return self._expectations_registry
+
 
     def run_submissions(problem):
         needans = False if problem.interactive else True
