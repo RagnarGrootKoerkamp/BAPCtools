@@ -1,5 +1,6 @@
 accepted/: accepted
 wrong_answer/: wrong answer
-wrong_more_precise/:
+wrong_answer_but_ac_on_sample/:
   sample: accepted
   secret: wrong answer
+time_limit_exceeded: time limit exceeded
