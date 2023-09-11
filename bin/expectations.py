@@ -73,6 +73,7 @@ range
 """
 
 from functools import lru_cache
+import re
 
 
 @staticmethod
@@ -87,6 +88,15 @@ def shortform(verdict):
         if verdict == long:
             verdict = short
     return verdict
+
+@staticmethod
+def matches(pattern, string):
+    """ Return true if the string matches the pattern. This method *defines*
+        what "matching" means.
+    """
+    #print(f"--{pattern}..{string}--", bool(re.match(pattern, string)))
+    return re.match(pattern, string)
+
 
 
 class Expectations:
@@ -177,11 +187,20 @@ class Expectations:
         parse_expectations("", expectations)
 
     def allowed_verdicts_for_testcase(self, path) -> dict[str, str]:
-        """Returns a dictionary over the patterns that apply for the given test case path"""
+        """Returns a dictionary over the patterns that apply for the given test case path.
+        >>> e = Expectations( {'secret': { 'allowed': ['AC', 'TLE', 'WA']},
+        ...                    'secret/[0-9]+-huge': { 'allowed': ['TLE'] },
+        ...                    'secret/\d+-disconnected': { 'allowed': ['WA'] }})
+        >>> e.allowed_verdicts_for_testcase("secret/05-huge")
+        >>> e.allowed_verdicts_for_testcase("secret/05-disconnected")
+        >>> e.allowed_verdicts_for_testcase("secret/abc-disconnected")
+        """
+       # >>> e.allowed_verdicts_for_testcase("secret/015-connected")
+
         return {
             pattern: verdicts
             for pattern, verdicts in self._allowed_verdicts.items()
-            if path.startswith(pattern)
+            if matches(pattern, path)
         }
 
     def is_allowed_verdict(self, verdict: str, path):
@@ -212,7 +231,7 @@ class Expectations:
         for pattern, required_verdicts in self._required_verdicts.items():
             for testcase, verdict in verdict_for_testcase.items():
                 verdict = shortform(verdict)
-                if testcase.startswith(pattern) and verdict in required_verdicts:
+                if matches(pattern, testcase) and verdict in required_verdicts:
                     break
             else:
                 missing[pattern] = required_verdicts
@@ -246,7 +265,7 @@ class Registry:
         """
         expectations = None
         for pat, exp in self.registry.items():
-            if submission_path.startswith(pat):
+            if matches(pat, submission_path):
                 if expectations is not None:
                     assert False  # NOT IMPLEMENTED: every pattern can match at most once
                 expectations = exp

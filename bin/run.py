@@ -450,6 +450,7 @@ class Submission(program.Program):
             max_len=max_item_len,
             needs_leading_newline=needs_leading_newline,
         )
+        #bar.log(self.expectations) # TODO Thore: verbose mode should log something informative
 
         max_duration = -1
 
@@ -464,6 +465,7 @@ class Submission(program.Program):
             result = run.run()
             verdict_for_testcase[str(run.name)] = result.verdict
             expectations = self.expectations
+            #bar.log(expectations.allowed_verdicts_for_testcase(run.name))
 
             if result.verdict == 'ACCEPTED':
                 validate.generic_validation('output', run.out_path, bar=localbar)
