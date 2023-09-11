@@ -176,11 +176,19 @@ class Expectations:
 
         parse_expectations("", expectations)
 
-    def is_allowed_verdict(self, verdict: str, path=""):
+    def allowed_verdicts_for_testcase(self, path) -> dict[str, str]:
+        """Returns a dictionary over the patterns that apply for the given test case path"""
+        return {
+            pattern: verdicts
+            for pattern, verdicts in self._allowed_verdicts.items()
+            if path.startswith(pattern)
+        }
+
+    def is_allowed_verdict(self, verdict: str, path):
         """Is the result allowed for the testcase at the given path?"""
         verdict = shortform(verdict)
-        for pattern, allowed in self._allowed_verdicts.items():
-            if path.startswith(pattern) and verdict not in allowed:
+        for _, verdicts in self.allowed_verdicts_for_testcase(path).items():
+            if verdict not in verdicts:
                 return False
         return True
 
