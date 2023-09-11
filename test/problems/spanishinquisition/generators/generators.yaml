@@ -18,6 +18,15 @@ data:
           neg_five:
             in: -5 3
             ans: "-2"
+      thirteen:
+        in: 10 3
+        ans: "13"
+      fourteen:
+        in: 10 4
+        ans: "14"
+      031-numbered:
+        in: 3 4
+        ans: "7"
 
             
 
