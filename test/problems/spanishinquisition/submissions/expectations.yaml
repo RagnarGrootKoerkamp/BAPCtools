@@ -21,10 +21,10 @@ mixed/bad-eight.sh:
 
 mixed/superstitious.py:            # for this submission
   secret/thirteen:                 # ... on testcases that match this pattern
-    allowed: [WA]                  # ... allow exactly the verdict WA, nothing else
+    permitted: [WA]                  # ... permit exactly the verdict WA, nothing else
   secret/(?!thirteen): accepted    # everywhere else: accept
 
 mixed/bad-fourteen.py:
   secret/thirteen: 
-    allowed: [WA]
+    permitted: [WA]
   secret/(?!thirteen): accepted

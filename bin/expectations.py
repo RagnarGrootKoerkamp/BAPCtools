@@ -8,14 +8,14 @@ Here is a sample expectations.yaml file:
       secret: wrong answer  # ... but fail with WA on some test case in secret
     mixed/failing.java      # For this particular submission, ...
       secret/huge/graph07:  # ... on this particular test case ...
-        allowed: [TLE, RTE] # ... only TLE and RTE are allowed
+        permitted: [TLE, RTE] # ... only TLE and RTE are permitted
 
 A yaml parser will turn this into a dict that can be fed to the Registry class:
 
 >>> exp_dict = {
 ...     "accepted/": "accepted",
 ...     "wrong_answer/th.py": {"sample": "accepted", "secret": "wrong answer"},
-...     "mixed/failing.java": {"secret/huge/graph07": {"allowed": ["TLE", "RTE"]}}
+...     "mixed/failing.java": {"secret/huge/graph07": {"permitted": ["TLE", "RTE"]}}
 ... }
 >>> registry = Registry(exp_dict)
 
@@ -106,11 +106,11 @@ class Expectations:
     >>> e = Expectations("wrong answer")
     >>> e._required_verdicts
     {'': {'WA'}}
-    >>> e._allowed_verdicts == {'': {'AC', 'WA'}}
+    >>> e._permitted_verdicts == {'': {'AC', 'WA'}}
     True
-    >>> e.is_allowed_verdict("AC", "sample/1")
+    >>> e.is_permitted_verdict("AC", "sample/1")
     True
-    >>> e.is_allowed_verdict("RTE", "sample/1")
+    >>> e.is_permitted_verdict("RTE", "sample/1")
     False
     >>> unexpected_results = {"sample/1": "AC", "secret/1": "AC", "secret/2": "AC"}
     >>> expected_results = {"sample/1": "AC", "secret/1": "AC", "secret/2": "WA"}
@@ -126,7 +126,7 @@ class Expectations:
     Specify expectations by testgroup:
 
     >>> f = Expectations({'sample': 'accepted', 'secret': 'wrong answer'})
-    >>> f._allowed_verdicts == {'sample': {'AC'}, 'secret': {'AC', 'WA'}}
+    >>> f._permitted_verdicts == {'sample': {'AC'}, 'secret': {'AC', 'WA'}}
     True
     >>> f._required_verdicts['secret']
     {'WA'}
@@ -141,23 +141,23 @@ class Expectations:
             list of common expectations, or range, or map
         """
 
-        self._allowed_verdicts: dict[str, set[str]] = dict()
+        self._permitted_verdicts: dict[str, set[str]] = dict()
         self._required_verdicts: dict[str, set[str]] = dict()
 
         def set_common(pattern, abbreviation):
             if abbreviation == "accepted":
-                self._allowed_verdicts[pattern] = set(["AC"])
+                self._permitted_verdicts[pattern] = set(["AC"])
             elif abbreviation == "wrong answer":
-                self._allowed_verdicts[pattern] = set(["AC", "WA"])
+                self._permitted_verdicts[pattern] = set(["AC", "WA"])
                 self._required_verdicts[pattern] = set(["WA"])
             elif abbreviation == "time limit exceeded":
-                self._allowed_verdicts[pattern] = set(["AC", "TLE"])
+                self._permitted_verdicts[pattern] = set(["AC", "TLE"])
                 self._required_verdicts[pattern] = set(["TLE"])
             elif abbreviation == "runtime exception":
-                self._allowed_verdicts[pattern] = set(["AC", "RTE"])
+                self._permitted_verdicts[pattern] = set(["AC", "RTE"])
                 self._required_verdicts[pattern] = set(["RTE"])
             elif abbreviation == "does not terminate":
-                self._allowed_verdicts[pattern] = set(["AC", "RTE", "TLE"])
+                self._permitted_verdicts[pattern] = set(["AC", "RTE", "TLE"])
                 self._required_verdicts[pattern] = set(["RTE", "TLE"])
             elif abbreviation == "not accepted":
                 self._required_verdicts[pattern] = set(["RTE", "TLE", "WA"])
@@ -173,10 +173,10 @@ class Expectations:
                 for k, val in expectations.items():
                     if k.startswith("sample") or k.startswith("secret"):
                         if pattern != "":
-                            assert False  # only allowed on top level!
+                            assert False  # only permitted on top level!
                         parse_expectations(k, val)
-                    elif k == "allowed":
-                        self._allowed_verdicts[pattern] = val if isinstance(val, set) else set(val)
+                    elif k == "permitted":
+                        self._permitted_verdicts[pattern] = val if isinstance(val, set) else set(val)
                     elif k == "required":
                         self._required_verdicts[pattern] = val if isinstance(val, set) else set(val)
                     elif k in ["judge_message", "score", "fractional_score"]:
@@ -186,27 +186,30 @@ class Expectations:
 
         parse_expectations("", expectations)
 
-    def allowed_verdicts_for_testcase(self, path) -> dict[str, str]:
+    def permitted_verdicts_for_testcase(self, path) -> dict[str, str]:
         """Returns a dictionary over the patterns that apply for the given test case path.
-        >>> e = Expectations( {'secret': { 'allowed': ['AC', 'TLE', 'WA']},
-        ...                    'secret/[0-9]+-huge': { 'allowed': ['TLE'] },
-        ...                    'secret/\d+-disconnected': { 'allowed': ['WA'] }})
-        >>> e.allowed_verdicts_for_testcase("secret/05-huge")
-        >>> e.allowed_verdicts_for_testcase("secret/05-disconnected")
-        >>> e.allowed_verdicts_for_testcase("secret/abc-disconnected")
+        >>> e = Expectations( {'secret': { 'permitted': ['AC', 'TLE', 'WA']},
+        ...                    'secret/[0-9]+-huge': { 'permitted': ['TLE'] },
+        ...                    'secret/\d+-disconnected': { 'permitted': ['WA'] }})
+        >>> e.permitted_verdicts_for_testcase("secret/05-huge") == { 'secret': {'TLE', 'WA', 'AC'}, 'secret/[0-9]+-huge': {'TLE'}}
+        True
+        >>> e.permitted_verdicts_for_testcase("secret/05-disconnected") ==  {'secret': {'TLE', 'WA', 'AC'}, 'secret/\\d+-disconnected': {'WA'}}
+        True
+        >>> e.permitted_verdicts_for_testcase("secret/abc-disconnected") ==  {'secret': {'TLE', 'WA', 'AC'}}
+        True
         """
-       # >>> e.allowed_verdicts_for_testcase("secret/015-connected")
+       # >>> e.permitted_verdicts_for_testcase("secret/015-connected")
 
         return {
             pattern: verdicts
-            for pattern, verdicts in self._allowed_verdicts.items()
+            for pattern, verdicts in self._permitted_verdicts.items()
             if matches(pattern, path)
         }
 
-    def is_allowed_verdict(self, verdict: str, path):
-        """Is the result allowed for the testcase at the given path?"""
+    def is_permitted_verdict(self, verdict: str, path):
+        """Is the result permitted for the testcase at the given path?"""
         verdict = shortform(verdict)
-        for _, verdicts in self.allowed_verdicts_for_testcase(path).items():
+        for _, verdicts in self.permitted_verdicts_for_testcase(path).items():
             if verdict not in verdicts:
                 return False
         return True
@@ -240,12 +243,12 @@ class Expectations:
     def is_satisfied_by(self, results: dict[str, str]) -> bool:
         """Are all requirements satisfied?"""
         missing = self.missing_required_verdicts(results)
-        return all(self.is_allowed_verdict(results[path], path) for path in results) and all(
+        return all(self.is_permitted_verdict(results[path], path) for path in results) and all(
             not missing_verdict for missing_verdict in missing.values()
         )
 
     def __str__(self):
-        return f"allowed: {self._allowed_verdicts}\nrequired: {self._required_verdicts}"
+        return f"permitted: {self._permitted_verdicts}\nrequired: {self._required_verdicts}"
 
 
 class Registry:

@@ -465,7 +465,7 @@ class Submission(program.Program):
             result = run.run()
             verdict_for_testcase[str(run.name)] = result.verdict
             expectations = self.expectations
-            #bar.log(expectations.allowed_verdicts_for_testcase(run.name))
+            #bar.log(expectations.permitted_verdicts_for_testcase(run.name))
 
             if result.verdict == 'ACCEPTED':
                 validate.generic_validation('output', run.out_path, bar=localbar)
@@ -485,7 +485,7 @@ class Submission(program.Program):
                 table_dict[run.name] = result.verdict == 'ACCEPTED'
 
             #got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
-            got_expected = expectations.is_allowed_verdict(result.verdict, str(run.name))
+            got_expected = expectations.is_permitted_verdict(result.verdict, str(run.name))
 
             # Print stderr whenever something is printed
             if result.out and result.err:
@@ -525,10 +525,10 @@ class Submission(program.Program):
 
             if not got_expected:
                 localbar.error(f'{result.duration:6.3f}s {result.print_verdict()}', data)
-                for pattern, verdicts in expectations.allowed_verdicts_for_testcase(str(run.name)).items():
+                for pattern, verdicts in expectations.permitted_verdicts_for_testcase(str(run.name)).items():
                     localbar.warn("Expectations " + 
                                   ("" if pattern == "" else f"at {pattern} ") + 
-                                   f"allow only {verdicts}, not {result.print_verdict()}"
+                                   f"permit only {verdicts}, not {result.print_verdict()}"
                                   )
             localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
@@ -562,12 +562,12 @@ class Submission(program.Program):
         if bar.logged:
             color = (
                 Style.BRIGHT + Fore.GREEN
-                if expectations.is_allowed_verdict(self.verdict, "")
+                if expectations.is_permitted_verdict(self.verdict, "")
                 else Style.BRIGHT + Fore.RED
             )
             boldcolor = Style.BRIGHT
         else:
-            color = Fore.GREEN if expectations.is_allowed_verdict(self.verdict, "") else Fore.RED
+            color = Fore.GREEN if expectations.is_permitted_verdict(self.verdict, "") else Fore.RED
             boldcolor = ''
 
         printed_newline = bar.finalize(
