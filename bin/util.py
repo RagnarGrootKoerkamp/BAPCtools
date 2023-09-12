@@ -186,6 +186,7 @@ class ProgressBar:
             return
         print(self.carriage_return, end='', flush=True, file=sys.stderr)
 
+    @staticmethod
     def action(prefix, item, width=None, total_width=None):
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
@@ -273,7 +274,7 @@ class ProgressBar:
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message='', data='', color=Fore.GREEN, *, resume=True):
+    def log(self, message='', data='', color=Fore.GREEN, *, resume=True, prefix=None):
         with self.lock:
             if message is None:
                 message = ''
@@ -292,7 +293,7 @@ class ProgressBar:
                     self.needs_leading_newline = False
 
             print(
-                self.get_prefix(),
+                self.get_prefix() if prefix is None else prefix,
                 color,
                 message,
                 ProgressBar._format_data(data),
@@ -313,9 +314,9 @@ class ProgressBar:
         if config.args.verbose:
             self.log(message, data)
 
-    def warn(self, message='', data=''):
+    def warn(self, message='', data='', prefix=None):
         config.n_warn += 1
-        self.log(message, data, Fore.YELLOW)
+        self.log(message, data, Fore.YELLOW, prefix=prefix)
 
     # Error removes the current item from the in_progress set.
     def error(self, message='', data=''):
@@ -981,3 +982,22 @@ def combine_hashes_dict(d):
         if d[key] is not None:
             hasher.update(d[key].encode())
     return hasher.hexdigest()
+
+def verbose_verdicts(verdicts: str | set[str], oxford_comma=True) -> str:
+    long_form = {
+            'AC': 'ACCEPTED',
+            'WA': 'WRONG_ANSWER',
+            'RTE': 'RUN_TIME_ERROR',
+            'TLE': 'TLE (aborted)'
+            }
+    if isinstance(verdicts, str):
+        verdicts = {[verdicts]}
+    verdicts = list(sorted(verdicts))
+    if len(verdicts) == 1:
+        return long_form[verdicts[0]]
+    elif len(verdicts) == 2:
+        return f"{long_form[verdicts[0]]} or {long_form[verdicts[1]]}"
+    else:
+        return f"{long_form[verdicts[0]]}, {long_form[verdicts[1]]}, or {long_form[verdicts[2]]}"
+
+
