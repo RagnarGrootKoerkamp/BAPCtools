@@ -764,8 +764,9 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == '':
-                        bar.error(f'Hardcoded {ext} data may not be empty!')
+                    if contents == '' and t.path.parts[0] != 'bad':
+                        bar.error(f'Hardcoded {ext} data must not be empty!')
+                        return
                     else:
                         infile.with_suffix(ext).write_text(contents)
 
