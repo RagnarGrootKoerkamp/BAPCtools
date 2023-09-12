@@ -462,6 +462,8 @@ class Submission(program.Program):
             nonlocal max_duration, verdict, verdict_run, verdict_for_testcase
 
             localbar = bar.start(run)
+            #localbar.log("foo")
+            #localbar.log("bar")
             result = run.run()
             verdict_for_testcase[str(run.name)] = result.verdict
             expectations = self.expectations
@@ -525,12 +527,18 @@ class Submission(program.Program):
 
             if not got_expected:
                 localbar.error(f'{result.duration:6.3f}s {result.print_verdict()}', data)
-                for pattern, verdicts in expectations.permitted_verdicts_for_testcase(str(run.name)).items():
-                    localbar.warn("Expectations " + 
-                                  ("" if pattern == "" else f"at {pattern} ") + 
-                                   f"permit only {verdicts}, not {result.print_verdict()}"
-                                  )
+                for pattern, verdicts in expectations.permissions_for_testcase(str(run.name)).items():
+                    if verdict in verdict:
+                        continue
+                    if pattern == "":
+                        pattern = "test data"
+                    width = localbar.total_width() - len(localbar.prefix) - 2
+                    width = localbar.item_width
+                    prefix = f'{Fore.CYAN}{pattern:>{len(localbar.prefix)}}{Style.RESET_ALL}: {pattern:<{width}}'
+                    localbar.warn(f"expect: {verbose_verdicts(verdicts)}", prefix=prefix)
+
             localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
+
 
             # Lazy judging: stop on the first error when not in verbose mode.
             if (
