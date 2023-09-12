@@ -13,7 +13,7 @@ data:
       inverse:
         in: -1 1
         ans: "0"
-      negative_ans:
+      neg:
         data:
           neg_five:
             in: -5 3
