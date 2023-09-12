@@ -89,14 +89,14 @@ def shortform(verdict):
             verdict = short
     return verdict
 
+
 @staticmethod
 def matches(pattern, string):
-    """ Return true if the string matches the pattern. This method *defines*
-        what "matching" means.
+    """Return true if the string matches the pattern. This method *defines*
+    what "matching" means.
     """
-    #print(f"--{pattern}..{string}--", bool(re.match(pattern, string)))
+    # print(f"--{pattern}..{string}--", bool(re.match(pattern, string)))
     return re.match(pattern, string)
-
 
 
 class Expectations:
@@ -145,24 +145,30 @@ class Expectations:
         self._required_verdicts: dict[str, set[str]] = dict()
 
         def set_common(pattern, abbreviation):
+            permissions = None
+            requirements = None
             if abbreviation == "accepted":
-                self._permitted_verdicts[pattern] = set(["AC"])
+                permissions = set(["AC"])
             elif abbreviation == "wrong answer":
-                self._permitted_verdicts[pattern] = set(["AC", "WA"])
-                self._required_verdicts[pattern] = set(["WA"])
+                permissions = set(["AC", "WA"])
+                requirements = set(["WA"])
             elif abbreviation == "time limit exceeded":
-                self._permitted_verdicts[pattern] = set(["AC", "TLE"])
-                self._required_verdicts[pattern] = set(["TLE"])
+                permissions = set(["AC", "TLE"])
+                requirements = set(["TLE"])
             elif abbreviation == "runtime exception":
-                self._permitted_verdicts[pattern] = set(["AC", "RTE"])
-                self._required_verdicts[pattern] = set(["RTE"])
+                permissions = set(["AC", "RTE"])
+                requirements = set(["RTE"])
             elif abbreviation == "does not terminate":
-                self._permitted_verdicts[pattern] = set(["AC", "RTE", "TLE"])
-                self._required_verdicts[pattern] = set(["RTE", "TLE"])
+                permissions = set(["AC", "RTE", "TLE"])
+                requirements = set(["RTE", "TLE"])
             elif abbreviation == "not accepted":
-                self._required_verdicts[pattern] = set(["RTE", "TLE", "WA"])
+                requirements = set(["RTE", "TLE", "WA"])
             else:
                 assert False, f"unknown abbreviation {abbreviation}"
+            if permissions is not None:
+                self._permitted_verdicts[pattern] = permissions
+            if requirements is not None:
+                self._required_verdicts[pattern] = requirements
 
         def parse_expectations(pattern, expectations):
             if isinstance(expectations, str):
@@ -176,7 +182,9 @@ class Expectations:
                             assert False  # only permitted on top level!
                         parse_expectations(k, val)
                     elif k == "permitted":
-                        self._permitted_verdicts[pattern] = val if isinstance(val, set) else set(val)
+                        self._permitted_verdicts[pattern] = (
+                            val if isinstance(val, set) else set(val)
+                        )
                     elif k == "required":
                         self._required_verdicts[pattern] = val if isinstance(val, set) else set(val)
                     elif k in ["judge_message", "score", "fractional_score"]:
@@ -186,19 +194,23 @@ class Expectations:
 
         parse_expectations("", expectations)
 
-    def permitted_verdicts_for_testcase(self, path) -> dict[str, str]:
+
+    def permissions_for_testcase(self, path) -> dict[str, str]:
         """Returns a dictionary over the patterns that apply for the given test case path.
+
         >>> e = Expectations( {'secret': { 'permitted': ['AC', 'TLE', 'WA']},
-        ...                    'secret/[0-9]+-huge': { 'permitted': ['TLE'] },
-        ...                    'secret/\d+-disconnected': { 'permitted': ['WA'] }})
-        >>> e.permitted_verdicts_for_testcase("secret/05-huge") == { 'secret': {'TLE', 'WA', 'AC'}, 'secret/[0-9]+-huge': {'TLE'}}
+        ...                    'secret/(tc)?[0-9]+-huge': { 'permitted': ['TLE'] },
+        ...                    'secret/[0-9]+-disconnected': { 'permitted': ['WA'] }})
+        >>> p = e.permissions_for_testcase("secret/tc05-huge")
+        >>> p == { 'secret': {'TLE', 'WA', 'AC'}, 'secret/(tc)?[0-9]+-huge': {'TLE'}}
         True
-        >>> e.permitted_verdicts_for_testcase("secret/05-disconnected") ==  {'secret': {'TLE', 'WA', 'AC'}, 'secret/\\d+-disconnected': {'WA'}}
+        >>> p = e.permissions_for_testcase("secret/05-disconnected")
+        >>> p == {'secret': {'TLE', 'WA', 'AC'}, 'secret/[0-9]+-disconnected': {'WA'}}
         True
-        >>> e.permitted_verdicts_for_testcase("secret/abc-disconnected") ==  {'secret': {'TLE', 'WA', 'AC'}}
+        >>> p = e.permissions_for_testcase("secret/abc-disconnected")
+        >>> p ==  {'secret': {'TLE', 'WA', 'AC'}}
         True
         """
-       # >>> e.permitted_verdicts_for_testcase("secret/015-connected")
 
         return {
             pattern: verdicts
@@ -206,13 +218,28 @@ class Expectations:
             if matches(pattern, path)
         }
 
+    def permitted_verdicts_for_testcase(self, path) -> set[str]:
+        """Returns a set of verdicts that permitted at the given test case path.
+
+        Permissions are restrictions, so that if several permissions apply,
+        their *intersection* is permitted
+
+         >>> e = Expectations( {'secret': { 'permitted': ['AC', 'TLE']},
+         ...                    'secret/foo': { 'permitted': ['RTE', 'TLE'] }})
+         >>> e.permitted_verdicts_for_testcase("secret/foo")
+         {'TLE'}
+        """
+        permitted_verdicts = set(["AC", "TLE", "WA", "RTE"])
+        for verdicts in self.permissions_for_testcase(path).values():
+            permitted_verdicts &= verdicts
+        return permitted_verdicts
+
     def is_permitted_verdict(self, verdict: str, path):
-        """Is the result permitted for the testcase at the given path?"""
-        verdict = shortform(verdict)
-        for _, verdicts in self.permitted_verdicts_for_testcase(path).items():
-            if verdict not in verdicts:
-                return False
-        return True
+        """Is the result permitted for the testcase at the given path?
+
+        Accepts verdicts in long form. (Maybe it shouldn't.)
+        """
+        return shortform(verdict) in self.permitted_verdicts_for_testcase(path)
 
     def missing_required_verdicts(
         self, verdict_for_testcase: dict[str, str]
