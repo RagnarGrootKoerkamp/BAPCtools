@@ -858,6 +858,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     if 'timeout' in kwargs:
         if kwargs['timeout'] is None:
             timeout = None
+        elif kwargs['timeout'] is True:
+            # Use the default timeout.
+            pass
         elif kwargs['timeout']:
             timeout = kwargs['timeout']
         kwargs.pop('timeout')

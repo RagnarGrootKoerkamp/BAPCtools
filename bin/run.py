@@ -163,7 +163,9 @@ class Testcase:
                     file = self.in_path
                 if validator_type == 'output_format':
                     file = self.ans_path
-                data += f'{Style.RESET_ALL}in {shorten_path(self.problem, file.parent) / file.name}\n'
+                data += (
+                    f'{Style.RESET_ALL}in {shorten_path(self.problem, file.parent) / file.name}\n'
+                )
             else:
                 data = ret.err
 
@@ -411,7 +413,9 @@ class Submission(program.Program):
     # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
     # args is used by SubmissionInvocation to pass on additional arguments.
     # Returns ExecResult
-    def run(self, in_path, out_path, crop=True, args=[], cwd=None):
+    # The `default_timeout` argument is used when a submission is run as a solution when
+    # generating testcases.
+    def run(self, in_path, out_path, crop=True, args=[], cwd=None, default_timeout=False):
         assert self.run_command is not None
         # Just for safety reasons, change the cwd.
         if cwd is None:
@@ -426,7 +430,7 @@ class Submission(program.Program):
                 stdin=inf,
                 stdout=out_file,
                 stderr=None if out_file is None else True,
-                timeout=self.problem.settings.timeout,
+                timeout=True if default_timeout else self.problem.settings.timeout,
                 cwd=cwd,
             )
             if out_file:

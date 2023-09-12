@@ -207,7 +207,7 @@ class SolutionInvocation(Invocation):
         ans_path = cwd / 'testcase.ans'
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd)
+        result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd, default_timeout=True)
 
         if result.ok == -9:
             bar.error(f'solution TIMEOUT after {result.duration}s')
