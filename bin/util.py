@@ -317,12 +317,14 @@ class ProgressBar:
         config.n_warn += 1
         self.log(message, data, Fore.YELLOW)
 
-    # Error removes the current item from the in_progress set.
-    def error(self, message='', data=''):
+    # Error by default removes the current item from the in_progress set.
+    # Set `resume` to `True` to continue processing the item.
+    def error(self, message='', data='', resume=False):
         with self.lock:
             config.n_error += 1
-            self.log(message, data, Fore.RED, resume=False)
-            self._release_item()
+            self.log(message, data, Fore.RED, resume=resume)
+            if not resume:
+                self._release_item()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(self, success=True, message='', data=''):

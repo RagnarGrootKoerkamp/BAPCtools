@@ -279,7 +279,7 @@ class Program:
                 try:
                     if f.read_text().find('bits/stdc++.h') != -1:
                         if 'validators/' in str(f):
-                            self.bar.error(f'Must not depend on bits/stdc++.h.')
+                            self.bar.error(f'Must not depend on bits/stdc++.h.', resume=True)
                             break
                         else:
                             self.bar.log(f'Should not depend on bits/stdc++.h')
