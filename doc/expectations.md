@@ -6,23 +6,12 @@ This framework allows problem author to express their expecations for the behavi
 
 The behaviour of a submission on a _single_ test case is summarised in a *verdict*.
 
-The verdicts are
+The verdicts are:
 
-AC
-
-: Accepted. The submission terminates successfully within the time limit and the output vaidator accepts the submission output.
-
-WA
-
-: The submission terminates successfully within the time limit, but the output validator rejects the submission output on this testcase.
-
-TLE
-
-: The submission does not terminate within the time limit.
-
-RTE
-
-: The submission aborts within the time limit with a runtime error.
+* AC: Accepted. The submission terminates successfully within the time limit and the output vaidator accepts the submission output.
+* WA: The submission terminates successfully within the time limit, but the output validator rejects the submission output on this testcase.
+* TLE: The submission does not terminate within the time limit.
+* RTE: The submission aborts within the time limit with a runtime error.
 
 
 ## Common Expectations for a Submission
@@ -30,29 +19,12 @@ RTE
 
 The expected behaviour of a submission on the test data often falls into a number of common classes:
 
-accepted
-
-: Every test case is `AC`.
-
-wrong answer
-
-: Every test case receives `AC` or `WA`;  _some_ test case receives `WA`.
-
-time limit exceeded
-
-: Every test case receives `AC` or `TLE`;  _some_ test case receives `TLE`.
-
-runtime exception
-
-: Every test case receives `AC` or `RTE`;  _some_ test case receives `RTE`.
-
-does not terminate
-
-: Every test case receives `AC`, `RTE`, or `TLE` (but not `WA`);  _some_ test case receives `RTE` or `TLE`.
-
-not accepted
-
-: Not every test case receives `AC`. This is the complement of _accepted_.
+* accepted: Every test case is `AC`.
+* wrong answer: Every test case receives `AC` or `WA`;  _some_ test case receives `WA`.
+* time limit exceeded: Every test case receives `AC` or `TLE`;  _some_ test case receives `TLE`.
+* runtime exception: Every test case receives `AC` or `RTE`;  _some_ test case receives `RTE`.
+* does not terminate: Every test case receives `AC`, `RTE`, or `TLE` (but not `WA`);  _some_ test case receives `RTE` or `TLE`.
+* not accepted: Not every test case receives `AC`. This is the complement of _accepted_.
 
 In general, an expecation consists of a set of _permitted_ verdicts and set of _required_ verdicts.
 
