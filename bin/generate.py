@@ -775,14 +775,12 @@ class TestcaseRule(Rule):
                     if not target_infile.is_file():
                         # Step 5a: Error if target_infile for inline case does not exist.
                         bar.error(f'No .in file was found for inline testcase')
-                        bar.done()
                         return
                     shutil.copy(target_infile, infile, follow_symlinks=True)
                 else:
                     if not infile.is_file():
                         # Step 5b: Error if infile was not generated.
                         bar.error(f'No .in file was generated!')
-                        bar.done()
                         return
 
             assert infile.is_file(), f'Expected .in file not found in cache: {infile}'
