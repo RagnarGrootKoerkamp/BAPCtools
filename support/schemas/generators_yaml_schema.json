@@ -201,6 +201,14 @@
               "title": "Hint",
               "description": "Feedback shown to the solver about this test case given as a string"
             },
+            "interaction": {
+              "title": "Sample interaction",
+              "description": "Input is prefixed with `<`, output is prefixed with `>`.",
+              "examples": [
+                "<1 2\n>3\n<4 5\n>9\n<6 7\n>13\n"
+              ],
+              "pattern": "^([<>][^\\n]*\\n)+$"
+            },
             "visualizer": {
               "oneOf": [
                 {
