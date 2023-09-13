@@ -239,7 +239,7 @@
         "/visualizers/vis --large"
       ],
       "type": "string",
-      "pattern": "^/[^{}]*(\\{(seed(:[0-9]+)?)\\}[^{}]*)*$"
+      "pattern": "^/[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$"
     },
     "random_salt": {
       "title": "Random Salt",
@@ -266,7 +266,7 @@
         "random {seed}"
       ],
       "type": "string",
-      "pattern": "^[^{}]*(\\{(seed(:[0-9]+)?)\\}[^{}]*)*$"
+      "pattern": "^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$"
     },
     "slashedfilepath": {
       "type": "string",

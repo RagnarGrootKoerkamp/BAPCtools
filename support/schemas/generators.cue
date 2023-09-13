@@ -9,7 +9,7 @@ import "struct"
 // A command invokes a generator, like "tree --n 5".
 // The regex restricts occurrences of curly-bracked expressions 
 // to things like "tree --random --seed {seed:5}"
-command: !="" & (=~"^[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$")
+command: !="" & (=~"^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$")
 
 // Names for generators, testgroups, and testcases are alphanumerical with underscores
 // and hyphens; such as "huge", "make_tree", "3", or "connected_graph-01".
