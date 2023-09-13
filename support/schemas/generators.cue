@@ -41,7 +41,7 @@ casepath: =~"^\(filename)(/\(basename))*$"
 		// such as "manual/samples/3".
 		copy?:                            casepath
 		["in" | "ans" | "desc" | "hint"]: string
-		interaction:                      =~"^([<>][^\\n]*\\n)+$"
+		interaction?:                     =~"^([<>][^\\n]*\\n)+$"
 		#config
 	}
 
