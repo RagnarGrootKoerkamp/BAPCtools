@@ -29,7 +29,7 @@ casepath: =~"^\(filename)(/\(basename))*$"
 	// Path to solution starts with slash, such as "/submissions/accepted/foo.py"
 	solution?: filepath & =~"^/"
 	// Path to visualiser can be omitted
-	visualizer?:  filepath & =~"^/" | null
+	visualizer?:  command & =~"^/" | null
 	random_salt?: string
 }
 

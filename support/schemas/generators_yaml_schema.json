@@ -232,11 +232,14 @@
     },
     "visualizer": {
       "title": "Visualizer",
-      "description": "Absolute path to a visualizer",
+      "description": "Absolute path to and arguments for a visualizer.",
       "examples": [
-        "/visualizers/asy.py"
+        "/visualizer",
+        "/visualizers/asy.py",
+        "/visualizers/vis --large"
       ],
-      "$ref": "#/$defs/slashedfilepath"
+      "type": "string",
+      "pattern": "^/[^{}]*(\\{(name|seed(:[0-9]+)?)\\}[^{}]*)*$"
     },
     "random_salt": {
       "title": "Random Salt",
