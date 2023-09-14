@@ -15,41 +15,50 @@ A yaml parser will turn this into a dict that can be fed to the Registry class:
 >>> exp_dict = {
 ...     "accepted/": "accepted",
 ...     "wrong_answer/th.py": {"sample": "accepted", "secret": "wrong answer"},
-...     "mixed/failing.java": {"secret/huge/graph07": {"permitted": ["TLE", "RTE"]}}
+...     "mixed/failing.java": {"secret/huge/graph07": {"permitted": ["TLE", "RTE"]}},
+...     "mixed/": {"sample": "accepted"}
 ... }
->>> registry = Registry(exp_dict)
 
-Expectations for a submission can now be extracted. Here, `accepted/ragnar.cpp`
-is matched by the `accepted/` patterns, so those will be the expectations
-for that submission.
 
->>> ragnar_expectations = registry.expectations("accepted/ragnar.cpp")
+>>> registry = Registry.from_dict(exp_dict)
+>>> registry['mixed/']
+permitted: {'sample': {'AC'}}, required: {}
 
-Compared with actual validation results:
+Expectations for a single submission can now be extracted from
+the registry. Here, the submission `mixed/failing.java` matches two patterns,
+so those will be the expectations that apply to that submission.
+
+>>> sub_registry = registry.for_path(Path("mixed/failing.java"))
+>>> sorted(sub_registry.keys())
+['mixed/', 'mixed/failing.java']
+
+Expectations for a submission can be compared with actual validation
+results. This runs all (in this case, both), sets of expecations
+against the results.
 
 >>> results_ac = { "sample/1": "AC", "secret/1": "AC", "secret/2": "AC" }
 >>> results_wa = { "sample/1": "WA", "secret/1": "AC", "secret/2": "WA" }
->>> ragnar_expectations.is_satisfied_by(results_ac)
+>>> sub_registry.check(results_ac)
 True
-
-Altenatively, check the submission and results directly in the registry:
-
->>> registry.check_submission("accepted/ragnar.cpp", results_ac)
-True
->>> registry.check_submission("accepted/ragnar.cpp", results_wa)
+>>> sub_registry.check(results_wa)
 False
->>> registry.check_submission("wrong_answer/th.py", results_wa)
+
+
+Altenatively, supply a submission path check the submission and results
+directly against the expectations dictionary.
+
+>>> registry.for_path(Path("accepted/ragnar.cpp")).check(results_ac)
+True
+>>> registry.for_path(Path("accepted/ragnar.cpp")).check(results_wa)
+False
+>>> registry.for_path(Path("wrong_answer/th.py")).check(results_wa)
 False
 >>> results_wa_secret = { "sample/1": "AC", "secret/1": "AC", "secret/2": "WA" }
->>> registry.check_submission("wrong_answer/th.py", results_wa_secret)
+>>> registry.for_path(Path("wrong_answer/th.py")).check(results_wa_secret)
 True
 
 Checking some results against no relevant expectations always succeeds:
->>> registry.check_submission("mixed/failing.java", results_wa_secret)
-True
->>> registry.check_submission("mixed/failing.java", {"secret/huge/graph07": "WA" })
-False
->>> registry.check_submission("mixed/failing.java", {"secret/huge/graph07": "TLE" })
+>>> registry.for_path(Path("mixed/failing.java")).check(results_wa_secret)
 True
 
 Terminology
@@ -72,11 +81,10 @@ range
     NOT IMPLEMENTED
 """
 
-from functools import lru_cache
+from pathlib import Path
 import re
 
 
-@staticmethod
 def shortform(verdict):
     """Transform verbose forms like ACCEPTED to short like AC, if needed."""
     for long, short in [
@@ -90,18 +98,8 @@ def shortform(verdict):
     return verdict
 
 
-@staticmethod
-def matches(pattern, string):
-    """Return true if the string matches the pattern. This method *defines*
-    what "matching" means.
-    """
-    # print(f"--{pattern}..{string}--", bool(re.match(pattern, string)))
-    return re.match(pattern, string)
-
-
 class Expectations:
-    """The expectations for a submission.
-
+    """The expectations for a submission matching a submission pattern.
 
     >>> e = Expectations("wrong answer")
     >>> e._required_verdicts
@@ -194,8 +192,7 @@ class Expectations:
 
         parse_expectations("", expectations)
 
-
-    def permissions_for_testcase(self, path) -> dict[str, str]:
+    def permissions_for_testcase(self, path) -> dict[str, set[str]]:
         """Returns a dictionary over the patterns that apply for the given test case path.
 
         >>> e = Expectations( {'secret': { 'permitted': ['AC', 'TLE', 'WA']},
@@ -215,11 +212,11 @@ class Expectations:
         return {
             pattern: verdicts
             for pattern, verdicts in self._permitted_verdicts.items()
-            if matches(pattern, path)
+            if re.match(pattern, path)
         }
 
     def permitted_verdicts_for_testcase(self, path) -> set[str]:
-        """Returns a set of verdicts that permitted at the given test case path.
+        """Returns a set of verdicts that is permitted at the given test case path.
 
         Permissions are restrictions, so that if several permissions apply,
         their *intersection* is permitted
@@ -261,7 +258,7 @@ class Expectations:
         for pattern, required_verdicts in self._required_verdicts.items():
             for testcase, verdict in verdict_for_testcase.items():
                 verdict = shortform(verdict)
-                if matches(pattern, testcase) and verdict in required_verdicts:
+                if re.match(pattern, testcase) and verdict in required_verdicts:
                     break
             else:
                 missing[pattern] = required_verdicts
@@ -274,39 +271,37 @@ class Expectations:
             not missing_verdict for missing_verdict in missing.values()
         )
 
-    def __str__(self):
-        return f"permitted: {self._permitted_verdicts}\nrequired: {self._required_verdicts}"
+    def __repr__(self):
+        return f"permitted: {self._permitted_verdicts}, required: {self._required_verdicts}"
 
 
-class Registry:
-    """Maps string that describe submissions to Expectation objects."""
+class Registry(dict):
+    """A dictionary-like class that maps patterns to expectations."""
 
-    def __init__(self, registry):
-        self.registry = {pat: Expectations(registry[pat]) for pat in registry}
+    @staticmethod
+    def from_dict(dictionary):
+        """Factory method."""
+        return Registry({k: Expectations(v) for k, v in dictionary.items()})
 
-    def __str__(self):
-        return str(self.registry)
+    def for_path(self, path: Path):
+        """Return a dictionary mapping patterns to Expectations.
 
-    @lru_cache
-    def expectations(self, submission_path):
-        """The expectations for a given submission.
-        *Should* return the most specific match. (Currently assumes
-        there's exactly one.)
+        Parameters:
+
+        path:
+            a pathlib.Path to a submission
         """
-        expectations = None
-        for pat, exp in self.registry.items():
-            if matches(pat, submission_path):
-                if expectations is not None:
-                    assert False  # NOT IMPLEMENTED: every pattern can match at most once
-                expectations = exp
-        if expectations is None:
-            assert False  # NOT IMPLEMENTED: every submission must match
-        return expectations
+        return Registry(
+            {
+                pattern: expectation
+                for pattern, expectation in self.items()
+                if re.match(pattern, str(path))
+            }
+        )
 
-    def check_submission(self, submission_path: str, results) -> bool:
-        """Check that given results were expected for the submission at the given path."""
-        expectations = self.expectations(submission_path)
-        return expectations.is_satisfied_by(results)
+    def check(self, results) -> bool:
+        """Do the results satisfy all the expectations?"""
+        return all(e.is_satisfied_by(results) for e in self.values())
 
 
 if __name__ == "__main__":
