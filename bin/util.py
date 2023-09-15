@@ -983,6 +983,16 @@ def combine_hashes_dict(d):
             hasher.update(d[key].encode())
     return hasher.hexdigest()
 
+
+def short_verdict(verdict):
+    return {
+            'ACCEPTED': 'AC',
+            'WRONG_ANSWER': 'WA',
+            'RUN_TIME_ERROR': 'RTE',
+            'TLE (aborted)': 'TLE',
+            'TIME_LIMIT_EXCEEDED': 'TLE'
+            }[verdict]
+
 def verbose_verdicts(verdicts: str | set[str], oxford_comma=True) -> str:
     long_form = {
             'AC': 'ACCEPTED',
@@ -998,6 +1008,7 @@ def verbose_verdicts(verdicts: str | set[str], oxford_comma=True) -> str:
     elif len(verdicts) == 2:
         return f"{long_form[verdicts[0]]} or {long_form[verdicts[1]]}"
     else:
+        assert len(verdicts) == 3, len(verdicts)
         return f"{long_form[verdicts[0]]}, {long_form[verdicts[1]]}, or {long_form[verdicts[2]]}"
 
 
