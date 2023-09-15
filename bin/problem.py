@@ -455,7 +455,7 @@ class Problem:
                     fatal('Make sure problem.yaml does not contain any more {% ... %}.')
             else:
                 yamldata = read_yaml_settings(path)
-            self._expectations_registry  = expectations.Registry(yamldata)
+            self._expectations_registry  = expectations.Registry.from_dict(yamldata)
         return self._expectations_registry
 
 
