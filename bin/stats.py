@@ -27,7 +27,7 @@ def stats(problems):
         ('  time', lambda p: p.settings.timelimit, 0),
         ('yaml', 'problem.yaml'),
         ('tex', 'problem_statement/problem*.tex'),
-        ('sol', 'problem_statement/solution.tex'),
+        ('sol', 'problem_statement/solution*.tex'),
         ('   Ival', ['input_validators/*', 'input_format_validators/*']),
         ('Oval', ['output_validators/*']),
         (
