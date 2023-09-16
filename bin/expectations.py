@@ -171,7 +171,7 @@ class Expectations(dict[TestCasePattern, BaseExpectations]):
     permitted: {'AC'}, required: None
 
     Or by testcase
-    >>> list(sorted(f.expectations_for_testcase('sample/1').keys()))
+    >>> list(sorted(f.for_testcase('sample/1').keys()))
     ['', 'sample']
     """
 
