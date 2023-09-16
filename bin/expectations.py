@@ -95,7 +95,7 @@ class TestCasePattern(str):
 
 
 class BaseExpectations:
-    """Shut up"""
+    """Base expectations."""
 
     def __init__(self, expectations: str | list[int | float]):
         self._permitted_verdicts: set[str] | None = None
@@ -155,7 +155,8 @@ class BaseExpectations:
 
 
 class Expectations(dict[TestCasePattern, BaseExpectations]):
-    """The expectations for a submission pattern.
+    """The expectations for a submission pattern; it maps testcase patterns
+    to BaseExpectations.
 
     >>> e = Expectations("accepted")
     >>> e
@@ -192,17 +193,17 @@ class Expectations(dict[TestCasePattern, BaseExpectations]):
                 raise ValueError(f"Unexpected test data pattern: {k}")
             self[TestCasePattern(k)] = BaseExpectations(val)
 
-    def expectations_for_testcase(self, path: Path) -> dict[TestCasePattern, BaseExpectations]:
+    def for_testcase(self, path: Path) -> dict[TestCasePattern, BaseExpectations]:
         """Returns a dictionary over the patterns that apply for the given test case path.
 
         >>> e = Expectations( {'secret': { 'permitted': ['AC', 'TLE', 'WA']},
         ...                    'secret/(tc)?[0-9]+-huge': { 'permitted': ['TLE'] },
         ...                    'secret/[0-9]+-disconnected': { 'permitted': ['WA'] }})
-        >>> list(sorted(e.expectations_for_testcase("secret/tc05-huge").keys()))
+        >>> list(sorted(e.for_testcase("secret/tc05-huge").keys()))
         ['secret', 'secret/(tc)?[0-9]+-huge']
-        >>> list(sorted(e.expectations_for_testcase("secret/05-disconnected").keys()))
+        >>> list(sorted(e.for_testcase("secret/05-disconnected").keys()))
         ['secret', 'secret/[0-9]+-disconnected']
-        >>> list(sorted(e.expectations_for_testcase("secret/abc-disconnected").keys()))
+        >>> list(sorted(e.for_testcase("secret/abc-disconnected").keys()))
         ['secret']
         """
 
@@ -224,7 +225,7 @@ class Expectations(dict[TestCasePattern, BaseExpectations]):
          {'TLE'}
         """
         permitted_verdicts = set(["AC", "TLE", "WA", "RTE"])
-        for exp in self.expectations_for_testcase(path).values():
+        for exp in self.for_testcase(path).values():
             permitted_verdicts &= exp.permitted_verdicts()
         return permitted_verdicts
 
@@ -274,9 +275,7 @@ class Expectations(dict[TestCasePattern, BaseExpectations]):
 
 
 class Registry(dict[str, Expectations]):
-    """A dictionary-like class that maps patterns (typically matching submission paths)
-    to expectations.
-    """
+    """A dictionary-like class that maps submission patterns to expectations."""
 
     @staticmethod
     def from_dict(dictionary):
@@ -309,9 +308,56 @@ class Registry(dict[str, Expectations]):
         )
 
     def is_permitted(self, verdict, testcase: Path) -> bool:
-        """ shut up """
+        """shut up"""
 
         return all(e.is_permitted(verdict, testcase) for e in self.values())
+
+    def violated_permissions(
+        self, verdict, testcase: Path
+    ) -> list[tuple[str, TestCasePattern, set[str]]]:
+        """Which permissions are violated by the given verdict for the given testcase?
+
+        Return:
+            A list of tuples; each tuple consists of
+            - the submissions pattern
+            - the test case pattern
+            - the set of verdicts that was expected
+            The list is sorted; in the typical case this means that less
+            specific rules come first.
+        """
+        violations = []
+        for prefix, expectation in self.items():
+            for pattern, base in expectation.for_testcase(testcase).items():
+                permitted_verdicts = base.permitted_verdicts()
+                if verdict in permitted_verdicts:
+                    continue
+                violations.append((prefix, pattern, permitted_verdicts))
+        return list(sorted(violations))
+
+    def unsatisfied_requirements(
+        self, verdict_for_testcase: dict[Path, str]
+    ) -> list[tuple[str, TestCasePattern, set[str]]]:
+        """Which permissions are violated by the given results?
+
+        Paramters:
+            verdict_for_testcase:
+                a mapping of testcase path to verdict
+
+        Return:
+            A list of tuples; each tuple consists of
+            - the submissions pattern
+            - the test case pattern
+            - the set of verdicts that was required
+            The list is sorted; in the typical case this means that less
+            specific rules come first.
+        """
+        missing = []
+        for prefix, expectations in self.items():
+            missing_verdicts = expectations.missing_required_verdicts(verdict_for_testcase)
+            for pattern, verdicts in missing_verdicts.items():
+                missing.append((prefix, pattern, verdicts))
+
+        return missing
 
     def check(self, results) -> bool:
         """Do the results satisfy all the expectations?

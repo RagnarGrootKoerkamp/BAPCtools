@@ -328,9 +328,7 @@ class Submission(program.Program):
 
         # The first element will match the directory the file is in, if possible.
         self.expected_verdicts = self._get_expected_verdicts()
-        registry = self.problem.get_expectations_registry()
-        self.registry = registry.for_path(self.short_path)
-
+        self.expectations = self.problem.get_expectations_registry().for_path(self.short_path)
         # NOTE: Judging of interactive problems on systems without `os.wait4` is
         # suboptimal because we cannot determine which of the submission and
         # interactor exits first. Thus, we don't distinguish the different non-AC
@@ -450,7 +448,6 @@ class Submission(program.Program):
             max_len=max_item_len,
             needs_leading_newline=needs_leading_newline,
         )
-        #bar.log(self.registry) # TODO Thore: verbose mode should log something informative
 
         max_duration = -1
 
@@ -462,11 +459,7 @@ class Submission(program.Program):
             nonlocal max_duration, verdict, verdict_run, verdict_for_testcase
 
             localbar = bar.start(run)
-            #localbar.log("foo")
-            #localbar.log("bar")
             result = run.run()
-            verdict_for_testcase[run.name] = short_verdict(result.verdict)
-            #bar.log(expectations.permitted_verdicts_for_testcase(run.name))
 
             if result.verdict == 'ACCEPTED':
                 validate.generic_validation('output', run.out_path, bar=localbar)
@@ -485,8 +478,10 @@ class Submission(program.Program):
             if table_dict is not None:
                 table_dict[run.name] = result.verdict == 'ACCEPTED'
 
+            verdict_short = short_verdict(result.verdict)
+            verdict_for_testcase[run.name] = verdict_short
             #got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
-            got_expected = self.registry.is_permitted(short_verdict(result.verdict), run.name)
+            got_expected = self.expectations.is_permitted(verdict_short, run.name)
 
             # Print stderr whenever something is printed
             if result.out and result.err:
@@ -526,14 +521,11 @@ class Submission(program.Program):
 
             if not got_expected:
                 localbar.error(f'{result.duration:6.3f}s {result.print_verdict()}', data)
-                for subpattern, expectation in self.registry.items():
-                    for testpattern, base_exp in expectation.expectations_for_testcase(run.name).items():
-                        verdicts = base_exp.permitted_verdicts()
-                        if verdict in verdicts:
-                            continue
-                        width = localbar.item_width
-                        prefix = f'{Fore.CYAN}{subpattern:>{len(localbar.prefix)}}{Style.RESET_ALL}: {testpattern:<{width}}'
-                        localbar.warn(f"permits {verbose_verdicts(verdicts)}", prefix=prefix)
+            short = short_verdict(result.verdict)
+            for prefix, pattern, verdicts in self.expectations.violated_permissions(short, run.name):
+                prefix = (f'{Fore.CYAN}{prefix:>{len(localbar.prefix)}}{Style.RESET_ALL}:' +
+                          f'{pattern:<{localbar.item_width}}')
+                localbar.warn(f"permits {verbose_verdicts(verdicts)}", prefix=prefix)
 
             localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
@@ -557,23 +549,21 @@ class Submission(program.Program):
         self.duration = max_duration
 
         # Check presence of required verdicts among testgroups
-        for subpattern, expectations in self.registry.items():
-            missing_verdicts = expectations.missing_required_verdicts(verdict_for_testcase)
-            for testpattern, verdicts in missing_verdicts.items():
-                width = bar.item_width
-                prefix = f'{Fore.CYAN}{subpattern:>{len(bar.prefix)}}{Style.RESET_ALL}: {testpattern:<{width}}'
-                bar.warn(f"no test case got {verbose_verdicts(verdicts)}", prefix=prefix)
+        for prefix, pattern, verdicts in self.expectations.unsatisfied_requirements(verdict_for_testcase):
+            prefix = (f'{Fore.CYAN}{prefix:>{len(bar.prefix)}}{Style.RESET_ALL}: ' +
+                      f'{pattern:<{bar.item_width}}')
+            bar.warn(f"no test case got {verbose_verdicts(verdicts)}", prefix=prefix)
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
             color = (
                 Style.BRIGHT + Fore.GREEN
-                if self.registry.is_permitted(short_verdict(self.verdict), Path())
+                if self.expectations.is_permitted(short_verdict(self.verdict), Path())
                 else Style.BRIGHT + Fore.RED
             )
             boldcolor = Style.BRIGHT
         else:
-            color = Fore.GREEN if self.registry.is_permitted(short_verdict(self.verdict), Path()) else Fore.RED
+            color = Fore.GREEN if self.expectations.is_permitted(short_verdict(self.verdict), Path()) else Fore.RED
             boldcolor = ''
 
         printed_newline = bar.finalize(
