@@ -22,7 +22,7 @@ A yaml parser will turn this into a dict that can be fed to the Registry class:
 
 >>> registry = Registry.from_dict(exp_dict)
 >>> registry['mixed/']
-'sample': {permitted: {'AC'}, required: None}
+'sample': {permitted: {AC}, required: None}
 
 Expectations for a single submission can now be extracted from
 the registry. Here, the submission `mixed/failing.java` matches two patterns,
@@ -97,7 +97,7 @@ class TestCasePattern(str):
 class BaseExpectations:
     """Base expectations."""
 
-    def __init__(self, expectations: str | list[int | float]):
+    def __init__(self, expectations: str | list[int | float] | dict):
         self._permitted_verdicts: set[str] | None = None
         self._required_verdicts: set[str] | None = None
 
@@ -151,7 +151,16 @@ class BaseExpectations:
             self._required_verdicts = requirements
 
     def __repr__(self):
-        return f"permitted: {self._permitted_verdicts}, required: {self._required_verdicts}"
+
+        def sorted_set_str(verdicts: set|None) -> str:
+            if verdicts is None:
+                return "None"
+            else:
+                return "{" + ", ".join(sorted(verdicts)) + "}"
+
+
+        return (f"permitted: {sorted_set_str(self._permitted_verdicts)}, " +
+                f"required: {sorted_set_str(self._required_verdicts)}")
 
 
 class Expectations(dict[TestCasePattern, BaseExpectations]):
@@ -160,7 +169,7 @@ class Expectations(dict[TestCasePattern, BaseExpectations]):
 
     >>> e = Expectations("accepted")
     >>> e
-    '': {permitted: {'AC'}, required: None}
+    '': {permitted: {AC}, required: None}
     >>> e.permitted_verdicts_for_testcase(Path("sample/1"))
     {'AC'}
 
@@ -168,7 +177,7 @@ class Expectations(dict[TestCasePattern, BaseExpectations]):
 
     >>> f = Expectations({'': 'wrong answer', 'sample': 'accepted', 'secret': 'wrong answer'})
     >>> f['sample']
-    permitted: {'AC'}, required: None
+    permitted: {AC}, required: None
 
     Or by testcase
     >>> list(sorted(f.for_testcase('sample/1').keys()))
@@ -293,8 +302,18 @@ class Registry(dict[str, Expectations]):
         ... })
         >>> for k, v in registry.for_path(Path('accepted/th.py')).items():
         ...    print(k, ":", v)
-        accepted : '': {permitted: {'AC'}, required: None}
-        accepted/th : 'sample': {permitted: {'AC'}, required: None}
+        accepted : '': {permitted: {AC}, required: None}
+        accepted/th : 'sample': {permitted: {AC}, required: None}
+
+
+        A registry is just a dict; you can add more expectations to it
+        with the normal syntax:
+
+        >>> registry['wrong_answer/greedy.py'] = Expectations({'sample': 'accepted'})
+        >>> for k, v in registry.for_path(Path('wrong_answer/greedy.py')).items():
+        ...    print(k, ":", v)
+        wrong_answer : '': {permitted: {AC, WA}, required: {WA}}
+        wrong_answer/greedy.py : 'sample': {permitted: {AC}, required: None}
 
         path:
             a pathlib.Path to a submission
