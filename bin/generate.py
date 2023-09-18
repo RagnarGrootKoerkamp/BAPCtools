@@ -439,8 +439,8 @@ class TestcaseRule(Rule):
 
             # checks
             assert (
-                'generate' in yaml or 'copy' in yaml or 'in' in yaml
-            ), f'{parent.path / name}: Testcase requires at least one key in "generate", "copy", "in".'
+                'generate' in yaml or 'copy' in yaml or 'in' in yaml or 'interaction' in yaml
+            ), f'{parent.path / name}: Testcase requires at least one key in "generate", "copy", "in", "interaction".'
             assert not (
                 'submission' in yaml and 'ans' in yaml
             ), f'{parent.path / name}: cannot specify both "submissions" and "ans".'
