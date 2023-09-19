@@ -588,7 +588,7 @@ class TestcaseRule(Rule):
 
             meta_yaml = read_yaml(meta_path)
             # In case meta_yaml is malformed, things are not up to date.
-            if not not isinstance(meta_yaml, dict):
+            if not isinstance(meta_yaml, dict):
                 return (False, False)
             if meta_yaml.get('cache_data') != t.cache_data:
                 return (False, False)
