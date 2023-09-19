@@ -243,7 +243,12 @@ def export_contest():
     if not has_ryaml:
         for key in ('duration', 'scoreboard_freeze_duration'):
             if key in data:
-                data[key] = str(datetime.timedelta(seconds=data[key]))
+                value = data[key]
+                # YAML 1.1 parses 1:00:00 as 3600. Convert it back to a string if so.
+                # (YAML 1.2 parses it as a string.)
+                if isinstance(value, int):
+                    str(datetime.timedelta(seconds=data[key]))
+                data[key] = value
 
     verbose("Uploading contest.yaml:")
     verbose(data)
@@ -288,10 +293,20 @@ def update_problems_yaml(problems, colors=None):
     change = False
     for problem in problems:
         found = False
+
+        default_language = (
+            'en'
+            if 'en' in problem.statement_languages
+            else next(iter(problem.statement_languages), None)
+        )
+        problem_name = (
+            problem.settings.name and default_language and problem.settings.name[default_language]
+        )
+
         for d in data:
             if d['id'] == problem.name:
                 found = True
-                if problem.settings.name and problem.settings.name != d.get('name'):
+                if problem_name != d.get('name'):
                     change = True
                     d['name'] = problem.settings.name
 
@@ -313,7 +328,7 @@ def update_problems_yaml(problems, colors=None):
                 {
                     'id': problem.name,
                     'label': problem.label,
-                    'name': problem.settings.name,
+                    'name': problem_name,
                     'rgb': '#000000',
                     'time_limit': problem.settings.timelimit,
                 }

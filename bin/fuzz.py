@@ -61,7 +61,7 @@ class GeneratorTask:
 
         testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
 
-        # Validate the manual or generated .in.
+        # Validate the generated .in.
         localbar = bar.start(f'{self.i}: validate input')
         if not testcase.validate_format('input_format', bar=localbar, constraints=None):
             localbar.done()
@@ -151,19 +151,11 @@ class Fuzz:
             return
 
         # Filter to only keep rules depending on seed.
-        def filter_dir(d):
-            d.data = list(
-                filter(
-                    lambda t: isinstance(t, generate.Directory)
-                    # TODO: Fix this for hardcoded testcases.
-                    or (not t.manual and t.generator.uses_seed),
-                    d.data,
-                )
-            )
+        def add_testcase(t):
+            if t.in_is_generated and t.generator.uses_seed:
+                self.testcase_rules.append(t)
 
-        generator_config.root_dir.walk(
-            lambda t: self.testcase_rules.append(t), dir_f=filter_dir, dir_last=False
-        )
+        generator_config.root_dir.walk(add_testcase, dir_f=None)
         if len(self.testcase_rules) == 0:
             return
 
@@ -197,9 +189,9 @@ class Fuzz:
         self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
 
         # pool of ids used for generators
-        tmp_ids = 2 * self.queue.num_threads + 1
-        self.free_tmp_id = {*range(tmp_ids)}
-        self.tmp_id_count = [0] * tmp_ids
+        self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
+        self.free_tmp_id = {*range(self.tmp_ids)}
+        self.tmp_id_count = [0] * self.tmp_ids
 
         # add first generator task
         self.finish_task()
@@ -209,6 +201,7 @@ class Fuzz:
         # At this point, no new tasks may be started anymore.
         self.queue.done()
         bar.done()
+        bar.finalize()
         return True
 
     # finish task from generator with tmp_id
@@ -222,12 +215,13 @@ class Fuzz:
                 if self.tmp_id_count[tmp_id] == 0:
                     self.free_tmp_id.add(tmp_id)
 
-            # don't add new tasks after time is up
-            if time.monotonic() - self.start_time > config.args.time:
-                return
-
             # add new generator runs to fill up queue
-            while self.tasks <= 2 * self.queue.num_threads:
+            while self.tasks < self.tmp_ids:
+
+                # don't add new tasks after time is up
+                if time.monotonic() - self.start_time > config.args.time:
+                    return
+
                 testcase_rule = self.testcase_rules[self.iteration % len(self.testcase_rules)]
                 self.iteration += 1
                 # 1 new generator tasks which will also create one task per submission

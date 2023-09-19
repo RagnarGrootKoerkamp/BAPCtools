@@ -2,13 +2,19 @@ solution: /submissions/accepted/th.py
 data:
   sample:
     data:
-      "1": stdout.py 1 2
-      "2": stdout.py 1 -3
+      "1":
+        in: 1 2
+        ans: "3"
+      "2":
+        in: 1 -3
   secret:
     data:
       - small:
           testdata.yaml:
             input_validator_flags: --small
+            input_validators:
+              connected: --small
+              strongly-connected: --small
           data:
             - positive:
                 data:
@@ -21,6 +27,7 @@ data:
                   - "sm-mixed": stdout.py 4 -6
                   - "sm-all-neg": stdout.py -4 -6
                 include:
+                  - "1"
                   - "2"
       - general:
           data:

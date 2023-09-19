@@ -95,7 +95,7 @@ data:
 data:
   a : []
 ---
-# Command must not contain {seed} twice.
+# generate must not contain {seed} twice.
 data:
   ab: gen {seed} {seed}
 ---
@@ -111,11 +111,11 @@ data:
 data:
   ab: gen {seed:1} {seed:2}
 ---
-# Manual cases should be null, not empty string
+# Unlisted cases should be null, not empty string
 data:
   ab: ''
 ---
-# All commands must be different
+# All generate calls must be different
 data:
   ab: gen
   b: gen
@@ -130,17 +130,17 @@ data:
 ---
 data:
   ab:
-    input: gen {seed}
+    generate: gen {seed}
   b: gen {seed}
 ---
 data:
   - ab:
-      input: gen {seed}
+      generate: gen {seed}
   - bb:
       data:
         cc: gen {seed}
 ---
-# Testcase object must be command string or contain input.
+# Testcase object must be command string or contain generate.
 data:
   ab: true
 ---
@@ -152,29 +152,32 @@ data:
 ---
 data:
   ab:
-    input: true
+    generate: true
 ---
 data:
   ab:
-    input: 1
+    generate: 1
 ---
 data:
   ab:
-    input: {}
+    generate: {}
 ---
 data:
   ab:
-    input: []
+    generate: []
 ---
-# Manual cases must not have an absolute path.
+# Copied cases must not have an absolute path.
 data:
-  ab: /a/b/c.in
----
-data:
-  ab: /c.in
+  ab: /a/b/c
 ---
 data:
-  ab: /generators/c.in
+  ab: {copy: /a/b/c}
+---
+data:
+  ab: /c
+---
+data:
+  ab: {copy: /generators/c}
 ---
 # Generator invocations must not have an absolute path.
 data:
@@ -201,18 +204,18 @@ visualizer: a 1 2
 ---
 visualizer: a {name}
 ---
-# Directories may not have input:.
-input: xyz
+# Directories may not have generate:.
+generate: xyz
 ---
 data:
   ab:
-    input: x
+    generate: x
     data:
 ---
 # Testcases may not have data:.
 data:
   ab:
-    input: abc
+    generate: abc
     data: {}
 ---
 # File names must be >= 2 letters

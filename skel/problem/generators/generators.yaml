@@ -8,9 +8,18 @@ data:
     # Uncomment to disable generating ans files for sample cases.
     #solution:
     data:
-      # Some small examples showing to help understanding of the problem
+      # Some small examples showing to help understanding of the problem.
       #'1':
+      #  in: 1 2
+      #  ans: '3'
+      # Or to preserve newlines:
       #'2':
+      #  in: |
+      #    1 2
+      #    3 4
+      #  ans: |
+      #    3
+      #    7
 
   secret:
     data:
@@ -34,11 +43,11 @@ data:
       #- geometric: generator {seed} -n 100 -k 123 -ai geometric(0.1)
 
       # Manual cases can be added like this:
-      #- handcrafted: manual/handcrafted.in
+      #- copied:
+      #    copy: manual/testcase.in
       # They should be written to somewhere inside generators/ and will be
       # copied into data/.
-      # You can also dump them in data/secret and run `bt generate --add-manual`
-      # followed by `bt generate --move-manual`.
+      # You can also dump them in data/secret and run `bt generate --add-unlisted`.
 
       # Typically, small test cases are more likely to find bugs/edge cases.
       # When the limit on n is 1000, do something like:

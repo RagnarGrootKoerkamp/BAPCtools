@@ -9,7 +9,7 @@ configuration with comments explaining all the valid keys.
 When `generators/generators.yaml` is present, _all_ test cases in
 `data/{sample,secret}` must be mentioned by it. It is not allowed to generate
 some testcases while not mentioning others. Testcases must be explicitly
-listed as manually created to prevent this issue.
+listed created to prevent this.
 
 See [`./generators.yaml`](./generators.yaml) for an exhaustive example file with explanations.
 
@@ -38,7 +38,7 @@ The two main object types are `directory` and `generator`. The root of `generato
 
 **Generator objects** have one of the following forms:
 
-- `null`: An empty generator means that the testcase is a manual case and must not be modified or deleted by generator tooling. The corresponding `.in` file must be present in the `data/` directory. The corresponding `.ans` may be present, but may also be generated once from a given solution. Note that this form is discouraged. Prefer specifying a path to a `.in` file as below.
+- `null`: An empty generator means that the testcase is a unlisted case and must not be modified or deleted by generator tooling. The corresponding `.in` file must be present in the `data/` directory. The corresponding `.ans` may be present, but may also be generated once from a given solution. Note that this form is discouraged. Prefer specifying a path to a `.in` file as below.
 - `command`: A command can take two forms:
 
   - A path to a `.in` file which must be relative to `generators/`. The `.in` file and corresponding files with known extensions will be copied to the specified location. If a `.ans` is not specified and a `solution` is provided, it will be used to generate the `.ans`.
