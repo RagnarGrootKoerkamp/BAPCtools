@@ -332,12 +332,14 @@ class ProgressBar:
         config.n_warn += 1
         self.log(message, data, Fore.YELLOW)
 
-    # Error removes the current item from the in_progress set.
-    def error(self, message='', data=''):
+    # Error by default removes the current item from the in_progress set.
+    # Set `resume` to `True` to continue processing the item.
+    def error(self, message='', data='', resume=False):
         with self:
             config.n_error += 1
-            self.log(message, data, Fore.RED, resume=False)
-            self._release_item()
+            self.log(message, data, Fore.RED, resume=resume)
+            if not resume:
+                self._release_item()
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(self, success=True, message='', data=''):
@@ -764,7 +766,8 @@ def ensure_symlink(link, target, output=False, relative=False):
     # for windows the symlink needs to know if it points to a directory or file
     if relative:
         # Rewrite target to be relative to link.
-        link.symlink_to(target.relative_to(link.parent), target.is_dir())
+        # Use os.path.relpath instead of Path.relative_to for non-subdirectories.
+        link.symlink_to(os.path.relpath(target, link.parent), target.is_dir())
     else:
         link.symlink_to(target.resolve(), target.is_dir())
 
@@ -1003,6 +1006,9 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     if 'timeout' in kwargs:
         if kwargs['timeout'] is None:
             timeout = None
+        elif kwargs['timeout'] is True:
+            # Use the default timeout.
+            pass
         elif kwargs['timeout']:
             timeout = kwargs['timeout']
         kwargs.pop('timeout')

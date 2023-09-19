@@ -189,9 +189,9 @@ class Fuzz:
         self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
 
         # pool of ids used for generators
-        tmp_ids = 2 * self.queue.num_threads + 1
-        self.free_tmp_id = {*range(tmp_ids)}
-        self.tmp_id_count = [0] * tmp_ids
+        self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
+        self.free_tmp_id = {*range(self.tmp_ids)}
+        self.tmp_id_count = [0] * self.tmp_ids
 
         # add first generator task
         self.finish_task()
@@ -201,6 +201,7 @@ class Fuzz:
         # At this point, no new tasks may be started anymore.
         self.queue.done()
         bar.done()
+        bar.finalize()
         return True
 
     # finish task from generator with tmp_id
@@ -214,12 +215,13 @@ class Fuzz:
                 if self.tmp_id_count[tmp_id] == 0:
                     self.free_tmp_id.add(tmp_id)
 
-            # don't add new tasks after time is up
-            if time.monotonic() - self.start_time > config.args.time:
-                return
-
             # add new generator runs to fill up queue
-            while self.tasks <= 2 * self.queue.num_threads:
+            while self.tasks < self.tmp_ids:
+
+                # don't add new tasks after time is up
+                if time.monotonic() - self.start_time > config.args.time:
+                    return
+
                 testcase_rule = self.testcase_rules[self.iteration % len(self.testcase_rules)]
                 self.iteration += 1
                 # 1 new generator tasks which will also create one task per submission

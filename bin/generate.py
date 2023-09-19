@@ -37,7 +37,10 @@ def is_testcase(yaml):
         or isinstance(yaml, str)
         or (
             isinstance(yaml, dict)
-            and any(key in yaml for key in ['copy', 'generate', 'in', 'ans', 'hint', 'desc'])
+            and any(
+                key in yaml
+                for key in ['copy', 'generate', 'in', 'ans', 'hint', 'desc', 'interaction']
+            )
         )
     )
 
@@ -207,7 +210,7 @@ class SolutionInvocation(Invocation):
         ans_path = cwd / 'testcase.ans'
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd)
+        result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd, default_timeout=True)
 
         if result.ok == -9:
             bar.error(f'solution TIMEOUT after {result.duration}s')
@@ -436,8 +439,8 @@ class TestcaseRule(Rule):
 
             # checks
             assert (
-                'generate' in yaml or 'copy' in yaml or 'in' in yaml
-            ), f'{parent.path / name}: Testcase requires at least one key in "generate", "copy", "in".'
+                'generate' in yaml or 'copy' in yaml or 'in' in yaml or 'interaction' in yaml
+            ), f'{parent.path / name}: Testcase requires at least one key in "generate", "copy", "in", "interaction".'
             assert not (
                 'submission' in yaml and 'ans' in yaml
             ), f'{parent.path / name}: cannot specify both "submissions" and "ans".'
@@ -585,7 +588,7 @@ class TestcaseRule(Rule):
 
             meta_yaml = read_yaml(meta_path)
             # In case meta_yaml is malformed, things are not up to date.
-            if not not isinstance(meta_yaml, dict):
+            if not isinstance(meta_yaml, dict):
                 return (False, False)
             if meta_yaml.get('cache_data') != t.cache_data:
                 return (False, False)
@@ -764,8 +767,9 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == '':
-                        bar.error(f'Hardcoded {ext} data may not be empty!')
+                    if contents == '' and t.path.parts[0] != 'bad':
+                        bar.error(f'Hardcoded {ext} data must not be empty!')
+                        return
                     else:
                         infile.with_suffix(ext).write_text(contents)
 
@@ -774,14 +778,12 @@ class TestcaseRule(Rule):
                     if not target_infile.is_file():
                         # Step 5a: Error if target_infile for inline case does not exist.
                         bar.error(f'No .in file was found for inline testcase')
-                        bar.done()
                         return
                     shutil.copy(target_infile, infile, follow_symlinks=True)
                 else:
                     if not infile.is_file():
                         # Step 5b: Error if infile was not generated.
                         bar.error(f'No .in file was generated!')
-                        bar.done()
                         return
 
             assert infile.is_file(), f'Expected .in file not found in cache: {infile}'
@@ -951,9 +953,9 @@ class Directory(Rule):
             for d in data:
                 check_type('Numbered case', d, dict)
                 if len(d) != 1:
-                    if 'in' in d or 'ans' in d:
+                    if 'in' in d or 'ans' in d or 'copy' in d:
                         fatal(
-                            f'{self.path}: Dictionary must contain exactly one named testcase/group.\nTo specify hardcoded input/answer, indent one more level.'
+                            f'{self.path}: Dictionary must contain exactly one named testcase/group.\nTo specify hardcoded in/ans/copy, indent one more level.'
                         )
                     else:
                         fatal(
@@ -1501,7 +1503,7 @@ class GeneratorConfig:
         unlisted = config.args.add_unlisted
         known_unlisted = {
             path
-            for path, x in self.rules_cache
+            for path in self.rules_cache
             if isinstance(path, PurePath) and path.is_relative_to(unlisted)
         }
 
@@ -1532,7 +1534,9 @@ class GeneratorConfig:
             bar.start(str(test))
             entry.append(ruamel.yaml.comments.CommentedMap())
             name = unlisted.relative_to('generators').as_posix().replace('/', '_')
-            entry[-1][f'{name}_{test.stem}'] = {'copy': test.relative_to('generators').as_posix()}
+            entry[-1][f'{name}_{test.stem}'] = {
+                'copy': test.relative_to('generators').with_suffix('').as_posix()
+            }
             bar.log('added to generators.yaml')
             bar.done()
 

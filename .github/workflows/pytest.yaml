@@ -6,4 +6,5 @@ jobs:
     container: ragnargrootkoerkamp/bapctools
     steps:
       - uses: actions/checkout@v2
+      - run: cue vet doc/generators.yaml support/schemas/*cue -d '#Generators'
       - run: pytest

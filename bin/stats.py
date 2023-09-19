@@ -27,7 +27,7 @@ def stats(problems):
         ('  time', lambda p: p.settings.timelimit, 0),
         ('yaml', 'problem.yaml'),
         ('tex', 'problem_statement/problem*.tex'),
-        ('sol', 'problem_statement/solution.tex'),
+        ('sol', 'problem_statement/solution*.tex'),
         ('   Ival', ['input_validators/*', 'input_format_validators/*']),
         ('Oval', ['output_validators/*']),
         (
@@ -57,6 +57,7 @@ def stats(problems):
         ),
         ('java', 'submissions/accepted/*.java', 1),
         ('py', ['submissions/accepted/*.py[23]', 'submissions/accepted/*.py'], 1),
+        ('kt', 'submissions/accepted/*.kt', 1),
     ]
 
     headers = ['problem'] + [h[0] for h in stats] + ['  comment']
