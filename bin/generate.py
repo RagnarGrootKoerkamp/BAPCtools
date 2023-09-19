@@ -792,13 +792,13 @@ class TestcaseRule(Rule):
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
 
             # Validate the in.
-            ignore_validators = config.args.ignore_validators
+            no_validators = config.args.no_validators
 
             if not testcase.validate_format(
-                'input_format', bar=bar, constraints=None, warn_instead_of_error=ignore_validators
+                'input_format', bar=bar, constraints=None, warn_instead_of_error=no_validators
             ):
-                if not ignore_validators:
-                    bar.debug('Use generate --ignore-validators to ignore validation results.')
+                if not no_validators:
+                    bar.debug('Use generate --no-validators to ignore validation results.')
                     return
 
             if not generator_up_to_date:
@@ -832,11 +832,11 @@ class TestcaseRule(Rule):
                         # Validate the ans file.
                         assert ansfile.is_file(), f'Failed to generate ans file: {ansfile}'
                         if not testcase.validate_format(
-                            'output_format', bar=bar, warn_instead_of_error=ignore_validators
+                            'output_format', bar=bar, warn_instead_of_error=no_validators
                         ):
-                            if not ignore_validators:
+                            if not no_validators:
                                 bar.debug(
-                                    'Use generate --ignore-validators to ignore validation results.'
+                                    'Use generate --no-validators to ignore validation results.'
                                 )
                                 return
                     else:
@@ -1063,10 +1063,10 @@ class Directory(Rule):
                     'input_format',
                     bar=bar,
                     constraints=None,
-                    warn_instead_of_error=config.args.ignore_validators,
+                    warn_instead_of_error=config.args.no_validators,
                 ):
-                    if not config.args.ignore_validators:
-                        bar.debug('Use generate --ignore-validators to ignore validation results.')
+                    if not config.args.no_validators:
+                        bar.debug('Use generate --no-validators to ignore validation results.')
                         bar.done()
                         continue
                 # Add hashes to the cache.

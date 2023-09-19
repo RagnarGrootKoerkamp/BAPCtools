@@ -540,7 +540,7 @@ Run this from one of:
         help='The default solution to use for generating .ans files.',
     )
     genparser.add_argument(
-        '--ignore-validators',
+        '--no-validators',
         action='store_true',
         help='Ignore results of input and output validators. They are still run.',
     )

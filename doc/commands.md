@@ -14,7 +14,7 @@ This lists all subcommands and their most important options.
 - Problem development:
   - [`bt run [-v] [-t TIMELIMIT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-unlisted [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS][--ignore-validators] [--skip-visualizer] [testcases [testcases ...]]`](#generate)
+  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-unlisted [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS][--no-validators] [--skip-visualizer] [testcases [testcases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit] [--language LANG]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
@@ -165,7 +165,7 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--clean-generated`: Delete all generated files. Useful to save on disk space, since all this data can be regenerated.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
 - `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
-- `--ignore-validators`: Ignore the results of input and output validators.
+- `--no-validators`: Ignore the results of input and output validators.
   (They are still run.)
 - `--skip-solution`: Skip generating .ans or .interaction files with the solution.
 - `--skip-visualizer`: Skip generating graphics with the visualiser.
