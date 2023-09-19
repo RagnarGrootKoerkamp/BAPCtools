@@ -500,7 +500,9 @@ class TestcaseRule(Rule):
 
         # Error for listed cases with identical input.
         if self.listed and self.input_hash in generator_config.rules_cache:
-            error(
+            # This is fatal to prevent crashes later on when running generators in parallel.
+            # https://github.com/RagnarGrootKoerkamp/BAPCtools/issues/310
+            fatal(
                 f'Found identical input at {generator_config.rules_cache[self.input_hash]} and {self.path}'
             )
         generator_config.rules_cache[self.input_hash] = self.path
