@@ -200,7 +200,14 @@ class Problem:
             if not samplesonly:
                 in_paths += list(glob(p.path, 'data/secret/**/*.in'))
             if include_bad:
-                in_paths += list(glob(p.path, 'data/bad/**/*.in'))
+                bad_paths = list(glob(p.path, 'data/bad/**/*.in'))
+                if len(bad_paths) > 0:
+                    warn(
+                        'data/bad is deprecated. Use data/{invalid_inputs,invalid_outputs} instead.'
+                    )
+                in_paths += bad_paths
+                in_paths += list(glob(p.path, 'data/invalid_inputs/**/*.in'))
+                in_paths += list(glob(p.path, 'data/invalid_outputs/**/*.in'))
 
         testcases = []
         for f in in_paths:

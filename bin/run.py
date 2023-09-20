@@ -39,9 +39,13 @@ class Testcase:
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(''))
 
-        bad = self.short_path.parts[0] == 'bad'
-        self.bad_input = bad and not self.ans_path.is_file()
-        self.bad_output = bad and self.ans_path.is_file()
+        self.bad_input = self.short_path.parts[0] == 'invalid_inputs'
+        self.bad_output = self.short_path.parts[0] == 'invalid_outputs'
+
+        # Backwards compatibility support for `data/bad`.
+        if self.short_path.parts[0] == 'bad':
+            self.bad_input = not self.ans_path.is_file()
+            self.bad_output = self.ans_path.is_file()
 
         self.sample = self.short_path.parts[0] == 'sample'
 

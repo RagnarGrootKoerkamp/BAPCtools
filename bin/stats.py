@@ -46,7 +46,16 @@ def stats(problems):
             15,
             50,
         ),
-        ('bad', ['data/bad/**/*.in', 'data/bad/**/*.ans'], 0),
+        (
+            'bad',
+            [
+                'data/invalid_inputs/**/*.in',
+                'data/invalid_outputs/**/*.ans',
+                'data/bad/**/*.in',
+                'data/bad/**/*.ans',
+            ],
+            0,
+        ),
         ('   AC', 'submissions/accepted/*', 3),
         (' WA', 'submissions/wrong_answer/*', 2),
         ('TLE', 'submissions/time_limit_exceeded/*', 1),

@@ -77,7 +77,7 @@ Use `bt run -v` to show results for all testcases.
 
   Testcases and submissions should be passed as a relative or absolute path to the testcase/submission.
 
-  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret,bad}` respectively.
+  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret,invalid_inputs,invalid_outputs}` respectively.
 
   **Submission** paths can take a few forms:
 

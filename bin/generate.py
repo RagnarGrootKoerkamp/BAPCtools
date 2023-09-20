@@ -1250,7 +1250,11 @@ class GeneratorConfig:
         def parse(key, name, yaml, parent, listed=True):
             nonlocal testcase_id
             # Skip unlisted `data/bad` directory: we should not generate .ans files there.
-            if name == 'bad' and parent.path == Path('.') and listed is False:
+            if (
+                name in ['bad', 'invalid_inputs', 'invalid_outputs']
+                and parent.path == Path('.')
+                and listed is False
+            ):
                 return None
 
             check_type('Testcase/directory', yaml, [type(None), str, dict], parent.path)
