@@ -1,0 +1,36 @@
+solution: /submissions/accepted/th.py
+data:
+  sample:
+    data:
+      "2":
+        in: 1 1
+        ans: "2"
+  secret:
+    data:
+      "3":
+        in: 1 2
+        ans: "3"
+      inverse:
+        in: -1 1
+        ans: "0"
+      neg:
+        data:
+          neg_five:
+            in: -5 3
+            ans: "-2"
+      thirteen:
+        in: 10 3
+        ans: "13"
+      fourteen:
+        in: 10 4
+        ans: "14"
+      031-numbered:
+        in: 3 4
+        ans: "7"
+
+            
+
+
+
+
+

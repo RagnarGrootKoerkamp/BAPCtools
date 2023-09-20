@@ -1,0 +1,42 @@
+# These are just shorthands and re-implement (correctly)
+# the directories of the problem package specification. 
+
+accepted/: accepted
+wrong_answer/: wrong answer
+time_limit_exceeded: time limit exceeded
+
+# You can go beyond that and specify expectation
+# per subgroup instead:
+
+wa_sample_ac/:
+  sample: accepted
+  secret: wrong answer
+
+# Use explicit permissions and requirements instead of the shorthands:
+
+mixed/allverdicts.py:
+  secret/3:
+    permitted: [WA]
+  secret/fourteen:
+    permitted: [AC]
+  secret/negative_ans/:
+    permitted: [TLE]
+  secret/:
+    required: [RTE]
+
+# Patterns match as regular expressions from the start:
+
+mixed/seven.sh:
+  secret/\d+-numbered: accepted   # matches testcase secret/031-numbered
+mixed/bad-eight.sh:
+  secret/\d+-numbered: accepted   # matches testcase secret/031-numbered (and will fail)
+
+mixed/superstitious.py:            # for this submission
+  secret/thirteen:                 # ... on testcases that match this pattern
+    permitted: [WA]                # ... permit exactly the verdict WA, nothing else
+  secret/(?!thirteen): accepted    # everywhere else: accept
+
+mixed/bad-fourteen.py:
+  secret/thirteen: 
+    permitted: [WA]
+  secret/(?!thirteen): accepted

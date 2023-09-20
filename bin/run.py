@@ -334,7 +334,7 @@ class Submission(program.Program):
 
         # The first element will match the directory the file is in, if possible.
         self.expected_verdicts = self._get_expected_verdicts()
-
+        self.expectations = self.problem.get_expectations_registry().for_path(self.short_path)
         # NOTE: Judging of interactive problems on systems without `os.wait4` is
         # suboptimal because we cannot determine which of the submission and
         # interactor exits first. Thus, we don't distinguish the different non-AC
@@ -406,9 +406,10 @@ class Submission(program.Program):
                 verdicts = [subdir]
             else:
                 if len(verdicts) == 0:
-                    error(
-                        f'Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to ACCEPTED.'
-                    )
+                    pass # TODO (Thore): made this shut up!
+                    #error(
+                    #    f'Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to ACCEPTED.'
+                    #)
 
         if len(verdicts) == 0:
             verdicts = ['ACCEPTED']
@@ -460,9 +461,10 @@ class Submission(program.Program):
 
         verdict = (-100, 'ACCEPTED', 'ACCEPTED', 0)  # priority, verdict, print_verdict, duration
         verdict_run = None
+        verdict_for_testcase = dict()
 
         def process_run(run, p):
-            nonlocal max_duration, verdict, verdict_run
+            nonlocal max_duration, verdict, verdict_run, verdict_for_testcase
 
             localbar = bar.start(run)
             result = run.run()
@@ -484,7 +486,10 @@ class Submission(program.Program):
             if table_dict is not None:
                 table_dict[run.name] = result.verdict == 'ACCEPTED'
 
-            got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
+            verdict_short = short_verdict(result.verdict)
+            verdict_for_testcase[run.name] = verdict_short
+            #got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
+            got_expected = self.expectations.is_permitted(verdict_short, run.name)
 
             # Print stderr whenever something is printed
             if result.out and result.err:
@@ -522,7 +527,16 @@ class Submission(program.Program):
                     data += '\n'
                 data += f'{f.name}:' + localbar._format_data(t) + '\n'
 
+            if not got_expected:
+                localbar.error(f'{result.duration:6.3f}s {result.print_verdict()}', data)
+            short = short_verdict(result.verdict)
+            for prefix, pattern, verdicts in self.expectations.violated_permissions(short, run.name):
+                prefix = (f'{Fore.CYAN}{prefix:>{len(localbar.prefix)}}{Style.RESET_ALL}:' +
+                          f'{pattern:<{localbar.item_width}}')
+                localbar.warn(f"permits {verbose_verdicts(verdicts)}", prefix=prefix)
+
             localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
+
 
             # Lazy judging: stop on the first error when not in verbose mode.
             if (
@@ -542,16 +556,22 @@ class Submission(program.Program):
         self.print_verdict = verdict[2]
         self.duration = max_duration
 
+        # Check presence of required verdicts among testgroups
+        for prefix, pattern, verdicts in self.expectations.unsatisfied_requirements(verdict_for_testcase):
+            prefix = (f'{Fore.CYAN}{prefix:>{len(bar.prefix)}}{Style.RESET_ALL}: ' +
+                      f'{pattern:<{bar.item_width}}')
+            bar.warn(f"no test case got {verbose_verdicts(verdicts)}", prefix=prefix)
+
         # Use a bold summary line if things were printed before.
         if bar.logged:
             color = (
                 Style.BRIGHT + Fore.GREEN
-                if self.verdict in self.expected_verdicts
+                if self.expectations.is_permitted(short_verdict(self.verdict), Path())
                 else Style.BRIGHT + Fore.RED
             )
             boldcolor = Style.BRIGHT
         else:
-            color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
+            color = Fore.GREEN if self.expectations.is_permitted(short_verdict(self.verdict), Path()) else Fore.RED
             boldcolor = ''
 
         printed_newline = bar.finalize(
