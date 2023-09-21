@@ -915,7 +915,7 @@ def run_parsed_arguments(args):
                 success &= latex.build_problem_pdfs(problem)
         if action in ['solutions']:
             if level == 'problem':
-                success &= latex.build_problem_pdfs(problem, solutions=True)
+                success &= latex.build_problem_pdfs(problem, solutions=True, web=config.args.web)
         if action in ['validate', 'all']:
             if not (action == 'validate' and config.args.output):
                 success &= problem.validate_format('input_format')
