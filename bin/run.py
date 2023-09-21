@@ -247,6 +247,9 @@ class Run:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
                 if result.duration >= self.problem.settings.timeout:
                     result.print_verdict_ = 'TLE (aborted)'
+                    result.aborted = True
+                else:
+                    result.aborted = False
             elif result.ok is not True:
                 result.verdict = 'RUN_TIME_ERROR'
                 if config.args.error:
@@ -524,12 +527,19 @@ class Submission(program.Program):
 
             localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
-            # Lazy judging: stop on the first error when not in verbose mode.
-            if (
-                not config.args.verbose and not config.args.table
-            ) and result.verdict in config.MAX_PRIORITY_VERDICT:
-                bar.count = None
-                p.stop()
+            # Lazy judging: stop on the first error when:
+            # - not in verbose mode
+            if config.args.verbose or config.args.table:
+                return
+            # - the result has max priority
+            if result.verdict not in config.MAX_PRIORITY_VERDICT:
+                return
+            # - for TLE, the run was aborted
+            if result.verdict == 'TIME_LIMIT_EXCEEDED' and not result.aborted:
+                return
+
+            bar.count = None
+            p.stop()
 
         p = parallel.Parallel(lambda run: process_run(run, p), pin=True)
 
