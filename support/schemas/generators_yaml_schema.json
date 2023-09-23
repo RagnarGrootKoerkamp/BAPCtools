@@ -1,61 +1,4 @@
 {
-  "title": "Generator",
-  "description": "Generate test data for this prolem. Version 0.9.",
-  "type": "object",
-  "properties": {
-    "solution": {
-      "$ref": "#/$defs/solution"
-    },
-    "visualizer": {
-      "$ref": "#/$defs/visualizer"
-    },
-    "random_salt": {
-      "$ref": "#/$defs/random_salt"
-    },
-    "generators": {
-      "title": "Generators",
-      "description": "List of generators for this problem.",
-      "type": "object",
-      "patternProperties": {
-        "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])$": {
-          "title": "Generator",
-          "type": "array",
-          "items": {
-            "$ref": "#/$defs/unslashedfilepath"
-          }
-        }
-      },
-      "additionalProperties": false
-    },
-    "data": {
-      "title": "testdata root",
-      "description": "the root test group. must contain the testgroups 'sample' and 'secret'.",
-      "type": "object",
-      "properties": {
-        "sample": {
-          "$ref": "#/$defs/testgroup"
-        },
-        "secret": {
-          "$ref": "#/$defs/testgroup"
-        },
-        "invalid_inputs": {
-          "$ref": "#/$defs/testgroup"
-        },
-        "testdata.yaml": {
-          "$ref": "#/$defs/testdata_settings"
-        }
-      },
-      "additionalProperties": false,
-      "required": [
-        "sample",
-        "secret"
-      ]
-    }
-  },
-  "additionalProperties": true,
-  "required": [
-    "data"
-  ],
   "$defs": {
     "testgroup": {
       "type": "object",
@@ -73,6 +16,7 @@
                     "$ref": "#/$defs/data_dict"
                   },
                   {
+                    "type": "object",
                     "maxProperties": 1
                   }
                 ]
@@ -106,24 +50,15 @@
       "description": "The settings that apply to the testdata for this test group. Will be copied to this testgroup's `testdata.yaml`.",
       "properties": {
         "on_reject": {
-          "enum": [
-            "break",
-            "continue"
-          ],
+          "enum": ["break", "continue"],
           "default": "break"
         },
         "grading": {
-          "enum": [
-            "default",
-            "custom"
-          ]
+          "enum": ["default", "custom"]
         },
         "grader_flags": {
           "type": "string",
-          "examples": [
-            "min",
-            "sum"
-          ]
+          "examples": ["min", "sum"]
         },
         "input_validator_flags": {
           "type": "string"
@@ -177,9 +112,7 @@
               "type": "string",
               "title": "Copy",
               "description": "Copy this testcase from the given path relative to `/generators/`.",
-              "examples": [
-                "manual_cases/sample/3"
-              ]
+              "examples": ["manual_cases/sample/3"]
             },
             "in": {
               "type": "string",
@@ -204,9 +137,8 @@
             "interaction": {
               "title": "Sample interaction",
               "description": "Input is prefixed with `<`, output is prefixed with `>`.",
-              "examples": [
-                "<1 2\n>3\n<4 5\n>9\n<6 7\n>13\n"
-              ],
+              "examples": ["<1 2\n>3\n<4 5\n>9\n<6 7\n>13\n"],
+              "type": "string",
               "pattern": "^([<>][^\\n]*\\n)+$"
             },
             "visualizer": {
@@ -232,7 +164,7 @@
     },
     "visualizer": {
       "title": "Visualizer",
-      "description": "Absolute path to and arguments for a visualizer.",
+      "description": "Absolute path to and arguments for a visualizer",
       "examples": [
         "/visualizer",
         "/visualizers/asy.py",
@@ -245,26 +177,18 @@
       "title": "Random Salt",
       "type": "string",
       "description": "“Salt” to add to {seed} variables",
-      "examples": [
-        "abcd"
-      ]
+      "examples": ["abcd"]
     },
     "solution": {
       "title": "Default Solution",
       "description": "Absolute path to a solution for this problem or testcase.",
-      "examples": [
-        "/submissions/accepted/sol.py"
-      ],
+      "examples": ["/submissions/accepted/sol.py"],
       "$ref": "#/$defs/slashedfilepath"
     },
     "command": {
       "title": "Generator Invocation",
       "description": "Invocation of a generator to create this testcase",
-      "examples": [
-        "forest --n 40 --connected",
-        "path.cpp 20",
-        "random {seed}"
-      ],
+      "examples": ["forest --n 40 --connected", "path.cpp 20", "random {seed}"],
       "type": "string",
       "pattern": "^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$"
     },
@@ -280,5 +204,59 @@
       "type": "string",
       "pattern": "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]/)*([A-Za-z0-9]|A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]$"
     }
-  }
+  },
+  "$id": "https://json.schemastore.org/problem_package_generators.json",
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "additionalProperties": true,
+  "description": "Generate test data for this prolem. Version 0.9.",
+  "properties": {
+    "solution": {
+      "$ref": "#/$defs/solution"
+    },
+    "visualizer": {
+      "$ref": "#/$defs/visualizer"
+    },
+    "random_salt": {
+      "$ref": "#/$defs/random_salt"
+    },
+    "generators": {
+      "title": "Generators",
+      "description": "List of generators for this problem.",
+      "type": "object",
+      "patternProperties": {
+        "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])$": {
+          "title": "Generator",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/unslashedfilepath"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "data": {
+      "title": "testdata root",
+      "description": "the root test group. must contain the testgroups 'sample' and 'secret'.",
+      "type": "object",
+      "properties": {
+        "sample": {
+          "$ref": "#/$defs/testgroup"
+        },
+        "secret": {
+          "$ref": "#/$defs/testgroup"
+        },
+        "invalid_inputs": {
+          "$ref": "#/$defs/testgroup"
+        },
+        "testdata.yaml": {
+          "$ref": "#/$defs/testdata_settings"
+        }
+      },
+      "additionalProperties": false,
+      "required": ["sample", "secret"]
+    }
+  },
+  "required": ["data"],
+  "title": "Generator",
+  "type": "object"
 }
