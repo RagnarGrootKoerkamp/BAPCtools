@@ -339,7 +339,10 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
     return build_latex_pdf(builddir, Path(main_file), language)
 
 
-def build_contest_pdfs(contest, problems, tmpdir, solutions=False, web=False):
+def build_contest_pdfs(contest, problems, tmpdir, lang=None, solutions=False, web=False):
+    if lang:
+        return build_contest_pdf(contest, problems, tmpdir, lang, solutions, web)
+
     """Build contest PDFs for all available languages"""
     statement_languages = set.intersection(*(set(p.statement_languages) for p in problems))
     if not statement_languages:

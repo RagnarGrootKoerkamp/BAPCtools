@@ -36,13 +36,25 @@ def fix_problem_yaml_name(problem):
     return revert
 
 
-def build_samples_zip(problems):
+# Write any .lang.pdf files to .pdf.
+def remove_language_suffix(fname, statement_language):
+    out = Path(fname)
+    if out.suffixes == ['.' + statement_language, '.pdf']:
+        out = out.with_suffix('').with_suffix('.pdf')
+    return out
+
+
+def build_samples_zip(problems, statement_language):
     zf = zipfile.ZipFile(
         'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False
     )
-    for fname in glob(Path('.'), 'contest*.pdf'):
+    for fname in glob(Path('.'), f'contest*.{statement_language}.pdf'):
         if Path(fname).is_file():
-            zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
+            zf.write(
+                fname,
+                remove_language_suffix(fname, statement_language),
+                compress_type=zipfile.ZIP_DEFLATED,
+            )
 
     for problem in problems:
         outputdir = Path(problem.label)
@@ -142,10 +154,7 @@ def build_problem_zip(problem, output, statement_language):
             # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
                 out = f.relative_to(problem.path)
-                # Write any .lang.pdf files to .pdf.
-                if out.suffixes == ['.' + statement_language, '.pdf']:
-                    out = out.with_suffix('')
-                    out = out.with_suffix('.pdf')
+                out = remove_language_suffix(out, statement_language)
                 # For Kattis, prepend the problem shortname to all files.
                 if config.args.kattis:
                     out = problem.name / out
@@ -179,10 +188,10 @@ def build_problem_zip(problem, output, statement_language):
 
 
 # Assumes the current working directory has: the zipfiles and
-# contest*.pdf
-# solutions*.pdf
+# contest*.{lang}.pdf
+# solutions*.{lang}.pdf
 # Output is <outfile>
-def build_contest_zip(problems, zipfiles, outfile, args):
+def build_contest_zip(problems, zipfiles, outfile, statement_language, args):
     print("writing ZIP file %s" % outfile, file=sys.stderr)
 
     update_problems_yaml(problems)
@@ -194,7 +203,7 @@ def build_contest_zip(problems, zipfiles, outfile, args):
 
     # For general zip export, also create pdfs and a samples zip.
     if not args.kattis:
-        build_samples_zip(problems)
+        build_samples_zip(problems, statement_language)
 
         for fname in (
             [
@@ -202,11 +211,15 @@ def build_contest_zip(problems, zipfiles, outfile, args):
                 'contest.yaml',
                 'samples.zip',
             ]
-            + glob(Path('.'), 'contest*.pdf')
-            + glob(Path('.'), 'solutions*.pdf')
+            + glob(Path('.'), f'contest*.{statement_language}.pdf')
+            + glob(Path('.'), f'solutions*.{statement_language}.pdf')
         ):
             if Path(fname).is_file():
-                zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
+                zf.write(
+                    fname,
+                    remove_language_suffix(fname, statement_language),
+                    compress_type=zipfile.ZIP_DEFLATED,
+                )
 
     # For Kattis export, delete the original zipfiles.
     if args.kattis:

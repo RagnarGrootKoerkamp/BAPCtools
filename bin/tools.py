@@ -854,7 +854,10 @@ def run_parsed_arguments(args):
         return
 
     if action == 'samplezip':
-        export.build_samples_zip(problems)
+        # Add contest PDF for only one language to the zip file
+        statement_language = force_single_language(problems)
+
+        export.build_samples_zip(problems, statement_language)
         return
 
     if action == 'rename_problem':
@@ -953,14 +956,8 @@ def run_parsed_arguments(args):
                     success &= problem.validate_format('input_format', constraints={})
                     success &= problem.validate_format('output_format', constraints={})
 
-                """Build contest PDFs for all available languages"""
-                if config.args.language:
-                    statement_language = config.args.language
-                else:
-                    all_languages = set.union(*(set(p.statement_languages) for p in problems))
-                    if len(all_languages) > 1:
-                        fatal('Multiple languages found, please specify one with --language')
-                    statement_language = all_languages.pop()
+                # Add problem PDF for only one language to the zip file
+                statement_language = force_single_language(problems)
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
@@ -987,19 +984,29 @@ def run_parsed_arguments(args):
             )
 
         if action in ['zip']:
+            statement_language = None
             if not config.args.kattis:
-                success &= latex.build_contest_pdfs(contest, problems, tmpdir)
-                success &= latex.build_contest_pdfs(contest, problems, tmpdir, web=True)
+                # Add contest/solutions PDF for only one language to the zip file
+                statement_language = force_single_language(problems)
+
+                success &= latex.build_contest_pdfs(contest, problems, tmpdir, statement_language)
+                success &= latex.build_contest_pdfs(
+                    contest, problems, tmpdir, statement_language, web=True
+                )
                 if not config.args.no_solutions:
-                    success &= latex.build_contest_pdfs(contest, problems, tmpdir, solutions=True)
                     success &= latex.build_contest_pdfs(
-                        contest, problems, tmpdir, solutions=True, web=True
+                        contest, problems, tmpdir, statement_language, solutions=True
+                    )
+                    success &= latex.build_contest_pdfs(
+                        contest, problems, tmpdir, statement_language, solutions=True, web=True
                     )
 
             outfile = contest + '.zip'
             if config.args.kattis:
                 outfile = contest + '-kattis.zip'
-            export.build_contest_zip(problems, problem_zips, outfile, config.args)
+            export.build_contest_zip(
+                problems, problem_zips, outfile, statement_language, config.args
+            )
         if action in ['update_problems_yaml']:
             export.update_problems_yaml(
                 problems,
@@ -1008,6 +1015,17 @@ def run_parsed_arguments(args):
 
     if not success or config.n_error > 0 or config.n_warn > 0:
         sys.exit(1)
+
+
+def force_single_language(problems):
+    if config.args.language:
+        statement_language = config.args.language
+    else:
+        all_languages = set.union(*(set(p.statement_languages) for p in problems))
+        if len(all_languages) > 1:
+            fatal('Multiple languages found, please specify one with --language')
+        statement_language = all_languages.pop()
+    return statement_language
 
 
 def read_personal_config():
