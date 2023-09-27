@@ -132,6 +132,7 @@ def run_interactive_testcase(
         return ExecResult(
             True,
             tend - tstart,
+            tend - tstart >= timeout,
             validator_err.decode('utf-8', 'replace'),
             exec_res.err,
             verdict,
@@ -353,4 +354,4 @@ while True:
     if team_error is False:
         team_err = submission.stderr.read().decode('utf-8', 'replace')
 
-    return ExecResult(True, submission_time, val_err, team_err, verdict, print_verdict)
+    return ExecResult(True, submission_time, aborted, val_err, team_err, verdict, print_verdict)

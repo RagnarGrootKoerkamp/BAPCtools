@@ -245,11 +245,8 @@ class Run:
             result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
-                if result.duration >= self.problem.settings.timeout:
+                if result.timeout_expired:
                     result.print_verdict_ = 'TLE (aborted)'
-                    result.aborted = True
-                else:
-                    result.aborted = False
             elif result.ok is not True:
                 result.verdict = 'RUN_TIME_ERROR'
                 if config.args.error:
@@ -262,7 +259,7 @@ class Run:
                 result = self._validate_output()
                 if result is False:
                     error(f'No output validators found for testcase {self.testcase.name}')
-                    result = ExecResult(-1, 0, None, None)
+                    result = ExecResult(-1, 0, False, None, None)
                     result.verdict = 'VALIDATOR_CRASH'
                 else:
                     result.duration = duration
@@ -534,8 +531,8 @@ class Submission(program.Program):
             # - the result has max priority
             if result.verdict not in config.MAX_PRIORITY_VERDICT:
                 return
-            # - for TLE, the run was aborted
-            if result.verdict == 'TIME_LIMIT_EXCEEDED' and not result.aborted:
+            # - for TLE, the run was aborted because the global timeout expired
+            if result.verdict == 'TIME_LIMIT_EXCEEDED' and not result.timeout_expired:
                 return
 
             bar.count = None
