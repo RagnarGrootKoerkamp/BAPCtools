@@ -1004,9 +1004,7 @@ def run_parsed_arguments(args):
             outfile = contest + '.zip'
             if config.args.kattis:
                 outfile = contest + '-kattis.zip'
-            export.build_contest_zip(
-                problems, problem_zips, outfile, statement_language, config.args
-            )
+            export.build_contest_zip(problems, problem_zips, outfile, statement_language)
         if action in ['update_problems_yaml']:
             export.update_problems_yaml(
                 problems,

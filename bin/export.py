@@ -191,7 +191,7 @@ def build_problem_zip(problem, output, statement_language):
 # contest*.{lang}.pdf
 # solutions*.{lang}.pdf
 # Output is <outfile>
-def build_contest_zip(problems, zipfiles, outfile, statement_language, args):
+def build_contest_zip(problems, zipfiles, outfile, statement_language):
     print("writing ZIP file %s" % outfile, file=sys.stderr)
 
     update_problems_yaml(problems)
@@ -202,7 +202,7 @@ def build_contest_zip(problems, zipfiles, outfile, statement_language, args):
         zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 
     # For general zip export, also create pdfs and a samples zip.
-    if not args.kattis:
+    if not config.args.kattis:
         build_samples_zip(problems, statement_language)
 
         for fname in (
@@ -222,7 +222,7 @@ def build_contest_zip(problems, zipfiles, outfile, statement_language, args):
                 )
 
     # For Kattis export, delete the original zipfiles.
-    if args.kattis:
+    if config.args.kattis:
         for fname in zipfiles:
             fname.unlink()
 
