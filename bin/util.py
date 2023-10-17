@@ -896,9 +896,10 @@ def get_memory_limit(kwargs=None):
 
 
 class ExecResult:
-    def __init__(self, ok, duration, err, out, verdict=None, print_verdict=None):
+    def __init__(self, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None):
         self.ok = ok
         self.duration = duration
+        self.timeout_expired = timeout_expired
         self.err = err
         self.out = out
         self.verdict = verdict
@@ -1051,12 +1052,12 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         # File is likely not executable.
         stdout = None
         stderr = str(e)
-        return ExecResult(-1, 0, stderr, stdout)
+        return ExecResult(-1, 0, False, stderr, stdout)
     except OSError as e:
         # File probably doesn't exist.
         stdout = None
         stderr = str(e)
-        return ExecResult(-1, 0, stderr, stdout)
+        return ExecResult(-1, 0, False, stderr, stdout)
     tend = time.monotonic()
 
     if threading.current_thread() is threading.main_thread():
@@ -1085,7 +1086,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     else:
         duration = tend - tstart
 
-    return ExecResult(ok, duration, err, out)
+    return ExecResult(ok, duration, did_timeout, err, out)
 
 
 def inc_label(label):

@@ -18,7 +18,7 @@ These are some things that hold for all types of validation mentioned below.
 - The return code should be `43` for failure/WA. (Note that the spec is
   slightly more lenient and allows any non-`42` return code for input format
   validation. BAPCtools expects a code of exactly `43` when validating
-  `data/bad` testcases (see below).)
+  `data/invalid_inputs` testcases (see below).)
 - For `input/output format validation`, the out-of-spec `--constraints-file
 <path>` flag is set when running `bt constraints`. The validator can write some
   statistics on the testcase to this file. See the [implementation
@@ -104,13 +104,19 @@ that sum to `x`. Then, the output validator could first read `x` from the `.ans`
 file (second argument), and compare that to the `x` given on `stdin`. Then, it
 can read the remaining two integers on `stdin` and verify they sum to `x`.
 
-## `data/bad` validation (out-of-spec)
+## `data/invalid_inputs` validation
 
-BAPCtools allows testcases in `data/bad` to test that validators fail on
-specific types of input/output that do not follow the constraints. In
+BAPCtools allows testcases in `data/invalid_outputs` to test that validators fail on
+specific types of input that do not follow the constraints. In
 particular:
 
-- If `data/bad/<testcase>.in` is present and the corresponding `.ans` is not
-  present, the input format validator is run on this `.in` and it must fail (return `43`).
-- If both `data/bad/<testcase>.{in,ans}` are present, the `.in` is assumed to be
-  valid, and the output format validator is run on the `.ans` and it must fail (return `43`).
+- If `data/invalid_inputs/<testcase>.in` is present, at least one input format validator must fail (return `43`).
+
+## `data/invalid_outputs` validation (out-of-spec)
+
+BAPCtools allows testcases in `data/invalid_outputs` to test that output-format
+validators (for problems with default validation) fail on
+specific types of output that do not follow the constraints. In
+particular:
+
+- If `data/invalid_outputs.{in,ans}` are both present, at least one output format validator must fail (return `43`).

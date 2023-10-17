@@ -39,9 +39,13 @@ class Testcase:
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(''))
 
-        bad = self.short_path.parts[0] == 'bad'
-        self.bad_input = bad and not self.ans_path.is_file()
-        self.bad_output = bad and self.ans_path.is_file()
+        self.bad_input = self.short_path.parts[0] == 'invalid_inputs'
+        self.bad_output = self.short_path.parts[0] == 'invalid_outputs'
+
+        # Backwards compatibility support for `data/bad`.
+        if self.short_path.parts[0] == 'bad':
+            self.bad_input = not self.ans_path.is_file()
+            self.bad_output = self.ans_path.is_file()
 
         self.sample = self.short_path.parts[0] == 'sample'
 
@@ -241,7 +245,7 @@ class Run:
             result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
-                if result.duration >= self.problem.settings.timeout:
+                if result.timeout_expired:
                     result.print_verdict_ = 'TLE (aborted)'
             elif result.ok is not True:
                 result.verdict = 'RUN_TIME_ERROR'
@@ -255,7 +259,7 @@ class Run:
                 result = self._validate_output()
                 if result is False:
                     error(f'No output validators found for testcase {self.testcase.name}')
-                    result = ExecResult(-1, 0, None, None)
+                    result = ExecResult(-1, 0, False, None, None)
                     result.verdict = 'VALIDATOR_CRASH'
                 else:
                     result.duration = duration
@@ -528,12 +532,19 @@ class Submission(program.Program):
 
             localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
-            # Lazy judging: stop on the first error when not in verbose mode.
-            if (
-                not config.args.verbose and not config.args.table
-            ) and result.verdict in config.MAX_PRIORITY_VERDICT:
-                bar.count = None
-                p.stop()
+            # Lazy judging: stop on the first error when:
+            # - not in verbose mode
+            if config.args.verbose or config.args.table:
+                return
+            # - the result has max priority
+            if result.verdict not in config.MAX_PRIORITY_VERDICT:
+                return
+            # - for TLE, the run was aborted because the global timeout expired
+            if result.verdict == 'TIME_LIMIT_EXCEEDED' and not result.timeout_expired:
+                return
+
+            bar.count = None
+            p.stop()
 
         p = parallel.Parallel(lambda run: process_run(run, p), pin=True)
 

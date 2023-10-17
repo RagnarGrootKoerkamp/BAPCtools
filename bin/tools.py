@@ -454,7 +454,7 @@ Run this from one of:
     move_or_remove_group.add_argument('--move-to', help='Move failing testcases to this directory.')
 
     validate_parser.add_argument(
-        '--skip-testcase-sanity-checks',
+        '--no-testcase-sanity-checks',
         action='store_true',
         help='Skip sanity checks on testcases.',
     )
@@ -540,22 +540,22 @@ Run this from one of:
         help='The default solution to use for generating .ans files.',
     )
     genparser.add_argument(
-        '--ignore-validators',
+        '--no-validators',
         action='store_true',
         help='Ignore results of input and output validators. They are still run.',
     )
     genparser.add_argument(
-        '--skip-solution',
+        '--no-solution',
         action='store_true',
         help='Skip generating .ans/.interaction files with the solution.',
     )
     genparser.add_argument(
-        '--skip-visualizer',
+        '--no-visualizer',
         action='store_true',
         help='Skip generating graphics with the visualizer.',
     )
     genparser.add_argument(
-        '--skip-testcase-sanity-checks',
+        '--no-testcase-sanity-checks',
         action='store_true',
         help='Skip sanity checks on testcases.',
     )
@@ -622,7 +622,7 @@ Run this from one of:
         help='Allow overwriting existing input files in generator.',
     )
     runparser.add_argument(
-        '--skip-testcase-sanity-checks',
+        '--no-testcase-sanity-checks',
         action='store_true',
         help='Skip sanity checks on testcases.',
     )
@@ -673,7 +673,7 @@ Run this from one of:
     )
     allparser.add_argument('--force', '-f', action='store_true', help='Delete all untracked files.')
     allparser.add_argument(
-        '--skip-testcase-sanity-checks',
+        '--no-testcase-sanity-checks',
         action='store_true',
         help='Skip sanity checks on testcases.',
     )
@@ -903,7 +903,7 @@ def run_parsed_arguments(args):
             config.args.jobs = os.cpu_count() // 2
             config.args.add_unlisted = False
             config.args.verbose = 0
-            config.args.skip_visualizer = True
+            config.args.no_visualizer = True
             success &= generate.generate(problem)
             config.args = old_args
         if action in ['fuzz']:
@@ -915,7 +915,7 @@ def run_parsed_arguments(args):
                 success &= latex.build_problem_pdfs(problem)
         if action in ['solutions']:
             if level == 'problem':
-                success &= latex.build_problem_pdfs(problem, solutions=True)
+                success &= latex.build_problem_pdfs(problem, solutions=True, web=config.args.web)
         if action in ['validate', 'all']:
             if not (action == 'validate' and config.args.output):
                 success &= problem.validate_format('input_format')

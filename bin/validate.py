@@ -181,6 +181,7 @@ class OutputValidator(Validator):
                 timeout=config.get_timeout(),
             )
 
+
 # Checks if byte is printable or whitespace
 def _in_invalid_byte(byte, *, other_whitespaces=False):
     if other_whitespaces:
@@ -198,8 +199,10 @@ def _in_invalid_byte(byte, *, other_whitespaces=False):
         return False
     return True
 
+
 def _has_invalid_byte(bytes, *, other_whitespaces=False):
     return any(_in_invalid_byte(b, other_whitespaces=other_whitespaces) for b in bytes)
+
 
 # assumes that the only possible whitespaces are space and newline
 # allows \n\n
@@ -214,6 +217,7 @@ def _has_consecutive_whitespaces(bytes):
         last = byte
     return False
 
+
 # Does some generic checks on input/output:
 # - no unreadable characters
 # - no weird consecutive whitespaces ('  ', '\n ', ' \n')
@@ -221,13 +225,13 @@ def _has_consecutive_whitespaces(bytes):
 # - ensures newline at end of file
 # - not too large
 # if any of this is violated a warning is printed
-# use --skip-testcase-sanity-checks to skip this
+# use --no-testcase-sanity-checks to skip this
 def generic_validation(validator_type, file, *, bar):
     assert validator_type in ['input_format', 'output_format', 'output']
-    if config.args.skip_testcase_sanity_checks:
+    if config.args.no_testcase_sanity_checks:
         return
 
-    #Todo we could check for more stuff that is likely an error like `.*-0.*`
+    # Todo we could check for more stuff that is likely an error like `.*-0.*`
     if validator_type == 'input_format':
         name = 'Testcase'
         strict = True
@@ -252,6 +256,4 @@ def generic_validation(validator_type, file, *, bar):
             elif bytes[-1] != ord('\n'):
                 bar.warn(f'{name} does not end with a newline but was accepted!')
             elif _has_consecutive_whitespaces(bytes):
-                bar.warn(
-                    f'{name} contains consecutive whitespace characters but was accepted!'
-                )
+                bar.warn(f'{name} contains consecutive whitespace characters but was accepted!')

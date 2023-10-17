@@ -14,7 +14,7 @@ This lists all subcommands and their most important options.
 - Problem development:
   - [`bt run [-v] [-t TIMELIMIT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-unlisted [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS][--ignore-validators] [--skip-visualizer] [testcases [testcases ...]]`](#generate)
+  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-unlisted [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS][--no-validators] [--no-visualizer] [testcases [testcases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit] [--language LANG]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
@@ -77,7 +77,7 @@ Use `bt run -v` to show results for all testcases.
 
   Testcases and submissions should be passed as a relative or absolute path to the testcase/submission.
 
-  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret,bad}` respectively.
+  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret,invalid_inputs,invalid_outputs}` respectively.
 
   **Submission** paths can take a few forms:
 
@@ -106,7 +106,7 @@ Use `bt run -v` to show results for all testcases.
 - `--timeout <second>`: The timeout to use for the submission.
 - `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
-- `--skip-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
+- `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 
 ## `test`
 
@@ -165,11 +165,11 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--clean-generated`: Delete all generated files. Useful to save on disk space, since all this data can be regenerated.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
 - `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
-- `--ignore-validators`: Ignore the results of input and output validators.
+- `--no-validators`: Ignore the results of input and output validators.
   (They are still run.)
-- `--skip-solution`: Skip generating .ans or .interaction files with the solution.
-- `--skip-visualizer`: Skip generating graphics with the visualiser.
-- `--skip-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
+- `--no-solution`: Skip generating .ans or .interaction files with the solution.
+- `--no-visualizer`: Skip generating graphics with the visualiser.
+- `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 
 ## `clean`
 
@@ -276,7 +276,7 @@ It supports the following flags when run for a single problem:
 - `[testcases]`: a list of testcases and/or directories to validate. See `run <testcases>` for allowed formats. When not set, all testcases are validated.
 - `--remove`: when passed, all invalid testcases are deleted.
 - `--move-to <directory>`: when passed, all invalid testcases are moved to the given directory.
-- `--skip-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
+- `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 
 ## `constraints`
 
@@ -535,7 +535,7 @@ This is a convenience command (mostly for use in CI) that runs the following sub
 - Run all submissions
 - Clean up generated testcases when done, similar to `bt generate --clean-generated` when `--cleanup-generated` is passed.
 
-This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand and the `--skip-testcase-sanity-checks` flag from `validate`.
+This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand and the `--no-testcase-sanity-checks` flag from `validate`.
 
 ## `solve_stats`
 
