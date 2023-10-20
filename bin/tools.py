@@ -682,6 +682,9 @@ Run this from one of:
         action='store_true',
         help='Rerun all generators to make sure generators are deterministic.',
     )
+    allparser.add_argument(
+        '--timeout', '-t', type=int, help='Override the default timeout. Default: 30.'
+    )
 
     # Build DomJudge zip
     zipparser = subparsers.add_parser(
