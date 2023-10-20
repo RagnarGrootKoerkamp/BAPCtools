@@ -478,7 +478,7 @@ class Generator(Program):
 
         with stdout_path.open('w') as stdout_file:
             result = exec_command(
-                self.run_command + args, stdout=stdout_file, timeout=timeout, cwd=cwd
+                self.run_command + args, stdout=stdout_file, timeout=timeout, cwd=cwd, memory=None
             )
 
         result.retry = False
@@ -514,4 +514,6 @@ class Visualizer(Program):
     # Stdin and stdout are not used.
     def run(self, cwd, args=[]):
         assert self.run_command is not None
-        return exec_command(self.run_command + args, timeout=config.get_timeout(), cwd=cwd)
+        return exec_command(
+            self.run_command + args, timeout=config.get_timeout(), cwd=cwd, memory=None
+        )
