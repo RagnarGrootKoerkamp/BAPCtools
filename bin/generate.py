@@ -1688,7 +1688,7 @@ class GeneratorConfig:
                     deleted = True
 
             if deleted:
-                bar.log('Deleting testcase')
+                bar.verbose('Deleting testcase')
 
             bar.done()
 
