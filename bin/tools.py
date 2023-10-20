@@ -500,6 +500,11 @@ Run this from one of:
         '--timeout', '-t', type=int, help='Override the default timeout. Default: 30.'
     )
     genparser.add_argument(
+        '--memory',
+        '-m',
+        help='The max amount of memory in MB a subprocesses may use. Does not work for java. Default: 2048.',
+    )
+    genparser.add_argument(
         '--samples',
         action='store_true',
         help='Overwrite the samples as well, in combination with -f.',
