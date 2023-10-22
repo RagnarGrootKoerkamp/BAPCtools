@@ -336,6 +336,7 @@
 \let\ttfamilyFB\ttfamily
 \let\rmfamilyFB\rmfamily
 \usepackage[\langbabel]{babel}
+\usepackage[none]{hyphenat} % Disable hyphenation with language [none]
 \usepackage{lmodern}
 \usepackage{graphicx}
 \usepackage{courier}
