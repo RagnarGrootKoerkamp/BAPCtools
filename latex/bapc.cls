@@ -200,7 +200,7 @@
 % A solution to this problem was found on http://tex.stackexchange.com/a/111488 .
 %-------------------------------------------------------------------------------
 \newcommand{\mySampleHeading}[1]{
-	\multicolumn{1}{l}{\large \bfseries\textrm{\langsample{} #1 \arabic{SampleCount}}}
+	\multicolumn{1}{l}{\large \bfseries\textrm{#1 \arabic{SampleCount}}}
 }
 \newcommand{\SampleListing}[1]{
   	\lstinputlisting[aboveskip=-0.7\baselineskip,belowskip=-0.9\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
