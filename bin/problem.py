@@ -395,7 +395,7 @@ class Problem:
                 if has_constraints:
                     constraint_validators.append(f)
             if len(constraint_validators) == 0:
-                error(
+                warn(
                     f'No {validator_type} constraint validators found: No matches for \'constraints_file\'.'
                 )
                 return False
