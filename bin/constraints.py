@@ -259,8 +259,21 @@ def check_constraints(problem):
         '{:^{width}}|{:^40}'.format('VALIDATORS', 'PROBLEM STATEMENT', width=left_width),
         sep='',
     )
-    for val, st in itertools.zip_longest(validator_defs, statement_defs):
+
+    while statement_defs or validator_defs:
+        #print(statement_defs, validator_defs)
+        if statement_defs:
+            # Display constraints in the order they appear in statement (statement_defs is thus ordered)
+            st = next(iter(statement_defs))
+            # Find a validator_def matching st, if there is one
+            val = min((d for d in validator_defs if len(d) == 3 and d[1] in st), default=None)
+        else:
+            # No statement_defs left? Just take the next validator_def
+            st = None
+            val = validator_defs[0]
+
         if val is not None:
+            validator_defs.remove(val)
             if isinstance(val, str):
                 print('{:^{width}}'.format(val, width=left_width), sep='', end='')
             else:
@@ -280,6 +293,8 @@ def check_constraints(problem):
         else:
             print('{:^40}'.format(''), sep='', end='')
         print()
+        if st is not None:
+            statement_defs.pop(st)
 
     print()
 
