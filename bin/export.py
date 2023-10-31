@@ -99,44 +99,39 @@ def build_samples_zip(problems, statement_language):
 def build_problem_zip(problem, output, statement_language):
     """Make DOMjudge ZIP file for specified problem."""
 
-    if not problem.interactive:
-        # Glob, required?
-        files = [
-            ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
-            ('problem.yaml', True),
-            ('.timelimit', True),
-            (f'problem.{statement_language}.pdf', True),
-            ('problem_statement/*', True),
-            ('data/sample/**/*.in', True),
-            ('data/sample/**/*.ans', True),
-            ('data/secret/**/*.in', True),
-            ('data/secret/**/*.ans', True),
-            ('submissions/accepted/**/*', True),
-            ('submissions/*/**/*', False),
-            ('attachments/**/*', False),
-        ]
-    else:
-        files = [
-            ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
-            ('problem.yaml', True),
-            ('.timelimit', True),
-            (f'problem.{statement_language}.pdf', True),
-            ('problem_statement/*', True),
-            # Either .interaction or .in.statement should be present, but we only care about .interaction here.
-            ('data/sample/**/*.interaction', False),
-            ('data/sample/**/*.in.statement', False),
-            ('data/sample/**/*.ans.statement', False),
-            ('data/secret/**/*.in', True),
-            # Not really needed, but otherwise problemtools will complain.
-            ('data/secret/**/*.ans', True),
-            ('submissions/accepted/**/*', True),
-            ('submissions/*/**/*', False),
-            ('attachments/**/*', False),
-        ]
+    files = [
+        ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
+        ('problem.yaml', True),
+        ('problem_statement/*', True),
+        ('data/secret/**/*.in', True),
+        ('data/secret/**/*.ans', True),
+        ('submissions/accepted/**/*', True),
+        ('submissions/*/**/*', False),
+        ('attachments/**/*', False),
+    ]
+
     for ext in config.KNOWN_DATA_EXTENSIONS:
         files += [
             (f'data/sample/**/*.{ext}', False),
             (f'data/secret/**/*.{ext}', False),
+        ]
+
+    if not config.args.kattis:
+        files += [('.timelimit', True)]
+        files += [(f'problem.{statement_language}.pdf', True)]
+
+    if not problem.interactive:
+        # Glob, required?
+        files += [
+            ('data/sample/**/*.in', True),
+            ('data/sample/**/*.ans', True),
+        ]
+    else:
+        files += [
+            # Either .interaction or .in.statement should be present, but we only care about .interaction here.
+            ('data/sample/**/*.interaction', False),
+            ('data/sample/**/*.in.statement', False),
+            ('data/sample/**/*.ans.statement', False),
         ]
 
     if 'custom' in problem.settings.validation:
