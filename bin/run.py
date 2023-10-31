@@ -396,7 +396,7 @@ class Submission(program.Program):
                 # Skip files where the key does not occur.
                 pass
 
-        if self.path.parts[-3] == 'submissions':
+        if len(self.path.parts) >= 3 and self.path.parts[-3] == 'submissions':
             # Submissions in any of config.VERDICTS should not have `@EXPECTED_RESULTS@: `, and vice versa.
             # See https://github.com/DOMjudge/domjudge/issues/1861
             subdir = self.short_path.parts[0].upper()
