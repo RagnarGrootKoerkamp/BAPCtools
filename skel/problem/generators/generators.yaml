@@ -5,21 +5,19 @@
 
 data:
   sample:
-    # Uncomment to disable generating ans files for sample cases.
-    #solution:
     data:
       # Some small examples showing to help understanding of the problem.
-      #'1':
-      #  in: 1 2
-      #  ans: '3'
+      #- '':
+      #    in: 1 2
+      #    ans: '3'
       # Or to preserve newlines:
-      #'2':
-      #  in: |
-      #    1 2
-      #    3 4
-      #  ans: |
-      #    3
-      #    7
+      #- '':
+      #    in: |
+      #      1 2
+      #      3 4
+      #    ans: |
+      #      3
+      #      7
 
   secret:
     data:
