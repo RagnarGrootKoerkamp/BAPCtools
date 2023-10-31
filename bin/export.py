@@ -133,6 +133,11 @@ def build_problem_zip(problem, output, statement_language):
             ('submissions/*/**/*', False),
             ('attachments/**/*', False),
         ]
+    for ext in config.KNOWN_DATA_EXTENSIONS:
+        files += [
+            (f'data/sample/**/*.{ext}', False),
+            (f'data/secret/**/*.{ext}', False),
+        ]
 
     if 'custom' in problem.settings.validation:
         files.append(('output_validators/**/*', True))
