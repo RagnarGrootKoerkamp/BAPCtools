@@ -179,19 +179,16 @@ Validators based on [headers/validation.h](../headers/validation.h) can take a `
 After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output. Each line in the output file will look like:
 
 ```
-<source_location> <bool reached minimum> <bool reached maximum> <minimum allowed> <maximum allowed> <minimum seen> <maximum seen>
+<string name> <string name> <bool reached minimum> <bool reached maximum> <minimum allowed> <maximum allowed> <minimum seen> <maximum seen>
 ```
 
 For example, the code `v.read_integer("a", 1, 1000)` on line `7` could generate the line:
 
 ```
-/tmp/bapctools_abcdef/findmyfamily/input_validators/input_validator/input_validator.cpp:7 0 0 999 999 1 1000
+a a 0 0 999 999 1 1000
 ```
 
-(`source_location` has now been removed from `validation.h` since BAPCtools
-doesn't use it, and is replacd by some default string.)
-
-Everything up to and including `:7` is the file and line of the `read_integer` statement. The two zeros indicate that the minimum and maximum value were not reached (i.e. boolean false). The `999 999` indicate that `a` was read, and the smallest and largest value of `a` we encountered was `999`. The final `1 1000` indicate the valid range of `a`.
+The two zeros indicate that the minimum and maximum value were not reached (i.e. boolean false). The `999 999` indicate that `a` was read, and the smallest and largest value of `a` we encountered was `999`. The final `1 1000` indicate the valid range of `a`.
 
 BAPCtools will accumulate these values over all testcases, and print a warning when the minimum or maximum value of a `read` statement was never reached.
 
