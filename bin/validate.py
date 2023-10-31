@@ -97,11 +97,14 @@ class InputValidator(Validator):
         with testcase.in_path.open() as in_file:
             ret = exec_command(
                 run_command,
-                expect=config.RTV_WA if testcase.bad_input else config.RTV_AC,
+                expect=config.RTV_AC,
                 stdin=in_file,
                 cwd=cwd,
                 timeout=config.get_timeout(),
             )
+            # For bad inputs, 'invert' the return code: any non-AC exit code is fine, while AC is not fine.
+            if testcase.bad_input:
+                ret.ok = True if ret.ok is not True else config.RTV_AC
 
         if constraints is not None:
             _merge_constraints(constraints_path, constraints)
@@ -153,11 +156,14 @@ class OutputValidator(Validator):
             with testcase.ans_path.open() as ans_file:
                 ret = exec_command(
                     run_command,
-                    expect=config.RTV_WA if testcase.bad_output else config.RTV_AC,
+                    expect=config.RTV_AC,
                     stdin=ans_file,
                     cwd=cwd,
                     timeout=config.get_timeout(),
                 )
+                # For bad outputs, 'invert' the return code: any non-AC exit code is fine, while AC is not fine.
+                if testcase.bad_output:
+                    ret.ok = True if ret.ok is not True else config.RTV_AC
 
             if constraints is not None:
                 _merge_constraints(constraints_path, constraints)
