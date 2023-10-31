@@ -951,13 +951,16 @@ def run_parsed_arguments(args):
                 success &= generate.generate(problem)
                 config.args = old_args
 
-                success &= latex.build_problem_pdfs(problem)
+                if not config.args.kattis:
+                    success &= latex.build_problem_pdfs(problem)
+                    # Add problem PDF for only one language to the zip file
+                    statement_language = force_single_language(problems)
+                else:
+                    statement_language = None
+
                 if not config.args.force:
                     success &= problem.validate_format('input_format', constraints={})
                     success &= problem.validate_format('output_format', constraints={})
-
-                # Add problem PDF for only one language to the zip file
-                statement_language = force_single_language(problems)
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.

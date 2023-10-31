@@ -38,6 +38,8 @@ def fix_problem_yaml_name(problem):
 
 # Write any .lang.pdf files to .pdf.
 def remove_language_suffix(fname, statement_language):
+    if not statement_language:
+        return fname
     out = Path(fname)
     if out.suffixes == ['.' + statement_language, '.pdf']:
         out = out.with_suffix('').with_suffix('.pdf')
@@ -48,13 +50,16 @@ def build_samples_zip(problems, statement_language):
     zf = zipfile.ZipFile(
         'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False
     )
-    for fname in glob(Path('.'), f'contest*.{statement_language}.pdf'):
-        if Path(fname).is_file():
-            zf.write(
-                fname,
-                remove_language_suffix(fname, statement_language),
-                compress_type=zipfile.ZIP_DEFLATED,
-            )
+
+    # Do not include contest PDF for kattis.
+    if not config.args.kattis:
+        for fname in glob(Path('.'), f'contest*.{statement_language}.pdf'):
+            if Path(fname).is_file():
+                zf.write(
+                    fname,
+                    remove_language_suffix(fname, statement_language),
+                    compress_type=zipfile.ZIP_DEFLATED,
+                )
 
     for problem in problems:
         outputdir = Path(problem.label)
