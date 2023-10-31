@@ -117,8 +117,8 @@ def build_problem_zip(problem, output, statement_language):
 
     for ext in config.KNOWN_DATA_EXTENSIONS:
         files += [
-            (f'data/sample/**/*.{ext}', False),
-            (f'data/secret/**/*.{ext}', False),
+            (f'data/sample/**/*{ext}', False),
+            (f'data/secret/**/*{ext}', False),
         ]
 
     if not config.args.kattis:
