@@ -157,16 +157,16 @@
 %-------------------------------------------------------------------------------
 \newenvironment{Input}{
 	\subsection*{\langinput{}}
-}{}
+}{\par}
 \newenvironment{Output}{
 	\subsection*{\langoutput{}}
-}{}
+}{\par}
 \newenvironment{Interaction}{
 	\subsection*{\langinteraction{}}
-}{}
+}{\par}
 \newenvironment{Explanation}{
 	\subsection*{\langexplanation{}}
-}{}
+}{\par}
 % Use xparse to get the contents of the environment as a variable (using `+b`) and store
 % them with the heading in `\notesContent`, which is automatically rendered at
 % the end of each problem. `gdef` overwrites the global definition of `notesContent`.
