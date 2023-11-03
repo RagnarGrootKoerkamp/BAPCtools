@@ -7,6 +7,7 @@ RUN pacman -Syu --noconfirm \
 	sudo \
 	tidy \
 	vim \
+	which \
 	gcc \
 	python \
 	pypy \
