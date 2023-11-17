@@ -71,6 +71,8 @@
 \RequirePackage{listingsutf8}
 \RequirePackage{tocloft}
 \RequirePackage{xparse}
+\RequirePackage{siunitx}
+\sisetup{per-mode=symbol}
 
 \RequirePackage[hidelinks,bookmarks=true,pdfusetitle]{hyperref}
 
