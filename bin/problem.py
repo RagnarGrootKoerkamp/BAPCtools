@@ -638,11 +638,11 @@ class Problem:
                 name, has_low, has_high, vmin, vmax, low, high = value
                 if not has_low:
                     warn(
-                        f'BOUND NOT REACHED: The value of `{name}` was never equal to the lower bound of {low}. Min value found: {vmin}'
+                        f'BOUND NOT REACHED: `{name}` never equals lower bound {low}. Min value found: {vmin}'
                     )
                 if not has_high:
                     warn(
-                        f'BOUND NOT REACHED: The value of `{name}` was never equal to the upper bound of {high}. Max value found: {vmax}'
+                        f'BOUND NOT REACHED: `{name}` never equals upper bound {high}. Max value found: {vmax}'
                     )
                 success = False
 
