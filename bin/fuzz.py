@@ -27,7 +27,7 @@ class GeneratorTask:
 
         # Pick a random seed.
         assert self.generator.program is not None
-        self.seed = random.randint(0, 2**31 - 1)
+        self.seed = random.randrange(0, 2**31)
         self.command = self.generator.cache_command(seed=self.seed)
 
         self.save_mutex = threading.Lock()
@@ -53,10 +53,9 @@ class GeneratorTask:
         localbar.done()
 
         localbar = bar.start(f'{self.i}: generate')
-        result = self.generator.run(bar, cwd, name, self.seed)
+        result = self.generator.run(localbar, cwd, name, self.seed)
         if result.ok is not True:
-            localbar.done()
-            return False
+            return False # No need to call bar.done() in this case, because the Generator calls bar.error()
         localbar.done()
 
         testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
