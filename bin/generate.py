@@ -172,10 +172,10 @@ class GeneratorInvocation(Invocation):
         if result.ok is not True:
             if retries > 1:
                 bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
-                bar.error(f'generator failed {retry + 1} times', result.err)
+                bar.error(f'Generator failed {retry + 1} times', result.err)
             else:
                 bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
-                bar.error(f'generator failed', result.err)
+                bar.error(f'Generator failed', result.err)
 
         if result.ok is True and config.args.error and result.err:
             bar.log('stderr', result.err)
@@ -194,7 +194,7 @@ class VisualizerInvocation(Invocation):
 
         if result.ok == -9:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
-            bar.error(f'Visualizer timeout after {result.duration}s')
+            bar.error(f'Visualizer TIMEOUT after {result.duration}s')
         elif result.ok is not True:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error('Visualizer failed', result.err)
@@ -219,10 +219,10 @@ class SolutionInvocation(Invocation):
 
         if result.ok == -9:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
-            bar.error(f'solution TIMEOUT after {result.duration}s')
+            bar.error(f'Solution TIMEOUT after {result.duration}s')
         elif result.ok is not True:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
-            bar.error('solution failed', result.err)
+            bar.error('Solution failed', result.err)
 
         if result.ok is True and config.args.error and result.err:
             bar.log('stderr', result.err)
