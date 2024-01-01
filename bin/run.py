@@ -144,9 +144,9 @@ class Testcase:
 
             # Failure?
             if ret.ok is True:
-                message = 'Passed ' + validator.name
+                message = validator.name + ' passed'
             else:
-                message = 'Failed ' + validator.name
+                message = validator.name + ' failed'
 
             # Print stdout and stderr whenever something is printed
             data = ''
@@ -168,7 +168,7 @@ class Testcase:
                 if validator_type == 'output_format':
                     file = self.ans_path
                 data += (
-                    f'{Style.RESET_ALL}in {shorten_path(self.problem, file.parent) / file.name}\n'
+                    f'{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n'
                 )
             else:
                 data = ret.err

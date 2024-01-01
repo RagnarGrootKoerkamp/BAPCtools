@@ -95,6 +95,7 @@ class Invocation:
         commands = string.split()
         command = commands[0]
         self.args = commands[1:]
+        self.problem = problem
 
         # The original command string, used for caching invocation results.
         self.command_string = string
@@ -170,9 +171,11 @@ class GeneratorInvocation(Invocation):
 
         if result.ok is not True:
             if retries > 1:
-                bar.error(f'Failed {retry + 1} times', result.err)
+                bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
+                bar.error(f'generator failed {retry + 1} times', result.err)
             else:
-                bar.error(f'Failed', result.err)
+                bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
+                bar.error(f'generator failed', result.err)
 
         if result.ok is True and config.args.error and result.err:
             bar.log('stderr', result.err)
@@ -190,8 +193,10 @@ class VisualizerInvocation(Invocation):
         result = self.program.run(cwd, args=self._sub_args())
 
         if result.ok == -9:
+            bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error(f'Visualizer timeout after {result.duration}s')
         elif result.ok is not True:
+            bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error('Visualizer failed', result.err)
 
         if result.ok is True and config.args.error and result.err:
@@ -213,9 +218,11 @@ class SolutionInvocation(Invocation):
         result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd, default_timeout=True)
 
         if result.ok == -9:
+            bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error(f'solution TIMEOUT after {result.duration}s')
         elif result.ok is not True:
-            bar.error('Failed', result.err)
+            bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
+            bar.error('solution failed', result.err)
 
         if result.ok is True and config.args.error and result.err:
             bar.log('stderr', result.err)
@@ -417,6 +424,9 @@ class TestcaseRule(Rule):
         # Filled during generate(), since `self.config.solution` will only be set later for the default solution.
         self.cache_data = {}
 
+        # Yaml of rule
+        self.rule = {}
+
         # Used by `fuzz`
         self.in_is_generated = False
 
@@ -461,6 +471,9 @@ class TestcaseRule(Rule):
                 )
                 self.input_hash = self.generator.hash(self.seed)
                 self.in_is_generated = True
+                self.rule['gen'] = self.generator.command_string
+                if self.generator.uses_seed:
+                    self.rule['seed'] = self.seed
 
             # 2. path
             if 'copy' in yaml:
@@ -472,6 +485,7 @@ class TestcaseRule(Rule):
                 if self.copy.is_file():
                     self.input_hash = hash_file(self.copy)
                     self.in_is_generated = False
+                self.rule['copy'] = str(self.copy)
 
             # 3. hardcoded
             for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
@@ -485,6 +499,7 @@ class TestcaseRule(Rule):
             if '.in' in self.hardcoded:
                 self.input_hash = hash_string(self.hardcoded['.in'])
                 self.in_is_generated = False
+                self.rule['in'] = self.hardcoded['.in']
 
         # Warn/Error for unknown keys.
         for key in yaml:
@@ -549,12 +564,21 @@ class TestcaseRule(Rule):
         ansfile = cwd / 'testcase.ans'
         meta_path = cwd / 'meta_.yaml'
 
+        def init_meta():
+            meta_yaml = read_yaml(meta_path) if meta_path.is_file() else None
+            if meta_yaml is None:
+                meta_yaml = {'validator_hashes': dict()}
+            meta_yaml['rule'] = t.rule
+            return meta_yaml
+        meta_yaml = init_meta()
+        write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+
+
         # Check whether the generated data and validation are up to date.
         # Returns (generator/input up to date, validation up to date)
         def up_to_date():
             # The testcase is up to date if:
             # - both target infile ans ansfile exist
-            # - meta_ exists with a timestamp newer than target infile ans ansfile
             # - meta_ contains exactly the right content (commands and hashes)
             # - each validator with correct flags has been run already.
             if t.copy:
@@ -747,6 +771,8 @@ class TestcaseRule(Rule):
                 # clear all generated files
                 shutil.rmtree(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
+                meta_yaml = init_meta()
+                write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
 
                 # Step 1: run `generate:` if present.
                 if t.generator:
@@ -856,9 +882,6 @@ class TestcaseRule(Rule):
 
                 check_deterministic(True)
 
-            meta_yaml = (
-                read_yaml(meta_path) if meta_path.is_file() else {'validator_hashes': dict()}
-            )
             meta_yaml['cache_data'] = t.cache_data
             if generator_up_to_date:
                 hashes = testcase.validator_hashes('input_format')
