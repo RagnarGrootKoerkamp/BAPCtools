@@ -71,15 +71,23 @@ class Problem:
             error(
                 f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
             )
+        # Check that names in problem.yaml and \problemname{} in problem.*.tex agree:
         for lang in texlangs & yamllangs:
             unnormalised_yamlname = self.settings.name[lang]
             yamlname = ' '.join(unnormalised_yamlname.split())
             with open(self.path / 'problem_statement' / f'problem.{lang}.tex') as texfile:
-                match tex_problem_name := latex.get_argument_for_command(texfile, 'problemname'):
+                match texname := latex.get_argument_for_command(texfile, 'problemname'):
                     case None:
                         warn(rf"No \problemname found in problem.{lang}.tex")
-                    case s if s not in ["\\problemyamlname", yamlname]:
-                        warn(f'Problem titles in problem.{lang}.tex ({tex_problem_name})' +
+                        continue
+                    case '\problemname':
+                        continue
+                    case s if '\\' in s or '_' in s or '^' in s:
+                        # texname contains markup, like "CO_2" or "\emph{Hello}":
+                        # Assume authors know what they're doing
+                        continue
+                    case s if s != yamlname:
+                        warn(f'Problem titles in problem.{lang}.tex ({texname})' +
                              f' and problem.yaml ({yamlname}) differ;' +
                              r' consider using \problemname{\problemyamlname}.'
                              )
