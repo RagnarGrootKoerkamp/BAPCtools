@@ -1,5 +1,8 @@
 # problem.yaml
 
+
+name:
+  en: A Different Problem
 ## At least one of author, source, or rights_owner must be provided.
 ##
 ## Author of the problem (default: null)
