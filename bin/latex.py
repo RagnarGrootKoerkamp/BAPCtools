@@ -356,3 +356,21 @@ def build_contest_pdfs(contest, problems, tmpdir, lang=None, solutions=False, we
     return all(
         build_contest_pdf(contest, problems, tmpdir, lang, solutions, web) for lang in languages
     )
+
+def get_argument_for_command(texfile, command):
+    """ Return the (whitespace-normalised) argument for the given command in the given texfile.
+    If texfile contains `\foo{bar  baz }`, returns the string 'bar baz'.
+    The command is given without backslash.
+
+
+    Assumptions:
+    the command and its argument are on the same line,
+    and that the argument contains no closing curly brackets.
+    """
+
+    for line in texfile:
+        regex = r"\\" + command + r"\{(.*)\}"
+        match = re.search(regex, line)
+        if match:
+            return ' '.join(match.group(1).split())
+    return None
