@@ -372,7 +372,10 @@ class Problem:
             problem._validators[key] = validators
             return validators
 
-        validator_dir = 'input' if validator_type == 'input_format' else 'output'
+        validator_dir = {
+                'input_format': 'input',
+                'output_format': 'answer',
+                'output': 'output'}[validator_type]
 
         paths = glob(problem.path / (validator_dir + '_validators'), '*') + glob(
             problem.path / (validator_dir + '_format_validators'), '*'
@@ -423,26 +426,39 @@ class Problem:
 
             paths = constraint_validators
 
-        if validator_type == 'input_format':
-            validators = [
-                validate.InputValidator(
-                    problem,
-                    path,
-                    skip_double_build_warning=check_constraints,
-                    check_constraints=check_constraints,
-                )
-                for path in paths
-            ]
-        else:
-            validators = [
-                validate.OutputValidator(
-                    problem,
-                    path,
-                    skip_double_build_warning=check_constraints,
-                    check_constraints=check_constraints,
-                )
-                for path in paths
-            ]
+        match validator_type:
+            case 'input_format':
+                validators = [
+                    validate.InputValidator(
+                        problem,
+                        path,
+                        skip_double_build_warning=check_constraints,
+                        check_constraints=check_constraints,
+                    )
+                    for path in paths
+                ]
+            case 'output_format':
+                validators = [
+                    validate.AnswerValidator(
+                        problem,
+                        path,
+                        skip_double_build_warning=check_constraints,
+                        check_constraints=check_constraints,
+                    )
+                    for path in paths
+                ]
+            case 'output':
+                validators = [
+                    validate.OutputValidator(
+                        problem,
+                        path,
+                        skip_double_build_warning=check_constraints,
+                        check_constraints=check_constraints,
+                    )
+                    for path in paths
+                ]
+            case _:
+                assert False
 
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
         ok = True

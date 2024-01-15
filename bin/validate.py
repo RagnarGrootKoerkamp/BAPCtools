@@ -14,11 +14,11 @@ class Validator(program.Program):
         if isinstance(self, InputValidator):
             main_path = testcase.in_path
             bad = testcase.bad_input
-        elif isinstance(self, OutputValidator):
+        elif isinstance(self, AnswerValidator):
             main_path = testcase.ans_path
             bad = testcase.bad_output
         else:
-            assert False
+            assert False # now also catches OutputValidator
 
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
@@ -122,64 +122,68 @@ class InputValidator(Validator):
         return ret
 
 
-# OutputValidators can run in two modes:
-# Team output validation:
-#       called as: ./validator input answer feedbackdir [arguments from problem.yaml] < output.
-# Testcase validation:
-#       called as: ./validator input answer feedbackdir case_sensitive space_change_sensitive < answer.
-#       This mode also supports checktestdata and viva files.
+class AnswerValidator(Validator):
+    # Validate the default answer file (such as "testcase.ans"),
+    # typically just a syntax check
+    #
+    # called as: ./validator input answer feedbackdir case_sensitive space_change_sensitive < answer.
+    # This mode also supports checktestdata and viva files.
+
+    subdir = 'answer_validators'
+
+    def run(self, testcase, constraints=None, args=None):
+        if testcase.in_path.is_relative_to(self.problem.tmpdir):
+            cwd = testcase.in_path.with_suffix('.feedbackdir')
+        else:
+            cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
+        cwd.mkdir(parents=True, exist_ok=True)
+
+        if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
+            return Validator._run_format_validator(self, testcase, cwd)
+
+        run_command = self.run_command + [
+            testcase.in_path.resolve(),
+            testcase.ans_path.resolve(),
+            cwd,
+            'case_sensitive',
+            'space_change_sensitive',
+        ]
+
+        if args is not None:
+            assert isinstance(args, list)
+            run_command += args
+
+        if constraints is not None:
+            constraints_path = cwd / 'output_constraints_'
+            if constraints_path.is_file():
+                constraints_path.unlink()
+            run_command += ['--constraints_file', constraints_path]
+
+        with testcase.ans_path.open() as ans_file:
+            ret = exec_command(
+                run_command,
+                expect=config.RTV_AC,
+                stdin=ans_file,
+                cwd=cwd,
+                timeout=config.get_timeout(),
+            )
+            # For bad outputs, 'invert' the return code: any non-AC exit code is fine, while AC is not fine.
+            if testcase.bad_output:
+                ret.ok = True if ret.ok is not True else config.RTV_AC
+
+        if constraints is not None:
+            _merge_constraints(constraints_path, constraints)
+
+        return ret
+
 class OutputValidator(Validator):
+    # Team output validation:
+    #       called as: ./validator input answer feedbackdir [arguments from problem.yaml] < output.
     subdir = 'output_validators'
 
-    # When run is None, validate the testcase. Otherwise, validate the output of the given run.
+    # Validate the output of the given run.
     # Return ExecResult
     def run(self, testcase, run=None, constraints=None, args=None):
-        if run is None:
-            # When used as a format validator, act like an InputValidator.
-            if testcase.in_path.is_relative_to(self.problem.tmpdir):
-                cwd = testcase.in_path.with_suffix('.feedbackdir')
-            else:
-                cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
-            cwd.mkdir(parents=True, exist_ok=True)
-
-            if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-                return Validator._run_format_validator(self, testcase, cwd)
-
-            run_command = self.run_command + [
-                testcase.in_path.resolve(),
-                testcase.ans_path.resolve(),
-                cwd,
-                'case_sensitive',
-                'space_change_sensitive',
-            ]
-
-            if args is not None:
-                assert isinstance(args, list)
-                run_command += args
-
-            if constraints is not None:
-                constraints_path = cwd / 'output_constraints_'
-                if constraints_path.is_file():
-                    constraints_path.unlink()
-                run_command += ['--constraints_file', constraints_path]
-
-            with testcase.ans_path.open() as ans_file:
-                ret = exec_command(
-                    run_command,
-                    expect=config.RTV_AC,
-                    stdin=ans_file,
-                    cwd=cwd,
-                    timeout=config.get_timeout(),
-                )
-                # For bad outputs, 'invert' the return code: any non-AC exit code is fine, while AC is not fine.
-                if testcase.bad_output:
-                    ret.ok = True if ret.ok is not True else config.RTV_AC
-
-            if constraints is not None:
-                _merge_constraints(constraints_path, constraints)
-
-            return ret
-
         assert constraints is None
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
