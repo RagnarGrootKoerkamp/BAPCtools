@@ -426,10 +426,13 @@ class Problem:
 
             paths = constraint_validators
 
-        match validator_type:
-            case 'input_format':
-                validators = [
-                    validate.InputValidator(
+        validator_dispatcher = {
+                'input_format': validate.InputValidator,
+                'output_format': validate.AnswerValidator,
+                'output': validate.OutputValidator
+                }
+        validators = [
+                validator_dispatcher[validator_type](
                         problem,
                         path,
                         skip_double_build_warning=check_constraints,
@@ -437,28 +440,6 @@ class Problem:
                     )
                     for path in paths
                 ]
-            case 'output_format':
-                validators = [
-                    validate.AnswerValidator(
-                        problem,
-                        path,
-                        skip_double_build_warning=check_constraints,
-                        check_constraints=check_constraints,
-                    )
-                    for path in paths
-                ]
-            case 'output':
-                validators = [
-                    validate.OutputValidator(
-                        problem,
-                        path,
-                        skip_double_build_warning=check_constraints,
-                        check_constraints=check_constraints,
-                    )
-                    for path in paths
-                ]
-            case _:
-                assert False
 
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
         ok = True
