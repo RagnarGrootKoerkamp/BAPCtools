@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import config
+import latex
 import parallel
 import program
 import run
@@ -70,6 +71,18 @@ class Problem:
             error(
                 f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
             )
+        for lang in texlangs & yamllangs:
+            unnormalised_yamlname = self.settings.name[lang]
+            yamlname = ' '.join(unnormalised_yamlname.split())
+            with open(self.path / 'problem_statement' / f'problem.{lang}.tex') as texfile:
+                match tex_problem_name := latex.get_argument_for_command(texfile, 'problemname'):
+                    case None:
+                        warn(rf"No \problemname found in problem.{lang}.tex")
+                    case s if s not in ["\\problemyamlname", yamlname]:
+                        warn(f'Problem titles in problem.{lang}.tex ({tex_problem_name})' +
+                             f' and problem.yaml ({yamlname}) differ;' +
+                             r' consider using \problemname{\problemyamlname}.'
+                             )
         return sorted(texlangs & yamllangs)
 
     def _read_settings(self):
