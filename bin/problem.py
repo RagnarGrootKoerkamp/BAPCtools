@@ -78,7 +78,7 @@ class Problem:
             with open(self.path / 'problem_statement' / f'problem.{lang}.tex') as texfile:
                 match texname := latex.get_argument_for_command(texfile, 'problemname'):
                     case None:
-                        warn(rf"No \problemname found in problem.{lang}.tex")
+                        error(rf"No \problemname found in problem.{lang}.tex")
                         continue
                     case '\problemname':
                         continue
