@@ -372,13 +372,8 @@ class Problem:
             problem._validators[key] = validators
             return validators
 
-        validator_dir = {
-                'input': 'input',
-                'answer': 'answer',
-                'output': 'output'}[validator_type]
-
-        paths = glob(problem.path / (validator_dir + '_validators'), '*') + glob(
-            problem.path / (validator_dir + '_format_validators'), '*'
+        paths = glob(problem.path / (validator_type + '_validators'), '*') + glob(
+            problem.path / (validator_type + '_format_validators'), '*'
         )
 
         if len(paths) == 0:
