@@ -58,19 +58,19 @@ class Problem:
         """
         if isinstance(self.settings.name, str):
             self.settings.name = {'en': self.settings.name}
-        yamlnames = set(self.settings.name)
-        texfiles = set(
+        yamllangs = set(self.settings.name)
+        texlangs = set(
             path.suffixes[0][1:] for path in glob(self.path, 'problem_statement/problem.*.tex')
         )
-        for lang in texfiles - yamlnames:
+        for lang in texlangs - yamllangs:
             error(
                 f"{self.name}: Found problem.{lang}.tex, but no corresponding name in problem.yaml."
             )
-        for lang in yamlnames - texfiles:
+        for lang in yamllangs - texlangs:
             error(
                 f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
             )
-        return sorted(texfiles & yamlnames)
+        return sorted(texlangs & yamllangs)
 
     def _read_settings(self):
         # some defaults
