@@ -343,10 +343,10 @@ class Problem:
     # contains 'constraints_file' in its source.
     # _validators maps from input/output to the list of validators.
     def validators(problem, validator_type, check_constraints=False):
-        assert validator_type in ['input_format', 'output_format', 'output']
+        assert validator_type in ['input', 'answer', 'output']
 
-        # For custom validation, treat 'output' and 'output_format' validators the same.
-        if problem.settings.validation != 'default' and validator_type == 'output_format':
+        # For custom validation, treat 'output' and 'answer' validators the same.
+        if problem.settings.validation != 'default' and validator_type == 'answer':
             validator_type = 'output'
 
         key = (validator_type, check_constraints)
@@ -373,8 +373,8 @@ class Problem:
             return validators
 
         validator_dir = {
-                'input_format': 'input',
-                'output_format': 'answer',
+                'input': 'input',
+                'answer': 'answer',
                 'output': 'output'}[validator_type]
 
         paths = glob(problem.path / (validator_dir + '_validators'), '*') + glob(
@@ -384,7 +384,7 @@ class Problem:
         if len(paths) == 0:
             # Only log/warn missing validators in generate mode.
             if config.args.action == 'generate':
-                if validator_type == 'output_format':
+                if validator_type == 'answer':
                     log(f'No {validator_type} validators found.')
                 else:
                     warn(f'No {validator_type} validators found.')
@@ -427,8 +427,8 @@ class Problem:
             paths = constraint_validators
 
         validator_dispatcher = {
-                'input_format': validate.InputValidator,
-                'output_format': validate.AnswerValidator,
+                'input': validate.InputValidator,
+                'answer': validate.AnswerValidator,
                 'output': validate.OutputValidator
                 }
         validators = [
@@ -601,24 +601,24 @@ class Problem:
         return None
 
     # Validate the format of the input or output files.
-    # For input_format validation, also make sure all testcases are different.
+    # For input validation, also make sure all testcases are different.
     # Constraints is None/True/dictionary. When dictionary, contraints will be stored there.
     def validate_format(problem, validator_type, constraints=None):
         if constraints is True:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
-        assert validator_type in ['input_format', 'output_format']
+        assert validator_type in ['input', 'answer'], validator_type
 
         validators = problem.validators(validator_type, check_constraints=constraints is not None)
 
-        if problem.interactive and validator_type == 'output_format':
+        if problem.interactive and validator_type == 'answer':
             log('Not validating .ans for interactive problem.')
             return True
 
         if validators is False:
             return False
 
-        testcases = problem.testcases(needans=validator_type == 'output_format', include_bad=True)
+        testcases = problem.testcases(needans=validator_type == 'answer', include_bad=True)
 
         if testcases is False:
             return True
@@ -637,7 +637,7 @@ class Problem:
         for testcase in testcases:
             bar.start(testcase.name)
 
-            if validator_type == 'input_format' and not testcase.included:
+            if validator_type == 'input' and not testcase.included:
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')

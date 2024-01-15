@@ -247,16 +247,16 @@ def _has_consecutive_whitespaces(bytes):
 # if any of this is violated a warning is printed
 # use --no-testcase-sanity-checks to skip this
 def generic_validation(validator_type, file, *, bar):
-    assert validator_type in ['input_format', 'output_format', 'output']
+    assert validator_type in ['input', 'answer', 'output']
     if config.args.no_testcase_sanity_checks:
         return
 
     # Todo we could check for more stuff that is likely an error like `.*-0.*`
-    if validator_type == 'input_format':
+    if validator_type == 'input':
         name = 'Testcase'
         strict = True
-    elif validator_type == 'output_format':
-        name = 'Expected answer'
+    elif validator_type == 'answer':
+        name = 'Default answer'
         strict = True
     elif validator_type == 'output':
         name = 'Answer'

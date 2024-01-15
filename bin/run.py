@@ -79,7 +79,7 @@ class Testcase:
             return None
         key = (
             'input_validator_flags'
-            if validator_type == 'input_format'
+            if validator_type == 'input'
             else 'output_validator_flags'
         )
         if key not in self.testdata_yaml:
@@ -97,7 +97,7 @@ class Testcase:
     # - hash
     # indicating which validators will be run for the current testcase.
     def validator_hashes(self, validator_type):
-        assert validator_type in ['input_format', 'output_format']
+        assert validator_type in ['input', 'answer']
         validators = self.problem.validators(validator_type) or []
 
         d = dict()
@@ -118,13 +118,13 @@ class Testcase:
 
         return d
 
-    # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
+    # Validate the testcase input/output format. validator_type must be 'input' or 'answer'.
     def validate_format(
         self, validator_type, *, bar, constraints=None, warn_instead_of_error=False
     ):
-        assert validator_type in ['input_format', 'output_format']
+        assert validator_type in ['input', 'answer']
 
-        bad_testcase = self.bad_input if validator_type == 'input_format' else self.bad_output
+        bad_testcase = self.bad_input if validator_type == 'input' else self.bad_output
 
         success = True
 
@@ -163,9 +163,9 @@ class Testcase:
                 elif ret.out:
                     data = ret.out
 
-                if validator_type == 'input_format':
+                if validator_type == 'input':
                     file = self.in_path
-                if validator_type == 'output_format':
+                if validator_type == 'answer':
                     file = self.ans_path
                 data += (
                     f'{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n'
@@ -195,7 +195,7 @@ class Testcase:
                     bar.log('Moved to ' + print_name(anstarget))
 
             # Remove testcase if specified.
-            elif validator_type == 'input_format' and config.args.remove:
+            elif validator_type == 'input' and config.args.remove:
                 bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
                 if self.in_path.exists():
                     self.in_path.unlink()
@@ -205,10 +205,10 @@ class Testcase:
             break
 
         if success and not bad_testcase:
-            if validator_type == 'input_format':
+            if validator_type == 'input':
                 validate.generic_validation(validator_type, self.in_path, bar=bar)
 
-            if validator_type == 'output_format':
+            if validator_type == 'answer':
                 validate.generic_validation(validator_type, self.ans_path, bar=bar)
 
         return success

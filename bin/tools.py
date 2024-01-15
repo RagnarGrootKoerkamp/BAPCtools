@@ -924,10 +924,10 @@ def run_parsed_arguments(args):
                 success &= latex.build_problem_pdfs(problem, solutions=True, web=config.args.web)
         if action in ['validate', 'all']:
             if not (action == 'validate' and config.args.output):
-                success &= problem.validate_format('input_format')
+                success &= problem.validate_format('input')
         if action in ['validate', 'output', 'all']:
             if not (action == 'validate' and config.args.input):
-                success &= problem.validate_format('output_format')
+                success &= problem.validate_format('answer')
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
@@ -959,8 +959,8 @@ def run_parsed_arguments(args):
                     statement_language = None
 
                 if not config.args.force:
-                    success &= problem.validate_format('input_format', constraints={})
-                    success &= problem.validate_format('output_format', constraints={})
+                    success &= problem.validate_format('input', constraints={})
+                    success &= problem.validate_format('answer', constraints={})
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.

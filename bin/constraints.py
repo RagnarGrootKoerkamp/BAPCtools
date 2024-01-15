@@ -18,8 +18,8 @@ from util import *
 def check_validators(problem):
     in_constraints = {}
     ans_constraints = {}
-    problem.validate_format('input_format', constraints=in_constraints)
-    problem.validate_format('output_format', constraints=ans_constraints)
+    problem.validate_format('input', constraints=in_constraints)
+    problem.validate_format('output', constraints=ans_constraints)
     print()
 
     validator_values = set()
