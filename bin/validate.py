@@ -259,7 +259,7 @@ def generic_validation(validator_type, file, *, bar):
         name = 'Default answer'
         strict = True
     elif validator_type == 'output':
-        name = 'Answer'
+        name = 'Output'
         strict = False
 
     if file.exists():
