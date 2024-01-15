@@ -80,7 +80,7 @@ class Problem:
                     case None:
                         error(rf"No \problemname found in problem.{lang}.tex")
                         continue
-                    case '\problemname':
+                    case r'\\problemyamlmname':
                         continue
                     case s if '\\' in s or '_' in s or '^' in s:
                         # texname contains markup, like "CO_2" or "\emph{Hello}":
