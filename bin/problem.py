@@ -355,6 +355,7 @@ class Problem:
             return problem._validators[key]
 
         # For default 'output' validation, use default_output_validator.cpp.
+        # This will also be the fallback for 'answer' validation
         if validator_type == 'output' and problem.settings.validation == 'default':
             validators = [
                 validate.OutputValidator(
