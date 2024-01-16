@@ -349,9 +349,9 @@ class Problem:
             check_constraints: True if the validao
 
         Returns:
-            False  if there are no validators
+            False: something went wrong
             OutputValidator if validator_type is 'output'
-            nonempty list(Validator) otherwise
+            list(Validator) otherwise
         """
         assert validator_type in ['input', 'answer', 'output']
 
@@ -360,30 +360,13 @@ class Problem:
             return problem._validators[key]
 
         # For default 'output' validation, use default_output_validator.cpp.
-        # This will also be the fallback for 'answer' validation
         if validator_type == 'output' and problem.settings.validation == 'default':
-            validators = [
-                validate.OutputValidator(
-                    problem, config.tools_root / 'support' / 'default_output_validator.cpp'
-                )
-            ]
-            bar = ProgressBar(f'Build {validator_type} validators', items=validators)
-            ok = True
-            for p in validators:
-                bar.start(p)
-                ok &= p.build(bar)
-                bar.done()
-            bar.finalize(print_done=False)
-            if not ok:
-                validators = False
-            problem._validators[key] = validators
-            assert len(validators) == 1
-            return validators
-
-        paths = glob(problem.path / (validator_type + '_validators'), '*') + glob(
-            problem.path / (validator_type + '_format_validators'), '*'
-        )
-        # when answer_validators is empty, use output_validator(s) instead
+            paths = [ config.tools_root / 'support' / 'default_output_validator.cpp' ]
+        else:
+            paths = glob(problem.path / (validator_type + '_validators'), '*') + glob(
+                problem.path / (validator_type + '_format_validators'), '*'
+            )
+        # when answer_validators is empty, use the output_validator/* instead
         if validator_type == 'answer' and len(paths) == 0:
             paths = glob(problem.path / 'output_validators', '*')
 
