@@ -345,9 +345,10 @@ class Problem:
     def validators(problem, validator_type, check_constraints=False):
         assert validator_type in ['input', 'answer', 'output']
 
+        # TH: TODO see 33 lines below
         # For custom validation, treat 'output' and 'answer' validators the same.
-        if problem.settings.validation != 'default' and validator_type == 'answer':
-            validator_type = 'output'
+        #if problem.settings.validation != 'default' and validator_type == 'answer':
+        #    validator_type = 'output'
 
         key = (validator_type, check_constraints)
         if key in problem._validators:
@@ -376,7 +377,7 @@ class Problem:
             problem.path / (validator_type + '_format_validators'), '*'
         )
         # when answer_validators is empty, use output_validator(s) instead
-        if check_constraints and validator_type == 'answer' and len(paths) == 0:
+        if validator_type == 'answer' and len(paths) == 0:
             paths = glob(problem.path / 'output_validators', '*')
 
         if len(paths) == 0:
