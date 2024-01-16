@@ -29,8 +29,8 @@ def check_validators(problem):
         for loc, value in sorted(cs.items()):
             name, has_low, has_high, vmin, vmax, low, high = value
             validator_defs.append([low, name, high])
-            validator_values.add(eval(low))
-            validator_values.add(eval(high))
+            validator_values.add(low)
+            validator_values.add(high)
 
     f(in_constraints)
     validator_defs.append('')
