@@ -2,14 +2,13 @@ import program
 import re
 from util import *
 
-
 class Validator(program.Program):
     # NOTE: This only works for checktestdata and Viva validators.
     FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']
 
 
-    def __init__(self, problem, path, check_constraints=False, **kwargs):
-        program.Program.__init__(self, problem, path, **kwargs)
+    def __init__(self, problem, path, skip_double_build_warning=False, check_constraints=False):
+        program.Program.__init__(self, problem, path, skip_double_build_warning=skip_double_build_warning)
         if check_constraints:
             self.tmpdir = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
         self.check_constraints = check_constraints

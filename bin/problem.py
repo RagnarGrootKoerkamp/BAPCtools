@@ -343,12 +343,17 @@ class Problem:
     # contains 'constraints_file' in its source.
     # _validators maps from input/output to the list of validators.
     def validators(problem, validator_type, check_constraints=False):
-        assert validator_type in ['input', 'answer', 'output']
+        """
+        Args:
+            validator_type: 'answer', 'output', 'input'
+            check_constraints: True if the validao
 
-        # TH: TODO see 33 lines below
-        # For custom validation, treat 'output' and 'answer' validators the same.
-        #if problem.settings.validation != 'default' and validator_type == 'answer':
-        #    validator_type = 'output'
+        Returns:
+            False  if there are no validators
+            OutputValidator if validator_type is 'output'
+            nonempty list(Validator) otherwise
+        """
+        assert validator_type in ['input', 'answer', 'output']
 
         key = (validator_type, check_constraints)
         if key in problem._validators:
@@ -372,6 +377,7 @@ class Problem:
             if not ok:
                 validators = False
             problem._validators[key] = validators
+            assert len(validators) == 1
             return validators
 
         paths = glob(problem.path / (validator_type + '_validators'), '*') + glob(
@@ -390,9 +396,9 @@ class Problem:
                     warn(f'No {validator_type} validators found.')
                     problem._validators[key] = False
                     return False
-        if validator_type == 'output' and problem.interactive and len(paths) != 1:
+        if validator_type == 'output' and len(paths) != 1:
             error(
-                f'Found {len(paths)} output validators, but validation type {problem.settings.validation} needs exactly one.'
+                f'Found {len(paths)} output validators, expected exactly one.'
             )
             problem._validators[key] = False
             return False
@@ -422,6 +428,7 @@ class Problem:
                 warn(
                     f'No {validator_type} constraint validators found: No matches for \'constraints_file\'.'
                 )
+                problem._validators[key] = False
                 return False
 
             paths = constraint_validators
