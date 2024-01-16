@@ -154,7 +154,7 @@ class AnswerValidator(Validator):
             run_command += args
 
         if constraints is not None:
-            constraints_path = cwd / 'output_constraints_'
+            constraints_path = cwd / 'answer_constraints_'
             if constraints_path.is_file():
                 constraints_path.unlink()
             run_command += ['--constraints_file', constraints_path]

@@ -375,6 +375,9 @@ class Problem:
         paths = glob(problem.path / (validator_type + '_validators'), '*') + glob(
             problem.path / (validator_type + '_format_validators'), '*'
         )
+        # when answer_validators is empty, use output_validator(s) instead
+        if check_constraints and validator_type == 'answer' and len(paths) == 0:
+            paths = glob(problem.path / 'output_validators', '*')
 
         if len(paths) == 0:
             # Only log/warn missing validators in generate mode.
@@ -595,7 +598,7 @@ class Problem:
         self._testcase_hashes[d] = t
         return None
 
-    # Validate the format of the input or output files.
+    # Validate the format of the input or answer files.
     # For input validation, also make sure all testcases are different.
     # Constraints is None/True/dictionary. When dictionary, contraints will be stored there.
     def validate_format(problem, validator_type, constraints=None):

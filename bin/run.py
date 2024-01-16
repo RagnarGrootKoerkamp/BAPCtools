@@ -122,7 +122,7 @@ class Testcase:
     def validate_format(
         self, validator_type, *, bar, constraints=None, warn_instead_of_error=False
     ):
-        assert validator_type in ['input', 'answer']
+        assert validator_type in ['input', 'answer', 'output']
 
         bad_testcase = self.bad_input if validator_type == 'input' else self.bad_output
 
