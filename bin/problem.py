@@ -380,17 +380,19 @@ class Problem:
         paths = paths_for_type[validator_type]
 
 
-        # Fall back on output validator if no answer validator is found
-        if validator_type == 'answer' and not paths and problem.settings.validation != 'default':
-                log(f"No answer validator found; using output validator instead.")
-                paths = paths_for_type['output']
-
-        if not paths:
-            warn(f'No {validator_type} validators found.')
-
-        if validator_type == 'output' and len(paths) != 1:
-            error(f'Found {len(paths)} output validators, expected exactly one.')
-            ok = False
+        # Check that the proper number of validators is present
+        match validator_type, len(paths):
+            case 'answer', 0:
+                msg = "No answer validator found"
+                if problem.settings.validation != 'default' and len(paths_for_type['output']) == 1:
+                    msg += "; using output validator instead"
+                    paths = paths_for_type['output']
+                log(msg)
+            case 'input', 0:
+                warn(f'No input validators found.')
+            case 'output', l if l != 1:
+                error(f'Found {len(paths)} output validators, expected exactly one.')
+                ok = False
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
@@ -426,11 +428,12 @@ class Problem:
                 'answer': validate.AnswerValidator,
                 'output': validate.OutputValidator
                 }
+        skip_double_build_warning = check_constraints or not paths_for_type['answer']
         validators = [
                 validator_dispatcher[validator_type](
                         problem,
                         path,
-                        skip_double_build_warning=check_constraints,
+                        skip_double_build_warning=skip_double_build_warning,
                         check_constraints=check_constraints,
                     )
                     for path in paths
