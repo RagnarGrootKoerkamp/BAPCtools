@@ -1509,6 +1509,8 @@ class GeneratorConfig:
 
         self.problem.validators('input')
         self.problem.validators('answer')
+        if self.problem.interactive: 
+            self.problem.validators('output') # needed to make .interaction for samples
 
         def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
