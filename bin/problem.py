@@ -384,9 +384,11 @@ class Problem:
         match validator_type, len(paths):
             case 'answer', 0:
                 msg = "No answer validator found"
-                if problem.settings.validation != 'default' and len(paths_for_type['output']) == 1:
-                    msg += "; using output validator instead"
-                    paths = paths_for_type['output']
+                if (problem.settings.validation != 'default' 
+                    and len(paths_for_type['output']) == 1
+                    and not problem.interactive):
+                        msg += "; using output validator instead"
+                        paths = paths_for_type['output']
                 log(msg)
             case 'input', 0:
                 warn(f'No input validators found.')
