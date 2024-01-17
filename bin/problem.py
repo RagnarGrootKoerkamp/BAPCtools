@@ -610,7 +610,7 @@ class Problem:
             log('Not validating .ans for interactive problem.')
             return True
 
-        if validators is False:
+        if not validators:
             return False
 
         testcases = problem.testcases(needans=validator_type == 'answer', include_bad=True)
