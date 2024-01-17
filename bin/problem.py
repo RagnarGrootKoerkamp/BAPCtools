@@ -381,12 +381,9 @@ class Problem:
 
 
         # Fall back on output validator if no answer validator is found
-        if validator_type == 'answer' and not paths:
-            if problem.settings.validation == 'default':
-                warn("No answer validator found. Please provide one or use output validation.")
-            else:
+        if validator_type == 'answer' and not paths and problem.settings.validation != 'default':
                 log(f"No answer validator found; using output validator instead.")
-            paths = paths_for_type['output']
+                paths = paths_for_type['output']
 
         if not paths:
             warn(f'No {validator_type} validators found.')
@@ -420,8 +417,7 @@ class Problem:
                 warn(
                     f'No {validator_type} constraint validators found: No matches for \'constraints_file\'.'
                 )
-                problem._validators[key] = False
-                return False
+                ok = False
 
             paths = constraint_validators
 
