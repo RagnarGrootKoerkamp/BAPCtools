@@ -358,33 +358,43 @@ class Problem:
         key = (validator_type, check_constraints)
         if key in problem._validators:
             return problem._validators[key]
+        ok = True
 
-        # For default 'output' validation, use default_output_validator.cpp.
-        if validator_type == 'output' and problem.settings.validation == 'default':
-            paths = [ config.tools_root / 'support' / 'default_output_validator.cpp' ]
-        else:
-            paths = glob(problem.path / (validator_type + '_validators'), '*') + glob(
-                problem.path / (validator_type + '_format_validators'), '*'
-            )
-        # when answer_validators is empty, use the output_validator/* instead
-        if validator_type == 'answer' and len(paths) == 0:
-            paths = glob(problem.path / 'output_validators', '*')
+        subdirs_for_type = {
+                'answer': ['answer_validators', 'answer_format_validators'],
+                'output': ['output_validator', 'output_validators'],
+                'input': ['input_validators', 'input_format_validators'],
+                }
+        paths_for_type = {
+                vtype: [g for sdir in sdirs for g in glob(problem.path / sdir, '*')]
+                for vtype, sdirs in subdirs_for_type.items()
+                }
 
-        if len(paths) == 0:
+        # Handle default output validation
+        if problem.settings.validation == 'default':
+            if paths_for_type['output']:
+                error("Validation is default but output validator found")
+            paths_for_type['output'] = [ config.tools_root / 'support' / 'default_output_validator.cpp' ]
+
+        paths = paths_for_type[validator_type]
+
+        if validator_type == 'answer' and not paths:
+            log(f"No answer validator found; using output validator instead.")
+            paths = paths_for_type['output']
+
+        if not paths:
             # Only log/warn missing validators in generate mode.
             if config.args.action == 'generate':
                 if validator_type == 'answer':
                     log(f'No {validator_type} validators found.')
                 else:
                     warn(f'No {validator_type} validators found.')
-                    problem._validators[key] = False
-                    return False
+                    ok = False
         if validator_type == 'output' and len(paths) != 1:
             error(
                 f'Found {len(paths)} output validators, expected exactly one.'
             )
-            problem._validators[key] = False
-            return False
+            ok = False
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
@@ -432,12 +442,12 @@ class Problem:
                 ]
 
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
-        ok = True
+        build_ok = True
 
         def build_program(p):
-            nonlocal ok
+            nonlocal build_ok
             localbar = bar.start(p)
-            ok &= p.build(localbar)
+            build_ok &= p.build(localbar)
             localbar.done()
 
         p = parallel.Parallel(build_program)
@@ -448,7 +458,7 @@ class Problem:
         bar.finalize(print_done=False)
 
         # All validators must build.
-        if not ok:
+        if not ok or not build_ok:
             validators = False
 
         problem._validators[key] = validators
