@@ -346,7 +346,7 @@ class Problem:
         """
         Args:
             validator_type: 'answer', 'output', 'input'
-            check_constraints: True if the validao
+            check_constraints: True if the validator should check constraints
 
         Returns:
             False: something went wrong
@@ -373,8 +373,7 @@ class Problem:
         # Handle default output validation
         if problem.settings.validation == 'default':
             if paths_for_type['output']:
-                error("Validation is default but custom output validator exists")
-                ok = False
+                error("Validation is default but custom output validator exists (ignoring it)")
             paths_for_type['output'] = [ config.tools_root / 'support' / 'default_output_validator.cpp' ]
 
         paths = paths_for_type[validator_type]
