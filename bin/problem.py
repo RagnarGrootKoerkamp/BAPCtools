@@ -379,8 +379,12 @@ class Problem:
         paths = paths_for_type[validator_type]
 
         if validator_type == 'answer' and not paths:
-            log(f"No answer validator found; using output validator instead.")
-            paths = paths_for_type['output']
+            if problem.settings.validation == 'default':
+                error("No answer validator found. Please provide one or change output validation to 'custom'.")
+                ok = False
+            else:
+                log(f"No answer validator found; using output validator instead.")
+                paths = paths_for_type['output']
 
         if not paths:
             # Only log/warn missing validators in generate mode.
