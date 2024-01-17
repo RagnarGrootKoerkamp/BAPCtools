@@ -607,11 +607,11 @@ class Problem:
         assert constraints is None or isinstance(constraints, dict)
         assert validator_type in ['input', 'answer'], validator_type
 
-        validators = problem.validators(validator_type, check_constraints=constraints is not None)
-
         if problem.interactive and validator_type == 'answer':
             log('Not validating .ans for interactive problem.')
             return True
+
+        validators = problem.validators(validator_type, check_constraints=constraints is not None)
 
         if not validators:
             return False
