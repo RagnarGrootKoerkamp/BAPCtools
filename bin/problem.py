@@ -373,31 +373,26 @@ class Problem:
         # Handle default output validation
         if problem.settings.validation == 'default':
             if paths_for_type['output']:
-                error("Validation is default but output validator found")
+                error("Validation is default but custom output validator exists")
+                ok = False
             paths_for_type['output'] = [ config.tools_root / 'support' / 'default_output_validator.cpp' ]
 
         paths = paths_for_type[validator_type]
 
+
+        # Fall back on output validator if no answer validator is found
         if validator_type == 'answer' and not paths:
             if problem.settings.validation == 'default':
-                error("No answer validator found. Please provide one or change output validation to 'custom'.")
-                ok = False
+                warn("No answer validator found. Please provide one or use output validation.")
             else:
                 log(f"No answer validator found; using output validator instead.")
-                paths = paths_for_type['output']
+            paths = paths_for_type['output']
 
         if not paths:
-            # Only log/warn missing validators in generate mode.
-            if config.args.action == 'generate':
-                if validator_type == 'answer':
-                    log(f'No {validator_type} validators found.')
-                else:
-                    warn(f'No {validator_type} validators found.')
-                    ok = False
+            warn(f'No {validator_type} validators found.')
+
         if validator_type == 'output' and len(paths) != 1:
-            error(
-                f'Found {len(paths)} output validators, expected exactly one.'
-            )
+            error(f'Found {len(paths)} output validators, expected exactly one.')
             ok = False
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?

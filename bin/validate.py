@@ -1,12 +1,6 @@
 import program
 import re
 from util import *
-from enum import Enum
-
-class ValidatorTypes:
-    ANSWER = 1
-    INPUT = 1
-    OUTPUT = 1
 
 class Validator(program.Program):
     # NOTE: This only works for checktestdata and Viva validators.
