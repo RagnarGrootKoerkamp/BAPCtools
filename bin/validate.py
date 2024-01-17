@@ -40,6 +40,9 @@ class Validator(program.Program):
             )
             return result
 
+    def __repr__(self):
+        return type(self).__name__ + ': ' + str(self.path)
+
 
 def _merge_constraints(constraints_path, constraints):
     # Merge with previous constraints.

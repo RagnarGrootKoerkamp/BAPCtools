@@ -354,6 +354,7 @@ class Problem:
             list(Validator) otherwise
         """
         assert validator_type in ['input', 'answer', 'output']
+        #print("TODO called with", validator_type)
 
         key = (validator_type, check_constraints)
         if key in problem._validators:
@@ -441,6 +442,7 @@ class Problem:
                     for path in paths
                 ]
 
+        #print("TODO found", validators)
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
         build_ok = True
 
