@@ -56,20 +56,29 @@ def _merge_constraints(constraints_path, constraints):
                 vmax = int(vmax)
             except:
                 vmax = float(vmax)
+            try:
+                low = int(low)
+            except:
+                low = float(low)
+            try:
+                high = int(high)
+            except:
+                high = float(high)
             if loc in constraints:
                 c = constraints[loc]
                 has_low |= c[1]
                 has_high |= c[2]
                 if c[3] < vmin:
                     vmin = c[3]
-                    low = c[5]
                 if c[4] > vmax:
                     vmax = c[4]
+                if c[5] > low:
+                    low = c[5]
+                if c[6] < high:
                     high = c[6]
             constraints[loc] = (name, has_low, has_high, vmin, vmax, low, high)
 
         constraints_path.unlink()
-
 
 # .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
 # It may not read/write files.
