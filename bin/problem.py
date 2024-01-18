@@ -350,7 +350,7 @@ class Problem:
 
         Returns:
             False: something went wrong
-            OutputValidator if validator_type is 'output'
+            singleton list(OutputValidator) if validator_type is 'output'
             list(Validator) otherwise
         """
         assert validator_type in ['input', 'answer', 'output']
@@ -382,13 +382,7 @@ class Problem:
         # Check that the proper number of validators is present
         match validator_type, len(paths):
             case 'answer', 0:
-                msg = "No answer validator found"
-                if (problem.settings.validation != 'default' 
-                    and len(paths_for_type['output']) == 1
-                    and not problem.interactive):
-                        msg += "; using output validator instead"
-                        paths = paths_for_type['output']
-                log(msg)
+                log(f"No answer validator found")
             case 'input', 0:
                 warn(f'No input validators found.')
             case 'output', l if l != 1:
