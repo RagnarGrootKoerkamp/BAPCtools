@@ -12,19 +12,19 @@ def _merge_constraints(constraints_path, constraints):
             has_high = bool(int(has_high))
             try:
                 vmin = int(vmin)
-            except:
+            except ValueError:
                 vmin = float(vmin)
             try:
                 vmax = int(vmax)
-            except:
+            except ValueError:
                 vmax = float(vmax)
             try:
                 low = int(low)
-            except:
+            except ValueError:
                 low = float(low)
             try:
                 high = int(high)
-            except:
+            except ValueError:
                 high = float(high)
             if loc in constraints:
                 c = constraints[loc]
@@ -42,11 +42,11 @@ def _merge_constraints(constraints_path, constraints):
 
         constraints_path.unlink()
 
+
 class Validator(program.Program):
-    """ Base class for AnswerValidator, InputValidator, and Validator.
+    """Base class for AnswerValidator, InputValidator, and Validator.
 
     They can all take constraints.
-    Answer and input validators may use bespoke invocations for .ctd and Viva files.
     """
 
     FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']
@@ -55,15 +55,17 @@ class Validator(program.Program):
         return type(self).__name__ + ': ' + str(self.path)
 
     def __init__(self, problem, path, skip_double_build_warning=False, check_constraints=False):
-        program.Program.__init__(self, problem, path, skip_double_build_warning=skip_double_build_warning)
+        program.Program.__init__(
+            self, problem, path, skip_double_build_warning=skip_double_build_warning
+        )
 
         if check_constraints:
             self.tmpdir = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
         self.check_constraints = check_constraints
 
     def setup(self, command, testcase, constraints, args):
-        """ Prepare invocation command, current working directory, and (if needed) constraints 
-        path for the current testcase
+        """Prepare the invocation command, current working directory, and (if needed)
+        constraints path for the current testcase.
         """
 
         if testcase.in_path.is_relative_to(self.problem.tmpdir):
@@ -89,7 +91,6 @@ class Validator(program.Program):
 
         return assembled_command, cwd, constraints_path
 
-
     # .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
     # It may not read/write files.
     def _run_format_validator(self, testcase, cwd):
@@ -102,7 +103,7 @@ class Validator(program.Program):
             main_path = testcase.ans_path
             bad = testcase.bad_output
         else:
-            assert False # now also catches OutputValidator
+            assert False  # now also catches OutputValidator
 
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
@@ -119,10 +120,24 @@ class Validator(program.Program):
 
 
 class InputValidator(Validator):
+    """
+    Validate an input file (such as "testcase.in"), called as:
+
+        ./validator [arguments] < answer.
+
+    Also supports checktestdata and viva files, with different invocation.
+    """
+
     subdir = 'input_validators'
 
     def run(self, testcase, constraints=None, args=None):
-        run_command, cwd, constraints_path = self.setup(self.run_command.copy(), testcase, constraints, args)
+        """Return:
+        ExecResult
+        """
+
+        run_command, cwd, constraints_path = self.setup(
+            self.run_command.copy(), testcase, constraints, args
+        )
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
@@ -135,7 +150,7 @@ class InputValidator(Validator):
                 cwd=cwd,
                 timeout=config.get_timeout(),
             )
-            # For bad inputs, 'invert' the return code: any non-AC exit code is fine, while AC is not fine.
+            # For bad inputs, 'invert' the return code: any non-AC exit code is fine, AC is not.
             if testcase.bad_input:
                 ret.ok = True if ret.ok is not True else config.RTV_AC
 
@@ -146,23 +161,26 @@ class InputValidator(Validator):
 
 
 class AnswerValidator(Validator):
-    # Validate the default answer file (such as "testcase.ans"),
-    # typically just a syntax check
-    #
-    # called as: ./validator input < answer.
-    # This mode also supports checktestdata and viva files.
+    """
+    Validate the default answer file (such as "testcase.ans"), called as:
+
+        ./validator input < answer.
+
+    Also supports checktestdata and viva files, with different invocation.
+    """
 
     subdir = 'answer_validators'
 
     def run(self, testcase, constraints=None, args=None):
+        """Return:
+        ExecResult
+        """
 
         if args:
             error("Answer validator {self} called with args; not supported")
         run_command, cwd, constraints_path = self.setup(
-                self.run_command.copy() + [testcase.in_path.resolve()],
-                testcase,
-                constraints,
-                None) # should supply args here
+            self.run_command.copy() + [testcase.in_path.resolve()], testcase, constraints, None
+        )
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
@@ -175,7 +193,7 @@ class AnswerValidator(Validator):
                 cwd=cwd,
                 timeout=config.get_timeout(),
             )
-            # For bad inputs, 'invert' the return code: any non-AC exit code is fine, while AC is not fine.
+            # For bad cases, 'invert' the return code: any non-AC exit code is fine; AC is not.
             if testcase.bad_output:
                 ret.ok = True if ret.ok is not True else config.RTV_AC
 
@@ -184,27 +202,32 @@ class AnswerValidator(Validator):
 
         return ret
 
+
 class OutputValidator(Validator):
-    # Team output validation:
-    #       called as: ./validator input answer feedbackdir [arguments from problem.yaml] < output.
+    """
+    Validate the output of a submission
+
+       ./validator input answer feedbackdir [arguments from problem.yaml] < output
+    """
+
     subdir = 'output_validators'
 
-    # Validate the output of the given run.
-    # Return ExecResult
     def run(self, testcase, run=None, constraints=None, args=None):
+        """Return:
+        ExecResult
+        """
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            assert False # this should never happen
-    
+            assert False  # this should never happen
+
         run_command, _, constraints_path = self.setup(
-                self.run_command + [
-                    testcase.in_path.resolve(),
-                    testcase.ans_path.resolve(),
-                    run.feedbackdir
-                    ] + self.problem.settings.validator_flags,
-                testcase,
-                constraints,
-                args)
+            self.run_command
+            + [testcase.in_path.resolve(), testcase.ans_path.resolve(), run.feedbackdir]
+            + self.problem.settings.validator_flags,
+            testcase,
+            constraints,
+            args,
+        )
 
         with run.out_path.open() as out_file:
             return exec_command(
