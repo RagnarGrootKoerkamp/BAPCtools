@@ -175,6 +175,9 @@ class AnswerValidator(Validator):
                 cwd=cwd,
                 timeout=config.get_timeout(),
             )
+            # For bad inputs, 'invert' the return code: any non-AC exit code is fine, while AC is not fine.
+            if testcase.bad_output:
+                ret.ok = True if ret.ok is not True else config.RTV_AC
 
         if constraints is not None:
             _merge_constraints(constraints_path, constraints)
