@@ -600,7 +600,7 @@ class Problem:
         if constraints is True:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
-        assert validator_type in ['input', 'answer'], validator_type
+        assert validator_type in ['input', 'answer', 'output'], validator_type
 
         if problem.interactive and validator_type == 'answer':
             log('Not validating .ans for interactive problem.')
@@ -611,7 +611,8 @@ class Problem:
         if not validators:
             return False
 
-        testcases = problem.testcases(needans=validator_type == 'answer', include_bad=True)
+        #testcases = problem.testcases(needans=validator_type == 'answer', include_bad=True)
+        testcases = problem.testcases(needans=validator_type == 'output')
 
         if testcases is False:
             return True

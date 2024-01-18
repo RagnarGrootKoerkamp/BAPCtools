@@ -63,33 +63,32 @@ class Validator(program.Program):
             self.tmpdir = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
         self.check_constraints = check_constraints
 
-    def setup(self, command, testcase, constraints, args):
-        """Prepare the invocation command, current working directory, and (if needed)
-        constraints path for the current testcase.
+    def _run_helper(self, testcase, constraints, args):
+        """ Helper method for the run method in subclasses.
+        Return:
+            cwd: a current working directory for this testcase
+            constraints_path: None or a path to the constraints file
+            args: (possibly empty) list of arguments, possibly including --contraints_file
         """
-
         if testcase.in_path.is_relative_to(self.problem.tmpdir):
             cwd = testcase.in_path.with_suffix('.feedbackdir')
         else:
             cwd = self.problem.tmpdir / 'data' / testcase.short_path.with_suffix('.feedbackdir')
         cwd.mkdir(parents=True, exist_ok=True)
-
-        assembled_command = command.copy()
-
+        arglist = []
         if args is not None:
             assert isinstance(args, list)
-            assembled_command += args
-
+            arglist += args
         if constraints is not None:
             validator_type = 'input' if isinstance(self, InputValidator) else 'answer'
             constraints_path = cwd / f'{validator_type}_constraints_'
             if constraints_path.is_file():
                 constraints_path.unlink()
-            assembled_command += ['--constraints_file', constraints_path]
+            arglist += ['--constraints_file', constraints_path]
         else:
             constraints_path = None
 
-        return assembled_command, cwd, constraints_path
+        return cwd, constraints_path, arglist
 
     # .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
     # It may not read/write files.
@@ -135,16 +134,16 @@ class InputValidator(Validator):
         ExecResult
         """
 
-        run_command, cwd, constraints_path = self.setup(
-            self.run_command.copy(), testcase, constraints, args
-        )
+        cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
 
+        invocation = self.run_command.copy()
+
         with testcase.in_path.open() as in_file:
             ret = exec_command(
-                run_command,
+                invocation + arglist,
                 expect=config.RTV_AC,
                 stdin=in_file,
                 cwd=cwd,
@@ -176,18 +175,16 @@ class AnswerValidator(Validator):
         ExecResult
         """
 
-        if args:
-            error("Answer validator {self} called with args; not supported")
-        run_command, cwd, constraints_path = self.setup(
-            self.run_command.copy() + [testcase.in_path.resolve()], testcase, constraints, None
-        )
+        cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
 
+        invocation = self.run_command + [testcase.in_path.resolve()]
+
         with testcase.ans_path.open() as ans_file:
             ret = exec_command(
-                run_command,
+                invocation + arglist,
                 expect=config.RTV_AC,
                 stdin=ans_file,
                 cwd=cwd,
@@ -217,30 +214,32 @@ class OutputValidator(Validator):
         ExecResult
         """
 
+        cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
+
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             assert False  # this should never happen
 
-        run_command, _, constraints_path = self.setup(
-            self.run_command
-            + [testcase.in_path.resolve(), testcase.ans_path.resolve(), run.feedbackdir]
-            + self.problem.settings.validator_flags,
-            testcase,
-            constraints,
-            args,
-        )
+        # If run is None, we're validating submission output,
+        # else we're validting an .ans file
+        feedbackdir = run.feedbackdir if run is not None else cwd
+        invocation =  self.run_command + [
+                testcase.in_path.resolve(), testcase.ans_path.resolve(), feedbackdir
+                ] + self.problem.settings.validator_flags
 
-        with run.out_path.open() as out_file:
-            return exec_command(
-                run_command,
+        path = run.out_path if run is not None else testcase.ans_path
+        with path.open() as file:
+            ret = exec_command(
+                invocation + arglist,
                 expect=config.RTV_AC,
-                stdin=out_file,
-                cwd=run.feedbackdir,
+                stdin=file,
+                cwd=feedbackdir,
                 timeout=config.get_timeout(),
             )
 
         if constraints is not None:
             _merge_constraints(constraints_path, constraints)
 
+        return ret
 
 # Checks if byte is printable or whitespace
 def _in_invalid_byte(byte, *, other_whitespaces=False):

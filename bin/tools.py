@@ -928,6 +928,7 @@ def run_parsed_arguments(args):
         if action in ['validate', 'output', 'all']:
             if not (action == 'validate' and config.args.input):
                 success &= problem.validate_format('answer')
+                success &= problem.validate_format('output')
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:

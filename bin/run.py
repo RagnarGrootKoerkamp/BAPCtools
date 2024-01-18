@@ -165,7 +165,7 @@ class Testcase:
 
                 if validator_type == 'input':
                     file = self.in_path
-                if validator_type == 'answer':
+                if validator_type in ['answer', 'output']:
                     file = self.ans_path
                 data += (
                     f'{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n'
