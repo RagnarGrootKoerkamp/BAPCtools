@@ -2,6 +2,14 @@
 
 BAPCtools does 3 types of validation, one more than the spec (https://www.kattis.com/problem-package-format/spec/problem_package_format#input-validators):
 
+1. input validation, which validates the `.in` file for every test case, typically for syntax, format, and ranges
+2. answer validation, which validates the `.ans` file for every test case, typically for syntax, format, and ranges, but not for correctness
+3. ouput validation, which checks correctness and running time for the output of every submission.
+
+Input and answer validation run on the  _files_ in `data/*`; their purpose is to ensure problem quality.
+Output validation runs on the output of the author submissions in `submission` (and eventually on solver submissions when the problem is hosted on a judge system.)
+
+
 ## Common parameters/settings
 
 These are some things that hold for all types of validation mentioned below.
@@ -19,7 +27,7 @@ These are some things that hold for all types of validation mentioned below.
   slightly more lenient and allows any non-`42` return code for input format
   validation. BAPCtools expects a code of exactly `43` when validating
   `data/invalid_inputs` testcases (see below).)
-- For `input/output format validation`, the out-of-spec `--constraints-file
+- For input and answer validation, the out-of-spec `--constraints-file
 <path>` flag is set when running `bt constraints`. The validator can write some
   statistics on the testcase to this file. See the [implementation
   notes](implementation_notes.md#constraints-checking).
@@ -27,7 +35,7 @@ These are some things that hold for all types of validation mentioned below.
   `{input,output}_validator_flags` key in the first `testdata.yaml` file that is found
   in the directory (testgroup) of the current testcase or its parents.
 
-## Input format validation
+## Input validation
 
 Test if the `testcase.in` file passes the 'input validators'. Each file or
 directory in `/input_validators/` is an input validator. Input
@@ -39,41 +47,27 @@ input_validator <input_validator_flags> [--contraints_file <path>] < <testcase>.
 
 - The testcase input is given on `stdin`.
 
-## Output format validation (out-of-spec)
+## Answer validation
 
-Normally output validators are only run on team/submission output to validate
-if it correctly solves the testcase. `output format validation` additionally
-verifies the `.ans` file in the repository:
+BAPCtools allows (in fact, encourages) the validation of the `.ans`-file of each testcase.
+As for input validatio, every program in `answer_validators` is a validator, and all validator must pass.
 
-- For `validation: default` problems, check the syntax of the `.ans` file.
-- For `validation: custom` problems, validate the `.ans` file as if it was a
-  team submission.
-- For `validation: custom interactive`, this step is skipped, and the `.ans`
-  file can contain anything. (Typically it's just an empty file.)
-
+An answer validator is called as
 ```
-output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
-  case_sensitive space_change_sensitive <output_validator_flags> [--constraints_file <path>] \
+answer_validator /path/to/testcase.in <output_validator_flags> [--constraints_file <path>] \
   < <testcase>.ans
 ```
 
-- The testcase answer to be validated is given on `stdin`.
-- The `case_sensitive` and `space_change_sensitive` flags are passed, since
-  it is nice for `.ans` files to _exactly_ follow the spec. (This is
-  not necessarily a requirement for team submission output.)
+In particular, testcase answer to be validated is given on `stdin`.
 
-**Example usage**
+Answer validation can be as simple as checking that `stdin` contains a single integer (and nothing else).
+A more advanced used would be to read `n` from the `.in` file (first argument). 
+Then read `n` lines from `stdin` and verify that they contain integers separated by newlines.
 
-- Default validation (`validation: default`): Make sure the syntax of the
-  `.ans` file passed on `stdin` is correct. This can be as simple as checking
-  that `stdin` contains a single integer. Slightly more advanced would be read
-  `n` from the `.in` file (first argument). Then read `n` lines from `stdin`
-  and verify that they contain integers separated by newlines.
-- Custom validation (`validation: custom`): Validate the `.ans` file on
-  `stdin` as you would validate a team submission. This assumes that the
-  `.ans` file in indeed present in the `data/` directory and a valid solution
-  to the problem. While this is not technically required otherwise, this has
-  never been false not the case. See 'output validation' below for an example.
+If no `answer_validator` is found and the problem provides an `output_validator` then
+every `.ans`-file is validated against the output validator.
+However, this fall-back not happen for `validation:default`, since it wouldn’t have an effect.
+Authors are encouraged to provide an answer validator for problems with default output validation.
 
 ## Output validation
 
