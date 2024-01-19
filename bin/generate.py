@@ -863,6 +863,14 @@ class TestcaseRule(Rule):
                                     'Use generate --no-validators to ignore validation results.'
                                 )
                                 return
+                        if not testcase.validate_format(
+                            'output', bar=bar, warn_instead_of_error=no_validators
+                        ):
+                            if not no_validators:
+                                bar.debug(
+                                    'Use generate --no-validators to ignore validation results.'
+                                )
+                                return
                     else:
                         if not testcase.ans_path.is_file():
                             testcase.ans_path.write_text('')
@@ -1509,8 +1517,7 @@ class GeneratorConfig:
 
         self.problem.validators('input')
         self.problem.validators('answer')
-        if self.problem.interactive: 
-            self.problem.validators('output') # needed to make .interaction for samples
+        self.problem.validators('output')
 
         def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
