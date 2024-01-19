@@ -87,10 +87,11 @@ class Problem:
                         # Assume authors know what they're doing
                         continue
                     case s if s != yamlname:
-                        warn(f'Problem titles in problem.{lang}.tex ({texname})' +
-                             f' and problem.yaml ({yamlname}) differ;' +
-                             r' consider using \problemname{\problemyamlname}.'
-                             )
+                        warn(
+                            f'Problem titles in problem.{lang}.tex ({texname})'
+                            + f' and problem.yaml ({yamlname}) differ;'
+                            + r' consider using \problemname{\problemyamlname}.'
+                        )
         return sorted(texlangs & yamllangs)
 
     def _read_settings(self):
@@ -361,23 +362,24 @@ class Problem:
         ok = True
 
         subdirs_for_type = {
-                'answer': ['answer_validators', 'answer_format_validators'],
-                'output': ['output_validator', 'output_validators'],
-                'input': ['input_validators', 'input_format_validators'],
-                }
+            'answer': ['answer_validators', 'answer_format_validators'],
+            'output': ['output_validator', 'output_validators'],
+            'input': ['input_validators', 'input_format_validators'],
+        }
         paths_for_type = {
-                vtype: [g for sdir in sdirs for g in glob(problem.path / sdir, '*')]
-                for vtype, sdirs in subdirs_for_type.items()
-                }
+            vtype: [g for sdir in sdirs for g in glob(problem.path / sdir, '*')]
+            for vtype, sdirs in subdirs_for_type.items()
+        }
 
         # Handle default output validation
         if problem.settings.validation == 'default':
             if paths_for_type['output']:
                 error("Validation is default but custom output validator exists (ignoring it)")
-            paths_for_type['output'] = [ config.tools_root / 'support' / 'default_output_validator.cpp' ]
+            paths_for_type['output'] = [
+                config.tools_root / 'support' / 'default_output_validator.cpp'
+            ]
 
         paths = paths_for_type[validator_type]
-
 
         # Check that the proper number of validators is present
         match validator_type, len(paths):
@@ -397,36 +399,30 @@ class Problem:
                 return False
 
         if check_constraints:
-            constraint_validators = []
-            for f in paths:
-                if f.is_file():
-                    sources = [f]
-                elif f.is_dir():
-                    sources = glob(f, '**/*')
-                has_constraints = False
-                for s in sources:
-                    if has_constraints_checking(s):
-                        has_constraints = True
-                        break
-                if has_constraints:
-                    constraint_validators.append(f)
-            paths = constraint_validators
+            paths = [
+                f
+                for f in paths
+                if any(
+                    has_constraints_checking(source)
+                    for source in ([f] if f.is_file() else glob(f, '**/*'))
+                )
+            ]
 
         validator_dispatcher = {
-                'input': validate.InputValidator,
-                'answer': validate.AnswerValidator,
-                'output': validate.OutputValidator
-                }
+            'input': validate.InputValidator,
+            'answer': validate.AnswerValidator,
+            'output': validate.OutputValidator,
+        }
         skip_double_build_warning = check_constraints or not paths_for_type['answer']
         validators = [
-                validator_dispatcher[validator_type](
-                        problem,
-                        path,
-                        skip_double_build_warning=skip_double_build_warning,
-                        check_constraints=check_constraints,
-                    )
-                    for path in paths
-                ]
+            validator_dispatcher[validator_type](
+                problem,
+                path,
+                skip_double_build_warning=skip_double_build_warning,
+                check_constraints=check_constraints,
+            )
+            for path in paths
+        ]
 
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
         build_ok = True
@@ -605,7 +601,7 @@ class Problem:
         if not validators:
             return False
 
-        #testcases = problem.testcases(needans=validator_type == 'answer', include_bad=True)
+        # testcases = problem.testcases(needans=validator_type == 'answer', include_bad=True)
         testcases = problem.testcases(needans=validator_type == 'output')
 
         if testcases is False:
