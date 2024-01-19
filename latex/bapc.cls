@@ -71,6 +71,8 @@
 \RequirePackage{listingsutf8}
 \RequirePackage{tocloft}
 \RequirePackage{xparse}
+\RequirePackage{siunitx}
+\sisetup{per-mode=symbol}
 
 \RequirePackage[hidelinks,bookmarks=true,pdfusetitle]{hyperref}
 
@@ -157,16 +159,16 @@
 %-------------------------------------------------------------------------------
 \newenvironment{Input}{
 	\subsection*{\langinput{}}
-}{}
+}{\par}
 \newenvironment{Output}{
 	\subsection*{\langoutput{}}
-}{}
+}{\par}
 \newenvironment{Interaction}{
 	\subsection*{\langinteraction{}}
-}{}
+}{\par}
 \newenvironment{Explanation}{
 	\subsection*{\langexplanation{}}
-}{}
+}{\par}
 % Use xparse to get the contents of the environment as a variable (using `+b`) and store
 % them with the heading in `\notesContent`, which is automatically rendered at
 % the end of each problem. `gdef` overwrites the global definition of `notesContent`.
@@ -200,7 +202,7 @@
 % A solution to this problem was found on http://tex.stackexchange.com/a/111488 .
 %-------------------------------------------------------------------------------
 \newcommand{\mySampleHeading}[1]{
-	\multicolumn{1}{l}{\large \bfseries\textrm{\langsample{} #1 \arabic{SampleCount}}}
+	\multicolumn{1}{l}{\large \bfseries\textrm{#1 \arabic{SampleCount}}}
 }
 \newcommand{\SampleListing}[1]{
   	\lstinputlisting[aboveskip=-0.7\baselineskip,belowskip=-0.9\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
@@ -336,6 +338,7 @@
 \let\ttfamilyFB\ttfamily
 \let\rmfamilyFB\rmfamily
 \usepackage[\langbabel]{babel}
+\usepackage[none]{hyphenat} % Disable hyphenation with language [none]
 \usepackage{lmodern}
 \usepackage{graphicx}
 \usepackage{courier}

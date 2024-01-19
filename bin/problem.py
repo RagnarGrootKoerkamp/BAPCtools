@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 import config
+import latex
 import parallel
 import program
 import run
@@ -58,19 +59,39 @@ class Problem:
         """
         if isinstance(self.settings.name, str):
             self.settings.name = {'en': self.settings.name}
-        yamlnames = set(self.settings.name)
-        texfiles = set(
+        yamllangs = set(self.settings.name)
+        texlangs = set(
             path.suffixes[0][1:] for path in glob(self.path, 'problem_statement/problem.*.tex')
         )
-        for lang in texfiles - yamlnames:
+        for lang in texlangs - yamllangs:
             error(
                 f"{self.name}: Found problem.{lang}.tex, but no corresponding name in problem.yaml."
             )
-        for lang in yamlnames - texfiles:
+        for lang in yamllangs - texlangs:
             error(
                 f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
             )
-        return sorted(texfiles & yamlnames)
+        # Check that names in problem.yaml and \problemname{} in problem.*.tex agree:
+        for lang in texlangs & yamllangs:
+            unnormalised_yamlname = self.settings.name[lang]
+            yamlname = ' '.join(unnormalised_yamlname.split())
+            with open(self.path / 'problem_statement' / f'problem.{lang}.tex') as texfile:
+                match texname := latex.get_argument_for_command(texfile, 'problemname'):
+                    case None:
+                        error(rf"No \problemname found in problem.{lang}.tex")
+                        continue
+                    case r'\\problemyamlname':
+                        continue
+                    case s if '\\' in s or '_' in s or '^' in s:
+                        # texname contains markup, like "CO_2" or "\emph{Hello}":
+                        # Assume authors know what they're doing
+                        continue
+                    case s if s != yamlname:
+                        warn(f'Problem titles in problem.{lang}.tex ({texname})' +
+                             f' and problem.yaml ({yamlname}) differ;' +
+                             r' consider using \problemname{\problemyamlname}.'
+                             )
+        return sorted(texlangs & yamllangs)
 
     def _read_settings(self):
         # some defaults
@@ -395,7 +416,7 @@ class Problem:
                 if has_constraints:
                     constraint_validators.append(f)
             if len(constraint_validators) == 0:
-                error(
+                warn(
                     f'No {validator_type} constraint validators found: No matches for \'constraints_file\'.'
                 )
                 return False
@@ -646,11 +667,11 @@ class Problem:
                 name, has_low, has_high, vmin, vmax, low, high = value
                 if not has_low:
                     warn(
-                        f'BOUND NOT REACHED: The value of `{name}` at {loc} was never equal to the lower bound of {low}. Min value found: {vmin}'
+                        f'BOUND NOT REACHED: `{name}` never equals lower bound {low}. Min value found: {vmin}'
                     )
                 if not has_high:
                     warn(
-                        f'BOUND NOT REACHED: The value of `{name}` at {loc} was never equal to the upper bound of {high}. Max value found: {vmax}'
+                        f'BOUND NOT REACHED: `{name}` never equals upper bound {high}. Max value found: {vmax}'
                     )
                 success = False
 

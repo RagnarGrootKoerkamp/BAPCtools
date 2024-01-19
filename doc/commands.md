@@ -514,6 +514,9 @@ When run for a contest:
   - The contest level zip is written to `contest/<contest>-kattis.zip`
   - Kattis needs the `input_validators` directory, while DOMjudge doesn't use this.
   - Kattis problem zips get an additional top level directory named after the problem shortname.
+  - _Statements_: Kattis’s problemtools builds statement HTML (and PDF) using `problem2html` (and `problem2pdf`) rather than `bt pdf`. Problem authors should check the resulting statements after exporting to Kattis; pay attention to:
+    - The command `bt zip --kattis` exports `problem_statement/*` but not its subdirectories, so make sure illustrations and `\input`-ed tex sources are included. 
+    - Proper images scaling in the HTML output requires explict widths, such as `\includegraphics[width=.5\textwidth]{foo.png}`.
 
 ## `export`
 

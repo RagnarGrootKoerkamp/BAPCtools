@@ -27,7 +27,7 @@ class GeneratorTask:
 
         # Pick a random seed.
         assert self.generator.program is not None
-        self.seed = random.randint(0, 2**31 - 1)
+        self.seed = random.randrange(0, 2**31)
         self.command = self.generator.cache_command(seed=self.seed)
 
         self.save_mutex = threading.Lock()
@@ -53,10 +53,9 @@ class GeneratorTask:
         localbar.done()
 
         localbar = bar.start(f'{self.i}: generate')
-        result = self.generator.run(bar, cwd, name, self.seed)
+        result = self.generator.run(localbar, cwd, name, self.seed)
         if result.ok is not True:
-            localbar.done()
-            return False
+            return False # No need to call bar.done() in this case, because the Generator calls bar.error()
         localbar.done()
 
         testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
@@ -188,16 +187,25 @@ class Fuzz:
         self.tasks = 0
         self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
 
-        # pool of ids used for generators
-        self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
-        self.free_tmp_id = {*range(self.tmp_ids)}
-        self.tmp_id_count = [0] * self.tmp_ids
+        if self.queue.num_threads:
+            # pool of ids used for generators
+            self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
+            self.free_tmp_id = {*range(self.tmp_ids)}
+            self.tmp_id_count = [0] * self.tmp_ids
 
-        # add first generator task
-        self.finish_task()
+            # add first generator task
+            self.finish_task()
 
-        # wait for the queue to run empty (after config.args.time)
-        self.queue.join()
+            # wait for the queue to run empty (after config.args.time)
+            self.queue.join()
+        else:
+            self.tmp_ids = -1
+            while time.monotonic() - self.start_time <= config.args.time:
+                testcase_rule = self.testcase_rules[self.iteration % len(self.testcase_rules)]
+                self.iteration += 1
+                self.queue.put(GeneratorTask(self, testcase_rule, self.iteration, None))
+                self.queue.join()
+
         # At this point, no new tasks may be started anymore.
         self.queue.done()
         bar.done()

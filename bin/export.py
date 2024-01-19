@@ -36,13 +36,30 @@ def fix_problem_yaml_name(problem):
     return revert
 
 
-def build_samples_zip(problems):
+# Write any .lang.pdf files to .pdf.
+def remove_language_suffix(fname, statement_language):
+    if not statement_language:
+        return fname
+    out = Path(fname)
+    if out.suffixes == ['.' + statement_language, '.pdf']:
+        out = out.with_suffix('').with_suffix('.pdf')
+    return out
+
+
+def build_samples_zip(problems, statement_language):
     zf = zipfile.ZipFile(
         'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False
     )
-    for fname in glob(Path('.'), 'contest*.pdf'):
-        if Path(fname).is_file():
-            zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
+
+    # Do not include contest PDF for kattis.
+    if not config.args.kattis:
+        for fname in glob(Path('.'), f'contest*.{statement_language}.pdf'):
+            if Path(fname).is_file():
+                zf.write(
+                    fname,
+                    remove_language_suffix(fname, statement_language),
+                    compress_type=zipfile.ZIP_DEFLATED,
+                )
 
     for problem in problems:
         outputdir = Path(problem.label)
@@ -87,39 +104,39 @@ def build_samples_zip(problems):
 def build_problem_zip(problem, output, statement_language):
     """Make DOMjudge ZIP file for specified problem."""
 
+    files = [
+        ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
+        ('problem.yaml', True),
+        ('problem_statement/*', True),
+        ('data/secret/**/*.in', True),
+        ('data/secret/**/*.ans', True),
+        ('submissions/accepted/**/*', True),
+        ('submissions/*/**/*', False),
+        ('attachments/**/*', False),
+    ]
+
+    for ext in config.KNOWN_DATA_EXTENSIONS:
+        files += [
+            (f'data/sample/**/*{ext}', False),
+            (f'data/secret/**/*{ext}', False),
+        ]
+
+    if not config.args.kattis:
+        files += [('.timelimit', True)]
+        files += [(f'problem.{statement_language}.pdf', True)]
+
     if not problem.interactive:
         # Glob, required?
-        files = [
-            ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
-            ('problem.yaml', True),
-            ('.timelimit', True),
-            (f'problem.{statement_language}.pdf', True),
-            ('problem_statement/*', True),
-            ('data/sample/*.in', True),
-            ('data/sample/*.ans', True),
-            ('data/secret/*.in', True),
-            ('data/secret/*.ans', True),
-            ('submissions/accepted/**/*', True),
-            ('submissions/*/**/*', False),
-            ('attachments/**/*', False),
+        files += [
+            ('data/sample/**/*.in', True),
+            ('data/sample/**/*.ans', True),
         ]
     else:
-        files = [
-            ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
-            ('problem.yaml', True),
-            ('.timelimit', True),
-            (f'problem.{statement_language}.pdf', True),
-            ('problem_statement/*', True),
+        files += [
             # Either .interaction or .in.statement should be present, but we only care about .interaction here.
-            ('data/sample/*.interaction', False),
-            ('data/sample/*.in.statement', False),
-            ('data/sample/*.ans.statement', False),
-            ('data/secret/*.in', True),
-            # Not really needed, but otherwise problemtools will complain.
-            ('data/secret/*.ans', True),
-            ('submissions/accepted/**/*', True),
-            ('submissions/*/**/*', False),
-            ('attachments/**/*', False),
+            ('data/sample/**/*.interaction', False),
+            ('data/sample/**/*.in.statement', False),
+            ('data/sample/**/*.ans.statement', False),
         ]
 
     if 'custom' in problem.settings.validation:
@@ -142,10 +159,7 @@ def build_problem_zip(problem, output, statement_language):
             # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
                 out = f.relative_to(problem.path)
-                # Write any .lang.pdf files to .pdf.
-                if out.suffixes == ['.' + statement_language, '.pdf']:
-                    out = out.with_suffix('')
-                    out = out.with_suffix('.pdf')
+                out = remove_language_suffix(out, statement_language)
                 # For Kattis, prepend the problem shortname to all files.
                 if config.args.kattis:
                     out = problem.name / out
@@ -179,10 +193,10 @@ def build_problem_zip(problem, output, statement_language):
 
 
 # Assumes the current working directory has: the zipfiles and
-# contest*.pdf
-# solutions*.pdf
+# contest*.{lang}.pdf
+# solutions*.{lang}.pdf
 # Output is <outfile>
-def build_contest_zip(problems, zipfiles, outfile, args):
+def build_contest_zip(problems, zipfiles, outfile, statement_language):
     print("writing ZIP file %s" % outfile, file=sys.stderr)
 
     update_problems_yaml(problems)
@@ -193,8 +207,8 @@ def build_contest_zip(problems, zipfiles, outfile, args):
         zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
 
     # For general zip export, also create pdfs and a samples zip.
-    if not args.kattis:
-        build_samples_zip(problems)
+    if not config.args.kattis:
+        build_samples_zip(problems, statement_language)
 
         for fname in (
             [
@@ -202,14 +216,18 @@ def build_contest_zip(problems, zipfiles, outfile, args):
                 'contest.yaml',
                 'samples.zip',
             ]
-            + glob(Path('.'), 'contest*.pdf')
-            + glob(Path('.'), 'solutions*.pdf')
+            + glob(Path('.'), f'contest*.{statement_language}.pdf')
+            + glob(Path('.'), f'solutions*.{statement_language}.pdf')
         ):
             if Path(fname).is_file():
-                zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
+                zf.write(
+                    fname,
+                    remove_language_suffix(fname, statement_language),
+                    compress_type=zipfile.ZIP_DEFLATED,
+                )
 
     # For Kattis export, delete the original zipfiles.
-    if args.kattis:
+    if config.args.kattis:
         for fname in zipfiles:
             fname.unlink()
 

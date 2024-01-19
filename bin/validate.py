@@ -49,15 +49,25 @@ def _merge_constraints(constraints_path, constraints):
                 vmax = int(vmax)
             except:
                 vmax = float(vmax)
+            try:
+                low = int(low)
+            except:
+                low = float(low)
+            try:
+                high = int(high)
+            except:
+                high = float(high)
             if loc in constraints:
                 c = constraints[loc]
                 has_low |= c[1]
                 has_high |= c[2]
                 if c[3] < vmin:
                     vmin = c[3]
-                    low = c[5]
                 if c[4] > vmax:
                     vmax = c[4]
+                if c[5] > low:
+                    low = c[5]
+                if c[6] < high:
                     high = c[6]
             constraints[loc] = (name, has_low, has_high, vmin, vmax, low, high)
 
@@ -97,11 +107,14 @@ class InputValidator(Validator):
         with testcase.in_path.open() as in_file:
             ret = exec_command(
                 run_command,
-                expect=config.RTV_WA if testcase.bad_input else config.RTV_AC,
+                expect=config.RTV_AC,
                 stdin=in_file,
                 cwd=cwd,
                 timeout=config.get_timeout(),
             )
+            # For bad inputs, 'invert' the return code: any non-AC exit code is fine, while AC is not fine.
+            if testcase.bad_input:
+                ret.ok = True if ret.ok is not True else config.RTV_AC
 
         if constraints is not None:
             _merge_constraints(constraints_path, constraints)
@@ -153,11 +166,14 @@ class OutputValidator(Validator):
             with testcase.ans_path.open() as ans_file:
                 ret = exec_command(
                     run_command,
-                    expect=config.RTV_WA if testcase.bad_output else config.RTV_AC,
+                    expect=config.RTV_AC,
                     stdin=ans_file,
                     cwd=cwd,
                     timeout=config.get_timeout(),
                 )
+                # For bad outputs, 'invert' the return code: any non-AC exit code is fine, while AC is not fine.
+                if testcase.bad_output:
+                    ret.ok = True if ret.ok is not True else config.RTV_AC
 
             if constraints is not None:
                 _merge_constraints(constraints_path, constraints)
