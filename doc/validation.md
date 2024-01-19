@@ -58,26 +58,25 @@ answer_validator /path/to/testcase.in <output_validator_flags> [--constraints_fi
   < <testcase>.ans
 ```
 
-In particular, testcase answer to be validated is given on `stdin`.
+In particular, the testcase answer to be validated is given on `stdin`.
 
 Answer validation can be as simple as checking that `stdin` contains a single integer (and nothing else).
 A more advanced used would be to read `n` from the `.in` file (first argument). 
 Then read `n` lines from `stdin` and verify that they contain integers separated by newlines.
 
-If no `answer_validator` is found and the problem provides an `output_validator` then
-every `.ans`-file is validated against the output validator.
-However, this fall-back not happen for `validation:default`, since it wouldn’t have an effect.
-Authors are encouraged to provide an answer validator for problems with default output validation.
+All answer files are also checked with the output validator.
 
 ## Output validation
 
-**Custom validation**
-When `validation: custom`, the output validation checks whether the output of a
-team submission is correct.
+When `output_validators` is empty (and `validation: default` in `problem.yaml`), the default ouput validator is used.
+
+### Custom ouput validation
+When `validation: custom`, the program in `output_validators` checks whether the output of a submission is correct.
 
 ```
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
   <problem_yaml_flags> <output_validator_flags> \
+  [--constraints_file <path>]
   < team_output
 ```
 
@@ -85,18 +84,19 @@ output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir
 
 - Team output is given on `stdin`.
 
-**Interactive problems**
+_Example_.
+Suppose a problem requires as output some integer `x`, and then any two integers
+that sum to `x`. Then, the output validator could first read `x` from the `.ans`
+file (second argument), and compare that to the `x` given on `stdin`. Then, it
+can read the remaining two integers on `stdin` and verify they sum to `x`.
+
+### Interactive problems
+jjj
 For interactive problems (`validation: custom interactive`), the invocation is
 the same as above, but `stdin` is a pipe that feeds team output into the
 validator instead of a file.
 Similarly, `stdout` is connected to a pipe that forwards to the submission's `stdin`.
 
-**Example usage**
-
-Suppose a problem requires as output some integer `x`, and then any two integers
-that sum to `x`. Then, the output validator could first read `x` from the `.ans`
-file (second argument), and compare that to the `x` given on `stdin`. Then, it
-can read the remaining two integers on `stdin` and verify they sum to `x`.
 
 ## `data/invalid_inputs` validation
 

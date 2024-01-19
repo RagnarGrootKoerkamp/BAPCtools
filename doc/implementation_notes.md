@@ -175,7 +175,8 @@ All the files in the `<contest>/solve_stats` directory can be generated using `b
 
 # Constraints checking
 
-Validators based on [headers/validation.h](../headers/validation.h) can take a `--constraints_file <file_path>` flag.
+Input, answer, and output validators can take a `--constraints_file <file_path>` flag.
+Validators based on [headers/validation.h](../headers/validation.h) do this.
 After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output. Each line in the output file will look like:
 
 ```
