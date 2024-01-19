@@ -118,9 +118,9 @@ class Testcase:
 
         return d
 
-    # Validate the testcase input/output format. validator_type must be 'input' or 'answer'.
+    # Validate the testcase input/answer format
     def validate_format(
-        self, validator_type, *, bar, constraints=None, warn_instead_of_error=False
+        self, validator_type, *, bar, constraints=None, warn_instead_of_error=False, args=None
     ):
         assert validator_type in ['input', 'answer', 'output']
 
@@ -136,6 +136,7 @@ class Testcase:
             flags = self.testdata_yaml_validator_flags(validator_type, validator)
             if flags is False:
                 continue
+            flags = args if flags is None else flags + args
 
             ret = validator.run(self, constraints=None if bad_testcase else constraints, args=flags)
 

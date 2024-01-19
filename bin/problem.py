@@ -628,7 +628,13 @@ class Problem:
                     ok = False
                     continue
 
-            success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints)
+            # When validating answer format with output validator
+            # always be sensitive
+            args = [
+                    'case_sensitive', 'space_change_sensitive'
+                    ] if validator_type == 'output' else []
+
+            success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints, args=args)
             bar.done()
 
         bar.finalize(print_done=True)

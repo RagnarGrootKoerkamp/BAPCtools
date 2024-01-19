@@ -54,8 +54,7 @@ As for input validatio, every program in `answer_validators` is a validator, and
 
 An answer validator is called as
 ```
-answer_validator /path/to/testcase.in <output_validator_flags> [--constraints_file <path>] \
-  < <testcase>.ans
+answer_validator /path/to/testcase.in [output_validator_flags] < testcase.ans
 ```
 
 In particular, the testcase answer to be validated is given on `stdin`.
@@ -64,11 +63,16 @@ Answer validation can be as simple as checking that `stdin` contains a single in
 A more advanced used would be to read `n` from the `.in` file (first argument). 
 Then read `n` lines from `stdin` and verify that they contain integers separated by newlines.
 
-All answer files are also checked with the output validator.
+All answer files are also checked with the output validator invoked as
+
+```
+answer_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
+    case_sensitive space_change_sensitive [output_validator_flags] < testcase.ans
+```
 
 ## Output validation
 
-When `output_validators` is empty (and `validation: default` in `problem.yaml`), the default ouput validator is used.
+When `output_validators` is empty (and `validation: default` in `problem.yaml`), the default output validator is used.
 
 ### Custom ouput validation
 When `validation: custom`, the program in `output_validators` checks whether the output of a submission is correct.
@@ -76,7 +80,6 @@ When `validation: custom`, the program in `output_validators` checks whether the
 ```
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
   <problem_yaml_flags> <output_validator_flags> \
-  [--constraints_file <path>]
   < team_output
 ```
 
@@ -91,7 +94,7 @@ file (second argument), and compare that to the `x` given on `stdin`. Then, it
 can read the remaining two integers on `stdin` and verify they sum to `x`.
 
 ### Interactive problems
-jjj
+
 For interactive problems (`validation: custom interactive`), the invocation is
 the same as above, but `stdin` is a pipe that feeds team output into the
 validator instead of a file.

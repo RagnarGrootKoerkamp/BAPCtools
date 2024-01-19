@@ -864,7 +864,10 @@ class TestcaseRule(Rule):
                                 )
                                 return
                         if not testcase.validate_format(
-                            'output', bar=bar, warn_instead_of_error=no_validators
+                            'output', bar=bar, warn_instead_of_error=no_validators, args=[
+                                "space_change_sensitive",
+                                "case_sensitive"
+                                ]
                         ):
                             if not no_validators:
                                 bar.debug(
