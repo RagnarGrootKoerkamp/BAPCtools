@@ -410,12 +410,6 @@ class Problem:
                         break
                 if has_constraints:
                     constraint_validators.append(f)
-            if len(constraint_validators) == 0:
-                warn(
-                    f'No {validator_type} constraint validators found: No matches for \'constraints_file\'.'
-                )
-                ok = False
-
             paths = constraint_validators
 
         validator_dispatcher = {
