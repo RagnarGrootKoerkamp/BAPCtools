@@ -20,6 +20,7 @@ def check_validators(problem):
     ans_constraints = {}
     problem.validate_format('input', constraints=in_constraints)
     problem.validate_format('answer', constraints=ans_constraints)
+    problem.validate_format('output', constraints=ans_constraints)
     print()
 
     validator_values = set()

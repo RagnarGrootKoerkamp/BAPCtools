@@ -44,7 +44,7 @@ def _merge_constraints(constraints_path, constraints):
 
 
 class Validator(program.Program):
-    """Base class for AnswerValidator, InputValidator, and Validator.
+    """Base class for AnswerValidator, InputValidator, and OutputValidator.
 
     They can all take constraints.
     """
