@@ -175,9 +175,13 @@ All the files in the `<contest>/solve_stats` directory can be generated using `b
 
 # Constraints checking
 
-Input, answer, and output validators can take a `--constraints_file <file_path>` flag.
-Validators based on [headers/validation.h](../headers/validation.h) do this.
-After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output. Each line in the output file will look like:
+For constraints checking, BAPCtools passes the flag
+```
+--constraints_file <file_path>` flag.
+```
+to input, answer, and output validators.
+After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output. 
+Each line in the output file will look like:
 
 ```
 <string name> <string name> <bool reached minimum> <bool reached maximum> <minimum allowed> <maximum allowed> <minimum seen> <maximum seen>
@@ -195,6 +199,7 @@ BAPCtools will accumulate these values over all testcases, and print a warning w
 
 This system works for any validator that accepts the `--constraints_file` flag.
 This is determined by searching all sources for the string `constraints_file`.
+Validators based on [headers/validation.h](../headers/validation.h) accept this flag.
 
 The following regexes are used to extract bounds from the problem statement:
 

@@ -7,14 +7,15 @@ BAPCtools does 3 types of validation, one more than the spec (https://www.kattis
 3. ouput validation, which checks correctness and running time for the output of every submission.
 
 Input and answer validation run on the  _files_ in `data/*`; their purpose is to ensure problem quality.
-Output validation runs on the output of the author submissions in `submission` (and eventually on solver submissions when the problem is hosted on a judge system.)
+Output validation runs on the output of the author submissions in `submission` (and eventually on solver submissions when the problem is hosted on a judge system);
+the purpose of output validation is to check correctness of submitted problems.
 
 
 ## Common parameters/settings
 
 These are some things that hold for all types of validation mentioned below.
 
-- For each testcase, all validators are run in lexicographic order. If one
+- For each testcase, all validators in the same directory are run in lexicographic order. If one
   fails, later ones are skipped.
 - In BAPCtools, the current working directory is always a temporary
   `<testcase>.feedbackdir` directory.
@@ -37,61 +38,64 @@ These are some things that hold for all types of validation mentioned below.
 
 ## Input validation
 
-Test if the `testcase.in` file passes the 'input validators'. Each file or
-directory in `/input_validators/` is an input validator. Input
-validators are called as
+Test if the testcase input file `testcase.in` file passes the 'input validators'. Each file or
+directory in `/input_validators/` is an input validator. 
+Input validators receive the testcase on standard input, as
 
 ```
-input_validator <input_validator_flags> [--contraints_file <path>] < <testcase>.in
+input_validator [input_validator_flags] < testcase.in
 ```
-
-- The testcase input is given on `stdin`.
 
 ## Answer validation
 
 BAPCtools allows (in fact, encourages) the validation of the `.ans`-file of each testcase.
 As for input validatio, every program in `answer_validators` is a validator, and all validator must pass.
-
-An answer validator is called as
+Answer validators receive the testcase answer file on standard input, as
 ```
-answer_validator /path/to/testcase.in [output_validator_flags] < testcase.ans
+answer_validator /path/to/testcase.in [output_validator_flags] < tc.ans
 ```
 
-In particular, the testcase answer to be validated is given on `stdin`.
-
-Answer validation can be as simple as checking that `stdin` contains a single integer (and nothing else).
-A more advanced used would be to read `n` from the `.in` file (first argument). 
-Then read `n` lines from `stdin` and verify that they contain integers separated by newlines.
+Answer validation can be as simple as checking that standard input contains a single integer (and nothing else).
+A more advanced used would be to read `n` from the testcase input file `testcase.in` file provided as the first argument. 
+Then read `n` lines from standard input and verify that they contain integers separated by newlines.
 
 All answer files are also checked with the output validator invoked as
 
 ```
-answer_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
+output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
     case_sensitive space_change_sensitive [output_validator_flags] < testcase.ans
 ```
 
+In particular, note the flags `case_sensitive` and `space_change_sensitive`, 
+which allows an output validator to be less lenient about the format of `.ans` files than about submission output.
+
 ## Output validation
 
-When `output_validators` is empty (and `validation: default` in `problem.yaml`), the default output validator is used.
-
-### Custom ouput validation
-When `validation: custom`, the program in `output_validators` checks whether the output of a submission is correct.
+The output validator checks whether the output of a submission is correct.
+Output validation receives submission output on standard input.
+If `testcase.out` is the output produced by a submission on `testcase.in`, 
+the output validator is called as follows:
 
 ```
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
-  <problem_yaml_flags> <output_validator_flags> \
-  < team_output
+  [problem_yaml_flags] [output_validator_flags] \
+  < testcase.out
 ```
 
-- `<problem_yaml_flags>` is the value of `validator_flags` in `problem.yaml`.
+- `[problem_yaml_flags]` is the value of `validator_flags` in `problem.yaml`.
 
-- Team output is given on `stdin`.
+When `output_validators` is empty (and `validation: default` in `problem.yaml`), the default output validator is used.
 
 _Example_.
 Suppose a problem requires as output some integer `x`, and then any two integers
 that sum to `x`. Then, the output validator could first read `x` from the `.ans`
 file (second argument), and compare that to the `x` given on `stdin`. Then, it
 can read the remaining two integers on `stdin` and verify they sum to `x`.
+
+### Custom ouput validation
+
+When `validation: custom`, the program in `output_validators` is used as the output validator.
+
 
 ### Interactive problems
 
