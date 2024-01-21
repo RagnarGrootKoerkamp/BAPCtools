@@ -326,6 +326,11 @@ Run this from one of:
         help='The number of jobs to use. Default: cpu_count()/2.',
     )
     global_parser.add_argument(
+        '--memory',
+        '-m',
+        help='The maximum amount of memory in MB a subprocess may use. Does not work for Java. Default: 2048.',
+    )
+    global_parser.add_argument(
         '--api',
         help='CCS API endpoint to use, e.g. https://www.domjudge.org/demoweb. Defaults to the value in contest.yaml.',
     )
@@ -611,11 +616,6 @@ Run this from one of:
     )
     runparser.add_argument('--timelimit', '-t', type=int, help='Override the default timelimit.')
     runparser.add_argument(
-        '--memory',
-        '-m',
-        help='The max amount of memory in MB a subprocesses may use. Does not work for java. Default: 2048.',
-    )
-    runparser.add_argument(
         '--force',
         '-f',
         action='store_true',
@@ -651,11 +651,6 @@ Run this from one of:
         '--timeout',
         type=int,
         help='Override the default timeout. Default: 1.5 * timelimit + 1.',
-    )
-    testparser.add_argument(
-        '--memory',
-        '-m',
-        help='The max amount of memory in MB a subprocesses may use. Does not work for java. Default: 2048.',
     )
 
     # Sort
