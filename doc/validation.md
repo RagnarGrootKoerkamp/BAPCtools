@@ -1,21 +1,24 @@
 # Validation
 
-BAPCtools does 3 types of validation, one more than the spec (https://www.kattis.com/problem-package-format/spec/problem_package_format#input-validators):
+BAPCtools distinguishes 3 types of validation, one more than the [problem package format specification](https://www.kattis.com/problem-package-format/spec/problem_package_format#input-validators):
 
-1. input validation, which validates the `.in` file for every test case, typically for syntax, format, and ranges
-2. answer validation, which validates the `.ans` file for every test case, typically for syntax, format, and ranges, but not for correctness
+1. input validation, which validates the `.in` file for every test case, typically for syntax, format, correctness, and range,
+2. answer validation, which validates the `.ans` file for every test case, typically for syntax, format, and ranges, but not for correctness,
 3. ouput validation, which checks correctness and running time for the output of every submission.
 
 Input and answer validation run on the  _files_ in `data/*`; their purpose is to ensure problem quality.
-Output validation runs on the output of the author submissions in `submission` (and eventually on solver submissions when the problem is hosted on a judge system);
-the purpose of output validation is to check correctness of submitted problems.
+Output validation runs on the output of the author submissions in `submissions` (and eventually on solver submissions when the problem is hosted on a judge system);
+the purpose of output validation is to check correctness of _submissions_.
+
+The testcases in `/data/sample` and `/data/secret` must pass both input, answer, and output validation;
+whereas submission output most pass output validation.
 
 
 ## Common parameters/settings
 
 These are some things that hold for all types of validation mentioned below.
 
-- For each testcase, all validators in the same directory are run in lexicographic order. If one
+- For each testcase, all validators of the same type are run in lexicographic order. If one
   fails, later ones are skipped.
 - In BAPCtools, the current working directory is always a temporary
   `<testcase>.feedbackdir` directory.
@@ -49,10 +52,10 @@ input_validator [input_validator_flags] < testcase.in
 ## Answer validation
 
 BAPCtools allows (in fact, encourages) the validation of the `.ans`-file of each testcase.
-As for input validatio, every program in `answer_validators` is a validator, and all validator must pass.
+As for input validatio, every program in `answer_validators` is a validator, and all validators must pass.
 Answer validators receive the testcase answer file on standard input, as
 ```
-answer_validator /path/to/testcase.in [output_validator_flags] < tc.ans
+answer_validator /path/to/testcase.in [output_validator_flags] < testcase.ans
 ```
 
 Answer validation can be as simple as checking that standard input contains a single integer (and nothing else).
@@ -67,7 +70,7 @@ output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir
 ```
 
 In particular, note the flags `case_sensitive` and `space_change_sensitive`, 
-which allows an output validator to be less lenient about the format of `.ans` files than about submission output.
+which allows an output validator to be more strict about the format of `.ans` files than about submission output.
 
 ## Output validation
 
