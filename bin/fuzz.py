@@ -88,9 +88,8 @@ class GeneratorTask:
                     return False
                 localbar.done()
             else:
-                if not target_ansfile.is_file():
-                    bar.error(f'{self.i}: {ansfile.name} does not exist and was not generated.')
-                    return False
+                bar.error(f'{self.i}: {ansfile.name} was not generated.')
+                return False
         else:
             if not testcase.ans_path.is_file():
                 testcase.ans_path.write_text('')
