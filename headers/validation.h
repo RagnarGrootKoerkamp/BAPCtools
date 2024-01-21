@@ -693,7 +693,7 @@ class Validator {
 			             " and " + std::to_string(high),
 			         v);
 		}
-		log_constraint(name, low, high, static_cast<int>(v.size()));
+		log_constraint("|" + name + "|", low, high, static_cast<int>(v.size()));
 		if constexpr(Tag::unique) {
 			auto [it, inserted] = seen<T>()[name].emplace(v);
 			check(inserted, name, ": Value ", v, " seen twice, but must be unique!");
@@ -1143,7 +1143,7 @@ class Validator {
 				check(ok_char[c], name, ": expected characters in ", chars, " but found character ",
 				      c, " in ", s);
 		}
-		log_constraint(name, min, max, size);
+		log_constraint("|" + name + "|", min, max, size);
 		return s;
 	}
 
