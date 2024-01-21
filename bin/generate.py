@@ -570,9 +570,9 @@ class TestcaseRule(Rule):
                 meta_yaml = {'validator_hashes': dict()}
             meta_yaml['rule'] = t.rule
             return meta_yaml
+
         meta_yaml = init_meta()
         write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
-
 
         # Check whether the generated data and validation are up to date.
         # Returns (generator/input up to date, validation up to date)
@@ -824,6 +824,20 @@ class TestcaseRule(Rule):
                 'input', bar=bar, constraints=None, warn_instead_of_error=no_validators
             ):
                 if not no_validators:
+                    if t.generator:
+                        bar.warn(
+                            'Failed generator command: '
+                            + (
+                                ' '.join(
+                                    [
+                                        str(t.generator.program_path),
+                                        *t.generator._sub_args(seed=t.seed),
+                                    ]
+                                )
+                                if t.generator.uses_seed
+                                else t.generator.command_string
+                            ),
+                        )
                     bar.debug('Use generate --no-validators to ignore validation results.')
                     return
 
