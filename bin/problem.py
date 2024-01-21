@@ -393,6 +393,8 @@ class Problem:
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
+            if not f.is_file():
+                return False
             try:
                 return 'constraints_file' in f.read_text()
             except UnicodeDecodeError:
