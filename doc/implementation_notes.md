@@ -175,12 +175,8 @@ All the files in the `<contest>/solve_stats` directory can be generated using `b
 
 # Constraints checking
 
-For constraints checking, BAPCtools passes the flag
-```
---constraints_file <file_path>` flag.
-```
-to input, answer, and output validators.
-After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output. 
+For constraints checking, BAPCtools passes the flag `--constraints_file <file_path>` to input, answer, and output validators.
+After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output.
 Each line in the output file will look like:
 
 ```
