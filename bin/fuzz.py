@@ -186,7 +186,7 @@ class Fuzz:
         self.start_time = time.monotonic()
         self.iteration = 0
         self.tasks = 0
-        self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
+        self.queue = parallel.new_queue(lambda task: task.run(bar), pin=True)
 
         # pool of ids used for generators
         self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1

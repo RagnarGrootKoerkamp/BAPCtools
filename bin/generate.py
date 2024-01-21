@@ -1562,7 +1562,7 @@ class GeneratorConfig:
                 p.build(localbar)
                 localbar.done()
 
-            p = parallel.Parallel(build_program)
+            p = parallel.new_queue(build_program)
             for pr in programs:
                 p.put(pr)
             p.done()
@@ -1678,7 +1678,7 @@ class GeneratorConfig:
         #    after to deduplicate them against generated testcases.
 
         # 1
-        p = parallel.Parallel(lambda t: t.listed and t.generate(self.problem, self, bar))
+        p = parallel.new_queue(lambda t: t.listed and t.generate(self.problem, self, bar))
 
         def generate_dir(d):
             p.join()
@@ -1688,7 +1688,7 @@ class GeneratorConfig:
         p.done()
 
         # 2
-        p = parallel.Parallel(lambda t: not t.listed and t.generate(self.problem, self, bar))
+        p = parallel.new_queue(lambda t: not t.listed and t.generate(self.problem, self, bar))
 
         def generate_dir_unlisted(d):
             p.join()
