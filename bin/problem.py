@@ -357,7 +357,7 @@ class Problem:
             p.build(localbar)
             localbar.done()
 
-        p = parallel.Parallel(build_program)
+        p = parallel.new_queue(build_program)
         for pr in programs:
             p.put(pr)
         p.done()
@@ -465,7 +465,7 @@ class Problem:
             build_ok &= p.build(localbar)
             localbar.done()
 
-        p = parallel.Parallel(build_program)
+        p = parallel.new_queue(build_program)
         for pr in validators:
             p.put(pr)
         p.done()
