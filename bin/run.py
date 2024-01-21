@@ -323,7 +323,7 @@ class Submission(program.Program):
                 return
 
             bar.count = None
-            p.stop()
+            p.abort()
 
         p = parallel.new_queue(lambda run: process_run(run, p), pin=True)
 
