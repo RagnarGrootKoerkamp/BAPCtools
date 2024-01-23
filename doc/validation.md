@@ -41,6 +41,8 @@ These are some things that hold for all types of validation mentioned below.
 
 ## Input validation
 
+`bt validate --input`
+
 Test if the testcase input file `testcase.in` file passes the 'input validators'. Each file or
 directory in `/input_validators/` is an input validator.
 Input validators receive the testcase on standard input, as
@@ -50,6 +52,8 @@ input_validator [input_validator_flags] < testcase.in
 ```
 
 ## Answer validation
+
+`bt validate --answer`
 
 BAPCtools allows (in fact, encourages) the validation of the `.ans`-file of each testcase.
 As for input validation, every program in `answer_validators` is a validator, and all validators must pass.

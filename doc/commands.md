@@ -22,7 +22,7 @@ This lists all subcommands and their most important options.
 - Problem validation
   - [`bt input [-v] [testcases [testcases ...]]`](#input)
   - [`bt output [-v] [testcases [testcases ...]]`](#output)
-  - [`bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+  - [`bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
   - [`bt constraints [-v]`](#constraints)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
@@ -255,21 +255,15 @@ stored in `generators.yaml` corresponding to `data/fuzz/<id>.in`.
 
 # Problem validation
 
-## `input`
+## `validate`
 
-Use `bt input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified.
+Use `bt validate --input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified.
 
 See `run <testcases>` for a description of how to pass testcases.
 
-## `output`
+`bt validate --answer <testcases>` is similar to `bt validate --input` but validates `.ans` files instead of `.in` files.
 
-`bt output <testcases>` is similar to `bt input` but validates `.ans` files instead of `.in` files.
-
-## `validate`
-
-`bt validate` is a convenience command that validates both input and output files.
-
-**Flags**
+`bt validate` validates both input and answer files.
 
 It supports the following flags when run for a single problem:
 
