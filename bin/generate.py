@@ -621,7 +621,7 @@ class TestcaseRule(Rule):
 
             # Check whether all input validators have been run.
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
-            for h in testcase.validator_hashes('input_format'):
+            for h in testcase.validator_hashes('input'):
                 if h not in meta_yaml.get('validator_hashes', []):
                     return (True, False)
             return (True, True)
@@ -821,7 +821,7 @@ class TestcaseRule(Rule):
             no_validators = config.args.no_validators
 
             if not testcase.validate_format(
-                'input_format', bar=bar, constraints=None, warn_instead_of_error=no_validators
+                'input', bar=bar, constraints=None, warn_instead_of_error=no_validators
             ):
                 if not no_validators:
                     bar.debug('Use generate --no-validators to ignore validation results.')
@@ -856,7 +856,18 @@ class TestcaseRule(Rule):
                         # Validate the ans file.
                         assert ansfile.is_file(), f'Failed to generate ans file: {ansfile}'
                         if not testcase.validate_format(
-                            'output_format', bar=bar, warn_instead_of_error=no_validators
+                            'answer', bar=bar, warn_instead_of_error=no_validators
+                        ):
+                            if not no_validators:
+                                bar.debug(
+                                    'Use generate --no-validators to ignore validation results.'
+                                )
+                                return
+                        if not testcase.validate_format(
+                            'output', bar=bar, warn_instead_of_error=no_validators, args=[
+                                "space_change_sensitive",
+                                "case_sensitive"
+                                ]
                         ):
                             if not no_validators:
                                 bar.debug(
@@ -884,11 +895,11 @@ class TestcaseRule(Rule):
 
             meta_yaml['cache_data'] = t.cache_data
             if generator_up_to_date:
-                hashes = testcase.validator_hashes('input_format')
+                hashes = testcase.validator_hashes('input')
                 for h in hashes:
                     meta_yaml['validator_hashes'][h] = hashes[h]
             else:
-                meta_yaml['validator_hashes'] = testcase.validator_hashes('input_format')
+                meta_yaml['validator_hashes'] = testcase.validator_hashes('input')
 
             # Update metadata
             if move_generated():
@@ -1068,7 +1079,7 @@ class Directory(Rule):
             ), f"Metadata file not found for included case {d.path / key}\nwith hash {t.input_hash}\nfile {meta_path}"
             meta_yaml = read_yaml(meta_path)
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
-            hashes = testcase.validator_hashes('input_format')
+            hashes = testcase.validator_hashes('input')
 
             # All hashes validated before?
             def up_to_date():
@@ -1081,7 +1092,7 @@ class Directory(Rule):
                 # Validate the testcase input.
                 testcase = run.Testcase(problem, infile, short_path=new_case)
                 if not testcase.validate_format(
-                    'input_format',
+                    'input',
                     bar=bar,
                     constraints=None,
                     warn_instead_of_error=config.args.no_validators,
@@ -1507,8 +1518,9 @@ class GeneratorConfig:
         build_programs(run.Submission, solutions_used)
         build_programs(program.Visualizer, visualizers_used)
 
-        self.problem.validators('input_format')
-        self.problem.validators('output_format')
+        self.problem.validators('input')
+        self.problem.validators('answer')
+        self.problem.validators('output')
 
         def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
