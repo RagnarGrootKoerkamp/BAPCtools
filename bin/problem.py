@@ -603,8 +603,8 @@ class Problem:
         if not validators:
             return False
 
-        # testcases = problem.testcases(needans=validator_type == 'answer', include_bad=True)
-        testcases = problem.testcases(needans=validator_type == 'output')
+        needans = validator_type in ['answer', 'output']
+        testcases = problem.testcases(needans=needans, include_bad=True)
 
         if testcases is False:
             return True
