@@ -114,7 +114,7 @@ Similarly, `stdout` is connected to a pipe that forwards to the submission's `st
 
 ## `data/invalid_inputs` validation
 
-BAPCtools allows testcases in `data/invalid_outputs` to test that validators fail on
+BAPCtools allows testcases in `data/invalid_inputs` to test that validators fail on
 specific types of input that do not follow the constraints. In
 particular:
 
