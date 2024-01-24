@@ -151,7 +151,7 @@ Use `-j 0` to disable running multiple jobs in parallel (the default is `4`).
 
 - `bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`
 
-Validate all the `.in` and `.ans` for all (given) testcases. It runs all validators from `input_validators`, `answer_validator`, and `output_validators`.
+Validate all the `.in` and `.ans` for all (given) testcases. It runs all validators from `input_validators`, `answer_validators`, and `output_validators`.
 
 Validators can be one of
 
