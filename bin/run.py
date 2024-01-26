@@ -141,13 +141,7 @@ class Testcase:
             ret = validator.run(self, constraints=None if bad_testcase else constraints, args=flags)
 
             success &= ret.ok is True
-            message = ''
-
-            # Failure?
-            if ret.ok is True:
-                message = validator.name + ' passed'
-            else:
-                message = validator.name + ' failed'
+            message = validator.name + (' accepted' if ret.ok != bad_testcase  else ' rejected')
 
             # Print stdout and stderr whenever something is printed
             data = ''
