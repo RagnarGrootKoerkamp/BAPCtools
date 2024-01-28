@@ -8,6 +8,7 @@ from pathlib import Path
 
 import problem
 import run
+import testcase
 import validate
 import util
 import config
@@ -81,7 +82,7 @@ class TestDefaultOutputValidators:
 
         in_path.write_text('')
 
-        t = run.Testcase(problem, in_path, short_path=Path('test'))
+        t = testcase.Testcase(problem, in_path, short_path=Path('test'))
         r = MockRun()
         r.feedbackdir = problem.tmpdir / 'data'
         r.out_path = out_path

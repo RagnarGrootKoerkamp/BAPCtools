@@ -12,6 +12,7 @@ import latex
 import parallel
 import program
 import run
+import testcase
 import validate
 from util import *
 from colorama import Fore, Style
@@ -234,7 +235,7 @@ class Problem:
 
         testcases = []
         for f in in_paths:
-            t = run.Testcase(p, f)
+            t = testcase.Testcase(p, f)
             # Require both in and ans files
             if needinteraction and not t.in_path.with_suffix('.interaction').is_file():
                 assert only_sample
@@ -396,7 +397,7 @@ class Problem:
                 )
             ]
 
-        skip_double_build_warning = check_constraints #or not paths_for_class[Class.ANSWER]
+        skip_double_build_warning = check_constraints #or not paths_for_class[Class.ANSWER] TODO not sure about this
         validators = [
             cls(
                 problem,
