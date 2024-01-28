@@ -9,10 +9,11 @@ import collections
 from pathlib import Path, PurePosixPath, PurePath
 
 import config
+import inspect
+import parallel
 import program
 import run
-import parallel
-import inspect
+from testcase import Testcase
 import validate
 
 from util import *
@@ -235,7 +236,7 @@ class SolutionInvocation(Invocation):
         if interaction_path.is_file():
             return True
 
-        testcase = run.Testcase(problem, in_path, short_path=(t.path.parent / (t.name + '.in')))
+        testcase = Testcase(problem, in_path, short_path=(t.path.parent / (t.name + '.in')))
         r = run.Run(problem, self.program, testcase)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
@@ -621,7 +622,7 @@ class TestcaseRule(Rule):
                 return (False, False)
 
             # Check whether all input validators have been run.
-            testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
+            testcase = Testcase(problem, infile, short_path=t.path / t.name)
             for h in testcase.validator_hashes(validate.InputValidator):
                 if h not in meta_yaml.get('validator_hashes', []):
                     return (True, False)
@@ -816,7 +817,7 @@ class TestcaseRule(Rule):
                         return
 
             assert infile.is_file(), f'Expected .in file not found in cache: {infile}'
-            testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
+            testcase = Testcase(problem, infile, short_path=t.path / t.name)
 
             # Validate the in.
             no_validators = config.args.no_validators
@@ -1093,7 +1094,7 @@ class Directory(Rule):
                 meta_path.is_file()
             ), f"Metadata file not found for included case {d.path / key}\nwith hash {t.input_hash}\nfile {meta_path}"
             meta_yaml = read_yaml(meta_path)
-            testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
+            testcase = Testcase(problem, infile, short_path=t.path / t.name)
             hashes = testcase.validator_hashes(validate.InputValidator)
 
             # All hashes validated before?
@@ -1105,7 +1106,7 @@ class Directory(Rule):
 
             if not up_to_date():
                 # Validate the testcase input.
-                testcase = run.Testcase(problem, infile, short_path=new_case)
+                testcase = Testcase(problem, infile, short_path=new_case)
                 if not testcase.validate_format(
                     validate.InputValidator,
                     bar=bar,
