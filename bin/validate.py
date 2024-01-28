@@ -1,6 +1,38 @@
 import program
 import re
 from util import *
+from enum import Enum
+
+class Mode(Enum):
+    """ There are three validation modes """
+    INPUT = 1
+    ANSWER = 2
+    OUTPUT = 3 # not implemented
+
+class Class(Enum):
+    """ There are three subclasses of Validator """
+    INPUT = 1
+    ANSWER = 2
+    OUTPUT = 3
+
+    def __str__(self):
+        return {
+                Class.INPUT: "input",
+                Class.ANSWER: "answer",
+                Class.OUTPUT: "output",
+                }[self]
+
+
+    @classmethod
+    def subdirs(cls):
+        """ Paths where validators of various classes can be found. """
+
+        return {
+               Class.ANSWER: ['answer_validators', 'answer_format_validators'],
+               Class.INPUT: ['input_validators', 'input_format_validators'],
+               Class.OUTPUT: ['output_validator', 'output_validators'],
+               }
+
 
 
 def _merge_constraints(constraints_path, constraints):
@@ -80,8 +112,8 @@ class Validator(program.Program):
             assert isinstance(args, list)
             arglist += args
         if constraints is not None:
-            validator_type = 'input' if isinstance(self, InputValidator) else 'answer'
-            constraints_path = cwd / f'{validator_type}_constraints_'
+            validator_class = Class.INPUT if isinstance(self, InputValidator) else Class.ANSWER
+            constraints_path = cwd / f'{validator_class}_constraints_'
             if constraints_path.is_file():
                 constraints_path.unlink()
             arglist += ['--constraints_file', constraints_path]
@@ -285,21 +317,22 @@ def _has_consecutive_whitespaces(bytes):
 # - not too large
 # if any of this is violated a warning is printed
 # use --no-testcase-sanity-checks to skip this
-def generic_validation(validator_type, file, *, bar):
-    assert validator_type in ['input', 'answer', 'output']
+def generic_validation(validator_class, file, *, bar):
+    assert isinstance(validator_class, Class), validator_class
     if config.args.no_testcase_sanity_checks:
         return
 
     # Todo we could check for more stuff that is likely an error like `.*-0.*`
-    if validator_type == 'input':
-        name = 'Testcase'
-        strict = True
-    elif validator_type == 'answer':
-        name = 'Default answer'
-        strict = True
-    elif validator_type == 'output':
-        name = 'Output'
-        strict = False
+    match validator_class:
+        case Class.INPUT:
+            name = 'Testcase'
+            strict = True
+        case Class.ANSWER:
+            name = 'Default answer'
+            strict = True
+        case Class.OUTPUT:
+            name = 'Output'
+            strict = False
 
     if file.exists():
         bytes = file.read_bytes()

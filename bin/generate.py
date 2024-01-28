@@ -13,6 +13,7 @@ import program
 import run
 import parallel
 import inspect
+import validate
 
 from util import *
 
@@ -621,7 +622,7 @@ class TestcaseRule(Rule):
 
             # Check whether all input validators have been run.
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
-            for h in testcase.validator_hashes('input'):
+            for h in testcase.validator_hashes(validate.Class.INPUT):
                 if h not in meta_yaml.get('validator_hashes', []):
                     return (True, False)
             return (True, True)
@@ -821,7 +822,7 @@ class TestcaseRule(Rule):
             no_validators = config.args.no_validators
 
             if not testcase.validate_format(
-                'input', bar=bar, constraints=None, warn_instead_of_error=no_validators
+                validate.Class.INPUT, bar=bar, constraints=None, warn_instead_of_error=no_validators
             ):
                 if not no_validators:
                     if t.generator:
@@ -870,7 +871,7 @@ class TestcaseRule(Rule):
                         # Validate the ans file.
                         assert ansfile.is_file(), f'Failed to generate ans file: {ansfile}'
                         if not testcase.validate_format(
-                            'answer', bar=bar, warn_instead_of_error=no_validators
+                            validate.Class.ANSWER, bar=bar, warn_instead_of_error=no_validators
                         ):
                             if not no_validators:
                                 bar.debug(
@@ -878,7 +879,7 @@ class TestcaseRule(Rule):
                                 )
                                 return
                         if not testcase.validate_format(
-                            'output', bar=bar, warn_instead_of_error=no_validators, args=[
+                            validate.Class.OUTPUT, bar=bar, warn_instead_of_error=no_validators, args=[
                                 "space_change_sensitive",
                                 "case_sensitive"
                                 ]
@@ -1532,9 +1533,8 @@ class GeneratorConfig:
         build_programs(run.Submission, solutions_used)
         build_programs(program.Visualizer, visualizers_used)
 
-        self.problem.validators('input')
-        self.problem.validators('answer')
-        self.problem.validators('output')
+        for val_cls in validate.Class:
+            self.problem.validators(val_cls)
 
         def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
