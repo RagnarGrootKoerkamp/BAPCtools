@@ -30,7 +30,7 @@ def run_interactive_testcase(
     interaction=False,
     submission_args=None,
 ):
-    output_validators = run.problem.validators(validate.Class.OUTPUT)
+    output_validators = run.problem.validators(validate.OutputValidator)
     if output_validators is False:
         fatal('No output validators found!')
 

@@ -6,6 +6,7 @@ import validate
 import program
 import interactive
 import parallel
+from typing import Type
 
 from util import *
 from colorama import Fore, Style
@@ -96,14 +97,14 @@ class Testcase:
     # - flags
     # - hash
     # indicating which validators will be run for the current testcase.
-    def validator_hashes(self, validator_class):
-        assert validator_class in [validate.Class.INPUT, validate.Class.ANSWER]
-        validators = self.problem.validators(validator_class) or []
+    def validator_hashes(self, cls: Type[validate.Validator]):
+        assert cls in [validate.InputValidator, validate.AnswerValidator]
+        validators = self.problem.validators(cls) or []
 
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator_class, validator, split=False)
+            flags = self.testdata_yaml_validator_flags(cls, validator, split=False)
             if flags is False:
                 continue
             o = {
@@ -119,19 +120,19 @@ class Testcase:
         return d
 
     def validate_format(
-            self, validator_class:validate.Class, *, bar, constraints=None, warn_instead_of_error=False, args=None
+            self, cls: Type[validate.Validator], *, bar, constraints=None, warn_instead_of_error=False, args=None
     ):
 
-        bad_testcase = self.bad_input if validator_class == validate.Class.INPUT else self.bad_output
+        bad_testcase = self.bad_input if cls == validate.InputValidator else self.bad_output
 
         success = True
 
-        validators = self.problem.validators(validator_class, check_constraints=constraints != None)
+        validators = self.problem.validators(cls, check_constraints=constraints != None)
         if validators == False:
             return True
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator_class, validator)
+            flags = self.testdata_yaml_validator_flags(cls, validator)
             if flags is False:
                 continue
             flags = args if flags is None else flags + args
@@ -156,7 +157,7 @@ class Testcase:
                 elif ret.out:
                     data = ret.out
 
-                file = self.in_path if validator_class ==  validate.Class.INPUT else self.ans_path
+                file = self.in_path if cls ==  validate.InputValidator else self.ans_path
                 data += (
                     f'{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n'
                 )
@@ -185,7 +186,7 @@ class Testcase:
                     bar.log('Moved to ' + print_name(anstarget))
 
             # Remove testcase if specified.
-            elif validator_class == validate.Class.INPUT and config.args.remove:
+            elif cls == validate.InputValidator and config.args.remove:
                 bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
                 if self.in_path.exists():
                     self.in_path.unlink()
@@ -195,11 +196,11 @@ class Testcase:
             break
 
         if success and not bad_testcase:
-            if validator_class == validate.Class.INPUT:
-                validate.generic_validation(validator_class, self.in_path, bar=bar)
+            if cls == validate.InputValidator:
+                validate.generic_validation(cls, self.in_path, bar=bar)
 
-            if validator_class ==  validate.Class.ANSWER:
-                validate.generic_validation(validator_class, self.ans_path, bar=bar)
+            if cls ==  validate.AnswerValidator:
+                validate.generic_validation(cls, self.ans_path, bar=bar)
 
         return success
 
@@ -274,14 +275,14 @@ class Run:
         return result
 
     def _validate_output(self):
-        validator_type = validate.Class.OUTPUT
-        output_validators = self.problem.validators(validator_type)
+        cls = validate.OutputValidator
+        output_validators = self.problem.validators(cls)
         if output_validators is False:
             return False
 
         last_result = False
         for output_validator in output_validators:
-            flags = self.testcase.testdata_yaml_validator_flags(validator_type, output_validator)
+            flags = self.testcase.testdata_yaml_validator_flags(cls, output_validator)
             if flags is False:
                 continue
 
@@ -458,7 +459,7 @@ class Submission(program.Program):
             result = run.run()
 
             if result.verdict == 'ACCEPTED':
-                validate.generic_validation(validate.Class.OUTPUT, run.out_path, bar=localbar)
+                validate.generic_validation(validate.OutputValidator, run.out_path, bar=localbar)
 
             new_verdict = (
                 config.PRIORITY[result.verdict],
