@@ -910,11 +910,11 @@ class TestcaseRule(Rule):
 
             meta_yaml['cache_data'] = t.cache_data
             if generator_up_to_date:
-                hashes = testcase.validator_hashes('input')
+                hashes = testcase.validator_hashes(validate.Class.INPUT)
                 for h in hashes:
                     meta_yaml['validator_hashes'][h] = hashes[h]
             else:
-                meta_yaml['validator_hashes'] = testcase.validator_hashes('input')
+                meta_yaml['validator_hashes'] = testcase.validator_hashes(validate.Class.INPUT)
 
             # Update metadata
             if move_generated():
@@ -1094,7 +1094,7 @@ class Directory(Rule):
             ), f"Metadata file not found for included case {d.path / key}\nwith hash {t.input_hash}\nfile {meta_path}"
             meta_yaml = read_yaml(meta_path)
             testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
-            hashes = testcase.validator_hashes('input')
+            hashes = testcase.validator_hashes(validate.Class.INPUT)
 
             # All hashes validated before?
             def up_to_date():
@@ -1107,7 +1107,7 @@ class Directory(Rule):
                 # Validate the testcase input.
                 testcase = run.Testcase(problem, infile, short_path=new_case)
                 if not testcase.validate_format(
-                    'input',
+                    validate.Class.INPUT,
                     bar=bar,
                     constraints=None,
                     warn_instead_of_error=config.args.no_validators,
