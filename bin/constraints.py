@@ -19,11 +19,10 @@ from util import *
 def check_validators(problem):
     in_constraints = {}
     ans_constraints = {}
-    problem.validate_format('input', constraints=in_constraints)
+    problem.validate_data(validate.Mode.INPUT, constraints=in_constraints)
     if not in_constraints:
         warn("No constraint validation of input values found in input validators.")
-    problem.validate_format('answer', constraints=ans_constraints)
-    problem.validate_format('output', constraints=ans_constraints)
+    problem.validate_data(validate.Mode.ANSWER, constraints=ans_constraints)
     if not ans_constraints:
         log("No constraint validation of answer values found in answer or output validators.")
     print()

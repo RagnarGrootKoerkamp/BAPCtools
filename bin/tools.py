@@ -919,10 +919,9 @@ def run_parsed_arguments(args):
                 success &= latex.build_problem_pdfs(problem, solutions=True, web=config.args.web)
         if action in ['validate', 'all']:
             if not (action == 'validate' and config.args.answer):
-                success &= problem.validate_format('input')
+                success &= problem.validate_data(validate.Mode.INPUT)
             if not (action == 'validate' and config.args.input):
-                success &= problem.validate_format('answer')
-                success &= problem.validate_format('output')
+                success &= problem.validate_data(validate.Mode.ANSWER)
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:

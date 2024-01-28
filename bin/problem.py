@@ -11,6 +11,7 @@ import latex
 import parallel
 import program
 import run
+from validate import Mode, Class
 import validate
 from util import *
 from colorama import Fore, Style
@@ -343,7 +344,7 @@ class Problem:
     # If check_constraints is True, this chooses the first validator that matches
     # contains 'constraints_file' in its source.
     # _validators maps from input/output to the list of validators.
-    def validators(problem, validator_type, check_constraints=False):
+    def validators(problem, validator_class: validate.Class, check_constraints=False) -> bool | list[validate.Validator]:
         """
         Args:
             validator_type: 'answer', 'output', 'input'
@@ -354,40 +355,35 @@ class Problem:
             singleton list(OutputValidator) if validator_type is 'output'
             list(Validator) otherwise
         """
-        assert validator_type in ['input', 'answer', 'output']
+        assert isinstance(validator_class, validate.Class), validator_class
 
-        key = (validator_type, check_constraints)
+        key = (validator_class, check_constraints)
         if key in problem._validators:
             return problem._validators[key]
         ok = True
 
-        subdirs_for_type = {
-            'answer': ['answer_validators', 'answer_format_validators'],
-            'output': ['output_validator', 'output_validators'],
-            'input': ['input_validators', 'input_format_validators'],
-        }
-        paths_for_type = {
-            vtype: [g for sdir in sdirs for g in glob(problem.path / sdir, '*')]
-            for vtype, sdirs in subdirs_for_type.items()
+        paths_for_class = {
+            vclass: [g for sdir in sdirs for g in glob(problem.path / sdir, '*')]
+            for vclass, sdirs in validate.Class.subdirs().items()
         }
 
         # Handle default output validation
         if problem.settings.validation == 'default':
-            if paths_for_type['output']:
+            if paths_for_class[Class.OUTPUT]:
                 error("Validation is default but custom output validator exists (ignoring it)")
-            paths_for_type['output'] = [
+            paths_for_class[Class.OUTPUT] = [
                 config.tools_root / 'support' / 'default_output_validator.cpp'
             ]
 
-        paths = paths_for_type[validator_type]
+        paths = paths_for_class[validator_class]
 
         # Check that the proper number of validators is present
-        match validator_type, len(paths):
-            case 'answer', 0:
+        match validator_class, len(paths):
+            case Class.ANSWER, 0:
                 log(f"No answer validator found")
-            case 'input', 0:
+            case Class.INPUT, 0:
                 warn(f'No input validators found.')
-            case 'output', l if l != 1:
+            case Class.OUTPUT, l if l != 1:
                 error(f'Found {len(paths)} output validators, expected exactly one.')
                 ok = False
 
@@ -411,13 +407,13 @@ class Problem:
             ]
 
         validator_dispatcher = {
-            'input': validate.InputValidator,
-            'answer': validate.AnswerValidator,
-            'output': validate.OutputValidator,
+            Class.INPUT: validate.InputValidator,
+            Class.ANSWER: validate.AnswerValidator,
+            Class.OUTPUT: validate.OutputValidator,
         }
-        skip_double_build_warning = check_constraints or not paths_for_type['answer']
+        skip_double_build_warning = check_constraints or not paths_for_class[Class.ANSWER]
         validators = [
-            validator_dispatcher[validator_type](
+            validator_dispatcher[validator_class](
                 problem,
                 path,
                 skip_double_build_warning=skip_double_build_warning,
@@ -426,7 +422,7 @@ class Problem:
             for path in paths
         ]
 
-        bar = ProgressBar(f'Build {validator_type} validators', items=validators)
+        bar = ProgressBar(f'Build {validator_class} validators', items=validators)
         build_ok = True
 
         def build_program(p):
@@ -443,10 +439,9 @@ class Problem:
         bar.finalize(print_done=False)
 
         # All validators must build.
-        if not ok or not build_ok:
-            validators = False
+        result = validators if ok and build_ok else False
 
-        problem._validators[key] = validators
+        problem._validators[key] = result
         return validators
 
     def run_submissions(problem):
@@ -457,7 +452,7 @@ class Problem:
             return False
 
         if problem.interactive:
-            validators = problem.validators('output')
+            validators = problem.validators(Class.OUTPUT)
             if not validators:
                 return False
 
@@ -468,7 +463,7 @@ class Problem:
         max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
 
         # Pre build all output validators to prevent nested ProgressBars.
-        if problem.validators('output') is False:
+        if problem.validators(Class.OUTPUT) is False:
             return False
 
         ok = True
@@ -585,25 +580,38 @@ class Problem:
         self._testcase_hashes[d] = t
         return None
 
-    # Validate the format of the input or answer files.
-    # For input validation, also make sure all testcases are different.
-    # Constraints is None/True/dictionary. When dictionary, contraints will be stored there.
-    def validate_format(problem, validator_type, constraints=None):
+
+
+
+    def validate_data(problem, mode:Mode, constraints: dict|bool|None=None) -> bool:
+        """ Validate aspects of the test data """
         if constraints is True:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
-        assert validator_type in ['input', 'answer', 'output'], validator_type
 
-        if problem.interactive and validator_type == 'answer':
-            log('Not validating .ans for interactive problem.')
+        if problem.interactive and mode != Mode.INPUT:
+            log('Only input-validating interactive problem.')
             return True
 
-        validators = problem.validators(validator_type, check_constraints=constraints is not None)
+        ok = True
+        match mode:
+            case Mode.INPUT:
+                ok &= problem.validate_format(Class.INPUT, constraints)
+            case Mode.ANSWER:
+                ok &= problem.validate_format(Class.ANSWER, constraints)
+                ok &= problem.validate_format(Class.OUTPUT, constraints)
+            case Mode.OUTPUT | _ :
+                assert False, "not implemented"
+        return ok
+
+
+    def validate_format(problem, validator_class:Class, constraints=None) -> bool:
+        validators = problem.validators(validator_class, check_constraints=constraints is not None)
 
         if not validators:
             return False
 
-        needans = validator_type in ['answer', 'output']
+        needans = validator_class != Class.INPUT
         testcases = problem.testcases(needans=needans, include_bad=True)
 
         if testcases is False:
@@ -612,7 +620,7 @@ class Problem:
         if len(testcases) == 0:
             return True
 
-        action = 'Validating ' + validator_type
+        action = 'Validating ' + str(validator_class)
 
         success = True
 
@@ -623,7 +631,7 @@ class Problem:
         for testcase in testcases:
             bar.start(testcase.name)
 
-            if validator_type == 'input' and not testcase.included:
+            if validator_class == Class.INPUT and not testcase.included:
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')
@@ -634,9 +642,9 @@ class Problem:
             # always be sensitive
             args = [
                     'case_sensitive', 'space_change_sensitive'
-                    ] if validator_type == 'output' else []
+                    ] if validator_class == Class.OUTPUT else []
 
-            success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints, args=args)
+            success &= testcase.validate_format(validator_class, bar=bar, constraints=constraints, args=args)
             bar.done()
 
         bar.finalize(print_done=True)
