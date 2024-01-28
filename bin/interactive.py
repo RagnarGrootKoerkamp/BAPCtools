@@ -5,6 +5,7 @@ import sys
 import threading
 
 import config
+import validate
 
 from util import *
 
@@ -29,7 +30,7 @@ def run_interactive_testcase(
     interaction=False,
     submission_args=None,
 ):
-    output_validators = run.problem.validators('output')
+    output_validators = run.problem.validators(validate.Class.OUTPUT)
     if output_validators is False:
         fatal('No output validators found!')
 

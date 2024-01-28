@@ -346,10 +346,6 @@ class Problem:
     # _validators maps from input/output to the list of validators.
     def validators(problem, validator_class: validate.Class, check_constraints=False) -> bool | list[validate.Validator]:
         """
-        Args:
-            validator_type: 'answer', 'output', 'input'
-            check_constraints: True if the validator should check constraints
-
         Returns:
             False: something went wrong
             singleton list(OutputValidator) if validator_type is 'output'
