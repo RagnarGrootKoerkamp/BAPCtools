@@ -267,7 +267,7 @@ class Submission(program.Program):
             result = run.run()
 
             if result.verdict == 'ACCEPTED':
-                validate.generic_validation(validate.OutputValidator, run.out_path, bar=localbar)
+                validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
 
             new_verdict = (
                 config.PRIORITY[result.verdict],
