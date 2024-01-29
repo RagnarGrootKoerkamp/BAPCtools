@@ -4,13 +4,13 @@ from util import *
 from enum import Enum
 from typing import Type
 
+
 class Mode(Enum):
-    """ There are three validation modes """
+    """There are three validation modes"""
+
     INPUT = 1
     ANSWER = 2
-    OUTPUT = 3 # not implemented
-
-
+    OUTPUT = 3  # not implemented
 
 
 def _merge_constraints(constraints_path, constraints):
@@ -74,7 +74,7 @@ class Validator(program.Program):
         self.check_constraints = check_constraints
 
     def _run_helper(self, testcase, constraints, args):
-        """ Helper method for the run method in subclasses.
+        """Helper method for the run method in subclasses.
         Return:
             cwd: a current working directory for this testcase
             constraints_path: None or a path to the constraints file
@@ -221,9 +221,8 @@ class OutputValidator(Validator):
     """
 
     subdir = 'output_validators'
-    
+
     source_dirs = ['output_validator', 'output_validators']
- 
 
     def run(self, testcase, run=None, constraints=None, args=None):
         """Return:
@@ -238,9 +237,11 @@ class OutputValidator(Validator):
         # If run is None, we're validating submission output,
         # else we're validting an .ans file
         feedbackdir = run.feedbackdir if run is not None else cwd
-        invocation =  self.run_command + [
-                testcase.in_path.resolve(), testcase.ans_path.resolve(), feedbackdir
-                ] + self.problem.settings.validator_flags
+        invocation = (
+            self.run_command
+            + [testcase.in_path.resolve(), testcase.ans_path.resolve(), feedbackdir]
+            + self.problem.settings.validator_flags
+        )
 
         path = run.out_path if run is not None else testcase.ans_path
         with path.open() as file:
@@ -256,6 +257,7 @@ class OutputValidator(Validator):
             _merge_constraints(constraints_path, constraints)
 
         return ret
+
 
 # Checks if byte is printable or whitespace
 def _in_invalid_byte(byte, *, other_whitespaces=False):
@@ -293,43 +295,46 @@ def _has_consecutive_whitespaces(bytes):
     return False
 
 
-# Does some generic checks on input/output:
-# - no unreadable characters
-# - no weird consecutive whitespaces ('  ', '\n ', ' \n')
-# - no whitespace at start of file
-# - ensures newline at end of file
-# - not too large
-# if any of this is violated a warning is printed
-# use --no-testcase-sanity-checks to skip this
+def sanity_check(path, bar, strict_whitespace=True):
+    """
+    Does some generic checks on input, answer, or output files of a testcase, including
 
-# TODO: This should not select on class, but on validate.Mode
-def generic_validation(cls: Type[Validator], file, *, bar):
+    - no unreadable characters
+    - not too large
+
+    if any of this is violated a warning is printed.
+    use --no-testcase-sanity-checks to skip this
+
+    args:
+        strict_whitespace: Also check
+        - no weird consecutive whitespaces ('  ', '\n ', ' \n')
+        - no other_whitespaces (like '\t')
+        - no whitespace at start of file
+        - ensures newline at end of file
+
+    """
     if config.args.no_testcase_sanity_checks:
         return
 
-    # Todo we could check for more stuff that is likely an error like `.*-0.*`
-    if cls == InputValidator:
-        name = 'Testcase'
-        strict = True
-    elif cls == AnswerValidator:
-        name = 'Default answer'
-        strict = True
-    elif cls == OutputValidator:
-        name = 'Output'
-        strict = False
-
-    if file.exists():
-        bytes = file.read_bytes()
-        if _has_invalid_byte(bytes, other_whitespaces=not strict):
+    if not path.exists():
+        fatal("{path} not found during sanity check")
+    with open(path, 'rb') as file:
+        name = {
+            '.in': "Input",
+            '.ans': "Answer",
+            '.out': "Output",
+        }[path.suffix]
+        file_bytes = file.read()
+        if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
             bar.warn(f'{name} contains unexpected characters but was accepted!')
-        elif len(bytes) == 0:
+        elif len(file_bytes) == 0:
             bar.warn(f'{name} is empty but was accepted!')
-        elif len(bytes) > 20_000_000:
+        elif len(file_bytes) > 20_000_000:
             bar.warn(f'{name} is larger than 20Mb!')
-        elif strict:
-            if bytes[0] == ord(' ') or bytes[0] == ord('\n'):
+        elif strict_whitespace:
+            if file_bytes[0] in [ord(' '), ord('\n')]:
                 bar.warn(f'{name} starts with whitespace but was accepted!')
-            elif bytes[-1] != ord('\n'):
+            elif file_bytes[-1] != ord('\n'):
                 bar.warn(f'{name} does not end with a newline but was accepted!')
-            elif _has_consecutive_whitespaces(bytes):
+            elif _has_consecutive_whitespaces(file_bytes):
                 bar.warn(f'{name} contains consecutive whitespace characters but was accepted!')

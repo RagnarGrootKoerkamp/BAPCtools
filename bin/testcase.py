@@ -200,9 +200,9 @@ class Testcase:
 
         if success and not bad_testcase:
             if cls == validate.InputValidator:
-                validate.generic_validation(cls, self.in_path, bar=bar)
+                validate.sanity_check(self.in_path, bar)
 
             if cls == validate.AnswerValidator:
-                validate.generic_validation(cls, self.ans_path, bar=bar)
+                validate.sanity_check(self.ans_path, bar)
 
         return success
