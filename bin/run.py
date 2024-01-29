@@ -266,7 +266,7 @@ class Submission(program.Program):
             localbar = bar.start(run)
             result = run.run()
 
-            if result.verdict == 'ACCEPTED':
+            if result.verdict == 'ACCEPTED' and not self.problem.interactive: 
                 validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
 
             new_verdict = (

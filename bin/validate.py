@@ -317,7 +317,8 @@ def sanity_check(path, bar, strict_whitespace=True):
         return
 
     if not path.exists():
-        fatal("{path} not found during sanity check")
+        fatal(f"{path} not found during sanity check")
+        return
     with open(path, 'rb') as file:
         name = {
             '.in': "Input",
