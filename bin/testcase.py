@@ -17,11 +17,12 @@ class Testcase:
     # tested, and `short_path` is the name of the testcase relative to
     # `problem.path / 'data'`.
     """
+
     def __init__(self, base_problem, path: Path, *, short_path=None):
         assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
 
         self.problem = base_problem
-    
+
         self.in_path = path
         self.ans_path = (
             self.in_path.with_suffix('.ans')
@@ -47,8 +48,13 @@ class Testcase:
         if self.root == 'bad':
             warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
             self.root = 'invalid_inputs' if self.ans_path.is_file() else 'invalid_answers'
-        assert self.root in ['invalid_inputs', 'invalid_answers', 'secret', 'sample', 'test'], self.root # TODO add invalid_outputs
-
+        assert self.root in [
+            'invalid_inputs',
+            'invalid_answers',
+            'secret',
+            'sample',
+            'test',
+        ], self.root  # TODO add invalid_outputs
 
         self.included = False
         if path.is_symlink():
@@ -63,7 +69,9 @@ class Testcase:
         # Read using the short_path instead of the in_path, because during
         # generate the testcase will live in a temporary directory, where
         # testdata.yaml doesn't exist.
-        self.testdata_yaml = self.problem.get_testdata_yaml(self.problem.path / 'data' / self.short_path)
+        self.testdata_yaml = self.problem.get_testdata_yaml(
+            self.problem.path / 'data' / self.short_path
+        )
 
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
@@ -124,25 +132,27 @@ class Testcase:
         bar,
         constraints=None,
         warn_instead_of_error=False,
-        args=None, # TODO never used?
+        args=None,  # TODO never used?
     ):
-
 
         check_constraints = constraints is not None
         match mode:
             case validate.Mode.INPUT:
-                validators = self.problem.validators(validate.InputValidator, check_constraints=check_constraints)
+                validators = self.problem.validators(
+                    validate.InputValidator, check_constraints=check_constraints
+                )
                 expect_rejection = self.root == 'invalid_inputs'
             case validate.Mode.ANSWER:
-                validators = (self.problem.validators(validate.AnswerValidator, check_constraints=check_constraints) + 
-                              self.problem.validators(validate.OutputValidator, check_constraints=check_constraints)
-                              )
+                validators = self.problem.validators(
+                    validate.AnswerValidator, check_constraints=check_constraints
+                ) + self.problem.validators(
+                    validate.OutputValidator, check_constraints=check_constraints
+                )
                 expect_rejection = self.root == 'invalid_answers'
             case validate.Mode.OUTPUT:
                 raise NotImplementedError
             case _:
                 raise ValueError
-                
 
         validator_accepted = []
         for validator in validators:
@@ -155,7 +165,9 @@ class Testcase:
 
             ret = validator.run(self, constraints=constraints, args=flags)
             if ret.ok not in [True, config.RTV_WA]:
-                warn(f"Expected {validator} to exit with {config.RTV_AC} or {config.RTV_WA}, got {ret.ok}")
+                warn(
+                    f"Expected {validator} to exit with {config.RTV_AC} or {config.RTV_WA}, got {ret.ok}"
+                )
                 ret.ok = config.RTV_WA
                 # TODO could also interpret 0 as RTV_AC
             ok = ret.ok == True
@@ -186,7 +198,10 @@ class Testcase:
                 data = ret.err
 
             bar.part_done(
-                ok or expect_rejection, message, data=data, warn_instead_of_error=warn_instead_of_error
+                ok or expect_rejection,
+                message,
+                data=data,
+                warn_instead_of_error=warn_instead_of_error,
             )
 
             if ok is True:
@@ -216,9 +231,16 @@ class Testcase:
 
             break
 
-        validate.sanity_check(self.in_path if mode == validate.Mode.INPUT else self.ans_path, bar)
+        if all(validator_accepted):
+            if expect_rejection:
+                success = False
+                bar.error(f"{mode} validation (unexpectedly) succeeded")
+            else:
+                success = True
+                validate.sanity_check(
+                    self.in_path if mode == validate.Mode.INPUT else self.ans_path, bar
+                )
+        else:
+            success = not expect_rejection
 
-        if expect_rejection and all(validator_accepted):
-            bar.error(f"{mode} validation (unexpectedly) succeeded")
-
-        return all(validator_accepted) != expect_rejection
+        return success
