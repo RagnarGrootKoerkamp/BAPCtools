@@ -6,7 +6,6 @@ from typing import Type
 
 from util import fatal, is_relative_to, combine_hashes_dict, shorten_path, print_name, warn, error
 from colorama import Fore, Style
-from problem import Problem
 import validate
 import config
 
@@ -18,10 +17,10 @@ class Testcase:
     # tested, and `short_path` is the name of the testcase relative to
     # `problem.path / 'data'`.
     """
-    def __init__(self, problem: Problem, path: Path, *, short_path=None):
+    def __init__(self, base_problem, path: Path, *, short_path=None):
         assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
 
-        self.problem = problem
+        self.problem = base_problem
     
         self.in_path = path
         self.ans_path = (
@@ -32,9 +31,9 @@ class Testcase:
         # TODO add self.out_path
         if short_path is None:
             try:
-                self.short_path = path.relative_to(problem.path / 'data')
+                self.short_path = path.relative_to(self.problem.path / 'data')
             except ValueError:
-                fatal(f"Testcase {path} is not inside {problem.path / 'data'}.")
+                fatal(f"Testcase {path} is not inside {self.problem.path / 'data'}.")
         else:
             assert short_path is not None
             self.short_path = short_path
@@ -48,13 +47,13 @@ class Testcase:
         if self.root == 'bad':
             warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
             self.root = 'invalid_inputs' if self.ans_path.is_file() else 'invalid_answers'
-        assert self.root in ['invalid_inputs', 'invalid_answers', 'secret', 'sample'] # TODO add invalid_outputs
+        assert self.root in ['invalid_inputs', 'invalid_answers', 'secret', 'sample', 'test'], self.root # TODO add invalid_outputs
 
 
         self.included = False
         if path.is_symlink():
             include_target = Path(os.path.normpath(path.parent / os.readlink(path)))
-            if is_relative_to(problem.path / 'data', include_target):
+            if is_relative_to(self.problem.path / 'data', include_target):
                 self.included = True
             else:
                 # The case is an unlisted cases included from generators/.
@@ -64,7 +63,7 @@ class Testcase:
         # Read using the short_path instead of the in_path, because during
         # generate the testcase will live in a temporary directory, where
         # testdata.yaml doesn't exist.
-        self.testdata_yaml = problem.get_testdata_yaml(self.problem.path / 'data' / self.short_path)
+        self.testdata_yaml = self.problem.get_testdata_yaml(self.problem.path / 'data' / self.short_path)
 
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
