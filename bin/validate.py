@@ -12,6 +12,13 @@ class Mode(Enum):
     ANSWER = 2
     OUTPUT = 3  # not implemented
 
+    def __str__(self):
+        return {
+                Mode.INPUT: "input",
+                Mode.ANSWER: "answer",
+                Mode.OUTPUT: "output"}[self]
+
+
 
 def _merge_constraints(constraints_path, constraints):
     # Merge with previous constraints.
@@ -57,6 +64,15 @@ class Validator(program.Program):
     """Base class for AnswerValidator, InputValidator, and OutputValidator.
 
     They can all take constraints.
+
+
+    Validators implement a run method that runs the validator. 
+
+    It returns
+
+    ExecResult: The result of running this validator on the given testcase.
+        ExecResult.ok is True  if the this validator accepted.
+        ExecResult.ok is False if that the this validator accepted.
     """
 
     FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']
@@ -107,10 +123,10 @@ class Validator(program.Program):
 
         if isinstance(self, InputValidator):
             main_path = testcase.in_path
-            bad = testcase.bad_input
+            bad = testcase.root == 'invalid_inputs'
         elif isinstance(self, AnswerValidator):
             main_path = testcase.ans_path
-            bad = testcase.bad_output
+            bad = testcase.root == 'invalid_answers'
         else:
             assert False  # now also catches OutputValidator
 
@@ -137,14 +153,13 @@ class InputValidator(Validator):
     Also supports checktestdata and viva files, with different invocation.
     """
 
+    def __str__(self):
+        return "input"
+
     subdir = 'input_validators'
     source_dirs = ['input_validators', 'input_format_validators']
 
-    def run(self, testcase, constraints=None, args=None):
-        """Return:
-        ExecResult
-        """
-
+    def run(self, testcase, constraints=None, args=None) -> ExecResult:
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
@@ -160,9 +175,6 @@ class InputValidator(Validator):
                 cwd=cwd,
                 timeout=config.get_timeout(),
             )
-            # For bad inputs, 'invert' the return code: any non-AC exit code is fine, AC is not.
-            if testcase.bad_input:
-                ret.ok = True if ret.ok is not True else config.RTV_AC
 
         if constraints is not None:
             _merge_constraints(constraints_path, constraints)
@@ -179,8 +191,10 @@ class AnswerValidator(Validator):
     Also supports checktestdata and viva files, with different invocation.
     """
 
-    subdir = 'answer_validators'
+    def __str__(self):
+        return "answer"
 
+    subdir = 'answer_validators'
     source_dirs = ['answer_validators', 'answer_format_validators']
 
     def run(self, testcase, constraints=None, args=None):
@@ -203,9 +217,6 @@ class AnswerValidator(Validator):
                 cwd=cwd,
                 timeout=config.get_timeout(),
             )
-            # For bad cases, 'invert' the return code: any non-AC exit code is fine; AC is not.
-            if testcase.bad_output:
-                ret.ok = True if ret.ok is not True else config.RTV_AC
 
         if constraints is not None:
             _merge_constraints(constraints_path, constraints)
@@ -219,6 +230,9 @@ class OutputValidator(Validator):
 
        ./validator input answer feedbackdir [arguments from problem.yaml] < output
     """
+
+    def __str__(self):
+        return "output"
 
     subdir = 'output_validators'
 

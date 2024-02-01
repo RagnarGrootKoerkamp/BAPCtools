@@ -130,7 +130,7 @@ class ProgressBar:
     def __init__(
         self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
     ):
-        assert ProgressBar.current_bar is None
+        assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix
         ProgressBar.current_bar = self
 
         assert not (items and (max_len or count))

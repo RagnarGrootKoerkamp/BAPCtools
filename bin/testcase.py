@@ -4,29 +4,32 @@ import os
 from pathlib import Path
 from typing import Type
 
-from util import fatal, is_relative_to, combine_hashes_dict, shorten_path, print_name
+from util import fatal, is_relative_to, combine_hashes_dict, shorten_path, print_name, warn, error
 from colorama import Fore, Style
-import problem
+from problem import Problem
 import validate
 import config
 
 
 class Testcase:
+    """
     # Testcases outside problem/data must pass in the short_path explicitly.
     # In that case, `path` is the (absolute) path to the `.in` file being
     # tested, and `short_path` is the name of the testcase relative to
     # `problem.path / 'data'`.
-    def __init__(self, problem, path, *, short_path=None):
+    """
+    def __init__(self, problem: Problem, path: Path, *, short_path=None):
         assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
 
         self.problem = problem
-
+    
         self.in_path = path
         self.ans_path = (
             self.in_path.with_suffix('.ans')
             if path.suffix == '.in'
             else self.in_path.with_name(self.in_path.with_suffix('').stem + '.ans.statement')
         )
+        # TODO add self.out_path
         if short_path is None:
             try:
                 self.short_path = path.relative_to(problem.path / 'data')
@@ -39,15 +42,14 @@ class Testcase:
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(''))
 
-        self.bad_input = self.short_path.parts[0] == 'invalid_inputs'
-        self.bad_output = self.short_path.parts[0] == 'invalid_outputs'
+        self.root = self.short_path.parts[0]
 
         # Backwards compatibility support for `data/bad`.
-        if self.short_path.parts[0] == 'bad':
-            self.bad_input = not self.ans_path.is_file()
-            self.bad_output = self.ans_path.is_file()
+        if self.root == 'bad':
+            warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
+            self.root = 'invalid_inputs' if self.ans_path.is_file() else 'invalid_answers'
+        assert self.root in ['invalid_inputs', 'invalid_answers', 'secret', 'sample'] # TODO add invalid_outputs
 
-        self.sample = self.short_path.parts[0] == 'sample'
 
         self.included = False
         if path.is_symlink():
@@ -118,36 +120,53 @@ class Testcase:
 
     def validate_format(
         self,
-        cls: Type[validate.Validator],
+        mode: validate.Mode,
         *,
         bar,
         constraints=None,
         warn_instead_of_error=False,
-        args=None,
+        args=None, # TODO never used?
     ):
 
-        bad_testcase = self.bad_input if cls == validate.InputValidator else self.bad_output
 
-        success = True
+        check_constraints = constraints is not None
+        match mode:
+            case validate.Mode.INPUT:
+                validators = self.problem.validators(validate.InputValidator, check_constraints=check_constraints)
+                expect_rejection = self.root == 'invalid_inputs'
+            case validate.Mode.ANSWER:
+                validators = (self.problem.validators(validate.AnswerValidator, check_constraints=check_constraints) + 
+                              self.problem.validators(validate.OutputValidator, check_constraints=check_constraints)
+                              )
+                expect_rejection = self.root == 'invalid_answers'
+            case validate.Mode.OUTPUT:
+                raise NotImplementedError
+            case _:
+                raise ValueError
+                
 
-        validators = self.problem.validators(cls, check_constraints=constraints is not None)
-        if validators == False:
-            return True
-
+        validator_accepted = []
         for validator in validators:
-            flags = self.testdata_yaml_validator_flags(cls, validator)
+            if type(validator) == validate.OutputValidator:
+                args = ['case_sensitive', 'space_change_sensitive']
+            flags = self.testdata_yaml_validator_flags(mode, validator)
             if flags is False:
                 continue
             flags = args if flags is None else flags + args
 
-            ret = validator.run(self, constraints=None if bad_testcase else constraints, args=flags)
+            ret = validator.run(self, constraints=constraints, args=flags)
+            if ret.ok not in [True, config.RTV_WA]:
+                warn(f"Expected {validator} to exit with {config.RTV_AC} or {config.RTV_WA}, got {ret.ok}")
+                ret.ok = config.RTV_WA
+                # TODO could also interpret 0 as RTV_AC
+            ok = ret.ok == True
 
-            success &= ret.ok is True
-            message = validator.name + (' accepted' if ret.ok != bad_testcase else ' rejected')
+            validator_accepted.append(ok)
+            message = validator.name + (' accepted' if ok else ' rejected')
 
             # Print stdout and stderr whenever something is printed
             data = ''
-            if ret.ok is not True or config.args.error:
+            if not (ok or expect_rejection) or config.args.error:
                 if ret.err and ret.out:
                     ret.out = (
                         ret.err
@@ -160,7 +179,7 @@ class Testcase:
                 elif ret.out:
                     data = ret.out
 
-                file = self.in_path if cls == validate.InputValidator else self.ans_path
+                file = self.in_path if mode == validate.Mode.INPUT else self.ans_path
                 data += (
                     f'{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n'
                 )
@@ -168,10 +187,10 @@ class Testcase:
                 data = ret.err
 
             bar.part_done(
-                ret.ok is True, message, data=data, warn_instead_of_error=warn_instead_of_error
+                ok or expect_rejection, message, data=data, warn_instead_of_error=warn_instead_of_error
             )
 
-            if ret.ok is True:
+            if ok is True:
                 continue
 
             # Move testcase to destination directory if specified.
@@ -189,7 +208,7 @@ class Testcase:
                     bar.log('Moved to ' + print_name(anstarget))
 
             # Remove testcase if specified.
-            elif cls == validate.InputValidator and config.args.remove:
+            elif mode == validate.Mode.INPUT and config.args.remove:
                 bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
                 if self.in_path.exists():
                     self.in_path.unlink()
@@ -198,11 +217,9 @@ class Testcase:
 
             break
 
-        if success and not bad_testcase:
-            if cls == validate.InputValidator:
-                validate.sanity_check(self.in_path, bar)
+        validate.sanity_check(self.in_path if mode == validate.Mode.INPUT else self.ans_path, bar)
 
-            if cls == validate.AnswerValidator:
-                validate.sanity_check(self.ans_path, bar)
+        if expect_rejection and all(validator_accepted):
+            bar.error(f"{mode} validation (unexpectedly) succeeded")
 
-        return success
+        return all(validator_accepted) != expect_rejection
