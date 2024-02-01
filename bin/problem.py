@@ -227,11 +227,11 @@ class Problem:
                 bad_paths = list(glob(p.path, 'data/bad/**/*.in'))
                 if len(bad_paths) > 0:
                     warn(
-                        'data/bad is deprecated. Use data/{invalid_inputs,invalid_outputs} instead.'
+                        'data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.'
                     )
                 in_paths += bad_paths
                 in_paths += list(glob(p.path, 'data/invalid_inputs/**/*.in'))
-                in_paths += list(glob(p.path, 'data/invalid_outputs/**/*.in'))
+                in_paths += list(glob(p.path, 'data/invalid_answers/**/*.in'))
 
         testcases = []
         for f in in_paths:
@@ -242,7 +242,7 @@ class Problem:
                 warn(f'Found input file {f} without a .interaction file. Skipping.')
                 continue
             if needans and not t.ans_path.is_file():
-                if not t.bad_input:
+                if not t.root == 'invalid_inputs':
                     warn(f'Found input file {f} without a .ans file. Skipping.')
                 continue
             testcases.append(t)
@@ -342,15 +342,17 @@ class Problem:
             return maybe_copy(submissions['ACCEPTED'])
         return maybe_copy(submissions)
 
-    # If check_constraints is True, this chooses the first validator that matches
-    # contains 'constraints_file' in its source.
-    # _validators maps from input/output to the list of validators.
-    def validators(problem, cls: Type[validate.Validator], check_constraints=False) -> bool | list[validate.Validator]:
+    def validators(problem, cls: Type[validate.Validator], check_constraints=False) -> list[validate.Validator]:
         """
+        Gets the validators of the given class.
+
+        If needed, builds them.
+
+        problem._validators caches previous calls to avoid rebuilding
+
         Returns:
-            False: something went wrong
-            singleton list(OutputValidator) if validator_type is 'output'
-            list(Validator) otherwise
+            singleton list(OutputValidator) if cls is OutputValidator
+            list(Validator) otherwise, maybe empty
         """
 
         key = (cls, check_constraints)
@@ -369,10 +371,10 @@ class Problem:
 
         # Check that the proper number of validators is present
         match cls, len(paths):
-            case validate.AnswerValidator, 0:
-                log(f"No answer validator found")
             case validate.InputValidator, 0:
                 warn(f'No input validators found.')
+            case validate.AnswerValidator, 0:
+                log(f"No answer validator found")
             case validate.OutputValidator, l if l != 1:
                 print(cls)
                 error(f'Found {len(paths)} output validators, expected exactly one.')
@@ -407,8 +409,7 @@ class Problem:
             )
             for path in paths
         ]
-
-        bar = ProgressBar(f'Build {cls} validators', items=validators)
+        bar = ProgressBar(f'Building {cls.__str__(cls)} validator', items=validators)
         build_ok = True
 
         def build_program(p):
@@ -425,7 +426,8 @@ class Problem:
         bar.finalize(print_done=False)
 
         # All validators must build.
-        result = validators if ok and build_ok else False
+        # TODO Really? Why not at least return those that built?
+        result = validators if ok and build_ok else []
 
         problem._validators[key] = result
         return validators
@@ -558,7 +560,7 @@ class Problem:
 
     # Returns None for new testcases or the Testcase object it equals.
     def matches_existing_testcase(self, t):
-        if t.bad_input or t.bad_output:
+        if t.root in ['invalid_input', 'invalid_answer']:
             return None
         d = t.in_path.read_text()
         if d in self._testcase_hashes:
@@ -570,43 +572,49 @@ class Problem:
 
 
     def validate_data(problem, mode:validate.Mode, constraints: dict|bool|None=None) -> bool:
-        """ Validate aspects of the test data """
+        """ Validate aspects of the test data files.
+            
+        Arguments:
+            mode: validate.Mode.INPUT | validate.Mode.ANSWER | (not implemented) Validate.Mode.OUTPUT
+            constraints: True | dict | None. True means "do check constraints but discard the result."
+        Return:
+            True if all validation was successful. Success validation includes, e.g.,
+            correctly rejecting invalid inputs.
+            False: TODO is this ever used?
+        """
         if constraints is True:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
 
         if problem.interactive and mode != validate.Mode.INPUT:
-            log('Only input-validating interactive problem.')
+            log('Not answer-validating interactive problems.')
             return True
 
         ok = True
+       
+        # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
+        check_constraints = constraints is not None
         match mode:
             case validate.Mode.INPUT:
-                ok &= problem.validate_format(validate.InputValidator, constraints)
+                problem.validators(validate.InputValidator, check_constraints=check_constraints)
             case validate.Mode.ANSWER:
-                ok &= problem.validate_format(validate.AnswerValidator, constraints)
-                ok &= problem.validate_format(validate.OutputValidator, constraints)
-            case validate.Mode.OUTPUT | _ :
-                assert False, "not implemented"
-        return ok
-
-
-    def validate_format(problem, cls: Type[validate.Validator], constraints=None) -> bool:
-        validators = problem.validators(cls, check_constraints=constraints is not None)
-
-        if not validators:
-            return False
-
-        needans = cls != validate.InputValidator
+                problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
+                problem.validators(validate.OutputValidator, check_constraints=check_constraints)
+            case validate.Mode.OUTPUT:
+                raise NotImplementedError
+ 
+        needans = mode != validate.Mode.INPUT
         testcases = problem.testcases(needans=needans, include_bad=True)
 
         if testcases is False:
             return True
+        # TODO Why?
 
         if len(testcases) == 0:
             return True
+        # TODO Why?
 
-        action = 'Validating ' + str(cls)
+        action = str(mode).capitalize() + ' validation'
 
         success = True
 
@@ -617,20 +625,15 @@ class Problem:
         for testcase in testcases:
             bar.start(testcase.name)
 
-            if cls == validate.InputValidator and not testcase.included:
+            if mode == validate.Mode.INPUT and not testcase.included:
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')
                     ok = False
                     continue
 
-            # When validating answer format with output validator
-            # always be sensitive
-            args = [
-                    'case_sensitive', 'space_change_sensitive'
-                    ] if cls == validate.OutputValidator else []
 
-            success &= testcase.validate_format(cls, bar=bar, constraints=constraints, args=args)
+            success &= testcase.validate_format(mode, bar=bar, constraints=constraints)
             bar.done()
 
         bar.finalize(print_done=True)
