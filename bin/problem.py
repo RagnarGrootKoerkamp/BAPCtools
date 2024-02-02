@@ -577,10 +577,10 @@ class Problem:
         Arguments:
             mode: validate.Mode.INPUT | validate.Mode.ANSWER | (not implemented) Validate.Mode.OUTPUT
             constraints: True | dict | None. True means "do check constraints but discard the result."
-        Return:
-            True if all validation was successful. Success validation includes, e.g.,
-            correctly rejecting invalid inputs.
             False: TODO is this ever used?
+        Return:
+            True if all validation was successful. Successful validation includes, e.g.,
+            correctly rejecting invalid inputs.
         """
         if constraints is True:
             constraints = {}

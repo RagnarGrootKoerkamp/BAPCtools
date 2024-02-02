@@ -241,6 +241,5 @@ class Testcase:
                     self.in_path if mode == validate.Mode.INPUT else self.ans_path, bar
                 )
         else:
-            success = not expect_rejection
-
+            success = expect_rejection
         return success
