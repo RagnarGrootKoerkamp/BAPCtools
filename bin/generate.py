@@ -421,8 +421,10 @@ class TestcaseRule(Rule):
         # 3. Hardcoded cases where the source is in the yaml file itself.
         self.hardcoded = {}
 
-        # Hash of the .in file, for caching.
-        self.input_hash = None
+        # Hash of testcase for caching.
+        self.hash = None
+        in_hash = None
+        ans_hash = None
         # Filled during generate(), since `self.config.solution` will only be set later for the default solution.
         self.cache_data = {}
 
@@ -434,13 +436,16 @@ class TestcaseRule(Rule):
 
         super().__init__(problem, key, name, yaml, parent)
 
+        # root in /data
+        self.root = self.path.parts[0]
+
         if yaml is None:
             self.inline = True
             yaml = dict()
             target_infile = problem.path / 'data' / self.path.parent / (self.path.name + '.in')
             if not target_infile.exists():
                 fatal(f'Could not find .in for inline case {intarget}')
-            self.input_hash = hash_file(target_infile)
+            self.hash = hash_file(target_infile)
         else:
             check_type('testcase', yaml, [str, dict])
             if isinstance(yaml, str):
@@ -471,7 +476,7 @@ class TestcaseRule(Rule):
                 self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (
                     2**31
                 )
-                self.input_hash = self.generator.hash(self.seed)
+                in_hash = self.generator.hash(self.seed)
                 self.in_is_generated = True
                 self.rule['gen'] = self.generator.command_string
                 if self.generator.uses_seed:
@@ -485,8 +490,10 @@ class TestcaseRule(Rule):
                 self.copy = resolve_path(yaml['copy'], allow_absolute=False, allow_relative=True)
                 self.copy = problem.path / self.copy.parent / (self.copy.name + '.in')
                 if self.copy.is_file():
-                    self.input_hash = hash_file(self.copy)
+                    in_hash = hash_file(self.copy)
                     self.in_is_generated = False
+                if self.copy.with_suffix('.ans').is_file():
+                    ans_hash = hash_file(self.copy)
                 self.rule['copy'] = str(self.copy)
 
             # 3. hardcoded
@@ -499,9 +506,11 @@ class TestcaseRule(Rule):
                     self.hardcoded[ext] = value
 
             if '.in' in self.hardcoded:
-                self.input_hash = hash_string(self.hardcoded['.in'])
+                in_hash = hash_string(self.hardcoded['.in'])
                 self.in_is_generated = False
                 self.rule['in'] = self.hardcoded['.in']
+            if '.ans' in self.hardcoded:
+                ans_hash = hash_string(self.hardcoded['.ans'])
 
         # Warn/Error for unknown keys.
         for key in yaml:
@@ -511,18 +520,22 @@ class TestcaseRule(Rule):
                 if config.args.action == 'generate':
                     log(f'Unknown testcase level key: {key} in {self.path}')
 
-        if self.input_hash is None:
+        # combine hashes
+        if in_hash is None:
             # An error is shown during generate.
             return
+        self.hash = in_hash
+        if ans_hash is not None and self.root =='invalid_answers':
+            self.hash = combine_hashes([self.hash, ans_hash])
 
         # Error for listed cases with identical input.
-        if self.listed and self.input_hash in generator_config.rules_cache:
+        if self.listed and self.hash in generator_config.rules_cache:
             # This is fatal to prevent crashes later on when running generators in parallel.
             # https://github.com/RagnarGrootKoerkamp/BAPCtools/issues/310
             fatal(
-                f'Found identical input at {generator_config.rules_cache[self.input_hash]} and {self.path}'
+                f'Found identical input at {generator_config.rules_cache[self.hash]} and {self.path}'
             )
-        generator_config.rules_cache[self.input_hash] = self.path
+        generator_config.rules_cache[self.hash] = self.path
 
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
@@ -540,13 +553,13 @@ class TestcaseRule(Rule):
 
         # Clean up duplicate unlisted testcases, or warn if distinct.
         if not t.listed and generator_config.has_yaml:
-            if t.input_hash in generator_config.generated_testdata:
+            if t.hash in generator_config.generated_testdata:
                 for ext in config.KNOWN_DATA_EXTENSIONS:
                     ext_file = target_infile.with_suffix(ext)
                     if ext_file.is_file():
                         ext_file.unlink()
                 bar.debug(
-                    f'DELETED unlisted duplicate of {generator_config.generated_testdata[t.input_hash].path}'
+                    f'DELETED unlisted duplicate of {generator_config.generated_testdata[t.hash].path}'
                 )
             else:
                 bar.error(f'Testcase not listed in generator.yaml (delete using --clean).')
@@ -555,12 +568,12 @@ class TestcaseRule(Rule):
 
         # Input can only be missing when the `copy:` does not have a corresponding `.in` file.
         # (When `generate:` or `in:` is used, the input is always present.)
-        if t.input_hash is None:
+        if t.hash is None:
             bar.done(False, f'{t.copy} does not exist.')
             return
 
         # E.g. bapctmp/problem/data/<hash>.in
-        cwd = problem.tmpdir / 'data' / t.input_hash
+        cwd = problem.tmpdir / 'data' / t.hash
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / 'testcase.in'
         ansfile = cwd / 'testcase.ans'
@@ -584,7 +597,7 @@ class TestcaseRule(Rule):
             # - meta_ contains exactly the right content (commands and hashes)
             # - each validator with correct flags has been run already.
             if t.copy:
-                t.cache_data['source_hash'] = t.input_hash
+                t.cache_data['source_hash'] = t.hash
             for ext, string in t.hardcoded.items():
                 t.cache_data['hardcoded_' + ext[1:]] = hash_string(string)
             if t.generator:
@@ -797,7 +810,7 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == '' and t.path.parts[0] != 'bad':
+                    if contents == '' and t.root in ['bad', 'invalid_inputs', 'invalid_answers']:
                         bar.error(f'Hardcoded {ext} data must not be empty!')
                         return
                     else:
@@ -1077,11 +1090,11 @@ class Directory(Rule):
 
             # Check if the testcase was already validated.
             # TODO: Dedup some of this with TestcaseRule.generate?
-            cwd = problem.tmpdir / 'data' / t.input_hash
+            cwd = problem.tmpdir / 'data' / t.hash
             meta_path = cwd / 'meta_.yaml'
             assert (
                 meta_path.is_file()
-            ), f"Metadata file not found for included case {d.path / key}\nwith hash {t.input_hash}\nfile {meta_path}"
+            ), f"Metadata file not found for included case {d.path / key}\nwith hash {t.hash}\nfile {meta_path}"
             meta_yaml = read_yaml(meta_path)
             testcase = Testcase(problem, infile, short_path=t.path / t.name)
             hashes = testcase.validator_hashes(validate.InputValidator)
@@ -1773,7 +1786,7 @@ class GeneratorConfig:
             if (
                 not process_testcase(self.problem, t.path)
                 or t.listed
-                or (len(t.path.parts) > 0 and t.path.parts[0] == 'bad')
+                or (len(t.path.parts) > 0 and t.path.parts[0] in ['bad', 'invalid_inputs', 'invalid_answers'])
             ):
                 bar.done()
                 return
@@ -1810,11 +1823,6 @@ class GeneratorConfig:
                 else:
                     bar.log(f'Deleting unlisted testdata.yaml')
                     testdata_yaml_path.unlink()
-
-            # Skip the data/bad directory.
-            if len(d.path.parts) > 0 and d.path.parts[0] == 'bad':
-                bar.done()
-                return
 
             if not d.listed:
                 if process_testcase(self.problem, d.path):
