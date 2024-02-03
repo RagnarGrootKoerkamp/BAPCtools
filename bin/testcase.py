@@ -164,7 +164,7 @@ class Testcase:
             flags = args if flags is None else flags + args
 
             ret = validator.run(self, constraints=constraints, args=flags)
-            if ret.ok not in [True, config.RTV_WA]:
+            if ret.ok is not True and ret.ok != config.RTV_WA:
                 bar.log(
                     f"Expected {validator} to exit with {config.RTV_AC} or {config.RTV_WA}, got {ret.ok}"
                 )
