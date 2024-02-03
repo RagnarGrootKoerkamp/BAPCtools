@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from typing import Type
 
-from util import fatal, is_relative_to, combine_hashes_dict, shorten_path, print_name, warn, error
+from util import fatal, is_relative_to, combine_hashes_dict, shorten_path, print_name, warn, error, log
 from colorama import Fore, Style
 import validate
 import config
@@ -165,7 +165,7 @@ class Testcase:
 
             ret = validator.run(self, constraints=constraints, args=flags)
             if ret.ok not in [True, config.RTV_WA]:
-                warn(
+                bar.log(
                     f"Expected {validator} to exit with {config.RTV_AC} or {config.RTV_WA}, got {ret.ok}"
                 )
                 ret.ok = config.RTV_WA
