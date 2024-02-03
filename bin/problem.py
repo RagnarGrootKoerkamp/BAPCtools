@@ -604,7 +604,7 @@ class Problem:
                 raise NotImplementedError
  
         needans = mode != validate.Mode.INPUT
-        testcases = problem.testcases(needans=needans, include_bad=True)
+        testcases = problem.testcases(needans=needans, include_bad=not check_constraints)
 
         if testcases is False:
             return True
