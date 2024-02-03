@@ -4,7 +4,16 @@ import os
 from pathlib import Path
 from typing import Type
 
-from util import fatal, is_relative_to, combine_hashes_dict, shorten_path, print_name, warn, error, log
+from util import (
+    fatal,
+    is_relative_to,
+    combine_hashes_dict,
+    shorten_path,
+    print_name,
+    warn,
+    error,
+    log,
+)
 from colorama import Fore, Style
 import validate
 import config
@@ -165,11 +174,8 @@ class Testcase:
 
             ret = validator.run(self, constraints=constraints, args=flags)
             if ret.ok is not True and ret.ok != config.RTV_WA:
-                bar.log(
-                    f"Expected {validator} to exit with {config.RTV_AC} or {config.RTV_WA}, got {ret.ok}"
-                )
+                bar.log(f"Expected exit code {config.RTV_AC} or {config.RTV_WA}, got {ret.ok}")
                 ret.ok = config.RTV_WA
-                # TODO could also interpret 0 as RTV_AC
             ok = ret.ok == True
 
             validator_accepted.append(ok)
