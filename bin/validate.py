@@ -133,13 +133,13 @@ class Validator(program.Program):
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
                 return exec_command(
-                    self.run_command, expect=1 if bad else 0, stdin=main_file, cwd=cwd
+                    self.run_command, expect=0, stdin=main_file, cwd=cwd
                 )
 
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
             result = exec_command(
-                self.run_command + [main_path.resolve()], expect=1 if bad else 0, cwd=cwd
+                self.run_command + [main_path.resolve()], expect=0, cwd=cwd
             )
             return result
 
