@@ -2,7 +2,7 @@
 
 import os
 from pathlib import Path
-from typing import Type
+from typing import Type, Literal
 
 from util import (
     fatal,
@@ -61,7 +61,7 @@ class Testcase:
         The input of this test case is identical to the input of another test case.
 
     testdata_yaml: dict
-        The YAML-parsed test data flags that apply to this test case. TODO spec in flux
+        The YAML-parsed test data flags that apply to this test case.
 
     """
 
@@ -120,40 +120,40 @@ class Testcase:
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_validator_flags(self, validator_type, validator, split=True):
+    def testdata_yaml_validator_flags(self, validator) -> list[str] | None | Literal[False]:
         """
+        The flags specified in testdata.yaml for the given validator,
+
         Arguments
         ---------
 
-        cls:
-            The validator Class, such as validate.OutpuValidator
-
-        validator: 
+        validator: validate.Validator
             the validator
-
-        split:
-            split the string by spaces.
 
         Returns
         -------
 
-        the flags specified in testdata.yaml for the given validator,
+        A nonempty list of strings, such as ['space_change_sensitive', 'case_sensitive']
+
         None if no flags were found, or False if this validator should be skipped.
+        TODO: Really False? Can this ever happen?
         """
+        if not isinstance(validator, Validator):
+            raise ValueError(f"Validator expected, got {validator}")
         # Do not use flags when using the default output validator.
-        if self.problem.settings.validation == 'default' and validator_type == 'output':
+        if self.problem.settings.validation == 'default' and isinstance(validator, OutputValidator):
             return None
 
         if self.testdata_yaml is None:
             return None
-        key = 'input_validator_flags' if validator_type == 'input' else 'output_validator_flags'
+        key = 'input_validator_flags' if isinstance(validator, InputValidator) else 'output_validator_flags'
         if key not in self.testdata_yaml:
             return None
         flags = self.testdata_yaml[key]
         # Note: support for lists/dicts for was removed in #259.
         if not isinstance(flags, str):
             fatal(f'{key} must be a string in testdata.yaml')
-        return flags.split() if split else flags
+        return flags.split()
 
     def validator_hashes(self, cls: Type[Validator]):
         """
@@ -172,12 +172,13 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_flags(cls, validator, split=False)
+            flags = self.testdata_yaml_validator_flags(validator)
             if flags is False:
                 continue
+            flags_string = ' '.join(flags) if flags is not None else None
             o = {
                 'name': validator.name,
-                'flags': flags,
+                'flags': flags_string,
                 'hash': validator.hash,
             }
             h = combine_hashes_dict(o)
@@ -218,7 +219,7 @@ class Testcase:
         for validator in validators:
             if type(validator) == OutputValidator:
                 args = ['case_sensitive', 'space_change_sensitive']
-            flags = self.testdata_yaml_validator_flags(mode, validator)
+            flags = self.testdata_yaml_validator_flags(validator)
             if flags is False:
                 continue
             flags = args if flags is None else flags + args
