@@ -342,7 +342,9 @@ class Problem:
             return maybe_copy(submissions['ACCEPTED'])
         return maybe_copy(submissions)
 
-    def validators(problem, cls: Type[validate.Validator], check_constraints=False) -> list[validate.Validator]:
+    def validators(
+        problem, cls: Type[validate.Validator], check_constraints=False
+    ) -> list[validate.Validator]:
         """
         Gets the validators of the given class.
 
@@ -361,7 +363,7 @@ class Problem:
         ok = True
 
         assert hasattr(cls, 'source_dirs')
-        paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, '*') ]
+        paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, '*')]
 
         # Handle default output validation
         if cls == validate.OutputValidator and problem.settings.validation == 'default':
@@ -399,7 +401,9 @@ class Problem:
                 )
             ]
 
-        skip_double_build_warning = check_constraints #or not paths_for_class[Class.ANSWER] TODO not sure about this
+        skip_double_build_warning = (
+            check_constraints  # or not paths_for_class[Class.ANSWER] TODO not sure about this
+        )
         validators = [
             cls(
                 problem,
@@ -568,12 +572,9 @@ class Problem:
         self._testcase_hashes[d] = t
         return None
 
+    def validate_data(problem, mode: validate.Mode, constraints: dict | bool | None = None) -> bool:
+        """Validate aspects of the test data files.
 
-
-
-    def validate_data(problem, mode:validate.Mode, constraints: dict|bool|None=None) -> bool:
-        """ Validate aspects of the test data files.
-            
         Arguments:
             mode: validate.Mode.INPUT | validate.Mode.ANSWER | (not implemented) Validate.Mode.OUTPUT
             constraints: True | dict | None. True means "do check constraints but discard the result."
@@ -591,7 +592,7 @@ class Problem:
             return True
 
         ok = True
-       
+
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
         check_constraints = constraints is not None
         match mode:
@@ -602,7 +603,7 @@ class Problem:
                 problem.validators(validate.OutputValidator, check_constraints=check_constraints)
             case validate.Mode.OUTPUT:
                 raise NotImplementedError
- 
+
         needans = mode != validate.Mode.INPUT
         testcases = problem.testcases(needans=needans, include_bad=not check_constraints)
 
@@ -625,13 +626,16 @@ class Problem:
         for testcase in testcases:
             bar.start(testcase.name)
 
-            if mode == validate.Mode.INPUT and not testcase.in_path.is_symlink():
+            if (
+                mode == validate.Mode.INPUT
+                and not testcase.in_path.is_symlink()
+                and not testcase.root == "invalid_answers"
+            ):
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')
                     ok = False
                     continue
-
 
             success &= testcase.validate_format(mode, bar=bar, constraints=constraints)
             bar.done()
