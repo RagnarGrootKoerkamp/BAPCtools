@@ -18,24 +18,20 @@ import config
 
 
 class Testcase:
-    """ 
-    A single test case.
+    """
+    A single test case. It consists of files with matching base names, typically
 
-    In the the `data/secret`, `data/sample`, and `data/invalid_answer` directories, a test case
-    contains
+    * an input file, sometimes called "the input", with extension `.in`, such as `petersen.in`
+    * a default answer file, sometimes called "the answer", with extension `.ans`, such as `petersen.ans`
 
-    * an input file, sometimes called "the input", with extension `.in`
-    * a default answer file, sometimes called "the answer", with extension `.ans`
+    Test cases in `data/invalid_inputs` consist only of an input file. [Not implemnted:] Test cases 
+    in `data/invalid_outputs` additionally consist of an output file, with extension `.out`.
 
-    Test cases in `data/invalid_inputs` consist only of an input file.
-
-    [Not implemnted:] Test cases in `data/invalid_outputs` additionally consist of an output file, 
-    with extension `.ans`.
-
-    Test cases in the same directory have different inputs, except testcases below `invalid_answers`
-    and [no implemented] `invalid_outputs`. Two test cases in different directories, such as 
-    `sample/petersen` and `secret/cubic/petersen` may have identical inputs, which happens when 
-    the first test case was included from `sample` into `secret/cubic`.
+    As a rule of thumb, test cases have different inputs. To be precise, test cases in
+    the same directory must have different inputs, except for test cases below `invalid_answers`
+    and [not implemented] `invalid_outputs`. Moreover, test cases in different directories with
+    the same base name, such as `sample/petersen` and `secret/cubic/petersen`, may have identical inputs;
+    this commonly happens when the first test case was included from `sample` into `secret/cubic`.
 
     Attributes
     ----------
@@ -64,11 +60,23 @@ class Testcase:
     """
 
     def __init__(self, base_problem, path: Path, *, short_path=None):
+        """
+        Arguments
+        ---------
+        path: Path
+            The path to the testcase's input file, like `data/secret/cubic/petersen.in`
+
+        short_path: Path
+            Testcases outside problem/data must pass in the short_path explicitly.  In that case, `path` 
+            is the (absolute) path to the input file, and `short_path` is used as the equivalent of the testcase's
+            path relative to  `problem.path / 'data'`.
+        """
         assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
 
         self.problem = base_problem
 
         self.in_path = path
+        # TODO should ans_path be Path | None?
         self.ans_path = (
             self.in_path.with_suffix('.ans')
             if path.suffix == '.in'
@@ -95,7 +103,7 @@ class Testcase:
             self.root = 'invalid_inputs' if self.ans_path.is_file() else 'invalid_answers'
         if self.root == 'output_validators':
             raise NotImplementedError(self.root)
-        if self.root not in [ 'invalid_inputs', 'invalid_answers', 'secret', 'sample', 'test']:
+        if self.root not in ['invalid_inputs', 'invalid_answers', 'secret', 'sample', 'test']:
             raise ValueError(self.root)  # TODO add invalid_outputs
 
         # Get the testdata.yaml content for this testcase.
@@ -135,7 +143,11 @@ class Testcase:
 
         if self.testdata_yaml is None:
             return None
-        key = 'input_validator_flags' if isinstance(validator, InputValidator) else 'output_validator_flags'
+        key = (
+            'input_validator_flags'
+            if isinstance(validator, InputValidator)
+            else 'output_validator_flags'
+        )
         if key not in self.testdata_yaml:
             return None
         flags = self.testdata_yaml[key]
