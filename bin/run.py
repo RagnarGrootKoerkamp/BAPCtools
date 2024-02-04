@@ -88,9 +88,11 @@ class Run:
         if output_validators is False:
             return False
 
+
+        # TODO: clean this up. There is exactly *one* output_validator
         last_result = False
         for output_validator in output_validators:
-            flags = self.testcase.testdata_yaml_validator_flags(cls, output_validator)
+            flags = self.testcase.testdata_yaml_validator_flags(output_validator)
             if flags is False:
                 continue
 
