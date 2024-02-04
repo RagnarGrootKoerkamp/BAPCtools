@@ -625,7 +625,7 @@ class Problem:
         for testcase in testcases:
             bar.start(testcase.name)
 
-            if mode == validate.Mode.INPUT and not testcase.included:
+            if mode == validate.Mode.INPUT and not testcase.in_path.is_symlink():
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')
