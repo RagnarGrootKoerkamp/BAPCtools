@@ -59,11 +59,12 @@ casepath: =~"^\(filename)(/\(basename))*$"
 	// Each consists of a list of paths relative to "/generators/",
 	// such as "tree_generator/tree.h".
 	generators?: [name]: [...(filepath & !~"^/")]
-	data: {
-		sample!:         #testgroup
-		secret!:         #testgroup
-		invalid_inputs?: #testgroup
-	}
+	data: close({
+		sample!:          #testgroup
+		secret!:          #testgroup
+		invalid_inputs?:  #testgroup
+		invalid_answers?: #testgroup
+	})
 	#config
 
 	... // Do allow unknown_key at top level for tooling
