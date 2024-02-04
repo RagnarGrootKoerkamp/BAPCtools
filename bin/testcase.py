@@ -32,9 +32,10 @@ class Testcase:
     [Not implemnted:] Test cases in `data/invalid_outputs` additionally consist of an output file, 
     with extension `.ans`.
 
-    Test cases in the same directory have different inputs. Two test cases in different directories in
-    the test data, such as `sample/petersen` and `secret/cubic/petersen` may have identical inputs, 
-    which happens when the first test case was included from `sample` into `secret/cubic`.
+    Test cases in the same directory have different inputs, except testcases below `invalid_answers`
+    and [no implemented] `invalid_outputs`. Two test cases in different directories, such as 
+    `sample/petersen` and `secret/cubic/petersen` may have identical inputs, which happens when 
+    the first test case was included from `sample` into `secret/cubic`.
 
     Attributes
     ----------
@@ -56,9 +57,6 @@ class Testcase:
 
     ans_path: Path
         Like `hamiltonicity/data/secret/cubic/petersen.ans`.
-
-    included: bool
-        The input of this test case is identical to the input of another test case.
 
     testdata_yaml: dict
         The YAML-parsed test data flags that apply to this test case.
@@ -99,15 +97,6 @@ class Testcase:
             raise NotImplementedError(self.root)
         if self.root not in [ 'invalid_inputs', 'invalid_answers', 'secret', 'sample', 'test']:
             raise ValueError(self.root)  # TODO add invalid_outputs
-
-        self.included = False
-        if path.is_symlink():
-            include_target = Path(os.path.normpath(path.parent / os.readlink(path)))
-            if is_relative_to(self.problem.path / 'data', include_target):
-                self.included = True
-            else:
-                # The case is an unlisted cases included from generators/.
-                pass
 
         # Get the testdata.yaml content for this testcase.
         # Read using the short_path instead of the in_path, because during
