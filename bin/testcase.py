@@ -11,20 +11,58 @@ from util import (
     shorten_path,
     print_name,
     warn,
-    error,
-    log,
 )
 from colorama import Fore, Style
-import validate
+from validate import Validator, InputValidator, AnswerValidator, OutputValidator, Mode, sanity_check
 import config
 
 
 class Testcase:
-    """
-    # Testcases outside problem/data must pass in the short_path explicitly.
-    # In that case, `path` is the (absolute) path to the `.in` file being
-    # tested, and `short_path` is the name of the testcase relative to
-    # `problem.path / 'data'`.
+    """ 
+    A single test case.
+
+    In the the `data/secret`, `data/sample`, and `data/invalid_answer` directories, a test case
+    contains
+
+    * an input file, sometimes called "the input", with extension `.in`
+    * a default answer file, sometimes called "the answer", with extension `.ans`
+
+    Test cases in `data/invalid_inputs` consist only of an input file.
+
+    [Not implemnted:] Test cases in `data/invalid_outputs` additionally consist of an output file, 
+    with extension `.ans`.
+
+    Test cases in the same directory have different inputs. Two test cases in different directories in
+    the test data, such as `sample/petersen` and `secret/cubic/petersen` may have identical inputs, 
+    which happens when the first test case was included from `sample` into `secret/cubic`.
+
+    Attributes
+    ----------
+
+    problem: Problem
+        The underlying problem that this test case belongs to.
+
+    name: str
+        The name of this test case, relative to `data`, like `secret/cubic/petersen`.
+
+    root: str
+        The name of the topmost directory below `data` containing this test case, like `secret` or `invalid_inputs`.
+
+    short_path: Path
+        The path to the input of this test case, relative to `data`, like `secret/cubic/petersen.in`.
+
+    in_path: Path
+        Like `hamiltonicity/data/secret/cubic/petersen.in`.
+
+    ans_path: Path
+        Like `hamiltonicity/data/secret/cubic/petersen.ans`.
+
+    included: bool
+        The input of this test case is identical to the input of another test case.
+
+    testdata_yaml: dict
+        The YAML-parsed test data flags that apply to this test case. TODO spec in flux
+
     """
 
     def __init__(self, base_problem, path: Path, *, short_path=None):
@@ -57,13 +95,10 @@ class Testcase:
         if self.root == 'bad':
             warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
             self.root = 'invalid_inputs' if self.ans_path.is_file() else 'invalid_answers'
-        assert self.root in [
-            'invalid_inputs',
-            'invalid_answers',
-            'secret',
-            'sample',
-            'test',
-        ], self.root  # TODO add invalid_outputs
+        if self.root == 'output_validators':
+            raise NotImplementedError(self.root)
+        if self.root not in [ 'invalid_inputs', 'invalid_answers', 'secret', 'sample', 'test']:
+            raise ValueError(self.root)  # TODO add invalid_outputs
 
         self.included = False
         if path.is_symlink():
@@ -85,10 +120,26 @@ class Testcase:
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
-    # Return the flags specified in testdata.yaml for the given validator,
-    # None if no flags were found, or False if this validator should be skipped.
-    # If `split`, split the string by spaces.
     def testdata_yaml_validator_flags(self, validator_type, validator, split=True):
+        """
+        Arguments
+        ---------
+
+        cls:
+            The validator Class, such as validate.OutpuValidator
+
+        validator: 
+            the validator
+
+        split:
+            split the string by spaces.
+
+        Returns
+        -------
+
+        the flags specified in testdata.yaml for the given validator,
+        None if no flags were found, or False if this validator should be skipped.
+        """
         # Do not use flags when using the default output validator.
         if self.problem.settings.validation == 'default' and validator_type == 'output':
             return None
@@ -104,16 +155,18 @@ class Testcase:
             fatal(f'{key} must be a string in testdata.yaml')
         return flags.split() if split else flags
 
-    def validator_hashes(self, cls: Type[validate.Validator]):
+    def validator_hashes(self, cls: Type[Validator]):
         """
-        Returns: a dict of obje
+        Returns
+        -------
+        a dict of objects
              hash =>
              - name
              - flags
              - hash
-        indicating which validators will be run for the current testcase.
+        indicating which validators will be run for this testcase.
         """
-        assert cls in [validate.InputValidator, validate.AnswerValidator]
+        assert cls in [InputValidator, AnswerValidator]
         validators = self.problem.validators(cls) or []
 
         d = dict()
@@ -136,7 +189,7 @@ class Testcase:
 
     def validate_format(
         self,
-        mode: validate.Mode,
+        mode: Mode,
         *,
         bar,
         constraints=None,
@@ -146,26 +199,24 @@ class Testcase:
 
         check_constraints = constraints is not None
         match mode:
-            case validate.Mode.INPUT:
+            case Mode.INPUT:
                 validators = self.problem.validators(
-                    validate.InputValidator, check_constraints=check_constraints
+                    InputValidator, check_constraints=check_constraints
                 )
                 expect_rejection = self.root == 'invalid_inputs'
-            case validate.Mode.ANSWER:
+            case Mode.ANSWER:
                 validators = self.problem.validators(
-                    validate.AnswerValidator, check_constraints=check_constraints
-                ) + self.problem.validators(
-                    validate.OutputValidator, check_constraints=check_constraints
-                )
+                    AnswerValidator, check_constraints=check_constraints
+                ) + self.problem.validators(OutputValidator, check_constraints=check_constraints)
                 expect_rejection = self.root == 'invalid_answers'
-            case validate.Mode.OUTPUT:
+            case Mode.OUTPUT:
                 raise NotImplementedError
             case _:
                 raise ValueError
 
         validator_accepted = []
         for validator in validators:
-            if type(validator) == validate.OutputValidator:
+            if type(validator) == OutputValidator:
                 args = ['case_sensitive', 'space_change_sensitive']
             flags = self.testdata_yaml_validator_flags(mode, validator)
             if flags is False:
@@ -196,7 +247,7 @@ class Testcase:
                 elif ret.out:
                     data = ret.out
 
-                file = self.in_path if mode == validate.Mode.INPUT else self.ans_path
+                file = self.in_path if mode == Mode.INPUT else self.ans_path
                 data += (
                     f'{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n'
                 )
@@ -228,7 +279,7 @@ class Testcase:
                     bar.log('Moved to ' + print_name(anstarget))
 
             # Remove testcase if specified.
-            elif mode == validate.Mode.INPUT and config.args.remove:
+            elif mode == Mode.INPUT and config.args.remove:
                 bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
                 if self.in_path.exists():
                     self.in_path.unlink()
@@ -243,9 +294,7 @@ class Testcase:
                 bar.error(f"{mode} validation (unexpectedly) succeeded")
             else:
                 success = True
-                validate.sanity_check(
-                    self.in_path if mode == validate.Mode.INPUT else self.ans_path, bar
-                )
+                sanity_check(self.in_path if mode == Mode.INPUT else self.ans_path, bar)
         else:
             success = expect_rejection
         return success
