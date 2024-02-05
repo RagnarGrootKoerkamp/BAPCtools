@@ -87,42 +87,32 @@ class Run:
         output_validators = self.problem.validators(cls)
         if output_validators is False:
             return False
+        assert len(output_validators) == 1
 
+        validator = output_validators[0]
+        flags = self.testcase.testdata_yaml_validator_flags(validator)
 
-        # TODO: clean this up. There is exactly *one* output_validator
-        last_result = False
-        for output_validator in output_validators:
-            flags = self.testcase.testdata_yaml_validator_flags(output_validator)
-            if flags is False:
-                continue
+        ret = validator.run(self.testcase, self, args=flags)
 
-            ret = output_validator.run(self.testcase, self, args=flags)
+        judgemessage = self.feedbackdir / 'judgemessage.txt'
+        judgeerror = self.feedbackdir / 'judgeerror.txt'
+        if ret.err is None:
+            ret.err = ''
+        if judgemessage.is_file():
+            ret.err += judgemessage.read_text()
+            judgemessage.unlink()
+        if judgeerror.is_file():
+            # Remove any std output because it will usually only contain the
+            ret.err = judgeerror.read_text()
+            judgeerror.unlink()
+        if ret.err:
+            header = validator.name + ': ' if len(output_validators) > 1 else ''
+            ret.err = header + ret.err
 
-            judgemessage = self.feedbackdir / 'judgemessage.txt'
-            judgeerror = self.feedbackdir / 'judgeerror.txt'
-            if ret.err is None:
-                ret.err = ''
-            if judgemessage.is_file():
-                ret.err += judgemessage.read_text()
-                judgemessage.unlink()
-            if judgeerror.is_file():
-                # Remove any std output because it will usually only contain the
-                ret.err = judgeerror.read_text()
-                judgeerror.unlink()
-            if ret.err:
-                header = output_validator.name + ': ' if len(output_validators) > 1 else ''
-                ret.err = header + ret.err
+        if ret.ok == config.RTV_WA:
+            ret.ok = False
 
-            if ret.ok == config.RTV_WA:
-                ret.ok = False
-
-            if ret.ok is not True:
-                return ret
-
-            last_result = ret
-
-        return last_result
-
+        return ret
 
 class Submission(program.Program):
     subdir = 'submissions'

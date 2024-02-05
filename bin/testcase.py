@@ -89,7 +89,6 @@ class Testcase:
             except ValueError:
                 fatal(f"Testcase {path} is not inside {self.problem.path / 'data'}.")
         else:
-            assert short_path is not None
             self.short_path = short_path
 
         # Display name: everything after data/.
