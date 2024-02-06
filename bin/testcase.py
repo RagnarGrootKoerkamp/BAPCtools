@@ -75,13 +75,6 @@ class Testcase:
 
         self.problem = base_problem
 
-        self.in_path = path
-        # TODO should ans_path be Path | None?
-        self.ans_path = (
-            self.in_path.with_suffix('.ans')
-            if path.suffix == '.in'
-            else self.in_path.with_name(self.in_path.with_suffix('').stem + '.ans.statement')
-        )
         # TODO add self.out_path
         if short_path is None:
             try:
@@ -91,18 +84,24 @@ class Testcase:
         else:
             self.short_path = short_path
 
+        self.root = self.short_path.parts[0]
+
+        self.in_path = path
+        self.ans_path = (
+            self.in_path.with_suffix('.ans')
+            if path.suffix == '.in'
+            else self.in_path.with_name(self.in_path.with_suffix('').stem + '.ans.statement')
+        )
+        self.out_path = None if self.root != 'invalid_outputs' else self.in_path.with_suffix('.out')
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(''))
 
-        self.root = self.short_path.parts[0]
 
         # Backwards compatibility support for `data/bad`.
         if self.root == 'bad':
             warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
             self.root = 'invalid_inputs' if self.ans_path.is_file() else 'invalid_answers'
-        if self.root == 'output_validators':
-            raise NotImplementedError(self.root)
-        if self.root not in ['invalid_inputs', 'invalid_answers', 'secret', 'sample', 'test']:
+        if self.root not in ['invalid_inputs', 'invalid_answers', 'invalid_outputs', 'secret', 'sample', 'test']:
             raise ValueError(self.root)  # TODO add invalid_outputs
 
         # Get the testdata.yaml content for this testcase.
@@ -210,8 +209,9 @@ class Testcase:
                     AnswerValidator, check_constraints=check_constraints
                 ) + self.problem.validators(OutputValidator, check_constraints=check_constraints)
                 expect_rejection = self.root == 'invalid_answers'
-            case Mode.OUTPUT:
-                raise NotImplementedError
+            case Mode.OUT_FILE:
+                validators = self.problem.validators(OutputValidator)
+                expect_rejection = self.root == 'invalid_outputs' # TODO: currently alsways True
             case _:
                 raise ValueError
 
@@ -224,7 +224,7 @@ class Testcase:
                 continue
             flags = args if flags is None else flags + args
 
-            ret = validator.run(self, constraints=constraints, args=flags)
+            ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
             if ret.ok is not True and ret.ok != config.RTV_WA:
                 bar.log(f"Expected exit code {config.RTV_AC} or {config.RTV_WA}, got {ret.ok}")
                 ret.ok = config.RTV_WA

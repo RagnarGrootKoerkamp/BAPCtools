@@ -40,7 +40,7 @@ casepath: =~"^\(filename)(/\(basename))*$"
 		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
 		// such as "manual/samples/3".
 		copy?:                            casepath
-		["in" | "ans" | "desc" | "hint"]: string
+		["in" | "ans" | "out" | "desc" | "hint"]: string
 		interaction?:                     =~"^([<>][^\\n]*\\n)+$"
 		#config
 	}
@@ -64,6 +64,7 @@ casepath: =~"^\(filename)(/\(basename))*$"
 		secret!:          #testgroup
 		invalid_inputs?:  #testgroup
 		invalid_answers?: #testgroup
+		invalid_outputs?: #testgroup
 	})
 	#config
 

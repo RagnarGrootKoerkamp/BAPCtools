@@ -83,16 +83,15 @@ class Run:
         return result
 
     def _validate_output(self):
-        cls = validate.OutputValidator
-        output_validators = self.problem.validators(cls)
+        output_validators = self.problem.validators(validate.OutputValidator)
         if output_validators is False:
             return False
         assert len(output_validators) == 1
-
         validator = output_validators[0]
+
         flags = self.testcase.testdata_yaml_validator_flags(validator)
 
-        ret = validator.run(self.testcase, self, args=flags)
+        ret = validator.run(self.testcase, self, mode=validate.Mode.SUBMISSION_RUN, args=flags)
 
         judgemessage = self.feedbackdir / 'judgemessage.txt'
         judgeerror = self.feedbackdir / 'judgeerror.txt'
