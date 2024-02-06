@@ -91,7 +91,7 @@ class Run:
 
         flags = self.testcase.testdata_yaml_validator_flags(validator)
 
-        ret = validator.run(self.testcase, self, mode=validate.Mode.SUBMISSION_RUN, args=flags)
+        ret = validator.run(self.testcase, self, args=flags)
 
         judgemessage = self.feedbackdir / 'judgemessage.txt'
         judgeerror = self.feedbackdir / 'judgeerror.txt'

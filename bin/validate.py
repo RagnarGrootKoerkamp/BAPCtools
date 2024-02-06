@@ -6,19 +6,17 @@ from typing import Type
 
 
 class Mode(Enum):
-    """There are three validation modes"""
+    """There are three validation modes for file validation"""
 
     INPUT = 1
     ANSWER = 2
     OUT_FILE = 3
-    SUBMISSION_RUN = 4
 
     def __str__(self):
         return {
                 Mode.INPUT: "input",
                 Mode.ANSWER: "answer",
                 Mode.OUT_FILE: "output file",
-                Mode.SUBMISSION_RUN: "submission run",
                 }[self]
 
 
@@ -265,21 +263,20 @@ class OutputValidator(Validator):
         The ExecResult
         """
 
-        if run is not None and mode != Mode.SUBMISSION_RUN:
-            raise ValueError("Expected Mode.SUBMISSION_RUN, not {mode}")
-        match mode:
-            case Mode.SUBMISSION_RUN:
-                if run is None:
-                    raise ValueError()
-                path = run.out_path
-            case Mode.OUT_FILE:
-                if  testcase.out_path is None:
-                    raise ValueError(f"Test case {testcase.name} has no .out file")
-                path = testcase.out_path.resolve()
-            case Mode.ANSWER:
-                path = testcase.ans_path.resolve()
-            case Mode.INPUT:
-                raise ValueError("OutputValidators do not support Mode.INPUT")
+        if run is not None and mode is not None:
+            raise ValueError(f"Exactly one of run and mode must be None")
+        if run is not None:
+            path = run.out_path
+        else:
+            match mode:
+                case Mode.OUT_FILE:
+                    if  testcase.out_path is None:
+                        raise ValueError(f"Test case {testcase.name} has no .out file")
+                    path = testcase.out_path.resolve()
+                case Mode.ANSWER:
+                    path = testcase.ans_path.resolve()
+                case Mode.INPUT:
+                    raise ValueError("OutputValidators do not support Mode.INPUT")
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
