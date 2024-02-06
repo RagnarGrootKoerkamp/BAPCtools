@@ -255,6 +255,8 @@ class Problem:
         if len(testcases) == 0:
             if needinteraction:
                 warn(f'Didn\'t find any testcases with interaction for {p.name}')
+            elif invalid_outputs_only:
+                log(f'Didn\'t find any invalid_output testcases')
             else:
                 warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
             testcases = False

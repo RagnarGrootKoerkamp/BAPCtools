@@ -195,7 +195,7 @@ class Testcase:
         constraints=None,
         warn_instead_of_error=False,
         args=None,  # TODO never used?
-    ):
+    ) -> bool:
 
         check_constraints = constraints is not None
         match mode:
