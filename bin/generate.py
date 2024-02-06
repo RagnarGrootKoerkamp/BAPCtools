@@ -41,7 +41,7 @@ def is_testcase(yaml):
             isinstance(yaml, dict)
             and any(
                 key in yaml
-                for key in ['copy', 'generate', 'in', 'ans', 'hint', 'desc', 'interaction']
+                for key in ['copy', 'generate', 'in', 'ans', 'out', 'hint', 'desc', 'interaction']
             )
         )
     )
@@ -423,8 +423,7 @@ class TestcaseRule(Rule):
 
         # Hash of testcase for caching.
         self.hash = None
-        in_hash = None
-        ans_hash = None
+        hashes = {}
         # Filled during generate(), since `self.config.solution` will only be set later for the default solution.
         self.cache_data = {}
 
@@ -476,11 +475,11 @@ class TestcaseRule(Rule):
                 self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (
                     2**31
                 )
-                in_hash = self.generator.hash(self.seed)
                 self.in_is_generated = True
                 self.rule['gen'] = self.generator.command_string
                 if self.generator.uses_seed:
                     self.rule['seed'] = self.seed
+                hashes['.in'] = self.generator.hash(self.seed)
 
             # 2. path
             if 'copy' in yaml:
@@ -490,11 +489,11 @@ class TestcaseRule(Rule):
                 self.copy = resolve_path(yaml['copy'], allow_absolute=False, allow_relative=True)
                 self.copy = problem.path / self.copy.parent / (self.copy.name + '.in')
                 if self.copy.is_file():
-                    in_hash = hash_file(self.copy)
                     self.in_is_generated = False
-                if self.copy.with_suffix('.ans').is_file():
-                    ans_hash = hash_file(self.copy)
                 self.rule['copy'] = str(self.copy)
+                for ext in ['.in', '.ans', '.out']:
+                    if self.copy.with_suffix(ext).is_file():
+                        hashes[ext] = hash_file(self.copy.with_suffix(ext))
 
             # 3. hardcoded
             for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
@@ -506,11 +505,11 @@ class TestcaseRule(Rule):
                     self.hardcoded[ext] = value
 
             if '.in' in self.hardcoded:
-                in_hash = hash_string(self.hardcoded['.in'])
                 self.in_is_generated = False
                 self.rule['in'] = self.hardcoded['.in']
-            if '.ans' in self.hardcoded:
-                ans_hash = hash_string(self.hardcoded['.ans'])
+            for ext in ['.in', '.ans', '.out']:
+                if ext in self.hardcoded:
+                    hashes[ext] = hash_string(self.hardcoded[ext])
 
         # Warn/Error for unknown keys.
         for key in yaml:
@@ -520,12 +519,26 @@ class TestcaseRule(Rule):
                 if config.args.action == 'generate':
                     log(f'Unknown testcase level key: {key} in {self.path}')
 
-        # combine hashes
-        if in_hash is None:
+        if not '.in' in hashes:
             # An error is shown during generate.
             return
-        self.hash = in_hash
-        if ans_hash is not None and self.root == 'invalid_answers':
+
+        # remove filed that should not be considered for hashing
+        if '.ans' in hashes and self.root not in ['invalid_answers', 'invalid_outputs']:
+            hashes.pop('.ans')
+        if '.out' in hashes and self.root not in ['invalid_outputs']:
+            hashes.pop('.out')
+
+        # build ordered lsit of hashes we want to consider
+        self.hash = []
+        for ext in ['.in', '.ans', '.out']:
+            if ext in hashes:
+                self.hash.append(hashes[ext])
+
+        # combine hashes
+        if len(self.hash) == 1:
+            self.hash = self.hash[0]
+        else:
             self.hash = combine_hashes([self.hash, ans_hash])
 
         # Error for listed cases with identical input.
@@ -898,7 +911,7 @@ class TestcaseRule(Rule):
                         # For interactive problems, run the interactive solution and generate a .interaction.
                         if (
                             t.config.solution
-                            and (testcase.root=='sample' or config.args.interaction)
+                            and (testcase.root == 'sample' or config.args.interaction)
                             and '.interaction' not in t.hardcoded
                         ):
                             if not t.config.solution.run_interactive(problem, bar, cwd, t):
