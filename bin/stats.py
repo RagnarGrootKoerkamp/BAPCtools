@@ -59,6 +59,7 @@ def stats(problems):
         ('   AC', 'submissions/accepted/*', 3),
         (' WA', 'submissions/wrong_answer/*', 2),
         ('TLE', 'submissions/time_limit_exceeded/*', 1),
+        ('subs', lambda p: len(glob(p.path, 'submissions/*/*')), 0),
         (
             '   cpp',
             ['submissions/accepted/*.c', 'submissions/accepted/*.cpp', 'submissions/accepted/*.cc'],
@@ -130,7 +131,7 @@ def stats(problems):
             return results
 
         def value(x):
-            if x[0] == '  time':
+            if x[0] == '  time' or x[0] == 'subs':
                 return x[1](problem)
             else:
                 return len(count(x[1]))

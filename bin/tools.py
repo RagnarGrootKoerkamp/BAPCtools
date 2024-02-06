@@ -326,6 +326,11 @@ Run this from one of:
         help='The number of jobs to use. Default: cpu_count()/2.',
     )
     global_parser.add_argument(
+        '--memory',
+        '-m',
+        help='The maximum amount of memory in MB a subprocess may use. Does not work for Java. Default: 2048.',
+    )
+    global_parser.add_argument(
         '--api',
         help='CCS API endpoint to use, e.g. https://www.domjudge.org/demoweb. Defaults to the value in contest.yaml.',
     )
@@ -439,12 +444,12 @@ Run this from one of:
         'validate', parents=[global_parser], help='validate all grammar'
     )
     validate_parser.add_argument('testcases', nargs='*', type=Path, help='The testcases to run on.')
-    input_output_group = validate_parser.add_mutually_exclusive_group()
-    input_output_group.add_argument(
+    input_answer_group = validate_parser.add_mutually_exclusive_group()
+    input_answer_group.add_argument(
         '--input', '-i', action='store_true', help='Only validate input.'
     )
-    input_output_group.add_argument(
-        '--output', '-o', action='store_true', help='Only validate output.'
+    input_answer_group.add_argument(
+        '--answer', action='store_true', help='Only validate answer.'
     )
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
@@ -542,7 +547,7 @@ Run this from one of:
     genparser.add_argument(
         '--no-validators',
         action='store_true',
-        help='Ignore results of input and output validators. They are still run.',
+        help='Ignore results of input and answer validation. Validators are still run.',
     )
     genparser.add_argument(
         '--no-solution',
@@ -611,11 +616,6 @@ Run this from one of:
     )
     runparser.add_argument('--timelimit', '-t', type=int, help='Override the default timelimit.')
     runparser.add_argument(
-        '--memory',
-        '-m',
-        help='The max amount of memory in MB a subprocesses may use. Does not work for java. Default: 2048.',
-    )
-    runparser.add_argument(
         '--force',
         '-f',
         action='store_true',
@@ -652,11 +652,6 @@ Run this from one of:
         type=int,
         help='Override the default timeout. Default: 1.5 * timelimit + 1.',
     )
-    testparser.add_argument(
-        '--memory',
-        '-m',
-        help='The max amount of memory in MB a subprocesses may use. Does not work for java. Default: 2048.',
-    )
 
     # Sort
     subparsers.add_parser(
@@ -665,7 +660,7 @@ Run this from one of:
 
     # All
     allparser = subparsers.add_parser(
-        'all', parents=[global_parser], help='validate input, validate output, and run programs'
+        'all', parents=[global_parser], help='validate input, validate answers, and run programs'
     )
     allparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     allparser.add_argument(
@@ -692,7 +687,7 @@ Run this from one of:
     )
     zipparser.add_argument('--skip', action='store_true', help='Skip recreation of problem zips.')
     zipparser.add_argument(
-        '--force', '-f', action='store_true', help='Skip validation of input and output files.'
+        '--force', '-f', action='store_true', help='Skip validation of input and answers.'
     )
     zipparser.add_argument(
         '--kattis',
@@ -923,11 +918,11 @@ def run_parsed_arguments(args):
             if level == 'problem':
                 success &= latex.build_problem_pdfs(problem, solutions=True, web=config.args.web)
         if action in ['validate', 'all']:
-            if not (action == 'validate' and config.args.output):
-                success &= problem.validate_format('input_format')
-        if action in ['validate', 'output', 'all']:
+            if not (action == 'validate' and config.args.answer):
+                success &= problem.validate_format('input')
             if not (action == 'validate' and config.args.input):
-                success &= problem.validate_format('output_format')
+                success &= problem.validate_format('answer')
+                success &= problem.validate_format('output')
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
@@ -959,8 +954,8 @@ def run_parsed_arguments(args):
                     statement_language = None
 
                 if not config.args.force:
-                    success &= problem.validate_format('input_format', constraints={})
-                    success &= problem.validate_format('output_format', constraints={})
+                    success &= problem.validate_format('input', constraints={})
+                    success &= problem.validate_format('answer', constraints={})
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.

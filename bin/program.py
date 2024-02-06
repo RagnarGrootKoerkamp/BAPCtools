@@ -83,9 +83,7 @@ def languages():
 #
 # build() will return the (run_command, message) pair.
 class Program:
-    def __init__(
-        self, problem, path, deps=None, *, skip_double_build_warning=False, check_constraints=False
-    ):
+    def __init__(self, problem, path, deps=None, *, skip_double_build_warning=False):
         if deps is not None:
             assert isinstance(self, Generator)
             assert isinstance(deps, list)
@@ -119,11 +117,7 @@ class Program:
             self.name = str(path.name)
             self.tmpdir = problem.tmpdir / self.subdir / path.name
 
-        if check_constraints:
-            self.tmpdir = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
-
         self.compile_command = None
-        self.check_constraints = check_constraints
         self.run_command = None
         self.hash = None
         self.env = {}

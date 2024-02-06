@@ -107,7 +107,7 @@ The most common commands and options to use on an existing repository are:
 - [`bt run [-v] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
 - [`bt test <submission> [--interactive | --samples | [testcases [testcases ...]]]`](#test)
 - [`bt generate [-v] [--jobs JOBS]`](#generate)
-- [`bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+- [`bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
 - [`bt pdf [-v]`](#pdf)
 
 The list of all available commands and options is at [doc/commands.md#synopsis](doc/commands.md#synopsis),
@@ -149,9 +149,9 @@ Use `-j 0` to disable running multiple jobs in parallel (the default is `4`).
 
 ### Validate
 
-- `bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`
+- `bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`
 
-Validate all the `.in` and `.ans` for all (given) testcases. It runs all validators from `input_validators` and `output_validators`.
+Validate all the `.in` and `.ans` for all (given) testcases. It runs all validators from `input_validators`, `answer_validators`, and `output_validators`.
 
 Validators can be one of
 

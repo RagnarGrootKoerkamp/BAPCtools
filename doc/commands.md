@@ -12,8 +12,8 @@ Unless otherwise specified, commands work both on the problem and contest level.
 This lists all subcommands and their most important options.
 
 - Problem development:
-  - [`bt run [-v] [-t TIMELIMIT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
-  - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
+  - [`bt run [-v] [-t TIMELIMIT] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
+  - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
   - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-unlisted [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS][--no-validators] [--no-visualizer] [testcases [testcases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit] [--language LANG]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
@@ -22,7 +22,7 @@ This lists all subcommands and their most important options.
 - Problem validation
   - [`bt input [-v] [testcases [testcases ...]]`](#input)
   - [`bt output [-v] [testcases [testcases ...]]`](#output)
-  - [`bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+  - [`bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
   - [`bt constraints [-v]`](#constraints)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
@@ -49,6 +49,7 @@ The flags below work for any subcommand:
 - `--verbose`/`-v`: Without this, only failing steps are printed to the terminal. With `-v`, progress bars print one line for each processed item. Pass `-v` twice to see all commands that are executed.
 - `--contest <directory>`: The directory of the contest to use, if not the current directory. At most one of `--contest` and `--problem` may be used. Useful in CI jobs.
 - `--problem <directory>`: The directory of the problem to use, if not the current directory. At most one of `--contest` and `--problem` may be used. Useful in CI jobs.
+- `--memory <MB>`/`-m <MB>`: The maximum amount of memory in MB a subprocess (submission/generator/etc.) may use. Does not work for Java. Default: 2048.
 - `--no-bar`: Disable showing progress bars. This is useful when running in non-interactive contexts (such as CI jobs) or on platforms/terminals that don't handle the progress bars well.
 - `--error`/`-e`: show full output of failing commands using `--error`. The default is to show a short snippet only.
 - `--cpp-flags`: Additional flags to pass to any C++ compilation rule. Useful for e.g. `--cpp-flags=-fsanitize=undefined`.
@@ -104,7 +105,6 @@ Use `bt run -v` to show results for all testcases.
 - `--force`/`-f`: Overwrite existing generated testcases, instead of printing a warning and keeping the old data.
 - `--timelimit <second>`/`-t <second>`: The timelimit to use for the submission.
 - `--timeout <second>`: The timeout to use for the submission.
-- `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
 - `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 
@@ -142,7 +142,6 @@ This is useful for running submissions without having to compile them manually. 
 - `[<testcases>]`: The testcases to run the submission on. See `run <testcases>` for more. Can not be used together with `--samples`.
 - `--samples`: Run the submission on the samples only. Can not be used together with explicitly listed testcases.
 - `--timeout <second>`/`-t <second>`: The timeout to use for the submission.
-- `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
 
 ## `generate`
 
@@ -255,21 +254,15 @@ stored in `generators.yaml` corresponding to `data/fuzz/<id>.in`.
 
 # Problem validation
 
-## `input`
+## `validate`
 
-Use `bt input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified.
+Use `bt validate --input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified.
 
 See `run <testcases>` for a description of how to pass testcases.
 
-## `output`
+`bt validate --answer <testcases>` is similar to `bt validate --input` but validates `.ans` files instead of `.in` files.
 
-`bt output <testcases>` is similar to `bt input` but validates `.ans` files instead of `.in` files.
-
-## `validate`
-
-`bt validate` is a convenience command that validates both input and output files.
-
-**Flags**
+`bt validate` validates both input and answer files.
 
 It supports the following flags when run for a single problem:
 
@@ -515,7 +508,7 @@ When run for a contest:
   - Kattis needs the `input_validators` directory, while DOMjudge doesn't use this.
   - Kattis problem zips get an additional top level directory named after the problem shortname.
   - _Statements_: Kattis’s problemtools builds statement HTML (and PDF) using `problem2html` (and `problem2pdf`) rather than `bt pdf`. Problem authors should check the resulting statements after exporting to Kattis; pay attention to:
-    - The command `bt zip --kattis` exports `problem_statement/*` but not its subdirectories, so make sure illustrations and `\input`-ed tex sources are included. 
+    - The command `bt zip --kattis` exports `problem_statement/*` but not its subdirectories, so make sure illustrations and `\input`-ed tex sources are included.
     - Proper images scaling in the HTML output requires explict widths, such as `\includegraphics[width=.5\textwidth]{foo.png}`.
 
 ## `export`

@@ -87,10 +87,11 @@ class Problem:
                         # Assume authors know what they're doing
                         continue
                     case s if s != yamlname:
-                        warn(f'Problem titles in problem.{lang}.tex ({texname})' +
-                             f' and problem.yaml ({yamlname}) differ;' +
-                             r' consider using \problemname{\problemyamlname}.'
-                             )
+                        warn(
+                            f'Problem titles in problem.{lang}.tex ({texname})'
+                            + f' and problem.yaml ({yamlname}) differ;'
+                            + r' consider using \problemname{\problemyamlname}.'
+                        )
         return sorted(texlangs & yamllangs)
 
     def _read_settings(self):
@@ -343,114 +344,95 @@ class Problem:
     # contains 'constraints_file' in its source.
     # _validators maps from input/output to the list of validators.
     def validators(problem, validator_type, check_constraints=False):
-        assert validator_type in ['input_format', 'output_format', 'output']
+        """
+        Args:
+            validator_type: 'answer', 'output', 'input'
+            check_constraints: True if the validator should check constraints
 
-        # For custom validation, treat 'output' and 'output_format' validators the same.
-        if problem.settings.validation != 'default' and validator_type == 'output_format':
-            validator_type = 'output'
+        Returns:
+            False: something went wrong
+            singleton list(OutputValidator) if validator_type is 'output'
+            list(Validator) otherwise
+        """
+        assert validator_type in ['input', 'answer', 'output']
 
         key = (validator_type, check_constraints)
         if key in problem._validators:
             return problem._validators[key]
+        ok = True
 
-        # For default 'output' validation, use default_output_validator.cpp.
-        if validator_type == 'output' and problem.settings.validation == 'default':
-            validators = [
-                validate.OutputValidator(
-                    problem, config.tools_root / 'support' / 'default_output_validator.cpp'
-                )
+        subdirs_for_type = {
+            'answer': ['answer_validators', 'answer_format_validators'],
+            'output': ['output_validator', 'output_validators'],
+            'input': ['input_validators', 'input_format_validators'],
+        }
+        paths_for_type = {
+            vtype: [g for sdir in sdirs for g in glob(problem.path / sdir, '*')]
+            for vtype, sdirs in subdirs_for_type.items()
+        }
+
+        # Handle default output validation
+        if problem.settings.validation == 'default':
+            if paths_for_type['output']:
+                error("Validation is default but custom output validator exists (ignoring it)")
+            paths_for_type['output'] = [
+                config.tools_root / 'support' / 'default_output_validator.cpp'
             ]
-            bar = ProgressBar(f'Build {validator_type} validators', items=validators)
-            ok = True
-            for p in validators:
-                bar.start(p)
-                ok &= p.build(bar)
-                bar.done()
-            bar.finalize(print_done=False)
-            if not ok:
-                validators = False
-            problem._validators[key] = validators
-            return validators
 
-        validator_dir = 'input' if validator_type == 'input_format' else 'output'
+        paths = paths_for_type[validator_type]
 
-        paths = glob(problem.path / (validator_dir + '_validators'), '*') + glob(
-            problem.path / (validator_dir + '_format_validators'), '*'
-        )
-
-        if len(paths) == 0:
-            # Only log/warn missing validators in generate mode.
-            if config.args.action == 'generate':
-                if validator_type == 'output_format':
-                    log(f'No {validator_type} validators found.')
-                else:
-                    warn(f'No {validator_type} validators found.')
-                    problem._validators[key] = False
-                    return False
-        if validator_type == 'output' and problem.interactive and len(paths) != 1:
-            error(
-                f'Found {len(paths)} output validators, but validation type {problem.settings.validation} needs exactly one.'
-            )
-            problem._validators[key] = False
-            return False
+        # Check that the proper number of validators is present
+        match validator_type, len(paths):
+            case 'answer', 0:
+                log(f"No answer validator found")
+            case 'input', 0:
+                warn(f'No input validators found.')
+            case 'output', l if l != 1:
+                error(f'Found {len(paths)} output validators, expected exactly one.')
+                ok = False
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
+            if not f.is_file():
+                return False
             try:
                 return 'constraints_file' in f.read_text()
             except UnicodeDecodeError:
                 return False
 
         if check_constraints:
-            constraint_validators = []
-            for f in paths:
-                if f.is_file():
-                    sources = [f]
-                elif f.is_dir():
-                    sources = glob(f, '**/*')
-                has_constraints = False
-                for s in sources:
-                    if has_constraints_checking(s):
-                        has_constraints = True
-                        break
-                if has_constraints:
-                    constraint_validators.append(f)
-            if len(constraint_validators) == 0:
-                warn(
-                    f'No {validator_type} constraint validators found: No matches for \'constraints_file\'.'
+            paths = [
+                f
+                for f in paths
+                if any(
+                    has_constraints_checking(source)
+                    for source in ([f] if f.is_file() else glob(f, '**/*'))
                 )
-                return False
-
-            paths = constraint_validators
-
-        if validator_type == 'input_format':
-            validators = [
-                validate.InputValidator(
-                    problem,
-                    path,
-                    skip_double_build_warning=check_constraints,
-                    check_constraints=check_constraints,
-                )
-                for path in paths
             ]
-        else:
-            validators = [
-                validate.OutputValidator(
-                    problem,
-                    path,
-                    skip_double_build_warning=check_constraints,
-                    check_constraints=check_constraints,
-                )
-                for path in paths
-            ]
+
+        validator_dispatcher = {
+            'input': validate.InputValidator,
+            'answer': validate.AnswerValidator,
+            'output': validate.OutputValidator,
+        }
+        skip_double_build_warning = check_constraints or not paths_for_type['answer']
+        validators = [
+            validator_dispatcher[validator_type](
+                problem,
+                path,
+                skip_double_build_warning=skip_double_build_warning,
+                check_constraints=check_constraints,
+            )
+            for path in paths
+        ]
 
         bar = ProgressBar(f'Build {validator_type} validators', items=validators)
-        ok = True
+        build_ok = True
 
         def build_program(p):
-            nonlocal ok
+            nonlocal build_ok
             localbar = bar.start(p)
-            ok &= p.build(localbar)
+            build_ok &= p.build(localbar)
             localbar.done()
 
         p = parallel.Parallel(build_program)
@@ -461,7 +443,7 @@ class Problem:
         bar.finalize(print_done=False)
 
         # All validators must build.
-        if not ok:
+        if not ok or not build_ok:
             validators = False
 
         problem._validators[key] = validators
@@ -611,25 +593,26 @@ class Problem:
         self._testcase_hashes[d] = t
         return None
 
-    # Validate the format of the input or output files.
-    # For input_format validation, also make sure all testcases are different.
+    # Validate the format of the input or answer files.
+    # For input validation, also make sure all testcases are different.
     # Constraints is None/True/dictionary. When dictionary, contraints will be stored there.
     def validate_format(problem, validator_type, constraints=None):
         if constraints is True:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
-        assert validator_type in ['input_format', 'output_format']
+        assert validator_type in ['input', 'answer', 'output'], validator_type
 
-        validators = problem.validators(validator_type, check_constraints=constraints is not None)
-
-        if problem.interactive and validator_type == 'output_format':
+        if problem.interactive and validator_type == 'answer':
             log('Not validating .ans for interactive problem.')
             return True
 
-        if validators is False:
+        validators = problem.validators(validator_type, check_constraints=constraints is not None)
+
+        if not validators:
             return False
 
-        testcases = problem.testcases(needans=validator_type == 'output_format', include_bad=True)
+        needans = validator_type in ['answer', 'output']
+        testcases = problem.testcases(needans=needans, include_bad=True)
 
         if testcases is False:
             return True
@@ -648,14 +631,20 @@ class Problem:
         for testcase in testcases:
             bar.start(testcase.name)
 
-            if validator_type == 'input_format' and not testcase.included:
+            if validator_type == 'input' and not testcase.included:
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')
                     ok = False
                     continue
 
-            success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints)
+            # When validating answer format with output validator
+            # always be sensitive
+            args = [
+                    'case_sensitive', 'space_change_sensitive'
+                    ] if validator_type == 'output' else []
+
+            success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints, args=args)
             bar.done()
 
         bar.finalize(print_done=True)

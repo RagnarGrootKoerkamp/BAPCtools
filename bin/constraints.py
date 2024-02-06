@@ -15,11 +15,17 @@ from util import *
   Checking constraints by yourself is probably the best way.
 """
 
+
 def check_validators(problem):
     in_constraints = {}
     ans_constraints = {}
-    problem.validate_format('input_format', constraints=in_constraints)
-    problem.validate_format('output_format', constraints=ans_constraints)
+    problem.validate_format('input', constraints=in_constraints)
+    if not in_constraints:
+        warn("No constraint validation of input values found in input validators.")
+    problem.validate_format('answer', constraints=ans_constraints)
+    problem.validate_format('output', constraints=ans_constraints)
+    if not ans_constraints:
+        log("No constraint validation of answer values found in answer or output validators.")
     print()
 
     validator_values = set()
@@ -39,6 +45,7 @@ def check_validators(problem):
 
     return validator_values, validator_defs
 
+
 def check_statement(problem, language):
     statement_file = problem.path / f'problem_statement/problem.{language}.tex'
     statement = statement_file.read_text()
@@ -48,16 +55,16 @@ def check_statement(problem, language):
 
     defines = ['\\def', '\\newcommand']
     sections = ['Input', 'Output', 'Interaction']
-    maths = [('$', '$'), ('\\(','\\)')]
+    maths = [('$', '$'), ('\\(', '\\)')]
     commands = {
-        'leq' : '<=',
-        'le' : '<=',
-        'ge' : '>=',
-        'geq' : '>=',
+        'leq': '<=',
+        'le': '<=',
+        'ge': '>=',
+        'geq': '>=',
         #'eq' : '=',
-        'neq' : '!=',
-        'cdot' : '*',
-        'ell' : 'l',
+        'neq': '!=',
+        'cdot': '*',
+        'ell': 'l',
     }
     relations = re.compile(r'(<=|!=|>=|<|=|>)')
 
@@ -87,14 +94,16 @@ def check_statement(problem, language):
         text = re.sub(r'(\d)\(', r'\1*(', text)
         text = re.sub(r'\)(\d)', r')*\1', text)
 
-        # remove outer most parenthesis if they exists
-        # allos $(constraint)$ and ($constraint$)
+        # remove outer most parenthesis if they exist
+        # allows $(constraint)$ and ($constraint$)
         if text[0] == '(' and text[-1] == ')':
             cur = 0
             neg = False
             for c in text[1:-1]:
-                if c == '(': cur += 1
-                elif c == ')': cur -= 1
+                if c == '(':
+                    cur += 1
+                elif c == ')':
+                    cur -= 1
                 neg |= cur < 0
             if not neg:
                 text = text[1:-1]
@@ -122,7 +131,7 @@ def check_statement(problem, language):
         nonlocal pos
         if pos + len(text) > len(statement):
             return False
-        return statement[pos : pos+len(text)] == text
+        return statement[pos : pos + len(text)] == text
 
     def parse_group():
         nonlocal pos
@@ -220,7 +229,7 @@ def check_statement(problem, language):
             else:
                 if in_io:
                     # only parse math in specified sections
-                    for b,e in maths:
+                    for b, e in maths:
                         if matches(b):
                             next = statement.find(e, pos + len(b))
                             if next > pos:
@@ -236,6 +245,7 @@ def check_statement(problem, language):
         error(f'Missing "{end}" in {statement_file.name}!')
     return statement_values, statement_defs
 
+
 def check_constraints(problem):
     validator_values, validator_defs = check_validators(problem)
     statement_values = {}
@@ -244,11 +254,10 @@ def check_constraints(problem):
         values, defs = check_statement(problem, lang)
         for entry in values:
             statement_values.setdefault(entry, set())
-            statement_values[entry].add(lang)        
+            statement_values[entry].add(lang)
         for entry in defs:
             statement_defs.setdefault(entry, set())
             statement_defs[entry].add(lang)
-
 
     # print all the definitions.
     value_len = 12
@@ -261,7 +270,7 @@ def check_constraints(problem):
     )
 
     while statement_defs or validator_defs:
-        #print(statement_defs, validator_defs)
+        # print(statement_defs, validator_defs)
         if statement_defs:
             # Display constraints in the order they appear in statement (statement_defs is thus ordered)
             st = next(iter(statement_defs))
@@ -306,12 +315,15 @@ def check_constraints(problem):
             if not warned:
                 warned = True
                 warn('Values in validators but missing in some statement:')
-            print(f'{Fore.YELLOW}{value}{Style.RESET_ALL} missing in',','.join(missing))
+            print(f'{Fore.YELLOW}{value}{Style.RESET_ALL} missing in', ','.join(missing))
 
     extra_in_statement = set(statement_values.keys()).difference(validator_values)
     if extra_in_statement:
         warn('Values in some statement but not in input validators:')
         for value in extra_in_statement:
-            print(f'{Fore.YELLOW}{value}{Style.RESET_ALL} in',','.join(sorted(statement_values[value])))
+            print(
+                f'{Fore.YELLOW}{value}{Style.RESET_ALL} in',
+                ','.join(sorted(statement_values[value])),
+            )
 
     return True
