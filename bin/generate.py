@@ -525,7 +525,7 @@ class TestcaseRule(Rule):
             # An error is shown during generate.
             return
         self.hash = in_hash
-        if ans_hash is not None and self.root =='invalid_answers':
+        if ans_hash is not None and self.root == 'invalid_answers':
             self.hash = combine_hashes([self.hash, ans_hash])
 
         # Error for listed cases with identical input.
@@ -810,7 +810,7 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == '' and t.root in ['bad', 'invalid_inputs', 'invalid_answers']:
+                    if contents == '' and t.root in ['bad', 'invalid_inputs', 'invalid_answers', 'invalid_outputs']:
                         bar.error(f'Hardcoded {ext} data must not be empty!')
                         return
                     else:

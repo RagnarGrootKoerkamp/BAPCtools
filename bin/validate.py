@@ -10,13 +10,16 @@ class Mode(Enum):
 
     INPUT = 1
     ANSWER = 2
-    OUTPUT = 3  # not implemented
+    OUT_FILE = 3
+    SUBMISSION_RUN = 4
 
     def __str__(self):
         return {
                 Mode.INPUT: "input",
                 Mode.ANSWER: "answer",
-                Mode.OUTPUT: "output"}[self]
+                Mode.OUT_FILE: "output file",
+                Mode.SUBMISSION_RUN: "submission run",
+                }[self]
 
 
 
@@ -148,7 +151,7 @@ class InputValidator(Validator):
     """
     Validate an input file (such as "testcase.in"), called as:
 
-        ./validator [arguments] < answer.
+        ./validator [arguments] < input
 
     Also supports checktestdata and viva files, with different invocation.
     """
@@ -159,7 +162,15 @@ class InputValidator(Validator):
     subdir = 'input_validators'
     source_dirs = ['input_validators', 'input_format_validators']
 
-    def run(self, testcase, constraints=None, args=None) -> ExecResult:
+    def run(self, testcase, mode=Mode.INPUT, constraints=None, args=None) -> ExecResult:
+        """
+        Arguments
+        ---------
+        mode:
+            must be Mode.INPUT
+        """
+        if mode != Mode.INPUT:
+            raise ValueError("InputValidators only support Mode.INPUT")
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
@@ -197,10 +208,13 @@ class AnswerValidator(Validator):
     subdir = 'answer_validators'
     source_dirs = ['answer_validators', 'answer_format_validators']
 
-    def run(self, testcase, constraints=None, args=None):
+    def run(self, testcase, mode=Mode.ANSWER, constraints=None, args=None):
         """Return:
         ExecResult
         """
+
+        if mode != Mode.ANSWER:
+            raise ValueError("AnswerValidators only support Mode.ANSWER")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -238,18 +252,40 @@ class OutputValidator(Validator):
 
     source_dirs = ['output_validator', 'output_validators']
 
-    def run(self, testcase, run=None, constraints=None, args=None):
-        """Return:
-        ExecResult
+    def run(self, testcase, run=None, mode=None, constraints=None, args=None):
         """
+        Run this validator on the given testcase.
+        Arguments
+        ---------
+        run: Run | None
+        If not None validate run.out_path
+
+        Returns
+        -------
+        The ExecResult
+        """
+
+        if run is not None and mode != Mode.SUBMISSION_RUN:
+            raise ValueError("Expected Mode.SUBMISSION_RUN, not {mode}")
+        match mode:
+            case Mode.SUBMISSION_RUN:
+                if run is None:
+                    raise ValueError()
+                path = run.out_path
+            case Mode.OUT_FILE:
+                if  testcase.out_path is None:
+                    raise ValueError(f"Test case {testcase.name} has no .out file")
+                path = testcase.out_path.resolve()
+            case Mode.ANSWER:
+                path = testcase.ans_path.resolve()
+            case Mode.INPUT:
+                raise ValueError("OutputValidators do not support Mode.INPUT")
+
+        if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
+            raise ValueError("Invalid output validator language")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
-        if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
-            assert False  # this should never happen
-
-        # If run is None, we're validating submission output,
-        # else we're validting an .ans file
         feedbackdir = run.feedbackdir if run is not None else cwd
         invocation = (
             self.run_command
@@ -257,7 +293,6 @@ class OutputValidator(Validator):
             + self.problem.settings.validator_flags
         )
 
-        path = run.out_path if run is not None else testcase.ans_path
         with path.open() as file:
             ret = exec_command(
                 invocation + arglist,

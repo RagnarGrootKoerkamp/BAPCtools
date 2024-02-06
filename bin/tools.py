@@ -922,6 +922,7 @@ def run_parsed_arguments(args):
                 success &= problem.validate_data(validate.Mode.INPUT)
             if not (action == 'validate' and config.args.input):
                 success &= problem.validate_data(validate.Mode.ANSWER)
+                success &= problem.validate_data(validate.Mode.OUT_FILE)
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:

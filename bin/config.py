@@ -35,6 +35,7 @@ COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 KNOWN_DATA_EXTENSIONS = [
     '.in',
     '.ans',
+    '.out',
     '.interaction',
     '.hint',
     '.desc',
@@ -48,6 +49,7 @@ KNOWN_DATA_EXTENSIONS = [
 KNOWN_TEXT_DATA_EXTENSIONS = [
     '.in',
     '.ans',
+    '.out',
     '.interaction',
     '.hint',
     '.desc',

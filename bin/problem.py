@@ -186,6 +186,7 @@ class Problem:
         only_sample=False,
         statement_samples=False,
         include_bad=False,
+        invalid_outputs_only=False,
         copy=False,
     ):
         def maybe_copy(x):
@@ -217,6 +218,8 @@ class Problem:
                             in_paths.append(t)
 
             in_paths = list(set(in_paths))
+        elif invalid_outputs_only:
+            in_paths = list(glob(p.path, 'data/invalid_outputs/**/*.in'))
         else:
             in_paths = list(glob(p.path, 'data/sample/**/*.in'))
             if statement_samples:
@@ -232,6 +235,7 @@ class Problem:
                 in_paths += bad_paths
                 in_paths += list(glob(p.path, 'data/invalid_inputs/**/*.in'))
                 in_paths += list(glob(p.path, 'data/invalid_answers/**/*.in'))
+                in_paths += list(glob(p.path, 'data/invalid_outputs/**/*.in'))
 
         testcases = []
         for f in in_paths:
@@ -576,7 +580,7 @@ class Problem:
         """Validate aspects of the test data files.
 
         Arguments:
-            mode: validate.Mode.INPUT | validate.Mode.ANSWER | (not implemented) Validate.Mode.OUTPUT
+            mode: validate.Mode.INPUT | validate.Mode.ANSWER | (not implemented) Validate.Mode.OUT_FILE
             constraints: True | dict | None. True means "do check constraints but discard the result."
                 False: TODO is this ever used?
         Return:
@@ -601,11 +605,14 @@ class Problem:
             case validate.Mode.ANSWER:
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
                 problem.validators(validate.OutputValidator, check_constraints=check_constraints)
-            case validate.Mode.OUTPUT:
-                raise NotImplementedError
+            case validate.Mode.OUT_FILE:
+                problem.validators(validate.OutputValidator, check_constraints=check_constraints)
 
         needans = mode != validate.Mode.INPUT
-        testcases = problem.testcases(needans=needans, include_bad=not check_constraints)
+        testcases = (problem.testcases(needans=needans, include_bad=not check_constraints) 
+                     if mode != validate.Mode.OUT_FILE 
+                     else problem.testcases(invalid_outputs_only=True)
+                     )
 
         if testcases is False:
             return True
