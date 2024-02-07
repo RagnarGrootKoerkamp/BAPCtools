@@ -639,6 +639,7 @@ class Problem:
                 mode == validate.Mode.INPUT
                 and not testcase.in_path.is_symlink()
                 and not testcase.root == "invalid_answers"
+                and not testcase.root == "invalid_outputs"
             ):
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
