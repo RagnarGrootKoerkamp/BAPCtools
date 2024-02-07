@@ -529,7 +529,7 @@ class TestcaseRule(Rule):
         if '.out' in hashes and self.root not in ['invalid_outputs']:
             hashes.pop('.out')
 
-        # build ordered lsit of hashes we want to consider
+        # build ordered list of hashes we want to consider
         self.hash = []
         for ext in ['.in', '.ans', '.out']:
             if ext in hashes:
@@ -539,7 +539,7 @@ class TestcaseRule(Rule):
         if len(self.hash) == 1:
             self.hash = self.hash[0]
         else:
-            self.hash = combine_hashes([self.hash, ans_hash])
+            self.hash = combine_hashes(self.hash)
 
         # Error for listed cases with identical input.
         if self.listed and self.hash in generator_config.rules_cache:
