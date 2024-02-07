@@ -15,6 +15,34 @@ generators:
     - lib.h
 
 data:
+  invalid_inputs:
+    data:
+      "lo":
+        in: "-1"
+      "hi":
+        in: "1001"
+      "extra_line": 
+        in: "0\n\n"
+      "leading_space":
+        in: " 0"
+      "trailing_space":
+        in: "0 "
+      "leading_newline":
+        in: "\n0"
+  invalid_answers:
+    data:
+      "leading_pace":
+        in: "0"
+        ans: " 0"
+      "trailing_space":
+        in: "0"
+        ans: "0 "
+  invalid_outputs:
+    data:
+      'wrong_answer':
+          in: "0"
+          ans: "0"
+          out: "1"
   sample:
     #solution:
     data:
