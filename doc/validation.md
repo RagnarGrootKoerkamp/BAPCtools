@@ -26,11 +26,11 @@ These are some things that hold for all types of validation mentioned below.
   working directory. For `output validation`, you can write e.g. files
   `judgemessage.txt`, `judgeerror.txt`, `teammessage.txt`, and `score.txt`.
   (BAPCtools only handles the first 2.)
-- The return code should be `42` for success/AC.
-- The return code should be `43` for failure/WA. (Note that the spec is
+- The return code must be `42` for successful validation.
+- The return code must be `43` for failed validation. (Note that the spec is
   slightly more lenient and allows any non-`42` return code for input format
   validation. BAPCtools expects a code of exactly `43` when validating
-  `data/invalid_inputs` testcases (see below).)
+  invalid testcases (see below).)
 - For input and answer validation, the out-of-spec `--constraints-file
 <path>` flag is set when running `bt constraints`. The validator can write some
   statistics on the testcase to this file. See the [implementation
@@ -76,6 +76,67 @@ output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir
 In particular, note the flags `case_sensitive` and `space_change_sensitive`,
 which allows an output validator to be more strict about the format of `.ans` files than about submission output.
 
+## Invalid test cases
+
+`bt validate --invalid`
+
+BAPCtools expects deliberately invalid testcases in `data/invalid_{inputs, answers, outputs}`.
+These ensure that validators reject under the expected circumstances.
+
+### Invalid inputs
+
+Invalid inputs are placed in `data/invalid_inputs` and consist only of an `.in`-file.
+An invalid input must be rejected by at least one input validator.
+
+Examples:
+
+```yaml
+"negative":
+    in: "-1"
+"too_large":
+    in: "100"
+"not_a_number:
+    in: foo
+"extra input":
+    in: 0 1
+"trailing whitespace":
+    in: " 0"
+```
+
+### Invalid answers
+
+Invalid answers are test cases in `data/invalid_answers`.
+Such a test case consist of input and answer files (`.in` and `.ans`), just like a normal test case.
+The input file must pass input validation (i.e., all input validators must accept).
+The testcase must fail answer validation, i.e., at least one answer validator or the output validator must reject it.
+The output validator is run in strict mode, i.e., with the flags `case_sensitive` and `space_change_sensitive`;
+to ensure maximum conformity of answer files in the test data.
+
+Examples:
+
+```yaml
+"negative":
+    in: "0"
+    ans: "-1"
+"trailing whitespace":
+    in: "0"
+    ans: " 0"
+```
+
+### Invalid outputs
+
+Invalid outputs are valid test cases in `data/invalid_output` with an additional `.out`-file that must fail output validation.
+In particular, the input file must pass input validation, the answer file must pass answer validation.
+However,  the `.out`-file must fail output validation for the test case.
+
+Examples:
+```yaml
+"wrong_answer":
+    in: "0"
+    ans: "0"
+    out: "1"
+```
+
 ## Output validation
 
 The output validator checks whether the output of a submission is correct.
@@ -112,19 +173,3 @@ validator instead of a file.
 Similarly, `stdout` is connected to a pipe that forwards to the submission's `stdin`.
 
 
-## `data/invalid_inputs` validation
-
-BAPCtools allows testcases in `data/invalid_inputs` to test that validators fail on
-specific types of input that do not follow the constraints. In
-particular:
-
-- If `data/invalid_inputs/<testcase>.in` is present, at least one input format validator must fail (return `43`).
-
-## `data/invalid_outputs` validation (out-of-spec)
-
-BAPCtools allows testcases in `data/invalid_outputs` to test that output-format
-validators (for problems with default validation) fail on
-specific types of output that do not follow the constraints. In
-particular:
-
-- If `data/invalid_outputs.{in,ans}` are both present, at least one output format validator must fail (return `43`).

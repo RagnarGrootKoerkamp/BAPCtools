@@ -22,7 +22,7 @@ This lists all subcommands and their most important options.
 - Problem validation
   - [`bt input [-v] [testcases [testcases ...]]`](#input)
   - [`bt output [-v] [testcases [testcases ...]]`](#output)
-  - [`bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+  - [`bt validate [-v] [--input | --answer | --invalid] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
   - [`bt constraints [-v]`](#constraints)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
@@ -262,7 +262,9 @@ See `run <testcases>` for a description of how to pass testcases.
 
 `bt validate --answer <testcases>` is similar to `bt validate --input` but validates `.ans` files instead of `.in` files.
 
-`bt validate` validates both input and answer files.
+`bt validate --invalid <invalid_testcases>` checks invalid test cases in `data/invalid_*`.
+
+`bt validate` validates both input and answer files, and the invalid test cases.
 
 It supports the following flags when run for a single problem:
 
