@@ -186,7 +186,7 @@ class Problem:
         only_sample=False,
         statement_samples=False,
         include_bad=False,
-        invalid_outputs_only=False,
+        mode=None,
         copy=False,
     ):
         def maybe_copy(x):
@@ -218,8 +218,14 @@ class Problem:
                             in_paths.append(t)
 
             in_paths = list(set(in_paths))
-        elif invalid_outputs_only:
-            in_paths = list(glob(p.path, 'data/invalid_outputs/**/*.in'))
+        elif mode is not None:
+            in_paths = []
+            for prefix in {
+                validate.Mode.INPUT: ['secret', 'sample'],
+                validate.Mode.ANSWER: ['secret', 'sample'],
+                validate.Mode.INVALID: ['bad', 'invalid_*'],
+                }[mode]:
+                in_paths += glob(p.path, f'data/{prefix}/**/*.in')
         else:
             in_paths = list(glob(p.path, 'data/sample/**/*.in'))
             if statement_samples:
@@ -237,6 +243,8 @@ class Problem:
                 in_paths += list(glob(p.path, 'data/invalid_answers/**/*.in'))
                 in_paths += list(glob(p.path, 'data/invalid_outputs/**/*.in'))
 
+
+
         testcases = []
         for f in in_paths:
             t = testcase.Testcase(p, f)
@@ -246,17 +254,15 @@ class Problem:
                 warn(f'Found input file {f} without a .interaction file. Skipping.')
                 continue
             if needans and not t.ans_path.is_file():
-                if not t.root == 'invalid_inputs':
+                if t.root != 'invalid_inputs':
                     warn(f'Found input file {f} without a .ans file. Skipping.')
-                continue
+                    continue
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
             if needinteraction:
                 warn(f'Didn\'t find any testcases with interaction for {p.name}')
-            elif invalid_outputs_only:
-                log(f'Didn\'t find any invalid_output testcases')
             else:
                 warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
             testcases = False
@@ -582,7 +588,7 @@ class Problem:
         """Validate aspects of the test data files.
 
         Arguments:
-            mode: validate.Mode.INPUT | validate.Mode.ANSWER | (not implemented) Validate.Mode.OUT_FILE
+            mode: validate.Mode.INPUT | validate.Mode.ANSWER | Validate.Mode.INVALID
             constraints: True | dict | None. True means "do check constraints but discard the result."
                 False: TODO is this ever used?
         Return:
@@ -600,21 +606,25 @@ class Problem:
         ok = True
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
+        # Also, pick the relevant testcases
         check_constraints = constraints is not None
         match mode:
             case validate.Mode.INPUT:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
+                testcases = problem.testcases(mode=mode, include_bad=not check_constraints)
             case validate.Mode.ANSWER:
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
                 problem.validators(validate.OutputValidator, check_constraints=check_constraints)
-            case validate.Mode.OUT_FILE:
-                problem.validators(validate.OutputValidator, check_constraints=check_constraints)
+                testcases = problem.testcases(mode=mode, include_bad=not check_constraints)
+            case validate.Mode.INVALID:
+                problem.validators(validate.InputValidator)
+                problem.validators(validate.AnswerValidator)
+                problem.validators(validate.OutputValidator)
+                testcases = problem.testcases(mode=mode)
+            case _:
+                ValueError(mode)
 
-        needans = mode != validate.Mode.INPUT
-        testcases = (problem.testcases(needans=needans, include_bad=not check_constraints) 
-                     if mode != validate.Mode.OUT_FILE 
-                     else problem.testcases(invalid_outputs_only=True)
-                     )
+        needans = mode != validate.Mode.INPUT # TODO
 
         if testcases is False:
             return True

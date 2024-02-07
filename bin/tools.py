@@ -451,6 +451,9 @@ Run this from one of:
     input_answer_group.add_argument(
         '--answer', action='store_true', help='Only validate answer.'
     )
+    input_answer_group.add_argument(
+        '--invalid', action='store_true', help='Only check invalid files for validity.'
+    )
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
     move_or_remove_group.add_argument(
@@ -918,11 +921,12 @@ def run_parsed_arguments(args):
             if level == 'problem':
                 success &= latex.build_problem_pdfs(problem, solutions=True, web=config.args.web)
         if action in ['validate', 'all']:
-            if not (action == 'validate' and config.args.answer):
+            if not (action == 'validate' and (config.args.input or config.args.answer)):
+                success &= problem.validate_data(validate.Mode.INVALID)
+            if not (action == 'validate' and (config.args.answer or config.args.invalid)):
                 success &= problem.validate_data(validate.Mode.INPUT)
-            if not (action == 'validate' and config.args.input):
+            if not (action == 'validate' and (config.args.input or config.args.invalid)):
                 success &= problem.validate_data(validate.Mode.ANSWER)
-                success &= problem.validate_data(validate.Mode.OUT_FILE)
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
