@@ -10,13 +10,13 @@ class Mode(Enum):
 
     INPUT = 1
     ANSWER = 2
-    OUT_FILE = 3
+    INVALID = 3
 
     def __str__(self):
         return {
                 Mode.INPUT: "input",
                 Mode.ANSWER: "answer",
-                Mode.OUT_FILE: "output file",
+                Mode.INVALID: "invalid files",
                 }[self]
 
 
@@ -167,8 +167,8 @@ class InputValidator(Validator):
         mode:
             must be Mode.INPUT
         """
-        if mode != Mode.INPUT:
-            raise ValueError("InputValidators only support Mode.INPUT")
+        if mode == Mode.ANSWER:
+            raise ValueError("InputValidators do not support Mode.ANSWER")
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
@@ -211,8 +211,8 @@ class AnswerValidator(Validator):
         ExecResult
         """
 
-        if mode != Mode.ANSWER:
-            raise ValueError("AnswerValidators only support Mode.ANSWER")
+        if mode == Mode.INPUT:
+            raise ValueError("AnswerValidators do no support Mode.INPUT")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -269,10 +269,13 @@ class OutputValidator(Validator):
             path = run.out_path
         else:
             match mode:
-                case Mode.OUT_FILE:
-                    if  testcase.out_path is None:
-                        raise ValueError(f"Test case {testcase.name} has no .out file")
-                    path = testcase.out_path.resolve()
+                case Mode.INVALID:
+                    if testcase.root == 'invalid_answers':
+                        path = testcase.ans_path.resolve()
+                    else:
+                        if  testcase.out_path is None:
+                            raise ValueError(f"Test case {testcase.name} has no .out file")
+                        path = testcase.out_path.resolve()
                 case Mode.ANSWER:
                     path = testcase.ans_path.resolve()
                 case Mode.INPUT:

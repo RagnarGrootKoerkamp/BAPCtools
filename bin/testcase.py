@@ -112,6 +112,10 @@ class Testcase:
             self.problem.path / 'data' / self.short_path
         )
 
+
+    def __repr__(self):
+        return self.name
+
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
@@ -209,15 +213,17 @@ class Testcase:
                     AnswerValidator, check_constraints=check_constraints
                 ) + self.problem.validators(OutputValidator, check_constraints=check_constraints)
                 expect_rejection = self.root == 'invalid_answers'
-            case Mode.OUT_FILE:
-                validators = self.problem.validators(OutputValidator)
-                expect_rejection = self.root == 'invalid_outputs' # TODO: currently alsways True
+            case Mode.INVALID:
+                validators = self.problem.validators(InputValidator)[::]
+                if self.root in ['invalid_answers', 'invalid_outputs']:
+                    validators += self.problem.validators(AnswerValidator) + self.problem.validators(OutputValidator)
+                expect_rejection = True
             case _:
                 raise ValueError
 
         validator_accepted = []
         for validator in validators:
-            if type(validator) == OutputValidator:
+            if type(validator) == OutputValidator and self.root.startswith("invalid"):
                 args = ['case_sensitive', 'space_change_sensitive']
             flags = self.testdata_yaml_validator_flags(validator)
             if flags is False:
