@@ -32,10 +32,13 @@ TABLE_THRESHOLD = 4
 FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
-KNOWN_DATA_EXTENSIONS = [
+KNOWN_TESTCASE_EXTENSIONS = [
     '.in',
     '.ans',
     '.out',
+]
+
+KNOWN_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
     '.interaction',
     '.hint',
     '.desc',
@@ -46,13 +49,17 @@ KNOWN_DATA_EXTENSIONS = [
     '.gif',
 ]
 
-KNOWN_TEXT_DATA_EXTENSIONS = [
-    '.in',
-    '.ans',
-    '.out',
+KNOWN_TEXT_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
     '.interaction',
     '.hint',
     '.desc',
+]
+
+INVALID_CASE_DIRECTORIES = [
+    'invalid_inputs',
+    'invalid_answers',
+    'invalid_outputs',
+    'bad',
 ]
 
 
