@@ -180,25 +180,19 @@ class Problem:
     def testcases(
         p,
         *,
-        needans=True,
-        needinteraction=False,
-        only_sample=False,
-        statement_samples=False,
         mode=None,
-        copy=False,
+        needans=True,
+        only_samples=False,
     ):
-        def maybe_copy(x):
-            return x.copy() if copy and isinstance(x, (list, dict)) else x
+        only_samples = config.args.samples or only_samples
 
-        samplesonly = config.args.samples or only_sample
-
-        key = (needans, samplesonly)
+        key = (mode, needans, only_samples)
         if key in p._testcases is not None:
-            return maybe_copy(p._testcases[key])
+            return p._testcases[key]
 
         in_paths = None
         if config.args.testcases:
-            if samplesonly:
+            if only_samples:
                 assert False
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
@@ -223,19 +217,12 @@ class Problem:
                 in_paths += glob(p.path, f'data/{prefix}/**/*.in')
         else:
             in_paths = list(glob(p.path, 'data/sample/**/*.in'))
-            if statement_samples:
-                in_paths += list(glob(p.path, 'data/sample/**/*.in.statement'))
-            if not samplesonly:
+            if not only_samples:
                 in_paths += list(glob(p.path, 'data/secret/**/*.in'))
 
         testcases = []
         for f in in_paths:
             t = testcase.Testcase(p, f)
-            # Require both in and ans files
-            if needinteraction and not t.in_path.with_suffix('.interaction').is_file():
-                assert only_sample
-                warn(f'Found input file {f} without a .interaction file. Skipping.')
-                continue
             if needans and not t.ans_path.is_file():
                 if t.root != 'invalid_inputs':
                     warn(f'Found input file {f} without a .ans file. Skipping.')
@@ -244,31 +231,31 @@ class Problem:
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            if needinteraction:
-                warn(f'Didn\'t find any testcases with interaction for {p.name}')
-            else:
-                warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
+            warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
             testcases = False
 
         p._testcases[key] = testcases
-        return maybe_copy(testcases)
+        return testcases
 
     # Returns a list of:
-    # - (Path, Path) = (.in, .ans) pairs
-    # - (Path, Path) = (.in.statement, .ans.statement) pairs
-    # - Path = .interaction files.
+    # - (Path, Path): (.in, .ans) pair
+    # - (Path, Path): (.in.statement, .ans.statement) pair
+    # -  Path       :  .interaction file
     def statement_samples(p):
         statement_in_paths = list(glob(p.path, 'data/sample/**/*.in.statement'))
         interaction_paths = list(glob(p.path, 'data/sample/**/*.interaction'))
 
-        # .in.statement must not shadow a .in file: will cause confusion.
-        # .interaction may shadow a .in file:
-        # - usually the .interaction is an example for the corresponding .in file.
-        # - sometimes, the .interaction is for exposition only, and no corresponding sample actually exists.
+        # Make sure that .in.statement files are not mixed with .interaction files.
+        for in_path in interaction_paths:
+            if in_path.with_suffix('.in.statement').is_file():
+                warn(
+                    f'Do not mix .in.statement files and .interaction files with the same basename in {p}.'
+                )
+
+        # A .in may be shadowed by either .in.statement or .interaction, in which case the .in itself is not shown in the PDF.
         in_paths = []
         for in_path in list(glob(p.path, 'data/sample/**/*.in')):
             if in_path.with_suffix('.in.statement').is_file():
-                warn(f'Statement sample {in_path}.statement may not shadow {in_path}.')
                 continue
             if in_path.with_suffix('.interaction').is_file():
                 continue
