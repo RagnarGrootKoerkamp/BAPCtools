@@ -37,7 +37,8 @@ def create_samples_file(problem):
     samples_data = ''
 
     for sample in samples:
-        if isinstance(sample, Path) and sample.suffix == '.interaction':
+        if isinstance(sample, Path):
+            assert sample.suffix == '.interaction'
             interaction_dir = builddir / 'interaction'
             interaction_dir.mkdir(exist_ok=True)
 
@@ -71,12 +72,8 @@ def create_samples_file(problem):
                     last = line[0]
             flush()
         else:
-            # Already handled above.
-            if sample.in_path.with_suffix('.interaction').is_file():
-                continue
-            samples_data += (
-                f'\\Sample{{{sample.in_path.as_posix()}}}{{{sample.ans_path.as_posix()}}}\n'
-            )
+            (in_path, ans_path) = sample
+            samples_data += f'\\Sample{{{in_path.as_posix()}}}{{{ans_path.as_posix()}}}\n'
     samples_file_path.write_text(samples_data)
 
 
