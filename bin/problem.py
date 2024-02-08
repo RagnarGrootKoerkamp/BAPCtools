@@ -185,7 +185,6 @@ class Problem:
         needinteraction=False,
         only_sample=False,
         statement_samples=False,
-        include_bad=False,
         mode=None,
         copy=False,
     ):
@@ -197,7 +196,7 @@ class Problem:
         if p.interactive:
             needans = False
 
-        key = (needans, samplesonly, include_bad)
+        key = (needans, samplesonly)
         if key in p._testcases is not None:
             return maybe_copy(p._testcases[key])
 
@@ -224,7 +223,7 @@ class Problem:
                 validate.Mode.INPUT: ['secret', 'sample'],
                 validate.Mode.ANSWER: ['secret', 'sample'],
                 validate.Mode.INVALID: ['bad', 'invalid_*'],
-                }[mode]:
+            }[mode]:
                 in_paths += glob(p.path, f'data/{prefix}/**/*.in')
         else:
             in_paths = list(glob(p.path, 'data/sample/**/*.in'))
@@ -232,18 +231,6 @@ class Problem:
                 in_paths += list(glob(p.path, 'data/sample/**/*.in.statement'))
             if not samplesonly:
                 in_paths += list(glob(p.path, 'data/secret/**/*.in'))
-            if include_bad:
-                bad_paths = list(glob(p.path, 'data/bad/**/*.in'))
-                if len(bad_paths) > 0:
-                    warn(
-                        'data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.'
-                    )
-                in_paths += bad_paths
-                in_paths += list(glob(p.path, 'data/invalid_inputs/**/*.in'))
-                in_paths += list(glob(p.path, 'data/invalid_answers/**/*.in'))
-                in_paths += list(glob(p.path, 'data/invalid_outputs/**/*.in'))
-
-
 
         testcases = []
         for f in in_paths:
@@ -611,11 +598,11 @@ class Problem:
         match mode:
             case validate.Mode.INPUT:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
-                testcases = problem.testcases(mode=mode, include_bad=not check_constraints)
+                testcases = problem.testcases(mode=mode)
             case validate.Mode.ANSWER:
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
                 problem.validators(validate.OutputValidator, check_constraints=check_constraints)
-                testcases = problem.testcases(mode=mode, include_bad=not check_constraints)
+                testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
                 problem.validators(validate.AnswerValidator)
@@ -624,7 +611,7 @@ class Problem:
             case _:
                 ValueError(mode)
 
-        needans = mode != validate.Mode.INPUT # TODO
+        needans = mode != validate.Mode.INPUT  # TODO
 
         if testcases is False:
             return True
