@@ -242,7 +242,6 @@ class OutputValidator(Validator):
         return "output"
 
     subdir = 'output_validators'
-
     source_dirs = ['output_validator', 'output_validators']
 
     def run(self, testcase, mode, constraints=None, args=None):
@@ -260,34 +259,21 @@ class OutputValidator(Validator):
         The ExecResult
         """
 
-        match mode:
-            case Mode.INVALID:
-                if testcase.root == 'invalid_answers':
-                    path = testcase.ans_path.resolve()
-                else:
-                    if testcase.out_path is None:
-                        raise ValueError(f"Test case {testcase.name} has no .out file")
-                    path = testcase.out_path.resolve()
-            case Mode.ANSWER:
-                path = testcase.ans_path.resolve()
-            case Mode.INPUT:
-                raise ValueError("OutputValidators do not support Mode.INPUT")
-            case _:
-                if not hasattr(mode, 'out_path'):
-                    raise ValueError(mode)
-                path = mode.out_path
+        in_path = testcase.in_path.resolve()
+        ans_path = testcase.ans_path.resolve()
+        path = (
+            mode.out_path
+            if hasattr(mode, 'out_path')
+            else (testcase.out_path.resolve() if testcase.root == 'invalid_outputs' else ans_path)
+        )
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
-
         feedbackdir = mode.feedbackdir if hasattr(mode, 'feedbackdir') else cwd
-        invocation = (
-            self.run_command
-            + [testcase.in_path.resolve(), testcase.ans_path.resolve(), feedbackdir]
-            + self.problem.settings.validator_flags
-        )
+        flags = self.problem.settings.validator_flags
+        invocation = self.run_command + [in_path, ans_path, feedbackdir] + flags
 
         with path.open() as file:
             ret = exec_command(
