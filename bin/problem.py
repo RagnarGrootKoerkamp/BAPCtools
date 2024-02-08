@@ -193,9 +193,6 @@ class Problem:
 
         samplesonly = config.args.samples or only_sample
 
-        if p.interactive:
-            needans = False
-
         key = (needans, samplesonly)
         if key in p._testcases is not None:
             return maybe_copy(p._testcases[key])
@@ -436,8 +433,7 @@ class Problem:
         return validators
 
     def run_submissions(problem):
-        needans = False if problem.interactive else True
-        testcases = problem.testcases(needans=needans)
+        testcases = problem.testcases()
 
         if testcases is False:
             return False
