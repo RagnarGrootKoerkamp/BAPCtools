@@ -86,7 +86,7 @@ def build_samples_zip(problems, statement_language):
 
         # Add samples for non-interactive problems.
         if not problem.interactive:
-            samples = problem.testcases(needans=True, only_sample=True)
+            samples = problem.testcases(only_sample=True)
             for i in range(0, len(samples)):
                 sample = samples[i]
                 basename = outputdir / str(i + 1)
