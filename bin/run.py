@@ -1,11 +1,11 @@
 import os
 import sys
 
-import config
-import validate
 import program
+import config
 import interactive
 import parallel
+import validate
 from typing import Type
 
 from util import *

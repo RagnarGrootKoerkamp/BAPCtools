@@ -14,11 +14,10 @@ class Mode(Enum):
 
     def __str__(self):
         return {
-                Mode.INPUT: "input",
-                Mode.ANSWER: "answer",
-                Mode.INVALID: "invalid files",
-                }[self]
-
+            Mode.INPUT: "input",
+            Mode.ANSWER: "answer",
+            Mode.INVALID: "invalid files",
+        }[self]
 
 
 def _merge_constraints(constraints_path, constraints):
@@ -67,7 +66,7 @@ class Validator(program.Program):
     They can all take constraints.
 
 
-    Validators implement a run method that runs the validator. 
+    Validators implement a run method that runs the validator.
 
     It returns
 
@@ -133,15 +132,11 @@ class Validator(program.Program):
 
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
-                return exec_command(
-                    self.run_command, expect=0, stdin=main_file, cwd=cwd
-                )
+                return exec_command(self.run_command, expect=0, stdin=main_file, cwd=cwd)
 
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
-            result = exec_command(
-                self.run_command + [main_path.resolve()], expect=0, cwd=cwd
-            )
+            result = exec_command(self.run_command + [main_path.resolve()], expect=0, cwd=cwd)
             return result
 
 
@@ -250,43 +245,44 @@ class OutputValidator(Validator):
 
     source_dirs = ['output_validator', 'output_validators']
 
-    def run(self, testcase, run=None, mode=None, constraints=None, args=None):
+    def run(self, testcase, mode, constraints=None, args=None):
         """
         Run this validator on the given testcase.
+
         Arguments
         ---------
-        run: Run | None
-        If not None validate run.out_path
+
+        mode: either a run.Run (namely, when validating submission output) or a Mode
+            (namely, when validation a testcase)
 
         Returns
         -------
         The ExecResult
         """
 
-        if run is not None and mode is not None:
-            raise ValueError(f"Exactly one of run and mode must be None")
-        if run is not None:
-            path = run.out_path
-        else:
-            match mode:
-                case Mode.INVALID:
-                    if testcase.root == 'invalid_answers':
-                        path = testcase.ans_path.resolve()
-                    else:
-                        if  testcase.out_path is None:
-                            raise ValueError(f"Test case {testcase.name} has no .out file")
-                        path = testcase.out_path.resolve()
-                case Mode.ANSWER:
+        match mode:
+            case Mode.INVALID:
+                if testcase.root == 'invalid_answers':
                     path = testcase.ans_path.resolve()
-                case Mode.INPUT:
-                    raise ValueError("OutputValidators do not support Mode.INPUT")
+                else:
+                    if testcase.out_path is None:
+                        raise ValueError(f"Test case {testcase.name} has no .out file")
+                    path = testcase.out_path.resolve()
+            case Mode.ANSWER:
+                path = testcase.ans_path.resolve()
+            case Mode.INPUT:
+                raise ValueError("OutputValidators do not support Mode.INPUT")
+            case _:
+                if not hasattr(mode, 'out_path'):
+                    raise ValueError(mode)
+                path = mode.out_path
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
-        feedbackdir = run.feedbackdir if run is not None else cwd
+        feedbackdir = mode.feedbackdir if hasattr(mode, 'feedbackdir') else cwd
         invocation = (
             self.run_command
             + [testcase.in_path.resolve(), testcase.ans_path.resolve(), feedbackdir]
