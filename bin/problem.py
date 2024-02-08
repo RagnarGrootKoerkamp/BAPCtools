@@ -177,7 +177,6 @@ class Problem:
                 break
         return None
 
-    # statement_samples end in .in.statement and .ans.statement and are only used in the statement.
     def testcases(
         p,
         *,
@@ -253,6 +252,67 @@ class Problem:
 
         p._testcases[key] = testcases
         return maybe_copy(testcases)
+
+    # Returns a list of:
+    # - (Path, Path) = (.in, .ans) pairs
+    # - (Path, Path) = (.in.statement, .ans.statement) pairs
+    # - Path = .interaction files.
+    def statement_samples(p):
+        statement_in_paths = list(glob(p.path, 'data/sample/**/*.in.statement'))
+        interaction_paths = list(glob(p.path, 'data/sample/**/*.interaction'))
+
+        # .in.statement must not shadow a .in file: will cause confusion.
+        # .interaction may shadow a .in file:
+        # - usually the .interaction is an example for the corresponding .in file.
+        # - sometimes, the .interaction is for exposition only, and no corresponding sample actually exists.
+        in_paths = []
+        for in_path in list(glob(p.path, 'data/sample/**/*.in')):
+            if in_path.with_suffix('.in.statement').is_file():
+                warn(f'Statement sample {in_path}.statement may not shadow {in_path}.')
+                continue
+            if in_path.with_suffix('.interaction').is_file():
+                continue
+            in_paths.append(in_path)
+
+        # .interaction files cannot be mixed with .in/.ans pairs.
+        if len(interaction_paths) != 0 and len(in_paths) + len(statement_in_paths) != 0:
+            warn(f'Do not mix .interaction files with .in/.ans files in {p}.')
+
+        # Non-interactive problems should not have .interaction files.
+        # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
+        # so that they can emulate a non-interactive problem with on-the-fly generated input.
+        if not p.interactive:
+            if len(interaction_paths) != 0:
+                warn(
+                    f'Non-interactive problem {p.name} should not have data/sample/*.interaction files.'
+                )
+            interaction_paths = []
+
+        testcases = []
+        for in_path in in_paths:
+            ans_path = in_path.with_suffix('.ans')
+            if not ans_path.is_file():
+                warn(f'Found input file {f} without a .ans file. Skipping.')
+                continue
+            testcases.append((in_path, ans_path))
+
+        for in_path in statement_in_paths:
+            ans_path = in_path.with_suffix('.ans.statement')
+            if not ans_path.is_file():
+                warn(f'Found input file {f} without a .ans file. Skipping.')
+                continue
+            testcases.append((in_path, ans_path))
+
+        for interaction_path in interaction_paths:
+            testcases.append(interaction_path)
+
+        testcases.sort()
+
+        if len(testcases) == 0:
+            warn(f'Didn\'t find any statement samples for {p.name}')
+            testcases = False
+
+        return testcases
 
     # returns a map {expected verdict -> [(name, command)]}
     def submissions(problem, accepted_only=False, copy=False):

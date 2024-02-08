@@ -19,14 +19,12 @@ def create_samples_file(problem):
 
     # create the samples.tex file
     # For samples, find all .in/.ans/.interaction pairs.
-    samples = problem.testcases(
-        needinteraction=problem.interactive,
-        only_sample=True,
-        statement_samples=True,
-        copy=True,
-    )
+    samples = problem.statement_samples()
     if samples is False:
         samples = []
+
+    # Modify a copied list, to not break the cache.
+    samples = samples.copy()
 
     # For interactive problems, find all .interaction files instead.
     samples += glob(problem.path / 'data' / 'sample', '*.interaction')
