@@ -662,10 +662,9 @@ class Problem:
 
         if len(testcases) == 0:
             return True
-        # TODO Why?
 
         action = (
-            "(In)validating invalid testcases"
+            "Invalidation"
             if mode == validate.Mode.INVALID
             else (
                 f"{mode} validation" if not check_constraints else f"Collecting {mode} constraints"
