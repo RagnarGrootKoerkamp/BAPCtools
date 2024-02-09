@@ -664,7 +664,13 @@ class Problem:
             return True
         # TODO Why?
 
-        action = str(mode).capitalize() + ' validation'
+        action = (
+            "(In)validating invalid testcases"
+            if mode == validate.Mode.INVALID
+            else (
+                f"{mode} validation" if not check_constraints else f"Collecting {mode} constraints"
+            ).capitalize()
+        )
 
         success = True
 
