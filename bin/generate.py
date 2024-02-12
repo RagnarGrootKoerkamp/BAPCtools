@@ -449,7 +449,8 @@ class TestcaseRule(Rule):
         if yaml is None:
             self.inline = True
             yaml = dict()
-            target_infile = problem.path / 'data' / self.path.parent / (self.path.name + '.in')
+            intarget = self.path.parent / (self.path.name + '.in')
+            target_infile = problem.path / 'data' / intarget
             if not target_infile.exists():
                 fatal(f'Could not find .in for inline case {intarget}')
             self.hash = hash_file(target_infile)
