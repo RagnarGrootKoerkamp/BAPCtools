@@ -1,13 +1,5 @@
 #include "validation.h"
 
-// For FIXED OUTPUT PROBLEMS:
-// This program will be called as
-// output_validator input < ans
-//
-// You should verify the grammar of the answer file.
-// See input_validator.cpp for information on how to use the Validator class.
-// Furthermore you should check simple properties of the answer.
-
 // For DYNAMIC OUTPUT PROBLEMS:
 // This program will be called as
 // output_validator input answer < team_output

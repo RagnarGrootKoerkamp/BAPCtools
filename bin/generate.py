@@ -845,7 +845,7 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == '' and t.root in config.INVALID_CASE_DIRECTORIES:
+                    if contents == '' and not t.root in ['bad', 'invalid_inputs']:
                         bar.error(f'Hardcoded {ext} data must not be empty!')
                         return
                     else:
