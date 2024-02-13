@@ -217,8 +217,14 @@ def new_problem():
             error('ruamel.yaml library not found. Please update problems.yaml manually.')
 
     copytree_and_substitute(
-        skeldir, target_dir / dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks
+        skeldir,
+        target_dir / dirname,
+        variables,
+        exist_ok=True,
+        preserve_symlinks=preserve_symlinks,
+        skip=[skeldir / 'output_validators'] if validation == 'default' else None,
     )
+
     # Warn about missing problem statement skeletons for non-en languages
     for lang in statement_languages:
         filename = f"problem.{lang}.tex"
