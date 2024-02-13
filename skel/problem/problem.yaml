@@ -1,5 +1,6 @@
 name:
-  en: {%problemname%}
+  #lang: name
+{%problemname%}
 author: {%author%}
 # Contest name and year
 source: {%source%}

@@ -166,7 +166,7 @@ def new_problem():
     variables = contest.contest_yaml()
 
     for k, v in {
-        'problemname': problemname,
+        'problemname': '\n'.join(f'  {lang}: {name}' for lang, name in problemname.items()),
         'dirname': dirname,
         'author': author,
         'validation': validation,
