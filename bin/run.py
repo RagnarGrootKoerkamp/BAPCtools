@@ -46,7 +46,7 @@ class Run:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
                 if result.timeout_expired:
                     result.print_verdict_ = 'TLE (aborted)'
-            elif result.ok == ExecCode.ERROR:
+            elif result.ok == ExecStatus.ERROR:
                 result.verdict = 'RUN_TIME_ERROR'
                 if config.args.error:
                     result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
@@ -58,14 +58,14 @@ class Run:
                 result = self._validate_output()
                 if result is None:
                     error(f'No output validators found for testcase {self.testcase.name}')
-                    result = ExecResult(None, ExecCode.REJECTED, 0, False, None, None)
+                    result = ExecResult(None, ExecStatus.REJECTED, 0, False, None, None)
                     result.verdict = 'VALIDATOR_CRASH'
                 else:
                     result.duration = duration
 
                     if result.ok:
                         result.verdict = 'ACCEPTED'
-                    elif result.ok == ExecCode.REJECTED:
+                    elif result.ok == ExecStatus.REJECTED:
                         result.verdict = 'WRONG_ANSWER'
                     else:
                         config.n_error += 1
@@ -384,14 +384,14 @@ class Submission(program.Program):
                 if result.duration > self.problem.settings.timeout:
                     status = f'{Fore.RED}Aborted!'
                     config.n_error += 1
-                elif not result.ok and result.ok != ExecCode.TIMEOUT:
+                elif not result.ok and result.ok != ExecStatus.TIMEOUT:
                     config.n_error += 1
                     status = None
                     print(
                         f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
                         file=sys.stderr,
                     )
-                elif result.duration > self.problem.settings.timelimit or result.ok == ExecCode.TIMEOUT:
+                elif result.duration > self.problem.settings.timelimit or result.ok == ExecStatus.TIMEOUT:
                     status = f'{Fore.YELLOW}Done (TLE):'
                     config.n_warn += 1
                 else:

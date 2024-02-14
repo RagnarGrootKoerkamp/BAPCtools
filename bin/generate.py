@@ -194,7 +194,7 @@ class VisualizerInvocation(Invocation):
     def run(self, bar, cwd, name):
         result = self.program.run(cwd, args=self._sub_args())
 
-        if result.ok == ExecCode.TIMEOUT:
+        if result.ok == ExecStatus.TIMEOUT:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error(f'Visualizer TIMEOUT after {result.duration}s')
         elif not result.ok:
@@ -219,7 +219,7 @@ class SolutionInvocation(Invocation):
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd, default_timeout=True)
 
-        if result.ok == ExecCode.TIMEOUT:
+        if result.ok == ExecStatus.TIMEOUT:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error(f'Solution TIMEOUT after {result.duration}s')
         elif not result.ok:
