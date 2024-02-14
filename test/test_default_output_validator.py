@@ -21,6 +21,7 @@ config.args.verbose = 2
 config.args.error = True
 config.set_default_args()
 
+
 # return list of (flags, ans, out, expected result)
 def read_tests():
     docs = yaml.load_all(
@@ -34,10 +35,10 @@ def read_tests():
         doc['ans'] = str(doc['ans'])
         if 'ac' in doc:
             for out in doc['ac']:
-                tests.append((doc['flags'], doc['ans'], str(out), True))
+                tests.append((doc['flags'], doc['ans'], str(out), util.ExecCode.ACCEPTED))
         if 'wa' in doc:
             for out in doc['wa']:
-                tests.append((doc['flags'], doc['ans'], str(out), 43))
+                tests.append((doc['flags'], doc['ans'], str(out), util.ExecCode.REJECTED))
 
     print(tests)
     return tests
