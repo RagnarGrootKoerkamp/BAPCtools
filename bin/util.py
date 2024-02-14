@@ -759,8 +759,8 @@ class ExecCode(Enum):
         return self == ExecCode.ACCEPTED
 
 class ExecResult:
-    def __init__(self, code, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None):
-        self.code = code
+    def __init__(self, returncode, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None):
+        self.returncode = returncode
         self.ok = ok
         self.duration = duration
         self.timeout_expired = timeout_expired
@@ -845,17 +845,17 @@ class ResourcePopen(subprocess.Popen):
                 self.rusage = None
             return (pid, sts)
 
-def default_exec_code_map(code):
-    if code == 0:
+def default_exec_code_map(returncode):
+    if returncode == 0:
         return ExecCode.ACCEPTED
-    if code == -9:
+    if returncode == -9:
         return ExecCode.TIMEOUT
     return ExecCode.ERROR
 
-def icpc_exec_code_map(code):
-    if code == config.RTV_AC:
+def icpc_exec_code_map(returncode):
+    if returncode == config.RTV_AC:
         return ExecCode.ACCEPTED
-    if code == config.RTV_WA:
+    if returncode == config.RTV_WA:
         return ExecCode.REJECTED
     return ExecCode.ERROR
 
