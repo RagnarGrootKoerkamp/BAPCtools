@@ -11,7 +11,7 @@ from util import (
     shorten_path,
     print_name,
     warn,
-    ExecCode,
+    ExecStatus,
 )
 from colorama import Fore, Style
 from validate import Validator, InputValidator, AnswerValidator, OutputValidator, Mode, sanity_check
@@ -232,7 +232,7 @@ class Testcase:
             flags = args if flags is None else flags + args
 
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
-            if ret.ok == ExecCode.ERROR:
+            if ret.ok == ExecStatus.ERROR:
                 bar.log(f"Unxpected exit code!")
             ok = True if ret.ok else False
 

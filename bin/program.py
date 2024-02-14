@@ -452,7 +452,7 @@ class Generator(Program):
 
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
-    # Returns ExecResult. Success when result.ok == ExecCode.ACCEPTED.
+    # Returns ExecResult. Success when result.ok == ExecStatus.ACCEPTED.
     def run(self, bar, cwd, name, args=[]):
         assert self.run_command is not None
 
@@ -477,7 +477,7 @@ class Generator(Program):
 
         result.retry = False
 
-        if result.ok == ExecCode.TIMEOUT:
+        if result.ok == ExecStatus.TIMEOUT:
             # Timeout -> stop retrying and fail.
             bar.log(f'TIMEOUT after {timeout}s', color=Fore.RED)
             return result
@@ -495,7 +495,7 @@ class Generator(Program):
         else:
             if not in_path.is_file():
                 bar.log(f'Did not write {name}.in and stdout is empty!', color=Fore.RED)
-                result.ok = ExecCode.REJECTED
+                result.ok = ExecStatus.REJECTED
                 return result
 
         return result

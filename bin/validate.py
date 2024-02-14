@@ -71,8 +71,8 @@ class Validator(program.Program):
     It returns
 
     ExecResult: The result of running this validator on the given testcase.
-        ExecResult.ok == ExecCode.ACCEPTED  if the validator accepted.
-        ExecResult.ok == ExecCode.REJECTED if the validator rejected.
+        ExecResult.ok == ExecStatus.ACCEPTED  if the validator accepted.
+        ExecResult.ok == ExecStatus.REJECTED if the validator rejected.
     """
 
     FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']
@@ -132,12 +132,12 @@ class Validator(program.Program):
 
         def format_exec_code_map(returncode):
             if returncode == 0:
-                return ExecCode.ACCEPTED
+                return ExecStatus.ACCEPTED
             if returncode == 1:
-                return ExecCode.REJECTED
+                return ExecStatus.REJECTED
             if returncode == -9:
-                return ExecCode.TIMEOUT
-            return ExecCode.ERROR
+                return ExecStatus.TIMEOUT
+            return ExecStatus.ERROR
 
         if self.language == 'checktestdata':
             with main_path.open() as main_file:

@@ -749,14 +749,14 @@ def get_memory_limit(kwargs=None):
         kwargs.pop('memory')
     return memory_limit
 
-class ExecCode(Enum):
+class ExecStatus(Enum):
     ACCEPTED = 1
     REJECTED = 2
     ERROR = 3
     TIMEOUT = 4
 
     def __bool__(self):
-        return self == ExecCode.ACCEPTED
+        return self == ExecStatus.ACCEPTED
 
 class ExecResult:
     def __init__(self, returncode, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None):
@@ -847,17 +847,17 @@ class ResourcePopen(subprocess.Popen):
 
 def default_exec_code_map(returncode):
     if returncode == 0:
-        return ExecCode.ACCEPTED
+        return ExecStatus.ACCEPTED
     if returncode == -9:
-        return ExecCode.TIMEOUT
-    return ExecCode.ERROR
+        return ExecStatus.TIMEOUT
+    return ExecStatus.ERROR
 
 def icpc_exec_code_map(returncode):
     if returncode == config.RTV_AC:
-        return ExecCode.ACCEPTED
+        return ExecStatus.ACCEPTED
     if returncode == config.RTV_WA:
-        return ExecCode.REJECTED
-    return ExecCode.ERROR
+        return ExecStatus.REJECTED
+    return ExecStatus.ERROR
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwargs):
@@ -929,12 +929,12 @@ def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwar
         # File is likely not executable.
         stdout = None
         stderr = str(e)
-        return ExecResult(None, ExecCode.ERROR, 0, False, stderr, stdout)
+        return ExecResult(None, ExecStatus.ERROR, 0, False, stderr, stdout)
     except OSError as e:
         # File probably doesn't exist.
         stdout = None
         stderr = str(e)
-        return ExecResult(None, ExecCode.ERROR, 0, False, stderr, stdout)
+        return ExecResult(None, ExecStatus.ERROR, 0, False, stderr, stdout)
     tend = time.monotonic()
 
     if threading.current_thread() is threading.main_thread():
