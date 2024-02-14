@@ -141,7 +141,6 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
 
     ret = util.exec_command(
         latexmk_command,
-        expect=0,
         crop=False,
         cwd=builddir,
         stdout=subprocess.PIPE,
@@ -149,7 +148,7 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         timeout=None,
     )
 
-    if ret.ok is not True:
+    if not ret.ok:
         error(f'Failure compiling pdf:')
         print(ret.out, file=sys.stderr)
         error(f'return code {ret.ok}')

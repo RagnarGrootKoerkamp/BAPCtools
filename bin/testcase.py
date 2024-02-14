@@ -11,6 +11,7 @@ from util import (
     shorten_path,
     print_name,
     warn,
+    ExecCode,
 )
 from colorama import Fore, Style
 from validate import Validator, InputValidator, AnswerValidator, OutputValidator, Mode, sanity_check
@@ -231,10 +232,9 @@ class Testcase:
             flags = args if flags is None else flags + args
 
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
-            if ret.ok is not True and ret.ok != config.RTV_WA:
-                bar.log(f"Expected exit code {config.RTV_AC} or {config.RTV_WA}, got {ret.ok}")
-                ret.ok = config.RTV_WA
-            ok = ret.ok == True
+            if ret.ok == ExecCode.ERROR:
+                bar.log(f"Unxpected exit code!")
+            ok = True if ret.ok else False
 
             validator_accepted.append(ok)
             message = validator.name + (' accepted' if ok else ' rejected')
@@ -268,7 +268,7 @@ class Testcase:
                 warn_instead_of_error=warn_instead_of_error,
             )
 
-            if ok is True:
+            if ok:
                 continue
 
             # Move testcase to destination directory if specified.

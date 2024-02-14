@@ -46,7 +46,7 @@ class Run:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
                 if result.timeout_expired:
                     result.print_verdict_ = 'TLE (aborted)'
-            elif result.ok is not True:
+            elif result.ok == ExecCode.ERROR:
                 result.verdict = 'RUN_TIME_ERROR'
                 if config.args.error:
                     result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
@@ -56,16 +56,16 @@ class Run:
                 # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
                 duration = result.duration
                 result = self._validate_output()
-                if result is False:
+                if result is None:
                     error(f'No output validators found for testcase {self.testcase.name}')
-                    result = ExecResult(-1, 0, False, None, None)
+                    result = ExecResult(None, ExecCode.REJECTED, 0, False, None, None)
                     result.verdict = 'VALIDATOR_CRASH'
                 else:
                     result.duration = duration
 
-                    if result.ok is True:
+                    if result.ok:
                         result.verdict = 'ACCEPTED'
-                    elif result.ok is False:
+                    elif result.ok == ExecCode.REJECTED:
                         result.verdict = 'WRONG_ANSWER'
                     else:
                         config.n_error += 1
@@ -85,7 +85,7 @@ class Run:
     def _validate_output(self):
         output_validators = self.problem.validators(validate.OutputValidator)
         if output_validators is False:
-            return False
+            return None
         assert len(output_validators) == 1
         validator = output_validators[0]
 
@@ -107,9 +107,6 @@ class Run:
         if ret.err:
             header = validator.name + ': ' if len(output_validators) > 1 else ''
             ret.err = header + ret.err
-
-        if ret.ok == config.RTV_WA:
-            ret.ok = False
 
         return ret
 
@@ -387,7 +384,7 @@ class Submission(program.Program):
                 if result.duration > self.problem.settings.timeout:
                     status = f'{Fore.RED}Aborted!'
                     config.n_error += 1
-                elif result.ok is not True and result.ok != -9:
+                elif not result.ok and result.code != -9:
                     config.n_error += 1
                     status = None
                     print(
@@ -486,7 +483,7 @@ while True:
                 )
 
                 assert result.err is None and result.out is None
-                if result.ok is not True:
+                if not result.ok:
                     config.n_error += 1
                     status = None
                     print(
