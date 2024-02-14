@@ -14,6 +14,7 @@ import hashlib
 import tempfile
 import yaml as yamllib
 
+from enum import Enum
 from pathlib import Path
 from colorama import Fore, Style
 
@@ -748,9 +749,18 @@ def get_memory_limit(kwargs=None):
         kwargs.pop('memory')
     return memory_limit
 
+class ExecCode(Enum):
+    ACCEPTED = 1
+    REJECTED = 2
+    ERROR = 3
+    TIMEOUT = 4
+
+    def __bool__(self):
+        return self == ExecCode.ACCEPTED
 
 class ExecResult:
-    def __init__(self, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None):
+    def __init__(self, code, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None):
+        self.code = code
         self.ok = ok
         self.duration = duration
         self.timeout_expired = timeout_expired
@@ -835,9 +845,22 @@ class ResourcePopen(subprocess.Popen):
                 self.rusage = None
             return (pid, sts)
 
+def default_exec_code_map(code):
+    if code == 0:
+        return ExecCode.ACCEPTED
+    if code == -9:
+        return ExecCode.TIMEOUT
+    return ExecCode.ERROR
+
+def icpc_exec_code_map(code):
+    if code == config.RTV_AC:
+        return ExecCode.ACCEPTED
+    if code == config.RTV_WA:
+        return ExecCode.REJECTED
+    return ExecCode.ERROR
 
 # Run `command`, returning stderr if the return code is unexpected.
-def exec_command(command, expect=0, crop=True, **kwargs):
+def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwargs):
     # By default: discard stdout, return stderr
     if 'stdout' not in kwargs or kwargs['stdout'] is True:
         kwargs['stdout'] = subprocess.PIPE
@@ -906,12 +929,12 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         # File is likely not executable.
         stdout = None
         stderr = str(e)
-        return ExecResult(-1, 0, False, stderr, stdout)
+        return ExecResult(None, ExecCode.ERROR, 0, False, stderr, stdout)
     except OSError as e:
         # File probably doesn't exist.
         stdout = None
         stderr = str(e)
-        return ExecResult(-1, 0, False, stderr, stdout)
+        return ExecResult(None, ExecCode.ERROR, 0, False, stderr, stdout)
     tend = time.monotonic()
 
     if threading.current_thread() is threading.main_thread():
@@ -927,7 +950,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     def maybe_crop(s):
         return crop_output(s) if crop else s
 
-    ok = True if process.returncode == expect else process.returncode
+    ok = exec_code_map(process.returncode)
     err = maybe_crop(stderr.decode('utf-8', 'replace')) if stderr is not None else None
     out = maybe_crop(stdout.decode('utf-8', 'replace')) if stdout is not None else None
 
@@ -940,7 +963,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     else:
         duration = tend - tstart
 
-    return ExecResult(ok, duration, did_timeout, err, out)
+    return ExecResult(process.returncode, ok, duration, did_timeout, err, out)
 
 
 def inc_label(label):

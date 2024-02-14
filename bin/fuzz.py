@@ -54,7 +54,7 @@ class GeneratorTask:
 
         localbar = bar.start(f'{self.i}: generate')
         result = self.generator.run(localbar, cwd, name, self.seed)
-        if result.ok is not True:
+        if not result.ok:
             return False # No need to call bar.done() in this case, because the Generator calls bar.error()
         localbar.done()
 
@@ -74,7 +74,7 @@ class GeneratorTask:
                     testcase.ans_path.unlink()
                 # Run the solution and validate the generated .ans.
                 localbar = bar.start(f'{self.i}: generate ans')
-                if self.solution.run(bar, cwd, name).ok is not True:
+                if not self.solution.run(bar, cwd, name).ok:
                     localbar.done()
                     return False
                 localbar.done()

@@ -71,8 +71,8 @@ class Validator(program.Program):
     It returns
 
     ExecResult: The result of running this validator on the given testcase.
-        ExecResult.ok is True  if the this validator accepted.
-        ExecResult.ok is False if that the this validator accepted.
+        ExecResult.ok == ExecCode.ACCEPTED  if the validator accepted.
+        ExecResult.ok == ExecCode.REJECTED if the validator rejected.
     """
 
     FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']
@@ -130,13 +130,20 @@ class Validator(program.Program):
         else:
             assert False  # now also catches OutputValidator
 
+        def format_exec_code_map(code):
+            if code == 0:
+                return ExecCode.ACCEPTED
+            if code == 1:
+                return ExecCode.REJECTED
+            return ExecCode.ERROR
+
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
-                return exec_command(self.run_command, expect=0, stdin=main_file, cwd=cwd)
+                return exec_command(self.run_command, exec_code_map=format_exec_code_map, stdin=main_file, cwd=cwd)
 
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
-            result = exec_command(self.run_command + [main_path.resolve()], expect=0, cwd=cwd)
+            result = exec_command(self.run_command + [main_path.resolve()], exec_code_map=format_exec_code_map, cwd=cwd)
             return result
 
 
@@ -174,7 +181,7 @@ class InputValidator(Validator):
         with testcase.in_path.open() as in_file:
             ret = exec_command(
                 invocation + arglist,
-                expect=config.RTV_AC,
+                exec_code_map=icpc_exec_code_map,
                 stdin=in_file,
                 cwd=cwd,
                 timeout=config.get_timeout(),
@@ -219,7 +226,7 @@ class AnswerValidator(Validator):
         with testcase.ans_path.open() as ans_file:
             ret = exec_command(
                 invocation + arglist,
-                expect=config.RTV_AC,
+                exec_code_map=icpc_exec_code_map,
                 stdin=ans_file,
                 cwd=cwd,
                 timeout=config.get_timeout(),
@@ -278,7 +285,7 @@ class OutputValidator(Validator):
         with path.open() as file:
             ret = exec_command(
                 invocation + arglist,
-                expect=config.RTV_AC,
+                exec_code_map=icpc_exec_code_map,
                 stdin=file,
                 cwd=feedbackdir,
                 timeout=config.get_timeout(),

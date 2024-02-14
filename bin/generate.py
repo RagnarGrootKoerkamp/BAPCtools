@@ -166,12 +166,12 @@ class GeneratorInvocation(Invocation):
     def run(self, bar, cwd, name, seed, retries=1):
         for retry in range(retries):
             result = self.program.run(bar, cwd, name, args=self._sub_args(seed=seed + retry))
-            if result.ok is True:
+            if result.ok:
                 break
             if not result.retry:
                 break
 
-        if result.ok is not True:
+        if not result.ok:
             if retries > 1:
                 bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
                 bar.error(f'Generator failed {retry + 1} times', result.err)
@@ -179,7 +179,7 @@ class GeneratorInvocation(Invocation):
                 bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
                 bar.error(f'Generator failed', result.err)
 
-        if result.ok is True and config.args.error and result.err:
+        if result.ok and config.args.error and result.err:
             bar.log('stderr', result.err)
 
         return result
@@ -194,14 +194,14 @@ class VisualizerInvocation(Invocation):
     def run(self, bar, cwd, name):
         result = self.program.run(cwd, args=self._sub_args())
 
-        if result.ok == -9:
+        if result.ok == ExecCode.TIMEOUT:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error(f'Visualizer TIMEOUT after {result.duration}s')
-        elif result.ok is not True:
+        elif not result.ok:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error('Visualizer failed', result.err)
 
-        if result.ok is True and config.args.error and result.err:
+        if result.ok and config.args.error and result.err:
             bar.log('stderr', result.err)
         return result
 
@@ -219,14 +219,14 @@ class SolutionInvocation(Invocation):
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd, default_timeout=True)
 
-        if result.ok == -9:
+        if result.ok == ExecCode.TIMEOUT:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error(f'Solution TIMEOUT after {result.duration}s')
-        elif result.ok is not True:
+        elif not result.ok:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error('Solution failed', result.err)
 
-        if result.ok is True and config.args.error and result.err:
+        if result.ok and config.args.error and result.err:
             bar.log('stderr', result.err)
         return result
 
@@ -674,7 +674,7 @@ class TestcaseRule(Rule):
             tmp.mkdir(parents=True, exist_ok=True)
             tmp_infile = tmp / 'testcase.in'
             result = t.generator.run(bar, tmp, tmp_infile.stem, t.seed, t.config.retries)
-            if result.ok is not True:
+            if not result.ok:
                 return
 
             # This is checked when running the generator.
@@ -695,7 +695,7 @@ class TestcaseRule(Rule):
                 for run in range(config.SEED_DEPENDENCY_RETRIES):
                     new_seed = (t.seed + 1 + run) % (2**31)
                     result = t.generator.run(bar, tmp, tmp_infile.stem, new_seed, t.config.retries)
-                    if result.ok is not True:
+                    if not result.ok:
                         return
 
                     # Now check that the source and target are different.
@@ -827,7 +827,7 @@ class TestcaseRule(Rule):
                 # Step 1: run `generate:` if present.
                 if t.generator:
                     result = t.generator.run(bar, cwd, infile.stem, t.seed, t.config.retries)
-                    if result.ok is not True:
+                    if not result.ok:
                         return
 
                 # Step 2: Copy `copy:` files for all known extensions.
@@ -899,7 +899,7 @@ class TestcaseRule(Rule):
                         if not testcase.ans_path.is_file():
                             # Run the solution if available.
                             if t.config.solution:
-                                if t.config.solution.run(bar, cwd, infile.stem).ok is not True:
+                                if not t.config.solution.run(bar, cwd, infile.stem).ok:
                                     return
                             elif t.inline:
                                 # Otherwise, copy the .ans for inline cases.
