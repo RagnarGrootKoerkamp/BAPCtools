@@ -81,7 +81,7 @@ data:
     # Add valid testcase with invalid answers to ensure that the answer_validators correctly rejects them.
     # (The output validator is also called with these)
     data:
-      #'dont_start_with_whitespace':
+      #dont_start_with_whitespace:
       #    in: "<valid testcase>"
       #    ans: " <valid answer>"
 
@@ -89,7 +89,7 @@ data:
     # Add valid testcase with answer and invalid team output to ensure that the out_validator correctly rejects them.
     # (The output validator is also called with these)
     data:
-      #'dont_start_with_whitespace':
+      #dont_start_with_whitespace:
       #    in: "<valid testcase>"
       #    ans: "<valid answer>"
       #    out: "<invalid answer>"

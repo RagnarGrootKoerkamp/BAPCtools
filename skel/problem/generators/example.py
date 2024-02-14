@@ -7,12 +7,12 @@ random.seed(int(sys.argv[1]))
 
 # Read the second... arguments as ints Example call:
 # example.py {seed} 1 2 3 4
-l = list(map(int, sys.argv[2:]))
+values = list(map(int, sys.argv[2:]))
 
 # Shuffle the list
-random.shuffle(l)
+random.shuffle(values)
 
-# Print in standard format, i.e. one line with the number of elements,
-# followed by the space-separated elements.
-print(len(l))
-print(*l)
+# Print in standard format, i.e. one line with the number of values,
+# followed by the space-separated values.
+print(len(values))
+print(*values)
