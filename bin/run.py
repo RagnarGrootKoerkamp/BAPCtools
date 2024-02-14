@@ -384,14 +384,14 @@ class Submission(program.Program):
                 if result.duration > self.problem.settings.timeout:
                     status = f'{Fore.RED}Aborted!'
                     config.n_error += 1
-                elif not result.ok and result.code != -9:
+                elif not result.ok and result.ok != ExecCode.TIMEOUT:
                     config.n_error += 1
                     status = None
                     print(
                         f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
                         file=sys.stderr,
                     )
-                elif result.duration > self.problem.settings.timelimit:
+                elif result.duration > self.problem.settings.timelimit or result.ok == ExecCode.TIMEOUT:
                     status = f'{Fore.YELLOW}Done (TLE):'
                     config.n_warn += 1
                 else:

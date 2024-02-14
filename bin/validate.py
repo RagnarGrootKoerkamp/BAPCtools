@@ -130,11 +130,13 @@ class Validator(program.Program):
         else:
             assert False  # now also catches OutputValidator
 
-        def format_exec_code_map(code):
-            if code == 0:
+        def format_exec_code_map(returncode):
+            if returncode == 0:
                 return ExecCode.ACCEPTED
-            if code == 1:
+            if returncode == 1:
                 return ExecCode.REJECTED
+            if returncode == -9:
+                return ExecCode.TIMEOUT
             return ExecCode.ERROR
 
         if self.language == 'checktestdata':
