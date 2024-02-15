@@ -762,10 +762,19 @@ class ExecStatus(Enum):
 
 class ExecResult:
     def __init__(
-        self, returncode, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None
+        self,
+        returncode,
+        status,
+        duration,
+        timeout_expired,
+        err,
+        out,
+        verdict=None,
+        print_verdict=None,
     ):
         self.returncode = returncode
-        self.ok = ok
+        assert type(status) is ExecStatus
+        self.status = status
         self.duration = duration
         self.timeout_expired = timeout_expired
         self.err = err
