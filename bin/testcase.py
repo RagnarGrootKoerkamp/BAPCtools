@@ -108,8 +108,9 @@ class Testcase:
             'secret',
             'sample',
             'test',
+            'fuzz',
         ]:
-            raise ValueError(self.root)  # TODO add invalid_outputs
+            raise ValueError(self.root)
 
         # Get the testdata.yaml content for this testcase.
         # Read using the short_path instead of the in_path, because during
