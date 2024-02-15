@@ -12,7 +12,6 @@ from util import *
 from colorama import Fore, Style
 
 
-
 class Run:
     def __init__(self, problem, submission, testcase):
         self.problem = problem
@@ -46,12 +45,12 @@ class Run:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
                 if result.timeout_expired:
                     result.print_verdict_ = 'TLE (aborted)'
-            elif result.ok == ExecStatus.ERROR:
+            elif result.status == ExecStatus.ERROR:
                 result.verdict = 'RUN_TIME_ERROR'
                 if config.args.error:
-                    result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
+                    result.err = 'Exited with code ' + str(result.returncode) + ':\n' + result.err
                 else:
-                    result.err = 'Exited with code ' + str(result.ok)
+                    result.err = 'Exited with code ' + str(result.returncode)
             else:
                 # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
                 duration = result.duration
@@ -63,9 +62,9 @@ class Run:
                 else:
                     result.duration = duration
 
-                    if result.ok:
+                    if result.status:
                         result.verdict = 'ACCEPTED'
-                    elif result.ok == ExecStatus.REJECTED:
+                    elif result.status == ExecStatus.REJECTED:
                         result.verdict = 'WRONG_ANSWER'
                     else:
                         config.n_error += 1
@@ -109,6 +108,7 @@ class Run:
             ret.err = header + ret.err
 
         return ret
+
 
 class Submission(program.Program):
     subdir = 'submissions'
@@ -254,7 +254,7 @@ class Submission(program.Program):
             localbar = bar.start(run)
             result = run.run()
 
-            if result.verdict == 'ACCEPTED' and not self.problem.interactive: 
+            if result.verdict == 'ACCEPTED' and not self.problem.interactive:
                 validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
 
             new_verdict = (
@@ -384,14 +384,17 @@ class Submission(program.Program):
                 if result.duration > self.problem.settings.timeout:
                     status = f'{Fore.RED}Aborted!'
                     config.n_error += 1
-                elif not result.ok and result.ok != ExecStatus.TIMEOUT:
+                elif not result.status and result.status != ExecStatus.TIMEOUT:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.status} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
                         file=sys.stderr,
                     )
-                elif result.duration > self.problem.settings.timelimit or result.ok == ExecStatus.TIMEOUT:
+                elif (
+                    result.duration > self.problem.settings.timelimit
+                    or result.status == ExecStatus.TIMEOUT
+                ):
                     status = f'{Fore.YELLOW}Done (TLE):'
                     config.n_warn += 1
                 else:
@@ -483,11 +486,11 @@ while True:
                 )
 
                 assert result.err is None and result.out is None
-                if not result.ok:
+                if not result.status:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.status} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
                         file=sys.stderr,
                     )
                 else:

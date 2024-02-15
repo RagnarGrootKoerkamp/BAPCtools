@@ -148,10 +148,10 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         timeout=None,
     )
 
-    if not ret.ok:
+    if not ret.status:
         error(f'Failure compiling pdf:')
         print(ret.out, file=sys.stderr)
-        error(f'return code {ret.ok}')
+        error(f'return code {ret.returncode} status {ret.status}')
         error(f'duration {ret.duration}')
         return False
 

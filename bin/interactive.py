@@ -118,7 +118,7 @@ def run_interactive_testcase(
             verdict = 'TIME_LIMIT_EXCEEDED'
             if tend - tstart >= timeout:
                 print_verdict = 'TLE (aborted)'
-        elif not exec_res.ok:
+        elif not exec_res.status:
             verdict = 'RUN_TIME_ERROR'
         elif validator_ok == config.RTV_WA:
             verdict = 'WRONG_ANSWER'
@@ -355,4 +355,13 @@ while True:
     if team_error is False:
         team_err = submission.stderr.read().decode('utf-8', 'replace')
 
-    return ExecResult(None, ExecStatus.ACCEPTED, submission_time, aborted, val_err, team_err, verdict, print_verdict)
+    return ExecResult(
+        None,
+        ExecStatus.ACCEPTED,
+        submission_time,
+        aborted,
+        val_err,
+        team_err,
+        verdict,
+        print_verdict,
+    )

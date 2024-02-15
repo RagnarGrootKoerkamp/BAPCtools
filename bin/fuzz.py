@@ -54,8 +54,8 @@ class GeneratorTask:
 
         localbar = bar.start(f'{self.i}: generate')
         result = self.generator.run(localbar, cwd, name, self.seed)
-        if not result.ok:
-            return False # No need to call bar.done() in this case, because the Generator calls bar.error()
+        if not result.status:
+            return False  # No need to call bar.done() in this case, because the Generator calls bar.error()
         localbar.done()
 
         testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
@@ -74,7 +74,7 @@ class GeneratorTask:
                     testcase.ans_path.unlink()
                 # Run the solution and validate the generated .ans.
                 localbar = bar.start(f'{self.i}: generate ans')
-                if not self.solution.run(bar, cwd, name).ok:
+                if not self.solution.run(bar, cwd, name).status:
                     localbar.done()
                     return False
                 localbar.done()
@@ -225,7 +225,6 @@ class Fuzz:
 
             # add new generator runs to fill up queue
             while self.tasks < self.tmp_ids:
-
                 # don't add new tasks after time is up
                 if time.monotonic() - self.start_time > config.args.time:
                     return

@@ -91,8 +91,8 @@ class TestDefaultOutputValidators:
         problem.settings.validator_flags = flags
 
         result = validator.run(t, r)
-        if result.ok != exp:
+        if result.status != exp:
             print(testdata)
             for k in vars(result):
                 print(k, " -> ", getattr(result, k))
-        assert result.ok == exp
+        assert result.status == exp
