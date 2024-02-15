@@ -234,14 +234,13 @@ class Testcase:
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
             if ret.ok == ExecStatus.ERROR:
                 bar.log(f"Unxpected exit code!")
-            ok = True if ret.ok else False
 
-            validator_accepted.append(ok)
-            message = validator.name + (' accepted' if ok else ' rejected')
+            validator_accepted.append(True if ret.ok else False)
+            message = validator.name + (' accepted' if ret.ok else ' rejected')
 
             # Print stdout and stderr whenever something is printed
             data = ''
-            if not (ok or expect_rejection) or config.args.error:
+            if not (ret.ok or expect_rejection) or config.args.error:
                 if ret.err and ret.out:
                     ret.out = (
                         ret.err
@@ -262,13 +261,13 @@ class Testcase:
                 data = ret.err
 
             bar.part_done(
-                ok or expect_rejection,
+                ret.ok or expect_rejection,
                 message,
                 data=data,
                 warn_instead_of_error=warn_instead_of_error,
             )
 
-            if ok:
+            if ret.ok:
                 continue
 
             # Move testcase to destination directory if specified.
