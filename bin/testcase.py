@@ -239,7 +239,7 @@ class Testcase:
 
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
             if ret.status == ExecStatus.ERROR:
-                bar.log(f"Unxpected exit code!")
+                bar.log(f'Unexpected exit code: {ret.returncode}')
 
             validator_accepted.append(bool(ret.status))
             message = validator.name + (' accepted' if ret.status else ' rejected')
