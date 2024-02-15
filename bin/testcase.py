@@ -241,7 +241,7 @@ class Testcase:
             if ret.status == ExecStatus.ERROR:
                 bar.log(f"Unxpected exit code!")
 
-            validator_accepted.append(True if ret.status else False)
+            validator_accepted.append(bool(ret.status))
             message = validator.name + (' accepted' if ret.status else ' rejected')
 
             # Print stdout and stderr whenever something is printed
