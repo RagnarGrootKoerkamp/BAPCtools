@@ -749,6 +749,7 @@ def get_memory_limit(kwargs=None):
         kwargs.pop('memory')
     return memory_limit
 
+
 class ExecStatus(Enum):
     ACCEPTED = 1
     REJECTED = 2
@@ -758,8 +759,11 @@ class ExecStatus(Enum):
     def __bool__(self):
         return self == ExecStatus.ACCEPTED
 
+
 class ExecResult:
-    def __init__(self, returncode, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None):
+    def __init__(
+        self, returncode, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None
+    ):
         self.returncode = returncode
         self.ok = ok
         self.duration = duration
@@ -845,6 +849,7 @@ class ResourcePopen(subprocess.Popen):
                 self.rusage = None
             return (pid, sts)
 
+
 def default_exec_code_map(returncode):
     if returncode == 0:
         return ExecStatus.ACCEPTED
@@ -852,12 +857,16 @@ def default_exec_code_map(returncode):
         return ExecStatus.TIMEOUT
     return ExecStatus.ERROR
 
-def icpc_exec_code_map(returncode):
+
+def validator_exec_code_map(returncode):
     if returncode == config.RTV_AC:
         return ExecStatus.ACCEPTED
     if returncode == config.RTV_WA:
         return ExecStatus.REJECTED
+    if returncode == -9:
+        return ExecStatus.TIMEOUT
     return ExecStatus.ERROR
+
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwargs):
