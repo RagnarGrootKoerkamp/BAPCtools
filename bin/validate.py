@@ -141,11 +141,17 @@ class Validator(program.Program):
 
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
-                return exec_command(self.run_command, exec_code_map=format_exec_code_map, stdin=main_file, cwd=cwd)
+                return exec_command(
+                    self.run_command, exec_code_map=format_exec_code_map, stdin=main_file, cwd=cwd
+                )
 
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
-            result = exec_command(self.run_command + [main_path.resolve()], exec_code_map=format_exec_code_map, cwd=cwd)
+            result = exec_command(
+                self.run_command + [main_path.resolve()],
+                exec_code_map=format_exec_code_map,
+                cwd=cwd,
+            )
             return result
 
 
@@ -183,7 +189,7 @@ class InputValidator(Validator):
         with testcase.in_path.open() as in_file:
             ret = exec_command(
                 invocation + arglist,
-                exec_code_map=icpc_exec_code_map,
+                exec_code_map=validator_exec_code_map,
                 stdin=in_file,
                 cwd=cwd,
                 timeout=config.get_timeout(),
@@ -228,7 +234,7 @@ class AnswerValidator(Validator):
         with testcase.ans_path.open() as ans_file:
             ret = exec_command(
                 invocation + arglist,
-                exec_code_map=icpc_exec_code_map,
+                exec_code_map=validator_exec_code_map,
                 stdin=ans_file,
                 cwd=cwd,
                 timeout=config.get_timeout(),
@@ -287,7 +293,7 @@ class OutputValidator(Validator):
         with path.open() as file:
             ret = exec_command(
                 invocation + arglist,
-                exec_code_map=icpc_exec_code_map,
+                exec_code_map=validator_exec_code_map,
                 stdin=file,
                 cwd=feedbackdir,
                 timeout=config.get_timeout(),
