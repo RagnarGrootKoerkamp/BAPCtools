@@ -35,10 +35,10 @@ def read_tests():
         doc['ans'] = str(doc['ans'])
         if 'ac' in doc:
             for out in doc['ac']:
-                tests.append((doc['flags'], doc['ans'], str(out), util.ExecCode.ACCEPTED))
+                tests.append((doc['flags'], doc['ans'], str(out), util.ExecStatus.ACCEPTED))
         if 'wa' in doc:
             for out in doc['wa']:
-                tests.append((doc['flags'], doc['ans'], str(out), util.ExecCode.REJECTED))
+                tests.append((doc['flags'], doc['ans'], str(out), util.ExecStatus.REJECTED))
 
     print(tests)
     return tests
