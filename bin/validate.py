@@ -259,7 +259,7 @@ class OutputValidator(Validator):
     subdir = 'output_validators'
     source_dirs = ['output_validator', 'output_validators']
 
-    def run(self, testcase, mode, constraints=None, args=None):
+    def run(self, testcase, run_or_mode, constraints=None, args=None):
         """
         Run this validator on the given testcase.
 
@@ -277,8 +277,8 @@ class OutputValidator(Validator):
         in_path = testcase.in_path.resolve()
         ans_path = testcase.ans_path.resolve()
         path = (
-            mode.out_path
-            if hasattr(mode, 'out_path')
+            run_or_mode.out_path
+            if hasattr(run_or_mode, 'out_path')
             else (testcase.out_path.resolve() if testcase.root == 'invalid_outputs' else ans_path)
         )
 
@@ -286,7 +286,7 @@ class OutputValidator(Validator):
             raise ValueError("Invalid output validator language")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
-        feedbackdir = mode.feedbackdir if hasattr(mode, 'feedbackdir') else cwd
+        feedbackdir = run_or_mode.feedbackdir if hasattr(run_or_mode, 'feedbackdir') else cwd
         flags = self.problem.settings.validator_flags
         invocation = self.run_command + [in_path, ans_path, feedbackdir] + flags
 
