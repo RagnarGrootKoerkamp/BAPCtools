@@ -228,7 +228,7 @@ class Testcase:
             case _:
                 raise ValueError
 
-        validator_accepted = []
+        results = []
         for validator in validators:
             if type(validator) == OutputValidator and self.root.startswith("invalid"):
                 args = ['case_sensitive', 'space_change_sensitive']
@@ -238,11 +238,17 @@ class Testcase:
             flags = args if flags is None else flags + args
 
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
-            if ret.status == ExecStatus.ERROR:
-                bar.log(f'Unexpected exit code: {ret.returncode}')
+            results.append(ret.status)
 
-            validator_accepted.append(bool(ret.status))
-            message = validator.name + (' accepted' if ret.status else ' rejected')
+            message = validator.name + ': '
+            if ret.status:
+                message += 'accepted'
+            elif ret.status == ExecStatus.TIMEOUT:
+                message += 'timeout'
+            elif ret.status == ExecStatus.REJECTED:
+                message += 'rejected'
+            else:
+                message += 'crashed'
 
             # Print stdout and stderr whenever something is printed
             data = ''
@@ -266,14 +272,21 @@ class Testcase:
             else:
                 data = ret.err
 
-            bar.part_done(
-                ret.status or expect_rejection,
-                message,
-                data=data,
-                warn_instead_of_error=warn_instead_of_error,
-            )
+            if expect_rejection:
+                bar.debug(
+                    message,
+                    data='' if ret.status == ExecStatus.REJECTED else data,
+                    color=Fore.GREEN if ret.status == ExecStatus.REJECTED else Fore.YELLOW,
+                )
+            else:
+                bar.part_done(
+                    ret.status,
+                    message,
+                    data=data,
+                    warn_instead_of_error=warn_instead_of_error,
+                )
 
-            if ret.status:
+            if ret.status or expect_rejection:
                 continue
 
             # Move testcase to destination directory if specified.
@@ -300,13 +313,13 @@ class Testcase:
 
             break
 
-        if all(validator_accepted):
-            if expect_rejection:
-                success = False
-                bar.error(f"{mode} validation (unexpectedly) succeeded")
-            else:
-                success = True
-                sanity_check(self.in_path if mode == Mode.INPUT else self.ans_path, bar)
+        if expect_rejection:
+            success = ExecStatus.REJECTED in results
+            if not success:
+                bar.error(f"was not rejected by {mode} validation")
         else:
-            success = expect_rejection
+            success = all(results)
+            if success:
+                sanity_check(self.in_path if mode == Mode.INPUT else self.ans_path, bar)
+
         return success

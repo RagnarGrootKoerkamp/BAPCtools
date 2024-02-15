@@ -388,7 +388,7 @@ class Submission(program.Program):
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.status} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
                         file=sys.stderr,
                     )
                 elif (
@@ -490,7 +490,7 @@ while True:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.status} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
                         file=sys.stderr,
                     )
                 else:
