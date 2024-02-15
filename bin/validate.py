@@ -71,8 +71,8 @@ class Validator(program.Program):
     It returns
 
     ExecResult: The result of running this validator on the given testcase.
-        ExecResult.ok == ExecStatus.ACCEPTED  if the validator accepted.
-        ExecResult.ok == ExecStatus.REJECTED if the validator rejected.
+        ExecResult.status == ExecStatus.ACCEPTED  if the validator accepted.
+        ExecResult.status == ExecStatus.REJECTED if the validator rejected.
     """
 
     FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']

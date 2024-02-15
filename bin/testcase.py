@@ -25,7 +25,7 @@ class Testcase:
     * an input file, sometimes called "the input", with extension `.in`, such as `petersen.in`
     * a default answer file, sometimes called "the answer", with extension `.ans`, such as `petersen.ans`
 
-    Test cases in `data/invalid_inputs` consist only of an input file. [Not implemnted:] Test cases 
+    Test cases in `data/invalid_inputs` consist only of an input file. [Not implemnted:] Test cases
     in `data/invalid_outputs` additionally consist of an output file, with extension `.out`.
 
     As a rule of thumb, test cases have different inputs. To be precise, test cases in
@@ -68,7 +68,7 @@ class Testcase:
             The path to the testcase's input file, like `data/secret/cubic/petersen.in`
 
         short_path: Path
-            Testcases outside problem/data must pass in the short_path explicitly.  In that case, `path` 
+            Testcases outside problem/data must pass in the short_path explicitly.  In that case, `path`
             is the (absolute) path to the input file, and `short_path` is used as the equivalent of the testcase's
             path relative to  `problem.path / 'data'`.
         """
@@ -97,12 +97,18 @@ class Testcase:
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(''))
 
-
         # Backwards compatibility support for `data/bad`.
         if self.root == 'bad':
             warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
             self.root = 'invalid_inputs' if self.ans_path.is_file() else 'invalid_answers'
-        if self.root not in ['invalid_inputs', 'invalid_answers', 'invalid_outputs', 'secret', 'sample', 'test']:
+        if self.root not in [
+            'invalid_inputs',
+            'invalid_answers',
+            'invalid_outputs',
+            'secret',
+            'sample',
+            'test',
+        ]:
             raise ValueError(self.root)  # TODO add invalid_outputs
 
         # Get the testdata.yaml content for this testcase.
@@ -112,7 +118,6 @@ class Testcase:
         self.testdata_yaml = self.problem.get_testdata_yaml(
             self.problem.path / 'data' / self.short_path
         )
-
 
     def __repr__(self):
         return self.name
@@ -201,7 +206,6 @@ class Testcase:
         warn_instead_of_error=False,
         args=None,  # TODO never used?
     ) -> bool:
-
         check_constraints = constraints is not None
         match mode:
             case Mode.INPUT:
@@ -217,7 +221,9 @@ class Testcase:
             case Mode.INVALID:
                 validators = self.problem.validators(InputValidator)[::]
                 if self.root in ['invalid_answers', 'invalid_outputs']:
-                    validators += self.problem.validators(AnswerValidator) + self.problem.validators(OutputValidator)
+                    validators += self.problem.validators(
+                        AnswerValidator
+                    ) + self.problem.validators(OutputValidator)
                 expect_rejection = True
             case _:
                 raise ValueError
@@ -232,15 +238,15 @@ class Testcase:
             flags = args if flags is None else flags + args
 
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
-            if ret.ok == ExecStatus.ERROR:
+            if ret.status == ExecStatus.ERROR:
                 bar.log(f"Unxpected exit code!")
 
-            validator_accepted.append(True if ret.ok else False)
-            message = validator.name + (' accepted' if ret.ok else ' rejected')
+            validator_accepted.append(True if ret.status else False)
+            message = validator.name + (' accepted' if ret.status else ' rejected')
 
             # Print stdout and stderr whenever something is printed
             data = ''
-            if not (ret.ok or expect_rejection) or config.args.error:
+            if not (ret.status or expect_rejection) or config.args.error:
                 if ret.err and ret.out:
                     ret.out = (
                         ret.err
@@ -261,13 +267,13 @@ class Testcase:
                 data = ret.err
 
             bar.part_done(
-                ret.ok or expect_rejection,
+                ret.status or expect_rejection,
                 message,
                 data=data,
                 warn_instead_of_error=warn_instead_of_error,
             )
 
-            if ret.ok:
+            if ret.status:
                 continue
 
             # Move testcase to destination directory if specified.

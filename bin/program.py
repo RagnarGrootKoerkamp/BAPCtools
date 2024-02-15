@@ -357,7 +357,7 @@ class Program:
             self.bar.error('Failed', str(err))
             return False
 
-        if not ret.ok:
+        if not ret.status:
             data = ''
             if ret.err is not None:
                 data += strip_newline(ret.err) + '\n'
@@ -452,7 +452,7 @@ class Generator(Program):
 
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
-    # Returns ExecResult. Success when result.ok == ExecStatus.ACCEPTED.
+    # Returns ExecResult. Success when result.status == ExecStatus.ACCEPTED.
     def run(self, bar, cwd, name, args=[]):
         assert self.run_command is not None
 
@@ -477,12 +477,12 @@ class Generator(Program):
 
         result.retry = False
 
-        if result.ok == ExecStatus.TIMEOUT:
+        if result.status == ExecStatus.TIMEOUT:
             # Timeout -> stop retrying and fail.
             bar.log(f'TIMEOUT after {timeout}s', color=Fore.RED)
             return result
 
-        if not result.ok:
+        if not result.status:
             # Other error -> try again.
             result.retry = True
             return result
@@ -495,7 +495,7 @@ class Generator(Program):
         else:
             if not in_path.is_file():
                 bar.log(f'Did not write {name}.in and stdout is empty!', color=Fore.RED)
-                result.ok = ExecStatus.REJECTED
+                result.status = ExecStatus.REJECTED
                 return result
 
         return result
