@@ -7,6 +7,8 @@ import threading
 
 import parallel
 from util import *
+from testcase import Testcase
+from validate import OutputValidator, Mode
 
 # STEPS:
 # 1. Find generator invocations depending on {seed}.
@@ -41,8 +43,8 @@ class GeneratorTask:
 
     def _run(self, bar):
         # GENERATE THE TEST DATA
-        dir = f'fuzz{self.tmp_id}'  # use some other name...
-        cwd = self.fuzz.problem.tmpdir / 'data' / dir
+        dir = Path('fuzz') / f'tmp_id_{str(self.tmp_id)}'
+        cwd = self.fuzz.problem.tmpdir / 'tool_runs' / dir
         cwd.mkdir(parents=True, exist_ok=True)
         name = 'testcase'
         infile = cwd / (name + '.in')
@@ -58,11 +60,11 @@ class GeneratorTask:
             return False  # No need to call bar.done() in this case, because the Generator calls bar.error()
         localbar.done()
 
-        testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
+        testcase = Testcase(self.fuzz.problem, infile, short_path=dir / (name + '.in'))
 
         # Validate the generated .in.
         localbar = bar.start(f'{self.i}: validate input')
-        if not testcase.validate_format('input', bar=localbar, constraints=None):
+        if not testcase.validate_format(Mode.INPUT, bar=localbar, constraints=None):
             localbar.done()
             return False
         localbar.done()
@@ -81,7 +83,7 @@ class GeneratorTask:
 
             if ansfile.is_file():
                 localbar = bar.start(f'{self.i}: validate output')
-                if not testcase.validate_format('answer', bar=localbar):
+                if not testcase.validate_format(Mode.ANSWER, bar=localbar):
                     localbar.done()
                     return False
                 localbar.done()
@@ -161,7 +163,7 @@ class Fuzz:
         generator_config.build(build_visualizers=False)
 
         # BUILD VALIDATORS
-        self.problem.validators('output')
+        self.problem.validators(OutputValidator)
 
         # SUBMISSIONS
         self.submissions = self.problem.submissions(accepted_only=True)
