@@ -171,5 +171,3 @@ For interactive problems (`validation: custom interactive`), the invocation is
 the same as above, but `stdin` is a pipe that feeds team output into the
 validator instead of a file.
 Similarly, `stdout` is connected to a pipe that forwards to the submission's `stdin`.
-
-

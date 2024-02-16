@@ -7,7 +7,7 @@ package problemformat
 import "struct"
 
 // A command invokes a generator, like "tree --n 5".
-// The regex restricts occurrences of curly-bracked expressions 
+// The regex restricts occurrences of curly-bracketed expressions
 // to things like "tree --random --seed {seed:5}"
 command: !="" & (=~"^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$")
 
@@ -16,7 +16,7 @@ command: !="" & (=~"^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$")
 let basename = "([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])"
 name: =~"^\(basename)$"
 
-// Filenames are somewhat like names, but can also contain '.' 
+// Filenames are somewhat like names, but can also contain '.'
 // and have length at least 2, such as "good-solution_02.py"
 // but not "huge_" or "a".
 let filename = "[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]"

@@ -58,9 +58,7 @@ def read(p):
     return line
 
 
-parser = argparse.ArgumentParser(
-    description="Testing tool for problem Ducky Debugging."
-)
+parser = argparse.ArgumentParser(description="Testing tool for problem XXX.")  # TODO update name
 parser.add_argument(
     "-f",
     dest="inputfile",
@@ -117,12 +115,8 @@ with subprocess.Popen(
                 assert 1 <= x2 and x2 <= w, "Point not in bounds"
                 assert 1 <= y2 and y2 <= h, "Point not in bounds"
                 assert (x1, y1) != (x2, y2)
-                assert (
-                    type(x1, y1) == "horizon"
-                ), "First point does not lie on the horizon."
-                assert (
-                    type(x2, y2) == "horizon"
-                ), "First point does not lie on the horizon."
+                assert type(x1, y1) == "horizon", "First point does not lie on the horizon."
+                assert type(x2, y2) == "horizon", "First point does not lie on the horizon."
                 break
             else:
                 assert False, "Line does not start with question or exclamation mark."
