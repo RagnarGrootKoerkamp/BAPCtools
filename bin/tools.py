@@ -940,7 +940,6 @@ def run_parsed_arguments(args):
                 # Set up arguments for generate.
                 old_args = argparse.Namespace(**vars(config.args))
                 config.args.check_deterministic = not config.args.force
-                config.args.jobs = None
                 config.args.add_unlisted = False
                 config.args.verbose = 0
                 config.args.testcases = None
