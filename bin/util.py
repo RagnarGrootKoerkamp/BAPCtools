@@ -1000,10 +1000,10 @@ def inc_label(label):
         label = label[:x] + 'A' + label[x + 1 :]
     return 'A' + label
 
-def combine_hashes(list):
-    list.sort()
+def combine_hashes(values):
+    values.sort()
     hasher = hashlib.sha256(usedforsecurity=False)
-    for item in list:
+    for item in values:
         hasher.update(item.encode())
     return hasher.hexdigest()
 
