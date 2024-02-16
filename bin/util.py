@@ -350,7 +350,7 @@ class ProgressBar:
     # Log an intermediate line if it's an error or we're in verbose mode.
     # Return True when something was printed
     def part_done(self, success=True, message='', data='', warn_instead_of_error=False):
-        if not success and self.count:
+        if not success:
             if warn_instead_of_error:
                 config.n_warn += 1
             else:
