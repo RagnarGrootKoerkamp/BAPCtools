@@ -1000,6 +1000,7 @@ def inc_label(label):
         label = label[:x] + 'A' + label[x + 1 :]
     return 'A' + label
 
+
 def combine_hashes(values):
     values.sort()
     hasher = hashlib.sha256(usedforsecurity=False)
@@ -1015,6 +1016,7 @@ def combine_hashes_dict(d):
         if d[key] is not None:
             hasher.update(d[key].encode())
     return hasher.hexdigest()
+
 
 def hash_string(string):
     sha = hashlib.sha256(usedforsecurity=False)
@@ -1038,6 +1040,7 @@ def hash_file(file, buffer_size=65536):
             sha.update(data)
 
     return sha.hexdigest()
+
 
 def hash_file_or_dir(file_or_dir, buffer_size=65536):
     if file_or_dir.is_dir():
