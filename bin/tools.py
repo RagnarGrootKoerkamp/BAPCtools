@@ -448,9 +448,7 @@ Run this from one of:
     input_answer_group.add_argument(
         '--input', '-i', action='store_true', help='Only validate input.'
     )
-    input_answer_group.add_argument(
-        '--answer', action='store_true', help='Only validate answer.'
-    )
+    input_answer_group.add_argument('--answer', action='store_true', help='Only validate answer.')
     input_answer_group.add_argument(
         '--invalid', action='store_true', help='Only check invalid files for validity.'
     )

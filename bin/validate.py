@@ -100,7 +100,12 @@ class Validator(program.Program):
             cwd = testcase.in_path.with_suffix('.feedbackdir')
         else:
             name = self.tmpdir.relative_to(self.problem.tmpdir)
-            cwd = self.problem.tmpdir / 'tool_runs' / name / testcase.short_path.with_suffix('.feedbackdir')
+            cwd = (
+                self.problem.tmpdir
+                / 'tool_runs'
+                / name
+                / testcase.short_path.with_suffix('.feedbackdir')
+            )
         cwd.mkdir(parents=True, exist_ok=True)
         arglist = []
         if args is not None:
