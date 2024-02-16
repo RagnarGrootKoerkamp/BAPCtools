@@ -1,4 +1,3 @@
-import os
 import re
 import shutil
 import stat
@@ -406,12 +405,11 @@ class Program:
         for f in self.source_files:
             ensure_symlink(self.tmpdir / f.name, f)
             self.input_files.append(self.tmpdir / f.name)
-            try:
-                hashes.append(hash_file_or_dir(f))
-            except OSError as error:
+            if not f.is_file():
                 self.ok = False
-                self.bar.error(str(error))
-                return False            
+                self.bar.error(f'{str(f)} is not a file')
+                return False
+            hashes.append(hash_file(f))
         self.hash = combine_hashes(hashes)
 
         if not self._get_language(self.source_files):

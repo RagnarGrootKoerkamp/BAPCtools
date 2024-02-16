@@ -1041,6 +1041,9 @@ def hash_file(file, buffer_size=65536):
 
 def hash_file_or_dir(file_or_dir, buffer_size=65536):
     if file_or_dir.is_dir():
-        return combine_hashes([hash_file_or_dir(f) for f in file_or_dir.iterdir()])
+        return combine_hashes(
+            [hash_string(file_or_dir.name)] +
+            [hash_file_or_dir(f) for f in file_or_dir.iterdir()]
+        )
     else:
         return hash_file(file_or_dir)
