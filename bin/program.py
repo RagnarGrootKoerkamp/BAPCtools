@@ -405,6 +405,10 @@ class Program:
         for f in self.source_files:
             ensure_symlink(self.tmpdir / f.name, f)
             self.input_files.append(self.tmpdir / f.name)
+            if not f.is_file():
+                self.ok = False
+                self.bar.error(f'{str(f)} is not a file')
+                return False
             hashes.append(hash_file(f))
         self.hash = combine_hashes(hashes)
 

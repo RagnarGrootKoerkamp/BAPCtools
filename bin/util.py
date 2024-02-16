@@ -13,6 +13,7 @@ import signal
 import hashlib
 import tempfile
 import yaml as yamllib
+import errno
 
 from enum import Enum
 from pathlib import Path
@@ -1000,30 +1001,10 @@ def inc_label(label):
     return 'A' + label
 
 
-def hash_string(string):
-    sha = hashlib.sha256(usedforsecurity=False)
-    sha.update(string.encode())
-    return sha.hexdigest()
-
-
-def hash_file(file, buffer_size=65536):
-    assert file.is_file(), f"File {file} does not exist"
-    sha = hashlib.sha256(usedforsecurity=False)
-
-    with open(file, 'rb') as f:
-        while True:
-            data = f.read(buffer_size)
-            if not data:
-                break
-            sha.update(data)
-
-    return sha.hexdigest()
-
-
-def combine_hashes(list):
-    list.sort()
+def combine_hashes(values):
+    values.sort()
     hasher = hashlib.sha256(usedforsecurity=False)
-    for item in list:
+    for item in values:
         hasher.update(item.encode())
     return hasher.hexdigest()
 
@@ -1035,3 +1016,36 @@ def combine_hashes_dict(d):
         if d[key] is not None:
             hasher.update(d[key].encode())
     return hasher.hexdigest()
+
+
+def hash_string(string):
+    sha = hashlib.sha256(usedforsecurity=False)
+    sha.update(string.encode())
+    return sha.hexdigest()
+
+
+def hash_file(file, buffer_size=65536):
+    if not file.is_file():
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
+    sha = hashlib.sha256(usedforsecurity=False)
+    name = file.name.encode('utf-8')
+    sha.update(len(name).to_bytes(8))
+    sha.update(name)
+
+    with open(file, 'rb') as f:
+        while True:
+            data = f.read(buffer_size)
+            if not data:
+                break
+            sha.update(data)
+
+    return sha.hexdigest()
+
+
+def hash_file_or_dir(file_or_dir, buffer_size=65536):
+    if file_or_dir.is_dir():
+        return combine_hashes(
+            [hash_string(file_or_dir.name)] + [hash_file_or_dir(f) for f in file_or_dir.iterdir()]
+        )
+    else:
+        return hash_file(file_or_dir)
