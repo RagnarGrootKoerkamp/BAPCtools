@@ -326,10 +326,8 @@ class Submission(program.Program):
             p.abort()
 
         p = parallel.new_queue(lambda run: process_run(run, p), pin=True)
-
         for run in runs:
             p.put(run)
-
         p.done()
 
         self.verdict = verdict[1]

@@ -357,10 +357,7 @@ class Problem:
             p.build(localbar)
             localbar.done()
 
-        p = parallel.new_queue(build_program)
-        for pr in programs:
-            p.put(pr)
-        p.done()
+        parallel.run_tasks(build_program, programs)
 
         bar.finalize(print_done=False)
 
@@ -465,10 +462,7 @@ class Problem:
             build_ok &= p.build(localbar)
             localbar.done()
 
-        p = parallel.new_queue(build_program)
-        for pr in validators:
-            p.put(pr)
-        p.done()
+        parallel.run_tasks(build_program, validators)
 
         bar.finalize(print_done=False)
 
@@ -633,8 +627,6 @@ class Problem:
             log('Not answer-validating interactive problems.')
             return True
 
-        ok = True
-
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
         # Also, pick the relevant testcases
         check_constraints = constraints is not None
@@ -677,7 +669,10 @@ class Problem:
 
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
-        for testcase in testcases:
+
+        def process_testcase(testcase):
+            nonlocal success
+
             bar.start(testcase.name)
 
             if (
@@ -689,11 +684,12 @@ class Problem:
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')
-                    ok = False
-                    continue
+                    return
 
             success &= testcase.validate_format(mode, bar=bar, constraints=constraints)
             bar.done()
+
+        parallel.run_tasks(process_testcase, testcases)
 
         bar.finalize(print_done=True)
 

@@ -1562,10 +1562,7 @@ class GeneratorConfig:
                 p.build(localbar)
                 localbar.done()
 
-            p = parallel.new_queue(build_program)
-            for pr in programs:
-                p.put(pr)
-            p.done()
+            parallel.run_tasks(build_program, programs)
 
             bar.finalize(print_done=False)
 

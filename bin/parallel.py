@@ -216,19 +216,23 @@ class ParallelQueue(AbstractQueue):
                 self.all_done.notify_all()
 
 
-def new_queue(f, pin=False, num_threads=True):
+def new_queue(f, pin=False):
     """
     f(task): the function to run on each queue item.
 
-    num_threads: True: the configured default
-                 None/False/0: disable parallelization
-
     pin: whether to pin the threads to (physical) CPU cores.
     """
-    num_threads = config.args.jobs if num_threads is True else num_threads
     pin = pin and not util.is_windows() and not util.is_bsd()
 
+    num_threads = config.args.jobs
     if num_threads:
         return ParallelQueue(f, pin, num_threads)
     else:
         return SequentialQueue(f, pin)
+
+
+def run_tasks(f, tasks: list, pin=False):
+    queue = new_queue(f, pin)
+    for task in tasks:
+        queue.put(task)
+    queue.done()
