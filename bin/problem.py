@@ -699,13 +699,14 @@ class Problem:
                 loc = Path(loc).name
                 name, has_low, has_high, vmin, vmax, low, high = value
                 if not has_low:
+                    success = False
                     warn(
                         f'BOUND NOT REACHED: `{name}` never equals lower bound {low}. Min value found: {vmin}'
                     )
                 if not has_high:
+                    success = False
                     warn(
                         f'BOUND NOT REACHED: `{name}` never equals upper bound {high}. Max value found: {vmax}'
                     )
-                success = False
 
         return success

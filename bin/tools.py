@@ -955,8 +955,8 @@ def run_parsed_arguments(args):
                     statement_language = None
 
                 if not config.args.force:
-                    success &= problem.validate_format('input', constraints={})
-                    success &= problem.validate_format('answer', constraints={})
+                    success &= problem.validate_data(validate.Mode.INPUT, constraints={})
+                    success &= problem.validate_data(validate.Mode.ANSWER, constraints={})
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
