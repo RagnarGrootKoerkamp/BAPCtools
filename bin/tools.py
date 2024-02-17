@@ -682,9 +682,9 @@ Run this from one of:
         '--timeout', '-t', type=int, help='Override the default timeout. Default: 30.'
     )
 
-    # Build DomJudge zip
+    # Build DOMjudge zip
     zipparser = subparsers.add_parser(
-        'zip', parents=[global_parser], help='Create zip file that can be imported into DomJudge'
+        'zip', parents=[global_parser], help='Create zip file that can be imported into DOMjudge'
     )
     zipparser.add_argument('--skip', action='store_true', help='Skip recreation of problem zips.')
     zipparser.add_argument(
