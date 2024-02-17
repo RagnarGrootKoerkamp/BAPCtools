@@ -14,6 +14,7 @@ import hashlib
 import tempfile
 import yaml as yamllib
 import errno
+import secrets
 
 from enum import Enum
 from pathlib import Path
@@ -1049,3 +1050,17 @@ def hash_file_or_dir(file_or_dir, buffer_size=65536):
         )
     else:
         return hash_file(file_or_dir)
+
+
+def generate_problem_uuid():
+    uuid = bytearray(secrets.token_bytes(16))
+    # mark this as v8 uuid (custom uuid) variant 0
+    uuid[6] &= 0b0000_1111
+    uuid[6] |= 0b1000_0000
+    uuid[8] &= 0b0011_1111
+    # format as uuid
+    uuid = uuid.hex()
+    uuid = f'{uuid[0:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:32]}'
+    # make the first bytes BAPCtools specific
+    uuid = config.BAPC_UUID[:config.BAPC_UUID_PREFIX] + uuid[config.BAPC_UUID_PREFIX:]
+    return uuid

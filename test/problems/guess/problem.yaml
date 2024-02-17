@@ -1,6 +1,7 @@
 name: 
   en: Guess the Number
 source: Kattis
+uuid: 4c1ca09b-af36-4cb6-82ec-2cd029c02a6a
 license: cc by-sa
 
 validation: custom interactive
