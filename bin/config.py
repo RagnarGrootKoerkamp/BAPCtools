@@ -126,3 +126,8 @@ DEFAULT_INTERACTION_TIMEOUT = 60
 
 def get_timeout():
     return args.timeout or DEFAULT_TIMEOUT
+
+
+# Randomly generated uuid4 for BAPCtools
+BAPC_UUID = '8ee7605a-d1ce-47b3-be37-15de5acd757e'
+BAPC_UUID_PREFIX = 8

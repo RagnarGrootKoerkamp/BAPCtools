@@ -106,6 +106,7 @@ class Problem:
             'validation': 'default',
             'validator_flags': [],
             'author': '',
+            'uuid': None,
         }
 
         # parse problem.yaml
@@ -159,6 +160,16 @@ class Problem:
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
 
         self.interactive = self.settings.validation == 'custom interactive'
+
+        if self.settings.uuid == None:
+            # try to always display the same uuid (until restart)
+            stored_uuid = self.tmpdir / '.uuid'
+            if stored_uuid.is_file():
+                self.settings.uuid = stored_uuid.read_text().strip()
+            else:
+                self.settings.uuid = generate_problem_uuid()
+                stored_uuid.write_text(self.settings.uuid)
+            warn(f'Missing UUID for {self.name}, add "uuid: {self.settings.uuid}" to problem.yaml')
 
     # Walk up from absolute `path` (a file or directory) looking for the first testdata.yaml
     # file, and return its contents, or None if no testdata.yaml is found.

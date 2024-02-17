@@ -186,6 +186,7 @@ def new_problem():
     variables['rights_owner'] = _ask_variable_string(
         'rights owner', variables.get('rights_owner', 'author')
     )
+    variables['uuid'] = generate_problem_uuid()
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
