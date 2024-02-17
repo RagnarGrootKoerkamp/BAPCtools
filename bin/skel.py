@@ -137,9 +137,11 @@ def new_problem():
     statement_languages = config.args.languages if config.args.languages else ['en']
 
     problemname = {
-        lang: config.args.problemname
-        if config.args.problemname
-        else _ask_variable_string(f'problem name ({lang})')
+        lang: (
+            config.args.problemname
+            if config.args.problemname
+            else _ask_variable_string(f'problem name ({lang})')
+        )
         for lang in statement_languages
     }
     dirname = (
@@ -239,9 +241,11 @@ def rename_problem(problem):
         fatal('ruamel.yaml library not found.')
 
     newname = {
-        lang: config.args.problemname
-        if config.args.problemname
-        else _ask_variable_string(f'New problem name ({lang})', problem.settings.name[lang])
+        lang: (
+            config.args.problemname
+            if config.args.problemname
+            else _ask_variable_string(f'New problem name ({lang})', problem.settings.name[lang])
+        )
         for lang in problem.statement_languages
     }
     dirname = (

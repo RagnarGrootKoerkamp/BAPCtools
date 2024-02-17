@@ -16,4 +16,3 @@ for _ in range(n):
         print("Float expected, got {x}", file=sys.stderr)
         sys.exit(43)
 sys.exit(42)
-

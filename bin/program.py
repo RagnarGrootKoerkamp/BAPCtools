@@ -252,9 +252,9 @@ class Program:
                 # Memory limit in MB.
                 'memlim': (get_memory_limit() or 1024),
                 # Out-of-spec variables used by 'manual' and 'Viva' languages.
-                'build': self.tmpdir / 'build'
-                if (self.tmpdir / 'build') in self.input_files
-                else '',
+                'build': (
+                    self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else ''
+                ),
                 'run': self.tmpdir / 'run',
                 'viva_jar': config.tools_root / 'third_party/viva/viva.jar',
             }

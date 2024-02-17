@@ -263,9 +263,11 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
 
     local_contest_data = Path('contest_data.tex')
     util.copy_and_substitute(
-        local_contest_data
-        if local_contest_data.is_file()
-        else config.tools_root / 'latex/contest_data.tex',
+        (
+            local_contest_data
+            if local_contest_data.is_file()
+            else config.tools_root / 'latex/contest_data.tex'
+        ),
         builddir / 'contest_data.tex',
         config_data,
     )
