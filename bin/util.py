@@ -1062,5 +1062,5 @@ def generate_problem_uuid():
     uuid = uuid.hex()
     uuid = f'{uuid[0:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:32]}'
     # make the first bytes BAPCtools specific
-    uuid = config.BAPC_UUID[:config.BAPC_UUID_PREFIX] + uuid[config.BAPC_UUID_PREFIX:]
+    uuid = config.BAPC_UUID[: config.BAPC_UUID_PREFIX] + uuid[config.BAPC_UUID_PREFIX :]
     return uuid

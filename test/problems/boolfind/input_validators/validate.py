@@ -29,4 +29,3 @@ if not sys.stdin.readline() == "":
     sys.exit(43)
 
 sys.exit(42)
-
