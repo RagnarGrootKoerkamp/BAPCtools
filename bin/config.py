@@ -23,6 +23,16 @@ PRIORITY = {
 
 VALIDATION_MODES = ['default', 'custom', 'custom interactive']
 
+KNOWN_LICENSES = [
+    'cc by-sa',
+    'cc by',
+    'cc0',
+    'public domain',
+    'educational',
+    'permission',
+    'unknown',
+]
+
 MAX_PRIORITY = max(PRIORITY.values())
 MAX_PRIORITY_VERDICT = [v for v in PRIORITY if PRIORITY[v] == MAX_PRIORITY]
 
@@ -46,13 +56,15 @@ KNOWN_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
     '.jpg',
     '.svg',
     '.pdf',
-    '.gif',
+    #'.args',
+    #'.files', # this is actually a folder
 ]
 
 KNOWN_TEXT_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
     '.interaction',
     '.hint',
     '.desc',
+    #'.args',
 ]
 
 INVALID_CASE_DIRECTORIES = [
