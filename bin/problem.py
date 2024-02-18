@@ -29,6 +29,7 @@ class Problem:
         # The Path of the problem directory.
         self.path = path
         self.tmpdir = tmpdir / self.name
+        self.tmpdir.mkdir(parents=True, exist_ok=True)
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
         self._read_settings()
 
