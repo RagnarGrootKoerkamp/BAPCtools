@@ -156,6 +156,7 @@ def build_problem_zip(problem, output, statement_language):
     # Build list of files to store in ZIP file.
     copyfiles = set()
 
+    # Include all files beside testcases
     for pattern, required in files:
         # Only include hidden files if the pattern starts with a '.'.
         paths = list(util.glob(problem.path, pattern, include_hidden=pattern[0] == '.'))
@@ -171,6 +172,7 @@ def build_problem_zip(problem, output, statement_language):
                     out = problem.name / out
                 copyfiles.add((f, out))
 
+    # Include all testcases (specified by a .in file) and copy all related files
     for pattern, required in testcases:
         paths = list(util.glob(problem.path, pattern))
         if required and len(paths) == 0:
