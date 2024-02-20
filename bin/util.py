@@ -1030,7 +1030,7 @@ def hash_file(file, buffer_size=65536):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
     sha = hashlib.sha256(usedforsecurity=False)
     name = file.name.encode('utf-8')
-    sha.update(len(name).to_bytes(8))
+    sha.update(len(name).to_bytes(8, 'big'))
     sha.update(name)
 
     with open(file, 'rb') as f:
