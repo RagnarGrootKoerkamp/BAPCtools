@@ -1,9 +1,12 @@
-name: {%problemname%}
+name:
+  #lang: name
+{%problemname%}
 author: {%author%}
 # Contest name and year
 source: {%source%}
 # contest.region.eu
 source_url: {%source_url%}
+uuid: {%uuid%}
 license: {%license%}
 rights_owner: {%rights_owner%}
 # 'default', 'custom', or 'custom interactive'

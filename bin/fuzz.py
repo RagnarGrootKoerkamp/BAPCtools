@@ -7,6 +7,8 @@ import threading
 
 import parallel
 from util import *
+from testcase import Testcase
+from validate import OutputValidator, Mode
 
 # STEPS:
 # 1. Find generator invocations depending on {seed}.
@@ -41,8 +43,8 @@ class GeneratorTask:
 
     def _run(self, bar):
         # GENERATE THE TEST DATA
-        dir = f'fuzz{self.tmp_id}'  # use some other name...
-        cwd = self.fuzz.problem.tmpdir / 'data' / dir
+        dir = Path('fuzz') / f'tmp_id_{str(self.tmp_id)}'
+        cwd = self.fuzz.problem.tmpdir / 'tool_runs' / dir
         cwd.mkdir(parents=True, exist_ok=True)
         name = 'testcase'
         infile = cwd / (name + '.in')
@@ -54,15 +56,15 @@ class GeneratorTask:
 
         localbar = bar.start(f'{self.i}: generate')
         result = self.generator.run(localbar, cwd, name, self.seed)
-        if result.ok is not True:
-            return False # No need to call bar.done() in this case, because the Generator calls bar.error()
+        if not result.status:
+            return False  # No need to call bar.done() in this case, because the Generator calls bar.error()
         localbar.done()
 
-        testcase = run.Testcase(self.fuzz.problem, infile, short_path=Path(dir) / (name + '.in'))
+        testcase = Testcase(self.fuzz.problem, infile, short_path=dir / (name + '.in'))
 
         # Validate the generated .in.
         localbar = bar.start(f'{self.i}: validate input')
-        if not testcase.validate_format('input', bar=localbar, constraints=None):
+        if not testcase.validate_format(Mode.INPUT, bar=localbar, constraints=None):
             localbar.done()
             return False
         localbar.done()
@@ -74,21 +76,20 @@ class GeneratorTask:
                     testcase.ans_path.unlink()
                 # Run the solution and validate the generated .ans.
                 localbar = bar.start(f'{self.i}: generate ans')
-                if self.solution.run(bar, cwd, name).ok is not True:
+                if not self.solution.run(bar, cwd, name).status:
                     localbar.done()
                     return False
                 localbar.done()
 
             if ansfile.is_file():
                 localbar = bar.start(f'{self.i}: validate output')
-                if not testcase.validate_format('answer', bar=localbar):
+                if not testcase.validate_format(Mode.ANSWER, bar=localbar):
                     localbar.done()
                     return False
                 localbar.done()
             else:
-                if not target_ansfile.is_file():
-                    bar.error(f'{self.i}: {ansfile.name} does not exist and was not generated.')
-                    return False
+                bar.error(f'{self.i}: {ansfile.name} was not generated.')
+                return False
         else:
             if not testcase.ans_path.is_file():
                 testcase.ans_path.write_text('')
@@ -161,7 +162,7 @@ class Fuzz:
         generator_config.build(build_visualizers=False)
 
         # BUILD VALIDATORS
-        self.problem.validators('output')
+        self.problem.validators(OutputValidator)
 
         # SUBMISSIONS
         self.submissions = self.problem.submissions(accepted_only=True)
@@ -185,27 +186,18 @@ class Fuzz:
         self.start_time = time.monotonic()
         self.iteration = 0
         self.tasks = 0
-        self.queue = parallel.Parallel(lambda task: task.run(bar), pin=True)
+        self.queue = parallel.new_queue(lambda task: task.run(bar), pin=True)
 
-        if self.queue.num_threads:
-            # pool of ids used for generators
-            self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
-            self.free_tmp_id = {*range(self.tmp_ids)}
-            self.tmp_id_count = [0] * self.tmp_ids
+        # pool of ids used for generators
+        self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
+        self.free_tmp_id = {*range(self.tmp_ids)}
+        self.tmp_id_count = [0] * self.tmp_ids
 
-            # add first generator task
-            self.finish_task()
+        # add first generator task
+        self.finish_task()
 
-            # wait for the queue to run empty (after config.args.time)
-            self.queue.join()
-        else:
-            self.tmp_ids = -1
-            while time.monotonic() - self.start_time <= config.args.time:
-                testcase_rule = self.testcase_rules[self.iteration % len(self.testcase_rules)]
-                self.iteration += 1
-                self.queue.put(GeneratorTask(self, testcase_rule, self.iteration, None))
-                self.queue.join()
-
+        # wait for the queue to run empty (after config.args.time)
+        self.queue.join()
         # At this point, no new tasks may be started anymore.
         self.queue.done()
         bar.done()
@@ -225,7 +217,6 @@ class Fuzz:
 
             # add new generator runs to fill up queue
             while self.tasks < self.tmp_ids:
-
                 # don't add new tasks after time is up
                 if time.monotonic() - self.start_time > config.args.time:
                     return

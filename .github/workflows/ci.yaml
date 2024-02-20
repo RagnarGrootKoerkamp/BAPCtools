@@ -1,0 +1,17 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pre-commit/action@v3.0.1
+
+  test:
+    runs-on: ubuntu-latest
+    container: ragnargrootkoerkamp/bapctools
+    steps:
+      - uses: actions/checkout@v4
+      - run: cue vet doc/generators.yaml support/schemas/*cue -d '#Generators'
+      - run: pytest

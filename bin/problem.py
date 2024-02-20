@@ -5,12 +5,14 @@ import shlex
 import sys
 
 from pathlib import Path
+from typing import Type
 
 import config
 import latex
 import parallel
 import program
 import run
+import testcase
 import validate
 from util import *
 from colorama import Fore, Style
@@ -27,6 +29,7 @@ class Problem:
         # The Path of the problem directory.
         self.path = path
         self.tmpdir = tmpdir / self.name
+        self.tmpdir.mkdir(parents=True, exist_ok=True)
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
         self._read_settings()
 
@@ -104,6 +107,7 @@ class Problem:
             'validation': 'default',
             'validator_flags': [],
             'author': '',
+            'uuid': None,
         }
 
         # parse problem.yaml
@@ -158,6 +162,16 @@ class Problem:
 
         self.interactive = self.settings.validation == 'custom interactive'
 
+        if self.settings.uuid == None:
+            # try to always display the same uuid (until restart)
+            stored_uuid = self.tmpdir / '.uuid'
+            if stored_uuid.is_file():
+                self.settings.uuid = stored_uuid.read_text().strip()
+            else:
+                self.settings.uuid = generate_problem_uuid()
+                stored_uuid.write_text(self.settings.uuid)
+            warn(f'Missing UUID for {self.name}, add "uuid: {self.settings.uuid}" to problem.yaml')
+
     # Walk up from absolute `path` (a file or directory) looking for the first testdata.yaml
     # file, and return its contents, or None if no testdata.yaml is found.
     def get_testdata_yaml(p, path):
@@ -175,32 +189,22 @@ class Problem:
                 break
         return None
 
-    # statement_samples end in .in.statement and .ans.statement and are only used in the statement.
     def testcases(
         p,
         *,
+        mode=None,
         needans=True,
-        needinteraction=False,
-        only_sample=False,
-        statement_samples=False,
-        include_bad=False,
-        copy=False,
+        only_samples=False,
     ):
-        def maybe_copy(x):
-            return x.copy() if copy and isinstance(x, (list, dict)) else x
+        only_samples = config.args.samples or only_samples
 
-        samplesonly = config.args.samples or only_sample
-
-        if p.interactive:
-            needans = False
-
-        key = (needans, samplesonly, include_bad)
+        key = (mode, needans, only_samples)
         if key in p._testcases is not None:
-            return maybe_copy(p._testcases[key])
+            return p._testcases[key]
 
         in_paths = None
         if config.args.testcases:
-            if samplesonly:
+            if only_samples:
                 assert False
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
@@ -215,46 +219,99 @@ class Problem:
                             in_paths.append(t)
 
             in_paths = list(set(in_paths))
+        elif mode is not None:
+            in_paths = []
+            for prefix in {
+                validate.Mode.INPUT: ['secret', 'sample'],
+                validate.Mode.ANSWER: ['secret', 'sample'],
+                validate.Mode.INVALID: ['bad', 'invalid_*'],
+            }[mode]:
+                in_paths += glob(p.path, f'data/{prefix}/**/*.in')
         else:
             in_paths = list(glob(p.path, 'data/sample/**/*.in'))
-            if statement_samples:
-                in_paths += list(glob(p.path, 'data/sample/**/*.in.statement'))
-            if not samplesonly:
+            if not only_samples:
                 in_paths += list(glob(p.path, 'data/secret/**/*.in'))
-            if include_bad:
-                bad_paths = list(glob(p.path, 'data/bad/**/*.in'))
-                if len(bad_paths) > 0:
-                    warn(
-                        'data/bad is deprecated. Use data/{invalid_inputs,invalid_outputs} instead.'
-                    )
-                in_paths += bad_paths
-                in_paths += list(glob(p.path, 'data/invalid_inputs/**/*.in'))
-                in_paths += list(glob(p.path, 'data/invalid_outputs/**/*.in'))
 
         testcases = []
         for f in in_paths:
-            t = run.Testcase(p, f)
-            # Require both in and ans files
-            if needinteraction and not t.in_path.with_suffix('.interaction').is_file():
-                assert only_sample
-                warn(f'Found input file {f} without a .interaction file. Skipping.')
-                continue
+            t = testcase.Testcase(p, f)
             if needans and not t.ans_path.is_file():
-                if not t.bad_input:
+                if t.root != 'invalid_inputs':
                     warn(f'Found input file {f} without a .ans file. Skipping.')
-                continue
+                    continue
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            if needinteraction:
-                warn(f'Didn\'t find any testcases with interaction for {p.name}')
-            else:
-                warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
+            warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
             testcases = False
 
         p._testcases[key] = testcases
-        return maybe_copy(testcases)
+        return testcases
+
+    # Returns a list of:
+    # - (Path, Path): (.in, .ans) pair
+    # - (Path, Path): (.in.statement, .ans.statement) pair
+    # -  Path       :  .interaction file
+    def statement_samples(p):
+        statement_in_paths = list(glob(p.path, 'data/sample/**/*.in.statement'))
+        interaction_paths = list(glob(p.path, 'data/sample/**/*.interaction'))
+
+        # Make sure that .in.statement files are not mixed with .interaction files.
+        for in_path in interaction_paths:
+            if in_path.with_suffix('.in.statement').is_file():
+                warn(
+                    f'Do not mix .in.statement files and .interaction files with the same basename in {p}.'
+                )
+
+        # A .in may be shadowed by either .in.statement or .interaction, in which case the .in itself is not shown in the PDF.
+        in_paths = []
+        for in_path in list(glob(p.path, 'data/sample/**/*.in')):
+            if in_path.with_suffix('.in.statement').is_file():
+                continue
+            if in_path.with_suffix('.interaction').is_file():
+                continue
+            in_paths.append(in_path)
+
+        # .interaction files cannot be mixed with .in/.ans pairs.
+        if len(interaction_paths) != 0 and len(in_paths) + len(statement_in_paths) != 0:
+            warn(f'Do not mix .interaction files with .in/.ans files in {p}.')
+
+        # Non-interactive problems should not have .interaction files.
+        # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
+        # so that they can emulate a non-interactive problem with on-the-fly generated input.
+        if not p.interactive:
+            if len(interaction_paths) != 0:
+                warn(
+                    f'Non-interactive problem {p.name} should not have data/sample/*.interaction files.'
+                )
+            interaction_paths = []
+
+        testcases = []
+        for in_path in in_paths:
+            ans_path = in_path.with_suffix('.ans')
+            if not ans_path.is_file():
+                warn(f'Found input file {f} without a .ans file. Skipping.')
+                continue
+            testcases.append((in_path, ans_path))
+
+        for in_path in statement_in_paths:
+            ans_path = in_path.with_suffix('.ans.statement')
+            if not ans_path.is_file():
+                warn(f'Found input file {f} without a .ans file. Skipping.')
+                continue
+            testcases.append((in_path, ans_path))
+
+        for interaction_path in interaction_paths:
+            testcases.append(interaction_path)
+
+        testcases.sort()
+
+        if len(testcases) == 0:
+            warn(f'Didn\'t find any statement samples for {p.name}')
+            testcases = False
+
+        return testcases
 
     # returns a map {expected verdict -> [(name, command)]}
     def submissions(problem, accepted_only=False, copy=False):
@@ -312,10 +369,7 @@ class Problem:
             p.build(localbar)
             localbar.done()
 
-        p = parallel.Parallel(build_program)
-        for pr in programs:
-            p.put(pr)
-        p.done()
+        parallel.run_tasks(build_program, programs)
 
         bar.finalize(print_done=False)
 
@@ -340,54 +394,43 @@ class Problem:
             return maybe_copy(submissions['ACCEPTED'])
         return maybe_copy(submissions)
 
-    # If check_constraints is True, this chooses the first validator that matches
-    # contains 'constraints_file' in its source.
-    # _validators maps from input/output to the list of validators.
-    def validators(problem, validator_type, check_constraints=False):
+    def validators(
+        problem, cls: Type[validate.Validator], check_constraints=False
+    ) -> list[validate.Validator]:
         """
-        Args:
-            validator_type: 'answer', 'output', 'input'
-            check_constraints: True if the validator should check constraints
+        Gets the validators of the given class.
+
+        If needed, builds them.
+
+        problem._validators caches previous calls to avoid rebuilding
 
         Returns:
-            False: something went wrong
-            singleton list(OutputValidator) if validator_type is 'output'
-            list(Validator) otherwise
+            singleton list(OutputValidator) if cls is OutputValidator
+            list(Validator) otherwise, maybe empty
         """
-        assert validator_type in ['input', 'answer', 'output']
 
-        key = (validator_type, check_constraints)
+        key = (cls, check_constraints)
         if key in problem._validators:
             return problem._validators[key]
         ok = True
 
-        subdirs_for_type = {
-            'answer': ['answer_validators', 'answer_format_validators'],
-            'output': ['output_validator', 'output_validators'],
-            'input': ['input_validators', 'input_format_validators'],
-        }
-        paths_for_type = {
-            vtype: [g for sdir in sdirs for g in glob(problem.path / sdir, '*')]
-            for vtype, sdirs in subdirs_for_type.items()
-        }
+        assert hasattr(cls, 'source_dirs')
+        paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, '*')]
 
         # Handle default output validation
-        if problem.settings.validation == 'default':
-            if paths_for_type['output']:
+        if cls == validate.OutputValidator and problem.settings.validation == 'default':
+            if paths:
                 error("Validation is default but custom output validator exists (ignoring it)")
-            paths_for_type['output'] = [
-                config.tools_root / 'support' / 'default_output_validator.cpp'
-            ]
-
-        paths = paths_for_type[validator_type]
+            paths = [config.tools_root / 'support' / 'default_output_validator.cpp']
 
         # Check that the proper number of validators is present
-        match validator_type, len(paths):
-            case 'answer', 0:
-                log(f"No answer validator found")
-            case 'input', 0:
+        match cls, len(paths):
+            case validate.InputValidator, 0:
                 warn(f'No input validators found.')
-            case 'output', l if l != 1:
+            case validate.AnswerValidator, 0:
+                log(f"No answer validator found")
+            case validate.OutputValidator, l if l != 1:
+                print(cls)
                 error(f'Found {len(paths)} output validators, expected exactly one.')
                 ok = False
 
@@ -410,14 +453,11 @@ class Problem:
                 )
             ]
 
-        validator_dispatcher = {
-            'input': validate.InputValidator,
-            'answer': validate.AnswerValidator,
-            'output': validate.OutputValidator,
-        }
-        skip_double_build_warning = check_constraints or not paths_for_type['answer']
+        skip_double_build_warning = (
+            check_constraints  # or not paths_for_class[Class.ANSWER] TODO not sure about this
+        )
         validators = [
-            validator_dispatcher[validator_type](
+            cls(
                 problem,
                 path,
                 skip_double_build_warning=skip_double_build_warning,
@@ -425,8 +465,7 @@ class Problem:
             )
             for path in paths
         ]
-
-        bar = ProgressBar(f'Build {validator_type} validators', items=validators)
+        bar = ProgressBar(f'Building {cls.__str__(cls)} validator', items=validators)
         build_ok = True
 
         def build_program(p):
@@ -435,29 +474,25 @@ class Problem:
             build_ok &= p.build(localbar)
             localbar.done()
 
-        p = parallel.Parallel(build_program)
-        for pr in validators:
-            p.put(pr)
-        p.done()
+        parallel.run_tasks(build_program, validators)
 
         bar.finalize(print_done=False)
 
         # All validators must build.
-        if not ok or not build_ok:
-            validators = False
+        # TODO Really? Why not at least return those that built?
+        result = validators if ok and build_ok else []
 
-        problem._validators[key] = validators
+        problem._validators[key] = result
         return validators
 
     def run_submissions(problem):
-        needans = False if problem.interactive else True
-        testcases = problem.testcases(needans=needans)
+        testcases = problem.testcases()
 
         if testcases is False:
             return False
 
         if problem.interactive:
-            validators = problem.validators('output')
+            validators = problem.validators(validate.OutputValidator)
             if not validators:
                 return False
 
@@ -467,8 +502,8 @@ class Problem:
 
         max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
 
-        # Pre build all output validators to prevent nested ProgressBars.
-        if problem.validators('output') is False:
+        # Pre build the output validator to prevent nested ProgressBars.
+        if problem.validators(validate.OutputValidator) is False:
             return False
 
         ok = True
@@ -585,7 +620,7 @@ class Problem:
 
     # Returns None for new testcases or the Testcase object it equals.
     def matches_existing_testcase(self, t):
-        if t.bad_input or t.bad_output:
+        if t.root in ['invalid_input', 'invalid_answer']:
             return None
         d = t.in_path.read_text()
         if d in self._testcase_hashes:
@@ -593,34 +628,60 @@ class Problem:
         self._testcase_hashes[d] = t
         return None
 
-    # Validate the format of the input or answer files.
-    # For input validation, also make sure all testcases are different.
-    # Constraints is None/True/dictionary. When dictionary, contraints will be stored there.
-    def validate_format(problem, validator_type, constraints=None):
+    def validate_data(problem, mode: validate.Mode, constraints: dict | bool | None = None) -> bool:
+        """Validate aspects of the test data files.
+
+        Arguments:
+            mode: validate.Mode.INPUT | validate.Mode.ANSWER | Validate.Mode.INVALID
+            constraints: True | dict | None. True means "do check constraints but discard the result."
+                False: TODO is this ever used?
+        Return:
+            True if all validation was successful. Successful validation includes, e.g.,
+            correctly rejecting invalid inputs.
+        """
         if constraints is True:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
-        assert validator_type in ['input', 'answer', 'output'], validator_type
 
-        if problem.interactive and validator_type == 'answer':
-            log('Not validating .ans for interactive problem.')
+        if problem.interactive and mode != validate.Mode.INPUT:
+            log('Not answer-validating interactive problems.')
             return True
 
-        validators = problem.validators(validator_type, check_constraints=constraints is not None)
+        # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
+        # Also, pick the relevant testcases
+        check_constraints = constraints is not None
+        match mode:
+            case validate.Mode.INPUT:
+                problem.validators(validate.InputValidator, check_constraints=check_constraints)
+                testcases = problem.testcases(mode=mode)
+            case validate.Mode.ANSWER:
+                problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
+                problem.validators(validate.OutputValidator, check_constraints=check_constraints)
+                testcases = problem.testcases(mode=mode)
+            case validate.Mode.INVALID:
+                problem.validators(validate.InputValidator)
+                problem.validators(validate.AnswerValidator)
+                problem.validators(validate.OutputValidator)
+                testcases = problem.testcases(mode=mode)
+            case _:
+                ValueError(mode)
 
-        if not validators:
-            return False
-
-        needans = validator_type in ['answer', 'output']
-        testcases = problem.testcases(needans=needans, include_bad=True)
+        needans = mode != validate.Mode.INPUT  # TODO
 
         if testcases is False:
             return True
+        # TODO Why?
 
         if len(testcases) == 0:
             return True
 
-        action = 'Validating ' + validator_type
+        action = (
+            "Invalidation"
+            if mode == validate.Mode.INVALID
+            else (
+                f"{mode} validation" if not check_constraints else f"Collecting {mode} constraints"
+            ).capitalize()
+        )
 
         success = True
 
@@ -628,24 +689,27 @@ class Problem:
 
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
-        for testcase in testcases:
+
+        def process_testcase(testcase):
+            nonlocal success
+
             bar.start(testcase.name)
 
-            if validator_type == 'input' and not testcase.included:
+            if (
+                mode == validate.Mode.INPUT
+                and not testcase.in_path.is_symlink()
+                and not testcase.root == "invalid_answers"
+                and not testcase.root == "invalid_outputs"
+            ):
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')
-                    ok = False
-                    continue
+                    return
 
-            # When validating answer format with output validator
-            # always be sensitive
-            args = [
-                    'case_sensitive', 'space_change_sensitive'
-                    ] if validator_type == 'output' else []
-
-            success &= testcase.validate_format(validator_type, bar=bar, constraints=constraints, args=args)
+            success &= testcase.validate_format(mode, bar=bar, constraints=constraints)
             bar.done()
+
+        parallel.run_tasks(process_testcase, testcases)
 
         bar.finalize(print_done=True)
 
@@ -655,13 +719,14 @@ class Problem:
                 loc = Path(loc).name
                 name, has_low, has_high, vmin, vmax, low, high = value
                 if not has_low:
+                    success = False
                     warn(
                         f'BOUND NOT REACHED: `{name}` never equals lower bound {low}. Min value found: {vmin}'
                     )
                 if not has_high:
+                    success = False
                     warn(
                         f'BOUND NOT REACHED: `{name}` never equals upper bound {high}. Max value found: {vmax}'
                     )
-                success = False
 
         return success

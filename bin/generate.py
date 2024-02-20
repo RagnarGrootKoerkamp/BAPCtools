@@ -9,10 +9,12 @@ import collections
 from pathlib import Path, PurePosixPath, PurePath
 
 import config
+import inspect
+import parallel
 import program
 import run
-import parallel
-import inspect
+from testcase import Testcase
+import validate
 
 from util import *
 
@@ -39,7 +41,7 @@ def is_testcase(yaml):
             isinstance(yaml, dict)
             and any(
                 key in yaml
-                for key in ['copy', 'generate', 'in', 'ans', 'hint', 'desc', 'interaction']
+                for key in ['copy', 'generate', 'in', 'ans', 'out', 'hint', 'desc', 'interaction']
             )
         )
     )
@@ -164,12 +166,12 @@ class GeneratorInvocation(Invocation):
     def run(self, bar, cwd, name, seed, retries=1):
         for retry in range(retries):
             result = self.program.run(bar, cwd, name, args=self._sub_args(seed=seed + retry))
-            if result.ok is True:
+            if result.status:
                 break
             if not result.retry:
                 break
 
-        if result.ok is not True:
+        if not result.status:
             if retries > 1:
                 bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
                 bar.error(f'Generator failed {retry + 1} times', result.err)
@@ -177,7 +179,7 @@ class GeneratorInvocation(Invocation):
                 bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
                 bar.error(f'Generator failed', result.err)
 
-        if result.ok is True and config.args.error and result.err:
+        if result.status and config.args.error and result.err:
             bar.log('stderr', result.err)
 
         return result
@@ -192,14 +194,14 @@ class VisualizerInvocation(Invocation):
     def run(self, bar, cwd, name):
         result = self.program.run(cwd, args=self._sub_args())
 
-        if result.ok == -9:
+        if result.status == ExecStatus.TIMEOUT:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error(f'Visualizer TIMEOUT after {result.duration}s')
-        elif result.ok is not True:
+        elif not result.status:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error('Visualizer failed', result.err)
 
-        if result.ok is True and config.args.error and result.err:
+        if result.status and config.args.error and result.err:
             bar.log('stderr', result.err)
         return result
 
@@ -217,14 +219,14 @@ class SolutionInvocation(Invocation):
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd, default_timeout=True)
 
-        if result.ok == -9:
+        if result.status == ExecStatus.TIMEOUT:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error(f'Solution TIMEOUT after {result.duration}s')
-        elif result.ok is not True:
+        elif not result.status:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')
             bar.error('Solution failed', result.err)
 
-        if result.ok is True and config.args.error and result.err:
+        if result.status and config.args.error and result.err:
             bar.log('stderr', result.err)
         return result
 
@@ -234,7 +236,7 @@ class SolutionInvocation(Invocation):
         if interaction_path.is_file():
             return True
 
-        testcase = run.Testcase(problem, in_path, short_path=(t.path.parent / (t.name + '.in')))
+        testcase = Testcase(problem, in_path, short_path=(t.path.parent / (t.name + '.in')))
         r = run.Run(problem, self.program, testcase)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
@@ -419,8 +421,9 @@ class TestcaseRule(Rule):
         # 3. Hardcoded cases where the source is in the yaml file itself.
         self.hardcoded = {}
 
-        # Hash of the .in file, for caching.
-        self.input_hash = None
+        # Hash of testcase for caching.
+        self.hash = None
+
         # Filled during generate(), since `self.config.solution` will only be set later for the default solution.
         self.cache_data = {}
 
@@ -432,13 +435,25 @@ class TestcaseRule(Rule):
 
         super().__init__(problem, key, name, yaml, parent)
 
+        # root in /data
+        self.root = self.path.parts[0]
+
+        # files to consider for hashing
+        hashes = {}
+        extensions = config.KNOWN_TESTCASE_EXTENSIONS.copy()
+        if self.root not in config.INVALID_CASE_DIRECTORIES[1:]:
+            extensions.remove('.ans')
+        if self.root not in config.INVALID_CASE_DIRECTORIES[2:]:
+            extensions.remove('.out')
+
         if yaml is None:
             self.inline = True
             yaml = dict()
-            target_infile = problem.path / 'data' / self.path.parent / (self.path.name + '.in')
+            intarget = self.path.parent / (self.path.name + '.in')
+            target_infile = problem.path / 'data' / intarget
             if not target_infile.exists():
                 fatal(f'Could not find .in for inline case {intarget}')
-            self.input_hash = hash_file(target_infile)
+            self.hash = hash_file(target_infile)
         else:
             check_type('testcase', yaml, [str, dict])
             if isinstance(yaml, str):
@@ -469,11 +484,11 @@ class TestcaseRule(Rule):
                 self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (
                     2**31
                 )
-                self.input_hash = self.generator.hash(self.seed)
                 self.in_is_generated = True
                 self.rule['gen'] = self.generator.command_string
                 if self.generator.uses_seed:
                     self.rule['seed'] = self.seed
+                hashes['.in'] = self.generator.hash(self.seed)
 
             # 2. path
             if 'copy' in yaml:
@@ -483,9 +498,11 @@ class TestcaseRule(Rule):
                 self.copy = resolve_path(yaml['copy'], allow_absolute=False, allow_relative=True)
                 self.copy = problem.path / self.copy.parent / (self.copy.name + '.in')
                 if self.copy.is_file():
-                    self.input_hash = hash_file(self.copy)
                     self.in_is_generated = False
                 self.rule['copy'] = str(self.copy)
+                for ext in extensions:
+                    if self.copy.with_suffix(ext).is_file():
+                        hashes[ext] = hash_file(self.copy.with_suffix(ext))
 
             # 3. hardcoded
             for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
@@ -497,9 +514,11 @@ class TestcaseRule(Rule):
                     self.hardcoded[ext] = value
 
             if '.in' in self.hardcoded:
-                self.input_hash = hash_string(self.hardcoded['.in'])
                 self.in_is_generated = False
                 self.rule['in'] = self.hardcoded['.in']
+            for ext in extensions:
+                if ext in self.hardcoded:
+                    hashes[ext] = hash_string(self.hardcoded[ext])
 
         # Warn/Error for unknown keys.
         for key in yaml:
@@ -509,18 +528,27 @@ class TestcaseRule(Rule):
                 if config.args.action == 'generate':
                     log(f'Unknown testcase level key: {key} in {self.path}')
 
-        if self.input_hash is None:
+        if not '.in' in hashes:
             # An error is shown during generate.
             return
 
+        # build ordered list of hashes we want to consider
+        self.hash = [hashes[ext] for ext in config.KNOWN_TESTCASE_EXTENSIONS if ext in hashes]
+
+        # combine hashes
+        if len(self.hash) == 1:
+            self.hash = self.hash[0]
+        else:
+            self.hash = combine_hashes(self.hash)
+
         # Error for listed cases with identical input.
-        if self.listed and self.input_hash in generator_config.rules_cache:
+        if self.listed and self.hash in generator_config.rules_cache:
             # This is fatal to prevent crashes later on when running generators in parallel.
             # https://github.com/RagnarGrootKoerkamp/BAPCtools/issues/310
             fatal(
-                f'Found identical input at {generator_config.rules_cache[self.input_hash]} and {self.path}'
+                f'Found identical input at {generator_config.rules_cache[self.hash]} and {self.path}'
             )
-        generator_config.rules_cache[self.input_hash] = self.path
+        generator_config.rules_cache[self.hash] = self.path
 
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
@@ -538,13 +566,13 @@ class TestcaseRule(Rule):
 
         # Clean up duplicate unlisted testcases, or warn if distinct.
         if not t.listed and generator_config.has_yaml:
-            if t.input_hash in generator_config.generated_testdata:
+            if t.hash in generator_config.generated_testdata:
                 for ext in config.KNOWN_DATA_EXTENSIONS:
                     ext_file = target_infile.with_suffix(ext)
                     if ext_file.is_file():
                         ext_file.unlink()
                 bar.debug(
-                    f'DELETED unlisted duplicate of {generator_config.generated_testdata[t.input_hash].path}'
+                    f'DELETED unlisted duplicate of {generator_config.generated_testdata[t.hash].path}'
                 )
             else:
                 bar.error(f'Testcase not listed in generator.yaml (delete using --clean).')
@@ -553,12 +581,12 @@ class TestcaseRule(Rule):
 
         # Input can only be missing when the `copy:` does not have a corresponding `.in` file.
         # (When `generate:` or `in:` is used, the input is always present.)
-        if t.input_hash is None:
+        if t.hash is None:
             bar.done(False, f'{t.copy} does not exist.')
             return
 
         # E.g. bapctmp/problem/data/<hash>.in
-        cwd = problem.tmpdir / 'data' / t.input_hash
+        cwd = problem.tmpdir / 'data' / t.hash
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / 'testcase.in'
         ansfile = cwd / 'testcase.ans'
@@ -582,7 +610,7 @@ class TestcaseRule(Rule):
             # - meta_ contains exactly the right content (commands and hashes)
             # - each validator with correct flags has been run already.
             if t.copy:
-                t.cache_data['source_hash'] = t.input_hash
+                t.cache_data['source_hash'] = t.hash
             for ext, string in t.hardcoded.items():
                 t.cache_data['hardcoded_' + ext[1:]] = hash_string(string)
             if t.generator:
@@ -620,8 +648,8 @@ class TestcaseRule(Rule):
                 return (False, False)
 
             # Check whether all input validators have been run.
-            testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
-            for h in testcase.validator_hashes('input'):
+            testcase = Testcase(problem, infile, short_path=t.path / t.name)
+            for h in testcase.validator_hashes(validate.InputValidator):
                 if h not in meta_yaml.get('validator_hashes', []):
                     return (True, False)
             return (True, True)
@@ -646,7 +674,7 @@ class TestcaseRule(Rule):
             tmp.mkdir(parents=True, exist_ok=True)
             tmp_infile = tmp / 'testcase.in'
             result = t.generator.run(bar, tmp, tmp_infile.stem, t.seed, t.config.retries)
-            if result.ok is not True:
+            if not result.status:
                 return
 
             # This is checked when running the generator.
@@ -667,7 +695,7 @@ class TestcaseRule(Rule):
                 for run in range(config.SEED_DEPENDENCY_RETRIES):
                     new_seed = (t.seed + 1 + run) % (2**31)
                     result = t.generator.run(bar, tmp, tmp_infile.stem, new_seed, t.config.retries)
-                    if result.ok is not True:
+                    if not result.status:
                         return
 
                     # Now check that the source and target are different.
@@ -757,7 +785,29 @@ class TestcaseRule(Rule):
 
         def add_testdata_to_cache():
             # Store the generated testdata for deduplication test cases.
-            test_hash = hash_file(target_infile)
+            hashes = {}
+
+            # remove files that should not be considered for this testcase
+            extensions = config.KNOWN_TESTCASE_EXTENSIONS.copy()
+            if t.root not in config.INVALID_CASE_DIRECTORIES[1:]:
+                extensions.remove('.ans')
+            if t.root not in config.INVALID_CASE_DIRECTORIES[2:]:
+                extensions.remove('.out')
+
+            for ext in extensions:
+                if target_infile.with_suffix(ext).is_file():
+                    hashes[ext] = hash_file(target_infile.with_suffix(ext))
+
+            # build ordered list of hashes we want to consider
+            test_hash = [hashes[ext] for ext in extensions if ext in hashes]
+
+            # combine hashes
+            if len(test_hash) == 1:
+                test_hash = test_hash[0]
+            else:
+                test_hash = combine_hashes(test_hash)
+
+            # check for duplicates
             if test_hash not in generator_config.generated_testdata:
                 generator_config.generated_testdata[test_hash] = t
             else:
@@ -777,7 +827,7 @@ class TestcaseRule(Rule):
                 # Step 1: run `generate:` if present.
                 if t.generator:
                     result = t.generator.run(bar, cwd, infile.stem, t.seed, t.config.retries)
-                    if result.ok is not True:
+                    if not result.status:
                         return
 
                 # Step 2: Copy `copy:` files for all known extensions.
@@ -795,7 +845,7 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == '' and t.path.parts[0] != 'bad':
+                    if contents == '' and not t.root in ['bad', 'invalid_inputs']:
                         bar.error(f'Hardcoded {ext} data must not be empty!')
                         return
                     else:
@@ -815,13 +865,13 @@ class TestcaseRule(Rule):
                         return
 
             assert infile.is_file(), f'Expected .in file not found in cache: {infile}'
-            testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
+            testcase = Testcase(problem, infile, short_path=t.path / t.name)
 
             # Validate the in.
             no_validators = config.args.no_validators
 
             if not testcase.validate_format(
-                'input', bar=bar, constraints=None, warn_instead_of_error=no_validators
+                validate.Mode.INPUT, bar=bar, constraints=None, warn_instead_of_error=no_validators
             ):
                 if not no_validators:
                     if t.generator:
@@ -843,13 +893,16 @@ class TestcaseRule(Rule):
 
             if not generator_up_to_date:
                 # Generate .ans and .interaction if needed.
-                if not config.args.no_solution and not (testcase.bad_input or testcase.bad_output):
+                if (
+                    not config.args.no_solution
+                    and testcase.root not in config.INVALID_CASE_DIRECTORIES
+                ):
                     if not problem.interactive:
                         # Generate a .ans if not already generated by earlier steps.
                         if not testcase.ans_path.is_file():
                             # Run the solution if available.
                             if t.config.solution:
-                                if t.config.solution.run(bar, cwd, infile.stem).ok is not True:
+                                if not t.config.solution.run(bar, cwd, infile.stem).status:
                                     return
                             elif t.inline:
                                 # Otherwise, copy the .ans for inline cases.
@@ -870,18 +923,7 @@ class TestcaseRule(Rule):
                         # Validate the ans file.
                         assert ansfile.is_file(), f'Failed to generate ans file: {ansfile}'
                         if not testcase.validate_format(
-                            'answer', bar=bar, warn_instead_of_error=no_validators
-                        ):
-                            if not no_validators:
-                                bar.debug(
-                                    'Use generate --no-validators to ignore validation results.'
-                                )
-                                return
-                        if not testcase.validate_format(
-                            'output', bar=bar, warn_instead_of_error=no_validators, args=[
-                                "space_change_sensitive",
-                                "case_sensitive"
-                                ]
+                            validate.Mode.ANSWER, bar=bar, warn_instead_of_error=no_validators
                         ):
                             if not no_validators:
                                 bar.debug(
@@ -894,7 +936,7 @@ class TestcaseRule(Rule):
                         # For interactive problems, run the interactive solution and generate a .interaction.
                         if (
                             t.config.solution
-                            and (testcase.sample or config.args.interaction)
+                            and (testcase.root == 'sample' or config.args.interaction)
                             and '.interaction' not in t.hardcoded
                         ):
                             if not t.config.solution.run_interactive(problem, bar, cwd, t):
@@ -909,11 +951,11 @@ class TestcaseRule(Rule):
 
             meta_yaml['cache_data'] = t.cache_data
             if generator_up_to_date:
-                hashes = testcase.validator_hashes('input')
+                hashes = testcase.validator_hashes(validate.InputValidator)
                 for h in hashes:
                     meta_yaml['validator_hashes'][h] = hashes[h]
             else:
-                meta_yaml['validator_hashes'] = testcase.validator_hashes('input')
+                meta_yaml['validator_hashes'] = testcase.validator_hashes(validate.InputValidator)
 
             # Update metadata
             if move_generated():
@@ -1086,14 +1128,14 @@ class Directory(Rule):
 
             # Check if the testcase was already validated.
             # TODO: Dedup some of this with TestcaseRule.generate?
-            cwd = problem.tmpdir / 'data' / t.input_hash
+            cwd = problem.tmpdir / 'data' / t.hash
             meta_path = cwd / 'meta_.yaml'
             assert (
                 meta_path.is_file()
-            ), f"Metadata file not found for included case {d.path / key}\nwith hash {t.input_hash}\nfile {meta_path}"
+            ), f"Metadata file not found for included case {d.path / key}\nwith hash {t.hash}\nfile {meta_path}"
             meta_yaml = read_yaml(meta_path)
-            testcase = run.Testcase(problem, infile, short_path=t.path / t.name)
-            hashes = testcase.validator_hashes('input')
+            testcase = Testcase(problem, infile, short_path=t.path / t.name)
+            hashes = testcase.validator_hashes(validate.InputValidator)
 
             # All hashes validated before?
             def up_to_date():
@@ -1104,9 +1146,9 @@ class Directory(Rule):
 
             if not up_to_date():
                 # Validate the testcase input.
-                testcase = run.Testcase(problem, infile, short_path=new_case)
+                testcase = Testcase(problem, infile, short_path=new_case)
                 if not testcase.validate_format(
-                    'input',
+                    validate.Mode.INPUT,
                     bar=bar,
                     constraints=None,
                     warn_instead_of_error=config.args.no_validators,
@@ -1299,7 +1341,7 @@ class GeneratorConfig:
             nonlocal testcase_id
             # Skip unlisted `data/bad` directory: we should not generate .ans files there.
             if (
-                name in ['bad', 'invalid_inputs', 'invalid_outputs']
+                name in config.INVALID_CASE_DIRECTORIES
                 and parent.path == Path('.')
                 and listed is False
             ):
@@ -1520,10 +1562,7 @@ class GeneratorConfig:
                 p.build(localbar)
                 localbar.done()
 
-            p = parallel.Parallel(build_program)
-            for pr in programs:
-                p.put(pr)
-            p.done()
+            parallel.run_tasks(build_program, programs)
 
             bar.finalize(print_done=False)
 
@@ -1532,9 +1571,9 @@ class GeneratorConfig:
         build_programs(run.Submission, solutions_used)
         build_programs(program.Visualizer, visualizers_used)
 
-        self.problem.validators('input')
-        self.problem.validators('answer')
-        self.problem.validators('output')
+        self.problem.validators(validate.InputValidator)
+        self.problem.validators(validate.AnswerValidator)
+        self.problem.validators(validate.OutputValidator)
 
         def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
@@ -1636,7 +1675,7 @@ class GeneratorConfig:
         #    after to deduplicate them against generated testcases.
 
         # 1
-        p = parallel.Parallel(lambda t: t.listed and t.generate(self.problem, self, bar))
+        p = parallel.new_queue(lambda t: t.listed and t.generate(self.problem, self, bar))
 
         def generate_dir(d):
             p.join()
@@ -1646,7 +1685,7 @@ class GeneratorConfig:
         p.done()
 
         # 2
-        p = parallel.Parallel(lambda t: not t.listed and t.generate(self.problem, self, bar))
+        p = parallel.new_queue(lambda t: not t.listed and t.generate(self.problem, self, bar))
 
         def generate_dir_unlisted(d):
             p.join()
@@ -1782,7 +1821,7 @@ class GeneratorConfig:
             if (
                 not process_testcase(self.problem, t.path)
                 or t.listed
-                or (len(t.path.parts) > 0 and t.path.parts[0] == 'bad')
+                or (len(t.path.parts) > 0 and t.path.parts[0] in config.INVALID_CASE_DIRECTORIES)
             ):
                 bar.done()
                 return
@@ -1819,11 +1858,6 @@ class GeneratorConfig:
                 else:
                     bar.log(f'Deleting unlisted testdata.yaml')
                     testdata_yaml_path.unlink()
-
-            # Skip the data/bad directory.
-            if len(d.path.parts) > 0 and d.path.parts[0] == 'bad':
-                bar.done()
-                return
 
             if not d.listed:
                 if process_testcase(self.problem, d.path):

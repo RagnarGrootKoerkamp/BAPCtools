@@ -17,7 +17,7 @@ import "strconv"
 	reject_score: *"0" | #score
 	range: *"-inf +inf" | string
     // Verify that the scores and ranges make sense:
-    _range_syntax: strings.Split(range, " ") & [#score, #score] // space-separated scores  
+    _range_syntax: strings.Split(range, " ") & [#score, #score] // space-separated scores
     _lo: strconv.ParseFloat(strings.Split(range, " ")[0], 64)   // parses to float (including '-inf')
     _hi: strconv.ParseFloat(strings.Split(range, " ")[1], 64)
     _wa: strconv.ParseFloat(reject_score, 64)
@@ -25,13 +25,13 @@ import "strconv"
     _order: true & _lo <= _wa  & _wa <= _ac & _ac <= _hi
 }
 // matches "1", "06", "21", ".4", "-1.2", but not 'inf'
-#score: =~ "^-?([0-9]+|[0-9]*.[0-9]+)$" 
+#score: =~ "^-?([0-9]+|[0-9]*.[0-9]+)$"
 
 // Default grader
 // --------------
 
 #default_grader_flags: this={
-    string  
+    string
     _as_struct: { for w in strings.Split(this, " ")  { (w): _ } }  // convert to struct and ...
     _as_struct: #valid_default_grader_fields                       // ... validate its fields
     }

@@ -23,6 +23,16 @@ PRIORITY = {
 
 VALIDATION_MODES = ['default', 'custom', 'custom interactive']
 
+KNOWN_LICENSES = [
+    'cc by-sa',
+    'cc by',
+    'cc0',
+    'public domain',
+    'educational',
+    'permission',
+    'unknown',
+]
+
 MAX_PRIORITY = max(PRIORITY.values())
 MAX_PRIORITY_VERDICT = [v for v in PRIORITY if PRIORITY[v] == MAX_PRIORITY]
 
@@ -32,9 +42,13 @@ TABLE_THRESHOLD = 4
 FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
-KNOWN_DATA_EXTENSIONS = [
+KNOWN_TESTCASE_EXTENSIONS = [
     '.in',
     '.ans',
+    '.out',
+]
+
+KNOWN_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
     '.interaction',
     '.hint',
     '.desc',
@@ -42,15 +56,22 @@ KNOWN_DATA_EXTENSIONS = [
     '.jpg',
     '.svg',
     '.pdf',
-    '.gif',
+    #'.args',
+    #'.files', # this is actually a folder
 ]
 
-KNOWN_TEXT_DATA_EXTENSIONS = [
-    '.in',
-    '.ans',
+KNOWN_TEXT_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
     '.interaction',
     '.hint',
     '.desc',
+    #'.args',
+]
+
+INVALID_CASE_DIRECTORIES = [
+    'invalid_inputs',
+    'invalid_answers',
+    'invalid_outputs',
+    'bad',
 ]
 
 
@@ -84,7 +105,7 @@ grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_
 grep -Ev '^(h|jobs|time|verbose)$' | sed "s/^/'/;s/$/',/" | tr '\n' ' ' | sed 's/^/args_list = [/;s/, $/]\n/'
 """
 # fmt: off
-args_list = ['1', 'add_unlisted', 'all', 'api', 'author', 'check_deterministic', 'clean', 'clean_generated', 'cleanup_generated', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'cpp_flags', 'default_solution', 'directory', 'error', 'force', 'force_build', 'language', 'no_validators', 'input', 'interaction', 'interactive', 'kattis', 'memory', 'move_to', 'no_bar', 'no_generate', 'no_solutions', 'no_timelimit', 'order', 'order_from_ccs', 'answer', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'samples', 'skel', 'skip', 'no_solution', 'no_testcase_sanity_checks', 'no_visualizer', 'submissions', 'table', 'testcases', 'timelimit', 'timeout', 'token', 'username', 'validation', 'watch', 'web']
+args_list = ['1', 'add_unlisted', 'all', 'answer', 'api', 'author', 'check_deterministic', 'clean', 'clean_generated', 'cleanup_generated', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'cpp_flags', 'default_solution', 'directory', 'error', 'force', 'force_build', 'language', 'no_validators', 'input', 'interaction', 'interactive', 'invalid', 'kattis', 'memory', 'move_to', 'no_bar', 'no_generate', 'no_solutions', 'no_timelimit', 'order', 'order_from_ccs', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'samples', 'skel', 'skip', 'no_solution', 'no_testcase_sanity_checks', 'no_visualizer', 'submissions', 'table', 'testcases', 'timelimit', 'timeout', 'token', 'username', 'validation', 'watch', 'web']
 # fmt: on
 
 
@@ -117,3 +138,8 @@ DEFAULT_INTERACTION_TIMEOUT = 60
 
 def get_timeout():
     return args.timeout or DEFAULT_TIMEOUT
+
+
+# Randomly generated uuid4 for BAPCtools
+BAPC_UUID = '8ee7605a-d1ce-47b3-be37-15de5acd757e'
+BAPC_UUID_PREFIX = 8

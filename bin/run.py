@@ -1,212 +1,15 @@
 import os
 import sys
 
-import config
-import validate
 import program
+import config
 import interactive
 import parallel
+import validate
+from typing import Type
 
 from util import *
 from colorama import Fore, Style
-
-
-class Testcase:
-    # Testcases outside problem/data must pass in the short_path explicitly.
-    # In that case, `path` is the (absolute) path to the `.in` file being
-    # tested, and `short_path` is the name of the testcase relative to
-    # `problem.path / 'data'`.
-    def __init__(self, problem, path, *, short_path=None):
-        assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
-
-        self.problem = problem
-
-        self.in_path = path
-        self.ans_path = (
-            self.in_path.with_suffix('.ans')
-            if path.suffix == '.in'
-            else self.in_path.with_name(self.in_path.with_suffix('').stem + '.ans.statement')
-        )
-        if short_path is None:
-            try:
-                self.short_path = path.relative_to(problem.path / 'data')
-            except ValueError:
-                fatal(f"Testcase {path} is not inside {problem.path / 'data'}.")
-        else:
-            assert short_path is not None
-            self.short_path = short_path
-
-        # Display name: everything after data/.
-        self.name = str(self.short_path.with_suffix(''))
-
-        self.bad_input = self.short_path.parts[0] == 'invalid_inputs'
-        self.bad_output = self.short_path.parts[0] == 'invalid_outputs'
-
-        # Backwards compatibility support for `data/bad`.
-        if self.short_path.parts[0] == 'bad':
-            self.bad_input = not self.ans_path.is_file()
-            self.bad_output = self.ans_path.is_file()
-
-        self.sample = self.short_path.parts[0] == 'sample'
-
-        self.included = False
-        if path.is_symlink():
-            include_target = Path(os.path.normpath(path.parent / os.readlink(path)))
-            if is_relative_to(problem.path / 'data', include_target):
-                self.included = True
-            else:
-                # The case is an unlisted cases included from generators/.
-                pass
-
-        # Get the testdata.yaml content for this testcase.
-        # Read using the short_path instead of the in_path, because during
-        # generate the testcase will live in a temporary directory, where
-        # testdata.yaml doesn't exist.
-        self.testdata_yaml = problem.get_testdata_yaml(self.problem.path / 'data' / self.short_path)
-
-    def with_suffix(self, ext):
-        return self.in_path.with_suffix(ext)
-
-    # Return the flags specified in testdata.yaml for the given validator,
-    # None if no flags were found, or False if this validator should be skipped.
-    # If `split`, split the string by spaces.
-    def testdata_yaml_validator_flags(self, validator_type, validator, split=True):
-        # Do not use flags when using the default output validator.
-        if self.problem.settings.validation == 'default' and validator_type == 'output':
-            return None
-
-        if self.testdata_yaml is None:
-            return None
-        key = (
-            'input_validator_flags'
-            if validator_type == 'input'
-            else 'output_validator_flags'
-        )
-        if key not in self.testdata_yaml:
-            return None
-        flags = self.testdata_yaml[key]
-        # Note: support for lists/dicts for was removed in #259.
-        if not isinstance(flags, str):
-            fatal(f'{key} must be a string in testdata.yaml')
-        return flags.split() if split else flags
-
-    # Returns a dict of objects
-    # hash =>
-    # - name
-    # - flags
-    # - hash
-    # indicating which validators will be run for the current testcase.
-    def validator_hashes(self, validator_type):
-        assert validator_type in ['input', 'answer']
-        validators = self.problem.validators(validator_type) or []
-
-        d = dict()
-
-        for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator_type, validator, split=False)
-            if flags is False:
-                continue
-            o = {
-                'name': validator.name,
-                'flags': flags,
-                'hash': validator.hash,
-            }
-            h = combine_hashes_dict(o)
-            # Don't actually store the somewhat useless validator hash.
-            del o['hash']
-            d[h] = o
-
-        return d
-
-    # Validate the testcase input/answer format
-    def validate_format(
-        self, validator_type, *, bar, constraints=None, warn_instead_of_error=False, args=None
-    ):
-        assert validator_type in ['input', 'answer', 'output']
-
-        bad_testcase = self.bad_input if validator_type == 'input' else self.bad_output
-
-        success = True
-
-        validators = self.problem.validators(validator_type, check_constraints=constraints != None)
-        if validators == False:
-            return True
-
-        for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator_type, validator)
-            if flags is False:
-                continue
-            flags = args if flags is None else flags + args
-
-            ret = validator.run(self, constraints=None if bad_testcase else constraints, args=flags)
-
-            success &= ret.ok is True
-            message = validator.name + (' accepted' if ret.ok != bad_testcase  else ' rejected')
-
-            # Print stdout and stderr whenever something is printed
-            data = ''
-            if ret.ok is not True or config.args.error:
-                if ret.err and ret.out:
-                    ret.out = (
-                        ret.err
-                        + f'\n{Fore.RED}VALIDATOR STDOUT{Style.RESET_ALL}\n'
-                        + Fore.YELLOW
-                        + ret.out
-                    )
-                elif ret.err:
-                    data = ret.err
-                elif ret.out:
-                    data = ret.out
-
-                if validator_type == 'input':
-                    file = self.in_path
-                if validator_type in ['answer', 'output']:
-                    file = self.ans_path
-                data += (
-                    f'{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n'
-                )
-            else:
-                data = ret.err
-
-            bar.part_done(
-                ret.ok is True, message, data=data, warn_instead_of_error=warn_instead_of_error
-            )
-
-            if ret.ok is True:
-                continue
-
-            # Move testcase to destination directory if specified.
-            if config.args.move_to:
-                infile = self.in_path
-                targetdir = self.problem.path / config.args.move_to
-                targetdir.mkdir(parents=True, exist_ok=True)
-                intarget = targetdir / infile.name
-                infile.rename(intarget)
-                bar.log('Moved to ' + print_name(intarget))
-                ansfile = self.ans_path
-                if ansfile.is_file():
-                    anstarget = intarget.with_suffix('.ans')
-                    ansfile.rename(anstarget)
-                    bar.log('Moved to ' + print_name(anstarget))
-
-            # Remove testcase if specified.
-            elif validator_type == 'input' and config.args.remove:
-                bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
-                if self.in_path.exists():
-                    self.in_path.unlink()
-                if self.ans_path.exists():
-                    self.ans_path.unlink()
-
-            break
-
-        if success and not bad_testcase:
-            if validator_type == 'input':
-                validate.generic_validation(validator_type, self.in_path, bar=bar)
-
-            if validator_type == 'answer':
-                validate.generic_validation(validator_type, self.ans_path, bar=bar)
-
-        return success
 
 
 class Run:
@@ -242,26 +45,26 @@ class Run:
                 result.verdict = 'TIME_LIMIT_EXCEEDED'
                 if result.timeout_expired:
                     result.print_verdict_ = 'TLE (aborted)'
-            elif result.ok is not True:
+            elif result.status == ExecStatus.ERROR:
                 result.verdict = 'RUN_TIME_ERROR'
                 if config.args.error:
-                    result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
+                    result.err = 'Exited with code ' + str(result.returncode) + ':\n' + result.err
                 else:
-                    result.err = 'Exited with code ' + str(result.ok)
+                    result.err = 'Exited with code ' + str(result.returncode)
             else:
                 # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
                 duration = result.duration
                 result = self._validate_output()
-                if result is False:
+                if result is None:
                     error(f'No output validators found for testcase {self.testcase.name}')
-                    result = ExecResult(-1, 0, False, None, None)
+                    result = ExecResult(None, ExecStatus.REJECTED, 0, False, None, None)
                     result.verdict = 'VALIDATOR_CRASH'
                 else:
                     result.duration = duration
 
-                    if result.ok is True:
+                    if result.status:
                         result.verdict = 'ACCEPTED'
-                    elif result.ok is False:
+                    elif result.status == ExecStatus.REJECTED:
                         result.verdict = 'WRONG_ANSWER'
                     else:
                         config.n_error += 1
@@ -279,43 +82,32 @@ class Run:
         return result
 
     def _validate_output(self):
-        validator_type = 'output'
-        output_validators = self.problem.validators(validator_type)
+        output_validators = self.problem.validators(validate.OutputValidator)
         if output_validators is False:
-            return False
+            return None
+        assert len(output_validators) == 1
+        validator = output_validators[0]
 
-        last_result = False
-        for output_validator in output_validators:
-            flags = self.testcase.testdata_yaml_validator_flags(validator_type, output_validator)
-            if flags is False:
-                continue
+        flags = self.testcase.testdata_yaml_validator_flags(validator)
 
-            ret = output_validator.run(self.testcase, self, args=flags)
+        ret = validator.run(self.testcase, self, args=flags)
 
-            judgemessage = self.feedbackdir / 'judgemessage.txt'
-            judgeerror = self.feedbackdir / 'judgeerror.txt'
-            if ret.err is None:
-                ret.err = ''
-            if judgemessage.is_file():
-                ret.err += judgemessage.read_text()
-                judgemessage.unlink()
-            if judgeerror.is_file():
-                # Remove any std output because it will usually only contain the
-                ret.err = judgeerror.read_text()
-                judgeerror.unlink()
-            if ret.err:
-                header = output_validator.name + ': ' if len(output_validators) > 1 else ''
-                ret.err = header + ret.err
+        judgemessage = self.feedbackdir / 'judgemessage.txt'
+        judgeerror = self.feedbackdir / 'judgeerror.txt'
+        if ret.err is None:
+            ret.err = ''
+        if judgemessage.is_file():
+            ret.err += judgemessage.read_text()
+            judgemessage.unlink()
+        if judgeerror.is_file():
+            # Remove any std output because it will usually only contain the
+            ret.err = judgeerror.read_text()
+            judgeerror.unlink()
+        if ret.err:
+            header = validator.name + ': ' if len(output_validators) > 1 else ''
+            ret.err = header + ret.err
 
-            if ret.ok == config.RTV_WA:
-                ret.ok = False
-
-            if ret.ok is not True:
-                return ret
-
-            last_result = ret
-
-        return last_result
+        return ret
 
 
 class Submission(program.Program):
@@ -470,8 +262,8 @@ class Submission(program.Program):
             localbar = bar.start(run)
             result = run.run()
 
-            if result.verdict == 'ACCEPTED':
-                validate.generic_validation('output', run.out_path, bar=localbar)
+            if result.verdict == 'ACCEPTED' and not self.problem.interactive:
+                validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
 
             new_verdict = (
                 config.PRIORITY[result.verdict],
@@ -539,13 +331,11 @@ class Submission(program.Program):
                 return
 
             bar.count = None
-            p.stop()
+            p.abort()
 
-        p = parallel.Parallel(lambda run: process_run(run, p), pin=True)
-
+        p = parallel.new_queue(lambda run: process_run(run, p), pin=True)
         for run in runs:
             p.put(run)
-
         p.done()
 
         self.verdict = verdict[1]
@@ -600,14 +390,17 @@ class Submission(program.Program):
                 if result.duration > self.problem.settings.timeout:
                     status = f'{Fore.RED}Aborted!'
                     config.n_error += 1
-                elif result.ok is not True and result.ok != -9:
+                elif not result.status and result.status != ExecStatus.TIMEOUT:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
                         file=sys.stderr,
                     )
-                elif result.duration > self.problem.settings.timelimit:
+                elif (
+                    result.duration > self.problem.settings.timelimit
+                    or result.status == ExecStatus.TIMEOUT
+                ):
                     status = f'{Fore.YELLOW}Done (TLE):'
                     config.n_warn += 1
                 else:
@@ -699,11 +492,11 @@ while True:
                 )
 
                 assert result.err is None and result.out is None
-                if result.ok is not True:
+                if not result.status:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
                         file=sys.stderr,
                     )
                 else:

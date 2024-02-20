@@ -1469,3 +1469,11 @@ class OutputValidator : public Validator {
 		return false;
 	}
 };
+
+class AnswerValidator : public Validator {
+  public:
+	// An OutputValidator can be run in different modes.
+	explicit AnswerValidator(int argc, char** argv, std::istream& in_ = std::cin)
+	    : Validator(/*ws_sensitive=*/true, /*space sensitive*/ true, in_,
+	                get_constraints_file(argc, argv)) {}
+};

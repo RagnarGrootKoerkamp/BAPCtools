@@ -8,6 +8,7 @@ from pathlib import Path
 
 import problem
 import run
+import testcase
 import validate
 import util
 import config
@@ -19,6 +20,7 @@ DEFAULT_OUTPUT_VALIDATORS = ['default_output_validator.cpp']
 config.args.verbose = 2
 config.args.error = True
 config.set_default_args()
+
 
 # return list of (flags, ans, out, expected result)
 def read_tests():
@@ -33,10 +35,10 @@ def read_tests():
         doc['ans'] = str(doc['ans'])
         if 'ac' in doc:
             for out in doc['ac']:
-                tests.append((doc['flags'], doc['ans'], str(out), True))
+                tests.append((doc['flags'], doc['ans'], str(out), util.ExecStatus.ACCEPTED))
         if 'wa' in doc:
             for out in doc['wa']:
-                tests.append((doc['flags'], doc['ans'], str(out), 43))
+                tests.append((doc['flags'], doc['ans'], str(out), util.ExecStatus.REJECTED))
 
     print(tests)
     return tests
@@ -81,7 +83,7 @@ class TestDefaultOutputValidators:
 
         in_path.write_text('')
 
-        t = run.Testcase(problem, in_path, short_path=Path('test'))
+        t = testcase.Testcase(problem, in_path, short_path=Path('test'))
         r = MockRun()
         r.feedbackdir = problem.tmpdir / 'data'
         r.out_path = out_path
@@ -89,8 +91,8 @@ class TestDefaultOutputValidators:
         problem.settings.validator_flags = flags
 
         result = validator.run(t, r)
-        if result.ok != exp:
+        if result.status != exp:
             print(testdata)
             for k in vars(result):
                 print(k, " -> ", getattr(result, k))
-        assert result.ok == exp
+        assert result.status == exp

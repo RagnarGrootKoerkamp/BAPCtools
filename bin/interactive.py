@@ -5,6 +5,7 @@ import sys
 import threading
 
 import config
+import validate
 
 from util import *
 
@@ -29,7 +30,7 @@ def run_interactive_testcase(
     interaction=False,
     submission_args=None,
 ):
-    output_validators = run.problem.validators('output')
+    output_validators = run.problem.validators(validate.OutputValidator)
     if output_validators is False:
         fatal('No output validators found!')
 
@@ -93,7 +94,6 @@ def run_interactive_testcase(
         tstart = time.monotonic()
         exec_res = exec_command(
             submission_command,
-            expect=0,
             stdin=validator_process.stdout,
             stdout=validator_process.stdin,
             stderr=team_error,
@@ -118,7 +118,7 @@ def run_interactive_testcase(
             verdict = 'TIME_LIMIT_EXCEEDED'
             if tend - tstart >= timeout:
                 print_verdict = 'TLE (aborted)'
-        elif exec_res.ok is not True:
+        elif not exec_res.status:
             verdict = 'RUN_TIME_ERROR'
         elif validator_ok == config.RTV_WA:
             verdict = 'WRONG_ANSWER'
@@ -130,7 +130,8 @@ def run_interactive_testcase(
 
         # Set result.err to validator error and result.out to team error.
         return ExecResult(
-            True,
+            None,
+            ExecStatus.ACCEPTED,
             tend - tstart,
             tend - tstart >= timeout,
             validator_err.decode('utf-8', 'replace'),
@@ -354,4 +355,13 @@ while True:
     if team_error is False:
         team_err = submission.stderr.read().decode('utf-8', 'replace')
 
-    return ExecResult(True, submission_time, aborted, val_err, team_err, verdict, print_verdict)
+    return ExecResult(
+        None,
+        ExecStatus.ACCEPTED,
+        submission_time,
+        aborted,
+        val_err,
+        team_err,
+        verdict,
+        print_verdict,
+    )

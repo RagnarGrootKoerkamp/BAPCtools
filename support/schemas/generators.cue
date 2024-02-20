@@ -7,7 +7,7 @@ package problemformat
 import "struct"
 
 // A command invokes a generator, like "tree --n 5".
-// The regex restricts occurrences of curly-bracked expressions 
+// The regex restricts occurrences of curly-bracketed expressions
 // to things like "tree --random --seed {seed:5}"
 command: !="" & (=~"^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$")
 
@@ -16,7 +16,7 @@ command: !="" & (=~"^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$")
 let basename = "([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])"
 name: =~"^\(basename)$"
 
-// Filenames are somewhat like names, but can also contain '.' 
+// Filenames are somewhat like names, but can also contain '.'
 // and have length at least 2, such as "good-solution_02.py"
 // but not "huge_" or "a".
 let filename = "[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]"
@@ -40,7 +40,7 @@ casepath: =~"^\(filename)(/\(basename))*$"
 		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
 		// such as "manual/samples/3".
 		copy?:                            casepath
-		["in" | "ans" | "desc" | "hint"]: string
+		["in" | "ans" | "out" | "desc" | "hint"]: string
 		interaction?:                     =~"^([<>][^\\n]*\\n)+$"
 		#config
 	}
@@ -59,11 +59,13 @@ casepath: =~"^\(filename)(/\(basename))*$"
 	// Each consists of a list of paths relative to "/generators/",
 	// such as "tree_generator/tree.h".
 	generators?: [name]: [...(filepath & !~"^/")]
-	data: {
-		sample!:         #testgroup
-		secret!:         #testgroup
-		invalid_inputs?: #testgroup
-	}
+	data: close({
+		sample!:          #testgroup
+		secret!:          #testgroup
+		invalid_inputs?:  #testgroup
+		invalid_answers?: #testgroup
+		invalid_outputs?: #testgroup
+	})
 	#config
 
 	... // Do allow unknown_key at top level for tooling

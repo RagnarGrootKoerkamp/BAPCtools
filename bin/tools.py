@@ -448,8 +448,9 @@ Run this from one of:
     input_answer_group.add_argument(
         '--input', '-i', action='store_true', help='Only validate input.'
     )
+    input_answer_group.add_argument('--answer', action='store_true', help='Only validate answer.')
     input_answer_group.add_argument(
-        '--answer', action='store_true', help='Only validate answer.'
+        '--invalid', action='store_true', help='Only check invalid files for validity.'
     )
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
@@ -681,9 +682,9 @@ Run this from one of:
         '--timeout', '-t', type=int, help='Override the default timeout. Default: 30.'
     )
 
-    # Build DomJudge zip
+    # Build DOMjudge zip
     zipparser = subparsers.add_parser(
-        'zip', parents=[global_parser], help='Create zip file that can be imported into DomJudge'
+        'zip', parents=[global_parser], help='Create zip file that can be imported into DOMjudge'
     )
     zipparser.add_argument('--skip', action='store_true', help='Skip recreation of problem zips.')
     zipparser.add_argument(
@@ -918,11 +919,12 @@ def run_parsed_arguments(args):
             if level == 'problem':
                 success &= latex.build_problem_pdfs(problem, solutions=True, web=config.args.web)
         if action in ['validate', 'all']:
-            if not (action == 'validate' and config.args.answer):
-                success &= problem.validate_format('input')
-            if not (action == 'validate' and config.args.input):
-                success &= problem.validate_format('answer')
-                success &= problem.validate_format('output')
+            if not (action == 'validate' and (config.args.input or config.args.answer)):
+                success &= problem.validate_data(validate.Mode.INVALID)
+            if not (action == 'validate' and (config.args.answer or config.args.invalid)):
+                success &= problem.validate_data(validate.Mode.INPUT)
+            if not (action == 'validate' and (config.args.input or config.args.invalid)):
+                success &= problem.validate_data(validate.Mode.ANSWER)
         if action in ['run', 'all']:
             success &= problem.run_submissions()
         if action in ['test']:
@@ -938,7 +940,6 @@ def run_parsed_arguments(args):
                 # Set up arguments for generate.
                 old_args = argparse.Namespace(**vars(config.args))
                 config.args.check_deterministic = not config.args.force
-                config.args.jobs = None
                 config.args.add_unlisted = False
                 config.args.verbose = 0
                 config.args.testcases = None
@@ -954,8 +955,8 @@ def run_parsed_arguments(args):
                     statement_language = None
 
                 if not config.args.force:
-                    success &= problem.validate_format('input', constraints={})
-                    success &= problem.validate_format('answer', constraints={})
+                    success &= problem.validate_data(validate.Mode.INPUT, constraints={})
+                    success &= problem.validate_data(validate.Mode.ANSWER, constraints={})
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.

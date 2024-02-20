@@ -86,7 +86,7 @@ def build_samples_zip(problems, statement_language):
 
         # Add samples for non-interactive problems.
         if not problem.interactive:
-            samples = problem.testcases(needans=True, only_sample=True)
+            samples = problem.testcases(only_samples=True)
             for i in range(0, len(samples)):
                 sample = samples[i]
                 basename = outputdir / str(i + 1)
@@ -104,37 +104,32 @@ def build_samples_zip(problems, statement_language):
 def build_problem_zip(problem, output, statement_language):
     """Make DOMjudge ZIP file for specified problem."""
 
-    files = [
-        ('domjudge-problem.ini', False),  # DEPRECATED, may be removed at some point.
-        ('problem.yaml', True),
-        ('problem_statement/*', True),
-        ('data/secret/**/*.in', True),
-        ('data/secret/**/*.ans', True),
-        ('submissions/accepted/**/*', True),
-        ('submissions/*/**/*', False),
-        ('attachments/**/*', False),
+    deprecated = [  # may be removed at some point.
+        'domjudge-problem.ini',
     ]
 
-    for ext in config.KNOWN_DATA_EXTENSIONS:
-        files += [
-            (f'data/sample/**/*{ext}', False),
-            (f'data/secret/**/*{ext}', False),
-        ]
+    files = [
+        ('problem.yaml', True),
+        ('problem_statement/*', True),
+        ('submissions/accepted/**/*', True),
+        ('submissions/*/**/*', False),
+        ('attachments/**/*', problem.interactive),
+    ]
+
+    testcases = [
+        ('data/secret/**/*.in', True),
+        ('data/sample/**/*.in', not problem.interactive),
+    ]
+
+    if problem.interactive:
+        # .interaction files don't need a corresponding .in
+        # therefore we can handle them like all other files
+        files += [('data/sample/**/*.interaction', False)]
 
     if not config.args.kattis:
-        files += [('.timelimit', True)]
-        files += [(f'problem.{statement_language}.pdf', True)]
-
-    if not problem.interactive:
-        # Glob, required?
         files += [
-            ('data/sample/**/*.in', True),
-            ('data/sample/**/*.ans', True),
-        ]
-    else:
-        files += [
-            # Either .interaction or .in.statement should be present, but we only care about .interaction here.
-            ('data/sample/**/*.interaction', False),
+            ('.timelimit', True),
+            (f'problem.{statement_language}.pdf', True),
             ('data/sample/**/*.in.statement', False),
             ('data/sample/**/*.ans.statement', False),
         ]
@@ -147,9 +142,21 @@ def build_problem_zip(problem, output, statement_language):
 
     print("Preparing to make ZIP file for problem dir %s" % problem.path, file=sys.stderr)
 
+    # Warn for all deprecated files but still add them to the files list
+    for pattern in deprecated:
+        files.append((pattern, False))
+        # Only include hidden files if the pattern starts with a '.'.
+        paths = list(util.glob(problem.path, pattern, include_hidden=pattern[0] == '.'))
+        if len(paths) > 0:
+            addition = ''
+            if len(paths) > 1:
+                addition = f' and {len(paths) - 1} more'
+            util.warn(f'Found deprecated file "{paths[0]}"{addition}.')
+
     # Build list of files to store in ZIP file.
     copyfiles = set()
 
+    # Include all files beside testcases
     for pattern, required in files:
         # Only include hidden files if the pattern starts with a '.'.
         paths = list(util.glob(problem.path, pattern, include_hidden=pattern[0] == '.'))
@@ -164,6 +171,26 @@ def build_problem_zip(problem, output, statement_language):
                 if config.args.kattis:
                     out = problem.name / out
                 copyfiles.add((f, out))
+
+    # Include all testcases (specified by a .in file) and copy all related files
+    for pattern, required in testcases:
+        paths = list(util.glob(problem.path, pattern))
+        if required and len(paths) == 0:
+            util.error(f'No matches for required path {pattern}.')
+        for f in paths:
+            # NOTE: Directories are skipped because ZIP only supports files.
+            if f.is_file():
+                if not f.with_suffix('.ans').is_file():
+                    util.warn(f'No answer file found for {f}, skipping.')
+                else:
+                    for ext in config.KNOWN_DATA_EXTENSIONS:
+                        f2 = f.with_suffix(ext)
+                        if f2.is_file():
+                            out = f2.relative_to(problem.path)
+                            # For Kattis, prepend the problem shortname to all files.
+                            if config.args.kattis:
+                                out = problem.name / out
+                            copyfiles.add((f2, out))
 
     # Build .ZIP file.
     print("writing ZIP file:", output, file=sys.stderr)

@@ -71,10 +71,6 @@ def _ask_variable_choice(name, choices, default=None):
         return _ask_variable(name + text, default if default else '')
 
 
-def _license_choices():
-    return ['cc by-sa', 'cc by', 'cc0', 'public domain', 'educational', 'permission', 'unknown']
-
-
 # Returns the alphanumeric version of a string:
 # This reduces it to a string that follows the regex:
 # [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
@@ -101,7 +97,7 @@ def new_contest():
     testsession = _ask_variable_bool('testsession', False)
     year = _ask_variable_string('year', str(datetime.datetime.now().year))
     source_url = _ask_variable_string('source url', '', True)
-    license = _ask_variable_choice('license', _license_choices())
+    license = _ask_variable_choice('license', config.KNOWN_LICENSES)
     rights_owner = _ask_variable_string('rights owner', 'author')
     title = title.replace('_', '-')
 
@@ -137,9 +133,11 @@ def new_problem():
     statement_languages = config.args.languages if config.args.languages else ['en']
 
     problemname = {
-        lang: config.args.problemname
-        if config.args.problemname
-        else _ask_variable_string(f'problem name ({lang})')
+        lang: (
+            config.args.problemname
+            if config.args.problemname
+            else _ask_variable_string(f'problem name ({lang})')
+        )
         for lang in statement_languages
     }
     dirname = (
@@ -151,11 +149,11 @@ def new_problem():
 
     validator_flags = ''
     if config.args.validation:
-        assert config.args.validation in ['default', 'custom', 'custom interactive']
+        assert config.args.validation in config.VALIDATION_MODES
         validation = config.args.validation
     else:
         validation = _ask_variable_choice(
-            'validation', ['default', 'float', 'custom', 'custom interactive']
+            'validation', config.VALIDATION_MODES[:1] + ['float'] + config.VALIDATION_MODES[1:]
         )
         if validation == 'float':
             validation = 'default'
@@ -166,7 +164,7 @@ def new_problem():
     variables = contest.contest_yaml()
 
     for k, v in {
-        'problemname': problemname,
+        'problemname': '\n'.join(f'  {lang}: {name}' for lang, name in problemname.items()),
         'dirname': dirname,
         'author': author,
         'validation': validation,
@@ -181,11 +179,12 @@ def new_problem():
         'source url', variables.get('source_url', ''), True
     )
     variables['license'] = _ask_variable_choice(
-        'license', _license_choices(), variables.get('license', None)
+        'license', config.KNOWN_LICENSES, variables.get('license', None)
     )
     variables['rights_owner'] = _ask_variable_string(
         'rights owner', variables.get('rights_owner', 'author')
     )
+    variables['uuid'] = generate_problem_uuid()
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
@@ -217,8 +216,14 @@ def new_problem():
             error('ruamel.yaml library not found. Please update problems.yaml manually.')
 
     copytree_and_substitute(
-        skeldir, target_dir / dirname, variables, exist_ok=True, preserve_symlinks=preserve_symlinks
+        skeldir,
+        target_dir / dirname,
+        variables,
+        exist_ok=True,
+        preserve_symlinks=preserve_symlinks,
+        skip=[skeldir / 'output_validators'] if validation == 'default' else None,
     )
+
     # Warn about missing problem statement skeletons for non-en languages
     for lang in statement_languages:
         filename = f"problem.{lang}.tex"
@@ -232,9 +237,11 @@ def rename_problem(problem):
         fatal('ruamel.yaml library not found.')
 
     newname = {
-        lang: config.args.problemname
-        if config.args.problemname
-        else _ask_variable_string(f'New problem name ({lang})', problem.settings.name[lang])
+        lang: (
+            config.args.problemname
+            if config.args.problemname
+            else _ask_variable_string(f'New problem name ({lang})', problem.settings.name[lang])
+        )
         for lang in problem.statement_languages
     }
     dirname = (

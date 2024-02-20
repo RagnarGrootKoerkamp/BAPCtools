@@ -19,15 +19,12 @@ def create_samples_file(problem):
 
     # create the samples.tex file
     # For samples, find all .in/.ans/.interaction pairs.
-    samples = problem.testcases(
-        needans=not problem.interactive,
-        needinteraction=problem.interactive,
-        only_sample=True,
-        statement_samples=True,
-        copy=True,
-    )
+    samples = problem.statement_samples()
     if samples is False:
         samples = []
+
+    # Modify a copied list, to not break the cache.
+    samples = samples.copy()
 
     # For interactive problems, find all .interaction files instead.
     samples += glob(problem.path / 'data' / 'sample', '*.interaction')
@@ -40,7 +37,8 @@ def create_samples_file(problem):
     samples_data = ''
 
     for sample in samples:
-        if isinstance(sample, Path) and sample.suffix == '.interaction':
+        if isinstance(sample, Path):
+            assert sample.suffix == '.interaction'
             interaction_dir = builddir / 'interaction'
             interaction_dir.mkdir(exist_ok=True)
 
@@ -74,12 +72,8 @@ def create_samples_file(problem):
                     last = line[0]
             flush()
         else:
-            # Already handled above.
-            if sample.in_path.with_suffix('.interaction').is_file():
-                continue
-            samples_data += (
-                f'\\Sample{{{sample.in_path.as_posix()}}}{{{sample.ans_path.as_posix()}}}\n'
-            )
+            (in_path, ans_path) = sample
+            samples_data += f'\\Sample{{{in_path.as_posix()}}}{{{ans_path.as_posix()}}}\n'
     samples_file_path.write_text(samples_data)
 
 
@@ -147,7 +141,6 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
 
     ret = util.exec_command(
         latexmk_command,
-        expect=0,
         crop=False,
         cwd=builddir,
         stdout=subprocess.PIPE,
@@ -155,10 +148,10 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         timeout=None,
     )
 
-    if ret.ok is not True:
+    if not ret.status:
         error(f'Failure compiling pdf:')
         print(ret.out, file=sys.stderr)
-        error(f'return code {ret.ok}')
+        error(f'return code {ret.returncode} status {ret.status}')
         error(f'duration {ret.duration}')
         return False
 
@@ -270,9 +263,11 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
 
     local_contest_data = Path('contest_data.tex')
     util.copy_and_substitute(
-        local_contest_data
-        if local_contest_data.is_file()
-        else config.tools_root / 'latex/contest_data.tex',
+        (
+            local_contest_data
+            if local_contest_data.is_file()
+            else config.tools_root / 'latex/contest_data.tex'
+        ),
         builddir / 'contest_data.tex',
         config_data,
     )
@@ -357,8 +352,9 @@ def build_contest_pdfs(contest, problems, tmpdir, lang=None, solutions=False, we
         build_contest_pdf(contest, problems, tmpdir, lang, solutions, web) for lang in languages
     )
 
+
 def get_argument_for_command(texfile, command):
-    """ Return the (whitespace-normalised) argument for the given command in the given texfile.
+    """Return the (whitespace-normalised) argument for the given command in the given texfile.
     If texfile contains `\foo{bar  baz }`, returns the string 'bar baz'.
     The command is given without backslash.
 

@@ -252,9 +252,9 @@ class Program:
                 # Memory limit in MB.
                 'memlim': (get_memory_limit() or 1024),
                 # Out-of-spec variables used by 'manual' and 'Viva' languages.
-                'build': self.tmpdir / 'build'
-                if (self.tmpdir / 'build') in self.input_files
-                else '',
+                'build': (
+                    self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else ''
+                ),
                 'run': self.tmpdir / 'run',
                 'viva_jar': config.tools_root / 'third_party/viva/viva.jar',
             }
@@ -357,7 +357,7 @@ class Program:
             self.bar.error('Failed', str(err))
             return False
 
-        if ret.ok is not True:
+        if not ret.status:
             data = ''
             if ret.err is not None:
                 data += strip_newline(ret.err) + '\n'
@@ -405,6 +405,10 @@ class Program:
         for f in self.source_files:
             ensure_symlink(self.tmpdir / f.name, f)
             self.input_files.append(self.tmpdir / f.name)
+            if not f.is_file():
+                self.ok = False
+                self.bar.error(f'{str(f)} is not a file')
+                return False
             hashes.append(hash_file(f))
         self.hash = combine_hashes(hashes)
 
@@ -452,7 +456,7 @@ class Generator(Program):
 
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
-    # Returns ExecResult. Success when result.ok is True.
+    # Returns ExecResult. Success when result.status == ExecStatus.ACCEPTED.
     def run(self, bar, cwd, name, args=[]):
         assert self.run_command is not None
 
@@ -477,12 +481,12 @@ class Generator(Program):
 
         result.retry = False
 
-        if result.ok == -9:
+        if result.status == ExecStatus.TIMEOUT:
             # Timeout -> stop retrying and fail.
             bar.log(f'TIMEOUT after {timeout}s', color=Fore.RED)
             return result
 
-        if result.ok is not True:
+        if not result.status:
             # Other error -> try again.
             result.retry = True
             return result
@@ -495,7 +499,7 @@ class Generator(Program):
         else:
             if not in_path.is_file():
                 bar.log(f'Did not write {name}.in and stdout is empty!', color=Fore.RED)
-                result.ok = False
+                result.status = ExecStatus.REJECTED
                 return result
 
         return result

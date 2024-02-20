@@ -13,7 +13,10 @@ import signal
 import hashlib
 import tempfile
 import yaml as yamllib
+import errno
+import secrets
 
+from enum import Enum
 from pathlib import Path
 from colorama import Fore, Style
 
@@ -134,7 +137,7 @@ class ProgressBar:
     def __init__(
         self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
     ):
-        assert ProgressBar.current_bar is None
+        assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix
         ProgressBar.current_bar = self
 
         assert not (items and (max_len or count))
@@ -324,13 +327,14 @@ class ProgressBar:
                     self._resume()
 
     # Same as log, but only in verbose mode.
-    def debug(self, message, data=''):
+    def debug(self, message, data='', color=Fore.GREEN, *, resume=True):
         if config.args.verbose:
-            self.log(message, data)
+            self.log(message, data, color=color, resume=resume)
 
     def warn(self, message='', data=''):
-        config.n_warn += 1
-        self.log(message, data, Fore.YELLOW)
+        with self.lock:
+            config.n_warn += 1
+            self.log(message, data, Fore.YELLOW)
 
     # Error by default removes the current item from the in_progress set.
     # Set `resume` to `True` to continue processing the item.
@@ -363,7 +367,10 @@ class ProgressBar:
     # Return True when something was printed
     def part_done(self, success=True, message='', data='', warn_instead_of_error=False):
         if not success:
-            config.n_error += 1
+            if warn_instead_of_error:
+                config.n_warn += 1
+            else:
+                config.n_error += 1
         if config.args.verbose or not success:
             with self:
                 if success:
@@ -809,12 +816,14 @@ def substitute_dir_variables(dirname, variables):
 # copies a directory recursively and substitutes {%key%} by their value in text files
 # reference: https://docs.python.org/3/library/shutil.html#copytree-example
 def copytree_and_substitute(
-    src, dst, variables, exist_ok=True, *, preserve_symlinks=True, base=None
+    src, dst, variables, exist_ok=True, *, preserve_symlinks=True, base=None, skip=None
 ):
     if base is None:
         base = src
 
-    if preserve_symlinks and os.path.islink(src):
+    if skip and src in skip:
+        pass
+    elif preserve_symlinks and os.path.islink(src):
         shutil.copy(src, dst, follow_symlinks=False)
     elif os.path.islink(src) and src.resolve().is_relative_to(base):
         shutil.copy(src, dst, follow_symlinks=False)
@@ -834,6 +843,7 @@ def copytree_and_substitute(
                     exist_ok,
                     preserve_symlinks=preserve_symlinks,
                     base=base,
+                    skip=skip,
                 )
             except OSError as why:
                 errors.append((srcFile, dstFile, str(why)))
@@ -895,9 +905,31 @@ def get_memory_limit(kwargs=None):
     return memory_limit
 
 
+class ExecStatus(Enum):
+    ACCEPTED = 1
+    REJECTED = 2
+    ERROR = 3
+    TIMEOUT = 4
+
+    def __bool__(self):
+        return self == ExecStatus.ACCEPTED
+
+
 class ExecResult:
-    def __init__(self, ok, duration, timeout_expired, err, out, verdict=None, print_verdict=None):
-        self.ok = ok
+    def __init__(
+        self,
+        returncode,
+        status,
+        duration,
+        timeout_expired,
+        err,
+        out,
+        verdict=None,
+        print_verdict=None,
+    ):
+        self.returncode = returncode
+        assert type(status) is ExecStatus
+        self.status = status
         self.duration = duration
         self.timeout_expired = timeout_expired
         self.err = err
@@ -982,8 +1014,26 @@ class ResourcePopen(subprocess.Popen):
             return (pid, sts)
 
 
+def default_exec_code_map(returncode):
+    if returncode == 0:
+        return ExecStatus.ACCEPTED
+    if returncode == -9:
+        return ExecStatus.TIMEOUT
+    return ExecStatus.ERROR
+
+
+def validator_exec_code_map(returncode):
+    if returncode == config.RTV_AC:
+        return ExecStatus.ACCEPTED
+    if returncode == config.RTV_WA:
+        return ExecStatus.REJECTED
+    if returncode == -9:
+        return ExecStatus.TIMEOUT
+    return ExecStatus.ERROR
+
+
 # Run `command`, returning stderr if the return code is unexpected.
-def exec_command(command, expect=0, crop=True, **kwargs):
+def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwargs):
     # By default: discard stdout, return stderr
     if 'stdout' not in kwargs or kwargs['stdout'] is True:
         kwargs['stdout'] = subprocess.PIPE
@@ -1052,12 +1102,12 @@ def exec_command(command, expect=0, crop=True, **kwargs):
         # File is likely not executable.
         stdout = None
         stderr = str(e)
-        return ExecResult(-1, 0, False, stderr, stdout)
+        return ExecResult(None, ExecStatus.ERROR, 0, False, stderr, stdout)
     except OSError as e:
         # File probably doesn't exist.
         stdout = None
         stderr = str(e)
-        return ExecResult(-1, 0, False, stderr, stdout)
+        return ExecResult(None, ExecStatus.ERROR, 0, False, stderr, stdout)
     tend = time.monotonic()
 
     if threading.current_thread() is threading.main_thread():
@@ -1073,7 +1123,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     def maybe_crop(s):
         return crop_output(s) if crop else s
 
-    ok = True if process.returncode == expect else process.returncode
+    ok = exec_code_map(process.returncode)
     err = maybe_crop(stderr.decode('utf-8', 'replace')) if stderr is not None else None
     out = maybe_crop(stdout.decode('utf-8', 'replace')) if stdout is not None else None
 
@@ -1086,7 +1136,7 @@ def exec_command(command, expect=0, crop=True, **kwargs):
     else:
         duration = tend - tstart
 
-    return ExecResult(ok, duration, did_timeout, err, out)
+    return ExecResult(process.returncode, ok, duration, did_timeout, err, out)
 
 
 def inc_label(label):
@@ -1098,30 +1148,10 @@ def inc_label(label):
     return 'A' + label
 
 
-def hash_string(string):
-    sha = hashlib.sha256(usedforsecurity=False)
-    sha.update(string.encode())
-    return sha.hexdigest()
-
-
-def hash_file(file, buffer_size=65536):
-    assert file.is_file(), f"File {file} does not exist"
-    sha = hashlib.sha256(usedforsecurity=False)
-
-    with open(file, 'rb') as f:
-        while True:
-            data = f.read(buffer_size)
-            if not data:
-                break
-            sha.update(data)
-
-    return sha.hexdigest()
-
-
-def combine_hashes(list):
-    list.sort()
+def combine_hashes(values):
+    values.sort()
     hasher = hashlib.sha256(usedforsecurity=False)
-    for item in list:
+    for item in values:
         hasher.update(item.encode())
     return hasher.hexdigest()
 
@@ -1133,3 +1163,50 @@ def combine_hashes_dict(d):
         if d[key] is not None:
             hasher.update(d[key].encode())
     return hasher.hexdigest()
+
+
+def hash_string(string):
+    sha = hashlib.sha256(usedforsecurity=False)
+    sha.update(string.encode())
+    return sha.hexdigest()
+
+
+def hash_file(file, buffer_size=65536):
+    if not file.is_file():
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
+    sha = hashlib.sha256(usedforsecurity=False)
+    name = file.name.encode('utf-8')
+    sha.update(len(name).to_bytes(8))
+    sha.update(name)
+
+    with open(file, 'rb') as f:
+        while True:
+            data = f.read(buffer_size)
+            if not data:
+                break
+            sha.update(data)
+
+    return sha.hexdigest()
+
+
+def hash_file_or_dir(file_or_dir, buffer_size=65536):
+    if file_or_dir.is_dir():
+        return combine_hashes(
+            [hash_string(file_or_dir.name)] + [hash_file_or_dir(f) for f in file_or_dir.iterdir()]
+        )
+    else:
+        return hash_file(file_or_dir)
+
+
+def generate_problem_uuid():
+    uuid = bytearray(secrets.token_bytes(16))
+    # mark this as v8 uuid (custom uuid) variant 0
+    uuid[6] &= 0b0000_1111
+    uuid[6] |= 0b1000_0000
+    uuid[8] &= 0b0011_1111
+    # format as uuid
+    uuid = uuid.hex()
+    uuid = f'{uuid[0:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:32]}'
+    # make the first bytes BAPCtools specific
+    uuid = config.BAPC_UUID[: config.BAPC_UUID_PREFIX] + uuid[config.BAPC_UUID_PREFIX :]
+    return uuid

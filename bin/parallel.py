@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-import threading
-import signal
 import heapq
-
 import os
+import signal
+import threading
 
 import config
 import util
 
 
-class ParallelItem:
+class QueueItem:
     def __init__(self, task, priority, id):
         self.task = task
         self.priority = priority
@@ -26,52 +25,21 @@ class ParallelItem:
             return self.id < other.id
 
 
-class Parallel:
-    # f(task): the function to run on each queue item.
-    # num_threads: True: the configured default
-    #              None/False/0: disable parallelization
-    def __init__(self, f, num_threads=True, pin=False):
+class AbstractQueue:
+    def __init__(self, f, pin):
         self.f = f
-        self.num_threads = config.args.jobs if num_threads is True else num_threads
-        self.pin = pin and not util.is_windows() and not util.is_bsd()
+        self.pin = pin
+        self.num_threads = 1
 
-        # mutex to lock parallel access
-        self.mutex = threading.RLock()
-        # condition used to notify worker if the queue has changed
-        self.todo = threading.Condition(self.mutex)
-        # condition used to notify join that the queue is empty
-        self.all_done = threading.Condition(self.mutex)
-
-        # only used in parallel mode
-        self.first_error = None
         # min heap
-        self.tasks = []
+        self.tasks: list[QueueItem] = []
         self.total_tasks = 0
         self.missing = 0
 
-        # also used if num_threads is false
-        self.abort = False
-        self.finish = False
+        self.aborted = False
 
-        if self.num_threads:
-            if self.pin:
-                # only use available cores and reserve one
-                cores = list(os.sched_getaffinity(0))
-                if self.num_threads > len(cores) - 1:
-                    self.num_threads = len(cores) - 1
-
-                # sort cores by id. If num_threads << len(cores) this ensures that we
-                # use different physical cores instead of hyperthreads
-                cores.sort()
-
-            self.threads = []
-            for i in range(self.num_threads):
-                args = [{cores[i]}] if self.pin else []
-                t = threading.Thread(target=self._worker, args=args, daemon=True)
-                t.start()
-                self.threads.append(t)
-
-            signal.signal(signal.SIGINT, self._interrupt_handler)
+        # mutex to lock parallel access
+        self.mutex = threading.RLock()
 
     def __enter__(self):
         self.mutex.__enter__()
@@ -79,21 +47,97 @@ class Parallel:
     def __exit__(self, *args):
         self.mutex.__exit__(*args)
 
-    def _worker(self, cores=False):
+    # Add one task. Higher priority => done first
+    def put(self, task, priority=0):
+        raise "Abstract method"
+
+    # By default, do nothing on .join(). This is overridden in ParallelQueue.
+    def join(self):
+        return
+
+    def done(self):
+        raise "Abstract method"
+
+    def abort(self):
+        self.aborted = True
+
+
+class SequentialQueue(AbstractQueue):
+    def __init__(self, f, pin):
+        super().__init__(f, pin)
+
+    # Add one task. Higher priority => done first
+    def put(self, task, priority=0):
+        # no task will be handled after self.abort() so skip adding
+        if self.aborted:
+            return
+
+        self.total_tasks += 1
+        heapq.heappush(self.tasks, QueueItem(task, priority, self.total_tasks))
+
+    # Execute all tasks.
+    def done(self):
+        if self.pin:
+            cores = list(os.sched_getaffinity(0))
+            os.sched_setaffinity(0, {cores[0]})
+
+        # no task will be handled after self.abort()
+        while self.tasks and not self.aborted:
+            self.f(heapq.heappop(self.tasks).task)
+
+        if self.pin:
+            os.sched_setaffinity(0, cores)
+
+
+class ParallelQueue(AbstractQueue):
+    def __init__(self, f, pin, num_threads):
+        super().__init__(f, pin)
+
+        assert num_threads and type(num_threads) is int
+        self.num_threads = num_threads
+
+        # condition used to notify worker if the queue has changed
+        self.todo = threading.Condition(self.mutex)
+        # condition used to notify join that the queue is empty
+        self.all_done = threading.Condition(self.mutex)
+
+        self.first_error = None
+        self.finish = False
+
+        if self.pin:
+            # only use available cores and reserve one
+            cores = list(os.sched_getaffinity(0))
+            if self.num_threads > len(cores) - 1:
+                self.num_threads = len(cores) - 1
+
+            # sort cores by id. If num_threads << len(cores) this ensures that we
+            # use different physical cores instead of hyperthreads
+            cores.sort()
+
+        self.threads = []
+        for i in range(self.num_threads):
+            args = [{cores[i]}] if self.pin else []
+            t = threading.Thread(target=self._worker, args=args, daemon=True)
+            t.start()
+            self.threads.append(t)
+
+        signal.signal(signal.SIGINT, self._interrupt_handler)
+
+    def _worker(self, cores: bool | list[int] = False):
         if cores is not False:
             os.sched_setaffinity(0, cores)
         while True:
             with self.mutex:
-                # if self.abort we need no item in the queue and can stop
+                # if self.aborted we need no item in the queue and can stop
                 # if self.finish we may need to wake up if all tasks were completed earlier
                 # else we need an item to handle
-                self.todo.wait_for(lambda: len(self.tasks) > 0 or self.abort or self.finish)
+                self.todo.wait_for(lambda: len(self.tasks) > 0 or self.aborted or self.finish)
 
-                if self.abort:
-                    # we dont handle the queue on abort
+                if self.aborted:
+                    # we don't handle the queue if self.aborted
                     break
                 elif self.finish and len(self.tasks) == 0:
-                    # on finish we can only stop after the queue runs empty
+                    # if self.finish, we can only stop after the queue runs empty
                     break
                 else:
                     # get item from queue (update self.missing after the task is done)
@@ -105,7 +149,7 @@ class Parallel:
                 current_error = None
                 self.f(task)
             except Exception as e:
-                self.stop()
+                self.abort()
                 current_error = e
 
             with self.mutex:
@@ -121,35 +165,18 @@ class Parallel:
 
     # Add one task. Higher priority => done first
     def put(self, task, priority=0):
-        if not self.num_threads:
-            # no task should be added after .done() was called
-            assert not self.finish
-            # no task will be handled after self.abort
-            if not self.abort:
-                if self.pin:
-                    cores = list(os.sched_getaffinity(0))
-                    os.sched_setaffinity(0, {cores[0]})
-                    self.f(task)
-                    os.sched_setaffinity(0, cores)
-                else:
-                    self.f(task)
-            return
-
         with self.mutex:
             # no task should be added after .done() was called
             assert not self.finish
-            # no task will be handled after self.abort so skip adding
-            if not self.abort:
+            # no task will be handled after self.aborted so skip adding
+            if not self.aborted:
                 # mark task as to be done and notify workers
                 self.missing += 1
                 self.total_tasks += 1
-                heapq.heappush(self.tasks, ParallelItem(task, priority, self.total_tasks))
+                heapq.heappush(self.tasks, QueueItem(task, priority, self.total_tasks))
                 self.todo.notify()
 
     def join(self):
-        if not self.num_threads:
-            return
-
         # wait for all current task to be completed
         with self.all_done:
             self.all_done.wait_for(lambda: self.missing == 0)
@@ -160,10 +187,7 @@ class Parallel:
     def done(self):
         self.finish = True
 
-        if not self.num_threads:
-            return
-
-        # notify all workes with permission to leave main loop
+        # notify all workers with permission to leave main loop
         with self.todo:
             self.todo.notify_all()
 
@@ -172,17 +196,14 @@ class Parallel:
             t.join()
 
         # mutex is no longer needed
-        # report first error occured during execution
+        # report first error occurred during execution
         if self.first_error is not None:
             raise self.first_error
 
     # Discard all remaining work in the queue and stop all workers.
     # Call done() to join the threads.
-    def stop(self):
-        self.abort = True
-
-        if not self.num_threads:
-            return
+    def abort(self):
+        super().abort()
 
         with self.mutex:
             # drop all items in the queue at once
@@ -193,3 +214,25 @@ class Parallel:
             # notify .join() if queue runs empty
             if self.missing == 0:
                 self.all_done.notify_all()
+
+
+def new_queue(f, pin=False):
+    """
+    f(task): the function to run on each queue item.
+
+    pin: whether to pin the threads to (physical) CPU cores.
+    """
+    pin = pin and not util.is_windows() and not util.is_bsd()
+
+    num_threads = config.args.jobs
+    if num_threads:
+        return ParallelQueue(f, pin, num_threads)
+    else:
+        return SequentialQueue(f, pin)
+
+
+def run_tasks(f, tasks: list, pin=False):
+    queue = new_queue(f, pin)
+    for task in tasks:
+        queue.put(task)
+    queue.done()
