@@ -685,7 +685,7 @@ class Problem:
         def process_testcase(testcase):
             nonlocal success
 
-            bar.start(testcase.name)
+            localbar = bar.start(testcase.name)
 
             if (
                 mode == validate.Mode.INPUT
@@ -695,11 +695,13 @@ class Problem:
             ):
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
-                    bar.error(f'Duplicate testcase: identical to {t2.name}')
+                    localbar.error(f'Duplicate testcase: identical to {t2.name}')
                     return
 
-            success &= testcase.validate_format(mode, bar=bar, constraints=constraints)
-            bar.done()
+            ok = testcase.validate_format(mode, bar=localbar, constraints=constraints)
+            success &= ok
+            if ok:
+                localbar.done()
 
         parallel.run_tasks(process_testcase, testcases)
 
