@@ -224,7 +224,7 @@ class Problem:
             for prefix in {
                 validate.Mode.INPUT: ['secret', 'sample'],
                 validate.Mode.ANSWER: ['secret', 'sample'],
-                validate.Mode.INVALID: ['bad', 'invalid_*'],
+                validate.Mode.INVALID: config.INVALID_CASE_DIRECTORIES,
             }[mode]:
                 in_paths += glob(p.path, f'data/{prefix}/**/*.in')
         else:
@@ -243,7 +243,9 @@ class Problem:
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            warn(f'Didn\'t find any testcases{" with answer" if needans else ""} for {p.name}')
+            ans = ' with answer' if needans else ''
+            val = f' skipping {mode} validation' if mode is not None else ''
+            warn(f'Didn\'t find any testcases{ans} for problem {p.name}{val}')
             testcases = False
 
         p._testcases[key] = testcases
@@ -666,7 +668,7 @@ class Problem:
             case _:
                 ValueError(mode)
 
-        needans = mode != validate.Mode.INPUT  # TODO
+        needans = mode != validate.Mode.INPUT
 
         if testcases is False:
             return True
@@ -676,10 +678,10 @@ class Problem:
             return True
 
         action = (
-            "Invalidation"
+            'Invalidation'
             if mode == validate.Mode.INVALID
             else (
-                f"{mode} validation" if not check_constraints else f"Collecting {mode} constraints"
+                f'{mode} validation' if not check_constraints else f'Collecting {mode} constraints'
             ).capitalize()
         )
 
@@ -693,21 +695,23 @@ class Problem:
         def process_testcase(testcase):
             nonlocal success
 
-            bar.start(testcase.name)
+            localbar = bar.start(testcase.name)
 
             if (
                 mode == validate.Mode.INPUT
                 and not testcase.in_path.is_symlink()
-                and not testcase.root == "invalid_answers"
-                and not testcase.root == "invalid_outputs"
+                and not testcase.root == 'invalid_answers'
+                and not testcase.root == 'invalid_outputs'
             ):
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
-                    bar.error(f'Duplicate testcase: identical to {t2.name}')
+                    localbar.error(f'Duplicate testcase: identical to {t2.name}')
                     return
 
-            success &= testcase.validate_format(mode, bar=bar, constraints=constraints)
-            bar.done()
+            ok = testcase.validate_format(mode, bar=localbar, constraints=constraints)
+            success &= ok
+            if ok:
+                localbar.done()
 
         parallel.run_tasks(process_testcase, testcases)
 
