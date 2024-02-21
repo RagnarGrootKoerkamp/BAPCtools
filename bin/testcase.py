@@ -205,34 +205,86 @@ class Testcase:
         bar,
         constraints=None,
         warn_instead_of_error=False,
-        args=None,  # TODO never used?
+        args=None,
     ) -> bool:
         check_constraints = constraints is not None
+
         match mode:
             case Mode.INPUT:
-                validators = self.problem.validators(
-                    InputValidator, check_constraints=check_constraints
+                return self._run_validators(
+                    Mode.INPUT,
+                    self.problem.validators(InputValidator, check_constraints=check_constraints),
+                    self.root == 'invalid_inputs',
+                    bar=bar,
+                    constraints=constraints,
+                    warn_instead_of_error=warn_instead_of_error,
+                    args=args,
                 )
-                expect_rejection = self.root == 'invalid_inputs'
             case Mode.ANSWER:
-                validators = self.problem.validators(
-                    AnswerValidator, check_constraints=check_constraints
-                ) + self.problem.validators(OutputValidator, check_constraints=check_constraints)
-                expect_rejection = self.root == 'invalid_answers'
+                return self._run_validators(
+                    Mode.ANSWER,
+                    self.problem.validators(AnswerValidator, check_constraints=check_constraints)
+                    + self.problem.validators(OutputValidator, check_constraints=check_constraints),
+                    self.root == 'invalid_answers',
+                    bar=bar,
+                    constraints=constraints,
+                    warn_instead_of_error=warn_instead_of_error,
+                    args=args,
+                )
             case Mode.INVALID:
-                validators = self.problem.validators(InputValidator)[::]
-                if self.root in ['invalid_answers', 'invalid_outputs']:
-                    validators += self.problem.validators(
-                        AnswerValidator
-                    ) + self.problem.validators(OutputValidator)
-                expect_rejection = True
+                assert self.root in config.INVALID_CASE_DIRECTORIES[:-1]
+
+                ok = self.validate_format(
+                    Mode.INPUT,
+                    bar=bar,
+                    constraints=constraints,
+                    warn_instead_of_error=warn_instead_of_error,
+                    args=args,
+                )
+                if not ok or self.root == 'invalid_inputs':
+                    return ok
+
+                ok = self.validate_format(
+                    Mode.ANSWER,
+                    bar=bar,
+                    constraints=constraints,
+                    warn_instead_of_error=warn_instead_of_error,
+                    args=args,
+                )
+                if not ok or self.root == 'invalid_answers':
+                    return ok
+
+                return self._run_validators(
+                    Mode.INVALID,
+                    self.problem.validators(OutputValidator),
+                    True,
+                    bar=bar,
+                    constraints=constraints,
+                    warn_instead_of_error=warn_instead_of_error,
+                    args=args,
+                )
             case _:
                 raise ValueError
 
+    def _run_validators(
+        self,
+        mode: Mode,
+        validators,
+        expect_rejection,
+        *,
+        bar,
+        constraints=None,
+        warn_instead_of_error=False,
+        args=None,
+    ) -> bool:
+        if args is None:
+            args = []
         results = []
         for validator in validators:
-            if type(validator) == OutputValidator and self.root.startswith("invalid"):
-                args = ['case_sensitive', 'space_change_sensitive']
+            name = validator.name
+            if type(validator) == OutputValidator and mode == Mode.ANSWER:
+                args += ['case_sensitive', 'space_change_sensitive']
+                name = f'{name} (ans)'
             flags = self.testdata_yaml_validator_flags(validator)
             if flags is False:
                 continue
@@ -241,7 +293,7 @@ class Testcase:
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
             results.append(ret.status)
 
-            message = validator.name + ': '
+            message = name + ': '
             if ret.status:
                 message += 'accepted'
             elif ret.status == ExecStatus.TIMEOUT:
@@ -287,7 +339,7 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                 )
 
-            if ret.status or expect_rejection:
+            if ret.status or self.root in config.INVALID_CASE_DIRECTORIES:
                 continue
 
             # Move testcase to destination directory if specified.
@@ -317,10 +369,12 @@ class Testcase:
         if expect_rejection:
             success = ExecStatus.REJECTED in results
             if not success:
-                bar.error(f"was not rejected by {mode} validation")
+                bar.error(f'was not rejected by {mode} validation')
         else:
             success = all(results)
             if success:
                 sanity_check(self.in_path if mode == Mode.INPUT else self.ans_path, bar)
+            else:
+                bar.done(False)
 
         return success

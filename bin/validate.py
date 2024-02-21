@@ -185,6 +185,9 @@ class InputValidator(Validator):
         """
         if mode == Mode.ANSWER:
             raise ValueError("InputValidators do not support Mode.ANSWER")
+        if mode == Mode.INVALID:
+            raise ValueError("InputValidators do no support Mode.INVALID")
+
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
@@ -229,6 +232,8 @@ class AnswerValidator(Validator):
 
         if mode == Mode.INPUT:
             raise ValueError("AnswerValidators do no support Mode.INPUT")
+        if mode == Mode.INVALID:
+            raise ValueError("AnswerValidators do no support Mode.INVALID")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -280,13 +285,22 @@ class OutputValidator(Validator):
         The ExecResult
         """
 
+        if mode == Mode.INPUT:
+            raise ValueError("OutputValidator do no support Mode.INPUT")
+
         in_path = testcase.in_path.resolve()
         ans_path = testcase.ans_path.resolve()
-        path = (
-            mode.out_path
-            if hasattr(mode, 'out_path')
-            else (testcase.out_path.resolve() if testcase.root == 'invalid_outputs' else ans_path)
-        )
+        if hasattr(mode, 'out_path'):
+            path = mode.out_path
+        elif mode == Mode.ANSWER:
+            path = ans_path
+        else:
+            # mode == Mode.INVALID
+            if testcase.root != 'invalid_outputs':
+                raise ValueError(
+                    "OutputValidator in Mode.INVALID should only be run for data/invalid_outputs"
+                )
+            path = testcase.out_path.resolve()
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
