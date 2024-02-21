@@ -418,9 +418,11 @@ class ProgressBar:
         return self.global_logged
 
 
-class TableProgressBar(ProgressBar):    
+class TableProgressBar(ProgressBar):
     def __init__(self, table, prefix, max_len, count, *, items, needs_leading_newline):
-        super().__init__(prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline)
+        super().__init__(
+            prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline
+        )
         self.table = table
 
     # at the begin of any IO the progress bar locks so we can clear the table at this point
@@ -459,12 +461,18 @@ class TableProgressBar(ProgressBar):
 
 
 class VerdictTable:
-    def __init__(self, submissions, testcases, width = shutil.get_terminal_size().columns, max_name_width = 50):
-        self.submissions = [submission.name for verdict in submissions for submission in submissions[verdict]]
+    def __init__(
+        self, submissions, testcases, width=shutil.get_terminal_size().columns, max_name_width=50
+    ):
+        self.submissions = [
+            submission.name for verdict in submissions for submission in submissions[verdict]
+        ]
         self.testcases = [testcase.name for testcase in testcases]
         self.results = []
         self.current_testcases = set()
-        self.name_width = min(max_name_width, max([len(submission) for submission in self.submissions]))
+        self.name_width = min(
+            max_name_width, max([len(submission) for submission in self.submissions])
+        )
         self.width = width if width >= self.name_width + 2 + 10 else -1
         self.last_printed = []
 
@@ -486,12 +494,12 @@ class VerdictTable:
                 lines = 0
                 for printed in self.last_printed:
                     lines += (printed + actual_width - 1) // actual_width
-                print(f'\033[{lines}A\r', end = '', file=sys.stderr)
+                print(f'\033[{lines}A\r', end='', file=sys.stderr)
 
                 if clear:
                     for printed in self.last_printed:
                         print(' ' * printed, file=sys.stderr)
-                    print(f'\033[{lines}A\r', end = '', file=sys.stderr)
+                    print(f'\033[{lines}A\r', end='', file=sys.stderr)
 
                 self.last_printed = []
 
@@ -507,7 +515,7 @@ class VerdictTable:
                 return Style.DIM + Fore.BLUE + '?' + Style.RESET_ALL
         return Style.DIM + Fore.WHITE + '-' + Style.RESET_ALL
 
-    #TODO only print this if a flag is given! (config.args.???)
+    # TODO only print this if a flag is given! (config.args.???)
     def print(self, *, force=True, new_lines=2):
         if force or not config.args.no_bar:
             self.clear(force=True, clear=False)
@@ -517,7 +525,7 @@ class VerdictTable:
                 # pad/truncate submission names to not break table layout
                 name = submission
                 if len(name) > self.name_width:
-                    name = '...' + name[-self.name_width+3:]
+                    name = '...' + name[-self.name_width + 3 :]
                 padding = ' ' * (self.name_width - len(name))
                 print(f'{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}', end='', file=sys.stderr)
 
@@ -539,14 +547,16 @@ class VerdictTable:
                     print(f' {tmp}', end='', file=sys.stderr)
                     printed += length + 1
 
-
                 self.last_printed.append(printed)
                 print(end='\n', file=sys.stderr)
             print(end='', flush=True, file=sys.stderr)
 
-    def ProgressBar(self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False):
-        return TableProgressBar(self, prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline)
-
+    def ProgressBar(
+        self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
+    ):
+        return TableProgressBar(
+            self, prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline
+        )
 
 
 # Given a command line argument, return the first match:

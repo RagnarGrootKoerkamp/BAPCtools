@@ -516,7 +516,9 @@ class Problem:
             for submission in submissions[verdict]:
                 verdict_table.next_submission()
                 submission_ok, printed_newline = submission.run_all_testcases(
-                    max_submission_len, verdict_table=verdict_table, needs_leading_newline=needs_leading_newline
+                    max_submission_len,
+                    verdict_table=verdict_table,
+                    needs_leading_newline=needs_leading_newline,
                 )
                 needs_leading_newline = not printed_newline
                 ok &= submission_ok
@@ -596,12 +598,17 @@ class Problem:
 
         for testcase in testcases:
             # Skip all AC testcases
-            if all(map(lambda row: testcase.name in row and row[testcase.name] == 'ACCEPTED', verdict_table)):
+            if all(
+                map(
+                    lambda row: testcase.name in row and row[testcase.name] == 'ACCEPTED',
+                    verdict_table,
+                )
+            ):
                 continue
 
             name = testcase.name
             if len(name) > name_col_width:
-                name = '...' + name[-name_col_width+3:]
+                name = '...' + name[-name_col_width + 3 :]
             padding = ' ' * (name_col_width - len(name))
             print(f'{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}', end=' ', file=sys.stderr)
 
@@ -612,7 +619,9 @@ class Problem:
                 color = Fore.RED
             resultant = make_verdict(testcase)
             print(resultant, end='  ', file=sys.stderr)
-            print(f'{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ', end='', file=sys.stderr)
+            print(
+                f'{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ', end='', file=sys.stderr
+            )
             if resultant in resultant_id:
                 print(str.format('(Type {})', resultant_id[resultant]), end='', file=sys.stderr)
             print(end='\n', file=sys.stderr)
