@@ -223,12 +223,8 @@ class Testcase:
             case Mode.ANSWER:
                 return self._run_validators(
                     Mode.ANSWER,
-                    self.problem.validators(
-                        AnswerValidator, check_constraints=check_constraints
-                    ).copy()
-                    + self.problem.validators(
-                        OutputValidator, check_constraints=check_constraints
-                    ).copy(),
+                    self.problem.validators(AnswerValidator, check_constraints=check_constraints)
+                    + self.problem.validators(OutputValidator, check_constraints=check_constraints),
                     self.root == 'invalid_answers',
                     bar=bar,
                     constraints=constraints,
@@ -236,7 +232,7 @@ class Testcase:
                     args=args,
                 )
             case Mode.INVALID:
-                assert self.root in ['invalid_inputs', 'invalid_answers', 'invalid_outputs']
+                assert self.root in config.INVALID_CASE_DIRECTORIES[:-1]
 
                 ok = self.validate_format(
                     Mode.INPUT,
@@ -343,7 +339,7 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                 )
 
-            if ret.status or self.root in ['invalid_inputs', 'invalid_answers', 'invalid_outputs']:
+            if ret.status or self.root in config.INVALID_CASE_DIRECTORIES:
                 continue
 
             # Move testcase to destination directory if specified.
@@ -373,10 +369,12 @@ class Testcase:
         if expect_rejection:
             success = ExecStatus.REJECTED in results
             if not success:
-                bar.error(f"was not rejected by {mode} validation")
+                bar.error(f'was not rejected by {mode} validation')
         else:
             success = all(results)
             if success:
                 sanity_check(self.in_path if mode == Mode.INPUT else self.ans_path, bar)
+            else:
+                bar.done(False)
 
         return success
