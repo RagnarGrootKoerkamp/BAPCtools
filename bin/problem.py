@@ -681,10 +681,7 @@ class Problem:
 
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
-
-        def process_testcase(testcase):
-            nonlocal success
-
+        for testcase in testcases:
             bar.start(testcase.name)
 
             if (
@@ -696,12 +693,10 @@ class Problem:
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     bar.error(f'Duplicate testcase: identical to {t2.name}')
-                    return
+                    continue
 
             success &= testcase.validate_format(mode, bar=bar, constraints=constraints)
             bar.done()
-
-        parallel.run_tasks(process_testcase, testcases)
 
         bar.finalize(print_done=True)
 
