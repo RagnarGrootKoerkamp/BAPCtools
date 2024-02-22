@@ -15,6 +15,7 @@ import tempfile
 import yaml as yamllib
 import errno
 import secrets
+import threading
 
 from enum import Enum
 from pathlib import Path
@@ -95,7 +96,11 @@ def error(msg):
 
 def fatal(msg):
     print(f'{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
-    exit(1)
+    if threading.active_count() > 1:
+        # exit even more forcefully to ensure that daemon threads dont break something
+        os._exit(1)
+    else:
+        sys.exit(1)
 
 
 # A class that draws a progressbar.
