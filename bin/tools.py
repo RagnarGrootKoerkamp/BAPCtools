@@ -611,6 +611,9 @@ Run this from one of:
         '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
     )
     runparser.add_argument(
+        '--overview', '-o', action='store_true', help='Print a live overview for the judgings.'
+    )
+    runparser.add_argument(
         '--timeout',
         type=int,
         help='Override the default timeout. Default: 1.5 * timelimit + 1.',

@@ -462,7 +462,12 @@ class TableProgressBar(ProgressBar):
 
 class VerdictTable:
     def __init__(
-        self, submissions, testcases, width=shutil.get_terminal_size().columns, max_name_width=50
+        self,
+        submissions,
+        testcases,
+        width=shutil.get_terminal_size().columns,
+        height=shutil.get_terminal_size().lines,
+        max_name_width=50,
     ):
         self.submissions = [
             submission.name for verdict in submissions for submission in submissions[verdict]
@@ -476,6 +481,38 @@ class VerdictTable:
         self.width = width if width >= self.name_width + 2 + 10 else -1
         self.last_printed = []
 
+        self.print_without_force = (
+            not config.args.no_bar and config.args.overview and self.width >= 0
+        )
+        if self.print_without_force:
+            # generate example lines for one submission
+            name = 'x' * self.name_width
+            lines = [f'{Style.DIM}{Fore.CYAN}{name}{Fore.WHITE}:']
+
+            verdicts = []
+            for t, testcase in enumerate(self.testcases):
+                if t % 10 == 0:
+                    verdicts.append([0, ''])
+                verdicts[-1][0] += 1
+                verdicts[-1][1] += '-'
+
+            printed = self.name_width + 1
+            for length, tmp in verdicts:
+                if printed + 1 + length > self.width:
+                    lines.append(f'{str():{self.name_width+1}}', end='', file=sys.stderr)
+                    printed = self.name_width + 1
+                lines[-1] += f' {tmp}'
+                printed += length + 1
+
+            # dont print table if it fills to much of the screen
+            self.print_without_force = len(lines) * len(submissions) + 5 < height
+            if not self.print_without_force or True:
+                print(
+                    f'{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}',
+                    file=sys.stderr,
+                )
+                print(*lines, '[...]', Style.RESET_ALL, sep='\n', end='\n', file=sys.stderr)
+
     def next_submission(self):
         self.results.append(dict())
         self.current_testcases = set()
@@ -488,7 +525,7 @@ class VerdictTable:
         self.current_testcases.discard(testcase)
 
     def clear(self, *, force=True, clear=True):
-        if force or not config.args.no_bar:
+        if force or self.print_without_force:
             if self.last_printed:
                 actual_width = shutil.get_terminal_size().columns
                 lines = 0
@@ -515,9 +552,8 @@ class VerdictTable:
                 return Style.DIM + Fore.BLUE + '?' + Style.RESET_ALL
         return Style.DIM + Fore.WHITE + '-' + Style.RESET_ALL
 
-    # TODO only print this if a flag is given! (config.args.???)
     def print(self, *, force=True, new_lines=2):
-        if force or not config.args.no_bar:
+        if force or self.print_without_force:
             self.clear(force=True, clear=False)
             print('\n' * new_lines, end='', file=sys.stderr)
             self.last_printed.extend([1] * new_lines)
