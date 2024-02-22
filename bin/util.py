@@ -506,7 +506,7 @@ class VerdictTable:
 
             # dont print table if it fills to much of the screen
             self.print_without_force = len(lines) * len(submissions) + 5 < height
-            if not self.print_without_force or True:
+            if not self.print_without_force:
                 print(
                     f'{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}',
                     file=sys.stderr,
