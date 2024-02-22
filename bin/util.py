@@ -1126,8 +1126,6 @@ def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwar
         nonlocal process
         if process is not None:
             process.kill()
-        # Extra newline to not overwrite progress bars
-        print(file=sys.stderr)
         fatal('Running interrupted')
 
     if threading.current_thread() is threading.main_thread():
