@@ -95,10 +95,11 @@ def error(msg):
 
 
 def fatal(msg):
+    force = threading.active_count() > 1
     print(f'\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
-    sys.stderr.close()
-    sys.stdout.close()
-    if threading.active_count() > 1:
+    if force:
+        sys.stderr.close()
+        sys.stdout.close()
         # exit even more forcefully to ensure that daemon threads dont break something
         os._exit(1)
     else:
