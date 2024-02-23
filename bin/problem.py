@@ -235,10 +235,12 @@ class Problem:
         testcases = []
         for f in in_paths:
             t = testcase.Testcase(p, f)
-            if p.interactive and mode == validate.Mode.INVALID and t.root == 'invalid_answers':
-                warn(
-                    f'Found file {f} for invalid answer validation in interactive problem. Skipping.'
-                )
+            if (
+                p.interactive
+                and mode == validate.Mode.INVALID
+                and t.root in ['invalid_answers', 'invalid_outputs']
+            ):
+                warn(f'Found file {f} for {mode} validation in interactive problem. Skipping.')
                 continue
             if needans and not t.ans_path.is_file():
                 if t.root != 'invalid_inputs':
@@ -678,7 +680,7 @@ class Problem:
                 problem.validators(validate.InputValidator)
                 if not problem.interactive:
                     problem.validators(validate.AnswerValidator)
-                problem.validators(validate.OutputValidator)
+                    problem.validators(validate.OutputValidator)
                 testcases = problem.testcases(mode=mode)
             case _:
                 ValueError(mode)
