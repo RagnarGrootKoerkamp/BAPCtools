@@ -237,6 +237,15 @@ class ProgressBar:
             fill = fill[: -len(text)] + text
         return '[' + fill + ']'
 
+    def draw_bar(self):
+        if config.args.no_bar:
+            return
+        bar = self.get_bar()
+        if bar is None or bar == '':
+            self._print(self.get_prefix(), end='\r')
+        else:
+            self._print(self.get_prefix(), bar, end='\r')
+
     # Remove the current item from in_progress.
     def _release_item(self):
         if self.parent:
@@ -262,11 +271,7 @@ class ProgressBar:
                 old = self.item
                 self.item = next(iter(self.in_progress))
                 p = self.item
-            bar = self.get_bar()
-            if bar is None or bar == '':
-                self._print(self.get_prefix(), end='\r')
-            else:
-                self._print(self.get_prefix(), bar, end='\r')
+            self.draw_bar()
 
     def start(self, item=''):
         with self:
@@ -282,16 +287,9 @@ class ProgressBar:
             bar_copy = copy.copy(self)
             bar_copy.parent = self
 
-            if config.args.no_bar:
-                return bar_copy
+            self.draw_bar()
 
-            bar = self.get_bar()
-            if bar is None or bar == '':
-                self._print(self.get_prefix(), end='\r')
-            else:
-                self._print(self.get_prefix(), bar, end='\r')
-
-        return bar_copy
+            return bar_copy
 
     @staticmethod
     def _format_data(data):
