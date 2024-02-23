@@ -507,13 +507,13 @@ class VerdictTable:
             printed = self.name_width + 1
             for length, tmp in verdicts:
                 if printed + 1 + length > self.width:
-                    lines.append(f'{str():{self.name_width+1}}', end='', file=sys.stderr)
+                    lines.append(f'{str():{self.name_width+1}}')
                     printed = self.name_width + 1
                 lines[-1] += f' {tmp}'
                 printed += length + 1
 
             # dont print table if it fills to much of the screen
-            self.print_without_force = len(lines) * len(submissions) + 5 < height
+            self.print_without_force = len(lines) * len(self.submissions) + 5 < height
             if not self.print_without_force:
                 print(
                     f'{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}',
