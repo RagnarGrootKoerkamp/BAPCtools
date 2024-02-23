@@ -19,7 +19,7 @@ import threading
 
 from enum import Enum
 from pathlib import Path
-from colorama import Fore, Style
+from colorama import Fore, Back, Style
 
 import config
 
@@ -480,13 +480,15 @@ class VerdictTable:
         self.submissions = [
             submission.name for verdict in submissions for submission in submissions[verdict]
         ]
-        self.testcases = [testcase.name for testcase in testcases]
+        self.testcases = [t.name for t in testcases]
+        self.samples = {t.name for t in testcases if t.root == 'sample'}
         self.results = []
         self.current_testcases = set()
         self.name_width = min(
             max_name_width, max([len(submission) for submission in self.submissions])
         )
         self.width = width if width >= self.name_width + 2 + 10 else -1
+        self.last_width = 0
         self.last_printed = []
 
         self.print_without_force = (
@@ -502,7 +504,10 @@ class VerdictTable:
                 if t % 10 == 0:
                     verdicts.append([0, ''])
                 verdicts[-1][0] += 1
-                verdicts[-1][1] += '-'
+                symbol = '-'
+                if testcase in self.samples:
+                    symbol = '\033[48;5;237m' + symbol + Back.RESET
+                verdicts[-1][1] += symbol
 
             printed = self.name_width + 1
             for length, tmp in verdicts:
@@ -519,7 +524,14 @@ class VerdictTable:
                     f'{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}',
                     file=sys.stderr,
                 )
-                print(*lines, '[...]', Style.RESET_ALL, sep='\n', end='\n', file=sys.stderr)
+                print(
+                    *lines,
+                    f'[times {len(self.submissions)}...]',
+                    Style.RESET_ALL,
+                    sep='\n',
+                    end='\n',
+                    file=sys.stderr,
+                )
 
     def next_submission(self):
         self.results.append(dict())
@@ -540,13 +552,8 @@ class VerdictTable:
                     (printed + actual_width - 1) // actual_width for printed in self.last_printed
                 )
 
-                clear_text = (
-                    '\n'.join(' ' * printed for printed in self.last_printed) + f'\n\033[{lines}A\r'
-                    if clear
-                    else ''
-                )
                 print(
-                    f'\033[{lines}A\r' + clear_text,
+                    f'\033[{lines - 1}A\r\033[0J',
                     end='',
                     flush=True,
                     file=sys.stderr,
@@ -555,21 +562,24 @@ class VerdictTable:
                 self.last_printed = []
 
     def _get_verdict(self, s, testcase):
+        back = '\033[48;5;237m' if testcase in self.samples else ''
+        res = Style.DIM + Fore.WHITE + '-' + Style.RESET_ALL
         if s < len(self.results):
             if testcase in self.results[s]:
                 v = self.results[s][testcase]
                 if v == 'ACCEPTED':
-                    return Fore.GREEN + 'A' + Style.RESET_ALL
+                    res = Fore.GREEN + 'A'
                 else:
-                    return Fore.RED + v[0] + Style.RESET_ALL
+                    res = Fore.RED + v[0]
             elif s + 1 == len(self.results) and testcase in self.current_testcases:
-                return Style.DIM + Fore.BLUE + '?' + Style.RESET_ALL
-        return Style.DIM + Fore.WHITE + '-' + Style.RESET_ALL
+                res = Style.DIM + Fore.BLUE + '?'
+        return back + res + Style.RESET_ALL
 
     def print(self, *, force=True, new_lines=2):
         if force or self.print_without_force:
+            progress_bar_width = shutil.get_terminal_size().columns
             printed_text = ['\n' * new_lines]
-            printed_lengths = [1] * new_lines
+            printed_lengths = [progress_bar_width] + [1] * new_lines
             for s, submission in enumerate(self.submissions):
                 # pad/truncate submission names to not break table layout
                 name = submission
