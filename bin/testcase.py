@@ -244,15 +244,18 @@ class Testcase:
                 if not ok or self.root == 'invalid_inputs':
                     return ok
 
-                ok = self.validate_format(
-                    Mode.ANSWER,
-                    bar=bar,
-                    constraints=constraints,
-                    warn_instead_of_error=warn_instead_of_error,
-                    args=args,
-                )
-                if not ok or self.root == 'invalid_answers':
-                    return ok
+                if self.problem.interactive:
+                    assert self.root != 'invalid_answers'
+                else:
+                    ok = self.validate_format(
+                        Mode.ANSWER,
+                        bar=bar,
+                        constraints=constraints,
+                        warn_instead_of_error=warn_instead_of_error,
+                        args=args,
+                    )
+                    if not ok or self.root == 'invalid_answers':
+                        return ok
 
                 return self._run_validators(
                     Mode.INVALID,

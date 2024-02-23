@@ -235,6 +235,11 @@ class Problem:
         testcases = []
         for f in in_paths:
             t = testcase.Testcase(p, f)
+            if p.interactive and mode == validate.Mode.INVALID and t.root == 'invalid_answers':
+                warn(
+                    f'Found file {f} for invalid answer validation in interactive problem. Skipping.'
+                )
+                continue
             if needans and not t.ans_path.is_file():
                 if t.root != 'invalid_inputs':
                     warn(f'Found input file {f} without a .ans file. Skipping.')
@@ -243,9 +248,9 @@ class Problem:
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            ans = ' with answer' if needans else ''
-            val = f' skipping {mode} validation' if mode is not None else ''
-            warn(f'Didn\'t find any testcases{ans} for problem {p.name}{val}')
+            ans = ' with answer' if needans and mode != validate.Mode.INVALID else ''
+            val = f' for {mode} validation' if mode is not None else ''
+            warn(f'Didn\'t find any testcases{ans}{val} in problem {p.name}. Skipping.')
             testcases = False
 
         p._testcases[key] = testcases
@@ -654,7 +659,7 @@ class Problem:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
 
-        if problem.interactive and mode != validate.Mode.INPUT:
+        if problem.interactive and mode == validate.Mode.ANSWER:
             log('Not answer-validating interactive problems.')
             return True
 
@@ -671,7 +676,8 @@ class Problem:
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
-                problem.validators(validate.AnswerValidator)
+                if not problem.interactive:
+                    problem.validators(validate.AnswerValidator)
                 problem.validators(validate.OutputValidator)
                 testcases = problem.testcases(mode=mode)
             case _:
