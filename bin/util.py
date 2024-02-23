@@ -464,7 +464,7 @@ class TableProgressBar(ProgressBar):
     def finalize(self, *, print_done=True, message=None):
         with self:
             res = super().finalize(print_done=print_done, message=message)
-            self.table.clear()
+            self.table.clear(force=True)
             return res
 
 
