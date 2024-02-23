@@ -442,7 +442,9 @@ class TableProgressBar(ProgressBar):
     # at the end of any IO the progress bar unlocks so we can reprint the table at this point
     def __exit__(self, *args):
         if ProgressBar.lock_depth == 1:
-            self.table.print(force=False)
+            # ProgressBar.columns is just an educated guess for the number of printed chars
+            # in the ProgressBar
+            self.table.print(force=False, printed_lengths=[ProgressBar.columns])
             sys.stderr.reconfigure(line_buffering=self.reset_line_buffering)
             print(end='', flush=True, file=sys.stderr)
         super().__exit__(*args)
@@ -567,11 +569,12 @@ class VerdictTable:
                 res = Style.DIM + Fore.BLUE + '?'
         return res + Style.RESET_ALL
 
-    def print(self, *, force=True, new_lines=2):
+    def print(self, *, force=True, new_lines=2, printed_lengths=None):
+        if printed_lengths is None:
+            printed_lengths = []
         if force or self.print_without_force:
-            progress_bar_width = shutil.get_terminal_size().columns
             printed_text = ['\n' * new_lines]
-            printed_lengths = [progress_bar_width] + [1] * new_lines
+            printed_lengths += [1] * new_lines
             for s, submission in enumerate(self.submissions):
                 # pad/truncate submission names to not break table layout
                 name = submission
