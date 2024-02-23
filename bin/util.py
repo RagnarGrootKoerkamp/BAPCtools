@@ -94,8 +94,7 @@ def error(msg):
     config.n_error += 1
 
 
-def fatal(msg):
-    force = threading.active_count() > 1
+def fatal(msg, *, force=threading.active_count() > 1):
     print(f'\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
     if force:
         sys.stderr.close()
@@ -1139,7 +1138,7 @@ def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwar
         nonlocal process
         if process is not None:
             process.kill()
-        fatal('Running interrupted')
+        fatal('Running interrupted', force=True)
 
     if threading.current_thread() is threading.main_thread():
         old_handler = signal.signal(signal.SIGINT, interrupt_handler)
