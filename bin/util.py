@@ -536,15 +536,21 @@ class VerdictTable:
         if force or self.print_without_force:
             if self.last_printed:
                 actual_width = shutil.get_terminal_size().columns
-                lines = 0
-                for printed in self.last_printed:
-                    lines += (printed + actual_width - 1) // actual_width
-                print(f'\033[{lines}A\r', end='', file=sys.stderr)
+                lines = sum(
+                    (printed + actual_width - 1) // actual_width for printed in self.last_printed
+                )
 
-                if clear:
-                    for printed in self.last_printed:
-                        print(' ' * printed, file=sys.stderr)
-                    print(f'\033[{lines}A\r', end='', file=sys.stderr)
+                clear_text = (
+                    '\n'.join(' ' * printed for printed in self.last_printed) + f'\n\033[{lines}A\r'
+                    if clear
+                    else ''
+                )
+                print(
+                    f'\033[{lines}A\r' + clear_text,
+                    end='',
+                    flush=True,
+                    file=sys.stderr,
+                )
 
                 self.last_printed = []
 
@@ -562,16 +568,15 @@ class VerdictTable:
 
     def print(self, *, force=True, new_lines=2):
         if force or self.print_without_force:
-            self.clear(force=True, clear=False)
-            print('\n' * new_lines, end='', file=sys.stderr)
-            self.last_printed.extend([1] * new_lines)
+            printed_text = ['\n' * new_lines]
+            printed_lengths = [1] * new_lines
             for s, submission in enumerate(self.submissions):
                 # pad/truncate submission names to not break table layout
                 name = submission
                 if len(name) > self.name_width:
                     name = '...' + name[-self.name_width + 3 :]
                 padding = ' ' * (self.name_width - len(name))
-                print(f'{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}', end='', file=sys.stderr)
+                printed_text.append(f'{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}')
 
                 # group verdicts in parts of length at most ten
                 verdicts = []
@@ -584,16 +589,18 @@ class VerdictTable:
                 printed = self.name_width + 1
                 for length, tmp in verdicts:
                     if self.width >= 0 and printed + 1 + length > self.width:
-                        print(f'\n{str():{self.name_width+1}}', end='', file=sys.stderr)
-                        self.last_printed.append(printed)
+                        printed_text.append(f'\n{str():{self.name_width+1}}')
+                        printed_lengths.append(printed)
                         printed = self.name_width + 1
 
-                    print(f' {tmp}', end='', file=sys.stderr)
+                    printed_text.append(f' {tmp}')
                     printed += length + 1
 
-                self.last_printed.append(printed)
-                print(end='\n', file=sys.stderr)
-            print(end='', flush=True, file=sys.stderr)
+                printed_lengths.append(printed)
+                printed_text.append('\n')
+            self.clear(force=True, clear=False)
+            print(''.join(printed_text), end='', flush=True, file=sys.stderr)
+            self.last_printed = printed_lengths
 
     def ProgressBar(
         self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
