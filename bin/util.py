@@ -464,7 +464,6 @@ class TableProgressBar(ProgressBar):
     def finalize(self, *, print_done=True, message=None):
         with self:
             res = super().finalize(print_done=print_done, message=message)
-            self.table.clear(force=True)
             return res
 
 
@@ -544,7 +543,7 @@ class VerdictTable:
         self.results[-1][testcase] = verdict
         self.current_testcases.discard(testcase)
 
-    def clear(self, *, force=True, clear=True):
+    def clear(self, *, force=True):
         if force or self.print_without_force:
             if self.last_printed:
                 actual_width = shutil.get_terminal_size().columns
@@ -608,7 +607,7 @@ class VerdictTable:
 
                 printed_lengths.append(printed)
                 printed_text.append('\n')
-            self.clear(force=True, clear=False)
+            self.clear(force=True)
             print(''.join(printed_text), end='', flush=True, file=sys.stderr)
             self.last_printed = printed_lengths
 
