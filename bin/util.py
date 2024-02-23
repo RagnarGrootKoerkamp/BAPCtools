@@ -19,7 +19,7 @@ import threading
 
 from enum import Enum
 from pathlib import Path
-from colorama import Fore, Back, Style
+from colorama import Fore, Style
 
 import config
 
@@ -504,10 +504,7 @@ class VerdictTable:
                 if t % 10 == 0:
                     verdicts.append([0, ''])
                 verdicts[-1][0] += 1
-                symbol = '-'
-                if testcase in self.samples:
-                    symbol = '\033[48;5;237m' + symbol + Back.RESET
-                verdicts[-1][1] += symbol
+                verdicts[-1][1] += 's' if testcase in self.samples else '-'
 
             printed = self.name_width + 1
             for length, tmp in verdicts:
@@ -562,18 +559,15 @@ class VerdictTable:
                 self.last_printed = []
 
     def _get_verdict(self, s, testcase):
-        back = '\033[48;5;237m' if testcase in self.samples else ''
         res = Style.DIM + Fore.WHITE + '-' + Style.RESET_ALL
         if s < len(self.results):
             if testcase in self.results[s]:
                 v = self.results[s][testcase]
-                if v == 'ACCEPTED':
-                    res = Fore.GREEN + 'A'
-                else:
-                    res = Fore.RED + v[0]
+                res = Fore.GREEN if v == 'ACCEPTED' else Fore.RED
+                res += v[0].lower() if testcase in self.samples else v[0].upper()
             elif s + 1 == len(self.results) and testcase in self.current_testcases:
                 res = Style.DIM + Fore.BLUE + '?'
-        return back + res + Style.RESET_ALL
+        return res + Style.RESET_ALL
 
     def print(self, *, force=True, new_lines=2):
         if force or self.print_without_force:
