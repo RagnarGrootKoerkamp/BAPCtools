@@ -237,13 +237,15 @@ class ProgressBar:
         return '[' + fill + ']'
 
     def draw_bar(self):
+        assert self._is_locked()
         if config.args.no_bar:
             return
         bar = self.get_bar()
+        prefix = self.get_prefix()
         if bar is None or bar == '':
-            self._print(self.get_prefix(), end='\r')
+            self._print(prefix, end='\r')
         else:
-            self._print(self.get_prefix(), bar, end='\r')
+            self._print(prefix, bar, end='\r')
 
     # Remove the current item from in_progress.
     def _release_item(self):
@@ -287,7 +289,6 @@ class ProgressBar:
             bar_copy.parent = self
 
             self.draw_bar()
-
             return bar_copy
 
     @staticmethod
@@ -472,7 +473,7 @@ class VerdictTable:
         self,
         submissions,
         testcases,
-        width=shutil.get_terminal_size().columns,
+        width=ProgressBar.columns,
         height=shutil.get_terminal_size().lines,
         max_name_width=50,
     ):
@@ -543,9 +544,10 @@ class VerdictTable:
     def clear(self, *, force=True):
         if force or self.print_without_force:
             if self.last_printed:
-                actual_width = shutil.get_terminal_size().columns
+                actual_width = ProgressBar.columns
                 lines = sum(
-                    (printed + actual_width - 1) // actual_width for printed in self.last_printed
+                    max(1, (printed + actual_width - 1) // actual_width)
+                    for printed in self.last_printed
                 )
 
                 print(
@@ -573,7 +575,7 @@ class VerdictTable:
             printed_lengths = []
         if force or self.print_without_force:
             printed_text = ['\n' * new_lines]
-            printed_lengths += [1] * new_lines
+            printed_lengths += [0] * new_lines
             for s, submission in enumerate(self.submissions):
                 # pad/truncate submission names to not break table layout
                 name = submission
