@@ -469,6 +469,14 @@ class TableProgressBar(ProgressBar):
 
 
 class VerdictTable:
+
+    colors = {
+        'ACCEPTED': Fore.GREEN,
+        'WRONG_ANSWER': Fore.RED,
+        'TIME_LIMIT_EXCEEDED': Fore.MAGENTA,
+        'RUN_TIME_ERROR': Fore.YELLOW,
+    }
+
     def __init__(
         self,
         submissions,
@@ -564,7 +572,7 @@ class VerdictTable:
         if s < len(self.results):
             if testcase in self.results[s]:
                 v = self.results[s][testcase]
-                res = Fore.GREEN if v == 'ACCEPTED' else Fore.RED
+                res = VerdictTable.colors[v]
                 res += v[0].lower() if testcase in self.samples else v[0].upper()
             elif s + 1 == len(self.results) and testcase in self.current_testcases:
                 res = Style.DIM + Fore.BLUE + '?'

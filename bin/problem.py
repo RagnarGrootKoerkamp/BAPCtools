@@ -533,7 +533,7 @@ class Problem:
         if config.args.table:
             Problem._print_table(verdict_table.results, testcases, submissions)
         elif config.args.overview:
-            verdict_table.print(force=True, new_lines=2)
+            verdict_table.print(force=True, new_lines=1)
 
         return ok
 
