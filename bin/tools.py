@@ -684,6 +684,9 @@ Run this from one of:
     allparser.add_argument(
         '--timeout', '-t', type=int, help='Override the default timeout. Default: 30.'
     )
+    allparser.add_argument(
+        '--overview', '-o', action='store_true', help='Print a live overview for the judgings.'
+    )
 
     # Build DOMjudge zip
     zipparser = subparsers.add_parser(
