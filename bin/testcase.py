@@ -326,7 +326,7 @@ class Testcase:
                     file = self.ans_path
                 elif mode == Mode.INVALID:
                     file = self.out_path
-                    
+
                 data += (
                     f'{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n'
                 )
