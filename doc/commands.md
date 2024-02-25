@@ -106,6 +106,7 @@ Use `bt run -v` to show results for all testcases.
 - `--timelimit <second>`/`-t <second>`: The timelimit to use for the submission.
 - `--timeout <second>`: The timeout to use for the submission.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
+- `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and testcases. If combined with `--no-bar` only the final table is printed.
 - `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 
 ## `test`
