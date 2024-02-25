@@ -244,6 +244,8 @@ class Testcase:
                 if not ok or self.root == 'invalid_inputs':
                     return ok
 
+                assert not self.problem.interactive
+
                 ok = self.validate_format(
                     Mode.ANSWER,
                     bar=bar,

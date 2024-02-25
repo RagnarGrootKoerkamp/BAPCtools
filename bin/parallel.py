@@ -161,7 +161,7 @@ class ParallelQueue(AbstractQueue):
                     self.all_done.notify_all()
 
     def _interrupt_handler(self, sig, frame):
-        util.fatal('Running interrupted')
+        util.fatal('Running interrupted', force=True)
 
     # Add one task. Higher priority => done first
     def put(self, task, priority=0):

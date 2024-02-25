@@ -15,6 +15,7 @@ import tempfile
 import yaml as yamllib
 import errno
 import secrets
+import threading
 
 from enum import Enum
 from pathlib import Path
@@ -29,7 +30,7 @@ try:
     ryaml = ruamel.yaml.YAML(typ='rt')
     ryaml.default_flow_style = False
     ryaml.indent(mapping=2, sequence=4, offset=2)
-except:
+except Exception:
     has_ryaml = False
 
 
@@ -93,9 +94,15 @@ def error(msg):
     config.n_error += 1
 
 
-def fatal(msg):
-    print(f'{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
-    exit(1)
+def fatal(msg, *, force=threading.active_count() > 1):
+    print(f'\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
+    if force:
+        sys.stderr.close()
+        sys.stdout.close()
+        # exit even more forcefully to ensure that daemon threads dont break something
+        os._exit(1)
+    else:
+        sys.exit(1)
 
 
 # A class that draws a progressbar.
@@ -108,6 +115,7 @@ def fatal(msg):
 class ProgressBar:
     # Lock on all IO via this class.
     lock = threading.RLock()
+    lock_depth = 0
 
     current_bar = None
 
@@ -128,6 +136,9 @@ class ProgressBar:
         if isinstance(item, Path):
             return len(str(item))
         return len(item.name)
+
+    def _is_locked(self):
+        return ProgressBar.lock_depth > 0
 
     # When needs_leading_newline is True, this will print an additional empty line before the first log message.
     def __init__(
@@ -165,6 +176,17 @@ class ProgressBar:
 
         self.needs_leading_newline = needs_leading_newline
 
+    def __enter__(self):
+        ProgressBar.lock.__enter__()
+        ProgressBar.lock_depth += 1
+
+    def __exit__(self, *args):
+        ProgressBar.lock_depth -= 1
+        ProgressBar.lock.__exit__(*args)
+
+    def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
+        print(*objects, sep=sep, end=end, file=file, flush=flush)
+
     def total_width(self):
         cols = ProgressBar.columns
         if is_windows():
@@ -187,7 +209,8 @@ class ProgressBar:
     def clearline(self):
         if config.args.no_bar:
             return
-        print(self.carriage_return, end='', flush=True, file=sys.stderr)
+        assert self._is_locked()
+        self._print(self.carriage_return, end='', flush=False)
 
     def action(prefix, item, width=None, total_width=None):
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
@@ -213,6 +236,17 @@ class ProgressBar:
             fill = fill[: -len(text)] + text
         return '[' + fill + ']'
 
+    def draw_bar(self):
+        assert self._is_locked()
+        if config.args.no_bar:
+            return
+        bar = self.get_bar()
+        prefix = self.get_prefix()
+        if bar is None or bar == '':
+            self._print(prefix, end='\r')
+        else:
+            self._print(prefix, bar, end='\r')
+
     # Remove the current item from in_progress.
     def _release_item(self):
         if self.parent:
@@ -226,6 +260,7 @@ class ProgressBar:
     # Resume the ongoing progress bar after a log/done.
     # Should only be called for the root.
     def _resume(self):
+        assert self._is_locked()
         assert self.parent is None
 
         if config.args.no_bar:
@@ -237,14 +272,10 @@ class ProgressBar:
                 old = self.item
                 self.item = next(iter(self.in_progress))
                 p = self.item
-            bar = self.get_bar()
-            if bar is None or bar == '':
-                print(self.get_prefix(), end='\r', flush=True, file=sys.stderr)
-            else:
-                print(self.get_prefix(), bar, sep='', end='\r', flush=True, file=sys.stderr)
+            self.draw_bar()
 
     def start(self, item=''):
-        with self.lock:
+        with self:
             # start may only be called on the root bar.
             assert self.parent is None
             self.i += 1
@@ -257,15 +288,8 @@ class ProgressBar:
             bar_copy = copy.copy(self)
             bar_copy.parent = self
 
-            if config.args.no_bar:
-                return bar_copy
-
-            bar = self.get_bar()
-            if bar is None or bar == '':
-                print(self.get_prefix(), end='\r', flush=True, file=sys.stderr)
-            else:
-                print(self.get_prefix(), bar, sep='', end='\r', flush=True, file=sys.stderr)
-        return bar_copy
+            self.draw_bar()
+            return bar_copy
 
     @staticmethod
     def _format_data(data):
@@ -277,7 +301,7 @@ class ProgressBar:
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
     def log(self, message='', data='', color=Fore.GREEN, *, resume=True):
-        with self.lock:
+        with self:
             if message is None:
                 message = ''
             self.clearline()
@@ -286,23 +310,20 @@ class ProgressBar:
             if self.parent:
                 self.parent.global_logged = True
                 if self.parent.needs_leading_newline:
-                    print(file=sys.stderr)
+                    self._print()
                     self.parent.needs_leading_newline = False
             else:
                 self.global_logged = True
                 if self.needs_leading_newline:
-                    print(file=sys.stderr)
+                    self._print()
                     self.needs_leading_newline = False
 
-            print(
+            self._print(
                 self.get_prefix(),
                 color,
                 message,
                 ProgressBar._format_data(data),
                 Style.RESET_ALL,
-                sep='',
-                flush=True,
-                file=sys.stderr,
             )
 
             if resume:
@@ -324,7 +345,7 @@ class ProgressBar:
     # Error by default removes the current item from the in_progress set.
     # Set `resume` to `True` to continue processing the item.
     def error(self, message='', data='', resume=False):
-        with self.lock:
+        with self:
             config.n_error += 1
             self.log(message, data, Fore.RED, resume=resume)
             if not resume:
@@ -332,7 +353,7 @@ class ProgressBar:
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(self, success=True, message='', data=''):
-        with self.lock:
+        with self:
             self.clearline()
 
             if self.item is None:
@@ -357,7 +378,7 @@ class ProgressBar:
             else:
                 config.n_error += 1
         if config.args.verbose or not success:
-            with self.lock:
+            with self:
                 if success:
                     self.log(message, data)
                 else:
@@ -373,7 +394,7 @@ class ProgressBar:
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
     def finalize(self, *, print_done=True, message=None):
-        with self.lock:
+        with self:
             self.clearline()
             assert self.parent is None
             assert self.count is None or self.i == self.count
@@ -391,16 +412,216 @@ class ProgressBar:
                 message = f'{Fore.GREEN}Done{Style.RESET_ALL}'
 
             if message:
-                print(self.get_prefix(), message, sep='', file=sys.stderr)
+                self._print(self.get_prefix(), message)
 
             # When something was printed, add a newline between parts.
             if self.global_logged:
-                print(file=sys.stderr)
+                self._print()
 
         assert ProgressBar.current_bar is not None
         ProgressBar.current_bar = None
 
         return self.global_logged
+
+
+class TableProgressBar(ProgressBar):
+    def __init__(self, table, prefix, max_len, count, *, items, needs_leading_newline):
+        super().__init__(
+            prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline
+        )
+        self.table = table
+
+    # at the begin of any IO the progress bar locks so we can clear the table at this point
+    def __enter__(self):
+        super().__enter__()
+        if ProgressBar.lock_depth == 1:
+            self.reset_line_buffering = sys.stderr.line_buffering
+            sys.stderr.reconfigure(line_buffering=False)
+            self.table._clear(force=False)
+
+    # at the end of any IO the progress bar unlocks so we can reprint the table at this point
+    def __exit__(self, *args):
+        if ProgressBar.lock_depth == 1:
+            # ProgressBar.columns is just an educated guess for the number of printed chars
+            # in the ProgressBar
+            self.table.print(force=False, printed_lengths=[ProgressBar.columns])
+            sys.stderr.reconfigure(line_buffering=self.reset_line_buffering)
+            print(end='', flush=True, file=sys.stderr)
+        super().__exit__(*args)
+
+    def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
+        assert self._is_locked()
+        # drop all flushes...
+        print(*objects, sep=sep, end=end, file=file, flush=False)
+
+    def start(self, item):
+        self.table.add_testcase(item.testcase.name)
+        return super().start(item)
+
+    def done(self, success=True, message='', data=''):
+        return super().done(success, message, data)
+
+    def finalize(self, *, print_done=True, message=None):
+        with self:
+            res = super().finalize(print_done=print_done, message=message)
+            self.table._clear(force=True)
+            return res
+
+
+class VerdictTable:
+
+    colors = {
+        'ACCEPTED': Fore.GREEN,
+        'WRONG_ANSWER': Fore.RED,
+        'TIME_LIMIT_EXCEEDED': Fore.MAGENTA,
+        'RUN_TIME_ERROR': Fore.YELLOW,
+    }
+
+    def __init__(
+        self,
+        submissions,
+        testcases,
+        width=ProgressBar.columns,
+        height=shutil.get_terminal_size().lines,
+        max_name_width=50,
+    ):
+        self.submissions = [
+            submission.name for verdict in submissions for submission in submissions[verdict]
+        ]
+        self.testcases = [t.name for t in testcases]
+        self.samples = {t.name for t in testcases if t.root == 'sample'}
+        self.results = []
+        self.current_testcases = set()
+        self.name_width = min(
+            max_name_width, max([len(submission) for submission in self.submissions])
+        )
+        self.width = width if width >= self.name_width + 2 + 10 else -1
+        self.last_width = 0
+        self.last_printed = []
+
+        self.print_without_force = (
+            not config.args.no_bar and config.args.overview and self.width >= 0
+        )
+        if self.print_without_force:
+            # generate example lines for one submission
+            name = 'x' * self.name_width
+            lines = [f'{Style.DIM}{Fore.CYAN}{name}{Fore.WHITE}:']
+
+            verdicts = []
+            for t, testcase in enumerate(self.testcases):
+                if t % 10 == 0:
+                    verdicts.append([0, ''])
+                verdicts[-1][0] += 1
+                verdicts[-1][1] += 's' if testcase in self.samples else '-'
+
+            printed = self.name_width + 1
+            for length, tmp in verdicts:
+                if printed + 1 + length > self.width:
+                    lines.append(f'{str():{self.name_width+1}}')
+                    printed = self.name_width + 1
+                lines[-1] += f' {tmp}'
+                printed += length + 1
+
+            # dont print table if it fills to much of the screen
+            self.print_without_force = len(lines) * len(self.submissions) + 5 < height
+            if not self.print_without_force:
+                print(
+                    f'{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}',
+                    file=sys.stderr,
+                )
+                print(
+                    *lines,
+                    f'[times {len(self.submissions)}...]',
+                    Style.RESET_ALL,
+                    sep='\n',
+                    end='\n',
+                    file=sys.stderr,
+                )
+
+    def next_submission(self):
+        self.results.append(dict())
+        self.current_testcases = set()
+
+    def add_testcase(self, testcase):
+        self.current_testcases.add(testcase)
+
+    def finish_testcase(self, testcase, verdict):
+        self.results[-1][testcase] = verdict
+        self.current_testcases.discard(testcase)
+
+    def _clear(self, *, force=True):
+        if force or self.print_without_force:
+            if self.last_printed:
+                actual_width = ProgressBar.columns
+                lines = sum(
+                    max(1, (printed + actual_width - 1) // actual_width)
+                    for printed in self.last_printed
+                )
+
+                print(
+                    f'\033[{lines - 1}A\r\033[0J',
+                    end='',
+                    flush=True,
+                    file=sys.stderr,
+                )
+
+                self.last_printed = []
+
+    def _get_verdict(self, s, testcase):
+        res = Style.DIM + Fore.WHITE + '-' + Style.RESET_ALL
+        if s < len(self.results):
+            if testcase in self.results[s]:
+                v = self.results[s][testcase]
+                res = VerdictTable.colors[v]
+                res += v[0].lower() if testcase in self.samples else v[0].upper()
+            elif s + 1 == len(self.results) and testcase in self.current_testcases:
+                res = Style.DIM + Fore.BLUE + '?'
+        return res + Style.RESET_ALL
+
+    def print(self, *, force=True, new_lines=2, printed_lengths=None):
+        if printed_lengths is None:
+            printed_lengths = []
+        if force or self.print_without_force:
+            printed_text = ['\n' * new_lines]
+            printed_lengths += [0] * new_lines
+            for s, submission in enumerate(self.submissions):
+                # pad/truncate submission names to not break table layout
+                name = submission
+                if len(name) > self.name_width:
+                    name = '...' + name[-self.name_width + 3 :]
+                padding = ' ' * (self.name_width - len(name))
+                printed_text.append(f'{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}')
+
+                # group verdicts in parts of length at most ten
+                verdicts = []
+                for t, testcase in enumerate(self.testcases):
+                    if t % 10 == 0:
+                        verdicts.append([0, ''])
+                    verdicts[-1][0] += 1
+                    verdicts[-1][1] += self._get_verdict(s, testcase)
+
+                printed = self.name_width + 1
+                for length, tmp in verdicts:
+                    if self.width >= 0 and printed + 1 + length > self.width:
+                        printed_text.append(f'\n{str():{self.name_width+1}}')
+                        printed_lengths.append(printed)
+                        printed = self.name_width + 1
+
+                    printed_text.append(f' {tmp}')
+                    printed += length + 1
+
+                printed_lengths.append(printed)
+                printed_text.append('\n')
+            self._clear(force=True)
+            print(''.join(printed_text), end='', flush=True, file=sys.stderr)
+            self.last_printed = printed_lengths
+
+    def ProgressBar(
+        self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
+    ):
+        return TableProgressBar(
+            self, prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline
+        )
 
 
 # Given a command line argument, return the first match:
@@ -485,7 +706,7 @@ def parse_yaml(data, path=None):
             import yaml
 
             return yaml.safe_load(data)
-        except:
+        except Exception:
             fatal(f'Failed to parse {path}.')
 
 
@@ -927,9 +1148,7 @@ def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwar
         nonlocal process
         if process is not None:
             process.kill()
-        # Extra newline to not overwrite progress bars
-        print(file=sys.stderr)
-        fatal('Running interrupted')
+        fatal('Running interrupted', force=True)
 
     if threading.current_thread() is threading.main_thread():
         old_handler = signal.signal(signal.SIGINT, interrupt_handler)

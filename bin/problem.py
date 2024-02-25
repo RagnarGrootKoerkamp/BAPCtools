@@ -235,6 +235,13 @@ class Problem:
         testcases = []
         for f in in_paths:
             t = testcase.Testcase(p, f)
+            if (
+                p.interactive
+                and mode == validate.Mode.INVALID
+                and t.root in ['invalid_answers', 'invalid_outputs']
+            ):
+                warn(f'Found file {f} for {mode} validation in interactive problem. Skipping.')
+                continue
             if needans and not t.ans_path.is_file():
                 if t.root != 'invalid_inputs':
                     warn(f'Found input file {f} without a .ans file. Skipping.')
@@ -243,9 +250,9 @@ class Problem:
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            ans = ' with answer' if needans else ''
-            val = f' skipping {mode} validation' if mode is not None else ''
-            warn(f'Didn\'t find any testcases{ans} for problem {p.name}{val}')
+            ans = ' with answer' if needans and mode != validate.Mode.INVALID else ''
+            val = f' for {mode} validation' if mode is not None else ''
+            warn(f'Didn\'t find any testcases{ans}{val} in problem {p.name}. Skipping.')
             testcases = False
 
         p._testcases[key] = testcases
@@ -509,21 +516,24 @@ class Problem:
             return False
 
         ok = True
-        verdict_table = []
+        verdict_table = VerdictTable(submissions, testcases)
         # When true, the ProgressBar will print a newline before the first error log.
         needs_leading_newline = False if config.args.verbose else True
         for verdict in submissions:
             for submission in submissions[verdict]:
-                d = dict()
-                verdict_table.append(d)
+                verdict_table.next_submission()
                 submission_ok, printed_newline = submission.run_all_testcases(
-                    max_submission_len, table_dict=d, needs_leading_newline=needs_leading_newline
+                    max_submission_len,
+                    verdict_table=verdict_table,
+                    needs_leading_newline=needs_leading_newline,
                 )
                 needs_leading_newline = not printed_newline
                 ok &= submission_ok
 
         if config.args.table:
-            Problem._print_table(verdict_table, testcases, submissions)
+            Problem._print_table(verdict_table.results, testcases, submissions)
+        elif config.args.overview:
+            verdict_table.print(force=True, new_lines=1)
 
         return ok
 
@@ -548,13 +558,15 @@ class Problem:
     def _print_table(verdict_table, testcases, submission):
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
         def single_verdict(row, testcase):
+            color = Style.RESET_ALL
+            char = '-'
             if testcase.name in row:
-                if row[testcase.name]:
-                    return Fore.GREEN + '1' + Style.RESET_ALL
+                char = row[testcase.name][0]
+                if row[testcase.name] == 'ACCEPTED':
+                    color = Fore.GREEN
                 else:
-                    return Fore.RED + '0' + Style.RESET_ALL
-            else:
-                return '-'
+                    color = Fore.RED
+            return color + char + Style.RESET_ALL
 
         make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, tc), verdict_table))
         resultant_count, resultant_id = dict(), dict()
@@ -574,10 +586,10 @@ class Problem:
         for dct in verdict_table:
             failures = 0
             for t in dct:
-                if not dct[t]:
+                if dct[t] != 'ACCEPTED':
                     failures += 1
             for t in dct:
-                if not dct[t]:
+                if dct[t] != 'ACCEPTED':
                     scores[t] += 1.0 / failures
         scores_list = sorted(scores.values())
 
@@ -586,20 +598,32 @@ class Problem:
             'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.',
             file=sys.stderr,
         )
-        print(f'{Fore.RED}0{Style.RESET_ALL}: submission fails testcase', file=sys.stderr)
-        print(f'{Fore.GREEN}1{Style.RESET_ALL}: submission passes testcase\n', file=sys.stderr)
+        print(f'{Fore.RED}#{Style.RESET_ALL}: submission fails testcase', file=sys.stderr)
+        print(f'{Fore.GREEN}#{Style.RESET_ALL}: submission passes testcase\n', file=sys.stderr)
+
+        name_col_width = min(50, max([len(testcase.name) for testcase in testcases]))
 
         for testcase in testcases:
             # Skip all AC testcases
-            if all(map(lambda row: testcase.name in row and row[testcase.name], verdict_table)):
+            if all(
+                map(
+                    lambda row: testcase.name in row and row[testcase.name] == 'ACCEPTED',
+                    verdict_table,
+                )
+            ):
                 continue
+
+            name = testcase.name
+            if len(name) > name_col_width:
+                name = '...' + name[-name_col_width + 3 :]
+            padding = ' ' * (name_col_width - len(name))
+            print(f'{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}', end=' ', file=sys.stderr)
 
             color = Style.RESET_ALL
             if len(scores_list) > 6 and scores[testcase.name] >= scores_list[-6]:
                 color = Fore.YELLOW
             if len(scores_list) > 3 and scores[testcase.name] >= scores_list[-3]:
                 color = Fore.RED
-            print(f'{str(testcase.name):<60}', end=' ', file=sys.stderr)
             resultant = make_verdict(testcase)
             print(resultant, end='  ', file=sys.stderr)
             print(
@@ -637,7 +661,7 @@ class Problem:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
 
-        if problem.interactive and mode != validate.Mode.INPUT:
+        if problem.interactive and mode == validate.Mode.ANSWER:
             log('Not answer-validating interactive problems.')
             return True
 
@@ -654,8 +678,9 @@ class Problem:
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
-                problem.validators(validate.AnswerValidator)
-                problem.validators(validate.OutputValidator)
+                if not problem.interactive:
+                    problem.validators(validate.AnswerValidator)
+                    problem.validators(validate.OutputValidator)
                 testcases = problem.testcases(mode=mode)
             case _:
                 ValueError(mode)
