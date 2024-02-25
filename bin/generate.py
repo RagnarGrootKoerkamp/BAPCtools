@@ -1797,7 +1797,7 @@ class GeneratorConfig:
                 try:
                     dir_path.rmdir()
                     bar.log('Remove directory')
-                except:
+                except Exception:
                     pass
 
             bar.done()

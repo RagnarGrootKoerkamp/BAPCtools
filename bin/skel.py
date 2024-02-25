@@ -19,7 +19,7 @@ try:
             if len(document.text) == 0:
                 raise ValidationError(message="Please enter a value")
 
-except:
+except Exception:
     has_questionary = False
 
 
