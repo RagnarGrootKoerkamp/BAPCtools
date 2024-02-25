@@ -252,7 +252,9 @@ class Problem:
         if len(testcases) == 0:
             ans = ' with answer' if needans and mode != validate.Mode.INVALID else ''
             val = f' for {mode} validation' if mode is not None else ''
-            warn(f'Didn\'t find any testcases{ans}{val} in problem {p.name}. Skipping.')
+            (log if mode == validate.Mode.INVALID else warn)(
+                f'Didn\'t find any testcases{ans}{val} in problem {p.name}. Skipping.'
+            )
             testcases = False
 
         p._testcases[key] = testcases
