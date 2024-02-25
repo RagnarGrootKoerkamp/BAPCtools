@@ -9,6 +9,8 @@ import numbers
 # This can be a red/white colored number, or Y/N
 def _get_stat(count, threshold=True, upper_bound=None):
     if threshold is True:
+        if count is None:
+            return Fore.WHITE + ' ' + Style.RESET_ALL
         if count >= 1:
             return Fore.WHITE + 'Y' + Style.RESET_ALL
         else:
@@ -28,10 +30,11 @@ def stats(problems):
         ('yaml', 'problem.yaml'),
         ('tex', 'problem_statement/problem*.tex'),
         ('sol', 'problem_statement/solution*.tex'),
-        ('   Ival', ['input_validators/*', 'input_format_validators/*']),
-        ('Oval', ['output_validators/*']),
+        ('  val: I', ['input_validators/*', 'input_format_validators/*']),
+        ('A', ['answer_validators/*']),
+        ('O', ['output_validators/*']),
         (
-            '   sample',
+            '  sample',
             [
                 'data/sample/*.in',
                 'data/sample/*.in.statement',
@@ -44,12 +47,13 @@ def stats(problems):
             'secret',
             ['data/secret/**/*.in', lambda s: {x.stem for x in s if x.parts[2] == 'secret'}],
             15,
-            50,
+            100,
         ),
         (
             'bad',
             [
                 'data/invalid_inputs/**/*.in',
+                'data/invalid_answers/**/*.ans',
                 'data/invalid_outputs/**/*.ans',
                 'data/bad/**/*.in',
                 'data/bad/**/*.ans',
@@ -59,18 +63,18 @@ def stats(problems):
         ('   AC', 'submissions/accepted/*', 3),
         (' WA', 'submissions/wrong_answer/*', 2),
         ('TLE', 'submissions/time_limit_exceeded/*', 1),
-        ('subs', lambda p: len(glob(p.path, 'submissions/*/*')), 0),
+        ('subs', lambda p: len(glob(p.path, 'submissions/*/*')), 6),
         (
-            '   cpp',
+            '  cpp',
             ['submissions/accepted/*.c', 'submissions/accepted/*.cpp', 'submissions/accepted/*.cc'],
             1,
         ),
+        ('py', ['submissions/accepted/*.py3', 'submissions/accepted/*.py'], 1),
         ('java', 'submissions/accepted/*.java', 1),
-        ('py', ['submissions/accepted/*.py[23]', 'submissions/accepted/*.py'], 1),
         ('kt', 'submissions/accepted/*.kt', 1),
     ]
 
-    headers = ['problem'] + [h[0] for h in stats] + ['  comment']
+    headers = ['problem', *(h[0] for h in stats), '   comment']
     cumulative = [0] * (len(stats))
 
     header_string = ''
@@ -133,12 +137,13 @@ def stats(problems):
         def value(x):
             if x[0] == '  time' or x[0] == 'subs':
                 return x[1](problem)
-            else:
-                return len(count(x[1]))
+            if x[0] == 'O' and problem.settings.validation == 'default':
+                return None  # Do not show an entry for the output validator if it is not required
+            return len(count(x[1]))
 
         counts = [value(s) for s in stats]
         for i in range(0, len(stats)):
-            cumulative[i] = cumulative[i] + counts[i]
+            cumulative[i] += counts[i] or 0
 
         verified = False
         comment = ''
@@ -173,8 +178,6 @@ def stats(problems):
     # print the cumulative count
     print('-' * len(header), file=sys.stderr)
     print(
-        format_string.format(
-            *(['TOTAL'] + list(map(lambda x: _get_stat(x, False), cumulative)) + [''])
-        ),
+        format_string.format('TOTAL', *(_get_stat(x, False) for x in cumulative), ''),
         file=sys.stderr,
     )
