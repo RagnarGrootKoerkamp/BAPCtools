@@ -366,7 +366,7 @@ class Submission(program.Program):
         testcases = self.problem.testcases(needans=False)
 
         if self.problem.interactive:
-            output_validators = self.problem.validators('output')
+            output_validators = self.problem.validators(validate.OutputValidator)
             if output_validators is False:
                 return
 
@@ -434,7 +434,7 @@ class Submission(program.Program):
     # Run the submission using stdin as input.
     def test_interactive(self):
         if self.problem.interactive:
-            output_validators = self.problem.validators('output')
+            output_validators = self.problem.validators(validate.OutputValidator)
             if output_validators is False:
                 return
 
