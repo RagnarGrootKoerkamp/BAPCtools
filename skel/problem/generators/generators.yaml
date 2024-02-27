@@ -1,7 +1,5 @@
 #solution: /submissions/accepted/submission.py
 #visualizer: /visualizers/asy.sh
-# By default, generated files are not ignored.
-#gitignore_generated: false
 
 data:
   sample:
