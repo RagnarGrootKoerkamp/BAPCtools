@@ -137,6 +137,8 @@ def stats(problems):
         def value(x):
             if x[0] == '  time' or x[0] == 'subs':
                 return x[1](problem)
+            if x[0] == 'A' and problem.settings.validation == 'custom interactive':
+                return None  # Do not show an entry for the answer validator if it is not required
             if x[0] == 'O' and problem.settings.validation == 'default':
                 return None  # Do not show an entry for the output validator if it is not required
             return len(count(x[1]))
