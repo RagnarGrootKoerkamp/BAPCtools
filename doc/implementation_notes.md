@@ -34,13 +34,6 @@ Matching is case-insensitive and extra white space is allowed. Examples:
 - `// @EXPECTED_RESULTS@: WRONG_ANSWER`
 - `# @expected_results@:  accepted,time_limit_exceeded, no-output`
 
-## Non-standard `generators.yaml` keys
-
-The following non-standard top-level `generators/generators.yaml` keys are supported:
-
-- `gitignore_generated` (default `False`): Can be used to automatically write a `data/.gitignore` containing a single gitignore line like `secret/testcase.*` for each generated testcase.
-  This file should not be modified manually as it will be overwritten each time testcases are regenerated.
-
 # Building and running in tmpfs
 
 For efficiency, BAPCtools tries to minimize the number of disk writes. This means that it will do as many things as possible in RAM. In practice, `tmpfs` (temporary file system in RAM) is used for this.
