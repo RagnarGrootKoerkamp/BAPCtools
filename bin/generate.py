@@ -1712,6 +1712,7 @@ data/
             # what he does.
             if gitignorefile.read_text().find('data/') == -1:
                 with gitignorefile.open("a") as f:
+                    f.write('\n')
                     f.write(content)
                 log('Updated .gitignore.')
         else:
