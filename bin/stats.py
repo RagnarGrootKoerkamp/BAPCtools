@@ -54,7 +54,7 @@ def stats(problems):
             [
                 'data/invalid_inputs/**/*.in',
                 'data/invalid_answers/**/*.ans',
-                'data/invalid_outputs/**/*.ans',
+                'data/invalid_outputs/**/*.out',
                 'data/bad/**/*.in',
                 'data/bad/**/*.ans',
             ],
