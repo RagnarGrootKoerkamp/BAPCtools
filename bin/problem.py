@@ -664,7 +664,8 @@ class Problem:
         assert constraints is None or isinstance(constraints, dict)
 
         if problem.interactive and mode == validate.Mode.ANSWER:
-            log('Not answer-validating interactive problems.')
+            if (problem.path / 'answer_validators').exists():
+                log('Not running answer_validators for interactive problems.')
             return True
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
