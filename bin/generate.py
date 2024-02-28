@@ -1573,7 +1573,8 @@ class GeneratorConfig:
         build_programs(program.Visualizer, visualizers_used)
 
         self.problem.validators(validate.InputValidator)
-        self.problem.validators(validate.AnswerValidator)
+        if not self.problem.interactive:
+            self.problem.validators(validate.AnswerValidator)
         self.problem.validators(validate.OutputValidator)
 
         def cleanup_build_failures(t):

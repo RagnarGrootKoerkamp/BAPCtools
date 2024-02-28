@@ -439,7 +439,7 @@ class Problem:
             case validate.InputValidator, 0:
                 warn(f'No input validators found.')
             case validate.AnswerValidator, 0:
-                log(f"No answer validator found")
+                log(f"No answer validators found")
             case validate.OutputValidator, l if l != 1:
                 print(cls)
                 error(f'Found {len(paths)} output validators, expected exactly one.')
@@ -676,7 +676,10 @@ class Problem:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.ANSWER:
-                problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
+                if not problem.interactive:
+                    problem.validators(
+                        validate.AnswerValidator, check_constraints=check_constraints
+                    )
                 problem.validators(validate.OutputValidator, check_constraints=check_constraints)
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
