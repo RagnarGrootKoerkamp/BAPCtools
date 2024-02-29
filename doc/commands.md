@@ -12,9 +12,9 @@ Unless otherwise specified, commands work both on the problem and contest level.
 This lists all subcommands and their most important options.
 
 - Problem development:
-  - [`bt run [-v] [-t TIMELIMIT] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
+  - [`bt run [-v] [-t TIMELIMIT] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-unlisted [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS][--no-validators] [--no-visualizer] [testcases [testcases ...]]`](#generate)
+  - [`bt generate [-v] [-t TIMEOUT] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [testcases [testcases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit] [--language LANG]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
@@ -35,7 +35,7 @@ This lists all subcommands and their most important options.
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
   - [`bt export`](#export)
 - Misc
-  - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated] [--check-deterministic]`](#all)
+  - [`bt all [-v] [--cp] [--no-timelimit] [--check-deterministic]`](#all)
   - [`bt solve_stats [--contest-id CONTESTID] [--post-freeze]`](#solve_stats)
   - [`bt sort`](#sort)
   - [`bt update_problems_yaml [--colors COLORS]`](#update_problems_yaml)
@@ -102,7 +102,6 @@ Use `bt run -v` to show results for all testcases.
 
 - `--samples`: Run the given submissions against the sample data only. Not allowed in combination with passing in testcases directly.
 - `--no-generate`/`-G`: Do not generate testcases before running the submissions. This usually won't be needed since checking that generated testcases are up to date is fast.
-- `--force`/`-f`: Overwrite existing generated testcases, instead of printing a warning and keeping the old data.
 - `--timelimit <second>`/`-t <second>`: The timelimit to use for the submission.
 - `--timeout <second>`: The timeout to use for the submission.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
@@ -150,19 +149,14 @@ Use the `generate` command to generate the testcases specified in `generators/ge
 
 This command tries to be smart about not regenerating testcases that are up to date. When the generator and its invocation haven't changed, nothing will be done.
 
-Any files in `data/` that are not tracked in `generators.yaml` will raise a warning.
+Any files in `data/` that are not tracked in `generators.yaml` will be removed.
 
 Pass a list of testcases or directories to only generate a subset of data. See [run](#run) for possible ways to pass in testcases.
 
 **Flags**
 
-- `--force`/`-f`: By default, `generate` will not overwrite any files, but instead warn that they will change. Pass `--force` to overwrite existing files.
-- `--samples`: Even with `--force`, samples won't be overwritten by default. `--force --samples` also overwrites samples. (Samples usually have a manually curated input and output that should not be overwritten easily.)
-- `--all`/`-a`: Fully regenerate all test cases, skipping the up-to-date check.
 - `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check.
-- `--add-unlisted [directory]`: All testcases in the specified directory that do not have a corresponding entry in `generators.yaml` are added.
-- `--clean`: Delete all files/testcases not listed in `generators.yaml`. Without `-f`, this does a dry-run.
-- `--clean-generated`: Delete all generated files. Useful to save on disk space, since all this data can be regenerated.
+- `--clean`: Delete all cached files.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
 - `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
 - `--no-validators`: Ignore the results of input and output validators.
@@ -170,19 +164,6 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--no-solution`: Skip generating .ans or .interaction files with the solution.
 - `--no-visualizer`: Skip generating graphics with the visualiser.
 - `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
-
-## `clean`
-
-The `clean` command deletes all generated testdata from the `data/` directory. It only removes files that satisfy both these conditions:
-
-- The `.in` corresponding to the current file was generated.
-- The extension of the current file is handled by the problem archive format: `.in`, `.ans`, `.interaction`, `.hint`, `.desc`, `.png`, `.jpg`, `.svg`.
-
-Furthermore, it removes generated `testdata.yaml`.
-
-**Flags**
-
-- `--force`/`-f`: When this is passed, all untracked files (i.e. files not matching any rule in `generators/generators.yaml`) are deleted. Without `--force`, such files raise a warning.
 
 ## `pdf`
 
@@ -234,8 +215,8 @@ This table contains:
 This may look like:
 
 ```
-problem               yaml ini tex sol    Ival Oval    sample secret    AC  WA TLE    cpp java py2 py3   comment
-A appealtotheaudience    Y   Y   Y   N       Y    Y         2     30     4   4   2      2    0   0   2
+problem               time yaml tex sol   val: I A O    sample secret bad    AC  WA TLE subs   cpp py java kt   comment
+A appealtotheaudience  1.0    Y   Y   N        Y Y           2     30   0     4   4   2   10     2  1    1  0
 ```
 
 ## `fuzz`
@@ -532,7 +513,6 @@ This is a convenience command (mostly for use in CI) that runs the following sub
 - Validate input
 - Validate output
 - Run all submissions
-- Clean up generated testcases when done, similar to `bt generate --clean-generated` when `--cleanup-generated` is passed.
 
 This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand and the `--no-testcase-sanity-checks` flag from `validate`.
 
