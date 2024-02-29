@@ -671,6 +671,13 @@ def shorten_path(problem, path):
     return short_path
 
 
+def path_size(path):
+    if path.is_file():
+        return path.stat().st_size
+    else:
+        return sum(f.stat().st_size for f in path.rglob('*'))
+
+
 # Drops the first two path components <problem>/<type>/
 def print_name(path, keep_type=False):
     return str(Path(*path.parts[1 if keep_type else 2 :]))

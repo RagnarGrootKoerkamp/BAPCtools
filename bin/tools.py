@@ -775,20 +775,6 @@ def run_parsed_arguments(args):
     if action != 'generate' and config.args.testcases and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
 
-    if config.args.add_unlisted:
-        # Path *must* be inside generators/.
-        try:
-            config.args.add_unlisted = (
-                (problems[0].path / config.args.add_unlisted)
-                .resolve()
-                .relative_to(problems[0].path.resolve())
-            )
-            config.args.add_unlisted.relative_to('generators')
-        except Exception as e:
-            fatal('Directory given to add_unlisted must match "generators/*".')
-        if not (problems[0].path / config.args.add_unlisted).is_dir():
-            fatal(f'"{config.args.add_unlisted}" not found.')
-
     # Handle one-off subcommands.
     if action == 'tmp':
         if level == 'problem':
@@ -869,7 +855,6 @@ def run_parsed_arguments(args):
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.jobs = os.cpu_count() // 2
-            config.args.add_unlisted = False
             config.args.verbose = 0
             config.args.no_visualizer = True
             success &= generate.generate(problem)
@@ -906,7 +891,6 @@ def run_parsed_arguments(args):
                 # Set up arguments for generate.
                 old_args = argparse.Namespace(**vars(config.args))
                 config.args.check_deterministic = not config.args.force
-                config.args.add_unlisted = False
                 config.args.verbose = 0
                 config.args.testcases = None
                 config.args.force = False
@@ -927,8 +911,6 @@ def run_parsed_arguments(args):
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
                 success &= export.build_problem_zip(problem, output, statement_language)
-        if action == 'all' and config.args.cleanup_generated:
-            success &= generate.cleanup_generated(problem)
 
         if len(problems) > 1:
             print(file=sys.stderr)

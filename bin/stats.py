@@ -56,7 +56,6 @@ def stats(problems):
                 'data/invalid_answers/**/*.ans',
                 'data/invalid_outputs/**/*.out',
                 'data/bad/**/*.in',
-                'data/bad/**/*.ans',
             ],
             0,
         ),
@@ -98,10 +97,7 @@ def stats(problems):
     print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
 
     for problem in problems:
-        generated_testcases = {
-            problem.path / 'data' / x.parent / (x.name + '.in')
-            for x in generate.generated_testcases(problem)
-        }
+        generated_testcases = generate.testcases(problem)
 
         def count(path):
             if type(path) is list:
