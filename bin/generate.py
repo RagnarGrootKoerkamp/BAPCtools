@@ -1575,7 +1575,7 @@ class GeneratorConfig:
         self.problem.validators(validate.InputValidator)
         if not self.problem.interactive:
             self.problem.validators(validate.AnswerValidator)
-        self.problem.validators(validate.OutputValidator)
+            self.problem.validators(validate.OutputValidator)
 
         def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
