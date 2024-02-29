@@ -676,10 +676,8 @@ class Problem:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.ANSWER:
-                if not problem.interactive:
-                    problem.validators(
-                        validate.AnswerValidator, check_constraints=check_constraints
-                    )
+                assert not problem.interactive
+                problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
                 problem.validators(validate.OutputValidator, check_constraints=check_constraints)
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
