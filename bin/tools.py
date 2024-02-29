@@ -489,15 +489,6 @@ Run this from one of:
         'generate', parents=[global_parser], help='Generate testcases according to .gen files.'
     )
     genparser.add_argument(
-        '--force', '-f', action='store_true', help='Overwrite existing input files.'
-    )
-    genparser.add_argument(
-        '--all',
-        '-a',
-        action='store_true',
-        help='Regenerate all data, including up to date test cases. ',
-    )
-    genparser.add_argument(
         '--check-deterministic',
         action='store_true',
         help='Rerun all generators to make sure generators are deterministic.',
@@ -505,28 +496,7 @@ Run this from one of:
     genparser.add_argument(
         '--timeout', '-t', type=int, help='Override the default timeout. Default: 30.'
     )
-    genparser.add_argument(
-        '--samples',
-        action='store_true',
-        help='Overwrite the samples as well, in combination with -f.',
-    )
-
-    genparser_group = genparser.add_mutually_exclusive_group()
-    genparser_group.add_argument(
-        '--add-unlisted',
-        nargs='?',
-        type=Path,
-        const='generators/manual',
-        help='Add unlisted cases to generators.yaml.',
-        metavar='TARGET_DIRECTORY=generators/manual',
-    )
-    genparser_group.add_argument(
-        '--clean', '-C', action='store_true', help='Delete unlisted files.'
-    )
-    genparser_group.add_argument(
-        '--clean-generated', '-c', action='store_true', help='Delete generated files.'
-    )
-
+    genparser.add_argument('--clean', '-C', action='store_true', help='Delete all cached files.')
     genparser.add_argument(
         '--interaction',
         '-i',
@@ -620,12 +590,6 @@ Run this from one of:
     )
     runparser.add_argument('--timelimit', '-t', type=int, help='Override the default timelimit.')
     runparser.add_argument(
-        '--force',
-        '-f',
-        action='store_true',
-        help='Allow overwriting existing input files in generator.',
-    )
-    runparser.add_argument(
         '--no-testcase-sanity-checks',
         action='store_true',
         help='Skip sanity checks on testcases.',
@@ -667,10 +631,6 @@ Run this from one of:
         'all', parents=[global_parser], help='validate input, validate answers, and run programs'
     )
     allparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
-    allparser.add_argument(
-        '--cleanup-generated', action='store_true', help='Clean up generated testcases afterwards.'
-    )
-    allparser.add_argument('--force', '-f', action='store_true', help='Delete all untracked files.')
     allparser.add_argument(
         '--no-testcase-sanity-checks',
         action='store_true',
