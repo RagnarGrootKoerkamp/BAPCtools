@@ -624,9 +624,6 @@ class TestcaseRule(Rule):
                 t.cache_data['visualizer_hash'] = t.config.visualizer.hash()
                 t.cache_data['visualizer'] = t.config.visualizer.cache_command()
 
-            if config.args.all:
-                return (False, False)
-
             if not infile.is_file():
                 return (False, False)
             if not ansfile.is_file():
@@ -1509,9 +1506,6 @@ class GeneratorConfig:
         self.root_dir = parse('', '', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
-        if config.args.add_unlisted or config.args.clean or config.args.clean_generated:
-            return
-
         generators_used = set()
         solutions_used = set()
         visualizers_used = set()
@@ -1587,74 +1581,8 @@ class GeneratorConfig:
 
         self.root_dir.walk(cleanup_build_failures, dir_f=None)
 
-    def add_unlisted(self):
-        if not has_ryaml:
-            error(
-                'generate --add-unlisted needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
-            )
-            return
-
-        unlisted = config.args.add_unlisted
-        known_unlisted = {
-            path
-            for path in self.rules_cache
-            if isinstance(path, PurePath) and path.is_relative_to(unlisted)
-        }
-
-        generators_yaml = self.problem.path / 'generators/generators.yaml'
-        data = read_yaml(generators_yaml)
-        if data is None:
-            data = ruamel.yaml.comments.CommentedMap()
-
-        def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
-            assert isinstance(data, ruamel.yaml.comments.CommentedMap)
-            if not key in yaml or yaml[key] is None:
-                yaml[key] = t()
-            assert isinstance(yaml[key], t)
-            return yaml[key]
-
-        parent = get_or_add(data, 'data')
-        parent = get_or_add(parent, 'secret')
-        entry = get_or_add(parent, 'data', ruamel.yaml.comments.CommentedSeq)
-
-        unlisted_cases = [
-            test.relative_to(self.problem.path)
-            for test in (self.problem.path / unlisted).glob('*.in')
-        ]
-        missing_cases = [test for test in unlisted_cases if test not in known_unlisted]
-
-        bar = ProgressBar('Add unlisted', items=missing_cases)
-        for test in sorted(missing_cases, key=lambda x: x.name):
-            bar.start(str(test))
-            entry.append(ruamel.yaml.comments.CommentedMap())
-            name = unlisted.relative_to('generators').as_posix().replace('/', '_')
-            entry[-1][f'{name}_{test.stem}'] = {
-                'copy': test.relative_to('generators').with_suffix('').as_posix()
-            }
-            bar.log('added to generators.yaml')
-            bar.done()
-
-        if len(parent['data']) == 0:
-            parent['data'] = None
-
-        write_yaml(data, generators_yaml)
-        bar.finalize()
-        return
-
     def run(self):
         self.problem.reset_testcase_hashes()
-
-        if config.args.clean:
-            self.clean_unlisted()
-            return
-
-        if config.args.clean_generated:
-            self.clean_generated()
-            return
-
-        if config.args.add_unlisted:
-            self.add_unlisted()
-            return
 
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
@@ -1775,114 +1703,53 @@ data/
             shutil.rmtree(self.problem.tmpdir / 'data')
         bar.finalize()
 
-    # Remove all unlisted files. Runs in dry-run mode without -f.
-    def clean_unlisted(self):
-        item_names = []
-        self.root_dir.walk(lambda x: item_names.append(x.path))
-        bar = ProgressBar('Clean unlisted', items=item_names)
 
-        # Delete all files related to the testcase.
-        def clean_testcase(t):
-            bar.start(str(t.path))
-            # Skip listed cases, but also unlisted cases in data/bad.
-            if (
-                not process_testcase(self.problem, t.path)
-                or t.listed
-                or (len(t.path.parts) > 0 and t.path.parts[0] in config.INVALID_CASE_DIRECTORIES)
-            ):
-                bar.done()
-                return
+# Delete files in the tmpdir trash directory. By default all files older than 10min are removed
+# and additionally the oldest files are removed until the trash is less than 1 GiB
+def clean_trash(problem, time_limit=10 * 60, size_lim=1024 * 1024 * 1024):
+    trash_dir = problem.tmpdir / 'trash'
+    if trash_dir.exists():
+        dirs = [(d, path_size(d)) for d in trash_dir.iterdir()]
+        dirs.sort(key=lambda d: d[0].stat().st_mtime)
+        total_size = sum(x for d, x in dirs)
+        time_limit = time.time() - time_limit
+        for d, x in dirs:
+            if x == 0 or total_size > size_lim or d.stat().st_mtime < time_limit:
+                total_size -= x
+                shutil.rmtree(d)
 
-            infile = self.problem.path / 'data' / t.path.parent / (t.path.name + '.in')
-            for ext in config.KNOWN_DATA_EXTENSIONS:
-                ext_file = infile.with_suffix(ext)
-                if ext_file.is_file():
-                    if not config.args.force:
-                        bar.warn(f'Delete {ext_file.name} with -f')
-                    else:
-                        bar.log(f'Deleting {ext_file.name}')
-                        ext_file.unlink()
 
-            bar.done()
-
-        # For unlisted directories, delete them entirely.
-        # For listed directories, delete non-testcase files.
-        def clean_directory(d):
-            bar.start(str(d.path))
-
-            path = self.problem.path / 'data' / d.path
-
-            # Skip non existent directories
-            if not path.exists():
-                bar.done()
-                return
-
-            # Remove testdata.yaml when the key is not present.
-            testdata_yaml_path = path / 'testdata.yaml'
-            if testdata_yaml_path.is_file() and d.testdata_yaml is False:
-                if not config.args.force:
-                    bar.warn(f'Delete unlisted testdata.yaml with -f')
-                else:
-                    bar.log(f'Deleting unlisted testdata.yaml')
-                    testdata_yaml_path.unlink()
-
-            if not d.listed:
-                if process_testcase(self.problem, d.path):
-                    if not config.args.force:
-                        bar.warn(f'Delete directory with -f')
-                    else:
-                        bar.log(f'Deleting directory')
-                        shutil.rmtree(path)
-                bar.done()
-                return
-
-            # Iterate over all files and delete if they do not belong to a testcase.
-            for f in sorted(path.iterdir()):
-                # Directories should be deleted in the recursive step.
-                if f.is_dir():
-                    continue
-                # Preserve testdata.yaml in listed directories.
-                if f.name == 'testdata.yaml':
-                    continue
-                if f.name[0] == '.':
-                    continue
-
-                relpath = f.relative_to(self.problem.path / 'data')
-                if relpath.with_suffix('') in self.known_cases:
-                    continue
-                if relpath.with_suffix('') in self.known_directories:
-                    continue
-
-                if process_testcase(self.problem, relpath):
-                    if not config.args.force:
-                        bar.warn(f'Delete {f.name} with -f')
-                    else:
-                        bar.log(f'Deleting {f.name}')
-                        f.unlink()
-
-            bar.done()
-
-        self.root_dir.walk(clean_testcase, clean_directory, dir_last=True)
-        bar.finalize()
+# Clean data/ and tmpdir/data/
+def clean(problem, data=True, cache=True):
+    dirs = [
+        problem.path / 'data' if data else None,
+        problem.tmpdir / 'data' if cache else None,
+    ]
+    for d in dirs:
+        if d is not None and d.exists():
+            shutil.rmtree(d)
 
 
 def generate(problem):
-    config = GeneratorConfig(problem)
-    if config.ok:
-        config.build()
-        config.run()
+    clean_trash(problem)
+
+    if config.args.clean:
+        clean(problem, True, True)
+        return True
+
+    # if config.args.add:
+    #    #TODO
+    #    return True
+
+    gen_config = GeneratorConfig(problem)
+    if gen_config.ok:
+        gen_config.build()
+        gen_config.run()
     return True
 
 
-def cleanup_generated(problem):
-    config = GeneratorConfig(problem)
-    if config.ok:
-        config.clean_generated()
-    return True
-
-
-def generated_testcases(problem):
-    config = GeneratorConfig(problem)
-    if config.ok:
-        return config.known_cases
-    return set()
+def testcases(problem, symlinks=False):
+    testcases = set(problem.path.glob('data/**/*.in'))
+    if not symlinks:
+        testcases = {t for t in testcases if not t.is_symlink()}
+    return testcases
