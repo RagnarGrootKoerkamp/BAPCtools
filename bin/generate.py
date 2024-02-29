@@ -1247,7 +1247,7 @@ class GeneratorConfig:
     # Parse generators.yaml.
     def __init__(self, problem):
         self.problem = problem
-        yaml_path = self.problem.path / 'generators/generators.yaml'
+        yaml_path = self.problem.path / 'generators' / 'generators.yaml'
         self.ok = True
 
         # A map of paths `secret/testgroup/testcase` to their canonical TestcaseRule.
@@ -1749,7 +1749,16 @@ def generate(problem):
 
 
 def testcases(problem, symlinks=False):
-    testcases = set(problem.path.glob('data/**/*.in'))
-    if not symlinks:
-        testcases = {t for t in testcases if not t.is_symlink()}
-    return testcases
+    if (problem.path / 'generators' / 'generators.yaml').exists():
+        # TODO handle symlinks flag
+        gen_config = GeneratorConfig(problem)
+        if gen_config.ok:
+            return {
+                problem.path / 'data' / x.parent / (x.name + '.in') for x in gen_config.known_cases
+            }
+        return set()
+    else:
+        testcases = set(problem.path.glob('data/**/*.in'))
+        if not symlinks:
+            testcases = {t for t in testcases if not t.is_symlink()}
+        return testcases
