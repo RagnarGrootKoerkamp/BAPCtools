@@ -496,7 +496,19 @@ Run this from one of:
     genparser.add_argument(
         '--timeout', '-t', type=int, help='Override the default timeout. Default: 30.'
     )
-    genparser.add_argument('--clean', '-C', action='store_true', help='Delete all cached files.')
+
+    genparser_group = genparser.add_mutually_exclusive_group()
+    genparser_group.add_argument(
+        '--add',
+        nargs='*',
+        type=Path,
+        help='Add case(s) to generators.yaml.',
+        metavar='TARGET_DIRECTORY=generators/manual',
+    )
+    genparser_group.add_argument(
+        '--clean', '-C', action='store_true', help='Delete all cached files.'
+    )
+
     genparser.add_argument(
         '--interaction',
         '-i',
@@ -775,6 +787,20 @@ def run_parsed_arguments(args):
     if action != 'generate' and config.args.testcases and config.args.samples:
         fatal('--samples can not go together with an explicit list of testcases.')
 
+    if config.args.add is not None:
+        # default to 'generators/manual'
+        if len(config.args.add) == 0:
+            config.args.add = [Path('generators/manual')]
+
+        # Paths *must* be inside generators/.
+        checked_paths = []
+        for path in config.args.add:
+            if path.parts[0] != 'generators':
+                warn(f'Path {path} does not math "generators/*". Skipping.')
+            else:
+                checked_paths.append(path)
+        config.args.add = checked_paths
+
     # Handle one-off subcommands.
     if action == 'tmp':
         if level == 'problem':
@@ -855,6 +881,7 @@ def run_parsed_arguments(args):
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.jobs = os.cpu_count() // 2
+            config.args.add = None
             config.args.verbose = 0
             config.args.no_visualizer = True
             success &= generate.generate(problem)
@@ -891,6 +918,7 @@ def run_parsed_arguments(args):
                 # Set up arguments for generate.
                 old_args = argparse.Namespace(**vars(config.args))
                 config.args.check_deterministic = not config.args.force
+                config.args.add = None
                 config.args.verbose = 0
                 config.args.testcases = None
                 config.args.force = False

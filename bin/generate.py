@@ -398,7 +398,7 @@ class Rule:
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, generator_config, key, name: str, yaml, parent, listed):
+    def __init__(self, problem, generator_config, key, name: str, yaml, parent):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
@@ -406,8 +406,6 @@ class TestcaseRule(Rule):
             error(f'Testcase names should not end with \'.in\': {parent.path / name}')
             name = name[:-3]
 
-        # Listed: cases mentioned in generators.yaml.
-        self.listed = listed
         # Whether this testcase is a sample.
         self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == 'sample'
 
@@ -543,7 +541,7 @@ class TestcaseRule(Rule):
             self.hash = combine_hashes(self.hash)
 
         # Error for listed cases with identical input.
-        if self.listed and self.hash in generator_config.rules_cache:
+        if self.hash in generator_config.rules_cache:
             # This is fatal to prevent crashes later on when running generators in parallel.
             # https://github.com/RagnarGrootKoerkamp/BAPCtools/issues/310
             fatal(
@@ -564,21 +562,6 @@ class TestcaseRule(Rule):
         target_dir = problem.path / 'data' / t.path.parent
         target_infile = target_dir / (t.name + '.in')
         target_ansfile = target_dir / (t.name + '.ans')
-
-        # Clean up duplicate unlisted testcases, or warn if distinct.
-        if not t.listed and generator_config.has_yaml:
-            if t.hash in generator_config.generated_testdata:
-                for ext in config.KNOWN_DATA_EXTENSIONS:
-                    ext_file = target_infile.with_suffix(ext)
-                    if ext_file.is_file():
-                        ext_file.unlink()
-                bar.debug(
-                    f'DELETED unlisted duplicate of {generator_config.generated_testdata[t.hash].path}'
-                )
-            else:
-                bar.error(f'Testcase not listed in generator.yaml (delete using --clean).')
-            bar.done()
-            return
 
         # Input can only be missing when the `copy:` does not have a corresponding `.in` file.
         # (When `generate:` or `in:` is used, the input is always present.)
@@ -756,7 +739,7 @@ class TestcaseRule(Rule):
                         # Make sure that we write to target, and not to the file pointed to by target.
                         target.unlink()
 
-                    # We always copy file contents. Unlisted cases are copied as well.
+                    # We always copy file contents.
                     shutil.copy(source, target, follow_symlinks=True)
                 else:
                     if target.is_file():
@@ -981,7 +964,7 @@ class RootDirectory:
 
 class Directory(Rule):
     # Process yaml object for a directory.
-    def __init__(self, problem, key, name: str, yaml: dict = None, parent=None, listed=True):
+    def __init__(self, problem, key, name: str, yaml: dict = None, parent=None):
         assert is_directory(yaml)
         # The root Directory object has name ''.
         if name != '':
@@ -1012,15 +995,12 @@ class Directory(Rule):
         else:
             self.testdata_yaml = False
 
-        self.listed = listed
         self.numbered = False
 
         # List of child TestcaseRule/Directory objects, filled by parse().
         self.data = []
         # Map of short_name => TestcaseRule, filled by parse().
         self.includes = dict()
-        # List of unlisted included symlinks, filled by parse().
-        self.unlisted_includes = []
 
         # Sanity checks for possibly empty data.
         if 'data' not in yaml:
@@ -1090,6 +1070,7 @@ class Directory(Rule):
         testdata_yaml_path = dir_path / 'testdata.yaml'
         if d.testdata_yaml is False:
             if testdata_yaml_path.is_file():
+                # TODO
                 bar.error(f'Unlisted testdata.yaml (delete using --clean)')
         else:
             if d.testdata_yaml:
@@ -1184,30 +1165,6 @@ class Directory(Rule):
                     bar.debug(f'INCLUDED {t.name}')
             bar.done()
 
-    # Clean up or warn for unlisted includes.
-    # Separate function that's run after the generation of listed dirs/cases.
-    def generate_unlisted(d, problem, generator_config, bar):
-        for name in d.unlisted_includes:
-            f = problem.path / 'data' / d.path / (name + '.in')
-            assert f.is_symlink()
-            target = f.readlink()
-            bar.start(str(d.path / name))
-            # Broken symlink
-            if not f.exists():
-                if config.args.force:
-                    for ext in config.KNOWN_DATA_EXTENSIONS:
-                        ext_file = f.with_suffix(ext)
-                        if ext_file.is_symlink():
-                            ext_file.unlink()
-                    bar.log(f'Deleted broken include to {target}.')
-                else:
-                    bar.error(f'Include with target {target} does not exist.')
-            else:
-                bar.log(f'Include target {target} exists')
-            bar.done()
-
-        return True
-
 
 # Returns a pair (numbered_name, basename)
 def numbered_testcase_name(basename, i, n):
@@ -1271,8 +1228,6 @@ class GeneratorConfig:
         else:
             yaml = None
             self.has_yaml = False
-            if config.args.action == 'generate':
-                log('Did not find generators/generators.yaml')
 
         self.parse_yaml(yaml)
 
@@ -1288,7 +1243,7 @@ class GeneratorConfig:
             else:
                 setattr(self, key, default)
 
-        def add_known(obj, listed):
+        def add_known(obj):
             path = obj.path
             name = path.name
             if isinstance(obj, TestcaseRule):
@@ -1298,13 +1253,12 @@ class GeneratorConfig:
             else:
                 assert False
 
-            if listed:
-                key = self.known_keys[obj.key]
-                key[1].append(obj)
-                if key[0] and len(key[1]) == 2:
-                    error(
-                        f'{obj.path}: Included key {name} exists more than once as {key[1][0].path} and {key[1][1].path}.'
-                    )
+            key = self.known_keys[obj.key]
+            key[1].append(obj)
+            if key[0] and len(key[1]) == 2:
+                error(
+                    f'{obj.path}: Included key {name} exists more than once as {key[1][0].path} and {key[1][1].path}.'
+                )
 
         num_numbered_testcases = 0
         testcase_id = 0
@@ -1335,15 +1289,8 @@ class GeneratorConfig:
         # Main recursive parsing function.
         # key: the yaml key e.g. 'testcase'
         # name: the possibly numbered name e.g. '01-testcase'
-        def parse(key, name, yaml, parent, listed=True):
+        def parse(key, name, yaml, parent):
             nonlocal testcase_id
-            # Skip unlisted `data/bad` directory: we should not generate .ans files there.
-            if (
-                name in config.INVALID_CASE_DIRECTORIES
-                and parent.path == Path('.')
-                and listed is False
-            ):
-                return None
 
             check_type('Testcase/directory', yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
@@ -1358,17 +1305,17 @@ class GeneratorConfig:
                 if not process_testcase(self.problem, parent.path / name):
                     return None
 
-                t = TestcaseRule(self.problem, self, key, name, yaml, parent, listed=listed)
+                t = TestcaseRule(self.problem, self, key, name, yaml, parent)
                 assert t.path not in self.known_cases, f"{t.path} was already parsed"
-                add_known(t, listed)
+                add_known(t)
                 return t
 
             assert is_directory(yaml)
 
-            d = Directory(self.problem, key, name, yaml, parent, listed=listed)
+            d = Directory(self.problem, key, name, yaml, parent)
             assert d.path not in self.known_cases
             assert d.path not in self.known_directories
-            add_known(d, listed)
+            add_known(d)
 
             # Parse child directories/testcases.
             # First loop over explicitly mentioned testcases/directories, and then find remaining on-disk files/dirs.
@@ -1409,16 +1356,12 @@ class GeneratorConfig:
                                 fatal(
                                     f'Unnumbered testcases must not have an empty key: {Path("data") / d.path / child_name}/\'\''
                                 )
-                        c = parse(child_key, child_name, child_yaml, d, listed=listed)
+                        c = parse(child_key, child_name, child_yaml, d)
                         if c is not None:
                             d.data.append(c)
 
             # Include TestcaseRule t for the current directory.
             def add_included_case(t):
-                # Unlisted cases are never included.
-                if not t.listed:
-                    return
-
                 target = t.path
                 name = target.name
                 p = d.path / name
@@ -1456,7 +1399,6 @@ class GeneratorConfig:
                         if isinstance(obj, TestcaseRule):
                             add_included_case(obj)
                         else:
-                            # NOTE: Only listed cases are included
                             obj.walk(
                                 add_included_case,
                                 lambda d: [add_included_case(t) for t in d.includes.values()],
@@ -1469,38 +1411,38 @@ class GeneratorConfig:
                         continue
 
             # Find unlisted testcases and directories.
-            dir_path = self.problem.path / 'data' / d.path
-            if dir_path.is_dir():
-                for f in sorted(dir_path.iterdir()):
-                    # f must either be a directory or a .in file.
-                    if not (f.is_dir() or f.suffix == '.in'):
-                        continue
-
-                    # Testcases are always passed as name without suffix.
-                    f_in = f
-                    if not f.is_dir():
-                        f = f.with_suffix('')
-
-                    # Skip already processed cases.
-                    if (d.path / f.name in self.known_cases) or (
-                        d.path / f.name in self.known_directories
-                    ):
-                        continue
-
-                    # Broken or valid symlink.
-                    if f_in.is_symlink():
-                        d.unlisted_includes.append(f.name)
-                        continue
-
-                    # Generate stub yaml so we can call `parse` recursively.
-                    child_yaml = None
-                    if f.is_dir():
-                        child_yaml = {}
-
-                    c = parse(f.name, f.name, child_yaml, d, listed=False)
-                    if c is not None:
-                        d.data.append(c)
-
+            # TODO
+            # dir_path = self.problem.path / 'data' / d.path
+            # if dir_path.is_dir():
+            #    for f in sorted(dir_path.iterdir()):
+            #        # f must either be a directory or a .in file.
+            #        if not (f.is_dir() or f.suffix == '.in'):
+            #            continue
+            #
+            #        # Testcases are always passed as name without suffix.
+            #        f_in = f
+            #        if not f.is_dir():
+            #            f = f.with_suffix('')
+            #
+            #        # Skip already processed cases.
+            #        if (d.path / f.name in self.known_cases) or (
+            #            d.path / f.name in self.known_directories
+            #        ):
+            #            continue
+            #
+            #        # Broken or valid symlink.
+            #        if f_in.is_symlink():
+            #            d.unlisted_includes.append(f.name)
+            #            continue
+            #
+            #        # Generate stub yaml so we can call `parse` recursively.
+            #        child_yaml = None
+            #        if f.is_dir():
+            #            child_yaml = {}
+            #
+            #        c = parse(f.name, f.name, child_yaml, d, listed=False)
+            #        if c is not None:
+            #            d.data.append(c)
             return d
 
         self.root_dir = parse('', '', yaml, RootDirectory())
@@ -1590,8 +1532,6 @@ class GeneratorConfig:
         def count_dir(d):
             for name in d.includes:
                 item_names.append(d.path / name)
-            for name in d.unlisted_includes:
-                item_names.append(d.path / name)
 
         self.root_dir.walk(None, count_dir)
         bar = ProgressBar('Generate', items=item_names)
@@ -1601,27 +1541,14 @@ class GeneratorConfig:
         #    Each directory is only started after previous directories have
         #    finished and handled by the main thread, to avoid problems with
         #    included testcases.
-        # 2. Generate unlisted testcases. These come
-        #    after to deduplicate them against generated testcases.
 
-        # 1
-        p = parallel.new_queue(lambda t: t.listed and t.generate(self.problem, self, bar))
+        p = parallel.new_queue(lambda t: t.generate(self.problem, self, bar))
 
         def generate_dir(d):
             p.join()
             d.generate(self.problem, self, bar)
 
         self.root_dir.walk(p.put, generate_dir)
-        p.done()
-
-        # 2
-        p = parallel.new_queue(lambda t: not t.listed and t.generate(self.problem, self, bar))
-
-        def generate_dir_unlisted(d):
-            p.join()
-            d.generate_unlisted(self.problem, self, bar)
-
-        self.root_dir.walk(p.put, generate_dir_unlisted)
         p.done()
 
         bar.finalize()
@@ -1649,59 +1576,69 @@ data/
             gitignorefile.write_text(content)
             log('Created .gitignore.')
 
-    def clean_generated(self):
-        item_names = []
-        self.root_dir.walk(lambda x: item_names.append(x.path))
-        bar = ProgressBar('Clean generated and cache', items=item_names)
+    def add(self):
+        if not has_ryaml:
+            error(
+                'generate --add needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
+            )
+            return
 
-        def clean_testcase(t):
-            bar.start(str(t.path))
+        in_files = []
+        for path in config.args.add:
+            if path.suffix == '.in':
+                in_files.append(path)
+            else:
+                in_files += [
+                    test.relative_to(self.problem.path)
+                    for test in (self.problem.path / path).glob('*.in')
+                ]
 
-            # Skip cleaning unlisted cases.
-            if not process_testcase(self.problem, t.path) or t.inline:
-                bar.done()
-                return
+        known = {
+            path
+            for path in self.rules_cache
+            if isinstance(path, PurePath) and path.is_relative_to(unlisted)
+        }
 
-            infile = self.problem.path / 'data' / t.path.with_suffix(t.path.suffix + '.in')
-            deleted = False
-            for ext in config.KNOWN_DATA_EXTENSIONS:
-                ext_file = infile.with_suffix(ext)
-                if ext_file.is_file():
-                    ext_file.unlink()
-                    deleted = True
+        generators_yaml = self.problem.path / 'generators' / 'generators.yaml'
+        data = read_yaml(generators_yaml)
+        if data is None:
+            data = ruamel.yaml.comments.CommentedMap()
 
-            if deleted:
-                bar.debug('Deleting testcase')
+        def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
+            assert isinstance(data, ruamel.yaml.comments.CommentedMap)
+            if not key in yaml or yaml[key] is None:
+                yaml[key] = t()
+            assert isinstance(yaml[key], t)
+            return yaml[key]
 
+        parent = get_or_add(data, 'data')
+        parent = get_or_add(parent, 'secret')
+        entry = get_or_add(parent, 'data', ruamel.yaml.comments.CommentedSeq)
+
+        missing_cases = [in_file for in_file in in_files if in_file not in known]
+
+        bar = ProgressBar('Adding', items=in_files)
+        for in_file in sorted(missing_cases, key=lambda x: x.name):
+            bar.start(str(in_file))
+            if not in_file.exists():
+                bar.warn('file not found. Skipping.')
+            elif in_file in known:
+                bar.log('already found in generators.yaml. Skipping.')
+            else:
+                entry.append(ruamel.yaml.comments.CommentedMap())
+                name = in_file.relative_to('generators').as_posix().replace('/', '_')
+                entry[-1][f'{name}_{in_file.stem}'] = {
+                    'copy': in_file.relative_to('generators').with_suffix('').as_posix()
+                }
+                bar.log('added to generators.yaml.')
             bar.done()
 
-        def clean_directory(d):
-            bar.start(str(d.path))
+        if len(parent['data']) == 0:
+            parent['data'] = None
 
-            dir_path = self.problem.path / 'data' / d.path
-
-            if process_testcase(self.problem, d.path / 'testdata.yaml'):
-                # Remove the testdata.yaml when the key is present.
-                testdata_yaml_path = dir_path / 'testdata.yaml'
-                if d.testdata_yaml is not None and testdata_yaml_path.is_file():
-                    bar.log(f'Remove testdata.yaml')
-                    testdata_yaml_path.unlink()
-
-            if process_testcase(self.problem, d.path):
-                # Try to remove the directory if it's empty.
-                try:
-                    dir_path.rmdir()
-                    bar.log('Remove directory')
-                except Exception:
-                    pass
-
-            bar.done()
-
-        self.root_dir.walk(clean_testcase, clean_directory, dir_last=True)
-        # TODO should this be an extra command?
-        if (self.problem.tmpdir / 'data').exists():
-            shutil.rmtree(self.problem.tmpdir / 'data')
+        write_yaml(data, generators_yaml)
         bar.finalize()
+        return
 
 
 # Delete files in the tmpdir trash directory. By default all files older than 10min are removed
@@ -1720,7 +1657,7 @@ def clean_trash(problem, time_limit=10 * 60, size_lim=1024 * 1024 * 1024):
 
 
 # Clean data/ and tmpdir/data/
-def clean(problem, data=True, cache=True):
+def clean_data(problem, data=True, cache=True):
     dirs = [
         problem.path / 'data' if data else None,
         problem.tmpdir / 'data' if cache else None,
@@ -1734,24 +1671,31 @@ def generate(problem):
     clean_trash(problem)
 
     if config.args.clean:
-        clean(problem, True, True)
+        clean_data(problem, True, True)
         return True
 
-    # if config.args.add:
-    #    #TODO
-    #    return True
-
     gen_config = GeneratorConfig(problem)
-    if gen_config.ok:
-        gen_config.build()
-        gen_config.run()
+    if not gen_config.ok:
+        return True
+
+    if config.args.add is not None:
+        # right now the parsing does not generate know cases...
+        gen_config.add()
+        return True
+
+    assert config.args.action == 'generate'
+    if not gen_config.has_yaml:
+        error('Did not find generators/generators.yaml')
+
+    gen_config.build()
+    gen_config.run()
     return True
 
 
-def testcases(problem, symlinks=False):
-    if (problem.path / 'generators' / 'generators.yaml').exists():
-        # TODO handle symlinks flag
-        gen_config = GeneratorConfig(problem)
+def testcases(problem, includes=False):
+    gen_config = GeneratorConfig(problem)
+    if gen_config.has_yaml:
+        # TODO handle includes flag
         if gen_config.ok:
             return {
                 problem.path / 'data' / x.parent / (x.name + '.in') for x in gen_config.known_cases
@@ -1759,6 +1703,6 @@ def testcases(problem, symlinks=False):
         return set()
     else:
         testcases = set(problem.path.glob('data/**/*.in'))
-        if not symlinks:
+        if not includes:
             testcases = {t for t in testcases if not t.is_symlink()}
         return testcases
