@@ -1683,12 +1683,12 @@ def generate(problem):
         gen_config.add()
         return True
 
-    assert config.args.action == 'generate'
-    if not gen_config.has_yaml:
-        error('Did not find generators/generators.yaml')
+    if config.args.action == 'generate':
+        if not gen_config.has_yaml:
+            error('Did not find generators/generators.yaml')
 
-    gen_config.build()
-    gen_config.run()
+        gen_config.build()
+        gen_config.run()
     return True
 
 
