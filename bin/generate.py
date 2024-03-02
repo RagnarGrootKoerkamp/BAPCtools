@@ -1594,9 +1594,9 @@ data/
                 ]
 
         known = {
-            path
-            for path in self.rules_cache
-            if isinstance(path, PurePath) and path.is_relative_to(unlisted)
+            rule.copy.relative_to(self.problem.path)
+            for rule in self.known_cases.values()
+            if rule.copy is not None and rule.copy.is_relative_to(self.problem.path)
         }
 
         generators_yaml = self.problem.path / 'generators' / 'generators.yaml'
@@ -1615,20 +1615,19 @@ data/
         parent = get_or_add(parent, 'secret')
         entry = get_or_add(parent, 'data', ruamel.yaml.comments.CommentedSeq)
 
-        missing_cases = [in_file for in_file in in_files if in_file not in known]
-
         bar = ProgressBar('Adding', items=in_files)
-        for in_file in sorted(missing_cases, key=lambda x: x.name):
+        for in_file in sorted(in_files, key=lambda x: x.name):
             bar.start(str(in_file))
-            if not in_file.exists():
+            if not (self.problem.path / in_file).exists():
                 bar.warn('file not found. Skipping.')
             elif in_file in known:
                 bar.log('already found in generators.yaml. Skipping.')
             else:
                 entry.append(ruamel.yaml.comments.CommentedMap())
-                name = in_file.relative_to('generators').as_posix().replace('/', '_')
+                path_in_gen = in_file.relative_to('generators')
+                name = path_in_gen.as_posix().replace('/', '_')
                 entry[-1][f'{name}_{in_file.stem}'] = {
-                    'copy': in_file.relative_to('generators').with_suffix('').as_posix()
+                    'copy': path_in_gen.with_suffix('').as_posix()
                 }
                 bar.log('added to generators.yaml.')
             bar.done()
