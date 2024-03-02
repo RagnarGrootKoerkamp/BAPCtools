@@ -519,6 +519,9 @@ class TestcaseRule(Rule):
                 if ext in self.hardcoded:
                     hashes[ext] = hash_string(self.hardcoded[ext])
 
+        if isinstance(yaml, ruamel.yaml.comments.CommentedMap):
+            print(yaml.__dict__)
+
         # Warn/Error for unknown keys.
         for key in yaml:
             if key in RESERVED_TESTCASE_KEYS:
@@ -1626,9 +1629,11 @@ data/
                 entry.append(ruamel.yaml.comments.CommentedMap())
                 path_in_gen = in_file.relative_to('generators')
                 name = path_in_gen.as_posix().replace('/', '_')
-                entry[-1][f'{name}_{in_file.stem}'] = {
-                    'copy': path_in_gen.with_suffix('').as_posix()
-                }
+                new = ruamel.yaml.comments.CommentedMap(
+                    {'copy': path_in_gen.with_suffix('').as_posix()}
+                )
+                new.fa.set_flow_style()
+                entry[-1][f'{name}_{in_file.stem}'] = new
                 bar.log('added to generators.yaml.')
             bar.done()
 
