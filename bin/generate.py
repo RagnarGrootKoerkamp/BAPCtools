@@ -1482,7 +1482,7 @@ class GeneratorConfig:
         if keep:
             if path.is_dir():
                 for f in sorted(path.iterdir()):
-                    self.remove_unknown(f, bar)
+                    self._remove_unknown(f, bar)
         else:
             self.remove(path)
             bar.log(f'REMOVED: {path.name}')
