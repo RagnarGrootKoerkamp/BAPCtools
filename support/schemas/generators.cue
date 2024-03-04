@@ -1,6 +1,4 @@
-package problemformat
-
-// cue version 0.6
+// Use cue version 0.6 or later
 // To validate generators.yaml using cue:
 // > cue vet generators.yaml *.cue -d "#Generators"
 
@@ -49,7 +47,7 @@ casepath: =~"^\(filename)(/\(basename))*$"
 #data_list: {[name | ""]: #testgroup | #testcase} & struct.MinFields(1) & struct.MaxFields(1)
 
 #testgroup: {
-	data?: #data_dict | [...#data_list]
+	data?: null |  #data_dict | [...#data_list]
 	include?: [...name]
 	#config
 }
