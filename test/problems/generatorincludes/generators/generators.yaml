@@ -11,8 +11,8 @@ data:
     data:
       - small:
           testdata.yaml:
-            output_validator_flags: space_change_sensitive
-            input_validator_flags:
+            input_validator_flags: --small
+            input_validators:
               connected: --small
               strongly-connected: --small
           data:

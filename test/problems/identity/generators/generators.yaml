@@ -4,13 +4,13 @@ solution: /submissions/accepted/author.py
 random_salt: "abc"
 
 generators:
-  main_py:
+  main.py:
     - main.py
     - lib.py
-  main_cpp:
+  main.cpp:
     - main.cpp
     - lib.h
-  main_c:
+  main.c:
     - main.c
     - lib.h
 
@@ -68,12 +68,13 @@ data:
         data:
           stdoutpy: stdout.py 200
           stdoutcpp: stdout.cpp 201
-          inans_old: write_in_and_ans_old.py 212
+          # {name} should always just be `testcase` now.
+          inans_old: write_in_and_ans_old.py {name} 212
           inans: write_in_and_ans.py 202
           hintdesc: hint_desc.py 203
-          main_py: main.py 204
-          main_c: main.c 205
-          main_cpp: main.cpp 206
+          main.py: main.py 204
+          main.c: main.c 205
+          main.cpp: main.cpp 206
       numbered_group:
         data:
           - dir: dir 300
@@ -97,7 +98,7 @@ data:
           - "": stdout.py 132 # 10.in
       seeding:
         testdata.yaml:
-          output_validator_flags: some_value
+          arbitrary_key: some_value
         solution: /submissions/accepted/author.cpp
         random_salt: "def"
         data:
@@ -157,12 +158,14 @@ data:
       boolean_generator_false:
         solution: /generators/false
         generate: f
-          #unknown_key:
-        # empty_group_1: {}
-        #empty_group_2:
-        #  data:
+        unknown_key:
+      empty_group_1: {}
+      empty_group_2:
+        data:
       empty_group_3:
         data: []
+      empty_group_4:
+        data:
       empty_group_5:
         data:
           - a: stdout.py 501 # 1-a
@@ -170,6 +173,8 @@ data:
       empty_group_6:
         data:
           - "": stdout.py 503
+      has_type:
+        type: directory
       json:
         {
           data:
@@ -179,5 +184,6 @@ data:
               { "": stdout.py 602 },
             ],
         }
+    unknown_key:
 
-unknown_key: this is allowed
+unknown_key:
