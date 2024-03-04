@@ -1082,6 +1082,7 @@ class Directory(Rule):
             for ext in config.KNOWN_DATA_EXTENSIONS:
                 t = infile.with_suffix(ext)
                 if t.is_file():
+                    generator_config.known_files.add(dir_path / t.name)
                     # TODO: In case a distinct file/symlink already exists, warn
                     # and require -f, like for usual testcases.
                     ensure_symlink(dir_path / t.name, t, relative=True)
@@ -1089,7 +1090,7 @@ class Directory(Rule):
                     # only showing on changes is kinda annoying.
                     # TODO: Maybe we can update `ensure_symlink` to return
                     # whether anything (an existing symlink/copy) was changed.
-                    bar.debug(f'INCLUDED {t.name}')
+                    bar.debug(f'INCLUDED: {t.name}')
             bar.done()
 
 
