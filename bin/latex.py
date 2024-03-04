@@ -10,12 +10,16 @@ from pathlib import Path
 
 import config
 import util
+import generate
 from util import *
 from contest import *
 
 
 def create_samples_file(problem):
     builddir = problem.tmpdir
+
+    # try to generate all samples
+    generate.generate_samples(problem)
 
     # create the samples.tex file
     # For samples, find all .in/.ans/.interaction pairs.

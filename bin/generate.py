@@ -5,6 +5,8 @@ import re
 import shutil
 import yaml as yamllib
 import collections
+import shutil
+import secrets
 
 from pathlib import Path, PurePosixPath, PurePath
 
@@ -67,18 +69,6 @@ def resolve_path(path, *, allow_absolute, allow_relative):
     if path.is_absolute():
         return Path(*path.parts[1:])
     return Path('generators') / path
-
-
-# testcase_short_path: secret/1.in
-def process_testcase(problem, relative_testcase_path):
-    if not config.args.testcases:
-        return True
-    absolute_testcase_path = problem.path / 'data' / relative_testcase_path.with_suffix('')
-    for p in config.args.testcases:
-        for basedir in get_basedirs(problem, 'data'):
-            if is_relative_to(basedir / p, absolute_testcase_path):
-                return True
-    return False
 
 
 # An Invocation is a program with command line arguments to execute.
@@ -519,9 +509,6 @@ class TestcaseRule(Rule):
                 if ext in self.hardcoded:
                     hashes[ext] = hash_string(self.hardcoded[ext])
 
-        if isinstance(yaml, ruamel.yaml.comments.CommentedMap):
-            print(yaml.__dict__)
-
         # Warn/Error for unknown keys.
         for key in yaml:
             if key in RESERVED_TESTCASE_KEYS:
@@ -697,17 +684,7 @@ class TestcaseRule(Rule):
                     )
 
         # Returns False when some files were skipped.
-        def move_generated():
-            if t.path.parents[0] == Path('sample'):
-                msg = '; supply -f --samples to overwrite'
-                # This should display as a log instead of warning.
-                warn = False
-                forced = config.args.force and (config.args.action == 'all' or config.args.samples)
-            else:
-                msg = '; supply -f to overwrite'
-                warn = True
-                forced = config.args.force
-
+        def copy_generated():
             all_done = True
 
             # For inline cases, only copy the (possibly) generated .ans.
@@ -718,53 +695,27 @@ class TestcaseRule(Rule):
                 target = target_infile.with_suffix(ext)
 
                 if source.is_file():
+                    generator_config.known_files.add(target)
                     if target.is_file():
                         if source.read_bytes() == target.read_bytes():
                             # identical -> skip
-                            continue
+                            pass
                         else:
                             # different -> overwrite
-                            if not forced:
-                                if warn:
-                                    bar.warn(f'SKIPPED: {target.name}{Style.RESET_ALL}' + msg)
-                                else:
-                                    bar.log(f'SKIPPED: {target.name}{Style.RESET_ALL}' + msg)
-                                skipped = True
-                                if ext == '.in':
-                                    skipped_in = True
-                                continue
-                            bar.log(f'CHANGED {target.name}')
+                            generator_config.remove(target)
+                            shutil.copy(source, target, follow_symlinks=True)
+                            bar.log(f'CHANGED: {target.name}')
                     else:
-                        # new file -> move it
-                        bar.log(f'NEW {target.name}')
-
-                    if target.is_symlink():
-                        # Make sure that we write to target, and not to the file pointed to by target.
-                        target.unlink()
-
-                    # We always copy file contents.
-                    shutil.copy(source, target, follow_symlinks=True)
+                        # new file -> copy it
+                        shutil.copy(source, target, follow_symlinks=True)
+                        bar.log(f'NEW: {target.name}')
+                elif target.is_file():
+                    # Target exists but source wasn't generated -> remove it
+                    generator_config.remove(target)
+                    bar.log(f'REMOVED: {target.name}')
                 else:
-                    if target.is_file():
-                        # Target exists but source wasn't generated. Only remove the target with -f.
-                        # When solution is disabled, this is fine for the .ans file.
-                        if ext == '.ans' and t.config.solution is None:
-                            continue
-
-                        # remove old target
-                        if not forced:
-                            if warn:
-                                bar.warn(f'SKIPPED: {target.name}{Style.RESET_ALL}' + msg)
-                            else:
-                                bar.log(f'SKIPPED: {target.name}{Style.RESET_ALL}' + msg)
-                            skipped = True
-                            continue
-                        else:
-                            bar.log(f'REMOVED {target.name}')
-                            target.unlink()
-                    else:
-                        # both source and target do not exist
-                        continue
+                    # both source and target do not exist
+                    pass
             return all_done
 
         def add_testdata_to_cache():
@@ -942,15 +893,15 @@ class TestcaseRule(Rule):
                 meta_yaml['validator_hashes'] = testcase.validator_hashes(validate.InputValidator)
 
             # Update metadata
-            if move_generated():
+            if copy_generated():
                 write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
             message = ''
         else:
             if config.args.action != 'generate':
                 bar.logged = True  # Disable redundant 'up to date' message in run mode.
             check_deterministic(False)
-            message = 'up to date'
-            move_generated()
+            message = 'SKIPPED: up to date'
+            copy_generated()
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
         t.generate_success = True
@@ -1071,26 +1022,27 @@ class Directory(Rule):
 
         # Write the testdata.yaml, or remove it when the key is set but empty.
         testdata_yaml_path = dir_path / 'testdata.yaml'
-        if d.testdata_yaml is False:
-            if testdata_yaml_path.is_file():
-                # TODO
-                bar.error(f'Unlisted testdata.yaml (delete using --clean)')
-        else:
-            if d.testdata_yaml:
-                yaml_text = yamllib.dump(dict(d.testdata_yaml))
-                if not testdata_yaml_path.is_file():
-                    testdata_yaml_path.write_text(yaml_text)
-                else:
-                    if yaml_text != testdata_yaml_path.read_text():
-                        if config.args.force:
-                            bar.log(f'CHANGED testdata.yaml')
-                            testdata_yaml_path.write_text(yaml_text)
-                        else:
-                            bar.warn(f'SKIPPED: testdata.yaml')
+        if d.testdata_yaml:
+            generator_config.known_files.add(testdata_yaml_path)
+            yaml_text = yamllib.dump(dict(d.testdata_yaml))
 
-            if d.testdata_yaml == '' and testdata_yaml_path.is_file():
-                bar.log(f'DELETED: testdata.yaml')
-                testdata_yaml_path.unlink()
+            if testdata_yaml_path.is_file():
+                if yaml_text == testdata_yaml_path.read_text():
+                    # identical -> skip
+                    pass
+                else:
+                    # different -> overwrite
+                    generator_config.remove(testdata_yaml_path)
+                    testdata_yaml_path.write_text(yaml_text)
+                    bar.log(f'CHANGED: testdata.yaml')
+            else:
+                # new file -> create it
+                testdata_yaml_path.write_text(yaml_text)
+                bar.log(f'NEW: testdata.yaml')
+        elif d.testdata_yaml == '' and testdata_yaml_path.is_file():
+            # empty -> remove it
+            generator_config.remove(testdata_yaml_path)
+            bar.log(f'REMOVED: testdata.yaml')
         bar.done()
 
         for key in d.includes:
@@ -1205,7 +1157,7 @@ class GeneratorConfig:
     ]
 
     # Parse generators.yaml.
-    def __init__(self, problem):
+    def __init__(self, problem, restriction=None):
         self.problem = problem
         yaml_path = self.problem.path / 'generators' / 'generators.yaml'
         self.ok = True
@@ -1215,8 +1167,9 @@ class GeneratorConfig:
         # For included cases, this is the 'resolved' location of the testcase that is included.
         self.known_cases = dict()
         # A set of paths `secret/testgroup`.
-        # Used for cleanup.
         self.known_directories = set()
+        # Used for cleanup
+        self.known_files = set()
         # A map from key to (is_included, list of testcases and directories),
         # used for `include` statements.
         self.known_keys = collections.defaultdict(lambda: [False, []])
@@ -1224,6 +1177,10 @@ class GeneratorConfig:
         self.rules_cache = dict()
         # The set of generated testcases keyed by hash(testdata).
         self.generated_testdata = dict()
+        # Path to the trash directory for this run
+        self.trashdir = None
+        # Files that should be processed
+        self.restriction = restriction
 
         if yaml_path.is_file():
             yaml = read_yaml(yaml_path)
@@ -1233,6 +1190,17 @@ class GeneratorConfig:
             self.has_yaml = False
 
         self.parse_yaml(yaml)
+
+    # testcase_short_path: secret/1.in
+    def process_testcase(self, relative_testcase_path):
+        if not self.restriction:
+            return True
+        absolute_testcase_path = self.problem.path / 'data' / relative_testcase_path.with_suffix('')
+        for p in self.restriction:
+            for basedir in get_basedirs(self.problem, 'data'):
+                if is_relative_to(basedir / p, absolute_testcase_path):
+                    return True
+        return False
 
     def parse_yaml(self, yaml):
         check_type('Root yaml', yaml, [type(None), dict])
@@ -1305,7 +1273,7 @@ class GeneratorConfig:
                     return None
 
                 # If a list of testcases was passed and this one is not in it, skip it.
-                if not process_testcase(self.problem, parent.path / name):
+                if not self.process_testcase(parent.path / name):
                     return None
 
                 t = TestcaseRule(self.problem, self, key, name, yaml, parent)
@@ -1412,40 +1380,6 @@ class GeneratorConfig:
                             f'{d.path}: Unknown include key {include} does not refer to a lexicographically smaller testcase.'
                         )
                         continue
-
-            # Find unlisted testcases and directories.
-            # TODO
-            # dir_path = self.problem.path / 'data' / d.path
-            # if dir_path.is_dir():
-            #    for f in sorted(dir_path.iterdir()):
-            #        # f must either be a directory or a .in file.
-            #        if not (f.is_dir() or f.suffix == '.in'):
-            #            continue
-            #
-            #        # Testcases are always passed as name without suffix.
-            #        f_in = f
-            #        if not f.is_dir():
-            #            f = f.with_suffix('')
-            #
-            #        # Skip already processed cases.
-            #        if (d.path / f.name in self.known_cases) or (
-            #            d.path / f.name in self.known_directories
-            #        ):
-            #            continue
-            #
-            #        # Broken or valid symlink.
-            #        if f_in.is_symlink():
-            #            d.unlisted_includes.append(f.name)
-            #            continue
-            #
-            #        # Generate stub yaml so we can call `parse` recursively.
-            #        child_yaml = None
-            #        if f.is_dir():
-            #            child_yaml = {}
-            #
-            #        c = parse(f.name, f.name, child_yaml, d, listed=False)
-            #        if c is not None:
-            #            d.data.append(c)
             return d
 
         self.root_dir = parse('', '', yaml, RootDirectory())
@@ -1527,6 +1461,7 @@ class GeneratorConfig:
         self.root_dir.walk(cleanup_build_failures, dir_f=None)
 
     def run(self):
+        self.update_gitignore_file()
         self.problem.reset_testcase_hashes()
 
         item_names = []
@@ -1539,11 +1474,10 @@ class GeneratorConfig:
         self.root_dir.walk(None, count_dir)
         bar = ProgressBar('Generate', items=item_names)
 
-        # Testcases are generated in two step:
-        # 1. Generate directories and testcases listed in generators.yaml.
-        #    Each directory is only started after previous directories have
-        #    finished and handled by the main thread, to avoid problems with
-        #    included testcases.
+        # Generate directories and testcases listed in generators.yaml.
+        # Each directory is only started after previous directories have
+        # finished and handled by the main thread, to avoid problems with
+        # included testcases.
 
         p = parallel.new_queue(lambda t: t.generate(self.problem, self, bar))
 
@@ -1553,10 +1487,40 @@ class GeneratorConfig:
 
         self.root_dir.walk(p.put, generate_dir)
         p.done()
-
         bar.finalize()
 
-        self.update_gitignore_file()
+    def remove(self, src):
+        if self.trashdir is None:
+            self.trashdir = self.problem.tmpdir / secrets.token_hex(4)
+        dst = self.trashdir / src.resolve().relative_to((self.problem.path / 'data').resolve())
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(src, dst)
+
+    def remove_unknown(self, path, bar):
+        local = path.relative_to(self.problem.path / 'data')
+        if path != self.problem.path / 'data' and not self.process_testcase(local):
+            return
+        keep = any(
+            (
+                path.is_dir() and local in self.known_directories,
+                not path.is_dir() and path in self.known_files,
+            )
+        )
+        if keep:
+            if path.is_dir():
+                for f in sorted(path.iterdir()):
+                    self.remove_unknown(f, bar)
+        else:
+            self.remove(path)
+            bar.log(f'REMOVED: {path.name}')
+
+    def clean_up(self):
+        bar = ProgressBar('Clean Up', max_len=-1)
+
+        self.remove_unknown(self.problem.path / 'data', bar)
+        if self.trashdir is not None:
+            bar.warn('Some files were changed/removed.', f'-> {self.trashdir}')
+        bar.finalize()
 
     def update_gitignore_file(self):
         gitignorefile = self.problem.path / '.gitignore'
@@ -1648,9 +1612,9 @@ data/
 # Delete files in the tmpdir trash directory. By default all files older than 10min are removed
 # and additionally the oldest files are removed until the trash is less than 1 GiB
 def clean_trash(problem, time_limit=10 * 60, size_lim=1024 * 1024 * 1024):
-    trash_dir = problem.tmpdir / 'trash'
-    if trash_dir.exists():
-        dirs = [(d, path_size(d)) for d in trash_dir.iterdir()]
+    trashdir = problem.tmpdir / 'trash'
+    if trashdir.exists():
+        dirs = [(d, path_size(d)) for d in trashdir.iterdir()]
         dirs.sort(key=lambda d: d[0].stat().st_mtime)
         total_size = sum(x for d, x in dirs)
         time_limit = time.time() - time_limit
@@ -1678,12 +1642,11 @@ def generate(problem):
         clean_data(problem, True, True)
         return True
 
-    gen_config = GeneratorConfig(problem)
+    gen_config = GeneratorConfig(problem, config.args.testcases)
     if not gen_config.ok:
         return True
 
     if config.args.add is not None:
-        # right now the parsing does not generate know cases...
         gen_config.add()
         return True
 
@@ -1693,6 +1656,20 @@ def generate(problem):
 
         gen_config.build()
         gen_config.run()
+        gen_config.clean_up()
+    return True
+
+
+def generate_samples(problem):
+    gen_config = GeneratorConfig(problem, [problem.path / 'data' / 'sample'])
+    if not gen_config.ok:
+        return True
+    if not gen_config.has_yaml:
+        return True
+
+    gen_config.build()
+    gen_config.run()
+    gen_config.clean_up()
     return True
 
 
