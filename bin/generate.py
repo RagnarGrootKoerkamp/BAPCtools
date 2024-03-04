@@ -1654,11 +1654,17 @@ def generate_samples(problem):
 def testcases(problem, includes=False):
     gen_config = GeneratorConfig(problem)
     if gen_config.has_yaml:
-        # TODO handle includes flag
         if gen_config.ok:
-            return {
-                problem.path / 'data' / x.parent / (x.name + '.in') for x in gen_config.known_cases
-            }
+            if includes:
+                return {
+                    problem.path / 'data' / x.parent / (x.name + '.in')
+                    for x in gen_config.known_cases
+                }
+            else:
+                return {
+                    (problem.path / 'data' / x.path).with_suffix('.in')
+                    for x in gen_config.known_cases.values()
+                }
         return set()
     else:
         testcases = set(problem.path.glob('data/**/*.in'))
