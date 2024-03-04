@@ -19,7 +19,7 @@ class MockProblem:
 
 
 class MockGeneratorConfig(generate.GeneratorConfig):
-    def __init__(self, problem):
+    def __init__(self, problem, restriction=None):
         self.problem = problem
 
         # A map of paths `secret/testgroup/testcase` to their canonical TestcaseRule.
@@ -29,6 +29,8 @@ class MockGeneratorConfig(generate.GeneratorConfig):
         # A set of paths `secret/testgroup`.
         # Used for cleanup.
         self.known_directories = set()
+        # Used for cleanup
+        self.known_files = set()
         # A map from key to (is_included, list of testcases and directories),
         # used for `include` statements.
         self.known_keys = collections.defaultdict(lambda: [False, []])
@@ -37,6 +39,10 @@ class MockGeneratorConfig(generate.GeneratorConfig):
         # The set of generated testcases keyed by testdata.
         # Used to delete duplicated unlisted cases.
         self.generated_testdata = dict()
+        # Path to the trash directory for this run
+        self.trashdir = None
+        # Files that should be processed
+        self.restriction = restriction
 
 
 class TestGeneratorConfig:
