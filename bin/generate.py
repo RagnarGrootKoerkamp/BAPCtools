@@ -399,9 +399,6 @@ class TestcaseRule(Rule):
         # Whether this testcase is a sample.
         self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == 'sample'
 
-        # 0. Inline: cases where the source is directly in the data/ directory.
-        #    This is disjoint from the other options.
-        self.inline = False
         # 1. Generator
         self.generator = None
         # 2. Files are copied form this path.
@@ -436,13 +433,8 @@ class TestcaseRule(Rule):
             extensions.remove('.out')
 
         if yaml is None:
-            self.inline = True
-            yaml = dict()
             intarget = self.path.parent / (self.path.name + '.in')
-            target_infile = problem.path / 'data' / intarget
-            if not target_infile.exists():
-                fatal(f'Could not find .in for inline case {intarget}')
-            self.hash = hash_file(target_infile)
+            fatal(f'Testcases should not be placed in the data directory: {intarget}')
         else:
             check_type('testcase', yaml, [str, dict])
             if isinstance(yaml, str):
@@ -687,10 +679,7 @@ class TestcaseRule(Rule):
         def copy_generated():
             all_done = True
 
-            # For inline cases, only copy the (possibly) generated .ans.
-            # Any other files in the directory are kept without warning.
-            extentions = ['.ans'] if t.inline else config.KNOWN_DATA_EXTENSIONS
-            for ext in extentions:
+            for ext in config.KNOWN_DATA_EXTENSIONS:
                 source = infile.with_suffix(ext)
                 target = target_infile.with_suffix(ext)
 
@@ -786,18 +775,11 @@ class TestcaseRule(Rule):
                     else:
                         infile.with_suffix(ext).write_text(contents)
 
-                # Step 4: If inline copy the source file.
-                if t.inline:
-                    if not target_infile.is_file():
-                        # Step 5a: Error if target_infile for inline case does not exist.
-                        bar.error(f'No .in file was found for inline testcase')
-                        return
-                    shutil.copy(target_infile, infile, follow_symlinks=True)
-                else:
-                    if not infile.is_file():
-                        # Step 5b: Error if infile was not generated.
-                        bar.error(f'No .in file was generated!')
-                        return
+                # Step 4: copy the source file.
+                if not infile.is_file():
+                    # Step 4b: Error if infile was not generated.
+                    bar.error(f'No .in file was generated!')
+                    return
 
             assert infile.is_file(), f'Expected .in file not found in cache: {infile}'
             testcase = Testcase(problem, infile, short_path=t.path / t.name)
@@ -839,16 +821,6 @@ class TestcaseRule(Rule):
                             if t.config.solution:
                                 if not t.config.solution.run(bar, cwd, infile.stem).status:
                                     return
-                            elif t.inline:
-                                # Otherwise, copy the .ans for inline cases.
-                                if not target_ansfile.is_file():
-                                    # Error if target_ansfile and `solution` for inline cases both do not exist.
-                                    bar.error(
-                                        f'No solution or .ans file was found for inline testcase'
-                                    )
-                                    bar.done()
-                                    return
-                                shutil.copy(target_ansfile, ansfile, follow_symlinks=True)
                             else:
                                 # Otherwise, it's a hard error.
                                 bar.error(f'{ansfile.name} does not exist and was not generated.')
