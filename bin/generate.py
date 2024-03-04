@@ -434,7 +434,7 @@ class TestcaseRule(Rule):
 
         if yaml is None:
             intarget = self.path.parent / (self.path.name + '.in')
-            fatal(f'Testcases should not be placed in the data directory: {intarget}')
+            fatal(f'Empty yaml key (Testcases must be generated not mentioned): {intarget}')
         else:
             check_type('testcase', yaml, [str, dict])
             if isinstance(yaml, str):
@@ -1461,6 +1461,7 @@ class GeneratorConfig:
         p.done()
         bar.finalize()
 
+    # move a file or into the trash directory
     def remove(self, src):
         if self.trashdir is None:
             self.trashdir = self.problem.tmpdir / secrets.token_hex(4)
@@ -1468,7 +1469,7 @@ class GeneratorConfig:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(src, dst)
 
-    def remove_unknown(self, path, bar):
+    def _remove_unknown(self, path, bar):
         local = path.relative_to(self.problem.path / 'data')
         if path != self.problem.path / 'data' and not self.process_testcase(local):
             return
@@ -1486,14 +1487,16 @@ class GeneratorConfig:
             self.remove(path)
             bar.log(f'REMOVED: {path.name}')
 
+    # remove all files in data that were not written by the during run
     def clean_up(self):
         bar = ProgressBar('Clean Up', max_len=-1)
 
-        self.remove_unknown(self.problem.path / 'data', bar)
+        self._remove_unknown(self.problem.path / 'data', bar)
         if self.trashdir is not None:
             bar.warn('Some files were changed/removed.', f'-> {self.trashdir}')
         bar.finalize()
 
+    # write a gitignore file to ignore everything in data/ except data/sample/
     def update_gitignore_file(self):
         gitignorefile = self.problem.path / '.gitignore'
 
@@ -1503,7 +1506,7 @@ data/
 """
 
         if gitignorefile.is_file():
-            # if there is any rule fore data/ we expect that the user knows
+            # if there is any rule for data/ we expect that the user knows
             # what he does.
             if gitignorefile.read_text().find('data/') == -1:
                 with gitignorefile.open("a") as f:
@@ -1515,7 +1518,9 @@ data/
             gitignorefile.write_text(content)
             log('Created .gitignore.')
 
-    def add(self):
+    # add all testcases specified as copy keys in the generator.yaml
+    # can handle files and complete directories
+    def add(self, to_add):
         if not has_ryaml:
             error(
                 'generate --add needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
@@ -1523,7 +1528,7 @@ data/
             return
 
         in_files = []
-        for path in config.args.add:
+        for path in to_add:
             if path.suffix == '.in':
                 in_files.append(path)
             else:
@@ -1619,7 +1624,7 @@ def generate(problem):
         return True
 
     if config.args.add is not None:
-        gen_config.add()
+        gen_config.add(config.args.add)
         return True
 
     if config.args.action == 'generate':
