@@ -1472,12 +1472,11 @@ class GeneratorConfig:
 
     def _remove_unknown(self, path, bar):
         local = path.relative_to(self.problem.path / 'data')
-        if path != self.problem.path / 'data' and not self.process_testcase(local):
-            return
         keep = any(
             (
                 path.is_dir() and local in self.known_directories,
                 not path.is_dir() and path in self.known_files,
+                not path.is_dir() and not self.process_testcase(local),
             )
         )
         if keep:
