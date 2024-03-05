@@ -437,7 +437,7 @@ class TestcaseRule(Rule):
 
         if yaml is None:
             self.parse_error = (
-                f'Empty yaml key (Testcases must be generated not mentioned). Skipping.'
+                f'Empty yaml entry (Testcases must be generated not only mentioned). Skipping.'
             )
             config.n_error += 1
             return
