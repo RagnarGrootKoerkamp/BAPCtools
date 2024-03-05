@@ -152,7 +152,7 @@ class Fuzz:
 
         # Filter to only keep rules depending on seed.
         def add_testcase(t):
-            if t.in_is_generated and t.generator.uses_seed:
+            if t.in_is_generated and t.generator.uses_seed and t.parse_error is None:
                 self.testcase_rules.append(t)
 
         generator_config.root_dir.walk(add_testcase, dir_f=None)
