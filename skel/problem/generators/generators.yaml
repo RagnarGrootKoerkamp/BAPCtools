@@ -3,7 +3,10 @@
 
 data:
   sample:
-    data: []
+    data:
+      - '':
+          in: 2 2
+          ans: "4"
       # Some small examples showing to help understanding of the problem.
       #- '':
       #    in: 1 2
@@ -18,7 +21,7 @@ data:
       #      7
 
   secret:
-    data: []
+    data:
       # You can re-use the input validator by symlinking it as `generator` in
       # this directory. Below is some inspiration for test cases.
       #
@@ -58,6 +61,10 @@ data:
       #- large: generator {seed} -n 991
       #- large: generator {seed} -n 999
       #- large: generator {seed} -n 1000
+      neutral-right:
+        in: 2 0
+        ans: "2"
+        desc: Make sure right argument can be zero
 
   invalid_inputs:
     # Add invalid testcase to ensure that input_validators correctly rejects them.
@@ -73,21 +80,15 @@ data:
     # Add valid testcase with invalid answers to ensure that the answer_validators correctly rejects them.
     # (The output validator is also called with these)
     data:
-      #leading_whitespace:
-      #    in: "<valid testcase>"
-      #    ans: " <valid answer>"
-      in: 2 2
-      ans: " 4"
+      leading_whitespace:
+        in: 2 2    # valid input
+        ans: " 4"  # invalid default answer format
 
   invalid_outputs:
     # Add valid testcase with answer and invalid team output to ensure that the out_validator correctly rejects them.
     # (The output validator is also called with these)
     data:
-      #wrong_answer:
-      #    in: "<valid testcase>"
-      #    ans: "<valid answer>"
-      #    out: "<invalid answer>"
       wrong_answer:
-        in: 2 2
-        ans: "4"
-        out: "5"
+        in: 2 2  # valid input
+        ans: "4" # correct and well-formed answer for that input
+        out: "5" # wrong answer
