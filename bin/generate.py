@@ -1659,7 +1659,9 @@ def generate(problem):
     if config.args.action == 'generate':
         if not gen_config.has_yaml:
             error('Did not find generators/generators.yaml')
+            return true
 
+    if gen_config.has_yaml:
         gen_config.build()
         gen_config.run()
         gen_config.clean_up()
