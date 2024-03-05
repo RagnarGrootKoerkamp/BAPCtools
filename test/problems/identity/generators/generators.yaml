@@ -31,7 +31,7 @@ data:
         in: "\n0"
   invalid_answers:
     data:
-      "leading_pace":
+      "leading_space":
         in: "0"
         ans: " 0"
       "trailing_space":
@@ -68,6 +68,7 @@ data:
         data:
           stdoutpy: stdout.py 200
           stdoutcpp: stdout.cpp 201
+<<<<<<< HEAD
           # {name} should always just be `testcase` now.
           inans_old: write_in_and_ans_old.py {name} 212
           inans: write_in_and_ans.py 202
@@ -75,6 +76,13 @@ data:
           main.py: main.py 204
           main.c: main.c 205
           main.cpp: main.cpp 206
+=======
+          inans: write_in_and_ans.py 202
+          hintdesc: hint_desc.py 203
+          main_py: main_py 204
+          main_c: main_c 205
+          main_cpp: main_cpp 206
+>>>>>>> 14aa7d1 (identity: ensure valid YAML)
       numbered_group:
         data:
           - dir: dir 300
@@ -158,19 +166,15 @@ data:
       boolean_generator_false:
         solution: /generators/false
         generate: f
-        unknown_key:
-      empty_group_1: {}
       empty_group_2:
-        data:
+        data: {}
       empty_group_3:
         data: []
-      empty_group_4:
-        data:
-      empty_group_5:
+      non_empty_group_5:
         data:
           - a: stdout.py 501 # 1-a
           - b: stdout.py 502 # 2-b
-      empty_group_6:
+      non_empty_group_6:
         data:
           - "": stdout.py 503
       has_type:
