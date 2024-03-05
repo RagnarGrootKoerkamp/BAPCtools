@@ -1254,6 +1254,21 @@ def hash_string(string):
     return sha.hexdigest()
 
 
+def hash_file_content(file, buffer_size=65536):
+    if not file.is_file():
+        raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
+    sha = hashlib.sha256(usedforsecurity=False)
+
+    with open(file, 'rb') as f:
+        while True:
+            data = f.read(buffer_size)
+            if not data:
+                break
+            sha.update(data)
+
+    return sha.hexdigest()
+
+
 def hash_file(file, buffer_size=65536):
     if not file.is_file():
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
