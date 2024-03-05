@@ -4,13 +4,13 @@ solution: /submissions/accepted/author.py
 random_salt: "abc"
 
 generators:
-  main.py:
+  main_py:
     - main.py
     - lib.py
-  main.cpp:
+  main_cpp:
     - main.cpp
     - lib.h
-  main.c:
+  main_c:
     - main.c
     - lib.h
 
@@ -68,21 +68,11 @@ data:
         data:
           stdoutpy: stdout.py 200
           stdoutcpp: stdout.cpp 201
-<<<<<<< HEAD
-          # {name} should always just be `testcase` now.
-          inans_old: write_in_and_ans_old.py {name} 212
-          inans: write_in_and_ans.py 202
-          hintdesc: hint_desc.py 203
-          main.py: main.py 204
-          main.c: main.c 205
-          main.cpp: main.cpp 206
-=======
           inans: write_in_and_ans.py 202
           hintdesc: hint_desc.py 203
           main_py: main_py 204
           main_c: main_c 205
           main_cpp: main_cpp 206
->>>>>>> 14aa7d1 (identity: ensure valid YAML)
       numbered_group:
         data:
           - dir: dir 300
@@ -105,8 +95,6 @@ data:
           - "": stdout.py 131
           - "": stdout.py 132 # 10.in
       seeding:
-        testdata.yaml:
-          arbitrary_key: some_value
         solution: /submissions/accepted/author.cpp
         random_salt: "def"
         data:
@@ -177,8 +165,6 @@ data:
       non_empty_group_6:
         data:
           - "": stdout.py 503
-      has_type:
-        type: directory
       json:
         {
           data:
@@ -188,6 +174,5 @@ data:
               { "": stdout.py 602 },
             ],
         }
-    unknown_key:
 
 unknown_key:
