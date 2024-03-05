@@ -724,6 +724,9 @@ class TestcaseRule(Rule):
             return all_done
 
         def add_testdata_to_cache():
+            # Used to identify generated testcases
+            generator_config.hashed_in.add(hash_file_content(infile))
+
             # Store the generated testdata for deduplication test cases.
             hashes = {}
 
@@ -1168,6 +1171,8 @@ class GeneratorConfig:
         self.generated_testdata = dict()
         # Path to the trash directory for this run
         self.trashdir = None
+        # Set of hash(.in) for all generated testcases
+        self.hashed_in = set()
         # Files that should be processed
         self.restriction = restriction
 
@@ -1485,7 +1490,7 @@ class GeneratorConfig:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.move(src, dst)
 
-    def _remove_unknown(self, path, bar):
+    def _remove_unknown(self, path, bar, silent=False):
         local = path.relative_to(self.problem.path / 'data')
         keep = any(
             (
@@ -1496,11 +1501,21 @@ class GeneratorConfig:
         )
         if keep:
             if path.is_dir():
-                for f in sorted(path.iterdir()):
+                # specially handle known .in files to reduce output noice
+                for f in sorted(path.glob('*.in')):
+                    if f.is_file() and hash_file_content(f) in self.hashed_in:
+                        for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
+                            tmp = f.with_suffix(ext)
+                            if tmp.is_file():
+                                self._remove_unknown(f.with_suffix(ext), bar, True)
+                for f in sorted(path.glob('*')):
                     self._remove_unknown(f, bar)
         else:
             self.remove(path)
-            bar.log(f'REMOVED: {path.name}')
+            if silent:
+                bar.debug(f'REMOVED: {path.name}')
+            else:
+                bar.log(f'REMOVED: {path.name}')
 
     # remove all files in data that were not written by the during run
     def clean_up(self):
