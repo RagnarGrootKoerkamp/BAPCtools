@@ -1,6 +1,6 @@
 package problemformat
 
-// cue version 0.6
+// Use cue version 0.6 or later
 // To validate generators.yaml using cue:
 // > cue vet generators.yaml *.cue -d "#Generators"
 
@@ -11,25 +11,12 @@ import "struct"
 // to things like "tree --random --seed {seed:5}"
 command: !="" & (=~"^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$")
 
-// Names for generators, testgroups, and testcases are alphanumerical with underscores
-// and hyphens; such as "huge", "make_tree", "3", or "connected_graph-01".
-let basename = "([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])"
-name: =~"^\(basename)$"
-
-// Filenames are somewhat like names, but can also contain '.'
-// and have length at least 2, such as "good-solution_02.py"
-// but not "huge_" or "a".
-let filename = "[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]"
-
-filepath: =~"^/?\(filename)(/\(filename))*$"
-casepath: =~"^\(filename)(/\(basename))*$"
-
 #config: {
 	"testdata.yaml"?: #testdata_settings
 	// Path to solution starts with slash, such as "/submissions/accepted/foo.py"
 	solution?: filepath & =~"^/"
 	// Path to visualiser can be omitted
-	visualizer?:  command & =~"^/" | null
+	visualizer?:  filepath & =~"^/" | null
 	random_salt?: string
 }
 
@@ -39,9 +26,9 @@ casepath: =~"^\(filename)(/\(basename))*$"
 		generate?: command
 		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
 		// such as "manual/samples/3".
-		copy?:                            casepath
+		copy?:                                    casepath
 		["in" | "ans" | "out" | "desc" | "hint"]: string
-		interaction?:                     =~"^([<>][^\\n]*\\n)+$"
+		interaction?:                             =~"^([<>][^\\n]*\\n)+$"
 		#config
 	}
 
