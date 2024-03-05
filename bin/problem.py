@@ -170,7 +170,7 @@ class Problem:
             else:
                 self.settings.uuid = generate_problem_uuid()
                 stored_uuid.write_text(self.settings.uuid)
-            warn(f'Missing UUID for {self.name}, add "uuid: {self.settings.uuid}" to problem.yaml')
+            warn(f'Missing UUID for {self.name}, add to problem.yaml:\nuuid: {self.settings.uuid}')
 
     # Walk up from absolute `path` (a file or directory) looking for the first testdata.yaml
     # file, and return its contents, or None if no testdata.yaml is found.
