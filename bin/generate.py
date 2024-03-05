@@ -8,6 +8,7 @@ import collections
 import shutil
 import secrets
 
+from collections.abc import Sequence
 from pathlib import Path, PurePosixPath, PurePath
 
 import config
@@ -155,7 +156,9 @@ class GeneratorInvocation(Invocation):
     # Try running the generator |retries| times, incrementing seed by 1 each time.
     def run(self, bar, cwd, name, seed, retries=1):
         for retry in range(retries):
-            result = self.program.run(bar, cwd, name, args=self._sub_args(seed=seed + retry))
+            result = self.program.run(
+                bar, cwd, name, args=self._sub_args(seed=(seed + retry) % 2**31)
+            )
             if result.status:
                 break
             if not result.retry:
@@ -299,6 +302,7 @@ KNOWN_TESTCASE_KEYS = [
     'visualizer',
     'random_salt',
     'retries',
+    'count',
 ] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
 RESERVED_TESTCASE_KEYS = ['data', 'testdata.yaml', 'include']
 KNOWN_DIRECTORY_KEYS = [
@@ -388,7 +392,7 @@ class Rule:
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, generator_config, key, name: str, yaml, parent):
+    def __init__(self, problem, generator_config, key, name: str, yaml, parent, count_index):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
@@ -421,6 +425,7 @@ class TestcaseRule(Rule):
 
         # Used by `fuzz`
         self.in_is_generated = False
+        self.count_index = count_index
 
         super().__init__(problem, key, name, yaml, parent)
 
@@ -450,18 +455,25 @@ class TestcaseRule(Rule):
                     yaml = {'copy': yaml['generate'][:-3]}
 
             # checks
-            assert (
-                'generate' in yaml or 'copy' in yaml or 'in' in yaml or 'interaction' in yaml
-            ), f'{parent.path / name}: Testcase requires at least one key in "generate", "copy", "in", "interaction".'
-            assert not (
-                'submission' in yaml and 'ans' in yaml
-            ), f'{parent.path / name}: cannot specify both "submissions" and "ans".'
+            if not any(x in yaml for x in ['generate', 'copy', 'in', 'interaction']):
+                self.parse_error = 'Testcase requires at least one key in "generate", "copy", "in", "interaction". Skipping.'
+                config.n_error += 1
+                return
+            if 'submission' in yaml and 'ans' in yaml:
+                self.parse_error = 'Testcase cannot specify both "submissions" and "ans".'
+                config.n_error += 1
+                return
+            if 'count' in yaml and not isinstance(yaml['count'], int):
+                value = yaml['count']
+                self.parse_error = f'Testcase expected int for "count" but found {value}.'
+                config.n_error += 1
+                return
 
             # 1. generate
             if 'generate' in yaml:
                 check_type('generate', yaml['generate'], str)
                 if len(yaml['generate']) == 0:
-                    self.parse_error = f'`generate` must not be empty. Skipping.'
+                    self.parse_error = '`generate` must not be empty. Skipping.'
                     generator_config.n_parse_error += 1
                     return
 
@@ -470,14 +482,17 @@ class TestcaseRule(Rule):
                 # TODO: Should the seed depend on white space? For now it does, but
                 # leading and trailing whitespace is stripped.
                 seed_value = self.config.random_salt + yaml['generate'].strip()
-                self.seed = int(hashlib.sha512(seed_value.encode('utf-8')).hexdigest(), 16) % (
-                    2**31
-                )
+                self.seed = (int(hash_string(seed_value), 16) + count_index * 2**16) % 2**31
                 self.in_is_generated = True
                 self.rule['gen'] = self.generator.command_string
                 if self.generator.uses_seed:
                     self.rule['seed'] = self.seed
                 hashes['.in'] = self.generator.hash(self.seed)
+
+            if self.in_is_generated and not self.generator.uses_seed and count_index > 0:
+                self.parse_error = 'count > 1 cannot be used without {seed}. Skipping.'
+                config.n_error += 1
+                return
 
             # 2. path
             if 'copy' in yaml:
@@ -1112,7 +1127,7 @@ class Directory(Rule):
             bar.done()
 
 
-# Returns a pair (numbered_name, basename)
+# Returns the numbered name
 def numbered_testcase_name(basename, i, n):
     width = len(str(n))
     number_prefix = f'{i:0{width}}'
@@ -1244,7 +1259,6 @@ class GeneratorConfig:
                 if isinstance(elem, dict):
                     for key in elem:
                         if is_testcase(elem[key]) and numbered:
-                            # TODO (#271): Count the number of generated cases for `count:` and/or variables.
                             num_numbered_testcases += 1
                         elif is_directory(elem[key]):
                             count(elem[key])
@@ -1262,18 +1276,30 @@ class GeneratorConfig:
                 fatal(f'Could not parse {parent.path / name} as a testcase or directory.')
 
             if is_testcase(yaml):
+                count = 1
+                if yaml is not None and 'count' in yaml and isinstance(yaml['count'], int):
+                    count = yaml['count']
+
                 if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
                     error(f'Testcase \'{parent.path}/{name}.in\' has an invalid name.')
                     return None
 
-                # If a list of testcases was passed and this one is not in it, skip it.
-                if not self.process_testcase(parent.path / name):
-                    return None
+                ts = []
+                for i in range(count):
+                    # If a list of testcases was passed and this one is not in it, skip it.
+                    if not self.process_testcase(parent.path / name):
+                        continue
 
-                t = TestcaseRule(self.problem, self, key, name, yaml, parent)
-                assert t.path not in self.known_cases, f"{t.path} was already parsed"
-                add_known(t)
-                return t
+                    curname = name if count == 1 else name + f'-{i+1:0{len(str(count))}}'
+
+                    t = TestcaseRule(self.problem, self, key, curname, yaml, parent, i)
+                    if t.path in self.known_cases:
+                        error(f'{t.path} was already parsed')
+                        continue
+
+                    add_known(t)
+                    ts.append(t)
+                return ts
 
             assert is_directory(yaml)
 
@@ -1321,7 +1347,9 @@ class GeneratorConfig:
                                     f'Unnumbered testcases must not have an empty key: {Path("data") / d.path / child_name}/\'\''
                                 )
                         c = parse(child_key, child_name, child_yaml, d)
-                        if c is not None:
+                        if isinstance(c, Sequence):
+                            d.data.extend(c)
+                        elif c is not None:
                             d.data.append(c)
 
             # Include TestcaseRule t for the current directory.
