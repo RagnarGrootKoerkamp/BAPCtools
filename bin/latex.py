@@ -18,9 +18,6 @@ from contest import *
 def create_samples_file(problem):
     builddir = problem.tmpdir
 
-    # try to generate all samples
-    generate.generate_samples(problem)
-
     # create the samples.tex file
     # For samples, find all .in/.ans/.interaction pairs.
     samples = problem.statement_samples()
@@ -225,7 +222,10 @@ def build_problem_pdfs(problem, solutions=False, web=False):
                 else:
                     warn(f'{problem.name}: solution.{lang}.tex not found')
             languages = filtered_languages
-
+    
+    # try to generate all samples
+    generate.generate_samples(problem)
+    
     return all(build_problem_pdf(problem, lang, solutions, web) for lang in languages)
 
 
