@@ -53,5 +53,9 @@ class TestGeneratorConfig:
         ),
     )
     def test_bad_generators_yamls(self, yamldoc):
+        config.n_error = 0
+        config.n_warn = 0
         with pytest.raises(SystemExit) as e:
             MockGeneratorConfig(MockProblem()).parse_yaml(yamldoc)
+            if config.n_error > 0 or config.n_warn > 0:
+                raise SystemExit

@@ -439,6 +439,7 @@ class TestcaseRule(Rule):
             self.parse_error = (
                 f'Empty yaml key (Testcases must be generated not mentioned). Skipping.'
             )
+            config.n_error += 1
             return
         else:
             check_type('testcase', yaml, [str, dict])
@@ -461,6 +462,7 @@ class TestcaseRule(Rule):
                 check_type('generate', yaml['generate'], str)
                 if len(yaml['generate']) == 0:
                     self.parse_error = f'`generate` must not be empty. Skipping.'
+                    config.n_error += 1
                     return
 
                 self.generator = GeneratorInvocation(problem, yaml['generate'])
@@ -511,6 +513,7 @@ class TestcaseRule(Rule):
         for key in yaml:
             if key in RESERVED_TESTCASE_KEYS:
                 self.parse_error = f'Testcase must not contain reserved key {key}. Skipping.'
+                config.n_error += 1
                 return
             if key not in KNOWN_TESTCASE_KEYS:
                 if config.args.action == 'generate':
@@ -536,6 +539,7 @@ class TestcaseRule(Rule):
             self.parse_error = (
                 f'Found identical input at {generator_config.rules_cache[self.hash]}. Skipping.'
             )
+            config.n_error += 1
             return
         generator_config.rules_cache[self.hash] = self.path
 
