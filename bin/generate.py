@@ -1675,6 +1675,7 @@ def generate_samples(problem):
     if not gen_config.has_yaml:
         return True
 
+    log('Generating samples')
     gen_config.build()
     gen_config.run()
     gen_config.clean_up()
