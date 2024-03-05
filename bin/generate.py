@@ -1285,7 +1285,6 @@ class GeneratorConfig:
                                     child_key, testgroup_id, num_testgroups
                                 )
                             elif is_testcase(child_yaml):
-                                # TODO: For now, testcases are numbered per testgroup. This will change soon.
                                 testcase_id += 1
                                 child_name = numbered_testcase_name(
                                     child_key, testcase_id, num_numbered_testcases
