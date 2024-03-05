@@ -176,10 +176,7 @@ data:
       hard_cases_group:
         # Directories may contain a testdata.yaml that will be written as specified.
         testdata.yaml:
-          on_reject: break
-          accept_score: "25"
-          range: 0 25
-          grader_flags: min
+          output_validator_flags: space_change_sensitive
 
         # To enable automatic numbering of testcases, data: may also contain a list of
         # single-element dictionaries instead of a single dictionary. In this case,
