@@ -392,8 +392,8 @@ class TestcaseRule(Rule):
         assert is_testcase(yaml)
         assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
-        # if False rule will be skipped during generation
-        self.ok = True
+        # if not None rule will be skipped during generation
+        self.parse_error = None
 
         if name.endswith('.in'):
             error(f'Testcase names should not end with \'.in\': {parent.path / name}')
@@ -436,11 +436,9 @@ class TestcaseRule(Rule):
             extensions.remove('.out')
 
         if yaml is None:
-            intarget = self.path.parent / (self.path.name + '.in')
-            error(
-                f'Empty yaml key (Testcases must be generated not mentioned): {intarget}. Skipping.'
+            self.parse_error = (
+                f'Empty yaml key (Testcases must be generated not mentioned). Skipping.'
             )
-            self.ok = False
             return
         else:
             check_type('testcase', yaml, [str, dict])
@@ -462,8 +460,7 @@ class TestcaseRule(Rule):
             if 'generate' in yaml:
                 check_type('generate', yaml['generate'], str)
                 if len(yaml['generate']) == 0:
-                    error(f'`generate` must not be empty. Skipping.')
-                    self.ok = False
+                    self.parse_error = f'`generate` must not be empty. Skipping.'
                     return
 
                 self.generator = GeneratorInvocation(problem, yaml['generate'])
@@ -513,8 +510,7 @@ class TestcaseRule(Rule):
         # Warn/Error for unknown keys.
         for key in yaml:
             if key in RESERVED_TESTCASE_KEYS:
-                error('Testcase must not contain reserved key {key}. Skipping.')
-                self.ok = False
+                self.parse_error = f'Testcase must not contain reserved key {key}. Skipping.'
                 return
             if key not in KNOWN_TESTCASE_KEYS:
                 if config.args.action == 'generate':
@@ -537,10 +533,9 @@ class TestcaseRule(Rule):
         if self.hash in generator_config.rules_cache:
             # This is fatal to prevent crashes later on when running generators in parallel.
             # https://github.com/RagnarGrootKoerkamp/BAPCtools/issues/310
-            error(
-                f'Found identical input at {generator_config.rules_cache[self.hash]} and {self.path}. Skipping.'
+            self.parse_error = (
+                f'Found identical input at {generator_config.rules_cache[self.hash]}. Skipping.'
             )
-            self.ok = False
             return
         generator_config.rules_cache[self.hash] = self.path
 
@@ -550,8 +545,8 @@ class TestcaseRule(Rule):
         t.generate_success = False
 
         # Some early checks.
-        if not t.ok:
-            bar.done(False, f'Invalid yaml entry.')
+        if t.parse_error is not None:
+            bar.done(False, t.parse_error)
             return
         if t.generator and t.generator.program is None:
             bar.done(False, f'Generator didn\'t build.')
