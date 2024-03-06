@@ -1279,6 +1279,9 @@ class GeneratorConfig:
                 count = 1
                 if yaml is not None and 'count' in yaml and isinstance(yaml['count'], int):
                     count = yaml['count']
+                if count > 100:
+                    warn(f'Found count: {count}, limited to 100.')
+                    count = 100
 
                 if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
                     error(f'Testcase \'{parent.path}/{name}.in\' has an invalid name.')
