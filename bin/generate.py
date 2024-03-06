@@ -1676,12 +1676,14 @@ def testcases(problem, includes=False):
             if includes:
                 return {
                     problem.path / 'data' / p.parent / (p.name + '.in')
-                    for p, x in gen_config.known_cases.items() if x.parse_error is None
+                    for p, x in gen_config.known_cases.items()
+                    if x.parse_error is None
                 }
             else:
                 return {
                     (problem.path / 'data' / x.path).with_suffix('.in')
-                    for x in gen_config.known_cases.values() if x.parse_error is None
+                    for x in gen_config.known_cases.values()
+                    if x.parse_error is None
                 }
         return set()
     else:
