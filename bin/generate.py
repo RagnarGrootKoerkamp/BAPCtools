@@ -456,16 +456,16 @@ class TestcaseRule(Rule):
             # checks
             if not any(x in yaml for x in ['generate', 'copy', 'in', 'interaction']):
                 self.parse_error = 'Testcase requires at least one key in "generate", "copy", "in", "interaction". Skipping.'
-                config.n_error += 1
+                generator_config.n_parse_error += 1
                 return
             if 'submission' in yaml and 'ans' in yaml:
                 self.parse_error = 'Testcase cannot specify both "submissions" and "ans".'
-                config.n_error += 1
+                generator_config.n_parse_error += 1
                 return
             if 'count' in yaml and not isinstance(yaml['count'], int):
                 value = yaml['count']
                 self.parse_error = f'Testcase expected int for "count" but found {value}.'
-                config.n_error += 1
+                generator_config.n_parse_error += 1
                 return
 
             # 1. generate
@@ -490,7 +490,7 @@ class TestcaseRule(Rule):
 
             if self.in_is_generated and not self.generator.uses_seed and count_index > 0:
                 self.parse_error = 'count > 1 cannot be used without {seed}. Skipping.'
-                config.n_error += 1
+                generator_config.n_parse_error += 1
                 return
 
             # 2. path
