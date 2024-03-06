@@ -1668,20 +1668,6 @@ def generate(problem):
     return True
 
 
-def generate_samples(problem):
-    gen_config = GeneratorConfig(problem, [problem.path / 'data' / 'sample'])
-    if not gen_config.ok:
-        return True
-    if not gen_config.has_yaml:
-        return True
-
-    log('Generating samples')
-    gen_config.build()
-    gen_config.run()
-    gen_config.clean_up()
-    return True
-
-
 def testcases(problem, includes=False):
     gen_config = GeneratorConfig(problem)
     if gen_config.has_yaml:
