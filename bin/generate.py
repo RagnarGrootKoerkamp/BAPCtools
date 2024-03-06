@@ -439,7 +439,7 @@ class TestcaseRule(Rule):
             self.parse_error = (
                 f'Empty yaml entry (Testcases must be generated not only mentioned). Skipping.'
             )
-            config.n_error += 1
+            generator_config.n_parse_error += 1
             return
         else:
             check_type('testcase', yaml, [str, dict])
@@ -462,7 +462,7 @@ class TestcaseRule(Rule):
                 check_type('generate', yaml['generate'], str)
                 if len(yaml['generate']) == 0:
                     self.parse_error = f'`generate` must not be empty. Skipping.'
-                    config.n_error += 1
+                    generator_config.n_parse_error += 1
                     return
 
                 self.generator = GeneratorInvocation(problem, yaml['generate'])
@@ -513,7 +513,7 @@ class TestcaseRule(Rule):
         for key in yaml:
             if key in RESERVED_TESTCASE_KEYS:
                 self.parse_error = f'Testcase must not contain reserved key {key}. Skipping.'
-                config.n_error += 1
+                generator_config.n_parse_error += 1
                 return
             if key not in KNOWN_TESTCASE_KEYS:
                 if config.args.action == 'generate':
@@ -539,7 +539,7 @@ class TestcaseRule(Rule):
             self.parse_error = (
                 f'Found identical input at {generator_config.rules_cache[self.hash]}. Skipping.'
             )
-            config.n_error += 1
+            generator_config.n_parse_error += 1
             return
         generator_config.rules_cache[self.hash] = self.path
 
@@ -1152,6 +1152,7 @@ class GeneratorConfig:
         self.problem = problem
         yaml_path = self.problem.path / 'generators' / 'generators.yaml'
         self.ok = True
+        self.n_parse_error = 0
 
         # A map of paths `secret/testgroup/testcase` to their canonical TestcaseRule.
         # For generated cases this is the rule itself.
@@ -1674,13 +1675,13 @@ def testcases(problem, includes=False):
         if gen_config.ok:
             if includes:
                 return {
-                    problem.path / 'data' / x.parent / (x.name + '.in')
-                    for x in gen_config.known_cases
+                    problem.path / 'data' / p.parent / (p.name + '.in')
+                    for p, x in gen_config.known_cases.items() if x.parse_error is None
                 }
             else:
                 return {
                     (problem.path / 'data' / x.path).with_suffix('.in')
-                    for x in gen_config.known_cases.values()
+                    for x in gen_config.known_cases.values() if x.parse_error is None
                 }
         return set()
     else:
