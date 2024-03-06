@@ -1232,14 +1232,14 @@ def inc_label(label):
 
 def combine_hashes(values):
     values.sort()
-    hasher = hashlib.sha256(usedforsecurity=False)
+    hasher = hashlib.sha512(usedforsecurity=False)
     for item in values:
         hasher.update(item.encode())
     return hasher.hexdigest()
 
 
 def combine_hashes_dict(d):
-    hasher = hashlib.sha256(usedforsecurity=False)
+    hasher = hashlib.sha512(usedforsecurity=False)
     for key in d:
         hasher.update(key.encode())
         if d[key] is not None:
@@ -1248,7 +1248,7 @@ def combine_hashes_dict(d):
 
 
 def hash_string(string):
-    sha = hashlib.sha256(usedforsecurity=False)
+    sha = hashlib.sha512(usedforsecurity=False)
     sha.update(string.encode())
     return sha.hexdigest()
 
@@ -1256,7 +1256,7 @@ def hash_string(string):
 def hash_file_content(file, buffer_size=65536):
     if not file.is_file():
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
-    sha = hashlib.sha256(usedforsecurity=False)
+    sha = hashlib.sha512(usedforsecurity=False)
 
     with open(file, 'rb') as f:
         while True:
@@ -1271,7 +1271,7 @@ def hash_file_content(file, buffer_size=65536):
 def hash_file(file, buffer_size=65536):
     if not file.is_file():
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
-    sha = hashlib.sha256(usedforsecurity=False)
+    sha = hashlib.sha512(usedforsecurity=False)
     name = file.name.encode('utf-8')
     sha.update(len(name).to_bytes(8, 'big'))
     sha.update(name)

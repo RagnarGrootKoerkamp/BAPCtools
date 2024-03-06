@@ -8,7 +8,6 @@ import collections
 import shutil
 import secrets
 
-from collections.abc import Sequence
 from pathlib import Path, PurePosixPath, PurePath
 
 import config
@@ -1268,6 +1267,7 @@ class GeneratorConfig:
         # Main recursive parsing function.
         # key: the yaml key e.g. 'testcase'
         # name: the possibly numbered name e.g. '01-testcase'
+        # Returns either a single Rule or a list of Rules
         def parse(key, name, yaml, parent):
             nonlocal testcase_id
 
@@ -1285,14 +1285,14 @@ class GeneratorConfig:
                     return None
 
                 ts = []
-                for i in range(count):
+                for count_index in range(count):
+                    curname = name if count == 1 else name + f'-{count_index+1:0{len(str(count))}}'
+
                     # If a list of testcases was passed and this one is not in it, skip it.
-                    if not self.process_testcase(parent.path / name):
+                    if not self.process_testcase(parent.path / curname):
                         continue
 
-                    curname = name if count == 1 else name + f'-{i+1:0{len(str(count))}}'
-
-                    t = TestcaseRule(self.problem, self, key, curname, yaml, parent, i)
+                    t = TestcaseRule(self.problem, self, key, curname, yaml, parent, count_index)
                     if t.path in self.known_cases:
                         error(f'{t.path} was already parsed')
                         continue
@@ -1347,7 +1347,7 @@ class GeneratorConfig:
                                     f'Unnumbered testcases must not have an empty key: {Path("data") / d.path / child_name}/\'\''
                                 )
                         c = parse(child_key, child_name, child_yaml, d)
-                        if isinstance(c, Sequence):
+                        if isinstance(c, list):
                             d.data.extend(c)
                         elif c is not None:
                             d.data.append(c)
