@@ -488,11 +488,6 @@ class TestcaseRule(Rule):
                     self.rule['seed'] = self.seed
                 hashes['.in'] = self.generator.hash(self.seed)
 
-            if self.in_is_generated and not self.generator.uses_seed and count_index > 0:
-                self.parse_error = 'count > 1 cannot be used without {seed}. Skipping.'
-                generator_config.n_parse_error += 1
-                return
-
             # 2. path
             if 'copy' in yaml:
                 check_type('`copy`', yaml['copy'], str)
@@ -546,39 +541,41 @@ class TestcaseRule(Rule):
         else:
             self.hash = combine_hashes(self.hash)
 
-        # Error for listed cases with identical input.
+        self.copy_of = None
         if self.hash in generator_config.rules_cache:
-            # This is fatal to prevent crashes later on when running generators in parallel.
-            # https://github.com/RagnarGrootKoerkamp/BAPCtools/issues/310
-            self.parse_error = (
-                f'Found identical input at {generator_config.rules_cache[self.hash]}. Skipping.'
-            )
-            generator_config.n_parse_error += 1
-            return
-        generator_config.rules_cache[self.hash] = self.path
+            self.copy_of = generator_config.rules_cache[self.hash]
+        else:
+            generator_config.rules_cache[self.hash] = self
 
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
         t.generate_success = False
 
+        if t.copy_of is not None and t.count_index == 0:
+            bar.warn(
+                f'Found identical rule at {t.copy_of.path}. Use "count: <int>" if you want multiple identical testcases.'
+            )
+
         # Some early checks.
+        if t.copy_of is not None and not t.copy_of.generate_success:
+            bar.done(False, f'See {t.copy_of.path}')
+            return
         if t.parse_error is not None:
             bar.done(False, t.parse_error)
             return
         if t.generator and t.generator.program is None:
             bar.done(False, f'Generator didn\'t build.')
             return
+        if t.hash is None:
+            # Input can only be missing when the `copy:` does not have a corresponding `.in` file.
+            # (When `generate:` or `in:` is used, the input is always present.)
+            bar.done(False, f'{t.copy} does not exist.')
+            return
 
         target_dir = problem.path / 'data' / t.path.parent
         target_infile = target_dir / (t.name + '.in')
         target_ansfile = target_dir / (t.name + '.ans')
-
-        # Input can only be missing when the `copy:` does not have a corresponding `.in` file.
-        # (When `generate:` or `in:` is used, the input is always present.)
-        if t.hash is None:
-            bar.done(False, f'{t.copy} does not exist.')
-            return
 
         # E.g. bapctmp/problem/data/<hash>.in
         cwd = problem.tmpdir / 'data' / t.hash
@@ -586,6 +583,49 @@ class TestcaseRule(Rule):
         infile = cwd / 'testcase.in'
         ansfile = cwd / 'testcase.ans'
         meta_path = cwd / 'meta_.yaml'
+
+        # Returns False when some files were skipped.
+        def copy_generated():
+            all_done = True
+
+            for ext in config.KNOWN_DATA_EXTENSIONS:
+                source = infile.with_suffix(ext)
+                target = target_infile.with_suffix(ext)
+
+                if source.is_file():
+                    generator_config.known_files.add(target)
+                    if target.is_file():
+                        if source.read_bytes() == target.read_bytes():
+                            # identical -> skip
+                            pass
+                        else:
+                            # different -> overwrite
+                            generator_config.remove(target)
+                            shutil.copy(source, target, follow_symlinks=True)
+                            bar.log(f'CHANGED: {target.name}')
+                    else:
+                        # new file -> copy it
+                        shutil.copy(source, target, follow_symlinks=True)
+                        bar.log(f'NEW: {target.name}')
+                elif target.is_file():
+                    # Target exists but source wasn't generated -> remove it
+                    generator_config.remove(target)
+                    bar.log(f'REMOVED: {target.name}')
+                else:
+                    # both source and target do not exist
+                    pass
+            return all_done
+
+        if t.copy_of is not None:
+            # All checks are handled by the t.copy_of rule
+            # up_to_date()
+            copy_generated()
+            t.generate_success = True
+            # this is a copy, the content is already in the cache
+            # and we dont warn for the duplicate anyway
+            # add_testdata_to_cache()
+            bar.done(message='SKIPPED: up to date')
+            return
 
         def init_meta():
             meta_yaml = read_yaml(meta_path) if meta_path.is_file() else None
@@ -703,38 +743,6 @@ class TestcaseRule(Rule):
                         f'Generator `{t.generator.command_string}` likely does not depend on seed:',
                         f'All values in [{t.seed}, {new_seed}] give the same result.',
                     )
-
-        # Returns False when some files were skipped.
-        def copy_generated():
-            all_done = True
-
-            for ext in config.KNOWN_DATA_EXTENSIONS:
-                source = infile.with_suffix(ext)
-                target = target_infile.with_suffix(ext)
-
-                if source.is_file():
-                    generator_config.known_files.add(target)
-                    if target.is_file():
-                        if source.read_bytes() == target.read_bytes():
-                            # identical -> skip
-                            pass
-                        else:
-                            # different -> overwrite
-                            generator_config.remove(target)
-                            shutil.copy(source, target, follow_symlinks=True)
-                            bar.log(f'CHANGED: {target.name}')
-                    else:
-                        # new file -> copy it
-                        shutil.copy(source, target, follow_symlinks=True)
-                        bar.log(f'NEW: {target.name}')
-                elif target.is_file():
-                    # Target exists but source wasn't generated -> remove it
-                    generator_config.remove(target)
-                    bar.log(f'REMOVED: {target.name}')
-                else:
-                    # both source and target do not exist
-                    pass
-            return all_done
 
         def add_testdata_to_cache():
             # Used to identify generated testcases
@@ -1049,6 +1057,7 @@ class Directory(Rule):
             bar.log(f'REMOVED: testdata.yaml')
         bar.done()
 
+    def generate_includes(d, problem, generator_config, bar):
         for key in d.includes:
             t = d.includes[key]
             target = t.path
@@ -1498,12 +1507,15 @@ class GeneratorConfig:
         self.root_dir.walk(None, count_dir)
         bar = ProgressBar('Generate', items=item_names)
 
-        # Generate directories and testcases listed in generators.yaml.
-        # Each directory is only started after previous directories have
-        # finished and handled by the main thread, to avoid problems with
-        # included testcases.
+        # Testcases are generated in two steps:
+        # 1. Generate directories and unique testcases listed in generators.yaml.
+        # 2. Generate duplicates of known testcases. All directories should already exists
+        #    Each directory is only started after previous directories have
+        #    finished and handled by the main thread, to avoid problems with
+        #    included testcases.
 
-        p = parallel.new_queue(lambda t: t.generate(self.problem, self, bar))
+        # 1
+        p = parallel.new_queue(lambda t: t.copy_of is None and t.generate(self.problem, self, bar))
 
         def generate_dir(d):
             p.join()
@@ -1511,6 +1523,19 @@ class GeneratorConfig:
 
         self.root_dir.walk(p.put, generate_dir)
         p.done()
+
+        # 2
+        p = parallel.new_queue(
+            lambda t: t.copy_of is not None and t.generate(self.problem, self, bar)
+        )
+
+        def generate_copies_and_includes(d):
+            p.join()
+            d.generate_includes(self.problem, self, bar)
+
+        self.root_dir.walk(p.put, generate_copies_and_includes)
+        p.done()
+
         bar.finalize()
 
     # move a file or into the trash directory
