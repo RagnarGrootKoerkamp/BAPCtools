@@ -60,7 +60,8 @@ data:
       #- large: generator {seed} -n 1000
 
       # Many testcases with the same parameter can be generated like this:
-      #- large: generator {seed:1} -n 1000
+      #- large:
+      #    --generate: generator {seed:1} -n 1000
       #    --count: 10
 
   invalid_inputs:
