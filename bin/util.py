@@ -469,7 +469,6 @@ class TableProgressBar(ProgressBar):
 
 
 class VerdictTable:
-
     colors = {
         'ACCEPTED': Fore.GREEN,
         'WRONG_ANSWER': Fore.RED,
@@ -697,10 +696,10 @@ def rename_with_language(path: Path, language: str):
     return path if language is None else path.rename(path.with_suffix(f".{language}{path.suffix}"))
 
 
-def parse_yaml(data, path=None):
+def parse_yaml(data, path=None, plain=False):
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
-    if has_ryaml:
+    if has_ryaml and not plain:
         with ruamel_lock:
             try:
                 ret = ryaml.load(data)
@@ -720,9 +719,9 @@ def parse_yaml(data, path=None):
             fatal(f'Failed to parse {path}.')
 
 
-def read_yaml(path):
+def read_yaml(path, plain=False):
     assert path.is_file(), f'File {path} does not exist'
-    return parse_yaml(path.read_text(), path=path)
+    return parse_yaml(path.read_text(), path=path, plain=plain)
 
 
 # Wrapper around read_yaml that returns an empty dictionary by default.
