@@ -1014,7 +1014,12 @@ class Directory(Rule):
         testdata_yaml_path = dir_path / 'testdata.yaml'
         if d.testdata_yaml:
             generator_config.known_files.add(testdata_yaml_path)
-            yaml_text = yamllib.dump(dict(d.testdata_yaml))
+            if has_ryaml:
+                buf = io.StringIO()
+                ryaml.dump(d.testdata_yaml, buf)
+                yaml_text = buf.getvalue()
+            else:
+                yaml_text = yamllib.dump(dict(d.testdata_yaml))
 
             if testdata_yaml_path.is_file():
                 if yaml_text == testdata_yaml_path.read_text():
