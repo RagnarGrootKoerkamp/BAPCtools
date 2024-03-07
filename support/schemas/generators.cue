@@ -24,6 +24,7 @@ command: !="" & (=~"^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$")
 	command |
 	{
 		generate?: command
+		count?: int & >= 1 & <= 100
 		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
 		// such as "manual/samples/3".
 		copy?:                                    casepath
