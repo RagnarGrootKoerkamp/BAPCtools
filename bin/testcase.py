@@ -295,7 +295,10 @@ class Testcase:
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
             results.append(ret.status)
 
-            message = name + ': '
+            message = name
+            if flags:
+                message += ' [' + ', '.join(flags) + ']'
+            message += ': '
             if ret.status:
                 message += 'accepted'
             elif ret.status == ExecStatus.TIMEOUT:
