@@ -59,6 +59,10 @@ data:
       #- large: generator {seed} -n 999
       #- large: generator {seed} -n 1000
 
+      # Many testcases with the same parameter can be generated like this:
+      #- large: generator {seed:1} -n 1000
+      #    --count: 10
+
   invalid_inputs:
     # Add invalid testcase to ensure that input_validators correctly rejects them.
     data:

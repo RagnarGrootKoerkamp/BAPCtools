@@ -110,6 +110,10 @@ data:
   #'6':
 
   secret:
+    include:
+      # You can include other testcroups by there yaml name
+      - 'sample'
+      # This will include "1", "2", "3", "4", and "5" from sample
     data:
       # Types of generator programs.
       "01":
@@ -138,10 +142,14 @@ data:
       10-random-2: graph {seed:2} # Different seed, because of extra `2`
       11-random-3: graph seed={seed:2} # Different seed, because command isn't the same.
       #11-random-4: graph {seed} {seed:2}  # Not allowed because the regex matches twice.
+      12-counted: graph {seed:3}
+          - count: 2                       # generate two testcases at once
 
       # No key (testcase or testgroup) may be a prefix of another key.
       #01-second: graph 6                     # Collision with rule 01 above.
-      #hard_cases_group-01: graph 7           # Collision with hard_cases_group below.
+      #12-counted-1: graph 7                  # Collision with the first rule of 12-counted above
+      #12-counted-2: graph 8                  # Collision with the second rule of 12-counted above
+      #hard_cases_group-01: graph 9           # Collision with hard_cases_group below.
 
       # Commands are only allowed to read and write files of the form
       # `testcase.<ext>`, where <ext> is a known file extension in
@@ -153,12 +161,12 @@ data:
       #
       # The generator below generates and writes both testcase.in and testcase.ans, and
       # the optionally specified `solution:` will not be called.
-      "12": write_in_and_ans.py
+      "13": write_in_and_ans.py
 
       # To override the global/testgroup configuration on a per-testcase basis,
       # a dictionary may be used. This allows the solution: and visualizer: keys,
       # as well as the generate: key which contains the command to execute.
-      13_no_visualizer:
+      14_no_visualizer:
         generate: large_case_generator.py 1000000
         solution: /generators/gnu_multi_precision.cpp
         visualizer: # Empty to disable the visualizer here.
@@ -189,23 +197,21 @@ data:
         # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
         # and alphabetical for dictionaries.
         data:
-          # 01.in
+          # 15.in
           - "": tree empty
-          # 02-a.in
+          # 16-a.in
           - a: tree a
-          # 03-a.in
-          - a: tree a
-          # 04-b.in
+          # 17-b.in
           - b: tree b
-          # 05-g
+          # 20-g
           - g: tree g
-          # 06-h
+          # 21-h
           - h: tree h
-          # 07-h
+          # 22-h
           - i: tree i
-          # 08-h
+          # 23-h
           - j: tree j
-          # 09-h
+          # 24-h
           - k: tree k
           # When mixing testcases and testgroups within a testgroup, testgroups
           # must be last.
@@ -213,12 +219,12 @@ data:
           # g1-numbered_testgroup
           - numbered_testgroup:
               data:
-                # 10-c
+                # 18-c
                 - c: tree c
-                # 11-d
+                # 19-d
                 - d: tree d
-          # g2-named_testgroup
-          - named_testgroup:
+          # g2-numbered_testgroup
+          - numbered_testgroup:
               data:
                 # e
                 e: tree e
@@ -227,20 +233,22 @@ data:
 
 # The above data: list is equivalent to the map:
 #data:
-#  01-a: tree a
-#  01-b: tree b
-#  02-testgroup:
+#  15: tree empty
+#  16-a: tree a
+#  17-b: tree b
+#  g1-numbered_testgroup:
 #    data:
-#      1-c: tree c
-#      1-d: tree d
-#  03-e: tree e
-#  04-f: tree f
-#  05-g: tree g
-#  06-h: tree h
-#  07-i: tree i
-#  08-j: tree j
-#  09-k: tree k
-#  10-l: tree l
+#      18-c: tree c
+#      19-d: tree d
+#  g2-numbered_testgroup:
+#    data:
+#      e: tree e
+#      f: tree f
+#  20-g: tree g
+#  21-h: tree h
+#  22-u: tree u
+#  23-j: tree j
+#  24-k: tree k
 
 # Unknown keys are allowed inside directory dictionaries for tooling-specific
 # extensions. This includes both the global scope and explicit directories.
