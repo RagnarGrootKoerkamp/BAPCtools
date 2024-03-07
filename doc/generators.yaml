@@ -143,8 +143,8 @@ data:
       11-random-3: graph seed={seed:2} # Different seed, because command isn't the same.
       #11-random-4: graph {seed} {seed:2}  # Not allowed because the regex matches twice.
       12-counted:
-          - generate: graph {seed:3}
-          - count: 2                       # generate two testcases at once
+          generate: graph {seed:3}
+          count: 2                       # generate two testcases at once
 
       # No key (testcase or testgroup) may be a prefix of another key.
       #01-second: graph 6                     # Collision with rule 01 above.
