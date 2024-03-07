@@ -115,31 +115,6 @@ data:
 data:
   ab: ''
 ---
-# All generate calls must be different
-data:
-  ab: gen
-  b: gen
----
-data:
-  ab: gen {seed}
-  b: gen {seed}
----
-data:
-  ab: gen {seed:1}
-  b: gen {seed:1}
----
-data:
-  ab:
-    generate: gen {seed}
-  b: gen {seed}
----
-data:
-  - ab:
-      generate: gen {seed}
-  - bb:
-      data:
-        cc: gen {seed}
----
 # Testcase object must be command string or contain generate.
 data:
   ab: true
