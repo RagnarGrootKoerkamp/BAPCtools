@@ -3,10 +3,7 @@
 
 data:
   sample:
-    data:
-      - '':
-          in: 2 2
-          ans: "4"
+    data: []
       # Some small examples showing to help understanding of the problem.
       #- '':
       #    in: 1 2
@@ -21,7 +18,7 @@ data:
       #      7
 
   secret:
-    data:
+    data: []
       # You can re-use the input validator by symlinking it as `generator` in
       # this directory. Below is some inspiration for test cases.
       #
@@ -61,34 +58,36 @@ data:
       #- large: generator {seed} -n 991
       #- large: generator {seed} -n 999
       #- large: generator {seed} -n 1000
-      neutral-right:
-        in: 2 0
-        ans: "2"
-        desc: Make sure right argument can be zero
 
   invalid_inputs:
     # Add invalid testcase to ensure that input_validators correctly rejects them.
     data:
-      too_many_tokens:
-          in: 2 2 2
-      leading_whitespace:
-        in: " 2 2"
-      extra_line:
-          in: "2 2\n\n"
+      empty:
+          in: ""
+      newline:
+          in: "\n"
+      random:
+          in: YVRtr&*teTsRjs8ZC2%kN*T63V@jJq!d
+      not_printable_1:
+          in: "\x7f"
+      not_printable_2:
+          in: "\xe2\x82\xac"
+      unicode:
+          in: "¯\\_(ツ)_/¯"
 
   invalid_answers:
     # Add valid testcase with invalid answers to ensure that the answer_validators correctly rejects them.
     # (The output validator is also called with these)
-    data:
-      leading_whitespace:
-        in: 2 2    # valid input
-        ans: " 4"  # invalid default answer format
+    data: []
+      #dont_start_with_whitespace:
+      #    in: "<valid testcase>"
+      #    ans: " <valid answer>"
 
   invalid_outputs:
     # Add valid testcase with answer and invalid team output to ensure that the out_validator correctly rejects them.
     # (The output validator is also called with these)
-    data:
-      wrong_answer:
-        in: 2 2  # valid input
-        ans: "4" # correct and well-formed answer for that input
-        out: "5" # wrong answer
+    data: []
+      #dont_start_with_whitespace:
+      #    in: "<valid testcase>"
+      #    ans: "<valid answer>"
+      #    out: "<invalid answer>"
