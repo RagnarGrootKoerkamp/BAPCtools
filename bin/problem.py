@@ -181,7 +181,7 @@ class Problem:
             if f.is_file():
                 # Store testdata.yaml files in a cache.
                 if f not in p._testdata_yamls:
-                    p._testdata_yamls[f] = read_yaml(f)
+                    p._testdata_yamls[f] = read_yaml(f, plain=True)
                 return p._testdata_yamls[f]
 
             # Do not go above the data directory.
