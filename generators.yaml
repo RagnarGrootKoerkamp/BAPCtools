@@ -1,0 +1,11 @@
+generators:
+  foo:
+  - bar
+data:
+  sample:
+    data:
+      in: bar
+  secret:
+    data:
+      in: foo
+    
