@@ -37,8 +37,9 @@ The two main object types are `directory` and `generator`. The root of `generato
 - `input`: Optional list of Directory object names (as strings) e.g. `- "sample"`. All testcases from those directories are linked for this directory.
 
 **Generator objects** have the following forms:
+
 - `generate: <generator_name> <arguments>`. `<generator_name>` must either be a program (file/directory) in `generators/` or else a name in the top level `generators` dictionary (see below). Arguments may contain `{name}` to refer to the name of the testcase and `{seed}` or `{seed:(0-9)+}` to add a random seed. Arguments are separated by white space (space, tab, newline). Quoting white space is not supported.
-  - `count: <int>`. To invoke the `generate` with multiple seeds to generate multiple testcase of the same kind. This is only valid if `{seed}` or `{seed:(0-9)+}` is present in the arguments of `generate`.
+- `count: <int>`. To invoke the `generate` with multiple seeds to generate multiple testcase of the same kind. This is only valid if `{seed}` or `{seed:(0-9)+}` is present in the arguments of `generate`.
 - `copy: <base_path>`: For all known extensions `<ext>` the corresponding file `<base_path>.<ext>` will be copied to the specified location should it be present. `<base_path>` must be relative to `generators/`.
 - `<ext>: <content>`: A file with extension `ext` and the `content` will be generated. `<ext>` must be a known file extension.
 Or as a shorthand:
