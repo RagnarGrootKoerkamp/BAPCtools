@@ -31,9 +31,8 @@ data:
           'nested_1':
             testdata.yaml:
               input_validator_flags: "--small"
-            data:
-              - 'small_floats':
-                  in: 100.0 30.5 ab cd
+            include:
+              - 'small_floats'
           'nested_2':
             testdata.yaml:
               input_validator_flags:
@@ -62,6 +61,7 @@ data:
           input_validator_flags: --integer
         data:
           ints_expected: { in: 10.0 2.5 ab cd }
+          small_floats: { in: 10.0 3.5 ab cd }
       sorted:
         testdata.yaml:
           input_validator_flags: --sorted
