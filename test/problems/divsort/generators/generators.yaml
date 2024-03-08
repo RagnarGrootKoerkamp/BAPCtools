@@ -4,7 +4,7 @@ data:
     data:
       - '':
           in: 9.0 3.0 ab cd
-          ans: 3.0 abcd
+          ans: 3.0 Abcd
   secret:
     testdata.yaml:
       input_validator_flags:
