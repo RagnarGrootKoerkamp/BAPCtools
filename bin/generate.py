@@ -1568,7 +1568,11 @@ class GeneratorConfig:
             self.trashdir = self.problem.tmpdir / secrets.token_hex(4)
         dst = self.trashdir / src.resolve().relative_to((self.problem.path / 'data').resolve())
         dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.move(src, dst)
+
+        def copy(src, dst):
+            shutil.copy2(src, dst, False)
+
+        shutil.move(src, dst, copy)
 
     def _remove_unknown(self, path, bar, silent=False):
         local = path.relative_to(self.problem.path / 'data')
