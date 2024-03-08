@@ -338,7 +338,7 @@ class Testcase:
             if expect_rejection:
                 bar.debug(
                     message,
-                    data='' if ret.status == ExecStatus.REJECTED else data,
+                    data=data,
                     color=Fore.GREEN if ret.status == ExecStatus.REJECTED else Fore.YELLOW,
                 )
             else:
