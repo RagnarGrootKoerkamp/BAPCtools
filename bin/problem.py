@@ -642,10 +642,10 @@ class Problem:
     def matches_existing_testcase(self, t):
         if t.root in ['invalid_input', 'invalid_answer']:
             return None
-        d = t.in_path.read_text()
-        if d in self._testcase_hashes:
-            return self._testcase_hashes[d]
-        self._testcase_hashes[d] = t
+        h = hash_file_content(t.in_path)
+        if h in self._testcase_hashes:
+            return self._testcase_hashes[h]
+        self._testcase_hashes[h] = t
         return None
 
     def validate_data(problem, mode: validate.Mode, constraints: dict | bool | None = None) -> bool:
@@ -726,7 +726,10 @@ class Problem:
             ):
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
-                    localbar.error(f'Duplicate testcase: identical to {t2.name}')
+                    localbar.warn(
+                        f'Duplicate testcase: identical to {t2.name}. If this is intentional use symlinks/count/includes.'
+                    )
+                    localbar.done()
                     return
 
             ok = testcase.validate_format(mode, bar=localbar, constraints=constraints)
