@@ -172,17 +172,67 @@ class Problem:
                 stored_uuid.write_text(self.settings.uuid)
             warn(f'Missing UUID for {self.name}, add to problem.yaml:\nuuid: {self.settings.uuid}')
 
-    # Walk up from absolute `path` (a file or directory) looking for the first testdata.yaml
-    # file, and return its contents, or None if no testdata.yaml is found.
-    def get_testdata_yaml(p, path):
+    def get_testdata_yaml(p, path, key, name=None) -> str | None:
+        """
+        Find the testdata flags applying at the given path for the given key.
+        If necessary, walk up from `path` looking for the first testdata.yaml file that applies,
+
+        Side effects: parses and caches the file.
+
+        Arguments
+        ---------
+        path: absolute path (a file or a directory)
+        key: The testdata.yaml key to look for, either of 'input_validator_flags', 'output_validator_flags', or 'grading'.
+            'grading' is not implemented
+        name: If key == 'input_validator_flags', optionally the name of the input validator
+
+        Returns:
+        --------
+        string or None if no testdata.yaml is found.
+        TODO: when 'grading' is supported, it also can return dict
+        """
+        if key == 'grading':
+            raise NotImplementedError(key)
+        if key != 'input_validator_flags' and name is not None:
+            raise ValueError(f"Only input validators support flags by validator name, got {key} and {name}")
+
         for dir in [path] + list(path.parents):
             f = dir / 'testdata.yaml'
 
             if f.is_file():
+                flags = read_yaml(f, plain=True)
+
+                # Validate the flags
+                for key in flags:
+                    match key:
+                        case 'output_validator_flags':
+                            pass
+                        case 'input_validator_flags':
+                            if isinstance(flags[key], str):
+                                continue
+                            for name in flags[key]:
+                                input_validator_names = list(val.name for  val in p.validators(validate.InputValidator))
+                                if not name in input_validator_names:
+                                    warn(f'Unknown input validator {name}; expected {input_validator_names}')
+                        case 'grading' | 'run_samples':
+                            warn(f'{key} not implemented in BAPCtools')
+                        case _:
+                            warn(f'Unknown testdata.yaml key: {key}')
+
+
+                
                 # Store testdata.yaml files in a cache.
                 if f not in p._testdata_yamls:
                     p._testdata_yamls[f] = read_yaml(f, plain=True)
-                return p._testdata_yamls[f]
+
+                #flags = p._testdata_yamls[f] 
+                if key in flags:
+                    if isinstance(flags[key], str):
+                        return flags[key]
+                    assert isinstance(flags[key], dict)
+                    # a named input validator
+                    if name in flags[key]:
+                        return flags[key][name]
 
             # Do not go above the data directory.
             if dir == p.path / 'data':
