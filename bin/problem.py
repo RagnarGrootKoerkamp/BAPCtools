@@ -206,17 +206,16 @@ class Problem:
                     flags = p._testdata_yamls[f]
                 else:
                     p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
-                   
 
                 # Validate the flags
-                for key in flags:
-                    match key:
+                for k in flags:
+                    match k:
                         case 'output_validator_flags':
                             pass
                         case 'input_validator_flags':
-                            if isinstance(flags[key], str):
+                            if isinstance(flags[k], str):
                                 continue
-                            for name in flags[key]:
+                            for name in flags[k]:
                                 input_validator_names = list(
                                     val.name for val in p.validators(validate.InputValidator)
                                 )
@@ -225,9 +224,9 @@ class Problem:
                                         f'Unknown input validator {name}; expected {input_validator_names}'
                                     )
                         case 'grading' | 'run_samples':
-                            warn(f'{key} not implemented in BAPCtools')
+                            warn(f'{k} not implemented in BAPCtools')
                         case _:
-                            warn(f'Unknown testdata.yaml key: {key}')
+                            warn(f'Unknown testdata.yaml key: {k}')
 
                 # Store testdata.yaml files in a cache.
                 if key in flags:
