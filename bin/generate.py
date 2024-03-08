@@ -1361,7 +1361,26 @@ class GeneratorConfig:
                     for key in dictionary:
                         check_type('Testcase/directory name', key, [type(None), str], d.path)
 
-                    for child_key, child_yaml in sorted(dictionary.items()):
+                    # Process named children alphabetically, but not in the root directory.
+                    # There, process in the 'natural order'.
+                    order = [
+                        'sample',
+                        'secret',
+                        'invalid_outputs',
+                        'invalid_answers',
+                        'invalid_inputs',
+                    ]
+                    keys = dictionary.keys()
+                    if isinstance(parent, RootDirectory):
+                        keys = sorted(
+                            keys,
+                            key=lambda k: (order.index(k), k) if k in order else (999, k),
+                        )
+                    else:
+                        keys = sorted(keys)
+
+                    for child_key in keys:
+                        child_yaml = dictionary[child_key]
                         if d.numbered:
                             if is_directory(child_yaml):
                                 testgroup_id += 1
