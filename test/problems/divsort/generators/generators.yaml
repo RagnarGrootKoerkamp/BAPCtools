@@ -1,0 +1,67 @@
+solution: /submissions/accepted/th.py
+data:
+  sample:
+    data:
+      - '':
+          in: 9.0 3.0 ab cd
+          ans: 3.0 abcd
+  secret:
+    testdata.yaml:
+      input_validator_flags:
+        integers: small
+    data:
+      integers:
+        testdata.yaml:
+          input_validator_flags: --integer
+            #grading: foo
+        data:
+          - 'unsorted-integer':
+              in: 10.0 2.0 ba cd
+              ans: 5.0 abcd
+      sorted:
+        testdata.yaml:
+          input_validator_flags: 
+            strings: --sorted
+        data:
+          - 'sorted-integer':
+              in: 10.0 1.0 ab cd
+              ans: 5.0 abcd
+      general:
+        data:
+          'nested_1':
+            testdata.yaml:
+              input_validator_flags: "--small"
+            data:
+              - 'small_floats':
+                  in: 100.0 30.5 ab cd
+          'nested_2':
+            testdata.yaml:
+              input_validator_flags:
+                integers: ""  # hides the input validator flags in secret/testdata.yaml
+            data:
+              - 'tiny_floats':
+                  in: 10.0 3.5 ab dc
+              - 'large_integers':
+                  in: 102.0 2.0 ab cd
+                  desc: Must validate, because `secret/testdata.yaml` hidden by `secret/general/nested_2/testdata.yaml`
+
+  invalid_inputs:
+    data:
+      always_invalid:
+        data:
+          too_many_tokens: { in: 10.0 2.5 ab cd ef }
+      integers:
+        testdata.yaml:
+          input_validator_flags: --integer
+        data:
+          ints_expected: { in: 10.0 2.5 ab cd }
+      sorted:
+        testdata.yaml:
+          input_validator_flags: --sorted
+        data:
+          unsorted: { in: 10.0 2.0 cba cd }
+  invalid_answers:
+    data:
+      capitals:
+        in: 9.0 3.0 ab cd
+        ans: 3.0 Abcd
