@@ -156,7 +156,7 @@ class Fuzz:
                 t.in_is_generated
                 and t.generator.uses_seed
                 and t.parse_error is None
-                and t.count_index == 0
+                and t.count_index == 0  # all rules with higher count index are duplicates anyway
             ):
                 self.testcase_rules.append(t)
 
