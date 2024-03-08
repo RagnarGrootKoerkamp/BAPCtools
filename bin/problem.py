@@ -202,7 +202,11 @@ class Problem:
             f = dir / 'testdata.yaml'
 
             if f.is_file():
-                flags = read_yaml(f, plain=True)
+                if f in p._testdata_yamls:
+                    flags = p._testdata_yamls[f]
+                else:
+                    p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
+                   
 
                 # Validate the flags
                 for key in flags:
@@ -226,10 +230,6 @@ class Problem:
                             warn(f'Unknown testdata.yaml key: {key}')
 
                 # Store testdata.yaml files in a cache.
-                if f not in p._testdata_yamls:
-                    p._testdata_yamls[f] = read_yaml(f, plain=True)
-
-                # flags = p._testdata_yamls[f]
                 if key in flags:
                     if isinstance(flags[key], str):
                         return flags[key]
