@@ -182,14 +182,14 @@ data:
           - generate:
               generate: stdout.py 701
               count: 3
-          - with_seed:
+          - seed:
               generate: random_gen.py {seed:9}
               count: 3
-          - with_in:
+          - in:
               in: "702"
               count: 3
-          - with_copy:
-              copy: manual/with_copy
+          - copy:
+              copy: manual/copy
               count: 3
     unknown_key:
 
