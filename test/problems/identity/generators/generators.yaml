@@ -21,7 +21,7 @@ data:
         in: "-1"
       "hi":
         in: "1001"
-      "extra_line": 
+      "extra_line":
         in: "0\n\n"
       "leading_space":
         in: " 0"
@@ -39,10 +39,10 @@ data:
         ans: "0 "
   invalid_outputs:
     data:
-      'wrong_answer':
-          in: "0"
-          ans: "0"
-          out: "1"
+      "wrong_answer":
+        in: "0"
+        ans: "0"
+        out: "1"
   sample:
     #solution:
     data:
@@ -174,5 +174,23 @@ data:
               { "": stdout.py 602 },
             ],
         }
+      count_group:
+        data:
+          - count1:
+              generate: stdout.py 700
+              count: 1
+          - generate:
+              generate: stdout.py 701
+              count: 3
+          - with_seed:
+              generate: random_gen.py {seed:9}
+              count: 3
+          - with_in:
+              in: "702"
+              count: 3
+          - with_copy:
+              copy: manual/with_copy
+              count: 3
+    unknown_key:
 
 unknown_key:
