@@ -147,9 +147,6 @@ class Testcase:
         """
         if not isinstance(validator, Validator):
             raise ValueError(f"Validator expected, got {validator}")
-        # Do not use flags when using the default output validator.
-        if self.problem.settings.validation == 'default' and isinstance(validator, OutputValidator):
-            return None
 
         if isinstance(validator, InputValidator):
             key = 'input_validator_flags'
