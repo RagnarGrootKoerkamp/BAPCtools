@@ -194,7 +194,9 @@ class Problem:
         if key == 'grading':
             raise NotImplementedError(key)
         if key != 'input_validator_flags' and name is not None:
-            raise ValueError(f"Only input validators support flags by validator name, got {key} and {name}")
+            raise ValueError(
+                f"Only input validators support flags by validator name, got {key} and {name}"
+            )
 
         for dir in [path] + list(path.parents):
             f = dir / 'testdata.yaml'
@@ -211,21 +213,23 @@ class Problem:
                             if isinstance(flags[key], str):
                                 continue
                             for name in flags[key]:
-                                input_validator_names = list(val.name for  val in p.validators(validate.InputValidator))
+                                input_validator_names = list(
+                                    val.name for val in p.validators(validate.InputValidator)
+                                )
                                 if not name in input_validator_names:
-                                    warn(f'Unknown input validator {name}; expected {input_validator_names}')
+                                    warn(
+                                        f'Unknown input validator {name}; expected {input_validator_names}'
+                                    )
                         case 'grading' | 'run_samples':
                             warn(f'{key} not implemented in BAPCtools')
                         case _:
                             warn(f'Unknown testdata.yaml key: {key}')
 
-
-                
                 # Store testdata.yaml files in a cache.
                 if f not in p._testdata_yamls:
                     p._testdata_yamls[f] = read_yaml(f, plain=True)
 
-                #flags = p._testdata_yamls[f] 
+                # flags = p._testdata_yamls[f]
                 if key in flags:
                     if isinstance(flags[key], str):
                         return flags[key]

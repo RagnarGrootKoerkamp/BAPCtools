@@ -116,9 +116,10 @@ class Testcase:
         # Read using the short_path instead of the in_path, because during
         # generate the testcase will live in a temporary directory, where
         # testdata.yaml doesn't exist.
-        self.testdata_yaml = self.problem.get_testdata_yaml(
-            self.problem.path / 'data' / self.short_path
-        )
+
+        # self.testdata_yaml = self.problem.get_testdata_yaml( TODO Thore
+        # self.problem.path / 'data' / self.short_path
+        # )
 
     def __repr__(self):
         return self.name
@@ -128,7 +129,7 @@ class Testcase:
 
     def testdata_yaml_validator_flags(self, validator) -> list[str] | None | Literal[False]:
         """
-        The flags specified in testdata.yaml for the given validator,
+        The flags specified in testdata.yaml for the given validator applying to this testcase.
 
         Arguments
         ---------
@@ -150,19 +151,20 @@ class Testcase:
         if self.problem.settings.validation == 'default' and isinstance(validator, OutputValidator):
             return None
 
-        if self.testdata_yaml is None:
-            return None
-        key = (
-            'input_validator_flags'
-            if isinstance(validator, InputValidator)
-            else 'output_validator_flags'
-        )
-        if key not in self.testdata_yaml:
-            return None
-        flags = self.testdata_yaml[key]
+        if isinstance(validator, InputValidator):
+            key = 'input_validator_flags'
+            name = validator.name
+        else:
+            key = 'output_validator_flags'
+            name = None
+
+        path = self.problem.path / 'data' / self.short_path
+        flags = self.problem.get_testdata_yaml(path, key, name=name)
         # Note: support for lists/dicts for was removed in #259.
+        if flags is None:
+            return None
         if not isinstance(flags, str):
-            fatal(f'{key} must be a string in testdata.yaml')
+            fatal(f'{key} must be a string in testdata.yaml, got {flags}')
         return flags.split()
 
     def validator_hashes(self, cls: Type[Validator]):
