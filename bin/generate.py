@@ -426,6 +426,9 @@ class TestcaseRule(Rule):
         self.in_is_generated = False
         self.count_index = count_index
 
+        # used to handle duplicated testcase rules
+        self.copy_of = None
+
         super().__init__(problem, key, name, yaml, parent)
 
         # root in /data
@@ -541,7 +544,6 @@ class TestcaseRule(Rule):
         else:
             self.hash = combine_hashes(self.hash)
 
-        self.copy_of = None
         if self.hash in generator_config.rules_cache:
             self.copy_of = generator_config.rules_cache[self.hash]
         else:
