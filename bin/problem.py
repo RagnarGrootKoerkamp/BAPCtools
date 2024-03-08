@@ -25,7 +25,7 @@ class Problem:
 
     def __init__(self, path, tmpdir, label=None):
         # The problem name/shortname, which is the name of the directory and used as a display name.
-        self.name = path.resolve().name
+        self.name = path.absolute().name
         # The Path of the problem directory.
         self.path = path
         self.tmpdir = tmpdir / self.name

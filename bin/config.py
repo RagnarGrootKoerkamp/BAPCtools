@@ -78,10 +78,10 @@ INVALID_CASE_DIRECTORIES = [
 SEED_DEPENDENCY_RETRIES = 10
 
 # The root directory of the BAPCtools repository.
-tools_root = Path(__file__).resolve().parent.parent
+tools_root = Path(__file__).absolute().parent.parent
 
 # The directory from which BAPCtools is invoked.
-current_working_directory = Path.cwd().resolve()
+current_working_directory = Path.cwd().absolute()
 
 # Add third_party/ to the $PATH for checktestdata.
 os.environ["PATH"] += os.pathsep + str(tools_root / 'third_party')

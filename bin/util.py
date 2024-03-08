@@ -660,7 +660,7 @@ def resolve_path_argument(problem, path, type, suffixes=[]):
 # If the provided path does not point to the tmpdir it is returned as is.
 # The path is of the form "tmp/<contest_tmpdir>/<problem_tmpdir>/links/<hash>"
 def shorten_path(problem, path):
-    if not path.resolve().is_relative_to(problem.tmpdir):
+    if not path.absolute().is_relative_to(problem.tmpdir):
         return path
     short_hash = hashlib.sha256(bytes(path)).hexdigest()[-6:]
     dir = problem.tmpdir / 'links'

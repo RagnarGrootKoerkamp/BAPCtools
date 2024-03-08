@@ -301,7 +301,7 @@ def copy_skel_dir(problems):
 # NOTE: This is one of few places that prints to stdout instead of stderr.
 def create_gitlab_jobs(contest, problems):
     def problem_source_dir(problem):
-        return problem.path.resolve().relative_to(Path('..').resolve())
+        return problem.path.absolute().relative_to(Path('..').absolute())
 
     header_yml = (config.tools_root / 'skel/gitlab_ci/header.yaml').read_text()
     print(substitute(header_yml, locals()))

@@ -17,7 +17,7 @@ PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'gu
 # Run various specific commands on this problem.
 IDENTITY_PROBLEMS = ['identity']
 
-RUN_DIR = Path.cwd().resolve()
+RUN_DIR = Path.cwd().absolute()
 
 
 @pytest.fixture(scope='class', params=PROBLEMS)
