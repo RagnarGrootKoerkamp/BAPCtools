@@ -4,7 +4,7 @@ data:
     data:
       - '':
           in: 9.0 3.0 ab cd
-          ans: 3.0 Abcd
+          ans: 3.0 abcd
   secret:
     testdata.yaml:
       input_validator_flags:
@@ -25,7 +25,7 @@ data:
         data:
           - 'sorted-integer':
               in: 10.0 1.0 ab cd
-              ans: 5.0 abcd
+              ans: 10.0 abcd
       general:
         data:
           'nested_1':
@@ -44,6 +44,13 @@ data:
               - 'large_integers':
                   in: 102.0 2.0 ab cd
                   desc: Must validate, because `secret/testdata.yaml` hidden by `secret/general/nested_2/testdata.yaml`
+      tolerant:
+        testdata.yaml:
+          output_validator_flags: float_tolerance 1e-2
+        data:
+          - 'tiny_floats':
+              in: 10.0 3.0 ab dc
+              ans: 3.33 abcd
 
   invalid_inputs:
     data:
@@ -65,3 +72,9 @@ data:
       capitals:
         in: 9.0 3.0 ab cd
         ans: 3.0 Abcd
+  invalid_outputs:
+    data:
+      imprecise:
+        in: 10.0 3.0 ab cd
+        ans: 3.333333333 abcd
+        out: 3.33 abcd
