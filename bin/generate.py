@@ -1518,6 +1518,7 @@ class GeneratorConfig:
         p = parallel.new_queue(lambda t: t.copy_of is None and t.generate(self.problem, self, bar))
 
         def generate_dir(d):
+            p.join()
             d.generate(self.problem, self, bar)
 
         self.root_dir.walk(p.put, generate_dir)
