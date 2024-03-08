@@ -1566,11 +1566,12 @@ class GeneratorConfig:
     def remove(self, src):
         if self.trashdir is None:
             self.trashdir = self.problem.tmpdir / secrets.token_hex(4)
-        dst = self.trashdir / src.resolve().relative_to((self.problem.path / 'data').resolve())
+        assert src.is_relative_to(self.problem.path / 'data')
+        dst = self.trashdir / src.relative_to((self.problem.path / 'data'))
         dst.parent.mkdir(parents=True, exist_ok=True)
 
         def copy(src, dst):
-            shutil.copy2(src, dst, False)
+            shutil.copy2(src, dst, follow_symlinks=False)
 
         shutil.move(src, dst, copy)
 
