@@ -118,9 +118,7 @@ class Testcase:
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_validator_flags(
-        self, validator, bar=None
-    ) -> list[str] | None | Literal[False]:
+    def testdata_yaml_validator_flags(self, validator, bar=None) -> list[str] | None:
         """
         The flags specified in testdata.yaml for the given validator applying to this testcase.
 
@@ -128,23 +126,21 @@ class Testcase:
         -------
 
         A nonempty list of strings, such as ['space_change_sensitive', 'case_sensitive']
-
-        None if no flags were found, or False if this validator should be skipped.
-        TODO: Really False? Can this ever happen?
+        or [""]
+        None if no flags were found
         """
         if not isinstance(validator, Validator):
             raise ValueError(f"Validator expected, got {validator}")
 
-        if isinstance(validator, InputValidator):
-            key = 'input_validator_flags'
-            name = validator.name
-        else:
-            key = 'output_validator_flags'
-            name = None
+        key, name = (
+            ('input_validator_flags', validator.name)
+            if isinstance(validator, InputValidator)
+            else ('output_validator_flags', None)
+        )
 
         path = self.problem.path / 'data' / self.short_path
         flags = self.problem.get_testdata_yaml(path, key, name=name, bar=bar)
-        # Note: support for lists/dicts for was removed in #259.
+
         if flags is None:
             return None
         if not isinstance(flags, str):
