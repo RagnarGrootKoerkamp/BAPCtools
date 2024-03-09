@@ -207,15 +207,22 @@ class Problem:
                 else:
                     p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
 
-                # Validate the flags
+                # Validate and exctract the flags
                 for k in flags:
                     match k:
                         case 'output_validator_flags':
-                            pass
+                            if not isinstance(flags[k], str):
+                                error("ouput_validator_flags must be string")
+                            if k == key:
+                                return flags[key]
                         case 'input_validator_flags':
-                            if isinstance(flags[k], str):
+                            if not isinstance(flags[k], (str, dict)):
+                                error("ouput_validator_flags must be string or map")
+                            if k != key:
                                 continue
-                            for name in flags[k]:
+                            if isinstance(flags[k], str):
+                                return flags[key]
+                            for name in flags[key]:
                                 input_validator_names = list(
                                     val.name for val in p.validators(validate.InputValidator)
                                 )
@@ -223,19 +230,12 @@ class Problem:
                                     warn(
                                         f'Unknown input validator {name}; expected {input_validator_names}'
                                     )
+                            if name in flags[key]:
+                                return flags[key][name]
                         case 'grading' | 'run_samples':
                             warn(f'{k} not implemented in BAPCtools')
                         case _:
                             warn(f'Unknown testdata.yaml key: {k}')
-
-                # Store testdata.yaml files in a cache.
-                if key in flags:
-                    if isinstance(flags[key], str):
-                        return flags[key]
-                    assert isinstance(flags[key], dict)
-                    # a named input validator
-                    if name in flags[key]:
-                        return flags[key][name]
 
             # Do not go above the data directory.
             if dir == p.path / 'data':
