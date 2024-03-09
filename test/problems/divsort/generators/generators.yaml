@@ -51,6 +51,9 @@ data:
           - 'tiny_floats':
               in: 10.0 3.0 ab dc
               ans: 3.33 abcd
+              desc: |
+                Must be AC. Compare invalid_outputs/imprecise, which is (there) 
+                invalid because of float_tolerance
 
   invalid_inputs:
     data:
@@ -67,13 +70,23 @@ data:
       sorted:
         testdata.yaml:
           input_validator_flags: --sorted
-        data:
-          unsorted: { in: 10.0 2.0 cba cd }
+        include:
+          - unsorted # invalid here because of --sorted flag (valid input in invalid_answers/no_flags)
   invalid_answers:
     data:
-      capitals:
-        in: 9.0 3.0 ab cd
-        ans: 3.0 Abcd
+      no_flags:
+        data:
+          capitals:
+            in: 9.0 3.0 ab cd
+            ans: 3.0 Abcd
+          unsorted:
+            in: 10.0 2.0 cba cd
+            ans: 5.0 Abccd
+      with_flags:
+        testdata.yaml:
+          output_validator_flags: --forbid_abcd
+        include:
+        - imprecise # must reject because its ans includes abcd
   invalid_outputs:
     data:
       imprecise:
