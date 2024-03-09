@@ -127,15 +127,9 @@ class Testcase:
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_validator_flags(self, validator) -> list[str] | None | Literal[False]:
+    def testdata_yaml_validator_flags(self, validator, bar) -> list[str] | None | Literal[False]:
         """
         The flags specified in testdata.yaml for the given validator applying to this testcase.
-
-        Arguments
-        ---------
-
-        validator: validate.Validator
-            the validator
 
         Returns
         -------
@@ -156,7 +150,7 @@ class Testcase:
             name = None
 
         path = self.problem.path / 'data' / self.short_path
-        flags = self.problem.get_testdata_yaml(path, key, name=name)
+        flags = self.problem.get_testdata_yaml(path, key, bar, name=name)
         # Note: support for lists/dicts for was removed in #259.
         if flags is None:
             return None
@@ -164,7 +158,7 @@ class Testcase:
             fatal(f'{key} must be a string in testdata.yaml, got {flags}')
         return flags.split()
 
-    def validator_hashes(self, cls: Type[Validator]):
+    def validator_hashes(self, cls: Type[Validator], bar):
         """
         Returns
         -------
@@ -181,7 +175,7 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator)
+            flags = self.testdata_yaml_validator_flags(validator, bar)
             if flags is False:
                 continue
             flags_string = ' '.join(flags) if flags is not None else None
@@ -286,7 +280,7 @@ class Testcase:
             if type(validator) == OutputValidator and mode == Mode.ANSWER:
                 args += ['case_sensitive', 'space_change_sensitive']
                 name = f'{name} (ans)'
-            flags = self.testdata_yaml_validator_flags(validator)
+            flags = self.testdata_yaml_validator_flags(validator, bar)
             if flags is False:
                 continue
             flags = args if flags is None else flags + args
