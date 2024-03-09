@@ -1100,6 +1100,7 @@ class Directory(Rule):
             new_case = d.path / target.name
             bar.start(str(new_case))
             infile = problem.path / 'data' / target.parent / (target.name + '.in')
+            new_infile = problem.path / 'data' / d.path / (target.name + '.in')
 
             if not t.generate_success:
                 bar.error(f'Included case {target} has errors.')
@@ -1155,7 +1156,7 @@ class Directory(Rule):
                 )
 
             # TODO: Validate the testcase output as well?
-            t.link(problem, generator_config, bar, new_case)
+            t.link(problem, generator_config, bar, new_infile)
             bar.done()
 
 
