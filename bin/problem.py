@@ -198,9 +198,6 @@ class Problem:
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
 
-        error_handler = error if bar is None else bar.error
-        warning_handler = warn if bar is None else bar.warn
-
         for dir in [path] + list(path.parents):
             f = dir / 'testdata.yaml'
 
@@ -215,12 +212,12 @@ class Problem:
                     match k:
                         case 'output_validator_flags':
                             if not isinstance(flags[k], str):
-                                error_handler("ouput_validator_flags must be string")
+                                error("ouput_validator_flags must be string", bar=bar)
                             if k == key:
                                 return flags[key]
                         case 'input_validator_flags':
                             if not isinstance(flags[k], (str, dict)):
-                                error_handler("ouput_validator_flags must be string or map")
+                                error("ouput_validator_flags must be string or map", bar=bar)
                             if k != key:
                                 continue
                             if isinstance(flags[k], str):
@@ -236,9 +233,9 @@ class Problem:
                             if name in flags[key]:
                                 return flags[key][name]
                         case 'grading' | 'run_samples':
-                            warning_handler(f'{k} not implemented in BAPCtools')
+                            warn(f'{k} not implemented in BAPCtools', bar=bar)
                         case _:
-                            warning_handler(f'Unknown testdata.yaml key: {k}')
+                            warn(f'Unknown testdata.yaml key: {k}', bar=bar)
 
             # Do not go above the data directory.
             if dir == p.path / 'data':

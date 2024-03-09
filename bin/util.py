@@ -82,16 +82,22 @@ def verbose(msg):
         print(f'{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}', file=sys.stderr)
 
 
-def warn(msg):
-    print(f'{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}', file=sys.stderr)
-    config.n_warn += 1
+def warn(msg, bar=None):
+    if bar is not None:
+        bar.warn(msg)
+    else:
+        print(f'{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}', file=sys.stderr)
+        config.n_warn += 1
 
 
-def error(msg):
+def error(msg, bar=None):
     if config.RUNNING_TEST:
         fatal(msg)
-    print(f'{Fore.RED}ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
-    config.n_error += 1
+    if bar is not None:
+        bar.error(msg)
+    else:
+        print(f'{Fore.RED}ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
+        config.n_error += 1
 
 
 def fatal(msg, *, force=threading.active_count() > 1):
