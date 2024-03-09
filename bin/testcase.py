@@ -127,7 +127,9 @@ class Testcase:
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_validator_flags(self, validator, bar) -> list[str] | None | Literal[False]:
+    def testdata_yaml_validator_flags(
+        self, validator, bar=None
+    ) -> list[str] | None | Literal[False]:
         """
         The flags specified in testdata.yaml for the given validator applying to this testcase.
 
@@ -150,7 +152,7 @@ class Testcase:
             name = None
 
         path = self.problem.path / 'data' / self.short_path
-        flags = self.problem.get_testdata_yaml(path, key, bar, name=name)
+        flags = self.problem.get_testdata_yaml(path, key, name=name, bar=bar)
         # Note: support for lists/dicts for was removed in #259.
         if flags is None:
             return None

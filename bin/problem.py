@@ -172,7 +172,7 @@ class Problem:
                 stored_uuid.write_text(self.settings.uuid)
             warn(f'Missing UUID for {self.name}, add to problem.yaml:\nuuid: {self.settings.uuid}')
 
-    def get_testdata_yaml(p, path, key, bar, name=None) -> str | None:
+    def get_testdata_yaml(p, path, key, name=None, bar=None) -> str | None:
         """
         Find the testdata flags applying at the given path for the given key.
         If necessary, walk up from `path` looking for the first testdata.yaml file that applies,
@@ -198,6 +198,9 @@ class Problem:
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
 
+        error_handler = error if bar is None else bar.error
+        warning_handler = warn if bar is None else bar.warn
+
         for dir in [path] + list(path.parents):
             f = dir / 'testdata.yaml'
 
@@ -212,12 +215,12 @@ class Problem:
                     match k:
                         case 'output_validator_flags':
                             if not isinstance(flags[k], str):
-                                bar.error("ouput_validator_flags must be string")
+                                error_handler("ouput_validator_flags must be string")
                             if k == key:
                                 return flags[key]
                         case 'input_validator_flags':
                             if not isinstance(flags[k], (str, dict)):
-                                bar.error("ouput_validator_flags must be string or map")
+                                error_handler("ouput_validator_flags must be string or map")
                             if k != key:
                                 continue
                             if isinstance(flags[k], str):
@@ -233,9 +236,9 @@ class Problem:
                             if name in flags[key]:
                                 return flags[key][name]
                         case 'grading' | 'run_samples':
-                            bar.warn(f'{k} not implemented in BAPCtools')
+                            warning_handler(f'{k} not implemented in BAPCtools')
                         case _:
-                            bar.warn(f'Unknown testdata.yaml key: {k}')
+                            warning_hanlder(f'Unknown testdata.yaml key: {k}')
 
             # Do not go above the data directory.
             if dir == p.path / 'data':
