@@ -112,15 +112,6 @@ class Testcase:
         ]:
             raise ValueError(self.root)
 
-        # Get the testdata.yaml content for this testcase.
-        # Read using the short_path instead of the in_path, because during
-        # generate the testcase will live in a temporary directory, where
-        # testdata.yaml doesn't exist.
-
-        # self.testdata_yaml = self.problem.get_testdata_yaml( TODO Thore
-        # self.problem.path / 'data' / self.short_path
-        # )
-
     def __repr__(self):
         return self.name
 
