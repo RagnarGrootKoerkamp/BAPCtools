@@ -238,7 +238,7 @@ class Problem:
                         case 'grading' | 'run_samples':
                             warning_handler(f'{k} not implemented in BAPCtools')
                         case _:
-                            warning_hanlder(f'Unknown testdata.yaml key: {k}')
+                            warning_handler(f'Unknown testdata.yaml key: {k}')
 
             # Do not go above the data directory.
             if dir == p.path / 'data':

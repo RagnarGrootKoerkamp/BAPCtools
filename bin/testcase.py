@@ -126,7 +126,7 @@ class Testcase:
         -------
 
         A nonempty list of strings, such as ['space_change_sensitive', 'case_sensitive']
-        or [""]
+        or ["--max_N", "50"] or even [""].
         None if no flags were found
         """
         if not isinstance(validator, Validator):
