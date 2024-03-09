@@ -1332,6 +1332,8 @@ class GeneratorConfig:
                 for count_index in range(count):
                     if count_index > 0:
                         name = name_gen()
+                    if count > 1:
+                        name += f'-{count_index+1:0{len(str(count))}}'
 
                     # If a list of testcases was passed and this one is not in it, skip it.
                     if not self.process_testcase(parent.path / name):
