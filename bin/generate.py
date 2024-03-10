@@ -1278,6 +1278,20 @@ class GeneratorConfig:
         num_numbered_testcases = 0
         testcase_id = 0
 
+        def parse_count(yaml, warning=False):
+            if yaml is None or 'count' not in yaml or not isinstance(yaml['count'], int):
+                return 1
+            count = yaml['count']
+            if count < 1:
+                if warning:
+                    warn(f'Found count: {count}, increased to 1.')
+                return 1
+            if count > 100:
+                if warning:
+                    warn(f'Found count: {count}, limited to 100.')
+                return 100
+            return count
+
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
         def count(yaml):
@@ -1294,7 +1308,7 @@ class GeneratorConfig:
                 if isinstance(elem, dict):
                     for key in elem:
                         if is_testcase(elem[key]) and numbered:
-                            num_numbered_testcases += 1
+                            num_numbered_testcases += parse_count(elem[key])
                         elif is_directory(elem[key]):
                             count(elem[key])
 
@@ -1302,22 +1316,16 @@ class GeneratorConfig:
 
         # Main recursive parsing function.
         # key: the yaml key e.g. 'testcase'
-        # name: the possibly numbered name e.g. '01-testcase'
+        # name_gen: each call should result in the next (possibly numbered) name e.g. '01-testcase'
         # Returns either a single Rule or a list of Rules
-        def parse(key, name, yaml, parent):
-            nonlocal testcase_id
-
+        def parse(key, name_gen, yaml, parent):
+            name = name_gen()
             check_type('Testcase/directory', yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
                 fatal(f'Could not parse {parent.path / name} as a testcase or directory.')
 
             if is_testcase(yaml):
-                count = 1
-                if yaml is not None and 'count' in yaml and isinstance(yaml['count'], int):
-                    count = yaml['count']
-                if count > 100:
-                    warn(f'Found count: {count}, limited to 100.')
-                    count = 100
+                count = parse_count(yaml, True)
 
                 if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
                     error(f'Testcase \'{parent.path}/{name}.in\' has an invalid name.')
@@ -1325,13 +1333,16 @@ class GeneratorConfig:
 
                 ts = []
                 for count_index in range(count):
-                    curname = name if count == 1 else name + f'-{count_index+1:0{len(str(count))}}'
+                    if count_index > 0:
+                        name = name_gen()
+                    if count > 1:
+                        name += f'-{count_index+1:0{len(str(count))}}'
 
                     # If a list of testcases was passed and this one is not in it, skip it.
-                    if not self.process_testcase(parent.path / curname):
+                    if not self.process_testcase(parent.path / name):
                         continue
 
-                    t = TestcaseRule(self.problem, self, key, curname, yaml, parent, count_index)
+                    t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
                     if t.path in self.known_cases:
                         error(f'{t.path} was already parsed')
                         continue
@@ -1385,24 +1396,34 @@ class GeneratorConfig:
                         child_yaml = dictionary[child_key]
                         if d.numbered:
                             if is_directory(child_yaml):
-                                testgroup_id += 1
-                                child_name = numbered_testcase_name(
-                                    child_key, testgroup_id, num_testgroups
-                                )
+
+                                def next_testgroup_name():
+                                    nonlocal testgroup_id
+                                    testgroup_id += 1
+                                    return numbered_testcase_name(
+                                        child_key, testgroup_id, num_testgroups
+                                    )
+
+                                child_name = next_testgroup_name
                             elif is_testcase(child_yaml):
-                                testcase_id += 1
-                                child_name = numbered_testcase_name(
-                                    child_key, testcase_id, num_numbered_testcases
-                                )
+
+                                def next_testcase_name():
+                                    nonlocal testcase_id
+                                    testcase_id += 1
+                                    return numbered_testcase_name(
+                                        child_key, testcase_id, num_testgroups
+                                    )
+
+                                child_name = next_testcase_name
                             else:
                                 # Use error will be given inside parse(child).
-                                child_name = ''
+                                child_name = lambda: ''
 
                         else:
-                            child_name = child_key
-                            if not child_name:
+                            child_name = lambda: child_key
+                            if not child_name():
                                 fatal(
-                                    f'Unnumbered testcases must not have an empty key: {Path("data") / d.path / child_name}/\'\''
+                                    f'Unnumbered testcases must not have an empty key: {Path("data") / d.path / child_name()}/\'\''
                                 )
                         c = parse(child_key, child_name, child_yaml, d)
                         if isinstance(c, list):
@@ -1461,7 +1482,7 @@ class GeneratorConfig:
                         continue
             return d
 
-        self.root_dir = parse('', '', yaml, RootDirectory())
+        self.root_dir = parse('', lambda: '', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
         generators_used = set()
