@@ -106,8 +106,8 @@ class Program:
         # Ideally they are the same as the path inside the problem, but fallback to just the name.
         try:
             # Only resolve the parent of the program. This preserves programs that are symlinks to other directories.
-            relpath = (path.parent.resolve() / path.name).relative_to(
-                problem.path.resolve() / self.subdir
+            relpath = (path.parent.absolute() / path.name).relative_to(
+                problem.path.absolute() / self.subdir
             )
             self.short_path = relpath
             self.name = str(relpath)

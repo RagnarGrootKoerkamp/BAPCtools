@@ -154,7 +154,7 @@ class Validator(program.Program):
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
             result = exec_command(
-                self.run_command + [main_path.resolve()],
+                self.run_command + [main_path.absolute()],
                 exec_code_map=format_exec_code_map,
                 cwd=cwd,
             )
@@ -240,7 +240,7 @@ class AnswerValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
 
-        invocation = self.run_command + [testcase.in_path.resolve()]
+        invocation = self.run_command + [testcase.in_path.absolute()]
 
         with testcase.ans_path.open() as ans_file:
             ret = exec_command(
@@ -288,8 +288,8 @@ class OutputValidator(Validator):
         if mode == Mode.INPUT:
             raise ValueError("OutputValidator do no support Mode.INPUT")
 
-        in_path = testcase.in_path.resolve()
-        ans_path = testcase.ans_path.resolve()
+        in_path = testcase.in_path.absolute()
+        ans_path = testcase.ans_path.absolute()
         if hasattr(mode, 'out_path'):
             path = mode.out_path
         elif mode == Mode.ANSWER:
@@ -300,7 +300,7 @@ class OutputValidator(Validator):
                 raise ValueError(
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_outputs"
                 )
-            path = testcase.out_path.resolve()
+            path = testcase.out_path.absolute()
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")

@@ -81,11 +81,11 @@ def get_problems():
     problem = None
     level = None
     if config.args.contest:
-        contest = config.args.contest.resolve()
+        contest = config.args.contest.absolute()
         os.chdir(contest)
         level = 'problemset'
     if config.args.problem:
-        problem = config.args.problem.resolve()
+        problem = config.args.problem.absolute()
         level = 'problem'
         os.chdir(problem.parent)
     elif is_problem_directory(Path('.')):

@@ -48,9 +48,9 @@ def run_interactive_testcase(
     validator_command = (
         output_validator.run_command
         + [
-            run.testcase.in_path.resolve(),
-            run.testcase.ans_path.resolve(),
-            run.feedbackdir.resolve(),
+            run.testcase.in_path.absolute(),
+            run.testcase.ans_path.absolute(),
+            run.feedbackdir.absolute(),
         ]
         + run.problem.settings.validator_flags
     )
