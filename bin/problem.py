@@ -198,6 +198,7 @@ class Problem:
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
 
+        found = None
         for dir in [path] + list(path.parents):
             f = dir / 'testdata.yaml'
 
@@ -214,33 +215,36 @@ class Problem:
                             if not isinstance(flags[k], str):
                                 error("ouput_validator_flags must be string", bar=bar)
                             if k == key:
-                                return flags[key]
+                                found = flags[key]
                         case 'input_validator_flags':
                             if not isinstance(flags[k], (str, dict)):
                                 error("ouput_validator_flags must be string or map", bar=bar)
                             if k != key:
                                 continue
                             if isinstance(flags[k], str):
-                                return flags[key]
-                            for name in flags[key]:
-                                input_validator_names = list(
-                                    val.name for val in p.validators(validate.InputValidator)
-                                )
-                                if not name in input_validator_names:
-                                    bar.warn(
-                                        f'Unknown input validator {name}; expected {input_validator_names}'
+                                found = flags[key]
+                            else:
+                                for name in flags[key]:
+                                    input_validator_names = list(
+                                        val.name for val in p.validators(validate.InputValidator)
                                     )
-                            if name in flags[key]:
-                                return flags[key][name]
+                                    if not name in input_validator_names:
+                                        bar.warn(
+                                            f'Unknown input validator {name}; expected {input_validator_names}'
+                                        )
+                                if name in flags[key]:
+                                    found = flags[key][name]
                         case 'grading' | 'run_samples':
                             warn(f'{k} not implemented in BAPCtools', bar=bar)
                         case _:
                             warn(f'Unknown testdata.yaml key: {k}', bar=bar)
 
+                if found is not None:
+                    break
             # Do not go above the data directory.
             if dir == p.path / 'data':
                 break
-        return None
+        return found
 
     def testcases(
         p,
