@@ -14,6 +14,7 @@ import program
 import run
 import testcase
 import validate
+import verdicts
 from util import *
 from colorama import Fore, Style
 
@@ -574,7 +575,7 @@ class Problem:
             return False
 
         ok = True
-        verdict_table = VerdictTable(submissions, testcases)
+        verdict_table = verdicts.VerdictTable(submissions, testcases)
         # When true, the ProgressBar will print a newline before the first error log.
         needs_leading_newline = False if config.args.verbose else True
         for verdict in submissions:
