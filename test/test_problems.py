@@ -10,7 +10,7 @@ import config
 import util
 
 # Run `bt run` on these problems.
-PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'guess'] + [
+PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'guess', 'divsort'] + [
     'hellounix' if not util.is_mac() and not util.is_windows() else []
 ]
 
