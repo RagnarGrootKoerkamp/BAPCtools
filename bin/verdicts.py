@@ -29,10 +29,6 @@ class Verdict(Enum):
     RUN_TIME_ERROR = 4
 
 
-def path_for_testcase(tcase):
-    return tcase.short_path.with_suffix('')
-
-
 class Verdicts:
     """The verdicts of a submission.
 
@@ -46,7 +42,7 @@ class Verdicts:
     """
 
     def __init__(self, testcases):
-        self.testcases = sorted(path_for_testcase(tc) for tc in testcases)
+        self.testcases = sorted(testcases)
         self.testgroups = sorted(set(path for tc in self.testcases for path in tc.parents))
         self.verdicts = {g: None for g in self.testcases + self.testgroups}
 
@@ -57,10 +53,9 @@ class Verdicts:
         self.first_error = {tg: None for tg in self.testgroups}
         self.unknowns = {tg: sorted(self.children[tg]) for tg in self.testgroups}
 
-    def set(self, tcase:testcase.Testcase, verdict):
-        """ Set the verdict of the given testcase) """
-        path = path_for_testcase(tcase)
-        self._set_verdict_for_path(path, verdict)
+    def set(self, testcase, verdict) -> Path:
+        """Set the verdict of the given testcase (implying possibly others)"""
+        return self._set_verdict_for_path(testcase, verdict)
 
     def child_verdicts(self, testgroup: Path) -> list[Verdict | None]:
         """
@@ -68,7 +63,7 @@ class Verdicts:
         lexicographically sorted by name of the child verdictable.
         """
 
-        return sorted(self.verdicts(c) for c in sorted(self.children[testgroup]))
+        return list(self.verdicts[c] for c in sorted(self.children[testgroup]))
 
     def aggregate(self, testgroup: Path) -> Verdict:
         """The aggregate verdict at the given testgroup.
@@ -80,7 +75,9 @@ class Verdicts:
             [AC, None, RTE] is not (the first error cannot be determined).
         """
         verdicts = self.child_verdicts(testgroup)
-        if all(v == Verdict.ACCEPTED for v in verdicts): # TODO there must be a way to oneline these four lines
+        if all(
+            v == Verdict.ACCEPTED for v in verdicts
+        ):  # TODO there must be a way to oneline these four lines
             result = Verdict.ACCEPTED
         else:
             first_error = next(v for v in self.child_verdicts(testgroup) if v != Verdict.ACCEPTED)
@@ -89,21 +86,34 @@ class Verdicts:
             result = first_error
         return result
 
-    def _set_verdict_for_path(self, testnode: Path, verdict):
+    def _set_verdict_for_path(self, testnode: Path, verdict) -> Path:
+        """
+        Returns:
+        The highest testnode whose verdict was changed (possibly the testnode itself).
+        In particular, this can be Path('.')
+        """
         if self.verdicts[testnode] is not None:
             raise ValueError(
                 f"Overwriting verdict of {testnode} to {verdict} (was {self.verdicts[testnode]})"
             )
         self.verdicts[testnode] = verdict
+        updated_node = testnode
         if testnode != Path('.'):
             # escalate verdict to parent(s) recursively, possibly inferring parental verdict(s)
             parent = testnode.parent
-            self.unknowns[parent].remove(testnode) # TODO speed me up using binary search
-            if verdict != Verdict.ACCEPTED and testnode < self.first_error[parent]:
+            self.unknowns[parent].remove(testnode)  # TODO speed me up
+            if verdict != Verdict.ACCEPTED and (
+                self.first_error[parent] is None or testnode < self.first_error[parent]
+            ):
                 self.first_error[parent] = testnode
-            if not self.unknowns[parent] or self.first_error[parent] < min(self.unknowns[parent]):
+            if (
+                not self.unknowns[parent]
+                or self.first_error[parent] is not None
+                and self.first_error[parent] < min(self.unknowns[parent])
+            ):
                 # we can infer the verdict at the parent
-                self._set_verdict_for_path(parent, self.aggregate(parent))
+                updated_node = self._set_verdict_for_path(parent, self.aggregate(parent))
+        return updated_node
 
 
 class VerdictTable:
