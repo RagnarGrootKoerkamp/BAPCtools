@@ -1607,7 +1607,7 @@ class GeneratorConfig:
     # move a file or into the trash directory
     def remove(self, src):
         if self.trashdir is None:
-            self.trashdir = self.problem.tmpdir / secrets.token_hex(4)
+            self.trashdir = self.problem.tmpdir / 'trash' / secrets.token_hex(4)
         dst = self.trashdir / src.absolute().relative_to((self.problem.path / 'data').absolute())
         dst.parent.mkdir(parents=True, exist_ok=True)
 
