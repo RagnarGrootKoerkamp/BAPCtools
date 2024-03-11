@@ -40,7 +40,7 @@ data:
 
       # Manual cases can be added like this:
       #- copied:
-      #    copy: manual/testcase.in
+      #    copy: manual/testcase
       # They should be written to somewhere inside generators/ and will be
       # copied into data/.
       # You can also dump them in data/secret and run `bt generate --add-unlisted`.
