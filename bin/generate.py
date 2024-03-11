@@ -1248,7 +1248,7 @@ class GeneratorConfig:
             yaml = None
             self.has_yaml = False
 
-        self.parse_yaml()
+        self.parse_yaml(yaml)
 
     def handle_parse_error(self, error, path=None):
         print(f'{Fore.CYAN}generator.yaml{Style.RESET_ALL}: ', end='', file=sys.stderr)
@@ -1419,8 +1419,6 @@ class GeneratorConfig:
                 if d.path in self.known_directories:
                     raise ParseError(f'Was already parsed')
                 add_known(d)
-                if not d.ok:
-                    return None
 
                 try:
                     # Parse child directories/testcases.
@@ -1555,10 +1553,9 @@ class GeneratorConfig:
                                 )
                         except ParseError as e:
                             self.handle_parse_error(e, d.path)
-                return d
             except ParseError as e:
                 self.handle_parse_error(e, d.path)
-                return None
+            return d
 
         self.root_dir = parse('', lambda: '', yaml, RootDirectory())
 
