@@ -1252,6 +1252,7 @@ class GeneratorConfig:
             self.parse_yaml(yaml)
         except ParseError as e:
             self.handle_parse_error(e)
+            self.ok = False
         if self.newline:
             print(file=sys.stderr)
 
