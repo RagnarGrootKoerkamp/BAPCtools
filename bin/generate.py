@@ -1359,7 +1359,6 @@ class GeneratorConfig:
             add_known(d)
 
             # Parse child directories/testcases.
-            # First loop over explicitly mentioned testcases/directories, and then find remaining on-disk files/dirs.
             if 'data' in yaml and yaml['data']:
                 # Count the number of child testgroups.
                 num_testgroups = 0
@@ -1411,7 +1410,7 @@ class GeneratorConfig:
                                     nonlocal testcase_id
                                     testcase_id += 1
                                     return numbered_testcase_name(
-                                        child_key, testcase_id, num_testgroups
+                                        child_key, testcase_id, num_numbered_testcases
                                     )
 
                                 child_name = next_testcase_name
