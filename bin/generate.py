@@ -1248,13 +1248,7 @@ class GeneratorConfig:
             yaml = None
             self.has_yaml = False
 
-        try:
-            self.parse_yaml(yaml)
-        except ParseError as e:
-            self.handle_parse_error(e)
-            self.ok = False
-        if self.newline:
-            print(file=sys.stderr)
+        self.parse_yaml()
 
     def handle_parse_error(self, error, path=None):
         print(f'{Fore.CYAN}generator.yaml{Style.RESET_ALL}: ', end='', file=sys.stderr)
@@ -1291,6 +1285,15 @@ class GeneratorConfig:
         return False
 
     def parse_yaml(self, yaml):
+        try:
+            self._parse_yaml(yaml)
+        except ParseError as e:
+            self.handle_parse_error(e)
+            self.ok = False
+        if self.newline:
+            print(file=sys.stderr)
+
+    def _parse_yaml(self, yaml):
         ensure_type('Root yaml', yaml, [type(None), dict])
         if yaml is None:
             yaml = dict()
