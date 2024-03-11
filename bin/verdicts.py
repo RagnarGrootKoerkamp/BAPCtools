@@ -1,20 +1,109 @@
-""" Verdicts """
+""" Verdicts 
 
-import config
+    Terminology
+    -----------
+
+    Write testgroup or testcase (as compound nouns). Avoid parsing test as a verb.
+
+    testnode: a testgroup or testcase
+
+"""
+
+from pathlib import Path
 import shutil
 import sys
+import testcase
 from enum import Enum
-from colorama import Fore, Style
+
 from util import ProgressBar
+import config
+from colorama import Fore, Style
 
 
 class Verdict(Enum):
-    """The verdict of a test case or test group"""
+    """The verdict of a testcase or testgroup"""
 
     ACCEPTED = 1
     WRONG_ANSWER = 2
     TIME_LIMIT_EXCEEDED = 3
     RUN_TIME_ERROR = 4
+
+
+def path_for_testcase(tcase):
+    return tcase.short_path.with_suffix('')
+
+
+class Verdicts:
+    """The verdicts of a submission.
+
+    Attributes:
+    testcases: a list of paths in lexicographic order
+    testgroups: a list of paths in lexicographic order
+    verdicts[testnode]: the verdict at the given testnode path, or None
+    children[testgroup]: a list of child testnodes (as paths), not necessarily sorted
+    first_error[testgroup]: the first child with non-ACCEPTED verdict; None if no such child exists
+    unknowns[testgroup]: the children that do not (yet) have a verdict; as a list in sorted order
+    """
+
+    def __init__(self, testcases):
+        self.testcases = sorted(path_for_testcase(tc) for tc in testcases)
+        self.testgroups = sorted(set(path for tc in self.testcases for path in tc.parents))
+        self.verdicts = {g: None for g in self.testcases + self.testgroups}
+
+        self.children = {tg: [] for tg in self.testgroups}
+        for path in self.testcases + self.testgroups:
+            if path != Path('.'):
+                self.children[path.parent].append(path)
+        self.first_error = {tg: None for tg in self.testgroups}
+        self.unknowns = {tg: sorted(self.children[tg]) for tg in self.testgroups}
+
+    def set(self, tcase:testcase.Testcase, verdict):
+        """ Set the verdict of the given testcase) """
+        path = path_for_testcase(tcase)
+        self._set_verdict_for_path(path, verdict)
+
+    def child_verdicts(self, testgroup: Path) -> list[Verdict | None]:
+        """
+        Return the verdicts at the children of the given testgroup,
+        lexicographically sorted by name of the child verdictable.
+        """
+
+        return sorted(self.verdicts(c) for c in sorted(self.children[testgroup]))
+
+    def aggregate(self, testgroup: Path) -> Verdict:
+        """The aggregate verdict at the given testgroup.
+        Computes the lexicographically first non-accepted verdict.
+
+        Raises:
+        ValueError when missing child verdicts make the result ill-defined.
+            For instance, [AC, RTE, None] is fine (the result is RTE), but
+            [AC, None, RTE] is not (the first error cannot be determined).
+        """
+        verdicts = self.child_verdicts(testgroup)
+        if all(v == Verdict.ACCEPTED for v in verdicts): # TODO there must be a way to oneline these four lines
+            result = Verdict.ACCEPTED
+        else:
+            first_error = next(v for v in self.child_verdicts(testgroup) if v != Verdict.ACCEPTED)
+            if first_error is None:
+                raise ValueError(f"Verdict aggregation at {testgroup} with unknown child verdicts")
+            result = first_error
+        return result
+
+    def _set_verdict_for_path(self, testnode: Path, verdict):
+        if self.verdicts[testnode] is not None:
+            raise ValueError(
+                f"Overwriting verdict of {testnode} to {verdict} (was {self.verdicts[testnode]})"
+            )
+        self.verdicts[testnode] = verdict
+        if testnode != Path('.'):
+            # escalate verdict to parent(s) recursively, possibly inferring parental verdict(s)
+            parent = testnode.parent
+            self.unknowns[parent].remove(testnode) # TODO speed me up using binary search
+            if verdict != Verdict.ACCEPTED and testnode < self.first_error[parent]:
+                self.first_error[parent] = testnode
+            if not self.unknowns[parent] or self.first_error[parent] < min(self.unknowns[parent]):
+                # we can infer the verdict at the parent
+                self._set_verdict_for_path(parent, self.aggregate(parent))
 
 
 class VerdictTable:
