@@ -67,6 +67,16 @@ if not is_windows():
     import resource
 
 
+def exit(force=threading.active_count() > 1):
+    if force:
+        sys.stderr.close()
+        sys.stdout.close()
+        # exit even more forcefully to ensure that daemon threads dont break something
+        os._exit(1)
+    else:
+        sys.exit(1)
+
+
 def debug(*msg):
     print(Fore.CYAN, end='', file=sys.stderr)
     print('DEBUG:', *msg, end='', file=sys.stderr)
@@ -82,7 +92,7 @@ def verbose(msg):
         print(f'{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}', file=sys.stderr)
 
 
-def warn(msg, bar=None):
+def warn(msg, *, bar=None):
     if bar is not None:
         bar.warn(msg)
     else:
@@ -90,7 +100,7 @@ def warn(msg, bar=None):
         config.n_warn += 1
 
 
-def error(msg, bar=None):
+def error(msg, *, bar=None):
     if config.RUNNING_TEST:
         fatal(msg)
     if bar is not None:
@@ -102,13 +112,7 @@ def error(msg, bar=None):
 
 def fatal(msg, *, force=threading.active_count() > 1):
     print(f'\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
-    if force:
-        sys.stderr.close()
-        sys.stdout.close()
-        # exit even more forcefully to ensure that daemon threads dont break something
-        os._exit(1)
-    else:
-        sys.exit(1)
+    exit(force)
 
 
 # A class that draws a progressbar.

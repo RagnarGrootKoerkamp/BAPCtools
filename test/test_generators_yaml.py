@@ -22,7 +22,6 @@ class MockGeneratorConfig(generate.GeneratorConfig):
     def __init__(self, problem, restriction=None):
         self.problem = problem
         self.ok = True
-        self.n_parse_error = 0
 
         # A map of paths `secret/testgroup/testcase` to their canonical TestcaseRule.
         # For generated cases this is the rule itself.
@@ -58,5 +57,5 @@ class TestGeneratorConfig:
         with pytest.raises(SystemExit) as e:
             gen_config = MockGeneratorConfig(MockProblem())
             gen_config.parse_yaml(yamldoc)
-            if gen_config.n_parse_error > 0:
+            if config.n_error + config.n_warn > 0:
                 raise SystemExit
