@@ -1,14 +1,3 @@
-""" Verdicts 
-
-    Terminology
-    -----------
-
-    Write testgroup or testcase (as compound nouns). Avoid parsing test as a verb.
-
-    testnode (or just node): a testgroup or testcase
-
-"""
-
 from pathlib import Path
 import shutil
 import sys
@@ -29,7 +18,6 @@ class Verdict(Enum):
 
 
 def from_string(s: str) -> Verdict:
-    pass
     match s:
         case 'ACCEPTED' | 'AC':
             return Verdict.ACCEPTED
