@@ -12,7 +12,6 @@
 from pathlib import Path
 import shutil
 import sys
-import testcase
 from enum import Enum
 
 from util import ProgressBar
@@ -41,30 +40,33 @@ class Verdicts:
     unknowns[testgroup]: the children that do not (yet) have a verdict; as a list in sorted order
     """
 
+    def unknowns_iterator(self, node):
+        """Yield the (yet) unknown children of node in lexicographic order."""
+        for child in sorted(self.children[node]):
+            if self.verdicts[child] is not None:
+                continue
+            yield child
+
     def __init__(self, testcases):
         self.testcases = sorted(testcases)
-        self.testgroups = sorted(set(str(path) for tc in self.testcases for path in Path(tc).parents))
+        self.testgroups = sorted(
+            set(str(path) for tc in self.testcases for path in Path(tc).parents)
+        )
         self.verdicts = {g: None for g in self.testcases + self.testgroups}
 
-        self.children = {tg: [] for tg in self.testgroups}
+        self.children = {node: [] for node in self.testgroups}
         for node in self.testcases + self.testgroups:
             if node != '.':
                 parent = str(Path(node).parent)
                 self.children[parent].append(node)
-        self.first_error = {tg: None for tg in self.testgroups}
-        self.unknowns = {tg: sorted(self.children[tg]) for tg in self.testgroups}
+        self.num_unknowns = {node: len(self.children[node]) for node in self.testgroups}
+        self.unknowns= { node: self.unknowns_iterator(node) for node in self.testgroups }
+        self.first_unknown = {node: next(self.unknowns[node]) for node in self.testgroups}
+        self.first_error = {node: None for node in self.testgroups}
 
     def set(self, testcase, verdict) -> str:
         """Set the verdict of the given testcase (implying possibly others)"""
-        return self._set_verdict_for_path(testcase, verdict)
-
-    def child_verdicts(self, testgroup: str) -> list[Verdict | None]:
-        """
-        Return the verdicts at the children of the given testgroup,
-        lexicographically sorted by name of the child verdictable.
-        """
-
-        return list(self.verdicts[c] for c in sorted(self.children[testgroup]))
+        return self._set_verdict_for_node(testcase, verdict)
 
     def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.
@@ -75,19 +77,19 @@ class Verdicts:
             For instance, [AC, RTE, None] is fine (the result is RTE), but
             [AC, None, RTE] is not (the first error cannot be determined).
         """
-        verdicts = self.child_verdicts(testgroup)
+        child_verdicts = list(self.verdicts[c] for c in sorted(self.children[testgroup]))
         if all(
-            v == Verdict.ACCEPTED for v in verdicts
+            v == Verdict.ACCEPTED for v in child_verdicts
         ):  # TODO there must be a way to oneline these four lines
             result = Verdict.ACCEPTED
         else:
-            first_error = next(v for v in self.child_verdicts(testgroup) if v != Verdict.ACCEPTED)
+            first_error = next(v for v in child_verdicts if v != Verdict.ACCEPTED)
             if first_error is None:
                 raise ValueError(f"Verdict aggregation at {testgroup} with unknown child verdicts")
             result = first_error
         return result
 
-    def _set_verdict_for_path(self, testnode: str, verdict) -> str:
+    def _set_verdict_for_node(self, testnode: str, verdict) -> str:
         """
         Returns:
         The highest testnode whose verdict was changed (possibly the testnode itself).
@@ -100,20 +102,29 @@ class Verdicts:
         self.verdicts[testnode] = verdict
         updated_node = testnode
         if testnode != '.':
-            # escalate verdict to parent(s) recursively, possibly inferring parental verdict(s)
             parent = str(Path(testnode).parent)
-            self.unknowns[parent].remove(testnode)  # TODO speed me up
+            self.num_unknowns[parent] -= 1
+
+            # possibly update first_unknown at parent
+            if testnode == self.first_unknown[parent]:
+                self.first_unknown[parent] = (
+                    None if self.num_unknowns[parent] == 0 else next(self.unknowns[parent])
+                )
+
+            # possibly update first_error at parent
             if verdict != Verdict.ACCEPTED and (
                 self.first_error[parent] is None or testnode < self.first_error[parent]
             ):
                 self.first_error[parent] = testnode
+
+            # possibly update verdict at parent and escalate change upward recursively
             if (
-                not self.unknowns[parent]
+                self.num_unknowns[parent] == 0
                 or self.first_error[parent] is not None
-                and self.first_error[parent] < min(self.unknowns[parent])
+                and self.first_error[parent] < self.first_unknown[parent]
             ):
                 # we can infer the verdict at the parent
-                updated_node = self._set_verdict_for_path(parent, self.aggregate(parent))
+                updated_node = self._set_verdict_for_node(parent, self.aggregate(parent))
         return updated_node
 
 
