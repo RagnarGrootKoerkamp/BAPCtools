@@ -16,6 +16,16 @@ class Verdict(Enum):
     TIME_LIMIT_EXCEEDED = 3
     RUN_TIME_ERROR = 4
 
+def to_char(v: Verdict | None):
+    return {
+            Verdict.ACCEPTED: f'{Fore.GREEN}A{Style.RESET_ALL}',
+            Verdict.WRONG_ANSWER: f'{Fore.RED}W{Style.RESET_ALL}',
+            Verdict.TIME_LIMIT_EXCEEDED: f'{Fore.MAGENTA}T{Style.RESET_ALL}',
+            Verdict.RUN_TIME_ERROR: f'{Fore.YELLOW}R{Style.RESET_ALL}',
+            None: f'{Fore.BLUE}?{Style.RESET_ALL}'
+            }[v]
+
+    
 
 def from_string(s: str) -> Verdict:
     match s:
@@ -44,7 +54,7 @@ class Verdicts:
     available (and retuns the topmost inferred testgroup).
     Verdicts (registered and inferred) are accessed in the verdict dict.
 
-    >>> V = Verdicts(["a/b/1", "a/b/2", "a/c/1"])
+    >>> V = Verdicts(["a/b/1", "a/b/2", "a/c/1", "a/d/1", "b/3"])
     >>> V.set('a/b/1', 'ACCEPTED')
     'a/b/1'
     >>> V.set('a/b/2', 'AC') # returns 'a/b' because that verdict will be set as well
@@ -155,6 +165,22 @@ class Verdicts:
                 updated_node = self._set_verdict_for_node(parent, self.aggregate(parent))
         return updated_node
 
+    def as_tree(self):
+        stack = [('.', '', '', True)]
+        truncate = 0
+        while stack:
+            node, indent, prefix, last = stack.pop()
+            print(f"{indent}{prefix}{node}: {to_char(self.verdict[node])}"[truncate:])
+            truncate = 2
+            children = sorted(self.children[node], reverse=True)
+            if children[0] in self.children:
+                stack.append((children[0], '│ '+indent , '└─', True))
+                for child in children[1:]:
+                    stack.append((child, '│ '+indent , '├─', False))
+            else:
+                pipe = ' ' if last else '│'
+                line = indent + pipe + ' └─'+ ''.join(to_char(self.verdict[child]) for child in children)
+                print(line[truncate:])
 
 class VerdictTable:
     colors = {
@@ -354,7 +380,6 @@ class TableProgressBar(ProgressBar):
             self.table._clear(force=True)
             return res
 
-
-# if __name__ == "__main__":
-#     import doctest
-#     doctest.testmod()
+#if __name__ == "__main__":
+#    import doctest
+#    doctest.testmod()
