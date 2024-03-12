@@ -131,7 +131,7 @@ class SubmissionTask:
     def _run(self, bar):
         r = run.Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
         localbar = bar.start(f'{self.generator_task.i}: {self.submission.name}')
-        result = r.run()
+        result = r.run(localbar)
         if result.verdict != 'ACCEPTED':
             self.generator_task.save_test(bar)
             localbar.done(False, f'{result.verdict}!')

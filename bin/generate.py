@@ -232,7 +232,7 @@ class SolutionInvocation(Invocation):
         r = run.Run(problem, self.program, testcase)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        ret = r.run(interaction=interaction_path, submission_args=self.args)
+        ret = r.run(bar, interaction=interaction_path, submission_args=self.args)
         if ret.verdict != 'ACCEPTED':
             bar.error(ret.verdict)
             return False
