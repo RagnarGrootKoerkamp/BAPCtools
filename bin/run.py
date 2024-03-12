@@ -34,7 +34,7 @@ class Run:
                 shutil.rmtree(f)
 
     # Return an ExecResult object amended with verdict.
-    def run(self, *, interaction=None, submission_args=None):
+    def run(self, bar, *, interaction=None, submission_args=None):
         if self.problem.interactive:
             result = interactive.run_interactive_testcase(
                 self, interaction=interaction, submission_args=submission_args
@@ -54,7 +54,7 @@ class Run:
             else:
                 # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
                 duration = result.duration
-                result = self._validate_output()
+                result = self._validate_output(bar)
                 if result is None:
                     error(f'No output validators found for testcase {self.testcase.name}')
                     result = ExecResult(None, ExecStatus.REJECTED, 0, False, None, None)
@@ -81,14 +81,14 @@ class Run:
         self.result = result
         return result
 
-    def _validate_output(self):
+    def _validate_output(self, bar):
         output_validators = self.problem.validators(validate.OutputValidator)
         if output_validators is False:
             return None
         assert len(output_validators) == 1
         validator = output_validators[0]
 
-        flags = self.testcase.testdata_yaml_validator_flags(validator)
+        flags = self.testcase.testdata_yaml_validator_flags(validator, bar)
 
         ret = validator.run(self.testcase, self, args=flags)
 
@@ -260,7 +260,7 @@ class Submission(program.Program):
             nonlocal max_duration, verdict, verdict_run
 
             localbar = bar.start(run)
-            result = run.run()
+            result = run.run(localbar)
 
             if result.verdict == 'ACCEPTED' and not self.problem.interactive:
                 validate.sanity_check(run.out_path, localbar, strict_whitespace=False)

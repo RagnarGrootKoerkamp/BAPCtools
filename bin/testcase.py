@@ -118,7 +118,7 @@ class Testcase:
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_validator_flags(self, validator, bar=None) -> list[str] | None:
+    def testdata_yaml_validator_flags(self, validator, bar) -> list[str] | None:
         """
         The flags specified in testdata.yaml for the given validator applying to this testcase.
 
@@ -139,7 +139,7 @@ class Testcase:
         )
 
         path = self.problem.path / 'data' / self.short_path
-        flags = self.problem.get_testdata_yaml(path, key, name=name, bar=bar)
+        flags = self.problem.get_testdata_yaml(path, key, bar, name=name)
 
         if flags is None:
             return None

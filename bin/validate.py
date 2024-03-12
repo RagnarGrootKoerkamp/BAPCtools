@@ -290,23 +290,23 @@ class OutputValidator(Validator):
 
         in_path = testcase.in_path.resolve()
         ans_path = testcase.ans_path.resolve()
-        if hasattr(mode, 'out_path'):
-            path = mode.out_path
-        elif mode == Mode.ANSWER:
+        if mode == Mode.ANSWER:
             path = ans_path
-        else:
-            # mode == Mode.INVALID
+        elif mode == Mode.INVALID:
             if testcase.root != 'invalid_outputs':
                 raise ValueError(
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_outputs"
                 )
             path = testcase.out_path.resolve()
+        else:
+            assert mode != Mode.INPUT
+            path = mode.out_path
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
-        feedbackdir = mode.feedbackdir if hasattr(mode, 'feedbackdir') else cwd
+        feedbackdir = cwd if isinstance(mode, Mode) else mode.feedbackdir
         flags = self.problem.settings.validator_flags
         invocation = self.run_command + [in_path, ans_path, feedbackdir] + flags
 
