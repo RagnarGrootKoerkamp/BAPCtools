@@ -22,11 +22,11 @@ def from_string(s: str) -> Verdict:
         case 'ACCEPTED' | 'AC':
             return Verdict.ACCEPTED
         case 'WRONG_ANSWER' | 'WA':
-            return Verdict.ACCEPTED
+            return Verdict.WRONG_ANSWER
         case 'TIME_LIMIT_EXCEEDED' | 'TLE':
-            return Verdict.ACCEPTED
+            return Verdict.TIME_LIMIT_EXCEEDED
         case 'RUN_TIME_ERROR' | 'RTE':
-            return Verdict.ACCEPTED
+            return Verdict.RUN_TIME_ERROR
         case _:
             raise ValueError(f"Unknown verdict string {s}")
 
@@ -47,7 +47,7 @@ class Verdicts:
     >>> V = Verdicts(["a/b/1", "a/b/2", "a/c/1"])
     >>> V.set('a/b/1', 'ACCEPTED')
     'a/b/1'
-    >>> V.set('a/b/2', 'WA') # returns 'a/b' because that verdict will be set as well
+    >>> V.set('a/b/2', 'AC') # returns 'a/b' because that verdict will be set as well
     'a/b'
     >>> print(V.verdict['a/b'], V.verdict['.'])
     Verdict.ACCEPTED None
@@ -357,4 +357,4 @@ class TableProgressBar(ProgressBar):
 
 # if __name__ == "__main__":
 #     import doctest
-# .    doctest.testmod()
+#     doctest.testmod()
