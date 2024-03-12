@@ -43,21 +43,22 @@ class Verdicts:
 
     def __init__(self, testcases):
         self.testcases = sorted(testcases)
-        self.testgroups = sorted(set(path for tc in self.testcases for path in tc.parents))
+        self.testgroups = sorted(set(str(path) for tc in self.testcases for path in Path(tc).parents))
         self.verdicts = {g: None for g in self.testcases + self.testgroups}
 
         self.children = {tg: [] for tg in self.testgroups}
-        for path in self.testcases + self.testgroups:
-            if path != Path('.'):
-                self.children[path.parent].append(path)
+        for node in self.testcases + self.testgroups:
+            if node != '.':
+                parent = str(Path(node).parent)
+                self.children[parent].append(node)
         self.first_error = {tg: None for tg in self.testgroups}
         self.unknowns = {tg: sorted(self.children[tg]) for tg in self.testgroups}
 
-    def set(self, testcase, verdict) -> Path:
+    def set(self, testcase, verdict) -> str:
         """Set the verdict of the given testcase (implying possibly others)"""
         return self._set_verdict_for_path(testcase, verdict)
 
-    def child_verdicts(self, testgroup: Path) -> list[Verdict | None]:
+    def child_verdicts(self, testgroup: str) -> list[Verdict | None]:
         """
         Return the verdicts at the children of the given testgroup,
         lexicographically sorted by name of the child verdictable.
@@ -65,7 +66,7 @@ class Verdicts:
 
         return list(self.verdicts[c] for c in sorted(self.children[testgroup]))
 
-    def aggregate(self, testgroup: Path) -> Verdict:
+    def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.
         Computes the lexicographically first non-accepted verdict.
 
@@ -86,11 +87,11 @@ class Verdicts:
             result = first_error
         return result
 
-    def _set_verdict_for_path(self, testnode: Path, verdict) -> Path:
+    def _set_verdict_for_path(self, testnode: str, verdict) -> str:
         """
         Returns:
         The highest testnode whose verdict was changed (possibly the testnode itself).
-        In particular, this can be Path('.')
+        In particular, this can be '.'
         """
         if self.verdicts[testnode] is not None:
             raise ValueError(
@@ -98,9 +99,9 @@ class Verdicts:
             )
         self.verdicts[testnode] = verdict
         updated_node = testnode
-        if testnode != Path('.'):
+        if testnode != '.':
             # escalate verdict to parent(s) recursively, possibly inferring parental verdict(s)
-            parent = testnode.parent
+            parent = str(Path(testnode).parent)
             self.unknowns[parent].remove(testnode)  # TODO speed me up
             if verdict != Verdict.ACCEPTED and (
                 self.first_error[parent] is None or testnode < self.first_error[parent]
