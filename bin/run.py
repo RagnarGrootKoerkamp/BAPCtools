@@ -258,9 +258,7 @@ class Submission(program.Program):
             # - verbose mode
             # - table mode
             if not (config.args.verbose or config.args.table):
-                if any(
-                    verdicts.verdict[str(parent)] is not None for parent in Path(run.name).parents
-                ):
+                if any(verdicts[str(parent)] is not None for parent in Path(run.name).parents):
                     bar.count = None
                     return
 
@@ -272,7 +270,8 @@ class Submission(program.Program):
 
             if verdict_table is not None:
                 verdict_table.finish_testcase(run.name, result.verdict)
-            verdicts.set(run.name, result.verdict, duration=result.duration)
+            verdicts[run.name] = result.verdict
+            verdicts.duration[run.name] = result.duration
 
             got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
 
@@ -324,7 +323,7 @@ class Submission(program.Program):
             p.put(run)
         p.done()
 
-        self.verdict = verdicts.verdict['.']
+        self.verdict = verdicts['.']
         self.duration = 42
 
         # Use a bold summary line if things were printed before.
@@ -339,7 +338,9 @@ class Submission(program.Program):
             color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
             boldcolor = ''
 
-        max_duration, name = max(tuple(reversed(t)) for t in verdicts.duration.items())
+        max_duration, name = max(
+            tuple(reversed(t)) for t in verdicts.duration.items() if t[1] is not None
+        )
         printed_newline = bar.finalize(
             message=f'{max_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {name}'
         )
