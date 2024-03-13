@@ -97,6 +97,12 @@ class Verdicts:
             node: next(self._unknowns[node]) for node in testgroups
         }
 
+    def is_testgroup(self, node) -> bool:
+        """ Is the given testnode name a testgroup (rather than a testcase)?
+            This assumes nonempty testgroups.
+        """
+        return node in self.children
+
     def set(self, testcase, verdict: str | Verdict) -> str:
         """Set the verdict of the given testcase (implying possibly others)
 
@@ -167,20 +173,23 @@ class Verdicts:
                 updated_node = self._set_verdict_for_node(parent, self.aggregate(parent))
         return updated_node
 
-    def as_tree(self):
+    def as_tree(self, show_root=True, max_depth=None):
         stack = [('.', '', '', True)]
-        truncate = 0
+        root = True
         while stack:
             node, indent, prefix, last = stack.pop()
-            print(f"{indent}{prefix}{node}: {to_char(self.verdict[node])}"[truncate:])
-            truncate = 2
+            #truncate = 0 if root else 2
+            truncate = 0 
+            if not root or show_root:
+                print(f"{indent}{prefix}{node}: {to_char(self.verdict[node])}"[truncate:])
+            root = False
             children = sorted(self.children[node], reverse=True)
-            if children[0] in self.children:
-                stack.append((children[0], '│ ' + indent, '└─', True))
+            pipe = ' ' if last else '│'
+            if self.is_testgroup(children[0]):
+                stack.append((children[0], indent + pipe + ' ', '└─', True))
                 for child in children[1:]:
-                    stack.append((child, '│ ' + indent, '├─', False))
+                    stack.append((child, indent + pipe + ' ', '├─', False))
             else:
-                pipe = ' ' if last else '│'
                 line = (
                     indent
                     + pipe
