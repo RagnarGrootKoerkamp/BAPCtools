@@ -17,6 +17,15 @@ class Verdict(Enum):
     RUN_TIME_ERROR = 4
 
 
+def to_string(v: Verdict | None):
+    return {
+        Verdict.ACCEPTED: f'{Fore.GREEN}ACCEPTED{Style.RESET_ALL}',
+        Verdict.WRONG_ANSWER: f'{Fore.RED}WRONG ANSWER{Style.RESET_ALL}',
+        Verdict.TIME_LIMIT_EXCEEDED: f'{Fore.MAGENTA}TIME LIMIT EXCEEDED{Style.RESET_ALL}',
+        Verdict.RUN_TIME_ERROR: f'{Fore.YELLOW}RUNTIME ERROR{Style.RESET_ALL}',
+        None: f'{Fore.BLUE}?{Style.RESET_ALL}',
+    }[v]
+
 def to_char(v: Verdict | None):
     return {
         Verdict.ACCEPTED: f'{Fore.GREEN}A{Style.RESET_ALL}',
@@ -25,6 +34,7 @@ def to_char(v: Verdict | None):
         Verdict.RUN_TIME_ERROR: f'{Fore.YELLOW}R{Style.RESET_ALL}',
         None: f'{Fore.BLUE}?{Style.RESET_ALL}',
     }[v]
+
 
 
 def from_string(s: str) -> Verdict:
@@ -178,25 +188,25 @@ class Verdicts:
         root = True
         while stack:
             node, indent, prefix, last = stack.pop()
-            #truncate = 0 if root else 2
-            truncate = 0 
             if not root or show_root:
-                print(f"{indent}{prefix}{node}: {to_char(self.verdict[node])}"[truncate:])
+                print(f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self.verdict[node])}")
             root = False
             children = sorted(self.children[node], reverse=True)
             pipe = ' ' if last else '│'
-            if self.is_testgroup(children[0]):
-                stack.append((children[0], indent + pipe + ' ', '└─', True))
-                for child in children[1:]:
-                    stack.append((child, indent + pipe + ' ', '├─', False))
-            else:
-                line = (
-                    indent
-                    + pipe
-                    + ' └─'
-                    + ''.join(to_char(self.verdict[child]) for child in children)
-                )
-                print(line[truncate:])
+            first = True
+            testcases = []
+            for child in children:
+                if self.is_testgroup(child):
+                    if first:
+                        stack.append((children[0], indent + pipe + ' ', '└─', True))
+                        first = False
+                    else:
+                        stack.append((child, indent + pipe + ' ', '├─', False))
+                else:
+                    testcases.append(to_char(self.verdict[child]))
+            if testcases:
+                edge = '└' if first else '├'
+                print(indent + pipe + ' ' + edge + '─' + ''.join(reversed(testcases)))
 
 
 class VerdictTable:
