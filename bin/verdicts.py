@@ -68,25 +68,25 @@ class Verdicts:
     * the root is called '.'
 
     Initialised with all testcases. Individual verdicts are registered
-    with 'set', which infers verdicts upwards in the tree as they become
+    with __setitem__, which infers verdicts upwards in the tree as they become
     available (and retuns the topmost inferred testgroup).
-    Verdicts (registered and inferred) are accessed in the verdict dict.
+    Verdicts (registered and inferred) are accessed with __getitem__
 
     >>> V = Verdicts(["a/b/1", "a/b/2", "a/c/1", "a/d/1", "b/3"])
-    >>> V.set('a/b/1', 'ACCEPTED')
-    'a/b/1'
-    >>> V.set('a/b/2', 'AC') # returns 'a/b' because that verdict will be set as well
-    'a/b'
-    >>> print(V.verdict['a/b'], V.verdict['.'])
-    Verdict.ACCEPTED None
+    >>> V['a/b/1'] = 'ACCEPTED'
+    >>> V['a/b/2'] = 'AC' # returns 'a/b' because that verdict will be set as well
+    >>> print(V['a/b'], V['.'])
+    ACCEPTED None
 
     Attributes:
-    - verdict[testnode]: the verdict at the given testnode, or None. In particular,
-        verdict['.'] is the root verdict, sometimes called final verdict or submission verdict.
+    - duration[testcase]: the duration of the testcase
     - children[testgroup]: the set of children of the given testnode
     - first_error[testgroup]: first child with non-ACCEPTED verdict; None if none exists
     - first_unknown[testgroup]: first child whose verdict is not (yet) known; None if none exists
 
+    - _verdict[testnode]: the verdict at the given testnode, or None. In particular,
+        verdict['.'] is the root verdict, sometimes called final verdict or submission verdict.
+        Should not be directly set; use __setitem__ on the Verdict object instead.
     - _unknowns[testgroup]: iterator over the children that do not (yet) have a verdict,
         in lexicographic order
     """
@@ -94,14 +94,14 @@ class Verdicts:
     def unknowns_iterator(self, node):
         """Yield the node's (yet) unknown children in lexicographic order."""
         for child in sorted(self.children[node]):
-            if self.verdict[child] is not None:
+            if self._verdict[child] is not None:
                 continue
             yield child
 
     def __init__(self, testcase_list: list[str]):
         testcases = set(testcase_list)
         testgroups: set[str] = set(str(path) for tc in testcases for path in Path(tc).parents)
-        self.verdict: dict[str, Verdict | None] = {g: None for g in testcases | testgroups}
+        self._verdict: dict[str, Verdict | None] = {g: None for g in testcases | testgroups}
         self.duration: dict[str, int | None] = {g: None for g in testcases}
 
         self.children: dict[str, set[str]] = {node: set() for node in testgroups}
@@ -122,22 +122,21 @@ class Verdicts:
         """
         return node in self.children
 
-    def set(self, testcase, verdict: str | Verdict, duration=None) -> str:
+    def __setitem__(self, testcase, verdict: str | Verdict, duration=None):
         """Set the verdict of the given testcase (implying possibly others)
 
         verdict can be given as a Verdict or as a string using either long or
         short form ('ACCEPTED', 'AC', or Verdict.ACCEPTED).
-
-        Returns the most distant parent that had its verdict set as a result of this.
-        In particular, the return value can be used to abort evaluation prematurely;
-        when set('a/b/1', v) returns '.' then the submission verdict has been determined.
         """
 
         if isinstance(verdict, str):
             verdict = from_string(verdict)
         if verdict == Verdict.ACCEPTED and duration is not None:
             self.duration[testcase] = duration
-        return self._set_verdict_for_node(testcase, verdict)
+        self._set_verdict_for_node(testcase, verdict)
+
+    def __getitem__(self, testnode) -> Verdict | None:
+        return self._verdict[testnode]
 
     def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.
@@ -148,7 +147,7 @@ class Verdicts:
             For instance, [AC, RTE, None] is fine (the result is RTE), but
             [AC, None, RTE] is not (the first error cannot be determined).
         """
-        child_verdicts = list(self.verdict[c] for c in sorted(self.children[testgroup]))
+        child_verdicts = list(self._verdict[c] for c in sorted(self.children[testgroup]))
         if all(v == Verdict.ACCEPTED for v in child_verdicts):
             result = Verdict.ACCEPTED
         else:
@@ -158,17 +157,12 @@ class Verdicts:
             result = first_error
         return result
 
-    def _set_verdict_for_node(self, testnode: str, verdict) -> str:
-        """
-        Returns:
-        The highest testnode whose verdict was changed (possibly the testnode itself).
-        In particular, this can be '.'
-        """
-        if self.verdict[testnode] is not None:
+    def _set_verdict_for_node(self, testnode: str, verdict):
+        if self._verdict[testnode] is not None:
             raise ValueError(
-                f"Overwriting verdict of {testnode} to {verdict} (was {self.verdict[testnode]})"
+                f"Overwriting verdict of {testnode} to {verdict} (was {self._verdict[testnode]})"
             )
-        self.verdict[testnode] = verdict
+        self._verdict[testnode] = verdict
         updated_node = testnode
         if testnode != '.':
             parent = str(Path(testnode).parent)
@@ -187,19 +181,20 @@ class Verdicts:
                 first_error = self.first_error[parent] = testnode
 
             # possibly update verdict at parent and escalate change upward recursively
-            if self.verdict[parent] is None and (
+            if self._verdict[parent] is None and (
                 first_unknown is None or first_error is not None and first_error < first_unknown
             ):
                 # we can infer the verdict at the parent
-                updated_node = self._set_verdict_for_node(parent, self.aggregate(parent))
-        return updated_node
+                self._set_verdict_for_node(parent, self.aggregate(parent))
 
     def as_tree(self, max_depth=None, show_root=False) -> str:
         result = []
         stack = [('.', '', '', True)]
         while stack:
             node, indent, prefix, last = stack.pop()
-            result.append(f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self.verdict[node])}")
+            result.append(
+                f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self._verdict[node])}"
+            )
             if max_depth is not None and len(indent) >= 2 * max_depth:
                 continue
             children = sorted(self.children[node], reverse=True)
@@ -214,7 +209,7 @@ class Verdicts:
                     else:
                         stack.append((child, indent + pipe + ' ', '├─', False))
                 else:
-                    testcases.append(to_char(self.verdict[child]))
+                    testcases.append(to_char(self._verdict[child]))
             if testcases:
                 edge = '└' if first else '├'
                 result.append(indent + pipe + ' ' + edge + '─' + ''.join(reversed(testcases)))
