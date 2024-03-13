@@ -261,6 +261,17 @@ class Submission(program.Program):
         def process_run(run, p):
             nonlocal max_duration, verdict, verdict_run
 
+            # Lazy judging: stop as soon as parental verdicts are known, except if in
+            # - verbose mode
+            # - table mode
+            if not (config.args.verbose or config.args.table):
+                if any(
+                    thoreverdicts.verdict[str(parent)] is not None
+                    for parent in Path(run.name).parents
+                ):
+                    bar.count = None
+                    return
+
             localbar = bar.start(run)
             result = run.run(localbar)
 
@@ -322,19 +333,9 @@ class Submission(program.Program):
 
             localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
-            # Lazy judging: stop on the first error when:
-            # - not in verbose mode
-            if config.args.verbose or config.args.table:
-                return
-            # - the result has max priority
-            if result.verdict not in config.MAX_PRIORITY_VERDICT:
-                return
             # - for TLE, the run was aborted because the global timeout expired
             if result.verdict == 'TIME_LIMIT_EXCEEDED' and not result.timeout_expired:
                 return
-
-            bar.count = None
-            p.abort()
 
         p = parallel.new_queue(lambda run: process_run(run, p), pin=True)
         for run in runs:
@@ -366,6 +367,7 @@ class Submission(program.Program):
         printed_newline = bar.finalize(
             message=f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{Style.RESET_ALL} @ {verdict_run.testcase.name}'
         )
+        print(thoreverdicts.as_tree())
 
         return (self.verdict in self.expected_verdicts, printed_newline)
 

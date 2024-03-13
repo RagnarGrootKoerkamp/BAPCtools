@@ -26,6 +26,7 @@ def to_string(v: Verdict | None):
         None: f'{Fore.BLUE}?{Style.RESET_ALL}',
     }[v]
 
+
 def to_char(v: Verdict | None):
     return {
         Verdict.ACCEPTED: f'{Fore.GREEN}A{Style.RESET_ALL}',
@@ -34,7 +35,6 @@ def to_char(v: Verdict | None):
         Verdict.RUN_TIME_ERROR: f'{Fore.YELLOW}R{Style.RESET_ALL}',
         None: f'{Fore.BLUE}?{Style.RESET_ALL}',
     }[v]
-
 
 
 def from_string(s: str) -> Verdict:
@@ -108,8 +108,8 @@ class Verdicts:
         }
 
     def is_testgroup(self, node) -> bool:
-        """ Is the given testnode name a testgroup (rather than a testcase)?
-            This assumes nonempty testgroups.
+        """Is the given testnode name a testgroup (rather than a testcase)?
+        This assumes nonempty testgroups.
         """
         return node in self.children
 
@@ -183,15 +183,12 @@ class Verdicts:
                 updated_node = self._set_verdict_for_node(parent, self.aggregate(parent))
         return updated_node
 
-    def as_tree(self, show_root=True, max_depth=None) -> str:
+    def as_tree(self, max_depth=None) -> str:
         result = []
         stack = [('.', '', '', True)]
-        root = True
         while stack:
             node, indent, prefix, last = stack.pop()
-            if not root or show_root:
-                result.append(f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self.verdict[node])}")
-            root = False
+            result.append(f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self.verdict[node])}")
             children = sorted(self.children[node], reverse=True)
             pipe = ' ' if last else '│'
             first = True
