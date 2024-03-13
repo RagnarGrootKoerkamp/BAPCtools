@@ -183,13 +183,14 @@ class Verdicts:
                 updated_node = self._set_verdict_for_node(parent, self.aggregate(parent))
         return updated_node
 
-    def as_tree(self, show_root=True, max_depth=None):
+    def as_tree(self, show_root=True, max_depth=None) -> str:
+        result = []
         stack = [('.', '', '', True)]
         root = True
         while stack:
             node, indent, prefix, last = stack.pop()
             if not root or show_root:
-                print(f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self.verdict[node])}")
+                result.append(f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self.verdict[node])}")
             root = False
             children = sorted(self.children[node], reverse=True)
             pipe = ' ' if last else '│'
@@ -206,7 +207,8 @@ class Verdicts:
                     testcases.append(to_char(self.verdict[child]))
             if testcases:
                 edge = '└' if first else '├'
-                print(indent + pipe + ' ' + edge + '─' + ''.join(reversed(testcases)))
+                result.append(indent + pipe + ' ' + edge + '─' + ''.join(reversed(testcases)))
+        return '\n'.join(result)
 
 
 class VerdictTable:
