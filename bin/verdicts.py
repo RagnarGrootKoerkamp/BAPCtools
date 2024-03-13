@@ -16,6 +16,14 @@ class Verdict(Enum):
     TIME_LIMIT_EXCEEDED = 3
     RUN_TIME_ERROR = 4
 
+    def __str__(self):
+        return {
+            Verdict.ACCEPTED: 'ACCEPTED',
+            Verdict.WRONG_ANSWER: 'WRONG ANSWER',
+            Verdict.TIME_LIMIT_EXCEEDED: 'TIME LIMIT EXCEEDED',
+            Verdict.RUN_TIME_ERROR: 'RUNTIME ERROR',
+        }[self]
+
 
 def to_string(v: Verdict | None):
     return {
@@ -94,6 +102,7 @@ class Verdicts:
         testcases = set(testcase_list)
         testgroups: set[str] = set(str(path) for tc in testcases for path in Path(tc).parents)
         self.verdict: dict[str, Verdict | None] = {g: None for g in testcases | testgroups}
+        self.duration: dict[str, int | None] = {g: None for g in testcases}
 
         self.children: dict[str, set[str]] = {node: set() for node in testgroups}
         for node in testcases | testgroups:
@@ -113,7 +122,7 @@ class Verdicts:
         """
         return node in self.children
 
-    def set(self, testcase, verdict: str | Verdict) -> str:
+    def set(self, testcase, verdict: str | Verdict, duration=None) -> str:
         """Set the verdict of the given testcase (implying possibly others)
 
         verdict can be given as a Verdict or as a string using either long or
@@ -126,6 +135,8 @@ class Verdicts:
 
         if isinstance(verdict, str):
             verdict = from_string(verdict)
+        if verdict == Verdict.ACCEPTED and duration is not None:
+            self.duration[testcase] = duration
         return self._set_verdict_for_node(testcase, verdict)
 
     def aggregate(self, testgroup: str) -> Verdict:
