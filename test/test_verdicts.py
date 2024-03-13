@@ -49,4 +49,4 @@ class TestVerdicts:
         verds = verdicts.Verdicts(PATHS)
         verds.set("secret/a/1", WA)
         assert verds.verdict['secret/a'] == WA
-        verds.set("secret/a/2", WA) # should not try to write 'sexret/a' again
+        verds.set("secret/a/2", WA)  # should not try to write 'sexret/a' again
