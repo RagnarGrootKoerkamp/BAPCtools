@@ -16,16 +16,16 @@ class Verdict(Enum):
     TIME_LIMIT_EXCEEDED = 3
     RUN_TIME_ERROR = 4
 
+
 def to_char(v: Verdict | None):
     return {
-            Verdict.ACCEPTED: f'{Fore.GREEN}A{Style.RESET_ALL}',
-            Verdict.WRONG_ANSWER: f'{Fore.RED}W{Style.RESET_ALL}',
-            Verdict.TIME_LIMIT_EXCEEDED: f'{Fore.MAGENTA}T{Style.RESET_ALL}',
-            Verdict.RUN_TIME_ERROR: f'{Fore.YELLOW}R{Style.RESET_ALL}',
-            None: f'{Fore.BLUE}?{Style.RESET_ALL}'
-            }[v]
+        Verdict.ACCEPTED: f'{Fore.GREEN}A{Style.RESET_ALL}',
+        Verdict.WRONG_ANSWER: f'{Fore.RED}W{Style.RESET_ALL}',
+        Verdict.TIME_LIMIT_EXCEEDED: f'{Fore.MAGENTA}T{Style.RESET_ALL}',
+        Verdict.RUN_TIME_ERROR: f'{Fore.YELLOW}R{Style.RESET_ALL}',
+        None: f'{Fore.BLUE}?{Style.RESET_ALL}',
+    }[v]
 
-    
 
 def from_string(s: str) -> Verdict:
     match s:
@@ -160,7 +160,9 @@ class Verdicts:
                 first_error = self.first_error[parent] = testnode
 
             # possibly update verdict at parent and escalate change upward recursively
-            if first_unknown is None or first_error is not None and first_error < first_unknown:
+            if self.verdict[parent] is None and (
+                first_unknown is None or first_error is not None and first_error < first_unknown
+            ):
                 # we can infer the verdict at the parent
                 updated_node = self._set_verdict_for_node(parent, self.aggregate(parent))
         return updated_node
@@ -174,13 +176,19 @@ class Verdicts:
             truncate = 2
             children = sorted(self.children[node], reverse=True)
             if children[0] in self.children:
-                stack.append((children[0], '│ '+indent , '└─', True))
+                stack.append((children[0], '│ ' + indent, '└─', True))
                 for child in children[1:]:
-                    stack.append((child, '│ '+indent , '├─', False))
+                    stack.append((child, '│ ' + indent, '├─', False))
             else:
                 pipe = ' ' if last else '│'
-                line = indent + pipe + ' └─'+ ''.join(to_char(self.verdict[child]) for child in children)
+                line = (
+                    indent
+                    + pipe
+                    + ' └─'
+                    + ''.join(to_char(self.verdict[child]) for child in children)
+                )
                 print(line[truncate:])
+
 
 class VerdictTable:
     colors = {
@@ -380,6 +388,7 @@ class TableProgressBar(ProgressBar):
             self.table._clear(force=True)
             return res
 
-#if __name__ == "__main__":
+
+# if __name__ == "__main__":
 #    import doctest
 #    doctest.testmod()
