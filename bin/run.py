@@ -368,7 +368,7 @@ class Submission(program.Program):
             message=f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{Style.RESET_ALL} @ {verdict_run.testcase.name}'
         )
         if config.args.tree:
-            print(thoreverdicts.as_tree())
+            print(thoreverdicts.as_tree(max_depth=config.args.depth))
 
         return (self.verdict in self.expected_verdicts, printed_newline)
 
