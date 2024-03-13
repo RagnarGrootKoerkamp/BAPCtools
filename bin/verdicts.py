@@ -207,7 +207,7 @@ class Verdicts:
             if testcases:
                 edge = '└' if first else '├'
                 result.append(indent + pipe + ' ' + edge + '─' + ''.join(reversed(testcases)))
-        return '\n'.join(result[int(not show_root):])
+        return '\n'.join(result[int(not show_root) :])
 
 
 class VerdictTable:
