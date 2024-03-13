@@ -6,7 +6,7 @@ import config
 import interactive
 import parallel
 import validate
-import verdicts
+from verdicts import Verdicts, Verdict
 from typing import Type
 
 from util import *
@@ -236,7 +236,7 @@ class Submission(program.Program):
     ):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_item_len = max(len(run.name) for run in runs) + max_submission_name_len - len(self.name)
-        thoreverdicts = verdicts.Verdicts(str(t.name) for t in self.problem.testcases())
+        verdicts = Verdicts(str(t.name) for t in self.problem.testcases())
 
         if verdict_table is not None:
             bar = verdict_table.ProgressBar(
@@ -253,21 +253,13 @@ class Submission(program.Program):
                 needs_leading_newline=needs_leading_newline,
             )
 
-        max_duration = -1
-
-        verdict = (-100, 'ACCEPTED', 'ACCEPTED', 0)  # priority, verdict, print_verdict, duration
-        verdict_run = None
-
         def process_run(run, p):
-            nonlocal max_duration, verdict, verdict_run
-
             # Lazy judging: stop as soon as parental verdicts are known, except if in
             # - verbose mode
             # - table mode
             if not (config.args.verbose or config.args.table):
                 if any(
-                    thoreverdicts.verdict[str(parent)] is not None
-                    for parent in Path(run.name).parents
+                    verdicts.verdict[str(parent)] is not None for parent in Path(run.name).parents
                 ):
                     bar.count = None
                     return
@@ -278,20 +270,9 @@ class Submission(program.Program):
             if result.verdict == 'ACCEPTED' and not self.problem.interactive:
                 validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
 
-            new_verdict = (
-                config.PRIORITY[result.verdict],
-                result.verdict,
-                result.print_verdict(),
-                result.duration,
-            )
-            if new_verdict > verdict:
-                verdict = new_verdict
-                verdict_run = run
-            max_duration = max(max_duration, result.duration)
-
             if verdict_table is not None:
                 verdict_table.finish_testcase(run.name, result.verdict)
-            thoreverdicts.set(run.name, result.verdict)
+            verdicts.set(run.name, result.verdict, duration=result.duration)
 
             got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
 
@@ -334,6 +315,7 @@ class Submission(program.Program):
             localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
             # - for TLE, the run was aborted because the global timeout expired
+            # TODO: What does this mean?
             if result.verdict == 'TIME_LIMIT_EXCEEDED' and not result.timeout_expired:
                 return
 
@@ -342,15 +324,8 @@ class Submission(program.Program):
             p.put(run)
         p.done()
 
-        self.verdict = verdict[1]
-        self.print_verdict = verdict[2]
-        self.duration = max_duration
-
-        # Temporary sanity check: PaleoBAPC and verdicts still compute the
-        # same verdict at the root
-        vragnar, vthore = verdicts.from_string(self.verdict), thoreverdicts.verdict['.']
-        if not vragnar == vthore:
-            error(f"Something is wrong: {vragnar} and {vthore} disagree")
+        self.verdict = verdicts.verdict['.']
+        self.duration = 42
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
@@ -364,11 +339,12 @@ class Submission(program.Program):
             color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
             boldcolor = ''
 
+        max_duration, name = max(tuple(reversed(t)) for t in verdicts.duration.items())
         printed_newline = bar.finalize(
-            message=f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{Style.RESET_ALL} @ {verdict_run.testcase.name}'
+            message=f'{max_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {name}'
         )
         if config.args.tree:
-            print(thoreverdicts.as_tree(max_depth=config.args.depth))
+            print(verdicts.as_tree(max_depth=config.args.depth))
 
         return (self.verdict in self.expected_verdicts, printed_newline)
 
