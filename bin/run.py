@@ -367,7 +367,8 @@ class Submission(program.Program):
         printed_newline = bar.finalize(
             message=f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{Style.RESET_ALL} @ {verdict_run.testcase.name}'
         )
-        print(thoreverdicts.as_tree())
+        if config.args.tree:
+            print(thoreverdicts.as_tree())
 
         return (self.verdict in self.expected_verdicts, printed_newline)
 
