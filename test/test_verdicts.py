@@ -2,7 +2,7 @@ import verdicts
 
 AC = verdicts.Verdict.ACCEPTED
 WA = verdicts.Verdict.WRONG_ANSWER
-PATHS = ["sample/1", "sample/2", "secret/a/1", "secret/a/2", "secret/a/3", "secret/b/1"]
+PATHS = ["sample/1", "sample/2", "secret/a/1", "secret/a/2", "secret/a/3", "secret/b/1", "secret/c"]
 
 
 class TestVerdicts:
@@ -11,6 +11,7 @@ class TestVerdicts:
         assert verds.set("secret/a/1", AC) == "secret/a/1"
         assert verds.set("secret/a/2", AC) == "secret/a/2"
         assert verds.set("secret/a/3", AC) == "secret/a"
+        assert verds.set("secret/c", AC) == "secret/c"
         assert verds.set("secret/b/1", AC) == "secret"
         assert verds.set("sample/1", AC) == "sample/1"
         assert verds.verdict["."] is None
@@ -50,3 +51,4 @@ class TestVerdicts:
         verds.set("secret/a/1", WA)
         assert verds.verdict['secret/a'] == WA
         verds.set("secret/a/2", WA)  # should not try to write 'sexret/a' again
+
