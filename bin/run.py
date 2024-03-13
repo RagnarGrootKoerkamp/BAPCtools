@@ -6,6 +6,7 @@ import config
 import interactive
 import parallel
 import validate
+import verdicts
 from typing import Type
 
 from util import *
@@ -235,6 +236,7 @@ class Submission(program.Program):
     ):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_item_len = max(len(run.name) for run in runs) + max_submission_name_len - len(self.name)
+        thoreverdicts = verdicts.Verdicts(str(t.name) for t in self.problem.testcases())
 
         if verdict_table is not None:
             bar = verdict_table.ProgressBar(
@@ -278,6 +280,7 @@ class Submission(program.Program):
 
             if verdict_table is not None:
                 verdict_table.finish_testcase(run.name, result.verdict)
+            thoreverdicts.set(run.name, result.verdict)
 
             got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
 
@@ -341,6 +344,12 @@ class Submission(program.Program):
         self.verdict = verdict[1]
         self.print_verdict = verdict[2]
         self.duration = max_duration
+
+        # Temporary sanity check: PaleoBAPC and verdicts still compute the
+        # same verdict at the root
+        vragnar, vthore = verdicts.from_string(self.verdict), thoreverdicts.verdict['.']
+        if not vragnar == vthore:
+            error(f"Something is wrong: {vragnar} and {vthore} disagree")
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
