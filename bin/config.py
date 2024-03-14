@@ -5,21 +5,18 @@ from pathlib import Path
 import re
 import os
 import argparse
+from verdicts import Verdict
 
 # return values
 RTV_AC = 42
 RTV_WA = 43
 
-VERDICTS = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']
-# Judging stops as soon as a max priority verdict is found.
-PRIORITY = {
-    'INCONSISTENT_VALIDATORS': -1,
-    'VALIDATOR_CRASH': -1,
-    'ACCEPTED': 0,
-    'WRONG_ANSWER': 90,
-    'TIME_LIMIT_EXCEEDED': 99,
-    'RUN_TIME_ERROR': 99,
-}
+VERDICTS = [
+    Verdict.ACCEPTED,
+    Verdict.WRONG_ANSWER,
+    Verdict.TIME_LIMIT_EXCEEDED,
+    Verdict.RUNTIME_ERROR,
+]
 
 VALIDATION_MODES = ['default', 'custom', 'custom interactive']
 
@@ -32,9 +29,6 @@ KNOWN_LICENSES = [
     'permission',
     'unknown',
 ]
-
-MAX_PRIORITY = max(PRIORITY.values())
-MAX_PRIORITY_VERDICT = [v for v in PRIORITY if PRIORITY[v] == MAX_PRIORITY]
 
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD = 4

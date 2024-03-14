@@ -6,7 +6,7 @@ import config
 import interactive
 import parallel
 import validate
-from verdicts import Verdicts, Verdict
+from verdicts import Verdicts, Verdict, from_string
 from typing import Type
 
 from util import *
@@ -40,14 +40,15 @@ class Run:
             result = interactive.run_interactive_testcase(
                 self, interaction=interaction, submission_args=submission_args
             )
+            # TODO : this is messed up wrt result.verdict being str
         else:
             result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:
-                result.verdict = 'TIME_LIMIT_EXCEEDED'
+                result.verdict = Verdict.TIME_LIMIT_EXCEEDED
                 if result.timeout_expired:
                     result.print_verdict_ = 'TLE (aborted)'
             elif result.status == ExecStatus.ERROR:
-                result.verdict = 'RUN_TIME_ERROR'
+                result.verdict = Verdict.RUNTIME_ERROR
                 if config.args.error:
                     result.err = 'Exited with code ' + str(result.returncode) + ':\n' + result.err
                 else:
@@ -59,17 +60,17 @@ class Run:
                 if result is None:
                     error(f'No output validators found for testcase {self.testcase.name}')
                     result = ExecResult(None, ExecStatus.REJECTED, 0, False, None, None)
-                    result.verdict = 'VALIDATOR_CRASH'
+                    result.verdict = Verdict.VALIDATOR_CRASH
                 else:
                     result.duration = duration
 
                     if result.status:
-                        result.verdict = 'ACCEPTED'
+                        result.verdict = Verdict.ACCEPTED
                     elif result.status == ExecStatus.REJECTED:
-                        result.verdict = 'WRONG_ANSWER'
+                        result.verdict = Verdict.WRONG_ANSWER
                     else:
                         config.n_error += 1
-                        result.verdict = 'VALIDATOR_CRASH'
+                        result.verdict = Verdict.VALIDATOR_CRASH
 
             # Delete .out files larger than 1MB.
             if (
@@ -128,29 +129,33 @@ class Submission(program.Program):
         # interactor exits first. Thus, we don't distinguish the different non-AC
         # verdicts.
         if self.problem.interactive and (is_windows() or is_bsd()):
-            wrong_verdicts = ['WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']
+            wrong_verdicts = [
+                Verdict.WRONG_ANSWER,
+                Verdict.TIME_LIMIT_EXCEEDED,
+                Verdict.RUNTIME_ERROR,
+            ]
             for wrong_verdict in wrong_verdicts:
                 if wrong_verdict in self.expected_verdicts:
                     self.expected_verdicts += wrong_verdicts
                     break
 
-    def _get_expected_verdicts(self):
-        verdicts = []
+    def _get_expected_verdicts(self) -> list[Verdict]:
+        expected_verdicts = []
 
         # Look for '@EXPECTED_RESULTS@: ' in all source files. This should be followed by a comma separated list of the following:
         # - ACCEPTED / CORRECT
         # - WRONG_ANSWER / WRONG-ANSWER / NO-OUTPUT
         # - TIME_LIMIT_EXCEEDED / TIMELIMIT
         # - RUN_TIME_ERROR / RUN-ERROR
-        domjudge_verdict_map = {
-            'CORRECT': 'ACCEPTED',
-            'WRONG-ANSWER': 'WRONG_ANSWER',
-            'TIMELIMIT': 'TIME_LIMIT_EXCEEDED',
-            'RUN-ERROR': 'RUN_TIME_ERROR',
-            'NO-OUTPUT': 'WRONG_ANSWER',
-            'CHECK-MANUALLY': None,
-            'COMPILER-ERROR': None,
-        }
+        domjudge_verdicts = [
+            'CORRECT',
+            'WRONG-ANSWER',
+            'TIMELIMIT',
+            'RUN-ERROR',
+            'NO-OUTPUT',
+            'CHECK-MANUALLY',
+            'COMPILER-ERROR',
+        ]
         # Matching is case insensitive and all source files are checked.
         key = '@EXPECTED_RESULTS@: '
         if self.path.is_file():
@@ -168,16 +173,15 @@ class Submission(program.Program):
                 endpos = text.find('\n', beginpos)
                 arguments = map(str.strip, text[beginpos:endpos].split(','))
                 for arg in arguments:
-                    if arg in domjudge_verdict_map:
-                        arg = domjudge_verdict_map[arg]
-                        if arg is None:
-                            continue
-                    if arg not in config.VERDICTS:
+                    argverd: Verdict = from_string(arg)
+                    if argverd is None:
+                        continue
+                    if argverd not in config.VERDICTS:
                         error(
-                            f'@EXPECTED_RESULTS@: `{arg}` for submission {self.short_path} is not valid'
+                            f'@EXPECTED_RESULTS@: `{argverd}` for submission {self.short_path} is not valid'
                         )
                         continue
-                    verdicts.append(arg)
+                    expected_verdicts.append(argverd)
                 break
             except (UnicodeDecodeError, ValueError):
                 # Skip binary files.
@@ -187,20 +191,18 @@ class Submission(program.Program):
         if len(self.path.parts) >= 3 and self.path.parts[-3] == 'submissions':
             # Submissions in any of config.VERDICTS should not have `@EXPECTED_RESULTS@: `, and vice versa.
             # See https://github.com/DOMjudge/domjudge/issues/1861
-            subdir = self.short_path.parts[0].upper()
+            subdir = from_string(self.short_path.parts[0].upper())
             if subdir in config.VERDICTS:
-                if len(verdicts) != 0:
+                if len(expected_verdicts) != 0:
                     warn(f'@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.')
-                verdicts = [subdir]
+                expected_verdicts = [subdir]
             else:
-                if len(verdicts) == 0:
+                if len(expected_verdicts) == 0:
                     error(
                         f'Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to ACCEPTED.'
                     )
 
-        if len(verdicts) == 0:
-            verdicts = ['ACCEPTED']
-        return verdicts
+        return expected_verdicts or [Verdict.ACCEPTED]
 
     # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
     # args is used by SubmissionInvocation to pass on additional arguments.
@@ -265,7 +267,7 @@ class Submission(program.Program):
             localbar = bar.start(run)
             result = run.run(localbar)
 
-            if result.verdict == 'ACCEPTED' and not self.problem.interactive:
+            if result.verdict == Verdict.ACCEPTED and not self.problem.interactive:
                 validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
 
             if verdict_table is not None:
@@ -273,7 +275,7 @@ class Submission(program.Program):
             verdicts[run.name] = result.verdict
             verdicts.duration[run.name] = result.duration
 
-            got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
+            got_expected = result.verdict in [Verdict.ACCEPTED] + self.expected_verdicts
 
             # Print stderr whenever something is printed
             if result.out and result.err:
@@ -315,7 +317,7 @@ class Submission(program.Program):
 
             # - for TLE, the run was aborted because the global timeout expired
             # TODO: What does this mean?
-            if result.verdict == 'TIME_LIMIT_EXCEEDED' and not result.timeout_expired:
+            if result.verdict == Verdict.TIME_LIMIT_EXCEEDED and not result.timeout_expired:
                 return
 
         p = parallel.new_queue(lambda run: process_run(run, p), pin=True)
@@ -324,7 +326,7 @@ class Submission(program.Program):
         p.done()
 
         self.verdict = verdicts['.']
-        self.duration = 42
+        self.duration = 42  # TODO this is messed up
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
@@ -408,7 +410,7 @@ class Submission(program.Program):
                 result = interactive.run_interactive_testcase(
                     run, interaction=True, validator_error=None, team_error=None
                 )
-                if result.verdict != 'ACCEPTED':
+                if result.verdict != Verdict.ACCEPTED:
                     config.n_error += 1
                     print(
                         f'{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
