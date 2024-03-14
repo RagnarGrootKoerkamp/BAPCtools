@@ -14,14 +14,15 @@ class Verdict(Enum):
     ACCEPTED = 1
     WRONG_ANSWER = 2
     TIME_LIMIT_EXCEEDED = 3
-    RUN_TIME_ERROR = 4
+    RUNTIME_ERROR = 4
+    VALIDATOR_CRASH = 5
 
     def __str__(self):
         return {
             Verdict.ACCEPTED: 'ACCEPTED',
             Verdict.WRONG_ANSWER: 'WRONG ANSWER',
             Verdict.TIME_LIMIT_EXCEEDED: 'TIME LIMIT EXCEEDED',
-            Verdict.RUN_TIME_ERROR: 'RUNTIME ERROR',
+            Verdict.RUNTIME_ERROR: 'RUNTIME ERROR',
         }[self]
 
 
@@ -30,7 +31,7 @@ def to_string(v: Verdict | None):
         Verdict.ACCEPTED: f'{Fore.GREEN}ACCEPTED{Style.RESET_ALL}',
         Verdict.WRONG_ANSWER: f'{Fore.RED}WRONG ANSWER{Style.RESET_ALL}',
         Verdict.TIME_LIMIT_EXCEEDED: f'{Fore.MAGENTA}TIME LIMIT EXCEEDED{Style.RESET_ALL}',
-        Verdict.RUN_TIME_ERROR: f'{Fore.YELLOW}RUNTIME ERROR{Style.RESET_ALL}',
+        Verdict.RUNTIME_ERROR: f'{Fore.YELLOW}RUNTIME ERROR{Style.RESET_ALL}',
         None: f'{Fore.BLUE}?{Style.RESET_ALL}',
     }[v]
 
@@ -40,21 +41,25 @@ def to_char(v: Verdict | None):
         Verdict.ACCEPTED: f'{Fore.GREEN}A{Style.RESET_ALL}',
         Verdict.WRONG_ANSWER: f'{Fore.RED}W{Style.RESET_ALL}',
         Verdict.TIME_LIMIT_EXCEEDED: f'{Fore.MAGENTA}T{Style.RESET_ALL}',
-        Verdict.RUN_TIME_ERROR: f'{Fore.YELLOW}R{Style.RESET_ALL}',
+        Verdict.RUNTIME_ERROR: f'{Fore.YELLOW}R{Style.RESET_ALL}',
         None: f'{Fore.BLUE}?{Style.RESET_ALL}',
     }[v]
 
 
 def from_string(s: str) -> Verdict:
     match s:
-        case 'ACCEPTED' | 'AC':
+        case 'CORRECT' | 'ACCEPTED' | 'AC':
             return Verdict.ACCEPTED
-        case 'WRONG_ANSWER' | 'WA':
+        case 'WRONG-ANSWER' | 'WRONG_ANSWER' | 'WA':
             return Verdict.WRONG_ANSWER
-        case 'TIME_LIMIT_EXCEEDED' | 'TLE':
+        case 'TIMELIMIT' | 'TIME_LIMIT_EXCEEDED' | 'TLE':
             return Verdict.TIME_LIMIT_EXCEEDED
-        case 'RUN_TIME_ERROR' | 'RTE':
-            return Verdict.RUN_TIME_ERROR
+        case 'RUN-ERROR' | 'RUN_TIME_ERROR' | 'RUNTIME_ERROR' | 'RTE':
+            return Verdict.RUNTIME_ERROR
+        case 'NO-OUTPUT':
+            return Verdict.WRONG_ANSWER
+        case 'CHECK-MANUALLY' | 'COMPILER-ERROR':
+            raise NotImplementedError
         case _:
             raise ValueError(f"Unknown verdict string {s}")
 
@@ -221,7 +226,7 @@ class VerdictTable:
         'ACCEPTED': Fore.GREEN,
         'WRONG_ANSWER': Fore.RED,
         'TIME_LIMIT_EXCEEDED': Fore.MAGENTA,
-        'RUN_TIME_ERROR': Fore.YELLOW,
+        'RUNTIME_ERROR': Fore.YELLOW,
     }
 
     def __init__(
