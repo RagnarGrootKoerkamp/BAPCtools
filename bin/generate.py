@@ -998,7 +998,7 @@ class Directory(Rule):
         assert is_directory(yaml)
 
         # The root Directory object has name ''.
-        if name == '':
+        if name != '':
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
                 raise ParseException(f'Directory does not have a valid name.', parent.path / name)
 
