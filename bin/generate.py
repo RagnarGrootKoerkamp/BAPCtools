@@ -997,14 +997,18 @@ class Directory(Rule):
     def __init__(self, problem, key, name: str, yaml: dict = None, parent=None):
         assert is_directory(yaml)
 
+        # The root Directory object has name ''.
+        if name == '':
+            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
+                raise ParseException(f'Directory does not have a valid name.', self.path)
+
         super().__init__(problem, key, name, yaml, parent)
 
-        # The root Directory object has name ''.
         if name == '':
             for key in yaml:
                 if key in RESERVED_DIRECTORY_KEYS:
                     raise ParseException(
-                        f'Directory must not contain reserved key {key}.', Path("data") / self.path
+                        f'Directory must not contain reserved key {key}.', self.path
                     )
                 if key in DEPRECATED_ROOT_KEYS:
                     message(
@@ -1022,14 +1026,10 @@ class Directory(Rule):
                             color=Fore.GREEN,
                         )
         else:
-            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
-                raise ParseException(
-                    f'Directory does not have a valid name.', Path("data") / self.path
-                )
             for key in yaml:
                 if key in RESERVED_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
                     raise ParseException(
-                        f'Directory must not contain reserved key {key}.', Path("data") / self.path
+                        f'Directory must not contain reserved key {key}.', self.path
                     )
                 if key not in KNOWN_DIRECTORY_KEYS:
                     if config.args.action == 'generate':
@@ -1076,12 +1076,12 @@ class Directory(Rule):
                     if 'in' in d or 'ans' in d or 'copy' in d:
                         raise ParseException(
                             'Dictionary must contain exactly one named testcase/group.\nTo specify hardcoded in/ans/copy, indent one more level.',
-                            Path("data") / self.path,
+                            self.path,
                         )
                     else:
                         raise ParseException(
                             'Dictionary must contain exactly one named testcase/group.',
-                            Path("data") / self.path,
+                            self.path,
                         )
 
     # Map a function over all test cases directory tree.
@@ -1503,7 +1503,7 @@ class GeneratorConfig:
                             if not child_name():
                                 raise ParseException(
                                     'Unnumbered testcases must not have an empty key',
-                                    Path("data") / d.path,
+                                    d.path,
                                 )
                         c = parse(child_key, child_name, child_yaml, d)
                         if isinstance(c, list):
