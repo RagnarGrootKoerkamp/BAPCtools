@@ -147,8 +147,6 @@ class Fuzz:
         # GENERATOR INVOCATIONS
         generator_config = generate.GeneratorConfig(self.problem)
         self.testcase_rules = []
-        if not generator_config.ok:
-            return
 
         # Filter to only keep valid rules depending on seed without duplicates from count
         def add_testcase(t):
