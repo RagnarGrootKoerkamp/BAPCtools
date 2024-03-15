@@ -1000,7 +1000,7 @@ class Directory(Rule):
         # The root Directory object has name ''.
         if name == '':
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
-                raise ParseException(f'Directory does not have a valid name.', self.path)
+                raise ParseException(f'Directory does not have a valid name.', parent.path / name)
 
         super().__init__(problem, key, name, yaml, parent)
 
