@@ -38,7 +38,7 @@ def to_string(v: Verdict | None):
     }[v]
 
 
-def to_char(v: Verdict | None):
+def to_char(v: Verdict | None, lower=False):
     return {
         Verdict.ACCEPTED: f'{Fore.GREEN}A{Style.RESET_ALL}',
         Verdict.WRONG_ANSWER: f'{Fore.RED}W{Style.RESET_ALL}',
@@ -249,7 +249,7 @@ class Verdicts:
 
 
 class VerdictTable:
-    colors = {#todo fix me
+    colors = {  # todo fix me
         Verdict.ACCEPTED: Fore.GREEN,
         Verdict.WRONG_ANSWER: Fore.RED,
         Verdict.TIME_LIMIT_EXCEEDED: Fore.MAGENTA,
