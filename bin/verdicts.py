@@ -249,11 +249,11 @@ class Verdicts:
 
 
 class VerdictTable:
-    colors = {
-        'ACCEPTED': Fore.GREEN,
-        'WRONG_ANSWER': Fore.RED,
-        'TIME_LIMIT_EXCEEDED': Fore.MAGENTA,
-        'RUNTIME_ERROR': Fore.YELLOW,
+    colors = {#todo fix me
+        Verdict.ACCEPTED: Fore.GREEN,
+        Verdict.WRONG_ANSWER: Fore.RED,
+        Verdict.TIME_LIMIT_EXCEEDED: Fore.MAGENTA,
+        Verdict.RUNTIME_ERROR: Fore.YELLOW,
     }
 
     def __init__(
@@ -352,7 +352,7 @@ class VerdictTable:
             if testcase in self.results[s]:
                 v = self.results[s][testcase]
                 res = VerdictTable.colors[v]
-                res += v[0].lower() if testcase in self.samples else v[0].upper()
+                res += str(v)[0].lower() if testcase in self.samples else str(v)[0].upper()
             elif s + 1 == len(self.results) and testcase in self.current_testcases:
                 res = Style.DIM + Fore.BLUE + '?'
         return res + Style.RESET_ALL
