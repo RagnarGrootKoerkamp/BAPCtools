@@ -459,7 +459,7 @@ class Problem:
                 subs += submissions[x]
             return subs
         if accepted_only:
-            return maybe_copy(submissions['ACCEPTED'])
+            return maybe_copy(submissions[verdicts.Verdict.ACCEPTED])
         return maybe_copy(submissions)
 
     def validators(
@@ -620,8 +620,8 @@ class Problem:
             color = Style.RESET_ALL
             char = '-'
             if testcase.name in row:
-                char = row[testcase.name][0]
-                if row[testcase.name] == 'ACCEPTED':
+                char = str(row[testcase.name])[0]
+                if row[testcase.name] == verdicts.Verdict.ACCEPTED:
                     color = Fore.GREEN
                 else:
                     color = Fore.RED
@@ -645,10 +645,10 @@ class Problem:
         for dct in verdict_table:
             failures = 0
             for t in dct:
-                if dct[t] != 'ACCEPTED':
+                if dct[t] != verdicts.Verdict.ACCEPTED:
                     failures += 1
             for t in dct:
-                if dct[t] != 'ACCEPTED':
+                if dct[t] != verdicts.Verdict.ACCEPTED:
                     scores[t] += 1.0 / failures
         scores_list = sorted(scores.values())
 
@@ -666,7 +666,8 @@ class Problem:
             # Skip all AC testcases
             if all(
                 map(
-                    lambda row: testcase.name in row and row[testcase.name] == 'ACCEPTED',
+                    lambda row: testcase.name in row
+                    and row[testcase.name] == verdicts.Verdict.ACCEPTED,
                     verdict_table,
                 )
             ):
