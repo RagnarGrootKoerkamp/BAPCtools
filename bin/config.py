@@ -16,6 +16,7 @@ VERDICTS = [
     Verdict.WRONG_ANSWER,
     Verdict.TIME_LIMIT_EXCEEDED,
     Verdict.RUNTIME_ERROR,
+    Verdict.COMPILER_ERROR,
 ]
 
 VALIDATION_MODES = ['default', 'custom', 'custom interactive']

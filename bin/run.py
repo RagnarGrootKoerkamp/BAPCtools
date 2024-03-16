@@ -153,7 +153,7 @@ class Submission(program.Program):
             'TIMELIMIT',
             'RUN-ERROR',
             'NO-OUTPUT',
-            'CHECK-MANUALLY',
+            #'CHECK-MANUALLY', TODO this is *not* supported, shouldn't pretend it is
             'COMPILER-ERROR',
         ]
         # Matching is case insensitive and all source files are checked.
