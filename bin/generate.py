@@ -9,7 +9,6 @@ import shutil
 import secrets
 
 from pathlib import Path, PurePosixPath, PurePath
-from colorama import Fore, Style
 
 import config
 import inspect
@@ -257,7 +256,7 @@ def default_solution_path(generator_config):
                 f'''Prefer setting the default solution permanently:
 solution: /{solution.relative_to(problem.path)}''',
                 'generators.yaml',
-                color=Fore.GREEN,
+                color_type=MessageType.LOG,
             )
     else:
         # Use one of the accepted submissions.
@@ -274,7 +273,7 @@ solution: /{solution.relative_to(problem.path)}''',
 Set the default solution permanently:
 solution: /{solution.relative_to(problem.path)}''',
                 'generators.yaml',
-                color=Fore.YELLOW,
+                color_type=MessageType.WARN,
             )
         else:
             # if the generators.yaml is not used we can be friendly
@@ -440,7 +439,7 @@ class TestcaseRule(Rule):
                 "Testcase names should not end with '.in'",
                 'generators.yaml',
                 parent.path / name,
-                color=Fore.RED,
+                color_type=MessageType.ERROR,
             )
             name = name[:-3]
 
@@ -452,7 +451,7 @@ class TestcaseRule(Rule):
             message(
                 'bad is deprecated. Use {invalid_inputs,invalid_answers} instead.',
                 self.path,
-                color=Fore.YELLOW,
+                color_type=MessageType.WARN,
             )
 
         if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
@@ -480,7 +479,7 @@ class TestcaseRule(Rule):
                             f"Use the new `copy: path/to/case` key instead of {yaml['generate']}.",
                             'generators.yaml',
                             self.path,
-                            color=Fore.YELLOW,
+                            color_type=MessageType.WARN,
                         )
                         yaml = {'copy': yaml['generate'][:-3]}
 
@@ -522,7 +521,7 @@ class TestcaseRule(Rule):
                             f"`copy: {yaml['copy']}` should not include the extension.",
                             'generators.yaml',
                             self.path,
-                            color=Fore.YELLOW,
+                            color_type=MessageType.WARN,
                         )
                     self.copy = resolve_path(
                         yaml['copy'], allow_absolute=False, allow_relative=True
@@ -561,7 +560,7 @@ class TestcaseRule(Rule):
                             f'Unknown testcase level key: {key}',
                             'generators.yaml',
                             self.path,
-                            color=Fore.GREEN,
+                            color_type=MessageType.LOG,
                         )
 
             if not '.in' in hashes:
@@ -1023,7 +1022,7 @@ class Directory(Rule):
                         f'Dreprecated root level key: {key}, ignored',
                         'generators.yaml',
                         self.path,
-                        color=Fore.YELLOW,
+                        color_type=MessageType.WARN,
                     )
                 elif key not in KNOWN_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
                     if config.args.action == 'generate':
@@ -1031,7 +1030,7 @@ class Directory(Rule):
                             f'Unknown root level key: {key}',
                             'generators.yaml',
                             self.path,
-                            color=Fore.GREEN,
+                            color_type=MessageType.LOG,
                         )
         else:
             for key in yaml:
@@ -1045,7 +1044,7 @@ class Directory(Rule):
                             f'Unknown directory level key: {key}',
                             'generators.yaml',
                             self.path,
-                            color=Fore.GREEN,
+                            color_type=MessageType.LOG,
                         )
 
         if 'testdata.yaml' in yaml:
@@ -1297,7 +1296,7 @@ class GeneratorConfig:
             self.parse_yaml(yaml)
         except ParseException as e:
             # Handle fatal parse errors
-            message(e.message, 'generators.yaml', e.path, color=Fore.RED)
+            message(e.message, 'generators.yaml', e.path, color_type=MessageType.ERROR)
             exit()
 
     # testcase_short_path: secret/1.in
@@ -1340,7 +1339,7 @@ class GeneratorConfig:
                     f'Included key {name} exists more than once as {key[1][0].path} and {key[1][1].path}.',
                     'generators.yaml',
                     obj.path,
-                    color=Fore.RED,
+                    color_type=MessageType.ERROR,
                 )
 
         num_numbered_testcases = 0
@@ -1356,7 +1355,7 @@ class GeneratorConfig:
                         f'Found count: {count}, increased to 1.',
                         'generators.yaml',
                         warn_for,
-                        color=Fore.YELLOW,
+                        color_type=MessageType.WARN,
                     )
                 return 1
             if count > 100:
@@ -1365,7 +1364,7 @@ class GeneratorConfig:
                         f'Found count: {count}, limited to 100.',
                         'generators.yaml',
                         warn_for,
-                        color=Fore.YELLOW,
+                        color_type=MessageType.WARN,
                     )
                 return 100
             return count
@@ -1425,7 +1424,7 @@ class GeneratorConfig:
                             f'was already parsed. Skipping.',
                             'generators.yaml',
                             t.path,
-                            color=Fore.RED,
+                            color_type=MessageType.ERROR,
                         )
                         continue
 
@@ -1525,14 +1524,14 @@ class GeneratorConfig:
                                 f'conflict with included case {target}.',
                                 'generators.yaml',
                                 p,
-                                color=Fore.RED,
+                                color_type=MessageType.ERROR,
                             )
                         else:
                             message(
                                 f'included with multiple targets {target} and {self.known_cases[p].path}.',
                                 'generators.yaml',
                                 p,
-                                color=Fore.RED,
+                                color_type=MessageType.ERROR,
                             )
                     return
                 self.known_cases[p] = t
@@ -1548,7 +1547,7 @@ class GeneratorConfig:
                             f'Include {include} should be a testcase/testgroup key, not a path.',
                             'generators.yaml',
                             d.path,
-                            color=Fore.RED,
+                            color_type=MessageType.ERROR,
                         )
                         continue
 
@@ -1559,7 +1558,7 @@ class GeneratorConfig:
                                 f'Included key {include} exists more than once.',
                                 'generators.yaml',
                                 d.path,
-                                color=Fore.RED,
+                                color_type=MessageType.ERROR,
                             )
                             continue
 
@@ -1578,7 +1577,7 @@ class GeneratorConfig:
                             f'Unknown include key {include} does not refer to a previous testcase.',
                             'generators.yaml',
                             d.path,
-                            color=Fore.RED,
+                            color_type=MessageType.ERROR,
                         )
                         continue
             return d

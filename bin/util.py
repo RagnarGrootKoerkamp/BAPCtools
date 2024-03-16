@@ -109,15 +109,28 @@ def fatal(msg, *, force=threading.active_count() > 1):
     exit(force)
 
 
-def message(msg, task=None, item=None, *, color=''):
+class MessageType(Enum):
+    LOG = 1
+    WARN = 2
+    ERROR = 3
+
+    def __str__(self):
+        return {
+            MessageType.LOG: str(Fore.GREEN),
+            MessageType.WARN: str(Fore.YELLOW),
+            MessageType.ERROR: str(Fore.RED),
+        }[self]
+
+
+def message(msg, task=None, item=None, *, color_type=''):
     if task is not None:
         print(f'{Fore.CYAN}{task}: {Style.RESET_ALL}', end='', file=sys.stderr)
     if item is not None:
         print(item, end='   ', file=sys.stderr)
-    print(f'{color}{msg}{Style.RESET_ALL}', file=sys.stderr)
-    if color == Fore.YELLOW:
+    print(f'{color_type}{msg}{Style.RESET_ALL}', file=sys.stderr)
+    if color_type == MessageType.WARN:
         config.n_warn += 1
-    if color == Fore.RED:
+    if color_type == MessageType.ERROR:
         config.n_error += 1
 
 
