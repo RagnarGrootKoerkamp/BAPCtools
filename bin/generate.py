@@ -254,7 +254,7 @@ def default_solution_path(generator_config):
         solution = problem.path / config.args.default_solution
         if generator_config.has_yaml:
             message(
-                f'''Prefer setting the default solution in permanently:
+                f'''Prefer setting the default solution permanently:
 solution: /{solution.relative_to(problem.path)}''',
                 'generators.yaml',
                 color=Fore.GREEN,
