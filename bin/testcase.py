@@ -101,16 +101,6 @@ class Testcase:
         if self.root == 'bad':
             warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
             self.root = 'invalid_inputs' if self.ans_path.is_file() else 'invalid_answers'
-        if self.root not in [
-            'invalid_inputs',
-            'invalid_answers',
-            'invalid_outputs',
-            'secret',
-            'sample',
-            'test',
-            'fuzz',
-        ]:
-            raise ValueError(self.root)
 
     def __repr__(self):
         return self.name
