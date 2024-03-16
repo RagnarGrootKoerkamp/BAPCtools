@@ -132,6 +132,12 @@ class Verdicts:
         """
         return node in self.children
 
+    def is_testcase(self, node) -> bool:
+        """Is the given testnode name a testcase (rather than a testgroup)?
+        This assumes nonempty testgroups.
+        """
+        return node not in self.children
+
     def __setitem__(self, testcase, verdict: str | Verdict, duration=None):
         """Set the verdict of the given testcase (implying possibly others)
 
@@ -147,6 +153,22 @@ class Verdicts:
 
     def __getitem__(self, testnode) -> Verdict | None:
         return self._verdict[testnode]
+
+    def salient_testcase(self) -> str:
+        """The testcase most salient to the root verdict. If self['.'] this is the
+        slowest testcase. Otherwise it is the lexicographically first testcase that
+        was rejected."""
+        match self['.']:
+            case None:
+                raise ValueError("Salient testcase called before submission verdict determined")
+            case Verdict.ACCEPTED:
+                return max((v, k) for k, v in self.duration.items())[1]
+            case _:
+                return min(
+                    (k, v)
+                    for k, v in self._verdict.items()
+                    if self.is_testcase(k) and v is not Verdict.ACCEPTED
+                )[0]
 
     def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.
