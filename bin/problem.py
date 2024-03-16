@@ -617,15 +617,10 @@ class Problem:
     def _print_table(verdict_table, testcases, submission):
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
         def single_verdict(row, testcase):
-            color = Style.RESET_ALL
-            char = '-'
             if testcase.name in row:
-                char = str(row[testcase.name])[0]
-                if row[testcase.name] == verdicts.Verdict.ACCEPTED:
-                    color = Fore.GREEN
-                else:
-                    color = Fore.RED
-            return color + char + Style.RESET_ALL
+                return verdicts.to_char(row[testcase.name])
+            else:
+                return f'{Style.DIM}-{Style.RESET_ALL}'
 
         make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, tc), verdict_table))
         resultant_count, resultant_id = dict(), dict()
@@ -657,8 +652,16 @@ class Problem:
             'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.',
             file=sys.stderr,
         )
-        print(f'{Fore.RED}#{Style.RESET_ALL}: submission fails testcase', file=sys.stderr)
-        print(f'{Fore.GREEN}#{Style.RESET_ALL}: submission passes testcase\n', file=sys.stderr)
+        fail = (
+            verdicts.to_char(verdicts.Verdict.WRONG_ANSWER)
+            + verdicts.to_char(verdicts.Verdict.TIME_LIMIT_EXCEEDED)
+            + verdicts.to_char(verdicts.Verdict.RUNTIME_ERROR)
+        )
+        print(f'{fail}: submission fails testcase', file=sys.stderr)
+        print(
+            f'{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n',
+            file=sys.stderr,
+        )
 
         name_col_width = min(50, max([len(testcase.name) for testcase in testcases]))
 
