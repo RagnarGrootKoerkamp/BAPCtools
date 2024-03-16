@@ -448,6 +448,12 @@ class TestcaseRule(Rule):
 
         # root in /data
         self.root = self.path.parts[0]
+        if self.root == 'bad':
+            message(
+                'bad is deprecated. Use {invalid_inputs,invalid_answers} instead.',
+                self.path,
+                color=Fore.YELLOW,
+            )
 
         if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
             raise ParseException('Testcase does not have a valid name.')
