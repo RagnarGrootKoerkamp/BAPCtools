@@ -828,10 +828,7 @@ def run_parsed_arguments(args):
         return
 
     if action == 'samplezip':
-        # Add contest PDF for only one language to the zip file
-        statement_language = force_single_language(problems)
-
-        export.build_samples_zip(problems, statement_language)
+        export.build_samples_zip(problems)
         return
 
     if action == 'rename_problem':
@@ -926,11 +923,10 @@ def run_parsed_arguments(args):
                 config.args = old_args
 
                 if not config.args.kattis:
+                    # Make sure that all problems use the same language for the PDFs
+                    export.force_single_language(problems)
+
                     success &= latex.build_problem_pdfs(problem)
-                    # Add problem PDF for only one language to the zip file
-                    statement_language = force_single_language(problems)
-                else:
-                    statement_language = None
 
                 if not config.args.force:
                     success &= problem.validate_data(validate.Mode.INPUT, constraints={})
@@ -938,7 +934,7 @@ def run_parsed_arguments(args):
 
                 # Write to problemname.zip, where we strip all non-alphanumeric from the
                 # problem directory name.
-                success &= export.build_problem_zip(problem, output, statement_language)
+                success &= export.build_problem_zip(problem, output)
 
         if len(problems) > 1:
             print(file=sys.stderr)
@@ -988,17 +984,6 @@ def run_parsed_arguments(args):
 
     if not success or config.n_error > 0 or config.n_warn > 0:
         sys.exit(1)
-
-
-def force_single_language(problems):
-    if config.args.language:
-        statement_language = config.args.language
-    else:
-        all_languages = set.union(*(set(p.statement_languages) for p in problems))
-        if len(all_languages) > 1:
-            fatal('Multiple languages found, please specify one with --language')
-        statement_language = all_languages.pop()
-    return statement_language
 
 
 def read_personal_config():

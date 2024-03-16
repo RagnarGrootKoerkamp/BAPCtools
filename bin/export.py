@@ -36,6 +36,17 @@ def fix_problem_yaml_name(problem):
     return revert
 
 
+def force_single_language(problems):
+    if config.args.language:
+        statement_language = config.args.language
+    else:
+        all_languages = set.union(*(set(p.statement_languages) for p in problems))
+        if len(all_languages) > 1:
+            fatal('Multiple languages found, please specify one with --language')
+        statement_language = all_languages.pop()
+    return statement_language
+
+
 # Write any .lang.pdf files to .pdf.
 def remove_language_suffix(fname, statement_language):
     if not statement_language:
@@ -46,7 +57,10 @@ def remove_language_suffix(fname, statement_language):
     return out
 
 
-def build_samples_zip(problems, statement_language):
+def build_samples_zip(problems):
+    # Add contest PDF for only one language to the zip file
+    statement_language = force_single_language(problems)
+
     zf = zipfile.ZipFile(
         'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False
     )
@@ -101,8 +115,11 @@ def build_samples_zip(problems, statement_language):
     print("Wrote zip to samples.zip", file=sys.stderr)
 
 
-def build_problem_zip(problem, output, statement_language):
+def build_problem_zip(problem, output):
     """Make DOMjudge ZIP file for specified problem."""
+
+    # Add problem PDF for only one language to the zip file (note that Kattis export does not include PDF)
+    statement_language = None if config.args.kattis else force_single_language([problem])
 
     deprecated = [  # may be removed at some point.
         'domjudge-problem.ini',
@@ -335,25 +352,23 @@ def update_problems_yaml(problems, colors=None):
     path = Path('problems.yaml')
     data = path.is_file() and read_yaml(path) or []
 
+    # DOMjudge does not yet support multilingual problems.yaml files.
+    statement_language = force_single_language(problems)
+
     change = False
     for problem in problems:
         found = False
 
-        default_language = (
-            'en'
-            if 'en' in problem.statement_languages
-            else next(iter(problem.statement_languages), None)
-        )
-        problem_name = (
-            problem.settings.name and default_language and problem.settings.name[default_language]
-        )
+        problem_name = problem.settings.name
+        if isinstance(problem_name, dict):
+            problem_name = problem_name[statement_language]
 
         for d in data:
             if d['id'] == problem.name:
                 found = True
                 if problem_name != d.get('name'):
                     change = True
-                    d['name'] = problem.settings.name
+                    d['name'] = problem_name
 
                 if 'rgb' not in d:
                     change = True
