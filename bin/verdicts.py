@@ -16,6 +16,7 @@ class Verdict(Enum):
     TIME_LIMIT_EXCEEDED = 3
     RUNTIME_ERROR = 4
     VALIDATOR_CRASH = 5
+    COMPILER_ERROR = 5
 
     def __str__(self):
         return {
@@ -23,6 +24,7 @@ class Verdict(Enum):
             Verdict.WRONG_ANSWER: 'WRONG ANSWER',
             Verdict.TIME_LIMIT_EXCEEDED: 'TIME LIMIT EXCEEDED',
             Verdict.RUNTIME_ERROR: 'RUNTIME ERROR',
+            Verdict.COMPILER_ERROR: 'COMPILER ERROR',
         }[self]
 
 
@@ -58,10 +60,13 @@ def from_string(s: str) -> Verdict:
             return Verdict.RUNTIME_ERROR
         case 'NO-OUTPUT':
             return Verdict.WRONG_ANSWER
-        case 'CHECK-MANUALLY' | 'COMPILER-ERROR':
+        case 'COMPILER-ERROR':
+            return Verdict.COMPILER_ERROR
+        case 'CHECK-MANUALLY':
             raise NotImplementedError
         case _:
-            raise ValueError(f"Unknown verdict string {s}")
+            return None
+            # raise ValueError(f"Unknown verdict string {s}")
 
 
 class Verdicts:
