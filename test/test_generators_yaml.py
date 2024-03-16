@@ -21,7 +21,6 @@ class MockProblem:
 class MockGeneratorConfig(generate.GeneratorConfig):
     def __init__(self, problem, restriction=None):
         self.problem = problem
-        self.ok = True
         self.n_parse_error = 0
 
         # A map of paths `secret/testgroup/testcase` to their canonical TestcaseRule.
@@ -55,8 +54,8 @@ class TestGeneratorConfig:
         ),
     )
     def test_bad_generators_yamls(self, yamldoc):
-        with pytest.raises(SystemExit) as e:
+        with pytest.raises(generate.ParseException) as e:
             gen_config = MockGeneratorConfig(MockProblem())
             gen_config.parse_yaml(yamldoc)
             if gen_config.n_parse_error > 0:
-                raise SystemExit
+                raise generate.ParseException()

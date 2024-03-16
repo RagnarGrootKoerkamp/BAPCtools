@@ -60,7 +60,7 @@ class Testcase:
 
     """
 
-    def __init__(self, base_problem, path: Path, *, short_path=None):
+    def __init__(self, base_problem, path: Path, *, short_path=None, print_warn=False):
         """
         Arguments
         ---------
@@ -99,18 +99,9 @@ class Testcase:
 
         # Backwards compatibility support for `data/bad`.
         if self.root == 'bad':
-            warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
-            self.root = 'invalid_inputs' if self.ans_path.is_file() else 'invalid_answers'
-        if self.root not in [
-            'invalid_inputs',
-            'invalid_answers',
-            'invalid_outputs',
-            'secret',
-            'sample',
-            'test',
-            'fuzz',
-        ]:
-            raise ValueError(self.root)
+            if print_warn:
+                warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
+            self.root = 'invalid_answers' if self.ans_path.is_file() else 'invalid_inputs'
 
     def __repr__(self):
         return self.name

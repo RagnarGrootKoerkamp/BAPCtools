@@ -67,6 +67,16 @@ if not is_windows():
     import resource
 
 
+def exit(force=False):
+    if force:
+        sys.stderr.close()
+        sys.stdout.close()
+        # exit even more forcefully to ensure that daemon threads dont break something
+        os._exit(1)
+    else:
+        sys.exit(1)
+
+
 def debug(*msg):
     print(Fore.CYAN, end='', file=sys.stderr)
     print('DEBUG:', *msg, end='', file=sys.stderr)
@@ -96,13 +106,32 @@ def error(msg):
 
 def fatal(msg, *, force=threading.active_count() > 1):
     print(f'\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
-    if force:
-        sys.stderr.close()
-        sys.stdout.close()
-        # exit even more forcefully to ensure that daemon threads dont break something
-        os._exit(1)
-    else:
-        sys.exit(1)
+    exit(force)
+
+
+class MessageType(Enum):
+    LOG = 1
+    WARN = 2
+    ERROR = 3
+
+    def __str__(self):
+        return {
+            MessageType.LOG: str(Fore.GREEN),
+            MessageType.WARN: str(Fore.YELLOW),
+            MessageType.ERROR: str(Fore.RED),
+        }[self]
+
+
+def message(msg, task=None, item=None, *, color_type=''):
+    if task is not None:
+        print(f'{Fore.CYAN}{task}: {Style.RESET_ALL}', end='', file=sys.stderr)
+    if item is not None:
+        print(item, end='   ', file=sys.stderr)
+    print(f'{color_type}{msg}{Style.RESET_ALL}', file=sys.stderr)
+    if color_type == MessageType.WARN:
+        config.n_warn += 1
+    if color_type == MessageType.ERROR:
+        config.n_error += 1
 
 
 # A class that draws a progressbar.
@@ -715,7 +744,8 @@ def parse_yaml(data, path=None, plain=False):
             import yaml
 
             return yaml.safe_load(data)
-        except Exception:
+        except Exception as e:
+            print(f'{Fore.YELLOW}{e}{Style.RESET_ALL}', end='', file=sys.stderr)
             fatal(f'Failed to parse {path}.')
 
 

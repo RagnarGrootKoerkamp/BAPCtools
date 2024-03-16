@@ -291,7 +291,7 @@ class Problem:
 
         testcases = []
         for f in in_paths:
-            t = testcase.Testcase(p, f)
+            t = testcase.Testcase(p, f, print_warn=True)
             if (
                 p.interactive
                 and mode == validate.Mode.INVALID
