@@ -401,7 +401,6 @@ class Rule:
 class TestcaseRule(Rule):
     def __init__(self, problem, generator_config, key, name: str, yaml, parent, count_index):
         assert is_testcase(yaml)
-        assert config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in')
 
         # if not None rule will be skipped during generation
         self.parse_error = None
@@ -449,6 +448,9 @@ class TestcaseRule(Rule):
 
         # root in /data
         self.root = self.path.parts[0]
+
+        if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
+            raise ParseException('Testcase does not have a valid name.')
 
         try:
             # files to consider for hashing
@@ -998,7 +1000,7 @@ class Directory(Rule):
         assert is_directory(yaml)
 
         # The root Directory object has name ''.
-        if name != '':
+        if not isinstance(parent, RootDirectory):
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
                 raise ParseException(f'Directory does not have a valid name.', parent.path / name)
 
@@ -1395,16 +1397,10 @@ class GeneratorConfig:
                 raise ParseException(f'not parsed as a testcase or directory.', parent.path / name)
 
             if is_testcase(yaml):
-                count = parse_count(yaml, parent.path / name)
+                if isinstance(parent, RootDirectory):
+                    raise ParseException(f'Testcase must be inside Directory', name)
 
-                if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + '.in'):
-                    message(
-                        f'Testcase has an invalid name.',
-                        'generators.yaml',
-                        f'{parent.path}/{name}.in',
-                        color=Fore.RED,
-                    )
-                    return None
+                count = parse_count(yaml, parent.path / name)
 
                 ts = []
                 for count_index in range(count):
