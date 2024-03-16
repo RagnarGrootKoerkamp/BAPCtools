@@ -16,7 +16,7 @@ class Verdict(Enum):
     TIME_LIMIT_EXCEEDED = 3
     RUNTIME_ERROR = 4
     VALIDATOR_CRASH = 5
-    COMPILER_ERROR = 5
+    COMPILER_ERROR = 6
 
     def __str__(self):
         return {
@@ -24,28 +24,34 @@ class Verdict(Enum):
             Verdict.WRONG_ANSWER: 'WRONG ANSWER',
             Verdict.TIME_LIMIT_EXCEEDED: 'TIME LIMIT EXCEEDED',
             Verdict.RUNTIME_ERROR: 'RUNTIME ERROR',
+            Verdict.VALIDATOR_CRASH: 'VALIDATOR CRASH',
             Verdict.COMPILER_ERROR: 'COMPILER ERROR',
         }[self]
 
-
-def to_string(v: Verdict | None):
-    return {
-        Verdict.ACCEPTED: f'{Fore.GREEN}ACCEPTED{Style.RESET_ALL}',
-        Verdict.WRONG_ANSWER: f'{Fore.RED}WRONG ANSWER{Style.RESET_ALL}',
-        Verdict.TIME_LIMIT_EXCEEDED: f'{Fore.MAGENTA}TIME LIMIT EXCEEDED{Style.RESET_ALL}',
-        Verdict.RUNTIME_ERROR: f'{Fore.YELLOW}RUNTIME ERROR{Style.RESET_ALL}',
-        None: f'{Fore.BLUE}?{Style.RESET_ALL}',
-    }[v]
+    def color(self):
+        return {
+            Verdict.ACCEPTED: Fore.GREEN,
+            Verdict.WRONG_ANSWER: Fore.RED,
+            Verdict.TIME_LIMIT_EXCEEDED: Fore.MAGENTA,
+            Verdict.RUNTIME_ERROR: Fore.YELLOW,
+            Verdict.VALIDATOR_CRASH: Fore.RED,
+            Verdict.COMPILER_ERROR: Fore.RED,
+        }[self]
 
 
 def to_char(v: Verdict | None, lower=False):
-    return {
-        Verdict.ACCEPTED: f'{Fore.GREEN}A{Style.RESET_ALL}',
-        Verdict.WRONG_ANSWER: f'{Fore.RED}W{Style.RESET_ALL}',
-        Verdict.TIME_LIMIT_EXCEEDED: f'{Fore.MAGENTA}T{Style.RESET_ALL}',
-        Verdict.RUNTIME_ERROR: f'{Fore.YELLOW}R{Style.RESET_ALL}',
-        None: f'{Fore.BLUE}?{Style.RESET_ALL}',
-    }[v]
+    if v is None:
+        return f'{Fore.BLUE}?{Style.RESET_ALL}'
+    else:
+        char = str(v)[0].lower() if lower else str(v)[0].upper()
+        return f'{v.color()}{char}{Style.RESET_ALL}'
+
+
+def to_string(v: Verdict | None):
+    if v is None:
+        return to_char(v)
+    else:
+        return f'{v.color()}{str(v)}{Style.RESET_ALL}'
 
 
 def from_string(s: str) -> Verdict:
@@ -249,13 +255,6 @@ class Verdicts:
 
 
 class VerdictTable:
-    colors = {  # todo fix me
-        Verdict.ACCEPTED: Fore.GREEN,
-        Verdict.WRONG_ANSWER: Fore.RED,
-        Verdict.TIME_LIMIT_EXCEEDED: Fore.MAGENTA,
-        Verdict.RUNTIME_ERROR: Fore.YELLOW,
-    }
-
     def __init__(
         self,
         submissions,
@@ -348,14 +347,11 @@ class VerdictTable:
 
     def _get_verdict(self, s, testcase):
         res = Style.DIM + Fore.WHITE + '-' + Style.RESET_ALL
-        if s < len(self.results):
-            if testcase in self.results[s]:
-                v = self.results[s][testcase]
-                res = VerdictTable.colors[v]
-                res += str(v)[0].lower() if testcase in self.samples else str(v)[0].upper()
-            elif s + 1 == len(self.results) and testcase in self.current_testcases:
-                res = Style.DIM + Fore.BLUE + '?'
-        return res + Style.RESET_ALL
+        if s < len(self.results) and testcase in self.results[s]:
+            res = to_char(self.results[s][testcase], testcase in self.samples)
+        elif s + 1 == len(self.results) and testcase in self.current_testcases:
+            res = Style.DIM + to_char(None)
+        return res
 
     def print(self, *, force=True, new_lines=2, printed_lengths=None):
         if printed_lengths is None:
