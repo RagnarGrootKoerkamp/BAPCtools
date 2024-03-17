@@ -147,15 +147,6 @@ class Submission(program.Program):
         # - WRONG_ANSWER / WRONG-ANSWER / NO-OUTPUT
         # - TIME_LIMIT_EXCEEDED / TIMELIMIT
         # - RUN_TIME_ERROR / RUN-ERROR
-        domjudge_verdicts = [
-            'CORRECT',
-            'WRONG-ANSWER',
-            'TIMELIMIT',
-            'RUN-ERROR',
-            'NO-OUTPUT',
-            #'CHECK-MANUALLY', TODO this is *not* supported, shouldn't pretend it is
-            'COMPILER-ERROR',
-        ]
         # Matching is case insensitive and all source files are checked.
         key = '@EXPECTED_RESULTS@: '
         if self.path.is_file():
