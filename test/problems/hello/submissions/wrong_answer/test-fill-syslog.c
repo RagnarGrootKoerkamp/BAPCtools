@@ -2,8 +2,6 @@
  * Floods syslog and should fail with WRONG-ANSWER.
  * It must be checked manually that syslog is not flooded.
  * This should normally not happen if the runguard works correctly.
- *
- * @EXPECTED_RESULTS@: 
  */
 
 #include <stdio.h>
