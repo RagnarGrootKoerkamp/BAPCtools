@@ -19,6 +19,13 @@ VERDICTS = [
     Verdict.COMPILER_ERROR,
 ]
 
+SUBMISSION_DIRS = [
+    'accepted',
+    'wrong_answer',
+    'time_limit_exceeded',
+    'run_time_error',
+]
+
 VALIDATION_MODES = ['default', 'custom', 'custom interactive']
 
 KNOWN_LICENSES = [

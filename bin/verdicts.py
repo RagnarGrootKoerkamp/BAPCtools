@@ -74,6 +74,26 @@ def from_string(s: str) -> Verdict:
             raise ValueError(f"Unknown verdict string {s}")
 
 
+def from_string_domjudge(s: str) -> Verdict:
+    match s:
+        case 'CORRECT' | 'ACCEPTED':
+            return Verdict.ACCEPTED
+        case 'WRONG-ANSWER' | 'WRONG_ANSWER':
+            return Verdict.WRONG_ANSWER
+        case 'TIMELIMIT' | 'TIME_LIMIT_EXCEEDED':
+            return Verdict.TIME_LIMIT_EXCEEDED
+        case 'RUN-ERROR' | 'RUN_TIME_ERROR':
+            return Verdict.RUNTIME_ERROR
+        case 'NO-OUTPUT':
+            return Verdict.WRONG_ANSWER
+        case 'COMPILER-ERROR':
+            return Verdict.COMPILER_ERROR
+        case 'CHECK-MANUALLY':
+            raise NotImplementedError
+        case _:
+            raise ValueError(f"Unknown DOMjudge verdict string {s}")
+
+
 class Verdicts:
     """The verdicts of a submission.
 
