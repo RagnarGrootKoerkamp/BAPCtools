@@ -330,10 +330,10 @@ class Submission(program.Program):
             color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
             boldcolor = ''
 
-        max_duration = max(d for d in verdicts.duration.values() if d is not None)
         salient_testcase = verdicts.salient_testcase()
+        salient_duration = verdicts.duration[salient_testcase]
         printed_newline = bar.finalize(
-            message=f'{max_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase}'
+            message=f'{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase}'
         )
         if config.args.tree:
             print(verdicts.as_tree(max_depth=config.args.depth))
