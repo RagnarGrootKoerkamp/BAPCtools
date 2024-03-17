@@ -158,9 +158,9 @@ class Verdicts:
         return self._verdict[testnode]
 
     def salient_testcase(self) -> str:
-        """The testcase most salient to the root verdict. If self['.'] this is the
-        slowest testcase. Otherwise it is the lexicographically first testcase that
-        was rejected."""
+        """The testcase most salient to the root verdict. If 
+        self['.'] == Verdict.ACCEPTED then this is the slowest testcase. 
+        Otherwise it is the lexicographically first testcase that was rejected."""
         match self['.']:
             case None:
                 raise ValueError("Salient testcase called before submission verdict determined")
