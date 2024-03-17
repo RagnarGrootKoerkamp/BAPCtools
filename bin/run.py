@@ -317,7 +317,6 @@ class Submission(program.Program):
         p.done()
 
         self.verdict = verdicts['.']
-        self.duration = 42  # TODO this is messed up
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
