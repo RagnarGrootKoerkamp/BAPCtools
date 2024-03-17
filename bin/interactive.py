@@ -6,6 +6,7 @@ import threading
 
 import config
 import validate
+from verdicts import Verdict
 
 from util import *
 
@@ -113,17 +114,17 @@ def run_interactive_testcase(
         print_verdict = None
         if validator_ok != config.RTV_AC and validator_ok != config.RTV_WA:
             config.n_error += 1
-            verdict = 'VALIDATOR_CRASH'
+            verdict = Verdict.VALIDATOR_CRASH
         elif did_timeout:
-            verdict = 'TIME_LIMIT_EXCEEDED'
+            verdict = Verdict.TIME_LIMIT_EXCEEDED
             if tend - tstart >= timeout:
                 print_verdict = 'TLE (aborted)'
         elif not exec_res.status:
-            verdict = 'RUN_TIME_ERROR'
+            verdict = Verdict.RUNTIME_ERROR
         elif validator_ok == config.RTV_WA:
-            verdict = 'WRONG_ANSWER'
+            verdict = Verdict.WRONG_ANSWER
         elif validator_ok == config.RTV_AC:
-            verdict = 'ACCEPTED'
+            verdict = Verdict.ACCEPTED
 
         if not validator_err:
             validator_err = bytes()
@@ -322,31 +323,31 @@ while True:
 
     print_verdict = None
     if aborted:
-        verdict = 'TIME_LIMIT_EXCEEDED'
+        verdict = Verdict.TIME_LIMIT_EXCEEDED
         print_verdict = 'TLE (aborted)'
     elif validator_status != config.RTV_AC and validator_status != config.RTV_WA:
         config.n_error += 1
-        verdict = 'VALIDATOR_CRASH'
+        verdict = Verdict.VALIDATOR_CRASH
     elif first == 'validator':
         # WA has priority because validator reported it first.
         if did_timeout:
-            verdict = 'TIME_LIMIT_EXCEEDED'
+            verdict = Verdict.TIME_LIMIT_EXCEEDED
         elif validator_status == config.RTV_WA:
-            verdict = 'WRONG_ANSWER'
+            verdict = Verdict.WRONG_ANSWER
         elif submission_status != 0:
-            verdict = 'RUN_TIME_ERROR'
+            verdict = Verdict.RUNTIME_ERROR
         else:
-            verdict = 'ACCEPTED'
+            verdict = Verdict.ACCEPTED
     else:
         assert first == 'submission'
         if submission_status != 0:
-            verdict = 'RUN_TIME_ERROR'
+            verdict = Verdict.RUNTIME_ERROR
         elif did_timeout:
-            verdict = 'TIME_LIMIT_EXCEEDED'
+            verdict = Verdict.TIME_LIMIT_EXCEEDED
         elif validator_status == config.RTV_WA:
-            verdict = 'WRONG_ANSWER'
+            verdict = Verdict.WRONG_ANSWER
         else:
-            verdict = 'ACCEPTED'
+            verdict = Verdict.ACCEPTED
 
     val_err = None
     if validator_error is False:

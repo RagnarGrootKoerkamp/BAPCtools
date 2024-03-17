@@ -15,8 +15,9 @@ import inspect
 import parallel
 import program
 import run
-from testcase import Testcase
 import validate
+from testcase import Testcase
+from verdicts import Verdict
 
 from util import *
 
@@ -237,7 +238,7 @@ class SolutionInvocation(Invocation):
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
         ret = r.run(bar, interaction=interaction_path, submission_args=self.args)
-        if ret.verdict != 'ACCEPTED':
+        if ret.verdict != Verdict.ACCEPTED:
             bar.error(ret.verdict)
             return False
 

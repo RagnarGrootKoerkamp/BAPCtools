@@ -9,6 +9,7 @@ import parallel
 from util import *
 from testcase import Testcase
 from validate import OutputValidator, Mode
+from verdicts import Verdict
 
 # STEPS:
 # 1. Find generator invocations depending on {seed}.
@@ -132,7 +133,7 @@ class SubmissionTask:
         r = run.Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
         localbar = bar.start(f'{self.generator_task.i}: {self.submission.name}')
         result = r.run(localbar)
-        if result.verdict != 'ACCEPTED':
+        if result.verdict != Verdict.ACCEPTED:
             self.generator_task.save_test(bar)
             localbar.done(False, f'{result.verdict}!')
         else:
