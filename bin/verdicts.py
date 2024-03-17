@@ -99,7 +99,7 @@ class Verdicts:
 
     Testcases and testgroups are identified by strings.  In particular,
     * the testcase whose input file is 'a/b/1.in' is called 'a/b/1'
-    * the three topmost testgroups are 'sample', 'secret'
+    * the two topmost testgroups are 'sample', 'secret'
     * the root is called '.'
 
     Initialised with all testcases. Individual verdicts are registered
