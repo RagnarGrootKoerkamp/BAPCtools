@@ -143,7 +143,7 @@ class Verdicts:
         """
         return node not in self.children
 
-    def __setitem__(self, testcase, verdict: str | Verdict, duration=None):
+    def __setitem__(self, testcase, verdict: str | Verdict):
         """Set the verdict of the given testcase (implying possibly others)
 
         verdict can be given as a Verdict or as a string using either long or
@@ -152,8 +152,6 @@ class Verdicts:
 
         if isinstance(verdict, str):
             verdict = from_string(verdict)
-        if verdict == Verdict.ACCEPTED and duration is not None:
-            self.duration[testcase] = duration
         self._set_verdict_for_node(testcase, verdict)
 
     def __getitem__(self, testnode) -> Verdict | None:
