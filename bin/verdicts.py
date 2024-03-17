@@ -106,13 +106,6 @@ class Verdicts:
         in lexicographic order
     """
 
-    def unknowns_iterator(self, node):
-        """Yield the node's (yet) unknown children in lexicographic order."""
-        for child in sorted(self.children[node]):
-            if self._verdict[child] is not None:
-                continue
-            yield child
-
     def __init__(self, testcase_list: list[str]):
         testcases = set(testcase_list)
         testgroups: set[str] = set(str(path) for tc in testcases for path in Path(tc).parents)
@@ -130,6 +123,13 @@ class Verdicts:
         self.first_unknown: dict[str, str | None] = {
             node: next(self._unknowns[node]) for node in testgroups
         }
+
+    def unknowns_iterator(self, node):
+        """Yield the node's (yet) unknown children in lexicographic order."""
+        for child in sorted(self.children[node]):
+            if self._verdict[child] is not None:
+                continue
+            yield child
 
     def is_testgroup(self, node) -> bool:
         """Is the given testnode name a testgroup (rather than a testcase)?
@@ -158,8 +158,8 @@ class Verdicts:
         return self._verdict[testnode]
 
     def salient_testcase(self) -> str:
-        """The testcase most salient to the root verdict. If 
-        self['.'] == Verdict.ACCEPTED then this is the slowest testcase. 
+        """The testcase most salient to the root verdict. If
+        self['.'] == Verdict.ACCEPTED then this is the slowest testcase.
         Otherwise it is the lexicographically first testcase that was rejected."""
         match self['.']:
             case None:
