@@ -71,8 +71,7 @@ def from_string(s: str) -> Verdict:
         case 'CHECK-MANUALLY':
             raise NotImplementedError
         case _:
-            return None
-            # raise ValueError(f"Unknown verdict string {s}")
+            raise ValueError(f"Unknown verdict string {s}")
 
 
 class Verdicts:
