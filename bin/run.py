@@ -6,7 +6,7 @@ import config
 import interactive
 import parallel
 import validate
-from verdicts import Verdicts, Verdict, from_string
+from verdicts import Verdicts, Verdict, from_string, from_string_domjudge
 from typing import Type
 
 from util import *
@@ -164,15 +164,13 @@ class Submission(program.Program):
                 endpos = text.find('\n', beginpos)
                 arguments = map(str.strip, text[beginpos:endpos].split(','))
                 for arg in arguments:
-                    argverd: Verdict = from_string(arg)
-                    if argverd is None:
-                        continue
-                    if argverd not in config.VERDICTS:
+                    try:
+                        expected_verdicts.append(from_string_domjudge(arg))
+                    except ValueError:
                         error(
-                            f'@EXPECTED_RESULTS@: `{argverd}` for submission {self.short_path} is not valid'
+                            f'@EXPECTED_RESULTS@: `{arg}` for submission {self.short_path} is not valid'
                         )
                         continue
-                    expected_verdicts.append(argverd)
                 break
             except (UnicodeDecodeError, ValueError):
                 # Skip binary files.
@@ -182,11 +180,11 @@ class Submission(program.Program):
         if len(self.path.parts) >= 3 and self.path.parts[-3] == 'submissions':
             # Submissions in any of config.VERDICTS should not have `@EXPECTED_RESULTS@: `, and vice versa.
             # See https://github.com/DOMjudge/domjudge/issues/1861
-            subdir = from_string(self.short_path.parts[0].upper())
-            if subdir in config.VERDICTS:
+            subdir = self.short_path.parts[0]
+            if subdir in config.SUBMISSION_DIRS:
                 if len(expected_verdicts) != 0:
                     warn(f'@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.')
-                expected_verdicts = [subdir]
+                expected_verdicts = [from_string(subdir.upper())]
             else:
                 if len(expected_verdicts) == 0:
                     error(
