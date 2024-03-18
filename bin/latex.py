@@ -153,12 +153,10 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
             latexmk_command.append('-view=none')
         # write pdf directly in the problem folder
         dest_path.unlink(True)
-        latexmk_command.extend(
-            [
-                f'--jobname={tex_path.stem}.{language}',
-                f'-output-directory={dest_path.parent.absolute()}',
-            ]
-        )
+        latexmk_command.append(f'--jobname={tex_path.stem}.{language}')
+        latexmk_command.append(f'-output-directory={dest_path.parent.absolute()}')
+    else:
+        latexmk_command.append(f'-output-directory={builddir.absolute()}')
     if getattr(config.args, '1'):
         latexmk_command.extend(['-e', '$max_repeat=1'])
     latexmk_command.append(tex_path.absolute())
