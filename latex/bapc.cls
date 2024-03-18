@@ -26,15 +26,13 @@
 % it is decorated with the text "This is not a blank page".
 %-------------------------------------------------------------------------------
 
-\newcommand{\defaultblankpagetext}{\langblank{}}
-
 \newcommand{\ThisIsNotABlankPage}{
 	\cleartooddpage[
 		\thispagestyle{empty}
 		\vfill
 		\begin{center}
 			\huge{%
-				\ifdefempty{\customblankpagetext}{\defaultblankpagetext}{\customblankpagetext}%
+				\langblank{}%
 			}
 			%\includegraphics{images/blank-page-fr.png}
 		\end{center}

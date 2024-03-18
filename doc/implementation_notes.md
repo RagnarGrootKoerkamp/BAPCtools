@@ -105,36 +105,60 @@ See also the docs on using multiple languages [here](./multiple_languages.md).
 
 ### Per-problem pdf
 
-The per-problem pdfs are created inside `<tmpdir>/<problemname>`:
+The per-problem pdfs are created inside `<tmpdir>/<problemname>/latex/<language>`:
 
-- `~tmp/<problemname>/problem_statement/`: a symlink to the `problem_statement/` directory.
-- `~tmp/<problemname>/samples.tex`: a generated table containing the sample cases.
-- `~tmp/<problemname>/bapc.cls`: a symlink to the latex class.
-- `~tmp/<problemname>/problem.tex`: a wrapper to compile the problem statement and samples into a pdf.
+- `~tmp/<problemname>/latex/<language>/samples.tex`: a generated table containing the sample cases.
+- `~tmp/<problemname>/latex/<language>/problem.tex`: a wrapper to compile the problem statement and samples into a pdf.
 
 The statement is compiled using:
 
 ```
-latexmk -cd -g -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error' [-pvc] [-e $max_repeat=1] -output-directory=~tmpdir/<problemname> ~tmpdir/<problemname>/problem.tex
+export TEXINPUTS=.;./solve_stats;./solve_stats/activity;~bapctools/latex;
+latexmk -cd -g -usepretex="\newcommand\lang{<language>}" -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error %O %P' [-pvc -view=none] [-e $max_repeat=1] ~tmpdir/<problemname>/latex/<language>/problem.tex
 ```
 
 The `-pvc` option is only passed to `latexmk` when `--watch` is passed to BAPCtools.
 The `-e $max_repeat=1` option is only passed to `latexmk` when `-1` is passed to BAPCtools.
+The `\lang` macro can be used in any place to obtain the used language
+
+The following placeholders are automatically substituted in the `problem.tex`:
+```
+{%problemlabel%}
+{%problemyamlname%}
+{%problemauthor%}
+{%timelimit%}
+{%problemdir%}
+{%problemdirname%}
+{%builddir%}
+```
 
 ### Full contest pdf
 
 After creating the `samples.tex` for each problem, the contest pdf is created in `~tmpdir/<contestname>` like this:
 
-- `~tmp/<contestname>/contest_data.tex`: a filled in copy of [contest_data.tex](../latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
-- `~tmp/<contestname>/bapc.cls`: a symlink to the latex class.
-- `~tmp/<contestname>/logo.{pdf,png,jpg}`: a symlink to the contest logo provided in the contest directory or the one above.
-- `~tmp/<contestname>/contest-problems.tex`: filled in copies of [contest-problem.tex](../latex/contest-problem.tex) containing the files to include for each problem.
-- `~tmp/<contestname>/contest[-web].tex`: a wrapper to compile the contest. This includes `contest_data.tex` and `contest-problems.tex`.
+- `~tmp/<contestname>/latex/<language>/contest_data.tex`: a filled in copy of [contest_data.tex](../latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
+- `~tmp/<contestname>/latex/<language>/contest-problems.tex`: filled in copies of [contest-problem.tex](../latex/contest-problem.tex) containing the files to include for each problem.
+- `~tmp/<contestname>/latex/<language>/contest[-web].tex`: a wrapper to compile the contest. This includes `contest_data.tex` and `contest-problems.tex`.
 
 The statement is compiled using:
 
 ```
-latexmk -cd -g -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error' [-pvc] [-e $max_repeat=1] -output-directory=~tmpdir/<contestname> ~tmpdir/<problemname>/contest[-web].tex
+export TEXINPUTS=.;./solve_stats;./solve_stats/activity;~bapctools/latex;
+latexmk -cd -g -usepretex="\newcommand\lang{<language>}" -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error %O %P' [-pvc -view=none] [-e $max_repeat=1] ~tmpdir/<contestname>/latex/<language>/contest[-web].tex
+```
+
+The `\lang` macro can be used in any place to obtain the used language
+
+The following placeholders are automatically substituted in the `contest_data.tex`:
+```
+{%title%}
+{%subtitle%}
+{%year%}
+{%author%}
+{%testsession%}
+{%logofile%}
+...
+<any entry in the contest.yaml>
 ```
 
 ## Solution slides
@@ -147,6 +171,17 @@ you can provide additional files in `<contestdirectory>/`:
   current language.
 - `solutions_footer.xy.tex`: slides appended after the last problem, for the
   current language.
+
+The following placeholders are automatically substituted in the `solution.tex`:
+```
+{%problemlabel%}
+{%problemyamlname%}
+{%problemauthor%}
+{%timelimit%}
+{%problemdir%}
+{%problemdirname%}
+{%builddir%}
+```
 
 ### Solve stats
 

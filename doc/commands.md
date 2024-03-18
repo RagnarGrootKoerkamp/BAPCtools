@@ -178,7 +178,8 @@ If there are problem statements (and problem names in `problem.yaml`) present fo
 - `--all`/`-a`: When run from the contest level, this enables building pdfs for all problems in the contest as well.
 - `--cp`: Instead of symlinking the final pdf, copy it into the problem/contest directory.
 - `--no-timelimit`: When passed, time limits will not be shown in the problem/contest pdfs.
-- `--watch`/`-w`: Continuously compile the pdf whenever a `problem.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.
+- `--open`/`-o`: Open the continuously compiled pdf. Only allowed with `--watch`.
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
 - `-1`: Run the LaTeX compiler only once.
 - `--language LANG`: Render only for `LANG`, which is a language code like `en` or `nl`.
@@ -194,7 +195,8 @@ See the [Implementation notes](implementation_notes.md#building-latex-files) for
 - `--order`: The order of the problems, e.g. `BDCA`. Can be used to order problems from easy to difficult. When labels have multiple letters, `B1,A1,A2,B2` is also allowed.
 - `--order-from-ccs`: Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of `api` in contest.yaml.
 - `--contest-id`: Contest ID to use when reading from the API. Only useful with `--order-from-ccs`. Defaults to value of `contest_id` in `contest.yaml`.
-- `--watch`/`-w`: Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.
+- `--open`/`-o`: Open the continuously compiled pdf. Only allowed with `--watch`.
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages.
 - `-1`: Run the LaTeX compiler only once.
 

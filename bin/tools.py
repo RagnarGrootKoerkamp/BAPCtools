@@ -404,7 +404,13 @@ Run this from one of:
         '--watch',
         '-w',
         action='store_true',
-        help='Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.',
+        help='Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.',
+    )
+    pdfparser.add_argument(
+        '--open',
+        '-o',
+        action='store_true',
+        help='Open the continuously compiled pdf. Only allowed with --watch.',
     )
     pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     pdfparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
@@ -431,7 +437,13 @@ Run this from one of:
         '--watch',
         '-w',
         action='store_true',
-        help='Continuously compile the pdf whenever a `solution.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.',
+        help='Continuously compile the pdf whenever a `solution.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.',
+    )
+    solparser.add_argument(
+        '--open',
+        '-o',
+        action='store_true',
+        help='Open the continuously compiled pdf. Only allowed with --watch.',
     )
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
