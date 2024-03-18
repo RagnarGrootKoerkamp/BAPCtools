@@ -409,8 +409,10 @@ Run this from one of:
     pdfparser.add_argument(
         '--open',
         '-o',
-        action='store_true',
-        help='Open the continuously compiled pdf. Only allowed with --watch.',
+        nargs='?',
+        const=True,
+        type=Path,
+        help='Open the continuously compiled pdf (with a specified program).',
     )
     pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     pdfparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
@@ -442,8 +444,10 @@ Run this from one of:
     solparser.add_argument(
         '--open',
         '-o',
-        action='store_true',
-        help='Open the continuously compiled pdf. Only allowed with --watch.',
+        nargs='?',
+        const=True,
+        type=Path,
+        help='Open the continuously compiled pdf  (with a specified program).',
     )
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')

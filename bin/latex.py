@@ -147,9 +147,10 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         '-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error %O %P',
         f'-aux-directory={builddir.absolute()}',
     ]
+
     if config.args.watch:
         latexmk_command.append('-pvc')
-        if not config.args.open:
+        if config.args.open is None:
             latexmk_command.append('-view=none')
         # write pdf directly in the problem folder
         dest_path.unlink(True)
@@ -157,6 +158,13 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         latexmk_command.append(f'-output-directory={dest_path.parent.absolute()}')
     else:
         latexmk_command.append(f'-output-directory={builddir.absolute()}')
+        if config.args.open is not None:
+            latexmk_command.append('-pv')
+    if isinstance(config.args.open, Path):
+        if shutil.which(f'{config.args.open}') == None:
+            warn(f"'{config.args.open}' not found. Using latexmk fallback.")
+        else:
+            latexmk_command.extend(['-e', f"$pdf_previewer = 'start {config.args.open} %O %S';"])
     if getattr(config.args, '1'):
         latexmk_command.extend(['-e', '$max_repeat=1'])
     latexmk_command.append(tex_path.absolute())
