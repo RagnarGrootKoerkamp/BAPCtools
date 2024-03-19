@@ -3,7 +3,6 @@
 import os
 import util
 import re
-import subprocess
 import tempfile
 import sys
 from pathlib import Path
@@ -148,6 +147,9 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         f'-aux-directory={builddir.absolute()}',
     ]
 
+    eoptions = []
+    pipe = True
+
     if config.args.watch:
         latexmk_command.append('-pvc')
         if config.args.open is None:
@@ -156,6 +158,8 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         dest_path.unlink(True)
         latexmk_command.append(f'--jobname={tex_path.stem}.{language}')
         latexmk_command.append(f'-output-directory={dest_path.parent.absolute()}')
+        latexmk_command.append('--silent')
+        pipe = None
     else:
         latexmk_command.append(f'-output-directory={builddir.absolute()}')
         if config.args.open is not None:
@@ -164,16 +168,23 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         if shutil.which(f'{config.args.open}') == None:
             warn(f"'{config.args.open}' not found. Using latexmk fallback.")
         else:
-            latexmk_command.extend(['-e', f"$pdf_previewer = 'start {config.args.open} %O %S';"])
+            eoptions.append(f"$pdf_previewer = 'start {config.args.open} %O %S';")
+
     if getattr(config.args, '1'):
-        latexmk_command.extend(['-e', '$max_repeat=1'])
+        eoptions.append('$max_repeat=1;')
+
+    if eoptions:
+        latexmk_command.extend(['-e', ''.join(eoptions)])
+
     latexmk_command.append(tex_path.absolute())
 
     ret = util.exec_command(
         latexmk_command,
         crop=False,
+        preexec_fn=False,
         cwd=builddir,
-        stdout=subprocess.PIPE,
+        stdout=pipe,
+        stderr=pipe,
         env=env,
         timeout=None,
     )
