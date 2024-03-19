@@ -159,7 +159,7 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         latexmk_command.append(f'--jobname={tex_path.stem}.{language}')
         latexmk_command.append(f'-output-directory={dest_path.parent.absolute()}')
         latexmk_command.append('--silent')
-        pipe = None
+        pipe = False
     else:
         latexmk_command.append(f'-output-directory={builddir.absolute()}')
         if config.args.open is not None:
@@ -178,16 +178,27 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
 
     latexmk_command.append(tex_path.absolute())
 
-    ret = util.exec_command(
-        latexmk_command,
-        crop=False,
-        preexec_fn=False,  # firefox and crash with preexec_fn...
-        cwd=builddir,
-        stdout=pipe,
-        stderr=pipe,
-        env=env,
-        timeout=None,
-    )
+    def run_latexmk(stdout, stderr):
+        return util.exec_command(
+            latexmk_command,
+            crop=False,
+            preexec_fn=False,  # firefox and crash with preexec_fn...
+            cwd=builddir,
+            stdout=stdout,
+            stderr=stderr,
+            env=env,
+            timeout=None,
+        )
+
+    if pipe:
+        outfile = (builddir / tex_path.name).with_suffix('.stdout')
+        errfile = (builddir / tex_path.name).with_suffix('.stderr')
+        with outfile.open('w') as stdout, errfile.open('w') as stderr:
+            ret = run_latexmk(stdout, stderr)
+        ret.out = outfile.read_text()
+        ret.err = errfile.read_text()
+    else:
+        ret = run_latexmk(None, None)
 
     if not ret.status:
         logfile = (builddir / tex_path.name).with_suffix('.log')
