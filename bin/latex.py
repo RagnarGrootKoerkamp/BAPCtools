@@ -181,7 +181,7 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
     ret = util.exec_command(
         latexmk_command,
         crop=False,
-        preexec_fn=False,
+        preexec_fn=False,  # firefox and crash with preexec_fn...
         cwd=builddir,
         stdout=pipe,
         stderr=pipe,
