@@ -1133,7 +1133,9 @@ def validator_exec_code_map(returncode):
 
 
 # Run `command`, returning stderr if the return code is unexpected.
-def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwargs):
+def exec_command(
+    command, exec_code_map=default_exec_code_map, crop=True, preexec_fn=True, **kwargs
+):
     # By default: discard stdout, return stderr
     if 'stdout' not in kwargs or kwargs['stdout'] is True:
         kwargs['stdout'] = subprocess.PIPE
@@ -1182,7 +1184,7 @@ def exec_command(command, exec_code_map=default_exec_code_map, crop=True, **kwar
 
     tstart = time.monotonic()
     try:
-        if not is_windows() and not is_wsl():
+        if not is_windows() and not is_wsl() and preexec_fn:
             process = ResourcePopen(
                 command,
                 preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs)),
