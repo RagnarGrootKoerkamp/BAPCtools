@@ -6,6 +6,7 @@ import re
 import tempfile
 import sys
 from pathlib import Path
+from colorama import Fore, Style
 
 import config
 import util
@@ -124,12 +125,13 @@ def make_environment():
     return env
 
 
-def build_latex_pdf(builddir, tex_path, language, problem_path=None):
+def build_latex_pdf(builddir, tex_path, language, bar=None, problem_path=None):
     env = make_environment()
 
     if shutil.which('latexmk') == None:
-        fatal('latexmk not found!')
+        bar.fatal('latexmk not found!')
 
+    logfile = (builddir / tex_path.name).with_suffix('.log')
     built_pdf = (builddir / tex_path.name).with_suffix('.pdf')
     output_pdf = Path(built_pdf.name).with_suffix(f'.{language}.pdf')
     dest_path = output_pdf if problem_path is None else problem_path / output_pdf
@@ -166,7 +168,8 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
             latexmk_command.append('-pv')
     if isinstance(config.args.open, Path):
         if shutil.which(f'{config.args.open}') == None:
-            warn(f"'{config.args.open}' not found. Using latexmk fallback.")
+            bar.warn(f"'{config.args.open}' not found. Using latexmk fallback.")
+            config.args.open = True
         else:
             eoptions.append(f"$pdf_previewer = 'start {config.args.open} %O %S';")
 
@@ -179,10 +182,11 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
     latexmk_command.append(tex_path.absolute())
 
     def run_latexmk(stdout, stderr):
+        logfile.unlink(True)
         return util.exec_command(
             latexmk_command,
             crop=False,
-            preexec_fn=False,  # firefox and crash with preexec_fn...
+            preexec_fn=False,  # firefox and chrome crash with preexec_fn...
             cwd=builddir,
             stdout=stdout,
             stderr=stderr,
@@ -191,29 +195,37 @@ def build_latex_pdf(builddir, tex_path, language, problem_path=None):
         )
 
     if pipe:
+        # use files instead of subprocess.PIPE since later might hang
         outfile = (builddir / tex_path.name).with_suffix('.stdout')
         errfile = (builddir / tex_path.name).with_suffix('.stderr')
         with outfile.open('w') as stdout, errfile.open('w') as stderr:
             ret = run_latexmk(stdout, stderr)
+        ret.err = errfile.read_text()  # not used
         ret.out = outfile.read_text()
-        ret.err = errfile.read_text()
+
+        last = ret.out
+        if not config.args.error:
+            last = tail(ret.out, 20)
+        if last != ret.out:
+            last = f'{last}{Fore.YELLOW}Use -e to show more or see:{Style.RESET_ALL}\n{outfile}'
+        ret.out = last
     else:
         ret = run_latexmk(None, None)
 
     if not ret.status:
-        logfile = (builddir / tex_path.name).with_suffix('.log')
-        error(f'Failure compiling pdf:')
-        print(ret.out, file=sys.stderr)
-        if logfile.exists():
-            print(f'-> {logfile}', file=sys.stderr)
-        error(f'return code {ret.returncode}')
-        error(f'duration {ret.duration}')
+        bar.error(f'Failure compiling PDF:')
+        if ret.out is not None:
+            print(ret.out, file=sys.stderr)
+            if logfile.exists():
+                print(logfile, file=sys.stderr)
+        bar.error(f'return code {ret.returncode}')
+        bar.error(f'duration {ret.duration}\n')
         return False
 
     assert not config.args.watch
     ensure_symlink(dest_path, built_pdf, True)
 
-    log(f'PDF written to {dest_path}')
+    bar.log(f'PDF written to {dest_path}\n')
     return True
 
 
@@ -226,9 +238,12 @@ def build_problem_pdf(problem, language, solution=False, web=False):
     Arguments:
     -- language: str, the two-latter language code appearing the file name, such as problem.en.tex
     """
-    log(f"Building {('statement' if not solution else 'solution')} PDF for language {language}")
     main_file = 'solution' if solution else 'problem'
     main_file += '-web.tex' if web else '.tex'
+
+    bar = PrintBar(f'{main_file[:-3]}{language}.pdf')
+    bar.log(f'Building PDF for language {language}')
+
     prepare_problem(problem, language)
 
     builddir = latex_builddir(problem, language)
@@ -248,7 +263,7 @@ def build_problem_pdf(problem, language, solution=False, web=False):
         },
     )
 
-    return build_latex_pdf(builddir, builddir / main_file, language, problem.path)
+    return build_latex_pdf(builddir, builddir / main_file, language, bar, problem.path)
 
 
 def build_problem_pdfs(problem, solutions=False, web=False):
@@ -259,7 +274,11 @@ def build_problem_pdfs(problem, solutions=False, web=False):
     if config.args.languages is not None:
         for lang in config.args.languages:
             if lang not in problem.statement_languages:
-                fatal(f'No statement source for language {lang}')
+                message(
+                    f'No statement source for language {lang}',
+                    problem.name,
+                    color_type=MessageType.FATAL,
+                )
         languages = config.args.languages
     else:
         languages = problem.statement_languages
@@ -270,7 +289,9 @@ def build_problem_pdfs(problem, solutions=False, web=False):
                 if (problem.path / 'problem_statement' / f'solution.{lang}.tex').exists():
                     filtered_languages.append(lang)
                 else:
-                    warn(f'{problem.name}: solution.{lang}.tex not found')
+                    message(
+                        f'solution.{lang}.tex not found', problem.name, color_type=MessageType.WARN
+                    )
             languages = filtered_languages
     if config.args.watch and len(languages) > 1:
         fatal('--watch does not work with multiple languages. Please use --language')
@@ -287,15 +308,15 @@ def find_logo():
 
 
 def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=False):
-    log(
-        f"Building contest {'statements' if not solutions else 'solutions'} PDF for language {language} "
-    )
     builddir = tmpdir / contest / 'latex'
     builddir.mkdir(parents=True, exist_ok=True)
     build_type = 'solution' if solutions else 'problem'
 
     main_file = 'solutions' if solutions else 'contest'
     main_file += '-web.tex' if web else '.tex'
+
+    bar = PrintBar(f'{main_file[:-3]}{language}.pdf')
+    bar.log(f'Building PDF for language {language}')
 
     default_config_data = {
         'title': 'TITLE',
@@ -351,10 +372,10 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
                 # All is good
                 pass
             elif solutiontex.is_file():
-                warn(f'{problem.name}: Rename solution.tex to solution.{language}.tex')
+                bar.warn(f'Rename solution.tex to solution.{language}.tex', problem.name)
                 continue
             else:
-                warn(f'{problem.name}: solution.{language}.tex not found')
+                bar.warn(f'solution.{language}.tex not found', problem.name)
                 continue
 
         problems_data += util.substitute(
@@ -381,7 +402,7 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
 
     (builddir / f'contest-{build_type}s.tex').write_text(problems_data)
 
-    return build_latex_pdf(builddir, Path(main_file), language)
+    return build_latex_pdf(builddir, Path(main_file), language, bar)
 
 
 def build_contest_pdfs(contest, problems, tmpdir, lang=None, solutions=False, web=False):
@@ -391,15 +412,25 @@ def build_contest_pdfs(contest, problems, tmpdir, lang=None, solutions=False, we
     """Build contest PDFs for all available languages"""
     statement_languages = set.intersection(*(set(p.statement_languages) for p in problems))
     if not statement_languages:
-        fatal('No statement language present in every problem.')
+        message(
+            'No statement language present in every problem.', contest, color_type=MessageType.FATAL
+        )
     if config.args.languages is not None:
         languages = config.args.languages
         for lang in set(languages) - statement_languages:
-            fatal(f'Unable to build all statements for language {lang}')
+            message(
+                f'Unable to build all statements for language {lang}',
+                contest,
+                color_type=MessageType.FATAL,
+            )
     else:
         languages = statement_languages
     if config.args.watch and len(languages) > 1:
-        fatal('--watch does not work with multiple languages. Please use --language')
+        message(
+            '--watch does not work with multiple languages. Please use --language',
+            contest,
+            color_type=MessageType.FATAL,
+        )
     return all(
         [build_contest_pdf(contest, problems, tmpdir, lang, solutions, web) for lang in languages]
     )

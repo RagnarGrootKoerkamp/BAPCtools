@@ -138,7 +138,6 @@ After creating the `samples.tex` for each problem, the contest pdf is created in
 
 - `~tmp/<contestname>/latex/<language>/contest_data.tex`: a filled in copy of [contest_data.tex](../latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
 - `~tmp/<contestname>/latex/<language>/contest-problems.tex`: filled in copies of [contest-problem.tex](../latex/contest-problem.tex) containing the files to include for each problem.
-- `~tmp/<contestname>/latex/<language>/contest[-web].tex`: a wrapper to compile the contest. This includes `contest_data.tex` and `contest-problems.tex`.
 
 The statement is compiled using:
 
