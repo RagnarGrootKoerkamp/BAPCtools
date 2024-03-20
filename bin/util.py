@@ -67,7 +67,7 @@ if not is_windows():
     import resource
 
 
-def exit(force=False):
+def exit1(force=False):
     if force:
         sys.stderr.close()
         sys.stdout.close()
@@ -106,25 +106,27 @@ def error(msg):
 
 def fatal(msg, *, force=threading.active_count() > 1):
     print(f'\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
-    exit(force)
+    exit1(force)
 
 
 class MessageType(Enum):
     LOG = 1
     WARN = 2
     ERROR = 3
+    FATAL = 4
 
     def __str__(self):
         return {
             MessageType.LOG: str(Fore.GREEN),
             MessageType.WARN: str(Fore.YELLOW),
             MessageType.ERROR: str(Fore.RED),
+            MessageType.FATAL: str(Fore.RED),
         }[self]
 
 
 def message(msg, task=None, item=None, *, color_type=''):
     if task is not None:
-        print(f'{Fore.CYAN}{task}: {Style.RESET_ALL}', end='', file=sys.stderr)
+        print(f'{Fore.CYAN}{task}{Style.RESET_ALL}: ', end='', file=sys.stderr)
     if item is not None:
         print(item, end='   ', file=sys.stderr)
     print(f'{color_type}{msg}{Style.RESET_ALL}', file=sys.stderr)
@@ -132,6 +134,26 @@ def message(msg, task=None, item=None, *, color_type=''):
         config.n_warn += 1
     if color_type == MessageType.ERROR:
         config.n_error += 1
+    if color_type == MessageType.FATAL:
+        exit1()
+
+
+# A simple bar that only holds a task prefix
+class PrintBar:
+    def __init__(self, task):
+        self.task = task
+
+    def log(self, msg, item=None):
+        message(msg, self.task, item, color_type=MessageType.LOG)
+
+    def warn(self, msg, item=None):
+        message(msg, self.task, item, color_type=MessageType.WARN)
+
+    def error(self, msg, item=None):
+        message(msg, self.task, item, color_type=MessageType.ERROR)
+
+    def fatal(self, msg, item=None):
+        message(msg, self.task, item, color_type=MessageType.FATAL)
 
 
 # A class that draws a progressbar.
@@ -988,6 +1010,14 @@ def crop_output(output):
     if cropped:
         output += Fore.YELLOW + 'Use -e to show more.' + Style.RESET_ALL
     return output
+
+
+def tail(string, limit):
+    lines = string.split('\n')
+    if len(lines) > limit:
+        lines = lines[-limit:]
+        lines[0] = f'{Style.DIM}{Fore.WHITE}[...]{Style.RESET_ALL}'
+    return '\n'.join(lines)
 
 
 # TODO: Move this to Problem.settings and read limits.memory variable from problem.yaml.
