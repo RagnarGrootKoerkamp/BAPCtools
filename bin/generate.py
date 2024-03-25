@@ -245,7 +245,7 @@ class SolutionInvocation(Invocation):
 
 
 # Return absolute path to default submission, starting from the submissions directory.
-# This function will always raise a warning.
+# This function will always prints a message.
 # Which submission is used is implementation defined, unless one is explicitly given on the command line.
 def default_solution_path(generator_config):
     problem = generator_config.problem
@@ -278,16 +278,18 @@ solution: /{config.args.default_solution}''',
         solution_short_path = solution.relative_to(problem.path / 'submissions')
 
         if generator_config.has_yaml:
+            yaml_path = problem.path / 'generators' / 'generators.yaml'
+            raw = yaml_path.read_text()
+            raw = f'solution: /{solution.relative_to(problem.path)}\n' + raw
+            yaml_path.write_text(raw)
             message(
-                f'''No solution specified. Using {solution_short_path}.
-Set the default solution in the generator.yaml:
-solution: /{solution.relative_to(problem.path)}''',
+                f'No solution specified. {solution_short_path} added as default solution in the generator.yaml',
                 'generators.yaml',
-                color_type=MessageType.ERROR,
+                color_type=MessageType.LOG,
             )
         else:
             log(
-                f'''No solution specified. Using {solution_short_path}. Use
+                f'''No solution specified. Selected {solution_short_path}. Use
 --default_solution {solution.relative_to(problem.path)}
 to use a specific solution.'''
             )
