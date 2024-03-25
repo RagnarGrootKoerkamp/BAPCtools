@@ -30,11 +30,6 @@ def create_samples_file(problem, language):
     if samples is False:
         samples = []
 
-    # Modify a copied list, to not break the cache.
-    samples = samples.copy()
-
-    # For interactive problems, find all .interaction files instead.
-    samples += glob(problem.path / 'data' / 'sample', '*.interaction')
     samples_file_path = builddir / 'samples.tex'
 
     if samples is []:
