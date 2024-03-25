@@ -541,7 +541,7 @@ Run this from one of:
         '--default-solution',
         '-s',
         type=Path,
-        help='The default solution to use for generating .ans files.',
+        help='The default solution to use for generating .ans files. Not compatible with generator.yaml.',
     )
     genparser.add_argument(
         '--no-validators',
