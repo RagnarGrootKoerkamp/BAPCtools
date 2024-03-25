@@ -507,8 +507,9 @@ class TestcaseRule(Rule):
 
                     # TODO: Should the seed depend on white space? For now it does, but
                     # leading and trailing whitespace is stripped.
-                    seed_value = self.config.random_salt + yaml['generate'].strip()
-                    self.seed = (int(hash_string(seed_value), 16) + count_index * 2**16) % 2**31
+                    salt = self.config.random_salt + ('' if count_index == 0 else f':{count_index}')
+                    seed_value = salt + yaml['generate'].strip()
+                    self.seed = int(hash_string(salt + yaml['generate'].strip()), 16) % 2**31
                     self.in_is_generated = True
                     self.rule['gen'] = self.generator.command_string
                     if self.generator.uses_seed:
