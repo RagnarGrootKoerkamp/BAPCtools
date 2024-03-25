@@ -249,42 +249,49 @@ class SolutionInvocation(Invocation):
 # Which submission is used is implementation defined, unless one is explicitly given on the command line.
 def default_solution_path(generator_config):
     problem = generator_config.problem
+    solution = None
+    stored_solution = problem.tmpdir / '.default_solution'
     if config.args.default_solution:
-        solution = problem.path / config.args.default_solution
         if generator_config.has_yaml:
             message(
-                f'''Prefer setting the default solution permanently:
-solution: /{solution.relative_to(problem.path)}''',
+                f'''--default-solution Ignored. Set the default solution in the generator.yaml!
+solution: /{config.args.default_solution}''',
                 'generators.yaml',
-                color_type=MessageType.LOG,
+                color_type=MessageType.WARN,
             )
+        else:
+            solution = problem.path / config.args.default_solution
     else:
         # Use one of the accepted submissions.
         solutions = list(glob(problem.path, 'submissions/accepted/*'))
         if len(solutions) == 0:
             fatal(f'No solution specified and no accepted submissions found.')
-        if generator_config.has_yaml:
-            # Note: we explicitly random shuffle the submission that's used to generate answers to
-            # encourage setting it in generators.yaml.
+
+        # always try to take the same solution to not mess with hashing
+        if stored_solution.is_file():
+            old_solution = Path(stored_solution.read_text().strip())
+            if old_solution in solutions:
+                solution = old_solution
+        if solution is None:
             solution = random.choice(solutions)
-            solution_short_path = solution.relative_to(problem.path / 'submissions')
+
+        solution_short_path = solution.relative_to(problem.path / 'submissions')
+
+        if generator_config.has_yaml:
             message(
-                f'''No solution specified. Using randomly chosen {solution_short_path} instead.
-Set the default solution permanently:
+                f'''No solution specified. Using {solution_short_path}.
+Set the default solution in the generator.yaml:
 solution: /{solution.relative_to(problem.path)}''',
                 'generators.yaml',
-                color_type=MessageType.WARN,
+                color_type=MessageType.ERROR,
             )
         else:
-            # if the generators.yaml is not used we can be friendly
-            solution = min(solutions, key=lambda s: s.name)
-            solution_short_path = solution.relative_to(problem.path / 'submissions')
             log(
-                f'''No solution specified. Using {solution_short_path} instead. Use
+                f'''No solution specified. Using {solution_short_path}. Use
 --default_solution {solution.relative_to(problem.path)}
-to use a fixed solution.'''
+to use a specific solution.'''
             )
-
+    stored_solution.write_text(str(solution))
     return Path('/') / solution.relative_to(problem.path)
 
 
@@ -294,10 +301,6 @@ to use a fixed solution.'''
 class DefaultSolutionInvocation(SolutionInvocation):
     def __init__(self, generator_config):
         super().__init__(generator_config.problem, default_solution_path(generator_config))
-
-    # Fix the cache_command to prevent regeneration from the random default solution.
-    def cache_command(self, seed=None):
-        return 'default_solution'
 
 
 KNOWN_TESTCASE_KEYS = [
