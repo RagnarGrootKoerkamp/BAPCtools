@@ -8,7 +8,7 @@
 #
 # This must be the absolute path to the solution, starting in the problem root.
 #
-# TOOLING: may pick a default if not specified, but should raise a warning.
+# TOOLING: may pick a default if not specified, but should raise an error.
 solution: /submissions/accepted/sol.py
 
 # The visualizer is used when no suitable image was generated already.
