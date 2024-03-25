@@ -110,16 +110,16 @@ class Problem:
             'uuid': None,
         }
 
-        yamlpath = self.path / 'problem.yaml'
+        yaml_path = self.path / 'problem.yaml'
 
         # parse problem.yaml
         if has_ryaml:
             try:
-                yamldata = read_yaml_settings(yamlpath)
+                yamldata = read_yaml_settings(yaml_path)
             except ruamel.yaml.scanner.ScannerError:
                 fatal('Make sure problem.yaml does not contain any more {% ... %}.')
         else:
-            yamldata = read_yaml_settings(yamlpath)
+            yamldata = read_yaml_settings(yaml_path)
 
         if yamldata:
             for k, v in yamldata.items():
@@ -166,9 +166,9 @@ class Problem:
 
         if self.settings.uuid == None:
             self.settings.uuid = generate_problem_uuid()
-            raw = yamlpath.read_text().rstrip()
+            raw = yaml_path.read_text().rstrip()
             raw += f'\n# uuid added by BAPCtools\nuuid: {self.settings.uuid}\n'
-            yamlpath.write_text(raw)
+            yaml_path.write_text(raw)
             log(f'Generated UUID for {self.name}, added to problem.yaml')
 
     def get_testdata_yaml(p, path, key, bar, name=None) -> str | None:
