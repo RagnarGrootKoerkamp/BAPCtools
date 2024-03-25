@@ -110,14 +110,16 @@ class Problem:
             'uuid': None,
         }
 
+        yamlpath = self.path / 'problem.yaml'
+
         # parse problem.yaml
         if has_ryaml:
             try:
-                yamldata = read_yaml_settings(self.path / 'problem.yaml')
+                yamldata = read_yaml_settings(yamlpath)
             except ruamel.yaml.scanner.ScannerError:
                 fatal('Make sure problem.yaml does not contain any more {% ... %}.')
         else:
-            yamldata = read_yaml_settings(self.path / 'problem.yaml')
+            yamldata = read_yaml_settings(yamlpath)
 
         if yamldata:
             for k, v in yamldata.items():
@@ -163,14 +165,11 @@ class Problem:
         self.interactive = self.settings.validation == 'custom interactive'
 
         if self.settings.uuid == None:
-            # try to always display the same uuid (until restart)
-            stored_uuid = self.tmpdir / '.uuid'
-            if stored_uuid.is_file():
-                self.settings.uuid = stored_uuid.read_text().strip()
-            else:
-                self.settings.uuid = generate_problem_uuid()
-                stored_uuid.write_text(self.settings.uuid)
-            warn(f'Missing UUID for {self.name}, add to problem.yaml:\nuuid: {self.settings.uuid}')
+            self.settings.uuid = generate_problem_uuid()
+            raw = yamlpath.read_text().rstrip()
+            raw += f'\n# uuid added by BAPCtools\nuuid: {self.settings.uuid}\n'
+            yamlpath.write_text(raw)
+            log(f'Generated UUID for {self.name}, added to problem.yaml')
 
     def get_testdata_yaml(p, path, key, bar, name=None) -> str | None:
         """
