@@ -513,7 +513,7 @@ class TestcaseRule(Rule):
                     if count_index > 0:
                         seed_value += f':{count_index}'
                     seed_value += yaml['generate'].strip()
-                    self.seed = int(hash_string(salt + yaml['generate'].strip()), 16) % 2**31
+                    self.seed = int(hash_string(seed_value), 16) % 2**31
                     self.in_is_generated = True
                     self.rule['gen'] = self.generator.command_string
                     if self.generator.uses_seed:
