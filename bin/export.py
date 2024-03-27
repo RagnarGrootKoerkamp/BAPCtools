@@ -248,7 +248,7 @@ def build_contest_zip(problems, zipfiles, outfile, statement_language):
 
     # For general zip export, also create pdfs and a samples zip.
     if not config.args.kattis:
-        sampleout = Path('sample.zip')
+        sampleout = Path('samples.zip')
         build_samples_zip(problems, sampleout, statement_language)
 
         for fname in (

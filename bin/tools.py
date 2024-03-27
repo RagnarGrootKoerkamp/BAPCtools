@@ -837,7 +837,7 @@ def run_parsed_arguments(args):
         return
 
     if action == 'samplezip':
-        sampleout = Path('sample.zip')
+        sampleout = Path('samples.zip')
         if level == 'problem':
             sampleout = problems[0].path / sampleout
         export.build_samples_zip(problems, sampleout, export.force_single_language(problems))
