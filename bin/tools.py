@@ -314,9 +314,6 @@ Run this from one of:
         help='Print full error of failing commands and some succeeding commands.',
     )
     global_parser.add_argument(
-        '--cpp-flags', help='Additional compiler flags used for all c++ compilations.'
-    )
-    global_parser.add_argument(
         '--force-build', action='store_true', help='Force rebuild instead of only on changed files.'
     )
     global_parser.add_argument(
@@ -603,7 +600,7 @@ Run this from one of:
         '--default-solution',
         '-s',
         type=Path,
-        help='The default solution to use for generating .ans files.',
+        help='The default solution to use for generating .ans files. Not compatible with generators.yaml.',
     )
     runparser.add_argument(
         '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
@@ -621,6 +618,11 @@ Run this from one of:
         '--no-testcase-sanity-checks',
         action='store_true',
         help='Skip sanity checks on testcases.',
+    )
+    runparser.add_argument(
+        '--sanitizer',
+        action='store_true',
+        help='Run submissions with additional sanitizer flags (currently only C++).',
     )
 
     # Test
@@ -1037,6 +1039,10 @@ def main():
         fatal('Running interrupted')
 
     signal.signal(signal.SIGINT, interrupt_handler)
+
+    # Don't zero newly allocated memory for this any any subprocess
+    # Will likely only work on linux
+    os.environ['MALLOC_PERTURB_'] = str(0b01011001)
 
     parser = build_parser()
     parser.set_defaults(**read_personal_config())

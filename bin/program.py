@@ -29,14 +29,20 @@ manual:
     run: '{run}'
 '''
 
+SANITIZER_FLAGS = '''
+cpp:
+    compile: -fsanitize=undefined
+'''
+
 # The cached languages.yaml for the current contest.
 _languages = None
-_languages_lock = threading.Lock()
+_sanitizer = None
+_program_config_lock = threading.Lock()
 
 
 def languages():
-    global _languages, _languages_lock
-    with _languages_lock:
+    global _languages, _program_config_lock
+    with _program_config_lock:
         if _languages is not None:
             return _languages
 
@@ -45,9 +51,6 @@ def languages():
         else:
             _languages = read_yaml(config.tools_root / 'config/languages.yaml')
 
-        if config.args.cpp_flags:
-            _languages['cpp']['compile'] += ' ' + config.args.cpp_flags
-
         # Add custom languages.
         extra_langs = parse_yaml(EXTRA_LANGUAGES)
         for lang in extra_langs:
@@ -55,6 +58,18 @@ def languages():
             _languages[lang] = extra_langs[lang]
 
         return _languages
+
+
+def sanitizer():
+    global _sanitizer, _program_config_lock
+    with _program_config_lock:
+        if _sanitizer is not None:
+            return _sanitizer
+
+        # Read sanitizer extra flags
+        _sanitizer = parse_yaml(SANITIZER_FLAGS)
+
+        return _sanitizer
 
 
 # A Program is class that wraps a program (file/directory) on disk. A program is usually one of:
@@ -421,10 +436,22 @@ class Program:
         meta_path = self.tmpdir / 'meta_.yaml'
 
         lang_config = languages()[self.language]
+        sanitizer_config = sanitizer()
 
         compile_command = lang_config['compile'] if 'compile' in lang_config else ''
-        self.compile_command = compile_command.format(**self.env).split()
         run_command = lang_config['run']
+
+        if (
+            self.subdir == 'submissions'
+            and config.args.sanitizer
+            and self.language in sanitizer_config
+        ):
+            if 'compile' in sanitizer_config[self.language]:
+                compile_command += ' ' + sanitizer_config[self.language]['compile']
+            if 'run' in sanitizer_config[self.language]:
+                run_command += ' ' + sanitizer_config[self.language]['run']
+
+        self.compile_command = compile_command.format(**self.env).split()
         self.run_command = run_command.format(**self.env).split()
 
         # Compare the hash to the last build.
