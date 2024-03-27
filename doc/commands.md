@@ -15,7 +15,7 @@ This lists all subcommands and their most important options.
   - [`bt run [-v] [-t TIMELIMIT] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
   - [`bt generate [-v] [-t TIMEOUT] [--add] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [testcases [testcases ...]]`](#generate)
-  - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit] [--language LANG]`](#pdf)
+  - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
   - [`bt fuzz [-v] [-t TIME] [--timeout TIMEOUT] [testcases [testcases ...]]`](#fuzz)
@@ -26,7 +26,7 @@ This lists all subcommands and their most important options.
   - [`bt constraints [-v]`](#constraints)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
-  - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--language LANG] [--skel SKEL]`](#new_problem)
+  - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--skel SKEL]`](#new_problem)
   - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
   - [`bt rename_problem [problemname]`](#rename_problem)
   - [`bt gitlabci`](#gitlabci)
@@ -53,6 +53,7 @@ The flags below work for any subcommand:
 - `--no-bar`: Disable showing progress bars. This is useful when running in non-interactive contexts (such as CI jobs) or on platforms/terminals that don't handle the progress bars well.
 - `--error`/`-e`: show full output of failing commands using `--error`. The default is to show a short snippet only.
 - `--force-build`: Force rebuilding binaries instead of reusing cached version.
+- `--language <LANG>`: select a single language to use. `<LANG>` should be a language code like `en` or `nl`.
 
 # Problem development
 
@@ -182,7 +183,6 @@ If there are problem statements (and problem names in `problem.yaml`) present fo
 - `--open`/`-o`: Open the continuously compiled pdf (with a specified program).
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
 - `-1`: Run the LaTeX compiler only once.
-- `--language LANG`: Render only for `LANG`, which is a language code like `en` or `nl`.
 
 ## `solutions`
 
@@ -349,7 +349,6 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 - `[<problem name>]`: The name of the problem. Will be asked interactively if not specified.
 - `--author`: The author of the problem. Will be asked interactively if not specified.
 - `--validation`: The validation mode to use. Must be one of `default`, `custom`, `custom interactive`.
-- `--language`: The (natural) language used for the problem name and statement, default `en`. See more about [multiple languages](multiple_languages.md).
 
 ## `skel`
 

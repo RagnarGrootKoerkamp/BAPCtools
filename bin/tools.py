@@ -336,6 +336,7 @@ Run this from one of:
     global_parser.add_argument(
         '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
     )
+    global_parser.add_argument('--language', help='Set language.')
 
     subparsers = parser.add_subparsers(
         title='actions', dest='action', parser_class=SuppressingParser
@@ -360,9 +361,6 @@ Run this from one of:
         choices=['default', 'custom', 'custom interactive'],
     )
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
-    problemparser.add_argument(
-        '--language', dest='languages', action='append', help='Statement language'
-    )
 
     # Copy directory from skel.
     skelparser = subparsers.add_parser(
@@ -392,9 +390,6 @@ Run this from one of:
         '-a',
         action='store_true',
         help='Create problem statements for individual problems as well.',
-    )
-    pdfparser.add_argument(
-        '--language', dest='languages', action='append', help='Set statement language.'
     )
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     pdfparser.add_argument(
@@ -448,9 +443,6 @@ Run this from one of:
     )
     solparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     solparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
-    solparser.add_argument(
-        '--language', dest='languages', action='append', help='Set solution language.'
-    )
 
     # Validation
     validate_parser = subparsers.add_parser(
@@ -692,7 +684,6 @@ Run this from one of:
         help='Make a zip more following the kattis problemarchive.com format.',
     )
     zipparser.add_argument('--no-solutions', action='store_true', help='Do not compile solutions')
-    zipparser.add_argument('--language', help='Language for DOMjudge pdf statements')
 
     # Build a zip with all samples.
     subparsers.add_parser(
