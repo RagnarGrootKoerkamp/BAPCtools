@@ -423,7 +423,8 @@ def export_problems(problems, cid):
     update_problems_yaml(problems)
 
     # Uploading problems.yaml
-    data = "".join(open("problems.yaml", "r").readlines())
+    with open("problems.yaml", "r") as file:
+        data = "".join(file.readlines())
     verbose("Uploading problems.yaml:")
     verbose(data)
     r = call_api(
@@ -453,19 +454,18 @@ def export_problem(problem, cid, pid):
     else:
         log(f'Export {problem.name} to new id')
 
-    zipfile = Path(problem.name).with_suffix('.zip')
-    if not zipfile.is_file():
+    zip_path = problem.path / f'{problem.name}.zip'
+    if not zip_path.is_file():
         error(f'Did not find {zipfile}. First run `bt zip`.')
         return
     data = None if pid is None else {'problem': pid}
-    zip_path = Path(problem.name).with_suffix('.zip')
-    zipfile = zip_path.open('rb')
-    r = call_api(
-        'POST',
-        f'/contests/{cid}/problems',
-        data=data,
-        files=[('zip', zipfile)],
-    )
+    with zip_path.open('rb') as zipfile:
+        r = call_api(
+            'POST',
+            f'/contests/{cid}/problems',
+            data=data,
+            files=[('zip', zipfile)],
+        )
     yaml_response = yaml.load(r.text, Loader=yaml.SafeLoader)
     if 'messages' in yaml_response:
         verbose(f'RESPONSE:\n' + '\n'.join(yaml_response['messages']))
