@@ -31,7 +31,7 @@ manual:
 
 SANITIZER_FLAGS = '''
 cpp:
-    compile: -fsanitize=undefined
+    compile: -fsanitize=undefined,address
 '''
 
 # The cached languages.yaml for the current contest.

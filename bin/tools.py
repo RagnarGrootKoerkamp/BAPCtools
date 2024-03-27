@@ -622,7 +622,7 @@ Run this from one of:
     runparser.add_argument(
         '--sanitizer',
         action='store_true',
-        help='Run submissions with additional sanitizer flags (currently only C++).',
+        help='Run submissions with additional sanitizer flags (currently only c++). Note that this sets --memory unlimited.',
     )
 
     # Test
