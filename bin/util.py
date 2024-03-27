@@ -1024,7 +1024,9 @@ def tail(string, limit):
 # Return memory limit in MB.
 def get_memory_limit(kwargs=None):
     memory_limit = 2048  # 2GB
-    if config.args.memory:
+    if config.args.sanitizer:
+        memory_limit = None  # disabled
+    elif config.args.memory:
         if config.args.memory != 'unlimited':
             memory_limit = int(config.args.memory)
         else:
