@@ -600,7 +600,7 @@ Run this from one of:
         '--default-solution',
         '-s',
         type=Path,
-        help='The default solution to use for generating .ans files. Not compatible with generator.yaml.',
+        help='The default solution to use for generating .ans files. Not compatible with generators.yaml.',
     )
     runparser.add_argument(
         '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
@@ -622,7 +622,7 @@ Run this from one of:
     runparser.add_argument(
         '--sanitizer',
         action='store_true',
-        help='Run submissions with additional sanitizer flags (currently only c++).',
+        help='Run submissions with additional sanitizer flags (currently only C++).',
     )
 
     # Test
