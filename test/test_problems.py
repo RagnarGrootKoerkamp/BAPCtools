@@ -93,11 +93,11 @@ class TestIdentityProblem:
     # Exporting
     def test_samplezip(self):
         tools.test(['samplezip'])
-        Path('../samples.zip').unlink()
+        Path('samples.zip').unlink()
 
     def test_zip(self):
         tools.test(['zip', '--force'])
-        Path('../identity.zip').unlink()
+        Path('identity.zip').unlink()
 
     # Misc
     # def test_all(self): tools.test(['all'])
