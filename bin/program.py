@@ -63,6 +63,9 @@ def languages():
 def sanitizer():
     global _sanitizer, _program_config_lock
     with _program_config_lock:
+        if _sanitizer is not None:
+            return _sanitizer
+
         # Read sanitizer extra flags
         _sanitizer = parse_yaml(SANITIZER_FLAGS)
 
