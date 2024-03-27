@@ -837,7 +837,10 @@ def run_parsed_arguments(args):
         return
 
     if action == 'samplezip':
-        export.build_samples_zip(problems, export.force_single_language(problems))
+        sampleout = Path('sample.zip')
+        if level == 'problem':
+            sampleout = problems[0].path / sampleout
+        export.build_samples_zip(problems, sampleout, export.force_single_language(problems))
         return
 
     if action == 'rename_problem':
@@ -917,7 +920,7 @@ def run_parsed_arguments(args):
         if action in ['constraints']:
             success &= constraints.check_constraints(problem)
         if action in ['zip']:
-            output = problem.path.with_suffix('.zip')
+            output = problem.path / f'{problem.name}.zip'
 
             problem_zips.append(output)
             if not config.args.skip:
@@ -967,7 +970,7 @@ def run_parsed_arguments(args):
             statement_language = None
             if not config.args.kattis:
                 # Add contest/solutions PDF for only one language to the zip file
-                statement_language = force_single_language(problems)
+                statement_language = export.force_single_language(problems)
 
                 success &= latex.build_contest_pdfs(contest, problems, tmpdir, statement_language)
                 success &= latex.build_contest_pdfs(

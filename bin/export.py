@@ -57,10 +57,8 @@ def remove_language_suffix(fname, statement_language):
     return out
 
 
-def build_samples_zip(problems, statement_language):
-    zf = zipfile.ZipFile(
-        'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False
-    )
+def build_samples_zip(problems, output, statement_language):
+    zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
     # Do not include contest PDF for kattis.
     if not config.args.kattis:
@@ -98,12 +96,13 @@ def build_samples_zip(problems, statement_language):
         # Add samples for non-interactive problems.
         if not problem.interactive:
             samples = problem.testcases(only_samples=True)
-            for i in range(0, len(samples)):
-                sample = samples[i]
-                basename = outputdir / str(i + 1)
-                zf.write(sample.in_path, basename.with_suffix('.in'))
-                zf.write(sample.ans_path, basename.with_suffix('.ans'))
-                empty = False
+            if samples is not False:
+                for i in range(0, len(samples)):
+                    sample = samples[i]
+                    basename = outputdir / str(i + 1)
+                    zf.write(sample.in_path, basename.with_suffix('.in'))
+                    zf.write(sample.ans_path, basename.with_suffix('.ans'))
+                    empty = False
 
         if empty:
             util.error(f'No attachments or samples found for problem {problem.name}.')
@@ -245,20 +244,21 @@ def build_contest_zip(problems, zipfiles, outfile, statement_language):
     zf = zipfile.ZipFile(outfile, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
     for fname in zipfiles:
-        zf.write(fname, fname, compress_type=zipfile.ZIP_DEFLATED)
+        zf.write(fname, fname.name, compress_type=zipfile.ZIP_DEFLATED)
 
     # For general zip export, also create pdfs and a samples zip.
     if not config.args.kattis:
-        build_samples_zip(problems, statement_language)
+        sampleout = Path('sample.zip')
+        build_samples_zip(problems, sampleout, statement_language)
 
         for fname in (
             [
                 'problems.yaml',
                 'contest.yaml',
-                'samples.zip',
+                sampleout,
             ]
-            + glob(Path('.'), f'contest*.{statement_language}.pdf')
-            + glob(Path('.'), f'solutions*.{statement_language}.pdf')
+            + list(Path('.').glob(f'contest*.{statement_language}.pdf'))
+            + list(Path('.').glob(f'solutions*.{statement_language}.pdf'))
         ):
             if Path(fname).is_file():
                 zf.write(
