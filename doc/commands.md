@@ -106,7 +106,7 @@ Use `bt run -v` to show results for all testcases.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
 - `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and testcases. If combined with `--no-bar` only the final table is printed.
 - `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
-- `--sanitizer`: when passed run submissions with additional sanitizer flags (currently only c++). Note that this sets --memory unlimited.
+- `--sanitizer`: when passed, run submissions with additional sanitizer flags (currently only c++). Note that this sets --memory unlimited.
 
 ## `test`
 
@@ -211,7 +211,7 @@ This table contains:
 - Whether the problem has any `input_validators` and `output_validators`.
 - The number of `sample` and `secret` testcases.
 - The number of `accepted`, `wrong_answer`, and `time_limit_exceeded` solutions.
-- The number of `c++`, `java`, `python2`, and `python3` solutions.
+- The number of C(++), Python 3, Java, and Kotlin solutions.
 - An optional comment, as specified by the `comment:` field in `problem.yaml`.
 - When `verified:` is set to `true` in `problem.yaml`, the comment will be shown in green.
 

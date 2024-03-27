@@ -600,7 +600,7 @@ Run this from one of:
         '--default-solution',
         '-s',
         type=Path,
-        help='The default solution to use for generating .ans files. Not compatible with generator.yaml.',
+        help='The default solution to use for generating .ans files. Not compatible with generators.yaml.',
     )
     runparser.add_argument(
         '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
