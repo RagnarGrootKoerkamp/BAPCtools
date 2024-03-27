@@ -837,7 +837,7 @@ def run_parsed_arguments(args):
         return
 
     if action == 'samplezip':
-        export.build_samples_zip(problems)
+        export.build_samples_zip(problems, export.force_single_language(problems))
         return
 
     if action == 'rename_problem':

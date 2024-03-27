@@ -57,10 +57,7 @@ def remove_language_suffix(fname, statement_language):
     return out
 
 
-def build_samples_zip(problems):
-    # Add contest PDF for only one language to the zip file
-    statement_language = force_single_language(problems)
-
+def build_samples_zip(problems, statement_language):
     zf = zipfile.ZipFile(
         'samples.zip', mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False
     )
