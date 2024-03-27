@@ -118,7 +118,7 @@ data:
       # Types of generator programs.
       "01":
         in: "3" # string is written to 01.in.
-      "02": greedy.cpp 4 # c++ is compiled, just like validators, and the resulting binary is run with argument `4`.
+      "02": greedy.cpp 4 # C++ is compiled, just like validators, and the resulting binary is run with argument `4`.
       "03": dir 5 # directories are OK, just like validators
       "04": tree 5 # keys from the global generators: dictionary may also be used.
       "05":

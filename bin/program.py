@@ -282,7 +282,7 @@ class Program:
         return False
 
     def _checks(self):
-        # Make sure c++ does not depend on stdc++.h, because it's not portable.
+        # Make sure C++ does not depend on stdc++.h, because it's not portable.
         if self.language == 'cpp':
             for f in self.source_files:
                 try:
