@@ -952,7 +952,10 @@ def run_parsed_arguments(args):
             print(file=sys.stderr)
 
     if action in ['export']:
-        export.export_contest_and_problems(problems)
+        # Add contest PDF for only one language to DOMjudge
+        statement_language = export.force_single_language(problems)
+
+        export.export_contest_and_problems(problems, statement_language)
 
     if level == 'problemset':
         print(f'{Style.BRIGHT}CONTEST {contest}{Style.RESET_ALL}', file=sys.stderr)

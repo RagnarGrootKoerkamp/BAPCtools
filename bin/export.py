@@ -334,6 +334,7 @@ def export_contest():
         if a == '' or a[0] == 'y':
             update_contest_id(new_cid)
             log(f'Updated contest_id to {new_cid}')
+
     return new_cid
 
 
@@ -478,12 +479,21 @@ def export_problem(problem, cid, pid):
 
 # Export the contest and individual problems to DOMjudge.
 # Mimicked from https://github.com/DOMjudge/domjudge/blob/main/misc-tools/import-contest.sh
-def export_contest_and_problems(problems):
+def export_contest_and_problems(problems, statement_language):
     cid = contest_yaml().get('contest_id')
     if cid is not None and cid != '':
         log(f'Reusing contest id {cid} from contest.yaml')
     if not any(contest['id'] == cid for contest in get_contests()):
         cid = export_contest()
+
+    with open(f'contest.{statement_language}.pdf', 'rb') as pdf_file:
+        r = call_api(
+            'POST',
+            f'/contests/{cid}/problemset',
+            files={'problemset': ('contest.pdf', pdf_file, 'application/pdf')},
+        )
+    r.raise_for_status()
+    log('Uploaded contest.pdf.')
 
     def get_problems():
         r = call_api('GET', f'/contests/{cid}/problems')
