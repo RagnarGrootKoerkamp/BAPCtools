@@ -65,7 +65,11 @@ For Windows, you'll need the following in your
 Resource limits (memory limit/hard cpu time limit) are also not supported.
 
 BAPCtools makes use of symlinks for building programs. By default users are not allowed to create symlinks on Windows.
-This can be fixed by enabling Developer Mode on Windows (Only since Windows 10, version 1703 or newer).
+This can be fixed by enabling Developer Mode on Windows (Only since Windows 10, version 1703 or newer).<br>
+In case you're still having problems with symlinks in combination with Git after enabling this setting,
+please try the suggestions at https://stackoverflow.com/a/59761201.
+Specifically, `git config -g core.symlinks true` should do the trick,
+after which you can restore broken symlinks using `git checkout -- path/to/symlink`.
 
 ### Docker
 
