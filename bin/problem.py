@@ -108,6 +108,7 @@ class Problem:
             'validator_flags': [],
             'author': '',
             'uuid': None,
+            'constants': dict(),
         }
 
         yaml_path = self.path / 'problem.yaml'
@@ -170,6 +171,17 @@ class Problem:
             raw += f'\n# uuid added by BAPCtools\nuuid: {self.settings.uuid}\n'
             yaml_path.write_text(raw)
             log(f'Generated UUID for {self.name}, added to problem.yaml')
+
+        # read constants
+        if not isinstance(self.settings.constants, dict):
+            fatal(f'could not parse constants in {self.name}/problem.yaml')
+        raw_constants = self.settings.constants
+        self.settings.constants = {
+            k: v for k, v in raw_constants.items() if isinstance(v, (str, int, float))
+        }
+        for k in raw_constants:
+            if k not in self.settings.constants:
+                error(f'invalid value for constant {k} in {self.name}/problem.yaml (ignored)')
 
     def get_testdata_yaml(p, path, key, bar, name=None) -> str | None:
         """
