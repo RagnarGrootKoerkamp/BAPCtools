@@ -155,7 +155,8 @@ def build_latex_pdf(builddir, tex_path, language, bar=None, problem_path=None):
         dest_path.unlink(True)
         latexmk_command.append(f'--jobname={tex_path.stem}.{language}')
         latexmk_command.append(f'-output-directory={dest_path.parent.absolute()}')
-        latexmk_command.append('--silent')
+        if not config.args.error:
+            latexmk_command.append('--silent')
         pipe = False
     else:
         latexmk_command.append(f'-output-directory={builddir.absolute()}')
@@ -195,8 +196,8 @@ def build_latex_pdf(builddir, tex_path, language, bar=None, problem_path=None):
         errfile = (builddir / tex_path.name).with_suffix('.stderr')
         with outfile.open('w') as stdout, errfile.open('w') as stderr:
             ret = run_latexmk(stdout, stderr)
-        ret.err = errfile.read_text()  # not used
-        ret.out = outfile.read_text()
+        ret.err = errfile.read_text(errors='replace')  # not used
+        ret.out = outfile.read_text(errors='replace')
 
         last = ret.out
         if not config.args.error:

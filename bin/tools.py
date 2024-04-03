@@ -336,7 +336,9 @@ Run this from one of:
     global_parser.add_argument(
         '--cp', action='store_true', help='Copy the output pdf instead of symlinking it.'
     )
-    global_parser.add_argument('--language', help='Set language.')
+    global_parser.add_argument(
+        '--language', dest='languages', action='append', help='Set language.'
+    )
 
     subparsers = parser.add_subparsers(
         title='actions', dest='action', parser_class=SuppressingParser
@@ -840,7 +842,8 @@ def run_parsed_arguments(args):
         sampleout = Path('samples.zip')
         if level == 'problem':
             sampleout = problems[0].path / sampleout
-        export.build_samples_zip(problems, sampleout, export.force_single_language(problems))
+        statement_language = export.force_single_language(problems)
+        export.build_samples_zip(problems, sampleout, statement_language)
         return
 
     if action == 'rename_problem':
