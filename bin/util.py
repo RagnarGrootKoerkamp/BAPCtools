@@ -912,7 +912,7 @@ def substitute(data, variables):
     def substitute_function(match):
         name = match.group(1)
         if name in variables:
-            return str(variables[name])
+            return str(variables[name]) if variables[name] is not None else ''
         else:
             variable = match.group()
             warn(f"Found pattern '{variable}' but no substitution was provided. Skipped.")
