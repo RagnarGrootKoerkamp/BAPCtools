@@ -77,6 +77,13 @@ INVALID_CASE_DIRECTORIES = [
 
 SEED_DEPENDENCY_RETRIES = 10
 
+SUBSTITUTE_PREFIX = '{%'
+SUBSTITUTE_SUFFIX = '%}'
+SUBSTITUTE_NAME_REGEX = re.compile(r'[a-zA-Z0-9_.-]+')
+SUBSTITUTE_REGEX = re.compile(
+    f'{re.escape(SUBSTITUTE_PREFIX)}({SUBSTITUTE_NAME_REGEX.pattern}){re.escape(SUBSTITUTE_SUFFIX)}'
+)
+
 # The root directory of the BAPCtools repository.
 tools_root = Path(__file__).resolve().parent.parent
 
