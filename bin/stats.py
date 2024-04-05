@@ -106,14 +106,17 @@ def stats(problems):
                 return path(generated_testcases)
             results = set()
             for p in glob(problem.path, path):
-                # Exclude files containing 'TODO: Remove'. Do not check this for test data.
-                if p.is_file() and p.suffix not in ['.ans', '.in', '.out']:
-                    try:
-                        data = p.read_text()
-                    except UnicodeDecodeError:
-                        continue
-                    if 'TODO: Remove' not in data:
-                        results.add(p.stem)
+                if p.is_file():
+                    # Exclude files containing 'TODO: Remove'. Do not check this for test data.
+                    if p.suffix not in ['.ans', '.in', '.out']:
+                        try:
+                            data = p.read_text()
+                        except UnicodeDecodeError:
+                            continue
+                        if 'TODO: Remove' in data:
+                            continue
+                    results.add(p.stem)
+
                 if p.is_dir():
                     ok = True
                     for f in glob(p, '*'):
@@ -129,6 +132,7 @@ def stats(problems):
                                 pass
                     if ok:
                         results.add(p)
+
             return results
 
         def value(x):
