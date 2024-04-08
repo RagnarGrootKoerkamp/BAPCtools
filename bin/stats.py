@@ -35,27 +35,23 @@ def stats(problems):
         ('O', ['output_validators/*']),
         (
             '  sample',
-            [
-                'data/sample/*.in',
-                'data/sample/*.in.statement',
-                'data/sample/*.interaction',
-                lambda s: {x.stem for x in s if x.parts[2] == 'sample'},
-            ],
+            [lambda s: {x.stem for x in s if x.parts[2] == 'sample'}],
             2,
         ),
         (
             'secret',
-            ['data/secret/**/*.in', lambda s: {x.stem for x in s if x.parts[2] == 'secret'}],
+            [lambda s: {x.stem for x in s if x.parts[2] == 'secret'}],
             15,
             100,
         ),
         (
             'bad',
             [
-                'data/invalid_inputs/**/*.in',
-                'data/invalid_answers/**/*.ans',
-                'data/invalid_outputs/**/*.out',
-                'data/bad/**/*.in',
+                lambda s: {
+                    x.stem
+                    for x in s
+                    if x.parts[2] in ['invalid_inputs', 'invalid_answers', 'invalid_outputs', 'bad']
+                }
             ],
             0,
         ),
@@ -107,21 +103,20 @@ def stats(problems):
             results = set()
             for p in glob(problem.path, path):
                 if p.is_file():
-                    # Exclude files containing 'TODO: Remove'. Do not check this for test data.
-                    if p.suffix not in ['.ans', '.in', '.out']:
-                        try:
-                            data = p.read_text()
-                        except UnicodeDecodeError:
-                            continue
-                        if 'TODO: Remove' in data:
-                            continue
+                    # Exclude files containing 'TODO: Remove'.
+                    try:
+                        data = p.read_text()
+                    except UnicodeDecodeError:
+                        continue
+                    if 'TODO: Remove' in data:
+                        continue
                     results.add(p.stem)
 
                 if p.is_dir():
                     ok = True
                     for f in glob(p, '*'):
-                        # Exclude files containing 'TODO: Remove'. Do not check this for test data.
-                        if f.is_file() and f.suffix not in ['.ans', '.in', '.out']:
+                        # Exclude files containing 'TODO: Remove'.
+                        if f.is_file():
                             try:
                                 data = f.read_text()
                                 if data.find('TODO: Remove') != -1:
