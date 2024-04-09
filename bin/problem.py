@@ -30,6 +30,8 @@ class Problem:
         self.path = path
         self.tmpdir = tmpdir / self.name
         self.tmpdir.mkdir(parents=True, exist_ok=True)
+        # The label for the problem: A, B, A1, A2, X, ...
+        self.label = label
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
         self._read_settings()
 
@@ -41,9 +43,6 @@ class Problem:
         self._program_callbacks = dict()
         # Dictionary from path to parsed file contents.
         self._testdata_yamls = dict()
-
-        # The label for the problem: A, B, A1, A2, X, ...
-        self.label = label
 
         # TODO: transform this into nice warnings
         assert path.is_dir()
@@ -182,6 +181,24 @@ class Problem:
         for k in raw_constants:
             if k not in self.settings.constants:
                 error(f'invalid value for constant {k} in {self.name}/problem.yaml (ignored)')
+
+        # reserved constants (and backwards compatibility)
+        known_constants = {
+            'problemdir': self.path.absolute().as_posix(),
+            'problemdirname': self.name,
+            'problemlabel': self.label,
+            'problemauthor': self.settings.author,
+            'timelimit': self.settings.timelimit,
+        }
+        reserved_constants = list(known_constants.keys()) + [
+            'problemyamlname',  # localised for problem statements
+            'builddir',  # used by problem statements
+        ]
+        for k in reserved_constants:
+            if k in self.settings.constants:
+                warn(f'found reserved key "{k}" in constants of {self.name}/problem.yaml. Ignored.')
+                self.settings.constants.pop(k)
+        self.settings.constants.update(known_constants)
 
     def get_testdata_yaml(p, path, key, bar, name=None) -> str | None:
         """

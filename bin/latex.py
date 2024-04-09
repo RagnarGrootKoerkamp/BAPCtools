@@ -84,17 +84,24 @@ def prepare_problem(problem, language):
     create_samples_file(problem, language)
 
 
-def get_tl(problem):
+# Get the problem constants (overwritten/extended for latex).
+def problem_constants(problem, language):
     problem_config = problem.settings
     tl = problem_config.timelimit
     tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
 
     if 'print_timelimit' in contest_yaml():
-        print_tl = contest_yaml()['print_timelimit']
-    else:
-        print_tl = not config.args.no_timelimit
+        if not contest_yaml()['print_timelimit']:
+            tl = ''
+    elif config.args.no_timelimit:
+        tl = ''
 
-    return tl if print_tl else ''
+    return {
+        **problem.settings.constants,
+        'timelimit': tl,
+        'problemyamlname': problem.settings.name[language].replace('_', ' '),
+        'builddir': latex_builddir(problem, language).as_posix(),
+    }
 
 
 def make_environment():
@@ -247,15 +254,7 @@ def build_problem_pdf(problem, language, solution=False, web=False):
     util.copy_and_substitute(
         local_data if local_data.is_file() else config.tools_root / 'latex' / main_file,
         builddir / main_file,
-        {
-            'problemlabel': problem.label,
-            'problemyamlname': problem.settings.name[language].replace('_', ' '),
-            'problemauthor': problem.settings.author,
-            'timelimit': get_tl(problem),
-            'problemdir': problem.path.absolute().as_posix(),
-            'problemdirname': problem.name,
-            'builddir': builddir.as_posix(),
-        },
+        problem_constants(problem, language),
     )
 
     return build_latex_pdf(builddir, builddir / main_file, language, bar, problem.path)
@@ -375,15 +374,7 @@ def build_contest_pdf(contest, problems, tmpdir, language, solutions=False, web=
 
         problems_data += util.substitute(
             per_problem_data,
-            {
-                'problemlabel': problem.label,
-                'problemyamlname': problem.settings.name[language].replace('_', ' '),
-                'problemauthor': problem.settings.author,
-                'timelimit': get_tl(problem),
-                'problemdir': problem.path.absolute().as_posix(),
-                'problemdirname': problem.name,
-                'builddir': latex_builddir(problem, language).as_posix(),
-            },
+            problem_constants(problem, language),
         )
 
     if solutions:
