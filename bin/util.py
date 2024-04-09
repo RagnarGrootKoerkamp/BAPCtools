@@ -901,6 +901,14 @@ def ensure_symlink(link, target, output=False, relative=False):
         link.symlink_to(target.resolve(), target.is_dir())
 
 
+def has_substitute(inpath):
+    try:
+        data = inpath.read_text()
+    except UnicodeDecodeError:
+        return False
+    return config.SUBSTITUTE_REGEX.search(data) is not None
+
+
 def substitute(data, variables):
     if variables is None:
         variables = {}

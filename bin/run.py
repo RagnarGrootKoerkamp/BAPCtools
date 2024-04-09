@@ -115,6 +115,7 @@ class Submission(program.Program):
 
     def __init__(self, problem, path, skip_double_build_warning=False):
         super().__init__(problem, path, skip_double_build_warning=skip_double_build_warning)
+        self.substitute_constants = False
 
         self.verdict = None
         self.duration = None

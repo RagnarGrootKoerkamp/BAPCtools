@@ -88,7 +88,7 @@ def sanitizer():
 # - path:           source file/directory
 # - short_path:     the path relative to problem/subdir/, or None
 # - tmpdir:         the build directory in tmpfs. This is only created when build() is called.
-# - input_files:    list of source files linked into tmpdir
+# - input_files:    list of source files linked/copied into tmpdir
 # - language:       the detected language
 # - env:            the environment variables used for compile/run command substitution
 # - hash:           a hash of all of the program including all source files
@@ -139,6 +139,7 @@ class Program:
 
         self.ok = True
         self.built = False
+        self.substitute_constants = True
 
         # Detect language, dependencies, and main file
         if deps:
@@ -418,13 +419,17 @@ class Program:
         self.input_files = []
         hashes = []
         for f in self.source_files:
-            ensure_symlink(self.tmpdir / f.name, f)
-            self.input_files.append(self.tmpdir / f.name)
             if not f.is_file():
                 self.ok = False
                 self.bar.error(f'{str(f)} is not a file')
                 return False
-            hashes.append(hash_file(f))
+            tmpf = self.tmpdir / f.name
+            if not self.substitute_constants or not has_substitute(f):
+                ensure_symlink(tmpf, f)
+            else:
+                copy_and_substitute(f, tmpf, self.problem.settings.constants)
+            self.input_files.append(tmpf)
+            hashes.append(hash_file(tmpf))
         self.hash = combine_hashes(hashes)
 
         if not self._get_language(self.source_files):
