@@ -98,6 +98,10 @@ def problem_constants(problem, language):
 
     return {
         **problem.settings.constants,
+        'problemdir': problem.path.absolute().as_posix(),
+        'problemdirname': problem.name,
+        'problemlabel': problem.label,
+        'problemauthor': problem.settings.author,
         'timelimit': tl,
         'problemyamlname': problem.settings.name[language].replace('_', ' '),
         'builddir': latex_builddir(problem, language).as_posix(),

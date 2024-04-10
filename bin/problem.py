@@ -184,13 +184,13 @@ class Problem:
 
         # reserved constants (and backwards compatibility)
         known_constants = {
-            'problemdir': self.path.absolute().as_posix(),
-            'problemdirname': self.name,
-            'problemlabel': self.label,
-            'problemauthor': self.settings.author,
             'timelimit': self.settings.timelimit,
         }
         reserved_constants = list(known_constants.keys()) + [
+            'problemdir',
+            'problemdirname',
+            'problemlabel',
+            'problemauthor',
             'problemyamlname',  # localised for problem statements
             'builddir',  # used by problem statements
         ]
