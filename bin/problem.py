@@ -176,11 +176,17 @@ class Problem:
             fatal(f'could not parse constants in {self.name}/problem.yaml')
         raw_constants = self.settings.constants
         self.settings.constants = {
-            k: v for k, v in raw_constants.items() if isinstance(v, (str, int, float))
+            k: v
+            for k, v in raw_constants.items()
+            if isinstance(v, (str, int, float))
+            and config.SUBSTITUTE_NAME_REGEX.fullmatch(k) is not None
         }
         for k in raw_constants:
             if k not in self.settings.constants:
-                error(f'invalid value for constant {k} in {self.name}/problem.yaml (ignored)')
+                if config.SUBSTITUTE_NAME_REGEX.fullmatch(key) is None:
+                    error(f'invalid name "{k}" for constant in {self.name}/problem.yaml (ignored)')
+                else:
+                    error(f'invalid value for constant {k} in {self.name}/problem.yaml (ignored)')
 
         # reserved constants (and backwards compatibility)
         known_constants = {
