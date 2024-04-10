@@ -234,7 +234,8 @@ class Problem:
                 if f in p._testdata_yamls:
                     flags = p._testdata_yamls[f]
                 else:
-                    p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
+                    raw = substitute(f.read_text(), p.constants)
+                    p._testdata_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
 
                 # Validate and exctract the flags
                 for k in flags:
