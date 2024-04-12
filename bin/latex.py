@@ -201,7 +201,7 @@ def build_latex_pdf(builddir, tex_path, language, bar=None, problem_path=None):
 
         last = ret.out
         if not config.args.error:
-            last = tail(ret.out, 20)
+            last = tail(ret.out, 25)
         if last != ret.out:
             last = f'{last}{Fore.YELLOW}Use -e to show more or see:{Style.RESET_ALL}\n{outfile}'
         ret.out = last
