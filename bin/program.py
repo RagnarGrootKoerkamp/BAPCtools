@@ -139,6 +139,7 @@ class Program:
 
         self.ok = True
         self.built = False
+        # True for all Prgrams, for now
         self.substitute_constants = True
 
         # Detect language, dependencies, and main file
