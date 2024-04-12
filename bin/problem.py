@@ -162,7 +162,8 @@ class Problem:
         if isinstance(self.settings.validator_flags, str):
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
 
-        self.interactive = self.settings.validation == 'custom interactive'
+        self.interactive = 'interactive' in self.settings.validation
+        self.multipass = 'multipass' in self.settings.validation
 
         if self.settings.uuid == None:
             self.settings.uuid = generate_problem_uuid()

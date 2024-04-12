@@ -21,7 +21,15 @@ PRIORITY = {
     'RUN_TIME_ERROR': 99,
 }
 
-VALIDATION_MODES = ['default', 'custom', 'custom interactive']
+# For now we can list all possibilities
+VALIDATION_MODES = [
+    'default',
+    'custom',
+    'custom interactive',
+    'custom multipass',
+    'custom interactive multipass',
+    'custom multipass interactive',
+]
 
 KNOWN_LICENSES = [
     'cc by-sa',

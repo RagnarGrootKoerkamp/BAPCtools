@@ -153,7 +153,15 @@ def new_problem():
         validation = config.args.validation
     else:
         validation = _ask_variable_choice(
-            'validation', config.VALIDATION_MODES[:1] + ['float'] + config.VALIDATION_MODES[1:]
+            'validation',
+            [
+                'default',
+                'float',
+                'custom',
+                'custom interactive',
+                'custom multipass',
+                'custom interactive multipass',
+            ],
         )
         if validation == 'float':
             validation = 'default'
