@@ -155,8 +155,8 @@ class Problem:
         self.settings.timeout = int(config.args.timeout or 1.5 * self.settings.timelimit + 1)
 
         mode = parse_validation(self.settings.validation)
-        self.interactive = mode['interactive']
-        self.multipass = mode['multipass']
+        self.interactive = mode['mode'] == 'custom' and mode['interactive']
+        self.multipass = mode['mode'] == 'custom' and mode['multipass']
 
         if isinstance(self.settings.validator_flags, str):
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
