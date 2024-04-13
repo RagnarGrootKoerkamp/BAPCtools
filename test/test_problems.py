@@ -175,7 +175,7 @@ class TestNewContestProblem:
             ]
         )
         os.chdir('contest_name')
-        monkeypatch.setattr('sys.stdin', io.StringIO('Ragnar Groot Koerkamp\ncustom\n\n\n\n\n'))
+        monkeypatch.setattr('sys.stdin', io.StringIO('Ragnar Groot Koerkamp\ncustom\n\n\n\n\n\n\n'))
         tools.test(['new_problem', 'Problem Two'])
         os.chdir('..')
         problemsyaml = Path('contest_name/problems.yaml').read_text()
