@@ -810,6 +810,23 @@ def write_yaml(data, path, allow_yamllib=False):
         )
 
 
+# Parse validation mode
+def parse_validation(mode):
+    if mode == 'default':
+        return {'mode': 'default'}
+    else:
+        res = {
+            'mode': 'custom',
+            'interactive': 'interactive' in mode,
+            'multipass': 'multipass' in mode,
+        }
+        tmp = tmp.replace(' interactive', '', 1)
+        tmp = tmp.replace(' multipass', '', 1)
+        if tmp != 'custom':
+            fatal(f'Unrecognised validation mode {mode}.')
+        return res
+
+
 # glob, but without hidden files
 def glob(path, expression, include_hidden=False):
     def keep(p):

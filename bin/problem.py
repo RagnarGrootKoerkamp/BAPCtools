@@ -154,16 +154,12 @@ class Problem:
         self.settings.timelimit = config.args.timelimit or self.settings.timelimit
         self.settings.timeout = int(config.args.timeout or 1.5 * self.settings.timelimit + 1)
 
-        if self.settings.validation not in config.VALIDATION_MODES:
-            fatal(
-                f'Unrecognised validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}'
-            )
+        mode = parse_validation(self.settings.validation)
+        self.interactive = mode['interactive']
+        self.multipass = mode['multipass']
 
         if isinstance(self.settings.validator_flags, str):
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
-
-        self.interactive = 'interactive' in self.settings.validation
-        self.multipass = 'multipass' in self.settings.validation
 
         if self.settings.uuid == None:
             self.settings.uuid = generate_problem_uuid()
