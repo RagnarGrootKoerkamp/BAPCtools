@@ -813,16 +813,20 @@ def write_yaml(data, path, allow_yamllib=False):
 # Parse validation mode
 def parse_validation(mode):
     if mode == 'default':
-        return {'mode': 'default'}
+        return {
+            'mode': 'default',
+            'interactive': False,
+            'multipass': False,
+        }
     else:
         res = {
             'mode': 'custom',
             'interactive': 'interactive' in mode,
             'multipass': 'multipass' in mode,
         }
-        tmp = tmp.replace(' interactive', '', 1)
-        tmp = tmp.replace(' multipass', '', 1)
-        if tmp != 'custom':
+        temp = mode.replace(' interactive', '', 1)
+        temp = temp.replace(' multipass', '', 1)
+        if temp != 'custom':
             fatal(f'Unrecognised validation mode {mode}.')
         return res
 
