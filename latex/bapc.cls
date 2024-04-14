@@ -329,6 +329,16 @@
 	\par%
 }
 
+\newcommand{\InteractivePass}[1]{
+	\par\bigskip\noindent%
+	{{
+		\centering\large\bfseries\textrm{\langpass{} #1}%
+	}}
+	\nopagebreak
+	\vspace{-1.0em}
+	\par
+}
+
 %-------------------------------------------------------------------------------
 % The following are required for the overall layout:
 %-------------------------------------------------------------------------------
