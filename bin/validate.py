@@ -308,7 +308,7 @@ class OutputValidator(Validator):
             raise ValueError("Invalid output validator language")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
-        if isinstance(mode, run.Run):
+        if not isinstance(mode, Mode):
             cwd = mode.feedbackdir
         flags = self.problem.settings.validator_flags
         invocation = self.run_command + [in_path, ans_path, cwd] + flags
