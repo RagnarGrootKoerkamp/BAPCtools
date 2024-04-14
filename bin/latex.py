@@ -36,7 +36,7 @@ def create_samples_file(problem, language):
         samples_file_path.write_text('')
         return
 
-    samples_data = ''
+    samples_data = []
 
     for sample in samples:
         if isinstance(sample, Path):
@@ -44,15 +44,16 @@ def create_samples_file(problem, language):
             interaction_dir = builddir / 'interaction'
             interaction_dir.mkdir(exist_ok=True)
 
-            samples_data += '\\InteractiveSampleHeading\n'
+            samples_data.append('\\InteractiveSampleHeading\n')
             lines = sample.read_text()
             last = 'x'
             cur = ''
 
             interaction_id = 0
+            pass_id = 1
 
             def flush():
-                assert last in '<>'
+                assert last in '<>-'
                 nonlocal samples_data, interaction_id
 
                 interaction_file = (
@@ -61,11 +62,17 @@ def create_samples_file(problem, language):
                 interaction_file.write_text(cur)
 
                 mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
-                samples_data += f'\\{mode}{{{interaction_file.as_posix()}}}\n'
+                samples_data.append(f'\\{mode}{{{interaction_file.as_posix()}}}\n')
                 interaction_id += 1
 
             for line in lines.splitlines():
-                if line[0] == last:
+                if line == '---':
+                    pass_id += 1
+                    flush()
+                    last = 'x'
+                    cur = ''
+                    samples_data.append(f'\\InteractivePass{{{pass_id}}}')
+                elif line[0] == last:
                     cur += line[1:] + '\n'
                 else:
                     if cur:
@@ -75,8 +82,8 @@ def create_samples_file(problem, language):
             flush()
         else:
             (in_path, ans_path) = sample
-            samples_data += f'\\Sample{{{in_path.as_posix()}}}{{{ans_path.as_posix()}}}\n'
-    samples_file_path.write_text(samples_data)
+            samples_data.append(f'\\Sample{{{in_path.as_posix()}}}{{{ans_path.as_posix()}}}\n')
+    samples_file_path.write_text(''.join(samples_data))
 
 
 # Steps needed for both problem and contest compilation.
