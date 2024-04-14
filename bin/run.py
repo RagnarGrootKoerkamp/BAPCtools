@@ -5,6 +5,7 @@ import program
 import config
 import interactive
 import parallel
+from testcase import Testcase
 import validate
 from typing import Type
 
@@ -20,18 +21,24 @@ class Run:
         self.name = self.testcase.name
         self.result = None
 
-        tmp_path = (
-            self.problem.tmpdir / 'runs' / self.submission.short_path / self.testcase.short_path
+        self.tmpdir = (
+            self.problem.tmpdir
+            / 'runs'
+            / self.submission.short_path
+            / self.testcase.short_path.with_suffix('')
         )
-        self.out_path = tmp_path.with_suffix('.out')
-        self.feedbackdir = tmp_path.with_suffix('.feedbackdir')
+
+        self.in_path = self.tmpdir / 'testcase.in'
+        self.out_path = self.tmpdir / 'testcase.out'
+        self.feedbackdir = self.in_path.with_suffix('.feedbackdir')
+
+        if self.tmpdir.is_file():
+            self.tmpdir.unlink()
+        elif self.tmpdir.exists():
+            shutil.rmtree(self.tmpdir)
+
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
-        # Clean all files in feedbackdir.
-        for f in self.feedbackdir.iterdir():
-            if f.is_file():
-                f.unlink()
-            else:
-                shutil.rmtree(f)
+        ensure_symlink(self.in_path, self.testcase.in_path)
 
     # Return an ExecResult object amended with verdict.
     def run(self, bar, *, interaction=None, submission_args=None):
@@ -40,35 +47,54 @@ class Run:
                 self, interaction=interaction, submission_args=submission_args
             )
         else:
-            result = self.submission.run(self.testcase.in_path, self.out_path)
-            if result.duration > self.problem.settings.timelimit:
-                result.verdict = 'TIME_LIMIT_EXCEEDED'
-                if result.timeout_expired:
-                    result.print_verdict_ = 'TLE (aborted)'
-            elif result.status == ExecStatus.ERROR:
-                result.verdict = 'RUN_TIME_ERROR'
-                if config.args.error:
-                    result.err = 'Exited with code ' + str(result.returncode) + ':\n' + result.err
-                else:
-                    result.err = 'Exited with code ' + str(result.returncode)
-            else:
-                # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
-                duration = result.duration
-                result = self._validate_output(bar)
-                if result is None:
-                    error(f'No output validators found for testcase {self.testcase.name}')
-                    result = ExecResult(None, ExecStatus.REJECTED, 0, False, None, None)
-                    result.verdict = 'VALIDATOR_CRASH'
-                else:
-                    result.duration = duration
-
-                    if result.status:
-                        result.verdict = 'ACCEPTED'
-                    elif result.status == ExecStatus.REJECTED:
-                        result.verdict = 'WRONG_ANSWER'
+            nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else None
+            while True:
+                result = self.submission.run(self.in_path, self.out_path)
+                if result.duration > self.problem.settings.timelimit:
+                    result.verdict = 'TIME_LIMIT_EXCEEDED'
+                    if result.timeout_expired:
+                        result.print_verdict_ = 'TLE (aborted)'
+                elif result.status == ExecStatus.ERROR:
+                    result.verdict = 'RUN_TIME_ERROR'
+                    if config.args.error:
+                        result.err = (
+                            'Exited with code ' + str(result.returncode) + ':\n' + result.err
+                        )
                     else:
-                        config.n_error += 1
+                        result.err = 'Exited with code ' + str(result.returncode)
+                else:
+                    # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
+                    duration = result.duration
+                    result = self._validate_output(bar)
+                    if result is None:
+                        error(f'No output validators found for testcase {self.testcase.name}')
+                        result = ExecResult(None, ExecStatus.REJECTED, 0, False, None, None)
                         result.verdict = 'VALIDATOR_CRASH'
+                    else:
+                        result.duration = duration
+
+                        if result.status:
+                            result.verdict = 'ACCEPTED'
+                        elif result.status == ExecStatus.REJECTED:
+                            result.verdict = 'WRONG_ANSWER'
+                            if nextpass is not None and nextpass.is_file():
+                                error(f'got WRONG_ANSWER but found nextpass.in')
+                                result.verdict = 'VALIDATOR_CRASH'
+                        else:
+                            config.n_error += 1
+                            result.verdict = 'VALIDATOR_CRASH'
+                if result.verdict != 'ACCEPTED' or nextpass is None or not nextpass.is_file():
+                    break
+
+                # prepare next pass
+                for f in self.tmpdir.iterdir():
+                    if f == self.feedbackdir:
+                        continue
+                    if f.is_file():
+                        f.unlink()
+                    elif f.exists():
+                        shutil.rmtree(f)
+                shutil.move(nextpass, self.in_path)
 
             # Delete .out files larger than 1MB.
             if (
@@ -97,12 +123,10 @@ class Run:
         if ret.err is None:
             ret.err = ''
         if judgemessage.is_file():
-            ret.err += judgemessage.read_text()
-            judgemessage.unlink()
+            ret.err += judgemessage.read_text(errors='replace')
         if judgeerror.is_file():
             # Remove any std output because it will usually only contain the
-            ret.err = judgeerror.read_text()
-            judgeerror.unlink()
+            ret.err = judgeerror.read_text(errors='replace')
         if ret.err:
             header = validator.name + ': ' if len(output_validators) > 1 else ''
             ret.err = header + ret.err
@@ -298,8 +322,12 @@ class Submission(program.Program):
                 if result.out:
                     data = crop_output(result.out)
 
+            judgemessage = run.feedbackdir / 'judgemessage.txt'
+            judgeerror = run.feedbackdir / 'judgeerror.txt'
             # Add data from feedbackdir.
             for f in run.feedbackdir.iterdir():
+                if f in [judgemessage, judgeerror]:
+                    continue
                 if not f.is_file():
                     localbar.warn(f'Validator wrote to {f} but it\'s not a file.')
                     continue
@@ -310,7 +338,6 @@ class Submission(program.Program):
                         f'Validator wrote to {f} but it cannot be parsed as unicode text.'
                     )
                     continue
-                f.unlink()
                 if not t:
                     continue
                 if len(data) > 0 and data[-1] != '\n':

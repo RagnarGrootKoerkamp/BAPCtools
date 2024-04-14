@@ -48,7 +48,7 @@ def run_interactive_testcase(
     validator_command = (
         output_validator.run_command
         + [
-            run.testcase.in_path.resolve(),
+            run.in_path.resolve(),
             run.testcase.ans_path.resolve(),
             run.feedbackdir.resolve(),
         ]

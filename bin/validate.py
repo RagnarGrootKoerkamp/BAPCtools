@@ -300,22 +300,25 @@ class OutputValidator(Validator):
             path = testcase.out_path.resolve()
         else:
             assert mode != Mode.INPUT
+            # mode is actually a run
             path = mode.out_path
+            in_path = mode.in_path
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
-        feedbackdir = cwd if isinstance(mode, Mode) else mode.feedbackdir
+        if not isinstance(mode, Mode):
+            cwd = mode.feedbackdir
         flags = self.problem.settings.validator_flags
-        invocation = self.run_command + [in_path, ans_path, feedbackdir] + flags
+        invocation = self.run_command + [in_path, ans_path, cwd] + flags
 
         with path.open() as file:
             ret = exec_command(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
                 stdin=file,
-                cwd=feedbackdir,
+                cwd=cwd,
                 timeout=config.get_timeout(),
             )
 
