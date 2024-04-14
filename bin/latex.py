@@ -232,7 +232,7 @@ def build_latex_pdf(builddir, tex_path, language, bar=None, problem_path=None):
 def build_problem_pdf(problem, language, solution=False, web=False):
     """
     Arguments:
-    -- language: str, the two-latter language code appearing the file name, such as problem.en.tex
+    -- language: str, the two-letter language code appearing the file name, such as problem.en.tex
     """
     main_file = 'solution' if solution else 'problem'
     main_file += '-web.tex' if web else '.tex'
