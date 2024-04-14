@@ -85,8 +85,9 @@ class TestDefaultOutputValidators:
 
         t = testcase.Testcase(problem, in_path, short_path=Path('test'))
         r = MockRun()
-        r.feedbackdir = problem.tmpdir / 'data'
+        r.in_path = in_path
         r.out_path = out_path
+        r.feedbackdir = problem.tmpdir / 'data'
 
         problem.settings.validator_flags = flags
 
