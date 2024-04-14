@@ -289,11 +289,16 @@ class Problem:
         for f in in_paths:
             t = testcase.Testcase(p, f, print_warn=True)
             if (
-                p.interactive
+                (p.interactive or p.multipass)
                 and mode == validate.Mode.INVALID
                 and t.root in ['invalid_answers', 'invalid_outputs']
             ):
-                warn(f'Found file {f} for {mode} validation in interactive problem. Skipping.')
+                msg = ''
+                if p.interactive:
+                    msg += ' interactive'
+                if p.multipass:
+                    msg += ' multipass'
+                warn(f'Found file {f} for {mode} validation in{msg} problem. Skipping.')
                 continue
             if needans and not t.ans_path.is_file():
                 if t.root != 'invalid_inputs':
@@ -716,9 +721,14 @@ class Problem:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
 
-        if problem.interactive and mode == validate.Mode.ANSWER:
+        if (problem.interactive or problem.multipass) and mode == validate.Mode.ANSWER:
             if (problem.path / 'answer_validators').exists():
-                log('Not running answer_validators for interactive problems.')
+                msg = ''
+                if p.interactive:
+                    msg += ' interactive'
+                if p.multipass:
+                    msg += ' multipass'
+                log(f'Not running answer_validators for{msg} problems.')
             return True
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
@@ -730,12 +740,13 @@ class Problem:
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.ANSWER:
                 assert not problem.interactive
+                assert not problem.multipass
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
                 problem.validators(validate.OutputValidator, check_constraints=check_constraints)
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
-                if not problem.interactive:
+                if not problem.interactive and not problem.multipass:
                     problem.validators(validate.AnswerValidator)
                     problem.validators(validate.OutputValidator)
                 testcases = problem.testcases(mode=mode)
