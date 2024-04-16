@@ -47,7 +47,7 @@ class Run:
                 self, interaction=interaction, submission_args=submission_args
             )
         else:
-            nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else None
+            nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else False
             while True:
                 result = self.submission.run(self.in_path, self.out_path)
                 if result.duration > self.problem.settings.timelimit:
@@ -67,7 +67,10 @@ class Run:
                     duration = result.duration
                     result = self._validate_output(bar)
                     if result is None:
-                        error(f'No output validators found for testcase {self.testcase.name}')
+                        bar.error(
+                            f'No output validators found for testcase {self.testcase.name}',
+                            resume=True,
+                        )
                         result = ExecResult(None, ExecStatus.REJECTED, 0, False, None, None)
                         result.verdict = 'VALIDATOR_CRASH'
                     else:
@@ -77,24 +80,17 @@ class Run:
                             result.verdict = 'ACCEPTED'
                         elif result.status == ExecStatus.REJECTED:
                             result.verdict = 'WRONG_ANSWER'
-                            if nextpass is not None and nextpass.is_file():
-                                error(f'got WRONG_ANSWER but found nextpass.in')
+                            if nextpass and nextpass.is_file():
+                                bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
                                 result.verdict = 'VALIDATOR_CRASH'
                         else:
                             config.n_error += 1
                             result.verdict = 'VALIDATOR_CRASH'
-                if result.verdict != 'ACCEPTED' or nextpass is None or not nextpass.is_file():
-                    break
 
-                # prepare next pass
-                for f in self.tmpdir.iterdir():
-                    if f == self.feedbackdir:
-                        continue
-                    if f.is_file():
-                        f.unlink()
-                    elif f.exists():
-                        shutil.rmtree(f)
-                shutil.move(nextpass, self.in_path)
+                if result.verdict != 'ACCEPTED':
+                    break
+                elif not self._prepare_nextpass(nextpass):
+                    break
 
             # Delete .out files larger than 1MB.
             if (
@@ -106,6 +102,22 @@ class Run:
 
         self.result = result
         return result
+
+    # prepare next pass
+    def _prepare_nextpass(self, nextpass):
+        if not nextpass or not nextpass.is_file():
+            return False
+        # clear all files outside of feedbackdir
+        for f in self.tmpdir.iterdir():
+            if f == self.feedbackdir:
+                continue
+            if f.is_file():
+                f.unlink()
+            elif f.exists():
+                shutil.rmtree(f)
+        # use nextpass.in as next input
+        shutil.move(nextpass, self.in_path)
+        return True
 
     def _validate_output(self, bar):
         output_validators = self.problem.validators(validate.OutputValidator)
