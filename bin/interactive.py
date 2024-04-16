@@ -172,7 +172,6 @@ def run_interactive_testcase(
     interaction_file = None
     # TODO: Print interaction when needed.
     if interaction:
-        i
         interaction_file = None
         if interaction is not True:
             interaction.write_text('')
@@ -378,6 +377,9 @@ while True:
             break
         elif not run._prepare_nextpass(nextpass):
             break
+
+        if interaction:
+            print('---', file=sys.stderr if interaction is None else interaction_file)
 
     if interaction_file is not None:
         interaction_file.close()
