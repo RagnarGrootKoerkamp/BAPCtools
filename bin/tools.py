@@ -699,6 +699,11 @@ Run this from one of:
     exportparser = subparsers.add_parser(
         'export', parents=[global_parser], help='Export the problem or contest to DOMjudge.'
     )
+    exportparser.add_argument(
+        '--contest-id',
+        action='store',
+        help='Contest ID to use when writing to the API. Defaults to value of contest_id in contest.yaml.',
+    )
 
     updateproblemsyamlparser = subparsers.add_parser(
         'update_problems_yaml',
