@@ -400,7 +400,6 @@ class Submission(program.Program):
         return (self.verdict in self.expected_verdicts, printed_newline)
 
     def test(self):
-        # TODO multipass
         print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
 
         testcases = self.problem.testcases(needans=False)
@@ -473,7 +472,6 @@ class Submission(program.Program):
 
     # Run the submission using stdin as input.
     def test_interactive(self):
-        # TODO multipass
         if self.problem.interactive:
             output_validators = self.problem.validators(validate.OutputValidator)
             if output_validators is False:
