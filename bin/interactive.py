@@ -136,7 +136,7 @@ def run_interactive_testcase(
 
             if validator_status != config.RTV_AC:
                 break
-            elif not run._prepare_nextpass(_prepare_nextpass):
+            elif not run._prepare_nextpass(nextpass):
                 break
 
         # Set result.err to validator error and result.out to team error.
@@ -376,7 +376,7 @@ while True:
 
         if validator_status != config.RTV_AC:
             break
-        elif not run._prepare_nextpass(_prepare_nextpass):
+        elif not run._prepare_nextpass(nextpass):
             break
 
     if interaction_file is not None:
