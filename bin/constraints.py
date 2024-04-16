@@ -153,7 +153,7 @@ def check_statement(problem, language):
         nonlocal pos
         assert statement[pos] == '\\'
         next = pos + 1
-        while next < statement and statement[next] != '\\' and statement[pos] != '{':
+        while next < len(statement) and statement[next] != '\\' and statement[pos] != '{':
             next += 1
         name = statement[pos + 1 : next]
         pos = next
