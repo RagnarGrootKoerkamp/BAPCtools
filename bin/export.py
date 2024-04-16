@@ -492,8 +492,11 @@ def export_contest_and_problems(problems, statement_language):
             f'/contests/{cid}/problemset',
             files={'problemset': ('contest.pdf', pdf_file, 'application/pdf')},
         )
-    r.raise_for_status()
-    log('Uploaded contest.pdf.')
+    if r.status_code == 404:
+        log('Your DOMjudge does not support contest.pdf. Skipping.')
+    else:
+        r.raise_for_status()
+        log('Uploaded contest.pdf.')
 
     def get_problems():
         r = call_api('GET', f'/contests/{cid}/problems')
