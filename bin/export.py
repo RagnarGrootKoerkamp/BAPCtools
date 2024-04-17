@@ -128,7 +128,7 @@ def build_problem_zip(problem, output):
         ('problem_statement/*', True),
         ('submissions/accepted/**/*', True),
         ('submissions/*/**/*', False),
-        ('attachments/**/*', problem.interactive),
+        ('attachments/**/*', problem.interactive or problem.multipass),
     ]
 
     testcases = [
