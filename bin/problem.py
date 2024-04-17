@@ -349,10 +349,10 @@ class Problem:
         # Non-interactive problems should not have .interaction files.
         # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
         # so that they can emulate a non-interactive problem with on-the-fly generated input.
-        if not p.interactive:
+        if not p.interactive and not p.multipass:
             if len(interaction_paths) != 0:
                 warn(
-                    f'Non-interactive problem {p.name} should not have data/sample/*.interaction files.'
+                    f'Non-interactive/Non-multipass problem {p.name} should not have data/sample/*.interaction files.'
                 )
             interaction_paths = []
 

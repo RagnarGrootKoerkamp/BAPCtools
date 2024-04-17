@@ -203,10 +203,10 @@
 	\multicolumn{1}{l}{\large \bfseries\textrm{#1 \arabic{SampleCount}}}
 }
 \newcommand{\SampleListing}[1]{
-  	\lstinputlisting[aboveskip=-0.7\baselineskip,belowskip=-0.9\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
+	\lstinputlisting[aboveskip=-0.7\baselineskip,belowskip=-0.9\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
 }
 \newcommand{\InteractiveSampleListing}[1]{
-    \lstinputlisting[aboveskip=-1.0\baselineskip,belowskip=-1\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
+	\lstinputlisting[aboveskip=-1.0\baselineskip,belowskip=-1\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
 }
 \newcommand{\SideBySideSample}[2]{
 	\par\bigskip\noindent%
@@ -217,10 +217,10 @@
 	\begin{tabularx}{\textwidth}{|X|X|}%             http://tex.stackexchange.com/a/31704
 		\mySampleHeading{\langinputsample{}} & \mySampleHeading{\langoutputsample{}} \\
 		\hline
-	  	\SampleListing{#1}
+		\SampleListing{#1}
 		&
-	  	\SampleListing{#2}
-        \\
+		\SampleListing{#2}
+		\\
 		\hline
 	\end{tabularx}%
 	\rmfamily
@@ -235,16 +235,55 @@
 	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
 		\mySampleHeading{\langinput{}} \\
 		\hline
-	  	\SampleListing{#1} \\
+		\SampleListing{#1} \\
 		\hline
 	\end{tabularx}%
 	\nopagebreak
-    \par
-    \noindent
-	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
-	  	\mySampleHeading{\langoutput{}} \\
+	\par
+	\noindent
+	\begin{tabularx}{\textwidth}{|X|}%
+		\mySampleHeading{\langoutput{}} \\
 		\hline
-	  	\SampleListing{#2} \\
+		\SampleListing{#2} \\
+		\hline
+	\end{tabularx}%
+	\rmfamily
+}
+
+\newcommand{\SideBySideSampleNoHeading}[2]{
+	\par\bigskip\noindent%
+	\normalsize%
+	\stepcounter{SampleCount}%
+	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
+	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
+	\begin{tabularx}{\textwidth}{|X|X|}%             http://tex.stackexchange.com/a/31704
+		\hline
+		\SampleListing{#1}
+		&
+		\SampleListing{#2}
+		\\
+		\hline
+	\end{tabularx}%
+	\rmfamily
+}
+
+\newcommand{\FullWidthSampleNoHeading}[2]{
+	\par\bigskip\noindent%
+	\normalsize%
+	\stepcounter{SampleCount}%
+	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
+	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
+	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
+		\hline
+		\SampleListing{#1} \\
+		\hline
+	\end{tabularx}%
+	\nopagebreak
+	\par
+	\noindent
+	\begin{tabularx}{\textwidth}{|X|}%
+		\hline
+		\SampleListing{#2} \\
 		\hline
 	\end{tabularx}%
 	\rmfamily
@@ -275,6 +314,35 @@
 		% If input width is too large, print full-width.
 		\FullWidthSample{#1}{#2}
 	\fi
+}
+
+\newcommand{\SampleNoHeading}[2]{
+	\savebox{\PS@inputbox}{\SampleListing{#1}}
+	\savebox{\PS@outputbox}{\SampleListing{#2}}
+	\settowidth{\PS@inputwidth}{\usebox{\PS@inputbox}}
+	\settowidth{\PS@outputwidth}{\usebox{\PS@outputbox}}
+	% Check if too wide for side-by-side
+	\ifdim\PS@inputwidth<\PS@idealwidth
+		\ifdim\PS@outputwidth<\PS@idealwidth
+			% If both input and output are small enough, print side-by-side.
+			\SideBySideSampleNoHeading{#1}{#2}
+		\else
+			% If output width is too large, print full-width.
+			\FullWidthSampleNoHeading{#1}{#2}
+		\fi
+	\else
+		% If input width is too large, print full-width.
+		\FullWidthSampleNoHeading{#1}{#2}
+	\fi
+}
+
+\newcommand{\SamplePass}[1]{
+	\vspace{-1.5em}
+	\par\bgroup\bigskip\noindent%
+	\centering\large\bfseries\textrm{\langpass{} #1}%
+	\nopagebreak
+	\vspace{-1.0em}
+	\par\egroup
 }
 
 \newcommand{\InteractiveSampleHeading}{
@@ -330,13 +398,11 @@
 }
 
 \newcommand{\InteractivePass}[1]{
-	\par\bigskip\noindent%
-	{{
-		\centering\large\bfseries\textrm{\langpass{} #1}%
-	}}
+	\par\bgroup\bigskip\noindent%
+	\centering\large\bfseries\textrm{\langpass{} #1}
 	\nopagebreak
 	\vspace{-1.0em}
-	\par
+	\par\egroup
 }
 
 %-------------------------------------------------------------------------------
@@ -400,9 +466,9 @@
 \makeatletter
 
 \newcommand{\illustration}[3]{
-  \begin{wrapfigure}{r}{#1\textwidth}
+	\begin{wrapfigure}{r}{#1\textwidth}
 	\vspace{-10pt}
-    \includegraphics[width=#1\textwidth]{#2}
+	\includegraphics[width=#1\textwidth]{#2}
 	\ifstrempty{#3}{
 		\vspace{-25pt}
 	}{
@@ -412,9 +478,9 @@
 		\end{flushright}
 		\vspace{-15pt}
 	}
-  \end{wrapfigure}
-  %\par
-  %\noindent
+	\end{wrapfigure}
+	%\par
+	%\noindent
 }
 
 %% Number figures as A.1 A.2... B.1 B.2...
