@@ -298,7 +298,9 @@ def export_contest():
     if cid:
         data['id'] = cid
 
-    data['start_time'] = data['start_time'].isoformat() + ('+00:00' if has_ryaml else '')
+    data['start_time'] = data['start_time'].isoformat()
+    if '+' not in data['start_time']:
+        data['start_time'] += '+00:00'
     if not has_ryaml:
         for key in ('duration', 'scoreboard_freeze_duration'):
             if key in data:
