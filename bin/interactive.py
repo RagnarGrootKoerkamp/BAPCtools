@@ -172,10 +172,7 @@ def run_interactive_testcase(
     interaction_file = None
     # TODO: Print interaction when needed.
     if interaction:
-        interaction_file = None
-        if interaction is not True:
-            interaction.write_text('')
-            interaction_file = interaction.open('a')
+        interaction_file = interaction.open('a') if interaction else None
         interaction = True
 
         # Connect pipes with tee.

@@ -47,6 +47,8 @@ class Run:
                 self, interaction=interaction, submission_args=submission_args
             )
         else:
+            if interaction:
+                interaction = interaction.open('a')
             nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else False
             while True:
                 result = self.submission.run(self.in_path, self.out_path)
@@ -86,11 +88,29 @@ class Run:
                         else:
                             config.n_error += 1
                             result.verdict = 'VALIDATOR_CRASH'
+                if interaction:
+                    data = self.in_path.read_text()
+                    if len(data) > 0 and data[-1] == '\n':
+                        data = data[:-1]
+                    data = data.replace('\n', '\n<')
+                    print('<', data, sep='', file=interaction)
+
+                    data = self.out_path.read_text()
+                    if len(data) > 0 and data[-1] == '\n':
+                        data = data[:-1]
+                    data = data.replace('\n', '\n>')
+                    print('>', data, sep='', file=interaction)
 
                 if result.verdict != 'ACCEPTED':
                     break
                 elif not self._prepare_nextpass(nextpass):
                     break
+
+                if interaction:
+                    print('---', file=interaction)
+
+            if interaction:
+                interaction.close()
 
             # Delete .out files larger than 1MB.
             if (
