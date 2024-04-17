@@ -122,10 +122,10 @@ def create_samples_file(problem, language):
                     else:
                         if line[0] == '<':
                             assert last == '<'
-                            cur_in = line[1:] + '\n'
+                            cur_in += line[1:] + '\n'
                         else:
                             assert line[0] == '>'
-                            cur_out = line[1:] + '\n'
+                            cur_out += line[1:] + '\n'
                             last = '>'
                 flush()
         else:
