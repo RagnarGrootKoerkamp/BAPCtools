@@ -171,8 +171,9 @@ def run_interactive_testcase(
 
     interaction_file = None
     # TODO: Print interaction when needed.
-    if interaction:
-        interaction_file = interaction.open('a') if interaction else None
+    if interaction and interaction is not True:
+        assert not interaction.is_relative_to(run.tmpdir)
+        interaction_file = interaction.open('a')
         interaction = True
 
         # Connect pipes with tee.

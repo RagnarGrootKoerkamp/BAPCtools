@@ -48,6 +48,7 @@ class Run:
             )
         else:
             if interaction:
+                assert not interaction.is_relative_to(self.tmpdir)
                 interaction = interaction.open('a')
             nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else False
             while True:
