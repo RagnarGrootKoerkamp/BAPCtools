@@ -360,7 +360,13 @@ Run this from one of:
     problemparser.add_argument(
         '--validation',
         help='Use validation to use for this problem.',
-        choices=['default', 'custom', 'custom interactive'],
+        choices=[
+            'default',
+            'custom',
+            'custom interactive',
+            'custom multipass',
+            'custom interactive multipass',
+        ],
     )
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')
 

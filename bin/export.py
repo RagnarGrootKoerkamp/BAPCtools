@@ -95,7 +95,7 @@ def build_samples_zip(problems, output, statement_language):
                 else:
                     util.error(f'Cannot include broken file {f}.')
 
-        # Add samples for non-interactive problems.
+        # Add samples for non-interactive and non-multipass problems.
         if not problem.interactive and not problem.multipass:
             samples = problem.testcases(only_samples=True)
             if samples is not False:

@@ -104,7 +104,10 @@ class Run:
 
                 if result.verdict != 'ACCEPTED':
                     break
-                elif not self._prepare_nextpass(nextpass):
+
+                validate.sanity_check(self.out_path, bar, strict_whitespace=False)
+
+                if not self._prepare_nextpass(nextpass):
                     break
 
                 if interaction:
@@ -321,9 +324,6 @@ class Submission(program.Program):
 
             localbar = bar.start(run)
             result = run.run(localbar)
-
-            if result.verdict == 'ACCEPTED' and not self.problem.interactive:
-                validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
 
             new_verdict = (
                 config.PRIORITY[result.verdict],

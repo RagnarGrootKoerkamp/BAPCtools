@@ -346,7 +346,7 @@ class Problem:
         if len(interaction_paths) != 0 and len(in_paths) + len(statement_in_paths) != 0:
             warn(f'Do not mix .interaction files with .in/.ans files in {p}.')
 
-        # Non-interactive problems should not have .interaction files.
+        # Non-interactive and Non-multipass problems should not have .interaction files.
         # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
         # so that they can emulate a non-interactive problem with on-the-fly generated input.
         if not p.interactive and not p.multipass:
