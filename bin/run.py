@@ -122,7 +122,7 @@ class Run:
                 self.out_path.unlink()
 
         if result.verdict == 'ACCEPTED' and (self.feedbackdir / 'nextpass.in').is_file():
-            assert not self.multipass
+            assert not self.problem.multipass
             bar.warn(f'Validator created nextpass.in for non multipass problem. Ignored.')
 
         self.result = result
@@ -159,11 +159,10 @@ class Run:
         judgeerror = self.feedbackdir / 'judgeerror.txt'
         if ret.err is None:
             ret.err = ''
-        if judgemessage.is_file():
-            ret.err += judgemessage.read_text(errors='replace')
         if judgeerror.is_file():
-            # Remove any std output because it will usually only contain the
             ret.err = judgeerror.read_text(errors='replace')
+        elif judgemessage.is_file():
+            ret.err += judgemessage.read_text(errors='replace')
         if ret.err:
             header = validator.name + ': ' if len(output_validators) > 1 else ''
             ret.err = header + ret.err
