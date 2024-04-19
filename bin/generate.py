@@ -1654,7 +1654,7 @@ class GeneratorConfig:
         build_programs(program.Visualizer, visualizers_used)
 
         self.problem.validators(validate.InputValidator)
-        if not self.problem.interactive:
+        if not self.problem.interactive and not self.problem.multipass:
             self.problem.validators(validate.AnswerValidator)
         self.problem.validators(validate.OutputValidator)
 
