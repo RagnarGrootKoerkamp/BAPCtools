@@ -458,8 +458,3 @@ class TableProgressBar(ProgressBar):
             res = super().finalize(print_done=print_done, message=message)
             self.table._clear(force=True)
             return res
-
-
-# if __name__ == "__main__":
-#    import doctest
-#    doctest.testmod()
