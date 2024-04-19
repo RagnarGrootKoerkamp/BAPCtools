@@ -45,15 +45,16 @@ def run_interactive_testcase(
     timeout = run.problem.settings.timeout
 
     # Validator command
-    validator_command = (
-        output_validator.run_command
-        + [
-            run.in_path.resolve(),
-            run.testcase.ans_path.resolve(),
-            run.feedbackdir.resolve(),
-        ]
-        + run.problem.settings.validator_flags
-    )
+    def get_validator_command():
+        return (
+            output_validator.run_command
+            + [
+                run.in_path.resolve(),
+                run.testcase.ans_path.resolve(),
+                run.feedbackdir.resolve(),
+            ]
+            + run.problem.settings.validator_flags
+        )
 
     submission_command = run.submission.run_command
     if submission_args:
@@ -66,7 +67,7 @@ def run_interactive_testcase(
     nextpass = run.feedbackdir / 'nextpass.in' if run.problem.multipass else False
 
     if config.args.verbose >= 2:
-        print('Validator:  ', *validator_command, file=sys.stderr)
+        print('Validator:  ', *get_validator_command(), file=sys.stderr)
         print('Submission: ', *submission_command, file=sys.stderr)
 
     # On Windows:
@@ -84,6 +85,7 @@ def run_interactive_testcase(
 
         while True:
             # Start the validator.
+            validator_command = get_validator_command()
             validator_process = subprocess.Popen(
                 validator_command,
                 stdin=subprocess.PIPE,
@@ -193,6 +195,7 @@ while True:
 '''
 
     while True:
+        validator_command = get_validator_command()
         validator = subprocess.Popen(
             validator_command,
             stdin=subprocess.PIPE,
