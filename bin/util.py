@@ -1013,7 +1013,7 @@ def exec_command(
     if threading.current_thread() is threading.main_thread():
         old_handler = signal.signal(signal.SIGINT, interrupt_handler)
 
-    did_timeout = False
+    timeout_expired = False
 
     tstart = time.monotonic()
     try:
@@ -1028,7 +1028,7 @@ def exec_command(
         (stdout, stderr) = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         # Timeout expired.
-        did_timeout = True
+        timeout_expired = True
         process.kill()
         (stdout, stderr) = process.communicate()
     except PermissionError as e:
@@ -1064,12 +1064,12 @@ def exec_command(
         duration = process.rusage.ru_utime + process.rusage.ru_stime
         # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
         # To prevent under-reporting the duration, we take the max with wall time in this case.
-        if did_timeout:
+        if timeout_expired:
             duration = max(tend - tstart, duration)
     else:
         duration = tend - tstart
 
-    return ExecResult(process.returncode, ok, duration, did_timeout, err, out)
+    return ExecResult(process.returncode, ok, duration, timeout_expired, err, out)
 
 
 def inc_label(label):
