@@ -3,6 +3,7 @@ import sys
 import pathlib
 
 test_in = int(pathlib.Path(sys.argv[1]).read_text())
+print(test_in)  # Simulate behaviour of normal multipass problem
 team_ans = int(input())
 if test_in < 0:
 	# first pass
