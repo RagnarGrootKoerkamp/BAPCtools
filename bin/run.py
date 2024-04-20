@@ -248,8 +248,18 @@ class Submission(program.Program):
             # Lazy judging: stop as soon some parental verdict is known, except if in
             # - verbose mode
             # - table mode
+            #
+            # When the parent verdict is TLE, do continue when the timeout has not been reached.
+            def verdict_and_salient_case_known(parent):
+                if verdicts[str(parent)] is None:
+                    return False
+                if verdicts[str(parent)] == Verdict.TIME_LIMIT_EXCEEDED:
+                    children = c for c in verdicts.children[str(parent)] if verdicts.is_testcase(c)
+                    return any(verdicts.duration[str(c)] > self.problem.settings.timeout for c in children)
+                return True
+
             if not (config.args.verbose or config.args.table):
-                if any(verdicts[str(parent)] is not None for parent in Path(run.name).parents):
+                if any(verdict_and_salient_case_known(parent) for parent in Path(run.name).parents):
                     bar.skip()
                     return
 
