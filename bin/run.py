@@ -254,7 +254,7 @@ class Submission(program.Program):
                 if verdicts[str(parent)] is None:
                     return False
                 if verdicts[str(parent)] == Verdict.TIME_LIMIT_EXCEEDED:
-                    for c in children:
+                    for c in verdicts.children[str(parent)]:
                         if not verdicts.is_testcase(c):
                             continue
                         if verdicts.duration[str(c)] is None:
