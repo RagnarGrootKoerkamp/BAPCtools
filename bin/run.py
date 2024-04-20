@@ -343,12 +343,10 @@ class Submission(program.Program):
             color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
             boldcolor = ''
 
-        salient_testcase = verdicts.salient_testcase()
-        salient_duration = verdicts.duration[salient_testcase]
+        (salient_testcase, saliend_duration) = verdicts.salient_testcase()
         salient_color = Fore.RED if salient_duration > self.problem.settings.timeout else ''
 
-        slowest_testcase = verdicts.slowest_testcase()
-        slowest_duration = verdicts.duration[slowest_testcase]
+        (slowest_testcase, slowest_duration) = verdicts.slowest_testcase()
         slowest_color = Fore.RED if slowest_duration > self.problem.settings.timeout else ''
         slowest_verdict = verdicts[slowest_testcase]
 
