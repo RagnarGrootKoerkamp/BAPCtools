@@ -244,8 +244,8 @@ class Submission(program.Program):
                 needs_leading_newline=needs_leading_newline,
             )
 
-        def process_run(run, p):
-            # Lazy judging: stop as soon as parental verdicts are known, except if in
+        def process_run(run):
+            # Lazy judging: stop as soon some parental verdict is known, except if in
             # - verbose mode
             # - table mode
             if not (config.args.verbose or config.args.table):
@@ -286,7 +286,7 @@ class Submission(program.Program):
             # Add data from feedbackdir.
             for f in run.feedbackdir.iterdir():
                 if not f.is_file():
-                    localbar.warn(f'Validator wrote to {f} but it\'s not a file.')
+                    localbar.warn(f"Validator wrote to {f} but it's not a file.")
                     continue
                 try:
                     t = f.read_text()
@@ -304,12 +304,7 @@ class Submission(program.Program):
 
             localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
 
-            # - for TLE, the run was aborted because the global timeout expired
-            # TODO: What does this mean?
-            if result.verdict == Verdict.TIME_LIMIT_EXCEEDED and not result.timeout_expired:
-                return
-
-        p = parallel.new_queue(lambda run: process_run(run, p), pin=True)
+        p = parallel.new_queue(process_run, pin=True)
         for run in runs:
             p.put(run)
         p.done()
