@@ -275,9 +275,7 @@ class Submission(program.Program):
             if result.verdict == Verdict.ACCEPTED and not self.problem.interactive:
                 validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
 
-            with verdicts:
-                verdicts[run.name] = result.verdict
-                verdicts.duration[run.name] = result.duration
+            verdicts.set(run.name, result.verdict, result.duration)
 
             if verdict_table is not None:
                 verdict_table.finish_testcase(run.name, result.verdict)
