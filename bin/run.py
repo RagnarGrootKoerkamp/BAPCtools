@@ -254,12 +254,13 @@ class Submission(program.Program):
                 if verdicts[str(parent)] is None:
                     return False
                 if verdicts[str(parent)] == Verdict.TIME_LIMIT_EXCEEDED:
-                    children = [
-                        c for c in verdicts.children[str(parent)] if verdicts.is_testcase(c)
-                    ]
-                    return any(
-                        verdicts.duration[str(c)] > self.problem.settings.timeout for c in children
-                    )
+                    for c in children:
+                        if !verdicts.is_testcase(c): continue
+                        if verdicts.duration[str(c)] is None: continue
+                        if verdicts.duration[str(c)] >= self.problem.settings.timeout:
+                            return True
+                    return False
+                # Any other non-accepted verdict.
                 return True
 
             if not (config.args.verbose or config.args.table):
