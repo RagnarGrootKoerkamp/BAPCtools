@@ -255,8 +255,10 @@ class Submission(program.Program):
                     return False
                 if verdicts[str(parent)] == Verdict.TIME_LIMIT_EXCEEDED:
                     for c in children:
-                        if !verdicts.is_testcase(c): continue
-                        if verdicts.duration[str(c)] is None: continue
+                        if not verdicts.is_testcase(c):
+                            continue
+                        if verdicts.duration[str(c)] is None:
+                            continue
                         if verdicts.duration[str(c)] >= self.problem.settings.timeout:
                             return True
                     return False
@@ -265,7 +267,9 @@ class Submission(program.Program):
 
             with verdicts:
                 if not (config.args.verbose or config.args.table):
-                    if any(verdict_and_salient_case_known(parent) for parent in Path(run.name).parents):
+                    if any(
+                        verdict_and_salient_case_known(parent) for parent in Path(run.name).parents
+                    ):
                         bar.skip()
                         return
 
@@ -350,10 +354,9 @@ class Submission(program.Program):
 
         # NOTE: TLE and TLE (aborted) are shown the same.
         if salient_testcase == slowest_testcase:
-            message=f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase}'
+            message = f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase}'
         else:
-            message=f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase} (slowest: {slowest_color}{slowest_duration:6.3f}s {color}{slowest_verdict}{Style.RESET_ALL} @ {slowest_testcase})'
-
+            message = f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase} (slowest: {slowest_color}{slowest_duration:6.3f}s {color}{slowest_verdict}{Style.RESET_ALL} @ {slowest_testcase})'
 
         printed_newline = bar.finalize(message)
         if config.args.tree:

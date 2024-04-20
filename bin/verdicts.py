@@ -1,6 +1,7 @@
 from pathlib import Path
 import shutil
 import sys
+import threading
 from enum import Enum
 
 from util import ProgressBar
@@ -130,19 +131,23 @@ class Verdicts:
         testcases = set(testcase_list)
         testgroups: set[str] = set(str(path) for tc in testcases for path in Path(tc).parents)
 
+        # Lock operations reading/writing non-static data.
+        # Private methods assume the lock is already locked when entering a public method.
+        self.lock = threading.RLock()
+
         # (testcase | testgroup) -> Verdict | None
         self._verdict: dict[str, Verdict | None] = {g: None for g in testcases | testgroups}
         # testcase -> float | None
         self.duration: dict[str, float | None] = {g: None for g in testcases}
 
         # const testgroup -> [testgroup | testcase]
-        self.children: dict[str, set[str]] = {node: set() for node in testgroups}
+        self.children: dict[str, list[str]] = {node: [] for node in testgroups}
         for node in testcases | testgroups:
             if node != '.':
                 parent = str(Path(node).parent)
                 self.children[parent].append(node)
-        for tg in children:
-            children[tg] = sorted(children[tg])
+        for tg in self.children:
+            self.children[tg] = sorted(self.children[tg])
 
         # testgroup -> testcase | None
         self.first_error: dict[str, str | None] = {node: None for node in testgroups}
@@ -152,10 +157,6 @@ class Verdicts:
         self.first_unknown: dict[str, str | None] = {
             node: next(self._unknowns[node]) for node in testgroups
         }
-
-        # Lock operations reading/writing non-static data.
-        # Private methods assume the lock is already locked when entering a public method.
-        self.lock = threading.RLock()
 
     # Allow `with self` to lock.
     def __enter__(self):
