@@ -146,8 +146,6 @@ class Verdicts:
 
         # testgroup -> testcase | None
         self.first_error: dict[str, str | None] = {node: None for node in testgroups}
-        # testgroup -> int | None, counts both testgroups and testcases.
-        self.num_unknowns: dict[str, int] = {node: len(self.children[node]) for node in testgroups}
         # testgroup -> testcase iterator
         self._unknowns = {node: self.unknowns_iterator(node) for node in testgroups}
         # testgroup -> testcase | None
@@ -261,12 +259,13 @@ class Verdicts:
             first_unknown = self.first_unknown[parent]
             first_error = self.first_error[parent]
 
-            self.num_unknowns[parent] -= 1
             # possibly update first_unknown at parent
             if testnode == first_unknown:
-                first_unknown = self.first_unknown[parent] = (
-                    None if self.num_unknowns[parent] == 0 else next(self._unknowns[parent])
-                )
+                try:
+                    first_unknown = next(self._unknowns[parent])
+                except StopIteration:
+                    first_unknown = None
+                self.first_unknown[parent] = first_unknown
 
             # possibly update first_error at parent
             if verdict != Verdict.ACCEPTED and (first_error is None or first_error > testnode):
