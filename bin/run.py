@@ -263,10 +263,11 @@ class Submission(program.Program):
                 # Any other non-accepted verdict.
                 return True
 
-            if not (config.args.verbose or config.args.table):
-                if any(verdict_and_salient_case_known(parent) for parent in Path(run.name).parents):
-                    bar.skip()
-                    return
+            with verdicts:
+                if not (config.args.verbose or config.args.table):
+                    if any(verdict_and_salient_case_known(parent) for parent in Path(run.name).parents):
+                        bar.skip()
+                        return
 
             localbar = bar.start(run)
             result = run.run(localbar)
@@ -274,10 +275,12 @@ class Submission(program.Program):
             if result.verdict == Verdict.ACCEPTED and not self.problem.interactive:
                 validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
 
+            with verdicts:
+                verdicts[run.name] = result.verdict
+                verdicts.duration[run.name] = result.duration
+
             if verdict_table is not None:
                 verdict_table.finish_testcase(run.name, result.verdict)
-            verdicts[run.name] = result.verdict
-            verdicts.duration[run.name] = result.duration
 
             got_expected = result.verdict in [Verdict.ACCEPTED] + self.expected_verdicts
 

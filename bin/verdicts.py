@@ -129,27 +129,47 @@ class Verdicts:
     def __init__(self, testcase_list: list[str]):
         testcases = set(testcase_list)
         testgroups: set[str] = set(str(path) for tc in testcases for path in Path(tc).parents)
-        self._verdict: dict[str, Verdict | None] = {g: None for g in testcases | testgroups}
-        self.duration: dict[str, int | None] = {g: None for g in testcases}
 
+        # (testcase | testgroup) -> Verdict | None
+        self._verdict: dict[str, Verdict | None] = {g: None for g in testcases | testgroups}
+        # testcase -> float | None
+        self.duration: dict[str, float | None] = {g: None for g in testcases}
+
+        # const testgroup -> set[testcase]
         self.children: dict[str, set[str]] = {node: set() for node in testgroups}
         for node in testcases | testgroups:
             if node != '.':
                 parent = str(Path(node).parent)
                 self.children[parent].add(node)
+        # testgroup -> testcase | None
         self.first_error: dict[str, str | None] = {node: None for node in testgroups}
+        # testgroup -> int | None
         self.num_unknowns: dict[str, int] = {node: len(self.children[node]) for node in testgroups}
+        # testgroup -> testcase iterator
         self._unknowns = {node: self.unknowns_iterator(node) for node in testgroups}
+        # testgroup -> testcase | None
         self.first_unknown: dict[str, str | None] = {
             node: next(self._unknowns[node]) for node in testgroups
         }
 
+        # Lock operations reading/writing non-static data.
+        # Private methods assume the lock is already locked when entering a public method.
+        self.lock = threading.RLock()
+
+    # Allow `with self` to lock.
+    def __enter__(self):
+        self.lock.__enter__()
+
+    def __exit__(self, *args):
+        self.lock.__exit__(*args)
+
     def unknowns_iterator(self, node):
         """Yield the node's (yet) unknown children in lexicographic order."""
-        for child in sorted(self.children[node]):
-            if self._verdict[child] is not None:
-                continue
-            yield child
+        with self:
+            for child in sorted(self.children[node]):
+                if self._verdict[child] is not None:
+                    continue
+                yield child
 
     def is_testgroup(self, node) -> bool:
         """Is the given testnode name a testgroup (rather than a testcase)?
@@ -169,32 +189,34 @@ class Verdicts:
         verdict can be given as a Verdict or as a string using either long or
         short form ('ACCEPTED', 'AC', or Verdict.ACCEPTED).
         """
-
-        if isinstance(verdict, str):
-            verdict = from_string(verdict)
-        self._set_verdict_for_node(testcase, verdict)
+        with self:
+            if isinstance(verdict, str):
+                verdict = from_string(verdict)
+            self._set_verdict_for_node(testcase, verdict)
 
     def __getitem__(self, testnode) -> Verdict | None:
-        return self._verdict[testnode]
+        with self:
+            return self._verdict[testnode]
 
     def salient_testcase(self) -> str:
         """The testcase most salient to the root verdict.
         If self['.'] is Verdict.ACCEPTED or Verdict.TIME_LIMIT_EXCEEDED, then this is the slowest testcase.
         Otherwise it is the lexicographically first testcase that was rejected."""
-        match self['.']:
-            case None:
-                raise ValueError("Salient testcase called before submission verdict determined")
-            # 'ACCEPTED | TIME_LIMIT_EXCEEDED' is only for python >=3.10.
-            case Verdict.ACCEPTED:
-                return max((v, k) for k, v in self.duration.items())[1]
-            case Verdict.TIME_LIMIT_EXCEEDED:
-                return max((v, k) for k, v in self.duration.items())[1]
-            case _:
-                return min(
-                    (k, v)
-                    for k, v in sorted(self._verdict.items())
-                    if self.is_testcase(k) and v is not Verdict.ACCEPTED
-                )[0]
+        with self:
+            match self['.']:
+                case None:
+                    raise ValueError("Salient testcase called before submission verdict determined")
+                # 'ACCEPTED | TIME_LIMIT_EXCEEDED' is only for python >=3.10.
+                case Verdict.ACCEPTED:
+                    return max((v, k) for k, v in self.duration.items())[1]
+                case Verdict.TIME_LIMIT_EXCEEDED:
+                    return max((v, k) for k, v in self.duration.items())[1]
+                case _:
+                    return min(
+                        (k, v)
+                        for k, v in sorted(self._verdict.items())
+                        if self.is_testcase(k) and v is not Verdict.ACCEPTED
+                    )[0]
 
     def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.
@@ -205,15 +227,18 @@ class Verdicts:
             For instance, [AC, RTE, None] is fine (the result is RTE), but
             [AC, None, RTE] is not (the first error cannot be determined).
         """
-        child_verdicts = list(self._verdict[c] for c in sorted(self.children[testgroup]))
-        if all(v == Verdict.ACCEPTED for v in child_verdicts):
-            result = Verdict.ACCEPTED
-        else:
-            first_error = next(v for v in child_verdicts if v != Verdict.ACCEPTED)
-            if first_error is None:
-                raise ValueError(f"Verdict aggregation at {testgroup} with unknown child verdicts")
-            result = first_error
-        return result
+        with self:
+            child_verdicts = list(self._verdict[c] for c in sorted(self.children[testgroup]))
+            if all(v == Verdict.ACCEPTED for v in child_verdicts):
+                result = Verdict.ACCEPTED
+            else:
+                first_error = next(v for v in child_verdicts if v != Verdict.ACCEPTED)
+                if first_error is None:
+                    raise ValueError(
+                        f"Verdict aggregation at {testgroup} with unknown child verdicts"
+                    )
+                result = first_error
+            return result
 
     def _set_verdict_for_node(self, testnode: str, verdict):
         if self._verdict[testnode] is not None:
@@ -246,32 +271,33 @@ class Verdicts:
                 self._set_verdict_for_node(parent, self.aggregate(parent))
 
     def as_tree(self, max_depth=None, show_root=False) -> str:
-        result = []
-        stack = [('.', '', '', True)]
-        while stack:
-            node, indent, prefix, last = stack.pop()
-            result.append(
-                f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self._verdict[node])}"
-            )
-            if max_depth is not None and len(indent) >= 2 * max_depth:
-                continue
-            children = sorted(self.children[node], reverse=True)
-            pipe = ' ' if last else '│'
-            first = True
-            testcases = []
-            for child in children:
-                if self.is_testgroup(child):
-                    if first:
-                        stack.append((children[0], indent + pipe + ' ', '└─', True))
-                        first = False
+        with self:
+            result = []
+            stack = [('.', '', '', True)]
+            while stack:
+                node, indent, prefix, last = stack.pop()
+                result.append(
+                    f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self._verdict[node])}"
+                )
+                if max_depth is not None and len(indent) >= 2 * max_depth:
+                    continue
+                children = sorted(self.children[node], reverse=True)
+                pipe = ' ' if last else '│'
+                first = True
+                testcases = []
+                for child in children:
+                    if self.is_testgroup(child):
+                        if first:
+                            stack.append((children[0], indent + pipe + ' ', '└─', True))
+                            first = False
+                        else:
+                            stack.append((child, indent + pipe + ' ', '├─', False))
                     else:
-                        stack.append((child, indent + pipe + ' ', '├─', False))
-                else:
-                    testcases.append(to_char(self._verdict[child]))
-            if testcases:
-                edge = '└' if first else '├'
-                result.append(indent + pipe + ' ' + edge + '─' + ''.join(reversed(testcases)))
-        return '\n'.join(result[int(not show_root) :])
+                        testcases.append(to_char(self._verdict[child]))
+                if testcases:
+                    edge = '└' if first else '├'
+                    result.append(indent + pipe + ' ' + edge + '─' + ''.join(reversed(testcases)))
+            return '\n'.join(result[int(not show_root) :])
 
 
 class VerdictTable:
