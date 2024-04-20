@@ -250,7 +250,7 @@ class Submission(program.Program):
             # - table mode
             if not (config.args.verbose or config.args.table):
                 if any(verdicts[str(parent)] is not None for parent in Path(run.name).parents):
-                    bar.count = None
+                    bar.skip()
                     return
 
             localbar = bar.start(run)
