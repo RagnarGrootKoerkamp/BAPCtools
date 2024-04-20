@@ -152,7 +152,7 @@ class Verdicts:
         # testgroup -> testcase | None
         self.first_error: dict[str, str | None] = {node: None for node in testgroups}
         # testgroup -> testcase iterator
-        self._unknowns = {node: self.unknowns_iterator(node) for node in testgroups}
+        self._unknowns = {node: self._unknowns_iterator(node) for node in testgroups}
         # testgroup -> testcase | None
         self.first_unknown: dict[str, str | None] = {
             node: next(self._unknowns[node]) for node in testgroups
@@ -165,13 +165,12 @@ class Verdicts:
     def __exit__(self, *args):
         self.lock.__exit__(*args)
 
-    def unknowns_iterator(self, node):
+    def _unknowns_iterator(self, node):
         """Yield the node's (yet) unknown children in lexicographic order."""
-        with self:
-            for child in self.children[node]:
-                if self._verdict[child] is not None:
-                    continue
-                yield child
+        for child in self.children[node]:
+            if self._verdict[child] is not None:
+                continue
+            yield child
 
     def is_testgroup(self, node) -> bool:
         """Is the given testnode name a testgroup (rather than a testcase)?
