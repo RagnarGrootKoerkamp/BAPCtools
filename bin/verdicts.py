@@ -103,19 +103,19 @@ class Verdicts:
     * the root is called '.'
 
     Initialised with all testcases. Individual verdicts are registered
-    with __setitem__, which infers verdicts upwards in the tree as they become
-    available (and retuns the topmost inferred testgroup).
+    with set(), which infers verdicts upwards in the tree as they become
+    available (and returns the topmost inferred testgroup).
     Verdicts (registered and inferred) are accessed with __getitem__
 
     >>> V = Verdicts(["a/b/1", "a/b/2", "a/c/1", "a/d/1", "b/3"])
-    >>> V['a/b/1'] = 'ACCEPTED'
-    >>> V['a/b/2'] = 'AC' # returns 'a/b' because that verdict will be set as well
+    >>> V.set('a/b/1', 'ACCEPTED', 1.0)
+    >>> V.set('a/b/2', 'AC', 1.0) # returns 'a/b' because that verdict will be set as well
     >>> print(V['a/b'], V['.'])
     ACCEPTED None
 
     Attributes:
     - duration[testcase]: the duration of the testcase
-    - children[testgroup]: the set of children of the given testnode
+    - children[testgroup]: the lexicographically sorted list of children (testgroups and testcases) of the given testnode
     - first_error[testgroup]: first child with non-ACCEPTED verdict; None if none exists
     - first_unknown[testgroup]: first child whose verdict is not (yet) known; None if none exists
 
@@ -135,15 +135,18 @@ class Verdicts:
         # testcase -> float | None
         self.duration: dict[str, float | None] = {g: None for g in testcases}
 
-        # const testgroup -> set[testcase]
+        # const testgroup -> [testgroup | testcase]
         self.children: dict[str, set[str]] = {node: set() for node in testgroups}
         for node in testcases | testgroups:
             if node != '.':
                 parent = str(Path(node).parent)
-                self.children[parent].add(node)
+                self.children[parent].append(node)
+        for tg in children:
+            children[tg] = sorted(children[tg])
+
         # testgroup -> testcase | None
         self.first_error: dict[str, str | None] = {node: None for node in testgroups}
-        # testgroup -> int | None
+        # testgroup -> int | None, counts both testgroups and testcases.
         self.num_unknowns: dict[str, int] = {node: len(self.children[node]) for node in testgroups}
         # testgroup -> testcase iterator
         self._unknowns = {node: self.unknowns_iterator(node) for node in testgroups}
@@ -166,7 +169,7 @@ class Verdicts:
     def unknowns_iterator(self, node):
         """Yield the node's (yet) unknown children in lexicographic order."""
         with self:
-            for child in sorted(self.children[node]):
+            for child in self.children[node]:
                 if self._verdict[child] is not None:
                     continue
                 yield child
@@ -234,19 +237,19 @@ class Verdicts:
             [AC, None, RTE] is not (the first error cannot be determined).
         """
         with self:
-            child_verdicts = list(self._verdict[c] for c in sorted(self.children[testgroup]))
+            child_verdicts = list(self._verdict[c] for c in self.children[testgroup])
             if all(v == Verdict.ACCEPTED for v in child_verdicts):
-                result = Verdict.ACCEPTED
+                return Verdict.ACCEPTED
             else:
                 first_error = next(v for v in child_verdicts if v != Verdict.ACCEPTED)
                 if first_error is None:
                     raise ValueError(
                         f"Verdict aggregation at {testgroup} with unknown child verdicts"
                     )
-                result = first_error
-            return result
+                return first_error
 
     def _set_verdict_for_node(self, testnode: str, verdict):
+        # This assumes self.lock is already held.
         if self._verdict[testnode] is not None:
             raise ValueError(
                 f"Overwriting verdict of {testnode} to {verdict} (was {self._verdict[testnode]})"
@@ -287,14 +290,13 @@ class Verdicts:
                 )
                 if max_depth is not None and len(indent) >= 2 * max_depth:
                     continue
-                children = sorted(self.children[node], reverse=True)
                 pipe = ' ' if last else '│'
                 first = True
                 testcases = []
-                for child in children:
+                for child in reversed(self.children[node]):
                     if self.is_testgroup(child):
                         if first:
-                            stack.append((children[0], indent + pipe + ' ', '└─', True))
+                            stack.append((child, indent + pipe + ' ', '└─', True))
                             first = False
                         else:
                             stack.append((child, indent + pipe + ' ', '├─', False))
