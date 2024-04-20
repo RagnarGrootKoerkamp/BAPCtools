@@ -204,7 +204,7 @@ class Verdicts:
     def salient_testcase(self) -> str:
         """The testcase most salient to the root verdict.
         If self['.'] is Verdict.ACCEPTED, then this is the slowest testcase.
-        Otherwise it is the lexicographically first testcase that was rejected."""
+        Otherwise, it is the lexicographically first testcase that was rejected."""
         with self:
             match self['.']:
                 case None:
@@ -216,7 +216,7 @@ class Verdicts:
                     return min(
                         tc
                         for tc, v in self._verdict.items()
-                        if self.is_testcase(k) and v != Verdict.ACCEPTED
+                        if self.is_testcase(tc) and v != Verdict.ACCEPTED
                     )
 
     def slowest_testcase(self) -> str:
