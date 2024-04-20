@@ -402,6 +402,11 @@ class ProgressBar:
             if not resume:
                 self._release_item()
 
+    # Skip an item.
+    def skip(self):
+        with self:
+            self.i += 1
+
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
     def done(self, success=True, message='', data=''):
         with self:
