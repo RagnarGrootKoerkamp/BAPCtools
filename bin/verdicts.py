@@ -260,6 +260,7 @@ class Verdicts:
 
             # possibly update first_unknown at parent
             if testnode == first_unknown:
+                # TODO: Loop and check this verdict is actually unknown.
                 try:
                     first_unknown = next(self._unknowns[parent])
                 except StopIteration:
