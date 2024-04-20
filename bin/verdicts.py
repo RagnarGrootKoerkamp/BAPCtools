@@ -203,27 +203,25 @@ class Verdicts:
     def salient_testcase(self) -> str:
         """The testcase most salient to the root verdict.
         If self['.'] is Verdict.ACCEPTED, then this is the slowest testcase.
-        If self['.'] is Verdict.TIME_LIMIT_EXCEEDED, then this is the slowest testcase with TLE verdict.
         Otherwise it is the lexicographically first testcase that was rejected."""
         with self:
             match self['.']:
                 case None:
                     raise ValueError("Salient testcase called before submission verdict determined")
-                # 'ACCEPTED | TIME_LIMIT_EXCEEDED' is only for python >=3.10.
                 case Verdict.ACCEPTED:
-                    return max((v, tc) for tc, v in self.duration.items())[1]
-                case Verdict.TIME_LIMIT_EXCEEDED:
-                    return max(
-                        (v, tc)
-                        for tc, v in self.duration.items()
-                        if self._verdict[k] == Verdict.TIME_LIMIT_EXCEEDED
-                    )[1]
+                    # This implicitly assumes there is at least one testcase.
+                    return max((d, tc) for tc, d in self.duration.items() if d is not None)[1]
                 case _:
                     return min(
                         tc
                         for tc, v in self._verdict.items()
-                        if self.is_testcase(k) and v is not Verdict.ACCEPTED
+                        if self.is_testcase(k) and v != Verdict.ACCEPTED
                     )
+
+    def slowest_testcase(self) -> str:
+        """The slowest testcase."""
+        with self:
+            return max((v, tc) for tc, v in self.duration.items())[1]
 
     def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.

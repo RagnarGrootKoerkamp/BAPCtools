@@ -341,9 +341,21 @@ class Submission(program.Program):
 
         salient_testcase = verdicts.salient_testcase()
         salient_duration = verdicts.duration[salient_testcase]
-        printed_newline = bar.finalize(
-            message=f'{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase}'
-        )
+        salient_color = Fore.RED if salient_duration > self.problem.settings.timeout else ''
+
+        slowest_testcase = verdicts.slowest_testcase()
+        slowest_duration = verdicts.duration[slowest_testcase]
+        slowest_color = Fore.RED if slowest_duration > self.problem.settings.timeout else ''
+        slowest_verdict = verdicts[slowest_testcase]
+
+        # NOTE: TLE and TLE (aborted) are shown the same.
+        if salient_testcase == slowest_testcase:
+            message=f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase}'
+        else:
+            message=f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase} (slowest: {slowest_color}{slowest_duration:6.3f}s {color}{slowest_verdict}{Style.RESET_ALL} @ {slowest_testcase})'
+
+
+        printed_newline = bar.finalize(message)
         if config.args.tree:
             print(verdicts.as_tree(max_depth=config.args.depth))
 
