@@ -201,7 +201,7 @@ class Verdicts:
         with self:
             return self._verdict[testnode]
 
-    def salient_testcase(self) -> str:
+    def salient_testcase(self) -> (str, float):
         """The testcase most salient to the root verdict.
         If self['.'] is Verdict.ACCEPTED, then this is the slowest testcase.
         Otherwise, it is the lexicographically first testcase that was rejected."""
@@ -211,18 +211,18 @@ class Verdicts:
                     raise ValueError("Salient testcase called before submission verdict determined")
                 case Verdict.ACCEPTED:
                     # This implicitly assumes there is at least one testcase.
-                    return max((d, tc) for tc, d in self.duration.items() if d is not None)[1]
+                    return max((tc, d) for tc, d in self.duration.items() if d is not None, key=lambda x: x[1])
                 case _:
-                    return min(
-                        tc
+                    min(
+                        (tc, d)
                         for tc, v in self._verdict.items()
                         if self.is_testcase(tc) and v != Verdict.ACCEPTED
                     )
 
-    def slowest_testcase(self) -> str:
+    def slowest_testcase(self) -> (str, float):
         """The slowest testcase."""
         with self:
-            return max((v, tc) for tc, v in self.duration.items() if v is not None)[1]
+            max((tc, v) for tc, v in self.duration.items() if v is not None, key=lambda x: x[1])
 
     def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.
