@@ -222,7 +222,7 @@ class Verdicts:
     def slowest_testcase(self) -> str:
         """The slowest testcase."""
         with self:
-            return max((v, tc) for tc, v in self.duration.items())[1]
+            return max((v, tc) for tc, v in self.duration.items() if v is not None)[1]
 
     def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.
