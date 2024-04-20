@@ -178,18 +178,21 @@ class Verdicts:
         return self._verdict[testnode]
 
     def salient_testcase(self) -> str:
-        """The testcase most salient to the root verdict. If
-        self['.'] == Verdict.ACCEPTED then this is the slowest testcase.
+        """The testcase most salient to the root verdict.
+        If self['.'] is Verdict.ACCEPTED or Verdict.TIME_LIMIT_EXCEEDED, then this is the slowest testcase.
         Otherwise it is the lexicographically first testcase that was rejected."""
         match self['.']:
             case None:
                 raise ValueError("Salient testcase called before submission verdict determined")
+            # 'ACCEPTED | TIME_LIMIT_EXCEEDED' is only for python >=3.10.
             case Verdict.ACCEPTED:
+                return max((v, k) for k, v in self.duration.items())[1]
+            case Verdict.TIME_LIMIT_EXCEEDED:
                 return max((v, k) for k, v in self.duration.items())[1]
             case _:
                 return min(
                     (k, v)
-                    for k, v in self._verdict.items()
+                    for k, v in sorted(self._verdict.items())
                     if self.is_testcase(k) and v is not Verdict.ACCEPTED
                 )[0]
 
