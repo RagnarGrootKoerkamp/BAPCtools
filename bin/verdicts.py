@@ -40,16 +40,25 @@ class Verdict(Enum):
         }[self]
 
 
-def to_char(v: Verdict | None, lower=False):
-    if v is None:
+class RunUntil(Enum):
+    # Run until the lexicographically first error is known.
+    FIRST_ERROR = 1
+    # Run until the lexicographically first timeout testcase is known.
+    DURATION = 2
+    # Run all cases.
+    ALL = 3
+
+
+def to_char(v: Verdict | None | bool, lower=False):
+    if v is None or v is False:
         return f'{Fore.BLUE}?{Style.RESET_ALL}'
     else:
         char = str(v)[0].lower() if lower else str(v)[0].upper()
         return f'{v.color()}{char}{Style.RESET_ALL}'
 
 
-def to_string(v: Verdict | None):
-    if v is None:
+def to_string(v: Verdict | None | bool):
+    if v is None or v is False:
         return to_char(v)
     else:
         return f'{v.color()}{str(v)}{Style.RESET_ALL}'
@@ -115,15 +124,19 @@ class Verdicts:
     ACCEPTED None
 
     Attributes:
-    - duration[testcase]: the duration of the testcase
+    - run_until: Which testcases to run.
     - children[testgroup]: the lexicographically sorted list of direct children (testgroups and testcases) of the given testnode
 
-    - _verdict[testnode]: the verdict at the given testnode, or None. In particular,
+    - verdict[testnode]: the verdict at the given testnode, or None. In particular,
         verdict['.'] is the root verdict, sometimes called final verdict or submission verdict.
         Should not be directly set; use __setitem__ on the Verdict object instead.
+
+        None: not computed yet.
+        False: determined to be unneeded.
+    - duration[testcase]: the duration of the testcase
     """
 
-    def __init__(self, testcase_list: list[str]):
+    def __init__(self, testcase_list: list[str], run_until: RunUntil, timeout: float):
         testcases = set(testcase_list)
         testgroups: set[str] = set(str(path) for tc in testcases for path in Path(tc).parents)
 
@@ -131,8 +144,11 @@ class Verdicts:
         # Private methods assume the lock is already locked when entering a public method.
         self.lock = threading.RLock()
 
-        # (testcase | testgroup) -> Verdict | None
-        self._verdict: dict[str, Verdict | None] = {g: None for g in testcases | testgroups}
+        self.run_until = run_until
+        self.timeout = timeout
+
+        # (testcase | testgroup) -> Verdict | None | False
+        self.verdict: dict[str, Verdict | None | False] = {g: None for g in testcases | testgroups}
         # testcase -> float | None
         self.duration: dict[str, float | None] = {g: None for g in testcases}
 
@@ -174,11 +190,11 @@ class Verdicts:
             if isinstance(verdict, str):
                 verdict = from_string(verdict)
             self.duration[testcase] = duration
-            self._set_verdict_for_node(testcase, verdict)
+            self._set_verdict_for_node(testcase, verdict, duration >= self.timeout)
 
     def __getitem__(self, testnode) -> Verdict | None:
         with self:
-            return self._verdict[testnode]
+            return self.verdict[testnode]
 
     def salient_testcase(self) -> (str, float):
         """The testcase most salient to the root verdict.
@@ -197,17 +213,24 @@ class Verdicts:
                 case _:
                     tc = min(
                         tc
-                        for tc, v in self._verdict.items()
+                        for tc, v in self.verdict.items()
                         if self.is_testcase(tc) and v != Verdict.ACCEPTED
                     )
                     return (tc, self.duration[tc])
 
     def slowest_testcase(self) -> (str, float):
-        """The slowest testcase."""
+        """The slowest testcase, if all cases were run or a timeout occurred."""
         with self:
-            return max(
-                ((tc, v) for tc, v in self.duration.items() if v is not None), key=lambda x: x[1]
+            (tc, d) = max(
+                ((tc, d) for tc, d in self.duration.items() if d is not None), key=lambda x: x[1]
             )
+            if d >= self.timeout:
+                return (tc, d)
+
+            if None in self.duration.values():
+                return None
+
+            return (tc, d)
 
     def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.
@@ -219,7 +242,7 @@ class Verdicts:
             [AC, None, RTE] is not (the first error cannot be determined).
         """
         with self:
-            child_verdicts = list(self._verdict[c] for c in self.children[testgroup])
+            child_verdicts = list(self.verdict[c] for c in self.children[testgroup])
             if all(v == Verdict.ACCEPTED for v in child_verdicts):
                 return Verdict.ACCEPTED
             else:
@@ -230,25 +253,73 @@ class Verdicts:
                     )
                 return first_error
 
-    def _set_verdict_for_node(self, testnode: str, verdict):
+    def _set_verdict_for_node(self, testnode: str, verdict: Verdict, timeout: bool):
         # This assumes self.lock is already held.
-        if self._verdict[testnode] is not None:
+        # Note that `False` verdicts can be overwritten if they were already started before being set to False.
+        if self.verdict[testnode] not in [None, False]:
             raise ValueError(
-                f"Overwriting verdict of {testnode} to {verdict} (was {self._verdict[testnode]})"
+                f"Overwriting verdict of {testnode} to {verdict} (was {self.verdict[testnode]})"
             )
-        self._verdict[testnode] = verdict
-        updated_node = testnode
+        self.verdict[testnode] = verdict
         if testnode != '.':
             parent = str(Path(testnode).parent)
 
+            # Possibly mark sibling cases as unneeded.
+            match self.run_until:
+                case RunUntil.FIRST_ERROR:
+                    # On error, set all later siblings to False.
+                    if verdict != Verdict.ACCEPTED:
+                        for sibling in self.children[parent]:
+                            if sibling > testnode and self.verdict[sibling] is None:
+                                self.verdict[sibling] = False
+
+                case RunUntil.DURATION:
+                    # On timeout, set all later siblings to False.
+                    if timeout:
+                        for sibling in self.children[parent]:
+                            if sibling > testnode and self.verdict[sibling] is None:
+                                self.verdict[sibling] = False
+
+                case RunUntil.ALL:
+                    # Don't skip any cases.
+                    pass
+
             # possibly update verdict at parent and escalate change upward recursively
-            if self._verdict[parent] is None:
+            if self.verdict[parent] is None or self.verdict[parent] is False:
                 try:
-                    parent_verdict = self.aggregate(parent)
-                    self._set_verdict_for_node(parent, parent_verdict)
+                    parentverdict = self.aggregate(parent)
+                    self._set_verdict_for_node(parent, parentverdict, timeout)
                 except ValueError:
                     # parent verdict cannot be determined yet
                     pass
+
+    def run_is_needed(self, testcase: str):
+        """
+        There are 3 modes for running cases:
+        - default: run until the lexicographically first error is known
+        - duration: run until the slowest case is known
+        - all: run all cases
+
+        Testcases/groups have their verdict set to `False` as soon as it is determined they are not needed.
+        """
+        with self:
+            if self.verdict[testcase] is not None:
+                return False
+
+            match self.run_until:
+                case RunUntil.FIRST_ERROR:
+                    # Run only if parents do not have known verdicts yet.
+                    return all(
+                        self.verdict[str(parent)] is None for parent in Path(testcase).parents
+                    )
+                case RunUntil.DURATION:
+                    # Run only if not explicitly marked as unneeded.
+                    return all(
+                        self.verdict[str(parent)] is not False for parent in Path(testcase).parents
+                    )
+                case RunUntil.ALL:
+                    # Run all cases.
+                    return True
 
     def as_tree(self, max_depth=None, show_root=False) -> str:
         with self:
@@ -257,7 +328,7 @@ class Verdicts:
             while stack:
                 node, indent, prefix, last = stack.pop()
                 result.append(
-                    f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self._verdict[node])}"
+                    f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self.verdict[node])}"
                 )
                 if max_depth is not None and len(indent) >= 2 * max_depth:
                     continue
@@ -272,7 +343,7 @@ class Verdicts:
                         else:
                             stack.append((child, indent + pipe + ' ', '├─', False))
                     else:
-                        testcases.append(to_char(self._verdict[child]))
+                        testcases.append(to_char(self.verdict[child]))
                 if testcases:
                     edge = '└' if first else '├'
                     result.append(indent + pipe + ' ' + edge + '─' + ''.join(reversed(testcases)))
