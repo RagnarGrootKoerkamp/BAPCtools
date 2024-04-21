@@ -227,9 +227,10 @@ class Submission(program.Program):
         max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
         padding_len = max_submission_name_len - len(self.name)
         run_until = RunUntil.FIRST_ERROR
+
         if config.args.all == 1 or config.args.verbose:
             run_until = RunUntil.DURATION
-        if config.args.all >= 2:
+        if config.args.all == 2:
             run_until = RunUntil.ALL
 
         verdicts = Verdicts(
