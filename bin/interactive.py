@@ -340,11 +340,11 @@ while True:
             bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
             verdict = Verdict.VALIDATOR_CRASH
         elif aborted:
-            verdict =  Verdict.TIME_LIMIT_EXCEEDED
+            verdict = Verdict.TIME_LIMIT_EXCEEDED
         elif first == 'validator':
             # WA has priority because validator reported it first.
             if did_timeout:
-                verdict =  Verdict.TIME_LIMIT_EXCEEDED
+                verdict = Verdict.TIME_LIMIT_EXCEEDED
             elif validator_status == config.RTV_WA:
                 verdict = Verdict.WRONG_ANSWER
             elif submission_status != 0:
@@ -356,7 +356,7 @@ while True:
             if submission_status != 0:
                 verdict = Verdict.RUNTIME_ERROR
             elif did_timeout:
-                verdict =  Verdict.TIME_LIMIT_EXCEEDED
+                verdict = Verdict.TIME_LIMIT_EXCEEDED
             elif validator_status == config.RTV_WA:
                 verdict = Verdict.WRONG_ANSWER
             else:
