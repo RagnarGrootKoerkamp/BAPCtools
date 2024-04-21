@@ -84,7 +84,10 @@ def run_interactive_testcase(
         if team_error is False:
             team_error = subprocess.PIPE
 
+        last_pass = 0
+        max_duration = 0
         while True:
+            last_pass += 1
             # Start the validator.
             validator_command = get_validator_command()
             validator_process = subprocess.Popen(
@@ -111,8 +114,7 @@ def run_interactive_testcase(
             (validator_out, validator_err) = validator_process.communicate()
 
             tend = time.monotonic()
-
-            did_timeout = tend - tstart > timelimit
+            max_duration = max(max_duration, tend - tstart)
 
             validator_status = validator_process.returncode
 
@@ -122,7 +124,7 @@ def run_interactive_testcase(
             elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
                 bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
                 verdict = Verdict.VALIDATOR_CRASH
-            elif did_timeout:
+            elif tend - tstart > timelimit:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
             elif not exec_res.status:
                 verdict = Verdict.RUNTIME_ERROR
@@ -143,11 +145,12 @@ def run_interactive_testcase(
         return ExecResult(
             None,
             ExecStatus.ACCEPTED,
-            tend - tstart,
-            tend - tstart >= timeout,
+            max_duration,
+            max_duration >= timeout,
             validator_err.decode('utf-8', 'replace'),
             exec_res.err,
             verdict,
+            last_pass,
         )
 
     # On Linux:
@@ -191,7 +194,10 @@ while True:
     new = l=='\n'
 '''
 
+    last_pass = 0
+    max_duration = 0
     while True:
+        last_pass += 1
         validator_command = get_validator_command()
         validator = subprocess.Popen(
             validator_command,
@@ -323,6 +329,7 @@ while True:
 
         did_timeout = submission_time > timelimit
         aborted = submission_time >= timeout
+        max_duration = max(max_duration, submission_time)
 
         # If submission timed out: TLE
         # If team exists first with TLE/RTE -> TLE/RTE
@@ -383,9 +390,10 @@ while True:
     return ExecResult(
         None,
         ExecStatus.ACCEPTED,
-        submission_time,
+        max_duration,
         aborted,
         val_err,
         team_err,
         verdict,
+        last_pass,
     )

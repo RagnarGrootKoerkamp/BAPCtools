@@ -895,6 +895,7 @@ class ExecResult:
         err,
         out,
         verdict=None,
+        pass_id=None,
     ):
         self.returncode = returncode
         assert type(status) is ExecStatus
@@ -904,6 +905,7 @@ class ExecResult:
         self.err = err
         self.out = out
         self.verdict = verdict
+        self.pass_id = pass_id
 
 
 def limit_setter(command, timeout, memory_limit, group=None, cores=False):

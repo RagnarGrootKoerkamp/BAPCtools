@@ -52,8 +52,12 @@ class Run:
                 assert not interaction.is_relative_to(self.tmpdir)
                 interaction = interaction.open('a')
             nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else False
+            last_pass = 0
+            max_duration = 0
             while True:
+                last_pass += 1
                 result = self.submission.run(self.in_path, self.out_path)
+                max_duration = max(max_duration, result.duration)
                 if result.duration > self.problem.settings.timelimit:
                     result.verdict = Verdict.TIME_LIMIT_EXCEEDED
                 elif result.status == ExecStatus.ERROR:
@@ -65,29 +69,26 @@ class Run:
                     else:
                         result.err = 'Exited with code ' + str(result.returncode)
                 else:
-                    # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
-                    duration = result.duration
                     result = self._validate_output(bar)
                     if result is None:
                         bar.error(
                             f'No output validators found for testcase {self.testcase.name}',
                             resume=True,
                         )
-                        result = ExecResult(None, ExecStatus.REJECTED, 0, False, None, None)
-                        result.verdict = Verdict.VALIDATOR_CRASH
-                    else:
-                        result.duration = duration
-
-                        if result.status:
-                            result.verdict = Verdict.ACCEPTED
-                        elif result.status == ExecStatus.REJECTED:
-                            result.verdict = Verdict.WRONG_ANSWER
-                            if nextpass and nextpass.is_file():
-                                bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
-                                result.verdict = Verdict.VALIDATOR_CRASH
-                        else:
-                            config.n_error += 1
+                        result = ExecResult(
+                            None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
+                        )
+                    elif result.status:
+                        result.verdict = Verdict.ACCEPTED
+                    elif result.status == ExecStatus.REJECTED:
+                        result.verdict = Verdict.WRONG_ANSWER
+                        if nextpass and nextpass.is_file():
+                            bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
                             result.verdict = Verdict.VALIDATOR_CRASH
+                    else:
+                        config.n_error += 1
+                        result.verdict = Verdict.VALIDATOR_CRASH
+
                 if interaction:
                     data = self.in_path.read_text()
                     if len(data) > 0 and data[-1] == '\n':
@@ -127,6 +128,8 @@ class Run:
             assert not self.problem.multipass
             bar.warn(f'Validator created nextpass.in for non multipass problem. Ignored.')
 
+        result.pass_id = last_pass
+        result.duration = max_duration
         self.result = result
         return result
 
