@@ -113,6 +113,9 @@ class Run:
                 if interaction:
                     print('---', file=interaction)
 
+            result.pass_id = last_pass
+            result.duration = max_duration
+
             if interaction:
                 interaction.close()
 
@@ -128,8 +131,6 @@ class Run:
             assert not self.problem.multipass
             bar.warn(f'Validator created nextpass.in for non multipass problem. Ignored.')
 
-        result.pass_id = last_pass
-        result.duration = max_duration
         self.result = result
         return result
 
@@ -356,6 +357,8 @@ class Submission(program.Program):
             for f in run.feedbackdir.iterdir():
                 if f in [judgemessage, judgeerror]:
                     continue
+                if f.name.startswith('.'):
+                    continue  # skip "hidden" files
                 if not f.is_file():
                     localbar.warn(f"Validator wrote to {f} but it's not a file.")
                     continue
