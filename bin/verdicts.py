@@ -544,8 +544,8 @@ class TableProgressBar(ProgressBar):
         self.table.add_testcase(item.testcase.name)
         return super().start(item)
 
-    def done(self, success=True, message='', data=''):
-        return super().done(success, message, data)
+    def done(self, success=True, message='', data='', print_item=True):
+        return super().done(success, message, data, print_item)
 
     def finalize(self, *, print_done=True, message=None):
         with self:
