@@ -242,14 +242,14 @@ class Submission(program.Program):
 
         if verdict_table is not None:
             bar = verdict_table.ProgressBar(
-                'Running ' + self.name,
+                self.name,
                 count=len(runs),
                 max_len=max_item_len,
                 needs_leading_newline=needs_leading_newline,
             )
         else:
             bar = ProgressBar(
-                'Running ' + self.name,
+                self.name,
                 count=len(runs),
                 max_len=max_item_len,
                 needs_leading_newline=needs_leading_newline,
@@ -333,7 +333,7 @@ class Submission(program.Program):
         (salient_testcase, salient_duration) = verdicts.salient_testcase()
         salient_color = Fore.RED if salient_duration >= self.problem.settings.timeout else ''
 
-        message = f'{color}{self.verdict:<20}{salient_color}{salient_duration:6.3f}s{Style.RESET_ALL} @ {salient_testcase:{max_testcase_len}}'
+        message = f'{color}{self.verdict:<19}{salient_color}{salient_duration:6.3f}s{Style.RESET_ALL} @ {salient_testcase:{max_testcase_len}}'
 
         slowest_pair = verdicts.slowest_testcase()
         if slowest_pair is not None:
