@@ -221,16 +221,16 @@ class Verdicts:
     def slowest_testcase(self) -> (str, float):
         """The slowest testcase, if all cases were run or a timeout occurred."""
         with self:
-            (tc, d) = max(
+            tc, d = max(
                 ((tc, d) for tc, d in self.duration.items() if d is not None), key=lambda x: x[1]
             )
-            if d >= self.timeout:
-                return (tc, d)
 
-            if None in self.duration.values():
+            # If not all test cases were run and the max duration is less than the timeout,
+            # we cannot claim that we know the slowest test case.
+            if None in self.duration.values() and d < self.timeout:
                 return None
 
-            return (tc, d)
+            return tc, d
 
     def aggregate(self, testgroup: str) -> Verdict:
         """The aggregate verdict at the given testgroup.

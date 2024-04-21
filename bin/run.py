@@ -332,13 +332,13 @@ class Submission(program.Program):
         (salient_testcase, salient_duration) = verdicts.salient_testcase()
         salient_color = Fore.RED if salient_duration > self.problem.settings.timeout else ''
 
-        slowest = verdicts.slowest_testcase()
-        if slowest is not None:
-            (slowest_testcase, slowest_duration) = verdicts.slowest_testcase()
+        slowest_pair = verdicts.slowest_testcase()
+        if slowest_pair is not None:
+            (slowest_testcase, slowest_duration) = slowest_pair
             slowest_color = Fore.RED if slowest_duration > self.problem.settings.timeout else ''
             slowest_verdict = verdicts[slowest_testcase]
 
-        if slowest is None or salient_testcase == slowest_testcase:
+        if slowest_pair is None or salient_testcase == slowest_testcase:
             message = f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase}'
         else:
             message = f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase} (slowest: {slowest_color}{slowest_duration:6.3f}s {color}{slowest_verdict}{Style.RESET_ALL} @ {slowest_testcase})'
