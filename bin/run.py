@@ -228,7 +228,7 @@ class Submission(program.Program):
         padding_len = max_submission_name_len - len(self.name)
         run_until = RunUntil.FIRST_ERROR
 
-        if config.args.all == 1 or config.args.verbose:
+        if config.args.all == 1 or config.args.verbose or config.args.action == 'all':
             run_until = RunUntil.DURATION
         if config.args.all == 2:
             run_until = RunUntil.ALL
