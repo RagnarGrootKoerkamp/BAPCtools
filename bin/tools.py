@@ -591,6 +591,18 @@ Run this from one of:
         help='Do not run `generate` before running submissions.',
     )
     runparser.add_argument(
+        '--all',
+        '-a',
+        action='store_true',
+        help='Run all testcases',
+    )
+    runparser.add_argument(
+        '--duration',
+        '-d',
+        action='store_true',
+        help='Determine slowest testcase',
+    )
+    runparser.add_argument(
         '--default-solution',
         '-s',
         type=Path,

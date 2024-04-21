@@ -6,7 +6,7 @@ import config
 import interactive
 import parallel
 import validate
-from verdicts import Verdicts, Verdict, from_string, from_string_domjudge
+from verdicts import Verdicts, Verdict, from_string, from_string_domjudge, RunUntil
 from typing import Type
 
 from util import *
@@ -227,7 +227,17 @@ class Submission(program.Program):
     ):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_item_len = max(len(run.name) for run in runs) + max_submission_name_len - len(self.name)
-        verdicts = Verdicts(str(t.name) for t in self.problem.testcases())
+        run_until = RunUntil.FIRST_ERROR
+        if config.args.duration or config.args.verbose:
+            run_until = RunUntil.DURATION
+        if config.args.all:
+            run_until = RunUntil.ALL
+
+        verdicts = Verdicts(
+            (str(t.name) for t in self.problem.testcases()),
+            run_until,
+            self.problem.settings.timeout,
+        )
 
         if verdict_table is not None:
             bar = verdict_table.ProgressBar(
@@ -245,33 +255,9 @@ class Submission(program.Program):
             )
 
         def process_run(run):
-            # Lazy judging: stop as soon some parental verdict is known, except if in
-            # - verbose mode
-            # - table mode
-            #
-            # When the parent verdict is TLE, do continue when the timeout has not been reached.
-            def verdict_and_salient_case_known(parent):
-                if verdicts[str(parent)] is None:
-                    return False
-                if verdicts[str(parent)] == Verdict.TIME_LIMIT_EXCEEDED:
-                    for c in verdicts.children[str(parent)]:
-                        if not verdicts.is_testcase(c):
-                            continue
-                        if verdicts.duration[str(c)] is None:
-                            continue
-                        if verdicts.duration[str(c)] >= self.problem.settings.timeout:
-                            return True
-                    return False
-                # Any other non-accepted verdict.
-                return True
-
-            with verdicts:
-                if not (config.args.verbose or config.args.table):
-                    if any(
-                        verdict_and_salient_case_known(parent) for parent in Path(run.name).parents
-                    ):
-                        bar.skip()
-                        return
+            if not verdicts.run_is_needed(run.name):
+                bar.skip()
+                return
 
             localbar = bar.start(run)
             result = run.run(localbar)
@@ -346,12 +332,13 @@ class Submission(program.Program):
         (salient_testcase, salient_duration) = verdicts.salient_testcase()
         salient_color = Fore.RED if salient_duration > self.problem.settings.timeout else ''
 
-        (slowest_testcase, slowest_duration) = verdicts.slowest_testcase()
-        slowest_color = Fore.RED if slowest_duration > self.problem.settings.timeout else ''
-        slowest_verdict = verdicts[slowest_testcase]
+        slowest = verdicts.slowest_testcase()
+        if slowest is not None:
+            (slowest_testcase, slowest_duration) = verdicts.slowest_testcase()
+            slowest_color = Fore.RED if slowest_duration > self.problem.settings.timeout else ''
+            slowest_verdict = verdicts[slowest_testcase]
 
-        # NOTE: TLE and TLE (aborted) are shown the same.
-        if salient_testcase == slowest_testcase:
+        if slowest is None or salient_testcase == slowest_testcase:
             message = f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase}'
         else:
             message = f'{salient_color}{salient_duration:6.3f}s {color}{self.verdict:<20}{Style.RESET_ALL} @ {salient_testcase} (slowest: {slowest_color}{slowest_duration:6.3f}s {color}{slowest_verdict}{Style.RESET_ALL} @ {slowest_testcase})'
