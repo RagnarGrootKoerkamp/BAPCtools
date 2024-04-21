@@ -223,10 +223,11 @@ class Submission(program.Program):
     # Run this submission on all testcases for the current problem.
     # Returns (OK verdict, printed newline)
     def run_all_testcases(
-        self, max_submission_name_len=None, verdict_table=None, *, needs_leading_newline
+        self, max_submission_name_len: int, verdict_table=None, *, needs_leading_newline
     ):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
-        max_item_len = max(len(run.name) for run in runs) + max_submission_name_len - len(self.name)
+        max_testcase_len = max(len(run.name) for run in runs)
+        max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
         run_until = RunUntil.FIRST_ERROR
         if config.args.duration or config.args.verbose:
             run_until = RunUntil.DURATION
@@ -332,7 +333,7 @@ class Submission(program.Program):
         (salient_testcase, salient_duration) = verdicts.salient_testcase()
         salient_color = Fore.RED if salient_duration >= self.problem.settings.timeout else ''
 
-        message = f'{color}{self.verdict:<20}{salient_color}{salient_duration:6.3f}s{Style.RESET_ALL} @ {salient_testcase}'
+        message = f'{color}{self.verdict:<20}{salient_color}{salient_duration:6.3f}s{Style.RESET_ALL} @ {salient_testcase:{max_testcase_len}}'
 
         slowest_pair = verdicts.slowest_testcase()
         if slowest_pair is not None:
@@ -343,6 +344,7 @@ class Submission(program.Program):
             if salient_testcase != slowest_testcase:
                 message += f' (slowest: {color}{slowest_verdict.abbrev():>3}{slowest_color}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase})'
 
+        bar.item_width -= max_testcase_len
         printed_newline = bar.finalize(message=message)
         if config.args.tree:
             print(verdicts.as_tree(max_depth=config.args.depth))
