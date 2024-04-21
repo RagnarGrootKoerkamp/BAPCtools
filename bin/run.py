@@ -45,8 +45,6 @@ class Run:
             result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:
                 result.verdict = Verdict.TIME_LIMIT_EXCEEDED
-                if result.timeout_expired:
-                    result.print_verdict_ = 'TLE (aborted)'
             elif result.status == ExecStatus.ERROR:
                 result.verdict = Verdict.RUNTIME_ERROR
                 if config.args.error:
@@ -272,8 +270,6 @@ class Submission(program.Program):
             if verdict_table is not None:
                 verdict_table.finish_testcase(run.name, result.verdict)
 
-            got_expected = result.verdict in [Verdict.ACCEPTED] + self.expected_verdicts
-
             # Print stderr whenever something is printed
             if result.out and result.err:
                 output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
@@ -310,7 +306,19 @@ class Submission(program.Program):
                     data += '\n'
                 data += f'{f.name}:' + localbar._format_data(t) + '\n'
 
-            localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
+            got_expected = result.verdict in [Verdict.ACCEPTED] + self.expected_verdicts
+
+            if result.verdict == Verdict.ACCEPTED:
+                color = Style.DIM
+            else:
+                color = Fore.GREEN if got_expected else Fore.RED
+            timeout = result.duration >= self.problem.settings.timeout
+            duration_style = Style.BRIGHT if timeout else ''
+            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {run.name:{max_testcase_len}}'
+
+            # Update padding since we already print the testcase name after the verdict.
+            localbar.item_width = padding_len
+            localbar.done(got_expected, message, data, print_item=False)
 
         p = parallel.new_queue(process_run, pin=True)
         for run in runs:
@@ -326,25 +334,35 @@ class Submission(program.Program):
                 if self.verdict in self.expected_verdicts
                 else Style.BRIGHT + Fore.RED
             )
-            boldcolor = Style.BRIGHT
         else:
             color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
-            boldcolor = ''
 
         (salient_testcase, salient_duration) = verdicts.salient_testcase()
-        salient_color = Fore.RED if salient_duration >= self.problem.settings.timeout else ''
+        salient_print_verdict = self.verdict
+        salient_duration_style = (
+            Style.BRIGHT if salient_duration >= self.problem.settings.timeout else ''
+        )
 
-        message = f'{color}{self.verdict:<19}{salient_color}{salient_duration:6.3f}s{Style.RESET_ALL} @ {salient_testcase:{max_testcase_len}}'
+        # Summary line is the only thing shown.
+        message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} @ {salient_testcase:{max_testcase_len}}'
 
-        slowest_pair = None
         if run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_testcase()
             assert slowest_pair is not None
             (slowest_testcase, slowest_duration) = slowest_pair
-            slowest_color = Fore.RED if slowest_duration >= self.problem.settings.timeout else ''
             slowest_verdict = verdicts[slowest_testcase]
 
-            message += f' slowest: {color}{slowest_verdict.abbrev():>3}{slowest_color}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase}'
+            slowest_color = (
+                Fore.GREEN
+                if slowest_verdict == Verdict.ACCEPTED or slowest_verdict in self.expected_verdicts
+                else Fore.RED
+            )
+
+            slowest_duration_style = (
+                Style.BRIGHT if slowest_duration >= self.problem.settings.timeout else ''
+            )
+
+            message += f' {Style.DIM}slowest:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase}'
 
         bar.item_width -= max_testcase_len + 1
         printed_newline = bar.finalize(message=message)

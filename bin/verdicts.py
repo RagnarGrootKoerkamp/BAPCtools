@@ -29,7 +29,7 @@ class Verdict(Enum):
             Verdict.COMPILER_ERROR: 'COMPILER ERROR',
         }[self]
 
-    def abbrev(self):
+    def short(self):
         return {
             Verdict.ACCEPTED: 'AC',
             Verdict.WRONG_ANSWER: 'WA',
