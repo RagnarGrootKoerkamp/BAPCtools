@@ -593,14 +593,9 @@ Run this from one of:
     runparser.add_argument(
         '--all',
         '-a',
-        action='store_true',
-        help='Run all testcases',
-    )
-    runparser.add_argument(
-        '--duration',
-        '-d',
-        action='store_true',
-        help='Determine slowest testcase',
+        action='count',
+        default=0,
+        help='Run all testcases. Use twice to continue even after timeouts.',
     )
     runparser.add_argument(
         '--default-solution',

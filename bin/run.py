@@ -229,9 +229,9 @@ class Submission(program.Program):
         max_testcase_len = max(len(run.name) for run in runs)
         max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
         run_until = RunUntil.FIRST_ERROR
-        if config.args.duration or config.args.verbose:
+        if config.args.all == 1 or config.args.verbose:
             run_until = RunUntil.DURATION
-        if config.args.all:
+        if config.args.all >= 2:
             run_until = RunUntil.ALL
 
         verdicts = Verdicts(
