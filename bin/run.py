@@ -40,7 +40,6 @@ class Run:
             result = interactive.run_interactive_testcase(
                 self, interaction=interaction, submission_args=submission_args
             )
-            # TODO : this is messed up wrt result.verdict being str
         else:
             result = self.submission.run(self.testcase.in_path, self.out_path)
             if result.duration > self.problem.settings.timelimit:

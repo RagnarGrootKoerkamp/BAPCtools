@@ -111,14 +111,11 @@ def run_interactive_testcase(
 
         validator_ok = validator_process.returncode
 
-        print_verdict = None
         if validator_ok != config.RTV_AC and validator_ok != config.RTV_WA:
             config.n_error += 1
             verdict = Verdict.VALIDATOR_CRASH
         elif did_timeout:
             verdict = Verdict.TIME_LIMIT_EXCEEDED
-            if tend - tstart >= timeout:
-                print_verdict = 'TLE (aborted)'
         elif not exec_res.status:
             verdict = Verdict.RUNTIME_ERROR
         elif validator_ok == config.RTV_WA:
@@ -138,7 +135,6 @@ def run_interactive_testcase(
             validator_err.decode('utf-8', 'replace'),
             exec_res.err,
             verdict,
-            print_verdict,
         )
 
     # On Linux:
@@ -321,10 +317,8 @@ while True:
     # - more team output -> WA
     # - no more team output -> AC
 
-    print_verdict = None
     if aborted:
         verdict = Verdict.TIME_LIMIT_EXCEEDED
-        print_verdict = 'TLE (aborted)'
     elif validator_status != config.RTV_AC and validator_status != config.RTV_WA:
         config.n_error += 1
         verdict = Verdict.VALIDATOR_CRASH
@@ -364,5 +358,4 @@ while True:
         val_err,
         team_err,
         verdict,
-        print_verdict,
     )
