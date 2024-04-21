@@ -236,8 +236,8 @@ class Submission(program.Program):
 
         verdicts = Verdicts(
             (str(t.name) for t in self.problem.testcases()),
-            run_until,
             self.problem.settings.timeout,
+            run_until,
         )
 
         if verdict_table is not None:
