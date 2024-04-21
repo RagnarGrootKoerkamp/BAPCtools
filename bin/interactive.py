@@ -6,6 +6,7 @@ import threading
 
 import config
 import validate
+from verdicts import Verdict
 
 from util import *
 
@@ -115,28 +116,25 @@ def run_interactive_testcase(
 
             validator_status = validator_process.returncode
 
-            print_verdict = None
             if validator_status not in [config.RTV_AC, config.RTV_WA]:
                 config.n_error += 1
-                verdict = 'VALIDATOR_CRASH'
+                verdict = Verdict.VALIDATOR_CRASH
             elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
                 bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
-                result.verdict = 'VALIDATOR_CRASH'
+                verdict = Verdict.VALIDATOR_CRASH
             elif did_timeout:
-                verdict = 'TIME_LIMIT_EXCEEDED'
-                if tend - tstart >= timeout:
-                    print_verdict = 'TLE (aborted)'
+                verdict = Verdict.TIME_LIMIT_EXCEEDED
             elif not exec_res.status:
-                verdict = 'RUN_TIME_ERROR'
+                verdict = Verdict.RUNTIME_ERROR
             elif validator_status == config.RTV_WA:
-                verdict = 'WRONG_ANSWER'
+                verdict = Verdict.WRONG_ANSWER
             elif validator_status == config.RTV_AC:
-                verdict = 'ACCEPTED'
+                verdict = Verdict.ACCEPTED
 
             if not validator_err:
                 validator_err = bytes()
 
-            if validator_status != config.RTV_AC:
+            if verdict != Verdict.ACCEPTED:
                 break
             elif not run._prepare_nextpass(nextpass):
                 break
@@ -150,7 +148,6 @@ def run_interactive_testcase(
             validator_err.decode('utf-8', 'replace'),
             exec_res.err,
             verdict,
-            print_verdict,
         )
 
     # On Linux:
@@ -336,36 +333,34 @@ while True:
         # - more team output -> WA
         # - no more team output -> AC
 
-        print_verdict = None
         if validator_status not in [config.RTV_AC, config.RTV_WA]:
             config.n_error += 1
-            verdict = 'VALIDATOR_CRASH'
+            verdict = Verdict.VALIDATOR_CRASH
         elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
             bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
-            result.verdict = 'VALIDATOR_CRASH'
+            verdict = Verdict.VALIDATOR_CRASH
         elif aborted:
-            verdict = 'TIME_LIMIT_EXCEEDED'
-            print_verdict = 'TLE (aborted)'
+            verdict =  Verdict.TIME_LIMIT_EXCEEDED
         elif first == 'validator':
             # WA has priority because validator reported it first.
             if did_timeout:
-                verdict = 'TIME_LIMIT_EXCEEDED'
+                verdict =  Verdict.TIME_LIMIT_EXCEEDED
             elif validator_status == config.RTV_WA:
-                verdict = 'WRONG_ANSWER'
+                verdict = Verdict.WRONG_ANSWER
             elif submission_status != 0:
-                verdict = 'RUN_TIME_ERROR'
+                verdict = Verdict.RUNTIME_ERROR
             else:
-                verdict = 'ACCEPTED'
+                verdict = Verdict.ACCEPTED
         else:
             assert first == 'submission'
             if submission_status != 0:
-                verdict = 'RUN_TIME_ERROR'
+                verdict = Verdict.RUNTIME_ERROR
             elif did_timeout:
-                verdict = 'TIME_LIMIT_EXCEEDED'
+                verdict =  Verdict.TIME_LIMIT_EXCEEDED
             elif validator_status == config.RTV_WA:
-                verdict = 'WRONG_ANSWER'
+                verdict = Verdict.WRONG_ANSWER
             else:
-                verdict = 'ACCEPTED'
+                verdict = Verdict.ACCEPTED
 
         val_err = None
         if validator_error is False:
@@ -374,7 +369,7 @@ while True:
         if team_error is False:
             team_err = submission.stderr.read().decode('utf-8', 'replace')
 
-        if validator_status != config.RTV_AC:
+        if verdict != Verdict.ACCEPTED:
             break
         elif not run._prepare_nextpass(nextpass):
             break
@@ -393,5 +388,4 @@ while True:
         val_err,
         team_err,
         verdict,
-        print_verdict,
     )

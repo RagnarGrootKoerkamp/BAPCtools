@@ -14,6 +14,7 @@ import program
 import run
 import testcase
 import validate
+import verdicts
 from util import *
 from colorama import Fore, Style
 
@@ -460,7 +461,7 @@ class Problem:
                 subs += submissions[x]
             return subs
         if accepted_only:
-            return maybe_copy(submissions['ACCEPTED'])
+            return maybe_copy(submissions[verdicts.Verdict.ACCEPTED])
         return maybe_copy(submissions)
 
     def validators(
@@ -576,7 +577,7 @@ class Problem:
             return False
 
         ok = True
-        verdict_table = VerdictTable(submissions, testcases)
+        verdict_table = verdicts.VerdictTable(submissions, testcases)
         # When true, the ProgressBar will print a newline before the first error log.
         needs_leading_newline = False if config.args.verbose else True
         for verdict in submissions:
@@ -618,15 +619,10 @@ class Problem:
     def _print_table(verdict_table, testcases, submission):
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
         def single_verdict(row, testcase):
-            color = Style.RESET_ALL
-            char = '-'
             if testcase.name in row:
-                char = row[testcase.name][0]
-                if row[testcase.name] == 'ACCEPTED':
-                    color = Fore.GREEN
-                else:
-                    color = Fore.RED
-            return color + char + Style.RESET_ALL
+                return verdicts.to_char(row[testcase.name])
+            else:
+                return f'{Style.DIM}-{Style.RESET_ALL}'
 
         make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, tc), verdict_table))
         resultant_count, resultant_id = dict(), dict()
@@ -646,10 +642,10 @@ class Problem:
         for dct in verdict_table:
             failures = 0
             for t in dct:
-                if dct[t] != 'ACCEPTED':
+                if dct[t] != verdicts.Verdict.ACCEPTED:
                     failures += 1
             for t in dct:
-                if dct[t] != 'ACCEPTED':
+                if dct[t] != verdicts.Verdict.ACCEPTED:
                     scores[t] += 1.0 / failures
         scores_list = sorted(scores.values())
 
@@ -658,8 +654,16 @@ class Problem:
             'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.',
             file=sys.stderr,
         )
-        print(f'{Fore.RED}#{Style.RESET_ALL}: submission fails testcase', file=sys.stderr)
-        print(f'{Fore.GREEN}#{Style.RESET_ALL}: submission passes testcase\n', file=sys.stderr)
+        fail = (
+            verdicts.to_char(verdicts.Verdict.WRONG_ANSWER)
+            + verdicts.to_char(verdicts.Verdict.TIME_LIMIT_EXCEEDED)
+            + verdicts.to_char(verdicts.Verdict.RUNTIME_ERROR)
+        )
+        print(f'{fail}: submission fails testcase', file=sys.stderr)
+        print(
+            f'{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n',
+            file=sys.stderr,
+        )
 
         name_col_width = min(50, max([len(testcase.name) for testcase in testcases]))
 
@@ -667,7 +671,8 @@ class Problem:
             # Skip all AC testcases
             if all(
                 map(
-                    lambda row: testcase.name in row and row[testcase.name] == 'ACCEPTED',
+                    lambda row: testcase.name in row
+                    and row[testcase.name] == verdicts.Verdict.ACCEPTED,
                     verdict_table,
                 )
             ):

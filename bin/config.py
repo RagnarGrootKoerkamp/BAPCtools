@@ -5,21 +5,26 @@ from pathlib import Path
 import re
 import os
 import argparse
+from verdicts import Verdict
 
 # return values
 RTV_AC = 42
 RTV_WA = 43
 
-VERDICTS = ['ACCEPTED', 'WRONG_ANSWER', 'TIME_LIMIT_EXCEEDED', 'RUN_TIME_ERROR']
-# Judging stops as soon as a max priority verdict is found.
-PRIORITY = {
-    'INCONSISTENT_VALIDATORS': -1,
-    'VALIDATOR_CRASH': -1,
-    'ACCEPTED': 0,
-    'WRONG_ANSWER': 90,
-    'TIME_LIMIT_EXCEEDED': 99,
-    'RUN_TIME_ERROR': 99,
-}
+VERDICTS = [
+    Verdict.ACCEPTED,
+    Verdict.WRONG_ANSWER,
+    Verdict.TIME_LIMIT_EXCEEDED,
+    Verdict.RUNTIME_ERROR,
+    Verdict.COMPILER_ERROR,
+]
+
+SUBMISSION_DIRS = [
+    'accepted',
+    'wrong_answer',
+    'time_limit_exceeded',
+    'run_time_error',
+]
 
 KNOWN_LICENSES = [
     'cc by-sa',
@@ -30,9 +35,6 @@ KNOWN_LICENSES = [
     'permission',
     'unknown',
 ]
-
-MAX_PRIORITY = max(PRIORITY.values())
-MAX_PRIORITY_VERDICT = [v for v in PRIORITY if PRIORITY[v] == MAX_PRIORITY]
 
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD = 4
@@ -103,7 +105,7 @@ grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_
 grep -Ev '^(h|jobs|time|verbose)$' | sed "s/^/'/;s/$/',/" | tr '\n' ' ' | sed 's/^/args_list = [/;s/, $/]\n/'
 """
 # fmt: off
-args_list = ['1', 'all', 'add', 'answer', 'api', 'author', 'check_deterministic', 'clean', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'default_solution', 'directory', 'error', 'force', 'force_build', 'language', 'no_validators', 'input', 'interaction', 'interactive', 'invalid', 'kattis', 'memory', 'move_to', 'no_bar', 'no_generate', 'no_solutions', 'no_timelimit', 'open', 'order', 'order_from_ccs', 'overview', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'samples', 'sanitizer', 'skel', 'skip', 'no_solution', 'no_testcase_sanity_checks', 'no_visualizer', 'submissions', 'table', 'testcases', 'timelimit', 'timeout', 'token', 'username', 'validation', 'watch', 'web']
+args_list = ['1', 'add', 'all', 'answer', 'api', 'author', 'check_deterministic', 'clean', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'default_solution', 'depth', 'directory', 'error', 'force', 'force_build', 'input', 'interaction', 'interactive', 'invalid', 'kattis', 'language', 'memory', 'move_to', 'no_bar', 'no_generate', 'no_solution', 'no_solutions', 'no_testcase_sanity_checks', 'no_timelimit', 'no_validators', 'no_visualizer', 'open', 'order', 'order_from_ccs', 'overview', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'samples', 'sanitizer', 'skel', 'skip', 'submissions', 'table', 'testcases', 'timelimit', 'timeout', 'token', 'tree', 'username', 'validation', 'watch', 'web']
 # fmt: on
 
 

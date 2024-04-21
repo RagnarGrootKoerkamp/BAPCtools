@@ -597,6 +597,13 @@ Run this from one of:
         help='Do not run `generate` before running submissions.',
     )
     runparser.add_argument(
+        '--all',
+        '-a',
+        action='count',
+        default=0,
+        help='Run all testcases. Use twice to continue even after timeouts.',
+    )
+    runparser.add_argument(
         '--default-solution',
         '-s',
         type=Path,
@@ -605,9 +612,13 @@ Run this from one of:
     runparser.add_argument(
         '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
     )
-    runparser.add_argument(
+    runparser_display = runparser.add_mutually_exclusive_group()
+    runparser_display.add_argument(
         '--overview', '-o', action='store_true', help='Print a live overview for the judgings.'
     )
+    runparser_display.add_argument('--tree', action='store_true', help='Show a tree of verdicts.')
+
+    runparser.add_argument('--depth', type=int, help='Depth of verdict tree.')
     runparser.add_argument(
         '--timeout',
         type=int,
@@ -704,6 +715,11 @@ Run this from one of:
 
     exportparser = subparsers.add_parser(
         'export', parents=[global_parser], help='Export the problem or contest to DOMjudge.'
+    )
+    exportparser.add_argument(
+        '--contest-id',
+        action='store',
+        help='Contest ID to use when writing to the API. Defaults to value of contest_id in contest.yaml.',
     )
 
     updateproblemsyamlparser = subparsers.add_parser(

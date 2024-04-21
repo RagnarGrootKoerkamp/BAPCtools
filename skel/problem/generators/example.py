@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-import sys
 import random
+import sys
 
 # Init seed with first argument
 random.seed(int(sys.argv[1]))

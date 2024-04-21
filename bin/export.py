@@ -300,7 +300,9 @@ def export_contest():
     if cid:
         data['id'] = cid
 
-    data['start_time'] = data['start_time'].isoformat() + ('+00:00' if has_ryaml else '')
+    data['start_time'] = data['start_time'].isoformat()
+    if '+' not in data['start_time']:
+        data['start_time'] += '+00:00'
     if not has_ryaml:
         for key in ('duration', 'scoreboard_freeze_duration'):
             if key in data:
@@ -494,8 +496,11 @@ def export_contest_and_problems(problems, statement_language):
             f'/contests/{cid}/problemset',
             files={'problemset': ('contest.pdf', pdf_file, 'application/pdf')},
         )
-    r.raise_for_status()
-    log('Uploaded contest.pdf.')
+    if r.status_code == 404:
+        log('Your DOMjudge does not support contest.pdf. Skipping.')
+    else:
+        r.raise_for_status()
+        log('Uploaded contest.pdf.')
 
     def get_problems():
         r = call_api('GET', f'/contests/{cid}/problems')
