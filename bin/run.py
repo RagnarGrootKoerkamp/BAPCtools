@@ -335,14 +335,15 @@ class Submission(program.Program):
 
         message = f'{color}{self.verdict:<19}{salient_color}{salient_duration:6.3f}s{Style.RESET_ALL} @ {salient_testcase:{max_testcase_len}}'
 
-        slowest_pair = verdicts.slowest_testcase()
-        if slowest_pair is not None:
+        slowest_pair = None
+        if run_until in [RunUntil.DURATION, RunUntil.ALL]:
+            slowest_pair = verdicts.slowest_testcase()
+            assert slowest_pair is not None
             (slowest_testcase, slowest_duration) = slowest_pair
             slowest_color = Fore.RED if slowest_duration >= self.problem.settings.timeout else ''
             slowest_verdict = verdicts[slowest_testcase]
 
-            if salient_testcase != slowest_testcase:
-                message += f' (slowest: {color}{slowest_verdict.abbrev():>3}{slowest_color}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase})'
+            message += f' slowest: {color}{slowest_verdict.abbrev():>3}{slowest_color}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase}'
 
         bar.item_width -= max_testcase_len
         printed_newline = bar.finalize(message=message)
