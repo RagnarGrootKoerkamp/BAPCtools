@@ -263,7 +263,8 @@ class ProgressBar:
         assert self._is_locked()
         self._print(self.carriage_return, end='', flush=False)
 
-    def action(prefix, item, width=None, total_width=None):
+    def action(prefix, item, width=None, total_width=None, print_item=True):
+        input_width = width
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
         item = '' if item is None else (item if isinstance(item, str) else item.name)
@@ -271,10 +272,15 @@ class ProgressBar:
             item = item[:width]
         if width is None or width <= 0:
             width = 0
-        return f'{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}'
+        if print_item:
+            return f'{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}'
+        else:
+            return f'{Fore.CYAN}{prefix}{Style.RESET_ALL}: {" " * width}'
 
-    def get_prefix(self):
-        return ProgressBar.action(self.prefix, self.item, self.item_width, self.total_width())
+    def get_prefix(self, print_item=True):
+        return ProgressBar.action(
+            self.prefix, self.item, self.item_width, self.total_width(), print_item
+        )
 
     def get_bar(self):
         bar_width = self.bar_width()
@@ -351,7 +357,7 @@ class ProgressBar:
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message='', data='', color=Fore.GREEN, *, resume=True):
+    def log(self, message='', data='', color=Fore.GREEN, *, resume=True, print_item=True):
         with self:
             if message is None:
                 message = ''
@@ -370,7 +376,7 @@ class ProgressBar:
                     self.needs_leading_newline = False
 
             self._print(
-                self.get_prefix(),
+                self.get_prefix(print_item),
                 color,
                 message,
                 ProgressBar._format_data(data),
@@ -408,7 +414,7 @@ class ProgressBar:
             self.i += 1
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
-    def done(self, success=True, message='', data=''):
+    def done(self, success=True, message='', data='', print_item=True):
         with self:
             self.clearline()
 
@@ -419,7 +425,12 @@ class ProgressBar:
                 if not success:
                     config.n_error += 1
                 if config.args.verbose or not success:
-                    self.log(message, data, color=Fore.GREEN if success else Fore.RED)
+                    self.log(
+                        message,
+                        data,
+                        color=Fore.GREEN if success else Fore.RED,
+                        print_item=print_item,
+                    )
 
             self._release_item()
             if self.parent:

@@ -228,6 +228,7 @@ class Submission(program.Program):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_testcase_len = max(len(run.name) for run in runs)
         max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
+        padding_len = max_submission_name_len - len(self.name)
         run_until = RunUntil.FIRST_ERROR
         if config.args.all == 1 or config.args.verbose:
             run_until = RunUntil.DURATION
@@ -345,7 +346,7 @@ class Submission(program.Program):
 
             message += f' slowest: {color}{slowest_verdict.abbrev():>3}{slowest_color}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase}'
 
-        bar.item_width -= max_testcase_len
+        bar.item_width -= max_testcase_len + 1
         printed_newline = bar.finalize(message=message)
         if config.args.tree:
             print(verdicts.as_tree(max_depth=config.args.depth))
