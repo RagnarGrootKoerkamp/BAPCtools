@@ -29,6 +29,16 @@ class Verdict(Enum):
             Verdict.COMPILER_ERROR: 'COMPILER ERROR',
         }[self]
 
+    def abbrev(self):
+        return {
+            Verdict.ACCEPTED: 'AC',
+            Verdict.WRONG_ANSWER: 'WA',
+            Verdict.TIME_LIMIT_EXCEEDED: 'TLE',
+            Verdict.RUNTIME_ERROR: 'RTE',
+            Verdict.VALIDATOR_CRASH: 'VC',
+            Verdict.COMPILER_ERROR: 'CE',
+        }[self]
+
     def color(self):
         return {
             Verdict.ACCEPTED: Fore.GREEN,
