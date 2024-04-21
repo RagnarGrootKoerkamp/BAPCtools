@@ -291,6 +291,8 @@ class Submission(program.Program):
     ):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_testcase_len = max(len(run.name) for run in runs)
+        if self.problem.multipass:
+            max_testcase_len += 2
         max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
         padding_len = max_submission_name_len - len(self.name)
         run_until = RunUntil.FIRST_ERROR
@@ -383,7 +385,12 @@ class Submission(program.Program):
                 color = Fore.GREEN if got_expected else Fore.RED
             timeout = result.duration >= self.problem.settings.timeout
             duration_style = Style.BRIGHT if timeout else ''
-            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {run.name:{max_testcase_len}}'
+            passmsg = (
+                f':{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}'
+                if self.problem.multipass and not result
+                else ''
+            )
+            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {run.name+passmsg:{max_testcase_len}}'
 
             # Update padding since we already print the testcase name after the verdict.
             localbar.item_width = padding_len
@@ -431,7 +438,7 @@ class Submission(program.Program):
                 Style.BRIGHT if slowest_duration >= self.problem.settings.timeout else ''
             )
 
-            message += f' {Style.DIM}slowest:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase}'
+            message += f' {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase}'
 
         bar.item_width -= max_testcase_len + 1
         printed_newline = bar.finalize(message=message)
