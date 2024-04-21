@@ -146,7 +146,12 @@ class Verdicts:
     - duration[testcase]: the duration of the testcase
     """
 
-    def __init__(self, testcase_list: list[str], run_until: RunUntil, timeout: float):
+    def __init__(
+        self,
+        testcase_list: list[str],
+        run_until: RunUntil = RunUntil.FIRST_ERROR,
+        timeout: float = 1,
+    ):
         testcases = set(testcase_list)
         testgroups: set[str] = set(str(path) for tc in testcases for path in Path(tc).parents)
 
@@ -190,7 +195,7 @@ class Verdicts:
         """
         return node not in self.children
 
-    def set(self, testcase, verdict: str | Verdict, duration: float | None):
+    def set(self, testcase, verdict: str | Verdict, duration: float):
         """Set the verdict and duration of the given testcase (implying possibly others)
 
         verdict can be given as a Verdict or as a string using either long or
