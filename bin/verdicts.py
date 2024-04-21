@@ -116,15 +116,11 @@ class Verdicts:
 
     Attributes:
     - duration[testcase]: the duration of the testcase
-    - children[testgroup]: the lexicographically sorted list of children (testgroups and testcases) of the given testnode
-    - first_error[testgroup]: first child with non-ACCEPTED verdict; None if none exists
-    - first_unknown[testgroup]: first child whose verdict is not (yet) known; None if none exists
+    - children[testgroup]: the lexicographically sorted list of direct children (testgroups and testcases) of the given testnode
 
     - _verdict[testnode]: the verdict at the given testnode, or None. In particular,
         verdict['.'] is the root verdict, sometimes called final verdict or submission verdict.
         Should not be directly set; use __setitem__ on the Verdict object instead.
-    - _unknowns[testgroup]: iterator over the children that do not (yet) have a verdict,
-        in lexicographic order
     """
 
     def __init__(self, testcase_list: list[str]):
@@ -149,28 +145,12 @@ class Verdicts:
         for tg in self.children:
             self.children[tg] = sorted(self.children[tg])
 
-        # testgroup -> testcase | None
-        self.first_error: dict[str, str | None] = {node: None for node in testgroups}
-        # testgroup -> testcase iterator
-        self._unknowns = {node: self._unknowns_iterator(node) for node in testgroups}
-        # testgroup -> testcase | None
-        self.first_unknown: dict[str, str | None] = {
-            node: next(self._unknowns[node]) for node in testgroups
-        }
-
     # Allow `with self` to lock.
     def __enter__(self):
         self.lock.__enter__()
 
     def __exit__(self, *args):
         self.lock.__exit__(*args)
-
-    def _unknowns_iterator(self, node):
-        """Yield the node's (yet) unknown children in lexicographic order."""
-        for child in self.children[node]:
-            if self._verdict[child] is not None:
-                continue
-            yield child
 
     def is_testgroup(self, node) -> bool:
         """Is the given testnode name a testgroup (rather than a testcase)?
@@ -260,28 +240,15 @@ class Verdicts:
         updated_node = testnode
         if testnode != '.':
             parent = str(Path(testnode).parent)
-            first_unknown = self.first_unknown[parent]
-            first_error = self.first_error[parent]
-
-            # possibly update first_unknown at parent
-            if testnode == first_unknown:
-                # TODO: Loop and check this verdict is actually unknown.
-                try:
-                    first_unknown = next(self._unknowns[parent])
-                except StopIteration:
-                    first_unknown = None
-                self.first_unknown[parent] = first_unknown
-
-            # possibly update first_error at parent
-            if verdict != Verdict.ACCEPTED and (first_error is None or first_error > testnode):
-                first_error = self.first_error[parent] = testnode
 
             # possibly update verdict at parent and escalate change upward recursively
-            if self._verdict[parent] is None and (
-                first_unknown is None or first_error is not None and first_error < first_unknown
-            ):
-                # we can infer the verdict at the parent
-                self._set_verdict_for_node(parent, self.aggregate(parent))
+            if self._verdict[parent] is None:
+                try:
+                    parent_verdict = self.aggregate(parent)
+                    self._set_verdict_for_node(parent, parent_verdict)
+                except ValueError:
+                    # parent verdict cannot be determined yet
+                    pass
 
     def as_tree(self, max_depth=None, show_root=False) -> str:
         with self:
