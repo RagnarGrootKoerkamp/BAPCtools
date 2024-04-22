@@ -113,7 +113,7 @@ class Run:
                 if interaction:
                     print('---', file=interaction)
 
-            result.pass_id = last_pass
+            result.pass_id = last_pass if self.problem.multipass else None
             result.duration = max_duration
 
             if interaction:

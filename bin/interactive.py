@@ -150,7 +150,7 @@ def run_interactive_testcase(
             validator_err.decode('utf-8', 'replace'),
             exec_res.err,
             verdict,
-            last_pass,
+            last_pass if run.problem.multipass else None,
         )
 
     # On Linux:
@@ -395,5 +395,5 @@ while True:
         val_err,
         team_err,
         verdict,
-        last_pass,
+        last_pass if run.problem.multipass else None,
     )
