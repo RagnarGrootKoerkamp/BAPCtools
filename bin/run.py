@@ -59,6 +59,21 @@ class Run:
                 last_pass += 1
                 result = self.submission.run(self.in_path, self.out_path)
                 max_duration = max(max_duration, result.duration)
+
+                # write an interaction file for samples
+                if interaction:
+                    data = self.in_path.read_text()
+                    if len(data) > 0 and data[-1] == '\n':
+                        data = data[:-1]
+                    data = data.replace('\n', '\n<')
+                    print('<', data, sep='', file=interaction)
+
+                    data = self.out_path.read_text()
+                    if len(data) > 0 and data[-1] == '\n':
+                        data = data[:-1]
+                    data = data.replace('\n', '\n>')
+                    print('>', data, sep='', file=interaction)
+
                 if result.duration > self.problem.settings.timelimit:
                     result.verdict = Verdict.TIME_LIMIT_EXCEEDED
                     if tle_result is None:
@@ -75,46 +90,33 @@ class Run:
                     else:
                         result.err = 'Exited with code ' + str(result.returncode)
 
-                if interaction:
-                    data = self.in_path.read_text()
-                    if len(data) > 0 and data[-1] == '\n':
-                        data = data[:-1]
-                    data = data.replace('\n', '\n<')
-                    print('<', data, sep='', file=interaction)
-
-                    data = self.out_path.read_text()
-                    if len(data) > 0 and data[-1] == '\n':
-                        data = data[:-1]
-                    data = data.replace('\n', '\n>')
-                    print('>', data, sep='', file=interaction)
-
-                if result.verdict is None or self._continue_with_tle(
+                if result.verdict is not None and not self._continue_with_tle(
                     result.verdict, result.timeout_expired
                 ):
-                    result = self._validate_output(bar)
-                    if result is None:
-                        bar.error(
-                            f'No output validators found for testcase {self.testcase.name}',
-                            resume=True,
-                        )
-                        result = ExecResult(
-                            None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
-                        )
-                    elif result.status:
-                        result.verdict = Verdict.ACCEPTED
-                        validate.sanity_check(self.out_path, bar, strict_whitespace=False)
-                    elif result.status == ExecStatus.REJECTED:
-                        result.verdict = Verdict.WRONG_ANSWER
-                        if nextpass and nextpass.is_file():
-                            bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
-                            result.verdict = Verdict.VALIDATOR_CRASH
-                    else:
-                        config.n_error += 1
-                        result.verdict = Verdict.VALIDATOR_CRASH
+                    break
 
-                    if result.verdict != Verdict.ACCEPTED:
-                        break
+                result = self._validate_output(bar)
+                if result is None:
+                    bar.error(
+                        f'No output validators found for testcase {self.testcase.name}',
+                        resume=True,
+                    )
+                    result = ExecResult(
+                        None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
+                    )
+                elif result.status:
+                    result.verdict = Verdict.ACCEPTED
+                    validate.sanity_check(self.out_path, bar, strict_whitespace=False)
+                elif result.status == ExecStatus.REJECTED:
+                    result.verdict = Verdict.WRONG_ANSWER
+                    if nextpass and nextpass.is_file():
+                        bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
+                        result.verdict = Verdict.VALIDATOR_CRASH
                 else:
+                    config.n_error += 1
+                    result.verdict = Verdict.VALIDATOR_CRASH
+
+                if result.verdict != Verdict.ACCEPTED:
                     break
 
                 if not self._prepare_nextpass(nextpass):
@@ -153,9 +155,9 @@ class Run:
     def _continue_with_tle(self, verdict, timeout_expired):
         if not self.problem.multipass:
             return False
-        elif verdict != Verdict.TIME_LIMIT_EXCEEDED:
+        if verdict != Verdict.TIME_LIMIT_EXCEEDED:
             return False
-        elif timeout_expired:
+        if timeout_expired:
             return False
         return any(config.verbose, config.all, config.args.action == 'all')
 
@@ -411,9 +413,7 @@ class Submission(program.Program):
             timeout = result.duration >= self.problem.settings.timeout
             duration_style = Style.BRIGHT if timeout else ''
             passmsg = (
-                f':{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}'
-                if self.problem.multipass and not result
-                else ''
+                f':{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}' if self.problem.multipass else ''
             )
             message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {run.name+passmsg:{max_testcase_len}}'
 
