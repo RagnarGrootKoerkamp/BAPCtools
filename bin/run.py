@@ -54,12 +54,18 @@ class Run:
             nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else False
             last_pass = 0
             max_duration = 0
+            tle_result = None
             while True:
                 last_pass += 1
                 result = self.submission.run(self.in_path, self.out_path)
                 max_duration = max(max_duration, result.duration)
                 if result.duration > self.problem.settings.timelimit:
                     result.verdict = Verdict.TIME_LIMIT_EXCEEDED
+                    if tle_result is None:
+                        tle_result = result
+                        tle_result.pass_id = last_pass if self.problem.multipass else None
+                    else:
+                        tle_result.timeout_expired |= result.timeout_expired
                 elif result.status == ExecStatus.ERROR:
                     result.verdict = Verdict.RUNTIME_ERROR
                     if config.args.error:
@@ -68,26 +74,6 @@ class Run:
                         )
                     else:
                         result.err = 'Exited with code ' + str(result.returncode)
-                else:
-                    result = self._validate_output(bar)
-                    if result is None:
-                        bar.error(
-                            f'No output validators found for testcase {self.testcase.name}',
-                            resume=True,
-                        )
-                        result = ExecResult(
-                            None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
-                        )
-                    elif result.status:
-                        result.verdict = Verdict.ACCEPTED
-                    elif result.status == ExecStatus.REJECTED:
-                        result.verdict = Verdict.WRONG_ANSWER
-                        if nextpass and nextpass.is_file():
-                            bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
-                            result.verdict = Verdict.VALIDATOR_CRASH
-                    else:
-                        config.n_error += 1
-                        result.verdict = Verdict.VALIDATOR_CRASH
 
                 if interaction:
                     data = self.in_path.read_text()
@@ -102,10 +88,34 @@ class Run:
                     data = data.replace('\n', '\n>')
                     print('>', data, sep='', file=interaction)
 
-                if result.verdict != Verdict.ACCEPTED:
-                    break
+                if result.verdict or self._continue_with_tle(
+                    result.verdict, result.timeout_expired
+                ):
+                    result = self._validate_output(bar)
+                    if result is None:
+                        bar.error(
+                            f'No output validators found for testcase {self.testcase.name}',
+                            resume=True,
+                        )
+                        result = ExecResult(
+                            None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
+                        )
+                    elif result.status:
+                        result.verdict = Verdict.ACCEPTED
+                        validate.sanity_check(self.out_path, bar, strict_whitespace=False)
+                    elif result.status == ExecStatus.REJECTED:
+                        result.verdict = Verdict.WRONG_ANSWER
+                        if nextpass and nextpass.is_file():
+                            bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
+                            result.verdict = Verdict.VALIDATOR_CRASH
+                    else:
+                        config.n_error += 1
+                        result.verdict = Verdict.VALIDATOR_CRASH
 
-                validate.sanity_check(self.out_path, bar, strict_whitespace=False)
+                    if result.verdict != Verdict.ACCEPTED:
+                        break
+                else:
+                    break
 
                 if not self._prepare_nextpass(nextpass):
                     break
@@ -113,11 +123,16 @@ class Run:
                 if interaction:
                     print('---', file=interaction)
 
-            result.pass_id = last_pass if self.problem.multipass else None
-            result.duration = max_duration
-
             if interaction:
                 interaction.close()
+
+            if self.problem.multipass:
+                result.pass_id = last_pass
+
+            if tle_result is not None:
+                result = tle_result
+
+            result.duration = max_duration
 
             # Delete .out files larger than 1MB.
             if (
@@ -127,12 +142,20 @@ class Run:
             ):
                 self.out_path.unlink()
 
-        if result.verdict == Verdict.ACCEPTED and (self.feedbackdir / 'nextpass.in').is_file():
+        if result.verdict and (self.feedbackdir / 'nextpass.in').is_file():
             assert not self.problem.multipass
             bar.warn(f'Validator created nextpass.in for non multipass problem. Ignored.')
 
         self.result = result
         return result
+
+    # check if we should continue after tle
+    def _continue_with_tle(self, verdict, timeout_expired):
+        if result.verdict != Verdict.TIME_LIMIT_EXCEEDED:
+            return False
+        elif timeout_expired:
+            return False
+        return any(config.verbose, config.all, config.args.action == 'all')
 
     # prepare next pass
     def _prepare_nextpass(self, nextpass):
@@ -474,7 +497,7 @@ class Submission(program.Program):
                     )
 
                 assert result.err is None and result.out is None
-                if result.duration > self.problem.settings.timeout:
+                if result.duration >= self.problem.settings.timeout:
                     status = f'{Fore.RED}Aborted!'
                     config.n_error += 1
                 elif not result.status and result.status != ExecStatus.TIMEOUT:

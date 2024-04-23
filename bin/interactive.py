@@ -86,6 +86,7 @@ def run_interactive_testcase(
 
         last_pass = 0
         max_duration = 0
+        tle_result = None
         while True:
             last_pass += 1
             # Start the validator.
@@ -126,6 +127,20 @@ def run_interactive_testcase(
                 verdict = Verdict.VALIDATOR_CRASH
             elif tend - tstart > timelimit:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
+                if tle_result is None:
+                    # Set result.err to validator error and result.out to team error.
+                    tle_result = ExecResult(
+                        None,
+                        ExecStatus.ACCEPTED,
+                        max_duration,
+                        max_duration >= timeout,
+                        validator_err.decode('utf-8', 'replace'),
+                        exec_res.err,
+                        verdict,
+                        last_pass if run.problem.multipass else None,
+                    )
+                else:
+                    tle_result.timeout_expired |= max_duration >= timeout
             elif not exec_res.status:
                 verdict = Verdict.RUNTIME_ERROR
             elif validator_status == config.RTV_WA:
@@ -136,22 +151,26 @@ def run_interactive_testcase(
             if not validator_err:
                 validator_err = bytes()
 
-            if verdict != Verdict.ACCEPTED:
+            if not result.verdict and not self._continue_with_tle(verdict, max_duration >= timeout):
                 break
             elif not run._prepare_nextpass(nextpass):
                 break
 
-        # Set result.err to validator error and result.out to team error.
-        return ExecResult(
-            None,
-            ExecStatus.ACCEPTED,
-            max_duration,
-            max_duration >= timeout,
-            validator_err.decode('utf-8', 'replace'),
-            exec_res.err,
-            verdict,
-            last_pass if run.problem.multipass else None,
-        )
+        if tle_result is None:
+            # Set result.err to validator error and result.out to team error.
+            return ExecResult(
+                None,
+                ExecStatus.ACCEPTED,
+                max_duration,
+                max_duration >= timeout,
+                validator_err.decode('utf-8', 'replace'),
+                exec_res.err,
+                verdict,
+                last_pass if run.problem.multipass else None,
+            )
+        else:
+            tle_result.duration = max_duration
+            return tle_result
 
     # On Linux:
     # - Start validator
@@ -196,6 +215,7 @@ while True:
 
     last_pass = 0
     max_duration = 0
+    tle_result = None
     while True:
         last_pass += 1
         validator_command = get_validator_command()
@@ -376,7 +396,22 @@ while True:
         if team_error is False:
             team_err = submission.stderr.read().decode('utf-8', 'replace')
 
-        if verdict != Verdict.ACCEPTED:
+        if verdict == Verdict.TIME_LIMIT_EXCEEDED:
+            if tle_result is None:
+                tle_result = ExecResult(
+                    None,
+                    ExecStatus.ACCEPTED,
+                    max_duration,
+                    aborted,
+                    val_err,
+                    team_err,
+                    verdict,
+                    last_pass if run.problem.multipass else None,
+                )
+            else:
+                tle_result.timeout_expired |= aborted
+
+        if not verdict and not self._continue_with_tle(verdict, aborted):
             break
         elif not run._prepare_nextpass(nextpass):
             break
@@ -387,13 +422,17 @@ while True:
     if interaction_file is not None:
         interaction_file.close()
 
-    return ExecResult(
-        None,
-        ExecStatus.ACCEPTED,
-        max_duration,
-        aborted,
-        val_err,
-        team_err,
-        verdict,
-        last_pass if run.problem.multipass else None,
-    )
+    if tle_result is None:
+        return ExecResult(
+            None,
+            ExecStatus.ACCEPTED,
+            max_duration,
+            aborted,
+            val_err,
+            team_err,
+            verdict,
+            last_pass if run.problem.multipass else None,
+        )
+    else:
+        tle_result.duration = max_duration
+        return tle_result
