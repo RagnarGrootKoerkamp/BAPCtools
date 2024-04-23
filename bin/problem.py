@@ -266,7 +266,7 @@ class Problem:
                 t = resolve_path_argument(p, t, 'data', suffixes=['.in'])
                 if t:
                     # When running from contest level, the testcase must be inside the problem.
-                    if config.level != 'problemset' or is_relative_to(problem.path, t):
+                    if config.level != 'problemset' or is_relative_to(p.path, t):
                         if t.is_dir():
                             in_paths += glob(t, '**/*.in')
                         else:
@@ -361,14 +361,14 @@ class Problem:
         for in_path in in_paths:
             ans_path = in_path.with_suffix('.ans')
             if not ans_path.is_file():
-                warn(f'Found input file {f} without a .ans file. Skipping.')
+                warn(f'Found input file {in_path} without a .ans file. Skipping.')
                 continue
             testcases.append((in_path, ans_path))
 
         for in_path in statement_in_paths:
             ans_path = in_path.with_suffix('.ans.statement')
             if not ans_path.is_file():
-                warn(f'Found input file {f} without a .ans file. Skipping.')
+                warn(f'Found input file {in_path} without a .ans file. Skipping.')
                 continue
             testcases.append((in_path, ans_path))
 
@@ -729,9 +729,9 @@ class Problem:
         if (problem.interactive or problem.multipass) and mode == validate.Mode.ANSWER:
             if (problem.path / 'answer_validators').exists():
                 msg = ''
-                if p.interactive:
+                if problem.interactive:
                     msg += ' interactive'
-                if p.multipass:
+                if problem.multipass:
                     msg += ' multipass'
                 log(f'Not running answer_validators for{msg} problems.')
             return True
