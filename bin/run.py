@@ -413,7 +413,9 @@ class Submission(program.Program):
             passmsg = (
                 f':{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}' if self.problem.multipass else ''
             )
-            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {run.name+passmsg:{max_testcase_len}}'
+            testcase = f'{Style.DIM}{run.name}{Style.RESET_ALL}{passmsg}'
+            style_len = len(f'{Style.DIM}{Style.RESET_ALL}')
+            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {testcase:{max_testcase_len+style_len}}'
 
             # Update padding since we already print the testcase name after the verdict.
             localbar.item_width = padding_len
@@ -443,7 +445,7 @@ class Submission(program.Program):
         )
 
         # Summary line is the only thing shown.
-        message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} @ {salient_testcase:{max_testcase_len}}'
+        message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} @ {Style.DIM}{salient_testcase:{max_testcase_len}}{Style.RESET_ALL}'
 
         if run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_testcase()
@@ -461,7 +463,7 @@ class Submission(program.Program):
                 Style.BRIGHT if slowest_duration >= self.problem.settings.timeout else ''
             )
 
-            message += f' {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase}'
+            message += f' {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {Style.DIM}{slowest_testcase}{Style.RESET_ALL}'
 
         bar.item_width -= max_testcase_len + 1
         printed_newline = bar.finalize(message=message)
