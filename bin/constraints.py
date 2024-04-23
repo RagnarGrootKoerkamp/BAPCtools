@@ -23,7 +23,7 @@ def check_validators(problem):
     if not in_constraints:
         warn("No constraint validation of input values found in input validators.")
     problem.validate_data(validate.Mode.ANSWER, constraints=ans_constraints)
-    if not problem.interactive and not ans_constraints:
+    if not problem.interactive and not problem.multipass and not ans_constraints:
         log("No constraint validation of answer values found in answer or output validators.")
     print()
 

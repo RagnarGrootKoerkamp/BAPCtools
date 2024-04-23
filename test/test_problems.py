@@ -10,7 +10,7 @@ import config
 import util
 
 # Run `bt run` on these problems.
-PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'guess', 'divsort'] + [
+PROBLEMS = ['hello', 'helloproblemtools', 'different', 'fltcmp', 'boolfind', 'guess', 'divsort', 'interactivemultipass', 'multipass'] + [
     'hellounix' if not util.is_mac() and not util.is_windows() else []
 ]
 
@@ -175,7 +175,7 @@ class TestNewContestProblem:
             ]
         )
         os.chdir('contest_name')
-        monkeypatch.setattr('sys.stdin', io.StringIO('Ragnar Groot Koerkamp\ncustom\n\n\n\n\n'))
+        monkeypatch.setattr('sys.stdin', io.StringIO('Ragnar Groot Koerkamp\ncustom\n\n\n\n\n\n\n'))
         tools.test(['new_problem', 'Problem Two'])
         os.chdir('..')
         problemsyaml = Path('contest_name/problems.yaml').read_text()

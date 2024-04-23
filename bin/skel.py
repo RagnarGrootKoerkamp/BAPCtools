@@ -149,16 +149,19 @@ def new_problem():
 
     validator_flags = ''
     if config.args.validation:
-        assert config.args.validation in config.VALIDATION_MODES
+        parse_validation(config.args.validation)
         validation = config.args.validation
     else:
-        validation = _ask_variable_choice(
-            'validation', config.VALIDATION_MODES[:1] + ['float'] + config.VALIDATION_MODES[1:]
-        )
+        validation = _ask_variable_choice('validation', ['default', 'float', 'custom'])
         if validation == 'float':
             validation = 'default'
             validator_flags = 'validator_flags:\n  float_tolerance 1e-6\n'
             log(f'Using default float tolerance of 1e-6')
+        if validation == 'custom':
+            if _ask_variable_bool('interactive', False):
+                validation += ' interactive'
+            if _ask_variable_bool('multipass', False):
+                validation += ' multipass'
 
     # Read settings from the contest-level yaml file.
     variables = contest.contest_yaml()

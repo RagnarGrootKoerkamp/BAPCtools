@@ -155,15 +155,12 @@ class Problem:
         self.settings.timelimit = config.args.timelimit or self.settings.timelimit
         self.settings.timeout = int(config.args.timeout or 1.5 * self.settings.timelimit + 1)
 
-        if self.settings.validation not in config.VALIDATION_MODES:
-            fatal(
-                f'Unrecognised validation mode {self.settings.validation}. Must be one of {", ".join(config.VALIDATION_MODES)}'
-            )
+        mode = parse_validation(self.settings.validation)
+        self.interactive = mode['interactive']
+        self.multipass = mode['multipass']
 
         if isinstance(self.settings.validator_flags, str):
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
-
-        self.interactive = self.settings.validation == 'custom interactive'
 
         if self.settings.uuid == None:
             self.settings.uuid = generate_problem_uuid()
@@ -293,11 +290,16 @@ class Problem:
         for f in in_paths:
             t = testcase.Testcase(p, f, print_warn=True)
             if (
-                p.interactive
+                (p.interactive or p.multipass)
                 and mode == validate.Mode.INVALID
                 and t.root in ['invalid_answers', 'invalid_outputs']
             ):
-                warn(f'Found file {f} for {mode} validation in interactive problem. Skipping.')
+                msg = ''
+                if p.interactive:
+                    msg += ' interactive'
+                if p.multipass:
+                    msg += ' multipass'
+                warn(f'Found file {f} for {mode} validation in{msg} problem. Skipping.')
                 continue
             if needans and not t.ans_path.is_file():
                 if t.root != 'invalid_inputs':
@@ -345,13 +347,13 @@ class Problem:
         if len(interaction_paths) != 0 and len(in_paths) + len(statement_in_paths) != 0:
             warn(f'Do not mix .interaction files with .in/.ans files in {p}.')
 
-        # Non-interactive problems should not have .interaction files.
+        # Non-interactive and Non-multipass problems should not have .interaction files.
         # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
         # so that they can emulate a non-interactive problem with on-the-fly generated input.
-        if not p.interactive:
+        if not p.interactive and not p.multipass:
             if len(interaction_paths) != 0:
                 warn(
-                    f'Non-interactive problem {p.name} should not have data/sample/*.interaction files.'
+                    f'Non-interactive/Non-multipass problem {p.name} should not have data/sample/*.interaction files.'
                 )
             interaction_paths = []
 
@@ -724,9 +726,14 @@ class Problem:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
 
-        if problem.interactive and mode == validate.Mode.ANSWER:
+        if (problem.interactive or problem.multipass) and mode == validate.Mode.ANSWER:
             if (problem.path / 'answer_validators').exists():
-                log('Not running answer_validators for interactive problems.')
+                msg = ''
+                if p.interactive:
+                    msg += ' interactive'
+                if p.multipass:
+                    msg += ' multipass'
+                log(f'Not running answer_validators for{msg} problems.')
             return True
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
@@ -738,12 +745,13 @@ class Problem:
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.ANSWER:
                 assert not problem.interactive
+                assert not problem.multipass
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
                 problem.validators(validate.OutputValidator, check_constraints=check_constraints)
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
-                if not problem.interactive:
+                if not problem.interactive and not problem.multipass:
                     problem.validators(validate.AnswerValidator)
                     problem.validators(validate.OutputValidator)
                 testcases = problem.testcases(mode=mode)

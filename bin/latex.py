@@ -36,47 +36,102 @@ def create_samples_file(problem, language):
         samples_file_path.write_text('')
         return
 
-    samples_data = ''
+    samples_data = []
 
     for sample in samples:
         if isinstance(sample, Path):
             assert sample.suffix == '.interaction'
-            interaction_dir = builddir / 'interaction'
-            interaction_dir.mkdir(exist_ok=True)
+            if problem.interactive:
+                interaction_dir = builddir / 'interaction'
+                interaction_dir.mkdir(exist_ok=True)
 
-            samples_data += '\\InteractiveSampleHeading\n'
-            lines = sample.read_text()
-            last = 'x'
-            cur = ''
+                samples_data.append('\\InteractiveSampleHeading\n')
+                lines = sample.read_text()
+                last = 'x'
+                cur = ''
 
-            interaction_id = 0
+                interaction_id = 0
+                pass_id = 1
 
-            def flush():
-                assert last in '<>'
-                nonlocal samples_data, interaction_id
+                def flush():
+                    assert last in '<>'
+                    nonlocal samples_data, interaction_id
 
-                interaction_file = (
-                    interaction_dir / f'{sample.with_suffix("").name}-{interaction_id:02}'
-                )
-                interaction_file.write_text(cur)
+                    interaction_file = (
+                        interaction_dir / f'{sample.with_suffix("").name}-{interaction_id:02}'
+                    )
+                    interaction_file.write_text(cur)
 
-                mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
-                samples_data += f'\\{mode}{{{interaction_file.as_posix()}}}\n'
-                interaction_id += 1
+                    mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
+                    samples_data.append(f'\\{mode}{{{interaction_file.as_posix()}}}\n')
+                    interaction_id += 1
 
-            for line in lines.splitlines():
-                if line[0] == last:
-                    cur += line[1:] + '\n'
-                else:
-                    if cur:
+                for line in lines.splitlines():
+                    if line == '---':
+                        pass_id += 1
                         flush()
-                    cur = line[1:] + '\n'
-                    last = line[0]
-            flush()
+                        last = 'x'
+                        cur = ''
+                        samples_data.append(f'\\InteractivePass{{{pass_id}}}')
+                    elif line[0] == last:
+                        cur += line[1:] + '\n'
+                    else:
+                        if cur:
+                            flush()
+                        cur = line[1:] + '\n'
+                        last = line[0]
+                flush()
+            else:
+                assert problem.multipass
+
+                multipass_dir = builddir / 'multipass'
+                multipass_dir.mkdir(exist_ok=True)
+
+                lines = sample.read_text()
+                last = '<'
+                cur_in = ''
+                cur_out = ''
+
+                pass_id = 1
+
+                def flush():
+                    nonlocal samples_data
+
+                    in_path = multipass_dir / f'{sample.with_suffix("").name}-{pass_id:02}.in'
+                    out_path = multipass_dir / f'{sample.with_suffix("").name}-{pass_id:02}.out'
+                    in_path.write_text(cur_in)
+                    out_path.write_text(cur_out)
+
+                    if pass_id == 1:
+                        samples_data.append(
+                            f'\\Sample{{{in_path.as_posix()}}}{{{out_path.as_posix()}}}\n'
+                        )
+                    else:
+                        samples_data.append(f'\\SamplePass{{{pass_id}}}\n')
+                        samples_data.append(
+                            f'\\SampleNoHeading{{{in_path.as_posix()}}}{{{out_path.as_posix()}}}\n'
+                        )
+
+                for line in lines.splitlines():
+                    if line == '---':
+                        flush()
+                        pass_id += 1
+                        last = '<'
+                        cur_in = ''
+                        cur_out = ''
+                    else:
+                        if line[0] == '<':
+                            assert last == '<'
+                            cur_in += line[1:] + '\n'
+                        else:
+                            assert line[0] == '>'
+                            cur_out += line[1:] + '\n'
+                            last = '>'
+                flush()
         else:
             (in_path, ans_path) = sample
-            samples_data += f'\\Sample{{{in_path.as_posix()}}}{{{ans_path.as_posix()}}}\n'
-    samples_file_path.write_text(samples_data)
+            samples_data.append(f'\\Sample{{{in_path.as_posix()}}}{{{ans_path.as_posix()}}}\n')
+    samples_file_path.write_text(''.join(samples_data))
 
 
 # Steps needed for both problem and contest compilation.

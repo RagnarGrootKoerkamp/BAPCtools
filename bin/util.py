@@ -627,6 +627,27 @@ def write_yaml(data, path, allow_yamllib=False):
         )
 
 
+# Parse validation mode
+def parse_validation(mode):
+    if mode == 'default':
+        return {
+            'mode': 'default',
+            'interactive': False,
+            'multipass': False,
+        }
+    else:
+        res = {
+            'mode': 'custom',
+            'interactive': 'interactive' in mode,
+            'multipass': 'multipass' in mode,
+        }
+        temp = mode.replace(' interactive', '', 1)
+        temp = temp.replace(' multipass', '', 1)
+        if temp != 'custom':
+            fatal(f'Unrecognised validation mode {mode}.')
+        return res
+
+
 # glob, but without hidden files
 def glob(path, expression, include_hidden=False):
     def keep(p):
@@ -874,6 +895,7 @@ class ExecResult:
         err,
         out,
         verdict=None,
+        pass_id=None,
     ):
         self.returncode = returncode
         assert type(status) is ExecStatus
@@ -883,6 +905,7 @@ class ExecResult:
         self.err = err
         self.out = out
         self.verdict = verdict
+        self.pass_id = pass_id
 
 
 def limit_setter(command, timeout, memory_limit, group=None, cores=False):

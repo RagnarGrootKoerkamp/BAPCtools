@@ -74,9 +74,11 @@ def build_samples_zip(problems, output, statement_language):
         outputdir = Path(problem.label)
 
         attachments_dir = problem.path / 'attachments'
-        if problem.interactive and not attachments_dir.is_dir():
+        if (problem.interactive or problem.multipass) and not attachments_dir.is_dir():
+            interactive = 'interactive ' if problem.interactive else ''
+            multipass = 'multipass ' if problem.multipass else ''
             util.error(
-                f'Interactive problem {problem.name} does not have an attachments/ directory.'
+                f'{interactive}{multipass}problem {problem.name} does not have an attachments/ directory.'
             )
             continue
 
@@ -93,8 +95,8 @@ def build_samples_zip(problems, output, statement_language):
                 else:
                     util.error(f'Cannot include broken file {f}.')
 
-        # Add samples for non-interactive problems.
-        if not problem.interactive:
+        # Add samples for non-interactive and non-multipass problems.
+        if not problem.interactive and not problem.multipass:
             samples = problem.testcases(only_samples=True)
             if samples is not False:
                 for i in range(0, len(samples)):
@@ -126,15 +128,15 @@ def build_problem_zip(problem, output):
         ('problem_statement/*', True),
         ('submissions/accepted/**/*', True),
         ('submissions/*/**/*', False),
-        ('attachments/**/*', problem.interactive),
+        ('attachments/**/*', problem.interactive or problem.multipass),
     ]
 
     testcases = [
         ('data/secret/**/*.in', True),
-        ('data/sample/**/*.in', not problem.interactive),
+        ('data/sample/**/*.in', not problem.interactive and not problem.multipass),
     ]
 
-    if problem.interactive:
+    if problem.interactive or problem.multipass:
         # .interaction files don't need a corresponding .in
         # therefore we can handle them like all other files
         files += [('data/sample/**/*.interaction', False)]

@@ -26,8 +26,6 @@ SUBMISSION_DIRS = [
     'run_time_error',
 ]
 
-VALIDATION_MODES = ['default', 'custom', 'custom interactive']
-
 KNOWN_LICENSES = [
     'cc by-sa',
     'cc by',

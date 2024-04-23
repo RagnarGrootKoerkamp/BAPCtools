@@ -5,6 +5,7 @@ import program
 import config
 import interactive
 import parallel
+from testcase import Testcase
 import validate
 from verdicts import Verdicts, Verdict, from_string, from_string_domjudge, RunUntil
 from typing import Type
@@ -21,18 +22,24 @@ class Run:
         self.name = self.testcase.name
         self.result = None
 
-        tmp_path = (
-            self.problem.tmpdir / 'runs' / self.submission.short_path / self.testcase.short_path
+        self.tmpdir = (
+            self.problem.tmpdir
+            / 'runs'
+            / self.submission.short_path
+            / self.testcase.short_path.with_suffix('')
         )
-        self.out_path = tmp_path.with_suffix('.out')
-        self.feedbackdir = tmp_path.with_suffix('.feedbackdir')
+
+        self.in_path = self.tmpdir / 'testcase.in'
+        self.out_path = self.tmpdir / 'testcase.out'
+        self.feedbackdir = self.in_path.with_suffix('.feedbackdir')
+
+        if self.tmpdir.is_file():
+            self.tmpdir.unlink()
+        elif self.tmpdir.exists():
+            shutil.rmtree(self.tmpdir)
+
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
-        # Clean all files in feedbackdir.
-        for f in self.feedbackdir.iterdir():
-            if f.is_file():
-                f.unlink()
-            else:
-                shutil.rmtree(f)
+        ensure_symlink(self.in_path, self.testcase.in_path)
 
     # Return an ExecResult object amended with verdict.
     def run(self, bar, *, interaction=None, submission_args=None):
@@ -41,33 +48,91 @@ class Run:
                 self, interaction=interaction, submission_args=submission_args
             )
         else:
-            result = self.submission.run(self.testcase.in_path, self.out_path)
-            if result.duration > self.problem.settings.timelimit:
-                result.verdict = Verdict.TIME_LIMIT_EXCEEDED
-            elif result.status == ExecStatus.ERROR:
-                result.verdict = Verdict.RUNTIME_ERROR
-                if config.args.error:
-                    result.err = 'Exited with code ' + str(result.returncode) + ':\n' + result.err
-                else:
-                    result.err = 'Exited with code ' + str(result.returncode)
-            else:
-                # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
-                duration = result.duration
+            if interaction:
+                assert not interaction.is_relative_to(self.tmpdir)
+                interaction = interaction.open('a')
+            nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else False
+            last_pass = 0
+            max_duration = 0
+            tle_result = None
+            while True:
+                last_pass += 1
+                result = self.submission.run(self.in_path, self.out_path)
+                max_duration = max(max_duration, result.duration)
+
+                # write an interaction file for samples
+                if interaction:
+                    data = self.in_path.read_text()
+                    if len(data) > 0 and data[-1] == '\n':
+                        data = data[:-1]
+                    data = data.replace('\n', '\n<')
+                    print('<', data, sep='', file=interaction)
+
+                    data = self.out_path.read_text()
+                    if len(data) > 0 and data[-1] == '\n':
+                        data = data[:-1]
+                    data = data.replace('\n', '\n>')
+                    print('>', data, sep='', file=interaction)
+
+                if result.duration > self.problem.settings.timelimit:
+                    result.verdict = Verdict.TIME_LIMIT_EXCEEDED
+                    if tle_result is None:
+                        tle_result = result
+                        tle_result.pass_id = last_pass if self.problem.multipass else None
+                    else:
+                        tle_result.timeout_expired |= result.timeout_expired
+                    if not self._continue_with_tle(result.verdict, result.timeout_expired):
+                        break
+                elif result.status == ExecStatus.ERROR:
+                    result.verdict = Verdict.RUNTIME_ERROR
+                    if config.args.error:
+                        result.err = (
+                            'Exited with code ' + str(result.returncode) + ':\n' + result.err
+                        )
+                    else:
+                        result.err = 'Exited with code ' + str(result.returncode)
+                    break
+
                 result = self._validate_output(bar)
                 if result is None:
-                    error(f'No output validators found for testcase {self.testcase.name}')
-                    result = ExecResult(None, ExecStatus.REJECTED, 0, False, None, None)
-                    result.verdict = Verdict.VALIDATOR_CRASH
-                else:
-                    result.duration = duration
-
-                    if result.status:
-                        result.verdict = Verdict.ACCEPTED
-                    elif result.status == ExecStatus.REJECTED:
-                        result.verdict = Verdict.WRONG_ANSWER
-                    else:
-                        config.n_error += 1
+                    bar.error(
+                        f'No output validators found for testcase {self.testcase.name}',
+                        resume=True,
+                    )
+                    result = ExecResult(
+                        None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
+                    )
+                elif result.status:
+                    result.verdict = Verdict.ACCEPTED
+                    validate.sanity_check(self.out_path, bar, strict_whitespace=False)
+                elif result.status == ExecStatus.REJECTED:
+                    result.verdict = Verdict.WRONG_ANSWER
+                    if nextpass and nextpass.is_file():
+                        bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
                         result.verdict = Verdict.VALIDATOR_CRASH
+                else:
+                    config.n_error += 1
+                    result.verdict = Verdict.VALIDATOR_CRASH
+
+                if result.verdict != Verdict.ACCEPTED:
+                    break
+
+                if not self._prepare_nextpass(nextpass):
+                    break
+
+                if interaction:
+                    print('---', file=interaction)
+
+            if interaction:
+                interaction.close()
+
+            if self.problem.multipass:
+                result.pass_id = last_pass
+
+            if tle_result is not None:
+                result = tle_result
+
+            result.duration = max_duration
 
             # Delete .out files larger than 1MB.
             if (
@@ -77,8 +142,38 @@ class Run:
             ):
                 self.out_path.unlink()
 
+        if result.verdict and (self.feedbackdir / 'nextpass.in').is_file():
+            assert not self.problem.multipass
+            bar.warn(f'Validator created nextpass.in for non multipass problem. Ignored.')
+
         self.result = result
         return result
+
+    # check if we should continue after tle
+    def _continue_with_tle(self, verdict, timeout_expired):
+        if not self.problem.multipass:
+            return False
+        if verdict != Verdict.TIME_LIMIT_EXCEEDED:
+            return False
+        if timeout_expired:
+            return False
+        return any(config.verbose, config.all, config.args.action == 'all')
+
+    # prepare next pass
+    def _prepare_nextpass(self, nextpass):
+        if not nextpass or not nextpass.is_file():
+            return False
+        # clear all files outside of feedbackdir
+        for f in self.tmpdir.iterdir():
+            if f == self.feedbackdir:
+                continue
+            if f.is_file():
+                f.unlink()
+            elif f.exists():
+                shutil.rmtree(f)
+        # use nextpass.in as next input
+        shutil.move(nextpass, self.in_path)
+        return True
 
     def _validate_output(self, bar):
         output_validators = self.problem.validators(validate.OutputValidator)
@@ -95,13 +190,10 @@ class Run:
         judgeerror = self.feedbackdir / 'judgeerror.txt'
         if ret.err is None:
             ret.err = ''
-        if judgemessage.is_file():
-            ret.err += judgemessage.read_text()
-            judgemessage.unlink()
         if judgeerror.is_file():
-            # Remove any std output because it will usually only contain the
-            ret.err = judgeerror.read_text()
-            judgeerror.unlink()
+            ret.err = judgeerror.read_text(errors='replace')
+        elif judgemessage.is_file():
+            ret.err += judgemessage.read_text(errors='replace')
         if ret.err:
             header = validator.name + ': ' if len(output_validators) > 1 else ''
             ret.err = header + ret.err
@@ -224,6 +316,8 @@ class Submission(program.Program):
     ):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_testcase_len = max(len(run.name) for run in runs)
+        if self.problem.multipass:
+            max_testcase_len += 2
         max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
         padding_len = max_submission_name_len - len(self.name)
         run_until = RunUntil.FIRST_ERROR
@@ -262,9 +356,6 @@ class Submission(program.Program):
             localbar = bar.start(run)
             result = run.run(localbar)
 
-            if result.verdict == Verdict.ACCEPTED and not self.problem.interactive:
-                validate.sanity_check(run.out_path, localbar, strict_whitespace=False)
-
             verdicts.set(run.name, result.verdict, result.duration)
 
             if verdict_table is not None:
@@ -287,8 +378,14 @@ class Submission(program.Program):
                 if result.out:
                     data = crop_output(result.out)
 
+            judgemessage = run.feedbackdir / 'judgemessage.txt'
+            judgeerror = run.feedbackdir / 'judgeerror.txt'
             # Add data from feedbackdir.
             for f in run.feedbackdir.iterdir():
+                if f in [judgemessage, judgeerror]:
+                    continue
+                if f.name.startswith('.'):
+                    continue  # skip "hidden" files
                 if not f.is_file():
                     localbar.warn(f"Validator wrote to {f} but it's not a file.")
                     continue
@@ -299,7 +396,6 @@ class Submission(program.Program):
                         f'Validator wrote to {f} but it cannot be parsed as unicode text.'
                     )
                     continue
-                f.unlink()
                 if not t:
                     continue
                 if len(data) > 0 and data[-1] != '\n':
@@ -314,7 +410,12 @@ class Submission(program.Program):
                 color = Fore.GREEN if got_expected else Fore.RED
             timeout = result.duration >= self.problem.settings.timeout
             duration_style = Style.BRIGHT if timeout else ''
-            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {run.name:{max_testcase_len}}'
+            passmsg = (
+                f':{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}' if self.problem.multipass else ''
+            )
+            testcase = f'{Style.DIM}{run.name}{Style.RESET_ALL}{passmsg}'
+            style_len = len(f'{Style.DIM}{Style.RESET_ALL}')
+            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {testcase:{max_testcase_len+style_len}}'
 
             # Update padding since we already print the testcase name after the verdict.
             localbar.item_width = padding_len
@@ -344,7 +445,7 @@ class Submission(program.Program):
         )
 
         # Summary line is the only thing shown.
-        message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} @ {salient_testcase:{max_testcase_len}}'
+        message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} @ {Style.DIM}{salient_testcase:{max_testcase_len}}{Style.RESET_ALL}'
 
         if run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_testcase()
@@ -362,7 +463,7 @@ class Submission(program.Program):
                 Style.BRIGHT if slowest_duration >= self.problem.settings.timeout else ''
             )
 
-            message += f' {Style.DIM}slowest:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {slowest_testcase}'
+            message += f' {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {Style.DIM}{slowest_testcase}{Style.RESET_ALL}'
 
         bar.item_width -= max_testcase_len + 1
         printed_newline = bar.finalize(message=message)
@@ -398,7 +499,7 @@ class Submission(program.Program):
                     )
 
                 assert result.err is None and result.out is None
-                if result.duration > self.problem.settings.timeout:
+                if result.duration >= self.problem.settings.timeout:
                     status = f'{Fore.RED}Aborted!'
                     config.n_error += 1
                 elif not result.status and result.status != ExecStatus.TIMEOUT:
