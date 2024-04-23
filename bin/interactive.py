@@ -197,8 +197,8 @@ def run_interactive_testcase(
         interaction_file = interaction.open('a')
         interaction = True
 
-        # Connect pipes with tee.
-        TEE_CODE = R'''
+    # Connect pipes with tee.
+    TEE_CODE = R'''
 import sys
 c = sys.argv[1]
 new = True
@@ -417,7 +417,7 @@ while True:
             break
 
         if interaction:
-            print('---', file=sys.stderr if interaction is None else interaction_file)
+            print('---', file=sys.stderr if interaction is None else interaction_file, flush=True)
 
     if interaction_file is not None:
         interaction_file.close()
