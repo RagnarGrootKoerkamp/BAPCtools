@@ -151,7 +151,7 @@ class Run:
 
     # check if we should continue after tle
     def _continue_with_tle(self, verdict, timeout_expired):
-        if result.verdict != Verdict.TIME_LIMIT_EXCEEDED:
+        if verdict != Verdict.TIME_LIMIT_EXCEEDED:
             return False
         elif timeout_expired:
             return False
