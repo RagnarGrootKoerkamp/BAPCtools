@@ -88,7 +88,7 @@ class Run:
                     data = data.replace('\n', '\n>')
                     print('>', data, sep='', file=interaction)
 
-                if result.verdict or self._continue_with_tle(
+                if result.verdict is None or self._continue_with_tle(
                     result.verdict, result.timeout_expired
                 ):
                     result = self._validate_output(bar)
