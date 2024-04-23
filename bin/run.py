@@ -81,6 +81,8 @@ class Run:
                         tle_result.pass_id = last_pass if self.problem.multipass else None
                     else:
                         tle_result.timeout_expired |= result.timeout_expired
+                    if not self._continue_with_tle(result.verdict, result.timeout_expired):
+                        break
                 elif result.status == ExecStatus.ERROR:
                     result.verdict = Verdict.RUNTIME_ERROR
                     if config.args.error:
@@ -89,10 +91,6 @@ class Run:
                         )
                     else:
                         result.err = 'Exited with code ' + str(result.returncode)
-
-                if result.verdict is not None and not self._continue_with_tle(
-                    result.verdict, result.timeout_expired
-                ):
                     break
 
                 result = self._validate_output(bar)
