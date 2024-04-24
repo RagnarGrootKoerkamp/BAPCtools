@@ -1,8 +1,8 @@
-name: interactive multipass
+name: interactive multi-pass
 author: Michael Zündorf
 source:
 source_url:
 uuid: 42c9ed2e-f579-46ac-ae2c-191069f3df70
 license:
 rights_owner:
-validation: custom interactive multipass
+validation: custom interactive multi-pass

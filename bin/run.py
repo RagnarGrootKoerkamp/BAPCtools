@@ -144,7 +144,7 @@ class Run:
 
         if result.verdict and (self.feedbackdir / 'nextpass.in').is_file():
             assert not self.problem.multipass
-            bar.warn(f'Validator created nextpass.in for non multipass problem. Ignored.')
+            bar.warn(f'Validator created nextpass.in for non multi-pass problem. Ignored.')
 
         self.result = result
         return result

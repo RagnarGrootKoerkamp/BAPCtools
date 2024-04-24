@@ -364,8 +364,8 @@ Run this from one of:
             'default',
             'custom',
             'custom interactive',
-            'custom multipass',
-            'custom interactive multipass',
+            'custom multi-pass',
+            'custom interactive multi-pass',
         ],
     )
     problemparser.add_argument('--skel', help='Skeleton problem directory to copy from.')

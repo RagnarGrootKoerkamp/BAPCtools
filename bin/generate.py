@@ -935,7 +935,7 @@ class TestcaseRule(Rule):
                     if problem.interactive or problem.multipass:
                         if not testcase.ans_path.is_file():
                             testcase.ans_path.write_text('')
-                        # For interactive/multipass problems, run the solution and generate a .interaction.
+                        # For interactive/multi-pass problems, run the solution and generate a .interaction.
                         if (
                             t.config.solution
                             and (testcase.root == 'sample' or config.args.interaction)

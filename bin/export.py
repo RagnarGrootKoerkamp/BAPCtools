@@ -76,7 +76,7 @@ def build_samples_zip(problems, output, statement_language):
         attachments_dir = problem.path / 'attachments'
         if (problem.interactive or problem.multipass) and not attachments_dir.is_dir():
             interactive = 'interactive ' if problem.interactive else ''
-            multipass = 'multipass ' if problem.multipass else ''
+            multipass = 'multi-pass ' if problem.multipass else ''
             util.error(
                 f'{interactive}{multipass}problem {problem.name} does not have an attachments/ directory.'
             )
@@ -95,7 +95,7 @@ def build_samples_zip(problems, output, statement_language):
                 else:
                     util.error(f'Cannot include broken file {f}.')
 
-        # Add samples for non-interactive and non-multipass problems.
+        # Add samples for non-interactive and non-multi-pass problems.
         if not problem.interactive and not problem.multipass:
             samples = problem.testcases(only_samples=True)
             if samples is not False:

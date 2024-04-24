@@ -157,7 +157,7 @@ class Problem:
 
         mode = parse_validation(self.settings.validation)
         self.interactive = mode['interactive']
-        self.multipass = mode['multipass']
+        self.multipass = mode['multi-pass']
 
         if isinstance(self.settings.validator_flags, str):
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
@@ -298,7 +298,7 @@ class Problem:
                 if p.interactive:
                     msg += ' interactive'
                 if p.multipass:
-                    msg += ' multipass'
+                    msg += ' multi-pass'
                 warn(f'Found file {f} for {mode} validation in{msg} problem. Skipping.')
                 continue
             if needans and not t.ans_path.is_file():
@@ -347,13 +347,13 @@ class Problem:
         if len(interaction_paths) != 0 and len(in_paths) + len(statement_in_paths) != 0:
             warn(f'Do not mix .interaction files with .in/.ans files in {p}.')
 
-        # Non-interactive and Non-multipass problems should not have .interaction files.
+        # Non-interactive and Non-multi-pass problems should not have .interaction files.
         # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
         # so that they can emulate a non-interactive problem with on-the-fly generated input.
         if not p.interactive and not p.multipass:
             if len(interaction_paths) != 0:
                 warn(
-                    f'Non-interactive/Non-multipass problem {p.name} should not have data/sample/*.interaction files.'
+                    f'Non-interactive/Non-multi-pass problem {p.name} should not have data/sample/*.interaction files.'
                 )
             interaction_paths = []
 
@@ -732,7 +732,7 @@ class Problem:
                 if problem.interactive:
                     msg += ' interactive'
                 if problem.multipass:
-                    msg += ' multipass'
+                    msg += ' multi-pass'
                 log(f'Not running answer_validators for{msg} problems.')
             return True
 
