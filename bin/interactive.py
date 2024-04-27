@@ -447,6 +447,6 @@ def _feedback(run, err):
         err = err.decode('utf-8', 'replace')
     if judgeerror.is_file():
         err = judgeerror.read_text(errors='replace')
-    if len(ret.err) == 0 and judgemessage.is_file():
+    if len(err) == 0 and judgemessage.is_file():
         err = judgemessage.read_text(errors='replace')
     return err
