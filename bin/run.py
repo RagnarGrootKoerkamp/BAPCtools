@@ -192,8 +192,8 @@ class Run:
             ret.err = ''
         if judgeerror.is_file():
             ret.err = judgeerror.read_text(errors='replace')
-        elif judgemessage.is_file():
-            ret.err += judgemessage.read_text(errors='replace')
+        if len(ret.err) == 0 and judgemessage.is_file():
+            ret.err = judgemessage.read_text(errors='replace')
         if ret.err:
             header = validator.name + ': ' if len(output_validators) > 1 else ''
             ret.err = header + ret.err

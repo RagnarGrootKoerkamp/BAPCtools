@@ -134,7 +134,7 @@ def run_interactive_testcase(
                         ExecStatus.ACCEPTED,
                         max_duration,
                         max_duration >= timeout,
-                        validator_err.decode('utf-8', 'replace'),
+                        _feedback(run, validator_err),
                         exec_res.err,
                         verdict,
                         last_pass if run.problem.multipass else None,
@@ -163,7 +163,7 @@ def run_interactive_testcase(
                 ExecStatus.ACCEPTED,
                 max_duration,
                 max_duration >= timeout,
-                validator_err.decode('utf-8', 'replace'),
+                _feedback(run, validator_err),
                 exec_res.err,
                 verdict,
                 last_pass if run.problem.multipass else None,
@@ -391,7 +391,7 @@ while True:
 
         val_err = None
         if validator_error is False:
-            val_err = validator.stderr.read().decode('utf-8', 'replace')
+            val_err = _feedback(run, validator.stderr.read())
         team_err = None
         if team_error is False:
             team_err = submission.stderr.read().decode('utf-8', 'replace')
@@ -436,3 +436,17 @@ while True:
     else:
         tle_result.duration = max_duration
         return tle_result
+
+
+def _feedback(run, err):
+    judgemessage = run.feedbackdir / 'judgemessage.txt'
+    judgeerror = run.feedbackdir / 'judgeerror.txt'
+    if err is None:
+        err = ''
+    else:
+        err = err.decode('utf-8', 'replace')
+    if judgeerror.is_file():
+        err = judgeerror.read_text(errors='replace')
+    if len(ret.err) == 0 and judgemessage.is_file():
+        err = judgemessage.read_text(errors='replace')
+    return err
