@@ -343,7 +343,7 @@ class Verdicts:
             while stack:
                 node, indent, prefix, last = stack.pop()
                 result.append(
-                    f"{indent}{prefix}{node.split('/')[-1]}: {to_string(self.verdict[node])}"
+                    f"{Style.DIM}{Fore.WHITE}{indent}{prefix}{Style.RESET_ALL}{node.split('/')[-1]}: {to_string(self.verdict[node])}"
                 )
                 if max_depth is not None and len(indent) >= 2 * max_depth:
                     continue
@@ -358,10 +358,15 @@ class Verdicts:
                         else:
                             stack.append((child, indent + pipe + ' ', '├─', False))
                     else:
-                        testcases.append(to_char(self.verdict[child]))
+                        tmp = f'{Style.DIM}{Fore.WHITE}-{Style.RESET_ALL}'
+                        if self.verdict[child] != False:
+                            tmp = to_char(self.verdict[child])
+                        testcases.append(tmp)
                 if testcases:
                     edge = '└' if first else '├'
-                    result.append(indent + pipe + ' ' + edge + '─' + ''.join(reversed(testcases)))
+                    result.append(
+                        f'{Style.DIM}{Fore.WHITE}{indent}{pipe} {edge}─{Style.RESET_ALL}{"".join(reversed(testcases))}'
+                    )
             return '\n'.join(result[int(not show_root) :])
 
 
@@ -457,7 +462,7 @@ class VerdictTable:
                 self.last_printed = []
 
     def _get_verdict(self, s, testcase):
-        res = Style.DIM + Fore.WHITE + '-' + Style.RESET_ALL
+        res = f'{Style.DIM}{Fore.WHITE}-{Style.RESET_ALL}'
         if s < len(self.results) and testcase in self.results[s]:
             res = to_char(self.results[s][testcase], testcase in self.samples)
         elif s + 1 == len(self.results) and testcase in self.current_testcases:
@@ -547,8 +552,10 @@ class TableProgressBar(ProgressBar):
     def done(self, success=True, message='', data='', print_item=True):
         return super().done(success, message, data, print_item)
 
-    def finalize(self, *, print_done=True, message=None):
+    def finalize(self, *, print_done=True, message=None, suppress_newline=False):
         with self:
-            res = super().finalize(print_done=print_done, message=message)
+            res = super().finalize(
+                print_done=print_done, message=message, suppress_newline=suppress_newline
+            )
             self.table._clear(force=True)
             return res

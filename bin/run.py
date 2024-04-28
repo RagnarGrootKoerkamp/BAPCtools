@@ -405,7 +405,7 @@ class Submission(program.Program):
             got_expected = result.verdict in [Verdict.ACCEPTED] + self.expected_verdicts
 
             if result.verdict == Verdict.ACCEPTED:
-                color = Style.DIM
+                color = f'{Style.DIM}{Fore.WHITE}'
             else:
                 color = Fore.GREEN if got_expected else Fore.RED
             timeout = result.duration >= self.problem.settings.timeout
@@ -413,8 +413,8 @@ class Submission(program.Program):
             passmsg = (
                 f':{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}' if self.problem.multipass else ''
             )
-            testcase = f'{Style.DIM}{run.name}{Style.RESET_ALL}{passmsg}'
-            style_len = len(f'{Style.DIM}{Style.RESET_ALL}')
+            testcase = f'{Style.DIM}{Fore.WHITE}{run.name}{Style.RESET_ALL}{passmsg}'
+            style_len = len(f'{Style.DIM}{Fore.WHITE}{Style.RESET_ALL}')
             message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {testcase:{max_testcase_len+style_len}}'
 
             # Update padding since we already print the testcase name after the verdict.
@@ -445,7 +445,7 @@ class Submission(program.Program):
         )
 
         # Summary line is the only thing shown.
-        message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} @ {Style.DIM}{salient_testcase:{max_testcase_len}}{Style.RESET_ALL}'
+        message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} @ {Style.DIM}{Fore.WHITE}{salient_testcase:{max_testcase_len}}{Style.RESET_ALL}'
 
         if run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_testcase()
@@ -466,9 +466,11 @@ class Submission(program.Program):
             message += f' {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} @ {Style.DIM}{slowest_testcase}{Style.RESET_ALL}'
 
         bar.item_width -= max_testcase_len + 1
-        printed_newline = bar.finalize(message=message)
+        printed_newline = bar.finalize(message=message, suppress_newline=config.args.tree)
         if config.args.tree:
             print(verdicts.as_tree(max_depth=config.args.depth))
+            print()
+            printed_newline = True
 
         return self.verdict in self.expected_verdicts, printed_newline
 

@@ -460,7 +460,7 @@ class ProgressBar:
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
-    def finalize(self, *, print_done=True, message=None):
+    def finalize(self, *, print_done=True, message=None, suppress_newline=False):
         with self:
             self.clearline()
             assert self.parent is None
@@ -482,13 +482,13 @@ class ProgressBar:
                 self._print(self.get_prefix(), message)
 
             # When something was printed, add a newline between parts.
-            if self.global_logged:
+            if self.global_logged and not suppress_newline:
                 self._print()
 
         assert ProgressBar.current_bar is not None
         ProgressBar.current_bar = None
 
-        return self.global_logged
+        return self.global_logged and not suppress_newline
 
 
 # Given a command line argument, return the first match:
