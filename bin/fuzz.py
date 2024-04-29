@@ -77,7 +77,7 @@ class GeneratorTask:
                     testcase.ans_path.unlink()
                 # Run the solution and validate the generated .ans.
                 localbar = bar.start(f'{self.i}: generate ans')
-                if not self.solution.run(bar, cwd, name).status:
+                if not self.solution.run(bar, cwd).status:
                     localbar.done()
                     return False
                 localbar.done()
