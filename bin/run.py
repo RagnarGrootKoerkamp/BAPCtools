@@ -312,7 +312,7 @@ class Submission(program.Program):
     # Run this submission on all testcases for the current problem.
     # Returns (OK verdict, printed newline)
     def run_all_testcases(
-        self, max_submission_name_len: int, verdict_table=None, *, needs_leading_newline
+        self, max_submission_name_len: int, verdict_table, *, needs_leading_newline
     ):
         runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
         max_testcase_len = max(len(run.name) for run in runs)
@@ -328,25 +328,18 @@ class Submission(program.Program):
             run_until = RunUntil.ALL
 
         verdicts = Verdicts(
-            (str(t.name) for t in self.problem.testcases()),
+            self.problem.testcases(),
             self.problem.settings.timeout,
             run_until,
         )
 
-        if verdict_table is not None:
-            bar = verdict_table.ProgressBar(
-                self.name,
-                count=len(runs),
-                max_len=max_item_len,
-                needs_leading_newline=needs_leading_newline,
-            )
-        else:
-            bar = ProgressBar(
-                self.name,
-                count=len(runs),
-                max_len=max_item_len,
-                needs_leading_newline=needs_leading_newline,
-            )
+        verdict_table.next_submission(verdicts)
+        bar = verdict_table.ProgressBar(
+            self.name,
+            count=len(runs),
+            max_len=max_item_len,
+            needs_leading_newline=needs_leading_newline,
+        )
 
         def process_run(run):
             if not verdicts.run_is_needed(run.name):
@@ -356,10 +349,7 @@ class Submission(program.Program):
             localbar = bar.start(run)
             result = run.run(localbar)
 
-            verdicts.set(run.name, result.verdict, result.duration)
-
-            if verdict_table is not None:
-                verdict_table.finish_testcase(run.name, result.verdict)
+            verdict_table.update_verdicts(run.name, result.verdict, result.duration)
 
             # Print stderr whenever something is printed
             if result.out and result.err:
@@ -468,8 +458,9 @@ class Submission(program.Program):
         bar.item_width -= max_testcase_len + 1
         printed_newline = bar.finalize(message=message, suppress_newline=config.args.tree)
         if config.args.tree:
-            print(verdicts.as_tree(max_depth=config.args.depth))
-            print()
+            verdict_table.print(force=True, new_lines=0)
+            verdict_table.last_printed = []
+            print(file=sys.stderr)
             printed_newline = True
 
         return self.verdict in self.expected_verdicts, printed_newline
