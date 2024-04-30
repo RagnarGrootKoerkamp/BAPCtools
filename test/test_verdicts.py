@@ -1,8 +1,12 @@
 import verdicts
 
+class TestTestcase:
+    def __init__(self, name):
+        self.name = name
+
 AC = verdicts.Verdict.ACCEPTED
 WA = verdicts.Verdict.WRONG_ANSWER
-PATHS = ["sample/1", "sample/2", "secret/a/1", "secret/a/2", "secret/a/3", "secret/b/1", "secret/c"]
+PATHS = [TestTestcase(p) for p in ["sample/1", "sample/2", "secret/a/1", "secret/a/2", "secret/a/3", "secret/b/1", "secret/c"]]
 
 
 class TestVerdicts:
