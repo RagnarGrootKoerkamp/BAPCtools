@@ -582,7 +582,6 @@ class Problem:
         needs_leading_newline = False if config.args.verbose else True
         for verdict in submissions:
             for submission in submissions[verdict]:
-                verdict_table.next_submission()
                 submission_ok, printed_newline = submission.run_all_testcases(
                     max_submission_len,
                     verdict_table=verdict_table,
@@ -593,7 +592,7 @@ class Problem:
 
         if config.args.table:
             Problem._print_table(verdict_table.results, testcases, submissions)
-        elif config.args.overview:
+        elif config.args.overview and not config.args.tree:
             verdict_table.print(force=True, new_lines=1)
 
         return ok
@@ -619,7 +618,8 @@ class Problem:
     def _print_table(verdict_table, testcases, submission):
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
         def single_verdict(row, testcase):
-            if testcase.name in row:
+            assert row[testcase.name] is not None
+            if row[testcase.name] is not False:
                 return verdicts.to_char(row[testcase.name])
             else:
                 return f'{Style.DIM}{Fore.WHITE}-{Style.RESET_ALL}'
@@ -641,12 +641,12 @@ class Problem:
             scores[t.name] = 0
         for dct in verdict_table:
             failures = 0
-            for t in dct:
-                if dct[t] != verdicts.Verdict.ACCEPTED:
+            for t in testcases:
+                if dct[t.name] != verdicts.Verdict.ACCEPTED:
                     failures += 1
-            for t in dct:
-                if dct[t] != verdicts.Verdict.ACCEPTED:
-                    scores[t] += 1.0 / failures
+            for t in testcases:
+                if dct[t.name] != verdicts.Verdict.ACCEPTED:
+                    scores[t.name] += 1.0 / failures
         scores_list = sorted(scores.values())
 
         print(
@@ -671,8 +671,7 @@ class Problem:
             # Skip all AC testcases
             if all(
                 map(
-                    lambda row: testcase.name in row
-                    and row[testcase.name] == verdicts.Verdict.ACCEPTED,
+                    lambda row: row[testcase.name] == verdicts.Verdict.ACCEPTED,
                     verdict_table,
                 )
             ):

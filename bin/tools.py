@@ -612,11 +612,10 @@ Run this from one of:
     runparser.add_argument(
         '--table', action='store_true', help='Print a submissions x testcases table for analysis.'
     )
-    runparser_display = runparser.add_mutually_exclusive_group()
-    runparser_display.add_argument(
+    runparser.add_argument(
         '--overview', '-o', action='store_true', help='Print a live overview for the judgings.'
     )
-    runparser_display.add_argument('--tree', action='store_true', help='Show a tree of verdicts.')
+    runparser.add_argument('--tree', action='store_true', help='Show a tree of verdicts.')
 
     runparser.add_argument('--depth', type=int, help='Depth of verdict tree.')
     runparser.add_argument(
