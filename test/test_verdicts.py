@@ -41,7 +41,7 @@ class TestVerdicts:
         # Setting a verdict takes linear time: it checks the verdicts of all siblings to determine the parent's verdict.
         # This means that this test_efficiency() runs in quadratic time.
         size = 1000
-        many_paths = [f"a/{i}" for i in range(size)]
+        many_paths = [TestTestcase(f"a/{i}") for i in range(size)]
         verds = verdicts.Verdicts(many_paths, 1.0)
         evens = range(0, size, 2)
         odds = range(1, size, 2)
