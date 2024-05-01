@@ -435,7 +435,7 @@ class VerdictTable:
                 self.last_printed = []
 
     def _get_verdict(self, s, testcase, check_sample=True):
-        res = f'{Fore.LIGHTBLACK_EX}-{Style.RESET_ALL}'
+        res = f'{Style.DIM}-{Style.RESET_ALL}'
         if s < len(self.results) and self.results[s][testcase] not in [None, False]:
             res = to_char(self.results[s][testcase], check_sample and testcase in self.samples)
         elif s + 1 == len(self.results) and testcase in self.current_testcases:
@@ -467,10 +467,10 @@ class VerdictTable:
                     verdict_str = (
                         to_string(verdict)
                         if verdict is not False
-                        else f'{Fore.LIGHTBLACK_EX}-{Style.RESET_ALL}'
+                        else f'{Style.DIM}-{Style.RESET_ALL}'
                     )
                     printed_text.append(
-                        f"{Fore.LIGHTBLACK_EX}{indent}{prefix}{Style.RESET_ALL}{name}: {verdict_str}\n"
+                        f"{Style.DIM}{indent}{prefix}{Style.RESET_ALL}{name}: {verdict_str}\n"
                     )
                     if verdict in [None, False]:
                         verdict = '.'
@@ -503,9 +503,7 @@ class VerdictTable:
                         grouped[-1][0] += 1
                         grouped[-1][1] += verdict
 
-                    printed_text.append(
-                        f'{Fore.LIGHTBLACK_EX}{indent}{pipe} {edge}─{Style.RESET_ALL}'
-                    )
+                    printed_text.append(f'{Style.DIM}{indent}{pipe} {edge}─{Style.RESET_ALL}')
                     pref_len = len(indent) + len(pipe) + 1 + len(edge) + 1
                     printed = pref_len
 
@@ -515,7 +513,7 @@ class VerdictTable:
                     for length, group in grouped:
                         if width >= 0 and printed + 1 + length > width:
                             printed_text.append(
-                                f'\n{Fore.LIGHTBLACK_EX}{indent}{pipe} {pipe2} {Style.RESET_ALL}'
+                                f'\n{Style.DIM}{indent}{pipe} {pipe2} {Style.RESET_ALL}'
                             )
                             printed_lengths.append(printed)
                             printed = pref_len
