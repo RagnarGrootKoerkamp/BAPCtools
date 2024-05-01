@@ -355,6 +355,7 @@ class VerdictTable:
         self.results = []
         self.current_testcases = set()
         if config.args.tree:
+            self.width = width if width >= 20 else -1
             self.last_printed = []
             self.print_without_force = not config.args.no_bar and config.args.overview
             self.checked_height = height
@@ -493,29 +494,44 @@ class VerdictTable:
                 if verdicts:
                     verdicts.reverse()
                     edge = '└' if first else '├'
-                    pref_len = len(indent) + len(pipe) + 1 + len(edge) + 1
-                    free = ProgressBar.columns - pref_len
-                    if free < 10:
-                        free = len(verdicts)
+                    pipe2 = ' ' if first else '│'
 
                     grouped = []
                     for i, verdict in enumerate(verdicts):
-                        if i % free == 0:
+                        if i % 10 == 0:
                             grouped.append([0, ''])
                         grouped[-1][0] += 1
                         grouped[-1][1] += verdict
 
-                    for i, group in enumerate(grouped):
-                        tmp = f'{edge}─' if i == 0 else ('  ' if first else '│ ')
-                        printed_text.append(
-                            f'{Fore.LIGHTBLACK_EX}{indent}{pipe} {tmp}{Style.RESET_ALL}{group[1]}\n'
-                        )
-                        printed_lengths.append(pref_len + group[0])
+                    printed_text.append(
+                        f'{Fore.LIGHTBLACK_EX}{indent}{pipe} {edge}─{Style.RESET_ALL}'
+                    )
+                    pref_len = len(indent) + len(pipe) + 1 + len(edge) + 1
+                    printed = pref_len
+
+                    width = -1 if ProgressBar.columns - pref_len < 10 else self.width
+                    space = ''
+
+                    for length, group in grouped:
+                        if width >= 0 and printed + 1 + length > width:
+                            printed_text.append(
+                                f'\n{Fore.LIGHTBLACK_EX}{indent}{pipe} {pipe2} {Style.RESET_ALL}'
+                            )
+                            printed_lengths.append(printed)
+                            printed = pref_len
+                            space = ''
+
+                        printed_text.append(f'{space}{group}')
+                        printed += length + len(space)
+                        space = ' '
+
+                    printed_lengths.append(printed)
+                    printed_text.append('\n')
 
             self._clear(force=True)
 
             if self.checked_height != True:
-                if self.checked_height < len(printed_text) + 5:
+                if self.checked_height < len(printed_lengths) + 5:
                     print(
                         f'\033[0J{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}\n',
                         file=sys.stderr,
