@@ -854,7 +854,7 @@ def tail(string, limit):
     lines = string.split('\n')
     if len(lines) > limit:
         lines = lines[-limit:]
-        lines[0] = f'{Fore.LIGHTBLACK_EX}[...]{Style.RESET_ALL}'
+        lines[0] = f'{Style.DIM}[...]{Style.RESET_ALL}'
     return '\n'.join(lines)
 
 
