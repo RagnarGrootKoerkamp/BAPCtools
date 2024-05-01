@@ -622,7 +622,7 @@ class Problem:
             if row[testcase.name] is not False:
                 return verdicts.to_char(row[testcase.name])
             else:
-                return f'{Style.DIM}{Fore.WHITE}-{Style.RESET_ALL}'
+                return f'{Fore.LIGHTBLACK_EX}-{Style.RESET_ALL}'
 
         make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, tc), verdict_table))
         resultant_count, resultant_id = dict(), dict()
