@@ -403,9 +403,9 @@ class Submission(program.Program):
             passmsg = (
                 f':{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}' if self.problem.multipass else ''
             )
-            testcase = f'{Fore.LIGHTBLACK_EX}{run.name}{Style.RESET_ALL}{passmsg}'
-            style_len = len(f'{Fore.LIGHTBLACK_EX}{Style.RESET_ALL}')
-            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} @ {testcase:{max_testcase_len+style_len}}'
+            testcase = f'{run.name}{Style.RESET_ALL}{passmsg}'
+            style_len = len(f'{Style.RESET_ALL}')
+            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Fore.LIGHTBLACK_EX}@ {testcase:{max_testcase_len+style_len}}'
 
             # Update padding since we already print the testcase name after the verdict.
             localbar.item_width = padding_len
