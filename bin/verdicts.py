@@ -433,10 +433,10 @@ class VerdictTable:
 
                 self.last_printed = []
 
-    def _get_verdict(self, s, testcase):
-        res = f'{Style.DIM}{Fore.WHITE}-{Style.RESET_ALL}'
+    def _get_verdict(self, s, testcase, check_sample=True):
+        res = f'{Fore.LIGHTBLACK_EX}-{Style.RESET_ALL}'
         if s < len(self.results) and self.results[s][testcase] not in [None, False]:
-            res = to_char(self.results[s][testcase], testcase in self.samples)
+            res = to_char(self.results[s][testcase], check_sample and testcase in self.samples)
         elif s + 1 == len(self.results) and testcase in self.current_testcases:
             res = Style.DIM + to_char(None)
         return res
@@ -466,10 +466,10 @@ class VerdictTable:
                     verdict_str = (
                         to_string(verdict)
                         if verdict is not False
-                        else f'{Style.DIM}{Fore.WHITE}-{Style.RESET_ALL}'
+                        else f'{Fore.LIGHTBLACK_EX}-{Style.RESET_ALL}'
                     )
                     printed_text.append(
-                        f"{Style.DIM}{Fore.WHITE}{indent}{prefix}{Style.RESET_ALL}{name}: {verdict_str}\n"
+                        f"{Fore.LIGHTBLACK_EX}{indent}{prefix}{Style.RESET_ALL}{name}: {verdict_str}\n"
                     )
                     if verdict in [None, False]:
                         verdict = '.'
@@ -489,7 +489,7 @@ class VerdictTable:
                         else:
                             stack.append((child, indent + pipe + ' ', '├─', False))
                     else:
-                        verdicts.append(self._get_verdict(len(self.results) - 1, child))
+                        verdicts.append(self._get_verdict(len(self.results) - 1, child, False))
                 if verdicts:
                     verdicts.reverse()
                     edge = '└' if first else '├'
@@ -508,7 +508,7 @@ class VerdictTable:
                     for i, group in enumerate(grouped):
                         tmp = f'{edge}─' if i == 0 else ('  ' if first else '│ ')
                         printed_text.append(
-                            f'{Style.DIM}{Fore.WHITE}{indent}{pipe} {tmp}{Style.RESET_ALL}{group[1]}\n'
+                            f'{Fore.LIGHTBLACK_EX}{indent}{pipe} {tmp}{Style.RESET_ALL}{group[1]}\n'
                         )
                         printed_lengths.append(pref_len + group[0])
 
