@@ -1,12 +1,12 @@
 import verdicts
 
-class TestTestcase:
+class MockTestcase:
     def __init__(self, name):
         self.name = name
 
 AC = verdicts.Verdict.ACCEPTED
 WA = verdicts.Verdict.WRONG_ANSWER
-PATHS = [TestTestcase(p) for p in ["sample/1", "sample/2", "secret/a/1", "secret/a/2", "secret/a/3", "secret/b/1", "secret/c"]]
+PATHS = [MockTestcase(p) for p in ["sample/1", "sample/2", "secret/a/1", "secret/a/2", "secret/a/3", "secret/b/1", "secret/c"]]
 
 
 class TestVerdicts:
@@ -41,7 +41,7 @@ class TestVerdicts:
         # Setting a verdict takes linear time: it checks the verdicts of all siblings to determine the parent's verdict.
         # This means that this test_efficiency() runs in quadratic time.
         size = 1000
-        many_paths = [TestTestcase(f"a/{i}") for i in range(size)]
+        many_paths = [MockTestcase(f"a/{i}") for i in range(size)]
         verds = verdicts.Verdicts(many_paths, 1.0)
         evens = range(0, size, 2)
         odds = range(1, size, 2)
