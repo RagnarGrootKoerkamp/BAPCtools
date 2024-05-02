@@ -184,19 +184,19 @@ class Verdicts:
     def __exit__(self, *args):
         self.lock.__exit__(*args)
 
-    def is_testgroup(self, node) -> bool:
+    def is_testgroup(self, node: str) -> bool:
         """Is the given testnode name a testgroup (rather than a testcase)?
         This assumes nonempty testgroups.
         """
         return node in self.children
 
-    def is_testcase(self, node) -> bool:
+    def is_testcase(self, node: str) -> bool:
         """Is the given testnode name a testcase (rather than a testgroup)?
         This assumes nonempty testgroups.
         """
         return node not in self.children
 
-    def set(self, testcase, verdict: str | Verdict, duration: float):
+    def set(self, testcase: str, verdict: str | Verdict, duration: float):
         """Set the verdict and duration of the given testcase (implying possibly others)
 
         verdict can be given as a Verdict or as a string using either long or
@@ -309,7 +309,7 @@ class Verdicts:
                     # parent verdict cannot be determined yet
                     pass
 
-    def run_is_needed(self, testcase: str):
+    def run_is_needed(self, testcase: str) -> bool:
         """
         There are 3 modes for running cases:
         - default: run until the lexicographically first error is known
@@ -342,31 +342,31 @@ class VerdictTable:
     def __init__(
         self,
         submissions,
-        testcases,
-        width=ProgressBar.columns,
-        height=shutil.get_terminal_size().lines,
-        max_name_width=50,
+        testcases: list[testcase.Testcase],
+        width: int = ProgressBar.columns,
+        height: int = shutil.get_terminal_size().lines,
+        max_name_width: int = 50,
     ):
-        self.submissions = [
+        self.submissions: list[str] = [
             submission.name for verdict in submissions for submission in submissions[verdict]
         ]
-        self.testcases = [t.name for t in testcases]
-        self.samples = {t.name for t in testcases if t.root == 'sample'}
-        self.results = []
-        self.current_testcases = set()
+        self.testcases: list[str] = [t.name for t in testcases]
+        self.samples: set[str] = set(t.name for t in testcases if t.root == 'sample')
+        self.results: list[Verdicts] = []
+        self.current_testcases: set[str] = set()
         if config.args.tree:
-            self.width = width if width >= 20 else -1
-            self.last_printed = []
-            self.print_without_force = not config.args.no_bar and config.args.overview
-            self.checked_height = height
+            self.width: int = width if width >= 20 else -1
+            self.last_printed: list[int] = []
+            self.print_without_force: bool = not config.args.no_bar and config.args.overview
+            self.checked_height: int | bool = height
         else:
-            self.name_width = min(
+            self.name_width: int = min(
                 max_name_width, max([len(submission) for submission in self.submissions])
             )
-            self.width = width if width >= self.name_width + 2 + 10 else -1
-            self.last_printed = []
+            self.width: int = width if width >= self.name_width + 2 + 10 else -1
+            self.last_printed: list[int] = []
 
-            self.print_without_force = (
+            self.print_without_force: bool = (
                 not config.args.no_bar and config.args.overview and self.width >= 0
             )
             if self.print_without_force:
@@ -409,14 +409,14 @@ class VerdictTable:
         self.results.append(verdicts)
         self.current_testcases = set()
 
-    def add_testcase(self, testcase):
+    def add_testcase(self, testcase: str):
         self.current_testcases.add(testcase)
 
-    def update_verdicts(self, testcase, verdict, duration):
+    def update_verdicts(self, testcase: str, verdict: str | Verdict, duration: float):
         self.results[-1].set(testcase, verdict, duration)
         self.current_testcases.discard(testcase)
 
-    def _clear(self, *, force=True):
+    def _clear(self, *, force: bool = True):
         if force or self.print_without_force:
             if self.last_printed:
                 actual_width = ProgressBar.columns
@@ -434,7 +434,7 @@ class VerdictTable:
 
                 self.last_printed = []
 
-    def _get_verdict(self, s, testcase, check_sample=True):
+    def _get_verdict(self, s: int, testcase: str, check_sample: bool = True) -> str:
         res = f'{Style.DIM}-{Style.RESET_ALL}'
         if s < len(self.results) and self.results[s][testcase] not in [None, False]:
             res = to_char(self.results[s][testcase], check_sample and testcase in self.samples)
@@ -448,7 +448,9 @@ class VerdictTable:
         else:
             self._print_table(**kwargs)
 
-    def _print_tree(self, *, force=True, new_lines=1, printed_lengths=None):
+    def _print_tree(
+        self, *, force: bool = True, new_lines: int = 1, printed_lengths: list[int] | None = None
+    ):
         if printed_lengths is None:
             printed_lengths = []
         if force or self.print_without_force:
@@ -545,7 +547,9 @@ class VerdictTable:
             print(''.join(printed_text), end='', flush=True, file=sys.stderr)
             self.last_printed = printed_lengths
 
-    def _print_table(self, *, force=True, new_lines=2, printed_lengths=None):
+    def _print_table(
+        self, *, force: bool = True, new_lines: int = 2, printed_lengths: list[int] | None = None
+    ):
         if printed_lengths is None:
             printed_lengths = []
         if force or self.print_without_force:
@@ -585,7 +589,7 @@ class VerdictTable:
 
     def ProgressBar(
         self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
-    ):
+    ) -> 'TableProgressBar':
         return TableProgressBar(
             self, prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline
         )
