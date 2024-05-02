@@ -149,11 +149,11 @@ class Verdicts:
 
     def __init__(
         self,
-        testcases: list[testcase.Testcase],
+        testcases_list: list[testcase.Testcase],
         timeout: float = 1,
         run_until: RunUntil = RunUntil.FIRST_ERROR,
     ):
-        testcases = {t.name for t in testcases}
+        testcases: set[str] = set(t.name for t in testcases_list)
         testgroups: set[str] = set(str(path) for tc in testcases for path in Path(tc).parents)
 
         # Lock operations reading/writing non-static data.
