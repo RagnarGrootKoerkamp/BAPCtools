@@ -528,8 +528,11 @@ class VerdictTable:
 
             self._clear(force=True)
 
-            if self.checked_height != True:
-                if self.checked_height < len(printed_lengths) + 5:
+            if self.checked_height is not True:
+                height = sum(
+                    (w + ProgressBar.columns - 1) // ProgressBar.columns for w in printed_lengths
+                )
+                if self.checked_height < height + 5:
                     print(
                         f'\033[0J{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}\n',
                         file=sys.stderr,
