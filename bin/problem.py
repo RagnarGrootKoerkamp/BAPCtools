@@ -31,6 +31,8 @@ class Problem:
         self.path = path
         self.tmpdir = tmpdir / self.name
         self.tmpdir.mkdir(parents=True, exist_ok=True)
+        # The label for the problem: A, B, A1, A2, X, ...
+        self.label = label
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
         self._read_settings()
 
@@ -42,9 +44,6 @@ class Problem:
         self._program_callbacks = dict()
         # Dictionary from path to parsed file contents.
         self._testdata_yamls = dict()
-
-        # The label for the problem: A, B, A1, A2, X, ...
-        self.label = label
 
         # TODO: transform this into nice warnings
         assert path.is_dir()
@@ -109,6 +108,7 @@ class Problem:
             'validator_flags': [],
             'author': '',
             'uuid': None,
+            'constants': dict(),
         }
 
         yaml_path = self.path / 'problem.yaml'
@@ -169,6 +169,41 @@ class Problem:
             yaml_path.write_text(raw)
             log(f'Generated UUID for {self.name}, added to problem.yaml')
 
+        # read constants
+        if not isinstance(self.settings.constants, dict):
+            fatal(f'could not parse constants in {self.name}/problem.yaml')
+        raw_constants = self.settings.constants
+        self.settings.constants = {
+            k: v
+            for k, v in raw_constants.items()
+            if isinstance(v, (str, int, float))
+            and config.SUBSTITUTE_NAME_REGEX.fullmatch(k) is not None
+        }
+        for k in raw_constants:
+            if k not in self.settings.constants:
+                if config.SUBSTITUTE_NAME_REGEX.fullmatch(key) is None:
+                    error(f'invalid name "{k}" for constant in {self.name}/problem.yaml (ignored)')
+                else:
+                    error(f'invalid value for constant {k} in {self.name}/problem.yaml (ignored)')
+
+        # reserved constants (and backwards compatibility)
+        known_constants = {
+            'timelimit': self.settings.timelimit,
+        }
+        reserved_constants = list(known_constants.keys()) + [
+            'problemdir',
+            'problemdirname',
+            'problemlabel',
+            'problemauthor',
+            'problemyamlname',  # localised for problem statements
+            'builddir',  # used by problem statements
+        ]
+        for k in reserved_constants:
+            if k in self.settings.constants:
+                warn(f'found reserved key "{k}" in constants of {self.name}/problem.yaml. Ignored.')
+                self.settings.constants.pop(k)
+        self.settings.constants.update(known_constants)
+
     def get_testdata_yaml(p, path, key, bar, name=None) -> str | None:
         """
         Find the testdata flags applying at the given path for the given key.
@@ -203,7 +238,8 @@ class Problem:
                 if f in p._testdata_yamls:
                     flags = p._testdata_yamls[f]
                 else:
-                    p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
+                    raw = substitute(f.read_text(), p.settings.constants)
+                    p._testdata_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
 
                 # Validate and exctract the flags
                 for k in flags:

@@ -739,15 +739,32 @@ def ensure_symlink(link, target, output=False, relative=False):
         link.symlink_to(target.resolve(), target.is_dir())
 
 
+def has_substitute(inpath):
+    try:
+        data = inpath.read_text()
+    except UnicodeDecodeError:
+        return False
+    return config.SUBSTITUTE_REGEX.search(data) is not None
+
+
 def substitute(data, variables):
     if variables is None:
-        return data
+        variables = {}
+
     for key in variables:
-        r = ''
-        if variables[key] != None:
-            r = variables[key]
-        data = data.replace('{%' + key + '%}', str(r))
-    return data
+        if config.SUBSTITUTE_NAME_REGEX.fullmatch(key) is None:
+            warn(f'substitution key {key} does not match {config.SUBSTITUTE_NAME_REGEX.pattern}')
+
+    def substitute_function(match):
+        name = match.group(1)
+        if name in variables:
+            return str(variables[name]) if variables[name] is not None else ''
+        else:
+            variable = match.group()
+            warn(f"Found pattern '{variable}' but no substitution was provided. Skipped.")
+            return variable
+
+    return config.SUBSTITUTE_REGEX.sub(substitute_function, data)
 
 
 def copy_and_substitute(inpath, outpath, variables):
