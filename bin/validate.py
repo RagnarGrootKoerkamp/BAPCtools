@@ -2,7 +2,6 @@ import program
 import re
 from util import *
 from enum import Enum
-from typing import Type
 
 
 class Mode(Enum):
