@@ -345,11 +345,13 @@ class Verdicts:
                     # Run all cases.
                     return True
 
+
 class VerdictTable:
     class Group:
         def __init__(self, length: int, text: str):
             self.length = length
             self.text = text
+
         def __iter__(self):
             yield from [self.length, self.text]
 
