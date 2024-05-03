@@ -91,7 +91,7 @@ os.environ["PATH"] += os.pathsep + str(tools_root / 'third_party')
 args = argparse.Namespace()
 
 default_args = {
-    'jobs': os.cpu_count() // 2,
+    'jobs': (os.cpu_count() or 1) // 2,
     'time': 600,  # Used for `bt fuzz`
     'verbose': 0,
     'languages': None,

@@ -16,6 +16,7 @@ import yaml as yamllib
 import errno
 import secrets
 import threading
+from typing import Any
 
 from enum import Enum
 from pathlib import Path
@@ -174,7 +175,7 @@ class ProgressBar:
 
     if not is_windows():
 
-        def update_columns(_, __):
+        def update_columns(_: Any, __: Any):
             cols, rows = shutil.get_terminal_size()
             ProgressBar.columns = cols
 
