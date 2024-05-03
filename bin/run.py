@@ -157,7 +157,7 @@ class Run:
             return False
         if timeout_expired:
             return False
-        return any(config.verbose, config.all, config.args.action == 'all')
+        return any(config.args.verbose, config.args.all, config.args.action == 'all')
 
     # prepare next pass
     def _prepare_nextpass(self, nextpass):
