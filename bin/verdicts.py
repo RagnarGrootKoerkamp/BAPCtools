@@ -166,7 +166,9 @@ class Verdicts:
         self.timeout = timeout
 
         # (testcase | testgroup) -> Verdict | None | Literal[False]
-        self.verdict: dict[str, Verdict | None | Literal[False]] = {g: None for g in testcases | testgroups}
+        self.verdict: dict[str, Verdict | None | Literal[False]] = {
+            g: None for g in testcases | testgroups
+        }
         # testcase -> float | None
         self.duration: dict[str, float | None] = {g: None for g in testcases}
 
@@ -488,9 +490,7 @@ class VerdictTable:
                     printed_text.append(
                         f"{Style.DIM}{indent}{prefix}{Style.RESET_ALL}{name}: {verdict_str}\n"
                     )
-                    printed_lengths.append(
-                        len(indent) + len(prefix) + len(name) + 2 + verdict_len
-                    )
+                    printed_lengths.append(len(indent) + len(prefix) + len(name) + 2 + verdict_len)
                 if max_depth is not None and len(indent) >= 2 * max_depth:
                     continue
                 pipe = ' ' if last else '│'
