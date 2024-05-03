@@ -302,6 +302,7 @@ class Testcase:
                 elif mode == Mode.ANSWER:
                     file = self.ans_path
                 elif mode == Mode.INVALID:
+                    assert self.out_path is not None
                     file = self.out_path
 
                 data += (

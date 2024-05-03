@@ -9,6 +9,8 @@ import config
 import testcase
 from colorama import Fore, Style
 
+from typing import Literal
+
 
 class Verdict(Enum):
     """The verdict of a testcase or testgroup"""
@@ -60,7 +62,7 @@ class RunUntil(Enum):
     ALL = 3
 
 
-def to_char(v: Verdict | None | bool, lower=False):
+def to_char(v: Verdict | None | Literal[False], lower: bool = False):
     if v is None or v is False:
         return f'{Fore.BLUE}?{Style.RESET_ALL}'
     else:
@@ -68,7 +70,7 @@ def to_char(v: Verdict | None | bool, lower=False):
         return f'{v.color()}{char}{Style.RESET_ALL}'
 
 
-def to_string(v: Verdict | None | bool):
+def to_string(v: Verdict | None | Literal[False]):
     if v is None or v is False:
         return to_char(v)
     else:
@@ -163,8 +165,8 @@ class Verdicts:
         self.run_until = run_until
         self.timeout = timeout
 
-        # (testcase | testgroup) -> Verdict | None | False
-        self.verdict: dict[str, Verdict | None | False] = {g: None for g in testcases | testgroups}
+        # (testcase | testgroup) -> Verdict | None | Literal[False]
+        self.verdict: dict[str, Verdict | None | Literal[False]] = {g: None for g in testcases | testgroups}
         # testcase -> float | None
         self.duration: dict[str, float | None] = {g: None for g in testcases}
 
@@ -208,11 +210,11 @@ class Verdicts:
             self.duration[testcase] = duration
             self._set_verdict_for_node(testcase, verdict, duration >= self.timeout)
 
-    def __getitem__(self, testnode) -> Verdict | None:
+    def __getitem__(self, testnode) -> Verdict | None | Literal[False]:
         with self:
             return self.verdict[testnode]
 
-    def salient_testcase(self) -> (str, float):
+    def salient_testcase(self) -> tuple[str, float]:
         """The testcase most salient to the root verdict.
         If self['.'] is Verdict.ACCEPTED, then this is the slowest testcase.
         Otherwise, it is the lexicographically first testcase that was rejected."""
@@ -232,9 +234,11 @@ class Verdicts:
                         for tc, v in self.verdict.items()
                         if self.is_testcase(tc) and v != Verdict.ACCEPTED
                     )
-                    return (tc, self.duration[tc])
+                    duration = self.duration[tc]
+                    assert duration is not None
+                    return (tc, duration)
 
-    def slowest_testcase(self) -> (str, float):
+    def slowest_testcase(self) -> None | tuple[str, float]:
         """The slowest testcase, if all cases were run or a timeout occurred."""
         with self:
             tc, d = max(
@@ -263,10 +267,12 @@ class Verdicts:
                 return Verdict.ACCEPTED
             else:
                 first_error = next(v for v in child_verdicts if v != Verdict.ACCEPTED)
-                if first_error is None:
+                if first_error in [None, False]:
                     raise ValueError(
                         f"Verdict aggregation at {testgroup} with unknown child verdicts"
                     )
+                assert first_error is not None
+                assert first_error is not False
                 return first_error
 
     def _set_verdict_for_node(self, testnode: str, verdict: Verdict, timeout: bool):
@@ -337,8 +343,14 @@ class Verdicts:
                     # Run all cases.
                     return True
 
-
 class VerdictTable:
+    class Group:
+        def __init__(self, length: int, text: str):
+            self.length = length
+            self.text = text
+        def __iter__(self):
+            yield from [self.length, self.text]
+
     def __init__(
         self,
         submissions,
@@ -354,19 +366,20 @@ class VerdictTable:
         self.samples: set[str] = set(t.name for t in testcases if t.root == 'sample')
         self.results: list[Verdicts] = []
         self.current_testcases: set[str] = set()
+        self.last_printed: list[int] = []
+        self.width: int
+        self.print_without_force: bool
         if config.args.tree:
-            self.width: int = width if width >= 20 else -1
-            self.last_printed: list[int] = []
-            self.print_without_force: bool = not config.args.no_bar and config.args.overview
+            self.width = width if width >= 20 else -1
+            self.print_without_force = not config.args.no_bar and config.args.overview
             self.checked_height: int | bool = height
         else:
             self.name_width: int = min(
                 max_name_width, max([len(submission) for submission in self.submissions])
             )
-            self.width: int = width if width >= self.name_width + 2 + 10 else -1
-            self.last_printed: list[int] = []
+            self.width = width if width >= self.name_width + 2 + 10 else -1
 
-            self.print_without_force: bool = (
+            self.print_without_force = (
                 not config.args.no_bar and config.args.overview and self.width >= 0
             )
             if self.print_without_force:
@@ -377,9 +390,9 @@ class VerdictTable:
                 verdicts = []
                 for t, testcase in enumerate(self.testcases):
                     if t % 10 == 0:
-                        verdicts.append([0, ''])
-                    verdicts[-1][0] += 1
-                    verdicts[-1][1] += 's' if testcase in self.samples else '-'
+                        verdicts.append(VerdictTable.Group(0, ''))
+                    verdicts[-1].length += 1
+                    verdicts[-1].text += 's' if testcase in self.samples else '-'
 
                 printed = self.name_width + 1
                 for length, tmp in verdicts:
@@ -471,13 +484,12 @@ class VerdictTable:
                         if verdict is not False
                         else f'{Style.DIM}-{Style.RESET_ALL}'
                     )
+                    verdict_len = 1 if verdict in [None, False] else len(str(verdict))
                     printed_text.append(
                         f"{Style.DIM}{indent}{prefix}{Style.RESET_ALL}{name}: {verdict_str}\n"
                     )
-                    if verdict in [None, False]:
-                        verdict = '.'
                     printed_lengths.append(
-                        len(indent) + len(prefix) + len(name) + 2 + len(str(verdict))
+                        len(indent) + len(prefix) + len(name) + 2 + verdict_len
                     )
                 if max_depth is not None and len(indent) >= 2 * max_depth:
                     continue
@@ -499,11 +511,11 @@ class VerdictTable:
                     pipe2 = ' ' if first else '│'
 
                     grouped = []
-                    for i, verdict in enumerate(verdicts):
+                    for i, v in enumerate(verdicts):
                         if i % 10 == 0:
-                            grouped.append([0, ''])
-                        grouped[-1][0] += 1
-                        grouped[-1][1] += verdict
+                            grouped.append(VerdictTable.Group(0, ''))
+                        grouped[-1].length += 1
+                        grouped[-1].text += v
 
                     printed_text.append(f'{Style.DIM}{indent}{pipe} {edge}─{Style.RESET_ALL}')
                     pref_len = len(indent) + len(pipe) + 1 + len(edge) + 1
@@ -568,9 +580,9 @@ class VerdictTable:
                 verdicts = []
                 for t, testcase in enumerate(self.testcases):
                     if t % 10 == 0:
-                        verdicts.append([0, ''])
-                    verdicts[-1][0] += 1
-                    verdicts[-1][1] += self._get_verdict(s, testcase)
+                        verdicts.append(VerdictTable.Group(0, ''))
+                    verdicts[-1].length += 1
+                    verdicts[-1].text += self._get_verdict(s, testcase)
 
                 for length, tmp in verdicts:
                     if self.width >= 0 and printed + 1 + length > self.width:
