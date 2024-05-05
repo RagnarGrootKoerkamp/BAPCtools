@@ -26,6 +26,7 @@ wa:
   - ' 0'
   - ' 0 '
   - '0 '
+  - "\0"
 ---
 # Space lenient
 flags: ''
@@ -112,7 +113,7 @@ wa:
   - '1 2'
 ---
 # Float absolute
-flags: 'float_absolute_tolerance 1'
+flags: 'float_absolute_tolerance 1 case_sensitive'
 ans: '10 11'
 ac:
   - '10 11'
@@ -121,6 +122,7 @@ ac:
   - '11 10'
   - '11 12'
   - '1e1 1.1e1'
+  - '1E1 1.1E1'
 wa:
   - '10 9.99999999'
   - '11.000000001 11'
@@ -203,7 +205,7 @@ wa:
   - nan
 ---
 # ans inf
-flags: 'float_tolerance 0.5'
+flags: 'float_tolerance 0.5 case_sensitive'
 ans: inf
 ac:
   - inf
@@ -216,7 +218,7 @@ wa:
   - 1
 ---
 # ans -inf
-flags: 'float_tolerance 0.5'
+flags: 'float_tolerance 0.5 case_sensitive'
 ans: -inf
 ac:
   - -inf
@@ -230,12 +232,14 @@ wa:
   - -1
 ---
 # ans nan
-flags: 'float_tolerance 0.5'
+flags: 'float_tolerance 0.5 case_sensitive'
 ans: nan
 ac:
   - nan
   - NaN
   - NAN
+  - '-nan'
+  - '-NaN'
 wa:
   - inf
   - -inf
@@ -252,7 +256,7 @@ wa:
   - -inf
   - nan
   - 0
-
+---
 # ans -1
 flags: 'float_tolerance 0.5'
 ans: -1
@@ -268,3 +272,27 @@ wa:
   - 1
   - 0.5
   - 1.5
+---
+# ans 0, no float compare
+ans: 0
+ac:
+  - 0
+wa:
+  - '-0'
+  - '0.0'
+  - '0.000000000000000000000000000000000001'
+---
+# ans 0, float compare
+flags: 'float_tolerance 0'
+ans: 0
+ac:
+  - 0
+  - '-0'
+  - '0.0'
+  - '0.000000000000000000000000000000000001'
+---
+# zero bytes
+ans: 'a'
+wa:
+  - "a\0"
+  - "a\0a"
