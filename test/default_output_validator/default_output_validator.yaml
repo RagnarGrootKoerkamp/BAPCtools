@@ -274,6 +274,7 @@ wa:
   - 1.5
 ---
 # ans 0, no float compare
+flags: ''
 ans: 0
 ac:
   - 0
@@ -292,6 +293,7 @@ ac:
   - '0.000000000000000000000000000000000001'
 ---
 # zero bytes
+flags: ''
 ans: 'a'
 wa:
   - "a\0"
