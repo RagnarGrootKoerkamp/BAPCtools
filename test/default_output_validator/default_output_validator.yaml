@@ -203,9 +203,10 @@ wa:
   - inf
   - -inf
   - nan
+  - -nan
 ---
 # ans inf
-flags: 'float_tolerance 0.5 case_sensitive'
+flags: 'float_tolerance 0.5'
 ans: inf
 ac:
   - inf
@@ -214,11 +215,26 @@ ac:
 wa:
   - -inf
   - nan
+  - -nan
+  - 0
+  - 1
+---
+# ans inf
+flags: 'float_tolerance 0.5 case_sensitive'
+ans: inf
+ac:
+  - inf
+wa:
+  - INF
+  - Inf
+  - -inf
+  - nan
+  - -nan
   - 0
   - 1
 ---
 # ans -inf
-flags: 'float_tolerance 0.5 case_sensitive'
+flags: 'float_tolerance 0.5'
 ans: -inf
 ac:
   - -inf
@@ -227,20 +243,51 @@ ac:
 wa:
   - inf
   - nan
+  - -nan
   - 0
   - 1
   - -1
+---
+# ans -inf
+flags: 'float_tolerance 0.5 case_sensitive'
+ans: -inf
+ac:
+  - -inf
+wa:
+  - -Inf
+  - -INF
+  - inf
+  - nan
+  - -nan
+  - 0
+  - 1
+  - -1
+---
+# ans nan
+flags: 'float_tolerance 0.5'
+ans: nan
+ac:
+  - nan
+  - NaN
+  - NAN
+wa:
+  - -nan
+  - -NaN
+  - inf
+  - -inf
+  - 0
+  - 1
 ---
 # ans nan
 flags: 'float_tolerance 0.5 case_sensitive'
 ans: nan
 ac:
   - nan
+wa:
   - NaN
   - NAN
   - -nan
   - -NaN
-wa:
   - inf
   - -inf
   - 0
@@ -269,6 +316,7 @@ wa:
   - inf
   - -inf
   - nan
+  - -nan
   - 0
   - 1
   - 0.5
