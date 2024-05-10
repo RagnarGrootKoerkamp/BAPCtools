@@ -86,7 +86,12 @@ class Problem:
                     case None:
                         error(rf"No \problemname found in problem.{lang}.tex")
                         continue
-                    case r'\\problemyamlname':
+                    case '':
+                        continue
+                    case r'\problemyamlname':
+                        warn(
+                            rf"Prefer using \problemname{{}} instead of \problemname{{\problemyamlname}} in problem.{lang}.tex"
+                        )
                         continue
                     case s if '\\' in s or '_' in s or '^' in s:
                         # texname contains markup, like "CO_2" or "\emph{Hello}":
@@ -96,7 +101,7 @@ class Problem:
                         warn(
                             f'Problem titles in problem.{lang}.tex ({texname})'
                             + f' and problem.yaml ({yamlname}) differ;'
-                            + r' consider using \problemname{\problemyamlname}.'
+                            + r' consider using \problemname{}.'
                         )
         return sorted(texlangs & yamllangs)
 
