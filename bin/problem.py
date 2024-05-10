@@ -189,21 +189,24 @@ class Problem:
                     for k in flags:
                         match k:
                             case 'output_validator_flags':
-                                if not isinstance(flags[key], str):
+                                if not isinstance(flags[k], str):
                                     bar.error(
-                                        "ouput_validator_flags must be string", print_item=False
-                                    )
-                            case 'input_validator_flags':
-                                if not isinstance(flags[key], (str, dict)):
-                                    bar.error(
-                                        "input_validator_flags must be string or map",
+                                        "ouput_validator_flags must be string",
+                                        resume=True,
                                         print_item=False,
                                     )
-                                if isinstance(flags[key], dict):
+                            case 'input_validator_flags':
+                                if not isinstance(flags[k], (str, dict)):
+                                    bar.error(
+                                        "input_validator_flags must be string or map",
+                                        resume=True,
+                                        print_item=False,
+                                    )
+                                if isinstance(flags[k], dict):
                                     input_validator_names = set(
                                         val.name for val in p.validators(validate.InputValidator)
                                     )
-                                    for name in set(flags[key]) - input_validator_names:
+                                    for name in set(flags[k]) - input_validator_names:
                                         bar.warn(
                                             f'Unknown input validator {name}; expected {input_validator_names}',
                                             print_item=False,
