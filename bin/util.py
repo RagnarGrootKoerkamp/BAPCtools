@@ -391,21 +391,21 @@ class ProgressBar:
                     self._resume()
 
     # Same as log, but only in verbose mode.
-    def debug(self, message, data='', color=Fore.GREEN, *, resume=True):
+    def debug(self, message, data='', color=Fore.GREEN, *, resume=True, print_item=True):
         if config.args.verbose:
-            self.log(message, data, color=color, resume=resume)
+            self.log(message, data, color=color, resume=resume, print_item=print_item)
 
-    def warn(self, message='', data=''):
+    def warn(self, message='', data='', *, print_item=True):
         with self.lock:
             config.n_warn += 1
-            self.log(message, data, Fore.YELLOW)
+            self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     # Error by default removes the current item from the in_progress set.
     # Set `resume` to `True` to continue processing the item.
-    def error(self, message='', data='', resume=False):
+    def error(self, message='', data='', resume=False, print_item=True):
         with self:
             config.n_error += 1
-            self.log(message, data, Fore.RED, resume=resume)
+            self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
             if not resume:
                 self._release_item()
 

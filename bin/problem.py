@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import shlex
 import sys
+import threading
 
 from pathlib import Path
 from typing import Type
@@ -42,6 +43,7 @@ class Problem:
         self._program_callbacks = dict()
         # Dictionary from path to parsed file contents.
         self._testdata_yamls = dict()
+        self._testdata_lock = threading.Lock()
 
         # The label for the problem: A, B, A1, A2, X, ...
         self.label = label
@@ -169,6 +171,52 @@ class Problem:
             yaml_path.write_text(raw)
             log(f'Generated UUID for {self.name}, added to problem.yaml')
 
+    def _parse_testdata_yaml(p, path, bar):
+        assert path.is_relative_to(p.path / 'data')
+        for dir in [path] + list(path.parents):
+            # Do not go above the data directory.
+            if dir == p.path:
+                return
+
+            f = dir / 'testdata.yaml'
+            if not f.is_file() or f in p._testdata_yamls:
+                continue
+            with p._testdata_lock:
+                if not f in p._testdata_yamls:
+                    p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
+
+                    # verify testdata.yaml
+                    for k in flags:
+                        match k:
+                            case 'output_validator_flags':
+                                if not isinstance(flags[key], str):
+                                    bar.error(
+                                        "ouput_validator_flags must be string", print_item=False
+                                    )
+                            case 'input_validator_flags':
+                                if not isinstance(flags[key], (str, dict)):
+                                    bar.error(
+                                        "input_validator_flags must be string or map",
+                                        print_item=False,
+                                    )
+                                if isinstance(flags[key], dict):
+                                    input_validator_names = set(
+                                        val.name for val in p.validators(validate.InputValidator)
+                                    )
+                                    for name in set(flags[key]) - input_validator_names:
+                                        bar.warn(
+                                            f'Unknown input validator {name}; expected {input_validator_names}',
+                                            print_item=False,
+                                        )
+                            case 'grading' | 'run_samples':
+                                bar.warn(f'{k} not implemented in BAPCtools', print_item=False)
+                            case _:
+                                path = f.relative_to(p.path / 'data')
+                                bar.warn(f'Unknown key "{k}" in {path}', print_item=False)
+            # Do not go above the data directory.
+            if dir == p.path / 'data':
+                break
+
     def get_testdata_yaml(p, path, key, bar, name=None) -> str | None:
         """
         Find the testdata flags applying at the given path for the given key.
@@ -188,60 +236,39 @@ class Problem:
         string or None if no testdata.yaml is found.
         TODO: when 'grading' is supported, it also can return dict
         """
-        if key == 'grading':
+        if key not in ['input_validator_flags', 'output_validator_flags']:
             raise NotImplementedError(key)
         if key != 'input_validator_flags' and name is not None:
             raise ValueError(
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
 
-        found = None
+        # parse and cache testdata.yaml
+        p._parse_testdata_yaml(path, bar)
+
+        # exctract the flags
         for dir in [path] + list(path.parents):
-            f = dir / 'testdata.yaml'
-
-            if f.is_file():
-                if f in p._testdata_yamls:
-                    flags = p._testdata_yamls[f]
-                else:
-                    p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
-
-                # Validate and exctract the flags
-                for k in flags:
-                    match k:
-                        case 'output_validator_flags':
-                            if not isinstance(flags[k], str):
-                                bar.error("ouput_validator_flags must be string")
-                            if k == key:
-                                found = flags[key]
-                        case 'input_validator_flags':
-                            if not isinstance(flags[k], (str, dict)):
-                                bar.error("ouput_validator_flags must be string or map")
-                            if k != key:
-                                continue
-                            if isinstance(flags[k], str):
-                                found = flags[key]
-                            else:
-                                for name in flags[key]:
-                                    input_validator_names = list(
-                                        val.name for val in p.validators(validate.InputValidator)
-                                    )
-                                    if not name in input_validator_names:
-                                        bar.warn(
-                                            f'Unknown input validator {name}; expected {input_validator_names}'
-                                        )
-                                if name in flags[key]:
-                                    found = flags[key][name]
-                        case 'grading' | 'run_samples':
-                            bar.warn(f'{k} not implemented in BAPCtools')
-                        case _:
-                            bar.warn(f'Unknown testdata.yaml key: {k}')
-
-                if found is not None:
-                    break
             # Do not go above the data directory.
-            if dir == p.path / 'data':
-                break
-        return found
+            if dir == p.path:
+                return None
+
+            f = dir / 'testdata.yaml'
+            if f not in p._testdata_yamls:
+                continue
+            flags = p._testdata_yamls[f]
+            if key in flags:
+                if key == 'output_validator_flags':
+                    if not isinstance(flags[key], str):
+                        bar.error("ouput_validator_flags must be string")
+                    return flags[key]
+
+                if key == 'input_validator_flags':
+                    if not isinstance(flags[key], (str, dict)):
+                        bar.error("input_validator_flags must be string or map")
+                    if isinstance(flags[key], str):
+                        return flags[key]
+                    elif name in flags[key]:
+                        return flags[key][name]
 
     def testcases(
         p,
