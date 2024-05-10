@@ -36,16 +36,22 @@ def create_samples_file(problem, language):
         samples_file_path.write_text('')
         return
 
-    samples_data = []
+    def build_sample_command(content):
+        return f'\\expandafter\\def\\csname Sample{i+1}\\endcsname{{{content}}}\n'
 
-    for sample in samples:
+    samples_data = []
+    fallback_call = []
+    for i, sample in enumerate(samples):
+        fallback_call.append(f'\t\\csname Sample{i+1}\\endcsname\n')
+
+        current_sample = []
         if isinstance(sample, Path):
             assert sample.suffix == '.interaction'
             if problem.interactive:
                 interaction_dir = builddir / 'interaction'
                 interaction_dir.mkdir(exist_ok=True)
 
-                samples_data.append('\\InteractiveSampleHeading\n')
+                current_sample.append('\\InteractiveSampleHeading\n')
                 lines = sample.read_text()
                 last = 'x'
                 cur = ''
@@ -55,7 +61,7 @@ def create_samples_file(problem, language):
 
                 def flush():
                     assert last in '<>'
-                    nonlocal samples_data, interaction_id
+                    nonlocal current_sample, interaction_id
 
                     interaction_file = (
                         interaction_dir / f'{sample.with_suffix("").name}-{interaction_id:02}'
@@ -63,7 +69,7 @@ def create_samples_file(problem, language):
                     interaction_file.write_text(cur)
 
                     mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
-                    samples_data.append(f'\\{mode}{{{interaction_file.as_posix()}}}\n')
+                    current_sample.append(f'\\{mode}{{{interaction_file.as_posix()}}}\n')
                     interaction_id += 1
 
                 for line in lines.splitlines():
@@ -72,7 +78,7 @@ def create_samples_file(problem, language):
                         flush()
                         last = 'x'
                         cur = ''
-                        samples_data.append(f'\\InteractivePass{{{pass_id}}}')
+                        current_sample.append(f'\\InteractivePass{{{pass_id}}}')
                     elif line[0] == last:
                         cur += line[1:] + '\n'
                     else:
@@ -95,7 +101,7 @@ def create_samples_file(problem, language):
                 pass_id = 1
 
                 def flush():
-                    nonlocal samples_data
+                    nonlocal current_sample
 
                     in_path = multipass_dir / f'{sample.with_suffix("").name}-{pass_id:02}.in'
                     out_path = multipass_dir / f'{sample.with_suffix("").name}-{pass_id:02}.out'
@@ -103,12 +109,12 @@ def create_samples_file(problem, language):
                     out_path.write_text(cur_out)
 
                     if pass_id == 1:
-                        samples_data.append(
+                        current_sample.append(
                             f'\\Sample{{{in_path.as_posix()}}}{{{out_path.as_posix()}}}\n'
                         )
                     else:
-                        samples_data.append(f'\\SamplePass{{{pass_id}}}\n')
-                        samples_data.append(
+                        current_sample.append(f'\\SamplePass{{{pass_id}}}\n')
+                        current_sample.append(
                             f'\\SampleNoHeading{{{in_path.as_posix()}}}{{{out_path.as_posix()}}}\n'
                         )
 
@@ -130,7 +136,17 @@ def create_samples_file(problem, language):
                 flush()
         else:
             (in_path, ans_path) = sample
-            samples_data.append(f'\\Sample{{{in_path.as_posix()}}}{{{ans_path.as_posix()}}}\n')
+            current_sample = [f'\\Sample{{{in_path.as_posix()}}}{{{ans_path.as_posix()}}}']
+        samples_data.append(build_sample_command(''.join(current_sample)))
+
+    # this is only for backwards compatibility
+    samples_data += [
+        '% this is only for backwards compatibility\n',
+        '\\ifcsname remainingsamples\\endcsname\\else\n',
+        ''.join(fallback_call),
+        '\\fi\n',
+    ]
+
     samples_file_path.write_text(''.join(samples_data))
 
 
