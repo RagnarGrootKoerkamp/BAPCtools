@@ -199,11 +199,13 @@ ac:
   - '0.00'
   - '0'
   - '0.5'
+  - '0e1'
 wa:
   - inf
   - -inf
   - nan
   - -nan
+  - '-'
 ---
 # ans inf
 flags: 'float_tolerance 0.5'
@@ -213,6 +215,7 @@ ac:
   - INF
   - Inf
 wa:
+  - infinity
   - -inf
   - nan
   - -nan
@@ -225,6 +228,7 @@ ans: inf
 ac:
   - inf
 wa:
+  - infinity
   - INF
   - Inf
   - -inf
@@ -241,6 +245,7 @@ ac:
   - -Inf
   - -INF
 wa:
+  - -infinity
   - inf
   - nan
   - -nan
@@ -254,6 +259,7 @@ ans: -inf
 ac:
   - -inf
 wa:
+  - -infinity
   - -Inf
   - -INF
   - inf
@@ -332,6 +338,8 @@ wa:
   - '+0'
   - '0.0'
   - '00'
+  - '0x0'
+  - '0X0'
 ---
 # ans 0, float compare
 flags: 'float_tolerance 0'
@@ -342,6 +350,7 @@ ac:
   - '0.00'
   - '-0'
   - '-0.0'
+  - '0e1'
 wa:
   - '+0'
   - '+0.0'
@@ -361,6 +370,9 @@ wa:
   - '-00.0'
   - '1e-4000'
   - '1e-20000'
+  - '0x0'
+  - '0X0'
+  - '0e'
 ---
 # ans 100, float compare
 flags: 'float_tolerance 0'
