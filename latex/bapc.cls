@@ -93,6 +93,7 @@
 \newlistof{listofproblems}{lop}{\listofproblemsname}
 \newlistentry{problem}{lop}{0}
 \newcounter{SampleCount}
+\newcounter{NextSample}
 \renewcommand{\printloptitle}[1]{
 	\hfill
 	\sffamily
@@ -120,6 +121,7 @@
 	\ifdefempty{\timelimit}{}{{\color{darkgray}\fontfamily{qcr}\langtimelimit{}: \timelimit{}s}}
 
 	\setcounter{SampleCount}{0}
+	\setcounter{NextSample}{1}
 	\setcounter{figure}{0}
 
 	\rmfamily
@@ -153,7 +155,7 @@
 
 
 %-------------------------------------------------------------------------------
-% Environments for specifying Input, Output, Interaction, and sample Explanation/Notes.
+% Environments for specifying Input, Output and Interaction
 %-------------------------------------------------------------------------------
 \newenvironment{Input}{
 	\subsection*{\langinput{}}
@@ -167,17 +169,6 @@
 \newenvironment{Explanation}{
 	\subsection*{\langexplanation{}}
 }{\par}
-% Use xparse to get the contents of the environment as a variable (using `+b`) and store
-% them with the heading in `\notesContent`, which is automatically rendered at
-% the end of each problem. `gdef` overwrites the global definition of `notesContent`.
-\def\notesContent{}
-\NewDocumentEnvironment{Notes}{+b}{}{
-	\gdef\notesContent{
-		\subsection*{Notes}
-		#1
-		\gdef\notesContent{}
-	}
-}
 
 %-------------------------------------------------------------------------------
 % Environment for specifying Samples.
@@ -403,6 +394,23 @@
 	\nopagebreak
 	\vspace{-1.0em}
 	\par\egroup
+}
+
+%-------------------------------------------------------------------------------
+% Command to automatically include samples in order.
+% The tooling has to define the commands \Sample1{},...\Sample<n>{}
+%-------------------------------------------------------------------------------
+\newcommand{\nextsample}{%
+	\expandafter\csname Sample\theNextSample\endcsname%
+	\expandafter\let\csname Sample\theNextSample\endcsname\undefined%
+	\stepcounter{NextSample}%
+}
+
+\newcommand{\remainingsamples}{%
+	\ifcsname Sample\theNextSample\endcsname%
+		\nextsample%
+		\remainingsamples%
+	\fi%
 }
 
 %-------------------------------------------------------------------------------
