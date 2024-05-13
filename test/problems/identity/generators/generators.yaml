@@ -180,7 +180,7 @@ data:
               generate: stdout.py 700 {count}
               count: 1
           - generate:
-              generate: stdout.py 701
+              generate: stdout.py 701 {name}
               count: 3
           - seed:
               generate: random_gen.py {seed:9}

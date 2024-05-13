@@ -432,8 +432,7 @@ class TestcaseRule(Rule):
 
         # Used by `fuzz`
         self.in_is_generated = False
-        self.has_count = count_index is not None
-        self.count_index = count_index if self.has_count else 0
+        self.count_index = count_index
 
         # used to decide if this was supposed to be a duplicate or not
         self.intended_copy = self.count_index > 0
@@ -510,7 +509,7 @@ class TestcaseRule(Rule):
                     # replace count
                     command_string = yaml['generate']
                     if '{count}' in command_string:
-                        if self.has_count:
+                        if 'count' in yaml:
                             command_string = command_string.replace(
                                 '{count}', f'{self.count_index+1}'
                             )
@@ -883,6 +882,8 @@ class TestcaseRule(Rule):
                 # Step 1: run `generate:` if present.
                 if t.generator:
                     result = t.generator.run(bar, cwd, infile.stem, t.seed, t.config.retries)
+                    if result.err is not None:
+                        bar.debug('generator:', result.err)
                     if not result.status:
                         return
 
@@ -1434,22 +1435,14 @@ class GeneratorConfig:
                 for count_index in range(count):
                     if count_index > 0:
                         name = name_gen()
-                    if count > 1:
+                    if 'count' in yaml:
                         name += f'-{count_index+1:0{len(str(count))}}'
 
                     # If a list of testcases was passed and this one is not in it, skip it.
                     if not self.process_testcase(parent.path / name):
                         continue
 
-                    t = TestcaseRule(
-                        self.problem,
-                        self,
-                        key,
-                        name,
-                        yaml,
-                        parent,
-                        count_index if count > 1 else None,
-                    )
+                    t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
                     if t.path in self.known_cases:
                         message(
                             f'was already parsed. Skipping.',
