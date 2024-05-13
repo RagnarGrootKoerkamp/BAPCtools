@@ -141,7 +141,7 @@ def create_samples_file(problem, language):
 
     # This is only for backwards compatibility in case other people use the generated samples.tex
     # but not the bapc.cls. If remainingsamples is implemented we expect that the class is up to
-    # date and does not need the legacy fallback 
+    # date and does not need the legacy fallback
     samples_data += [
         '% this is only for backwards compatibility\n',
         '\\ifcsname remainingsamples\\endcsname\\else\n',
