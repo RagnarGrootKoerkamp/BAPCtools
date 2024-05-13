@@ -41,7 +41,7 @@ The two main object types are `directory` and `generator`. The root of `generato
 - `generate: <generator_name> <arguments>`. `<generator_name>` must either be a program (file/directory) in `generators/` or else a name in the top level `generators` dictionary (see below). Arguments may contain `{name}` to refer to the name of the testcase and `{seed}` or `{seed:(0-9)+}` to add a random seed. Arguments are separated by white space (space, tab, newline). Quoting white space is not supported.
 - `copy: <base_path>`: For all known extensions `<ext>` the corresponding file `<base_path>.<ext>` will be copied to the specified location should it be present. `<base_path>` must be relative to `generators/`.
 - `<ext>: <content>`: A file with extension `ext` and the `content` will be generated. `<ext>` must be a known file extension.
-- `count: <int>`. To generate multiple Generator objects. If `generate` is used and `{seed}` or `{seed:(0-9)+}` is present all Generator objects will use a different seed.
+- `count: <int>`. To generate multiple Generator objects. If `generate` is used and `{seed}` or `{seed:(0-9)+}` is present all Generator objects will use a different seed. The arguments of `generate` may contain `{count}` to refer to the index of this generator invocation.
 Or as a shorthand:
 - `command` followed by the command as for `generate`.
 
