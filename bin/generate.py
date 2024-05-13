@@ -432,10 +432,11 @@ class TestcaseRule(Rule):
 
         # Used by `fuzz`
         self.in_is_generated = False
-        self.count_index = count_index
+        self.has_count = count_index is not None
+        self.count_index = count_index if self.has_count else 0
 
         # used to decide if this was supposed to be a duplicate or not
-        self.intended_copy = count_index > 0
+        self.intended_copy = self.count_index > 0
 
         # used to handle duplicated testcase rules
         self.copy_of = None
@@ -506,14 +507,27 @@ class TestcaseRule(Rule):
                     if len(yaml['generate']) == 0:
                         raise ParseException('`generate` must not be empty.')
 
-                    self.generator = GeneratorInvocation(problem, yaml['generate'])
+                    # replace count
+                    command_string = yaml['generate']
+                    if '{count}' in command_string:
+                        if self.has_count:
+                            command_string = command_string.replace(
+                                '{count}', f'{self.count_index+1}'
+                            )
+                        else:
+                            message(
+                                'Found {count} in generator command but no count in yaml. Ignored.',
+                                self.path,
+                                color_type=MessageType.WARN,
+                            )
+                    self.generator = GeneratorInvocation(problem, command_string)
 
                     # TODO: Should the seed depend on white space? For now it does, but
                     # leading and trailing whitespace is stripped.
                     seed_value = self.config.random_salt
-                    if count_index > 0:
-                        seed_value += f':{count_index}'
-                    seed_value += yaml['generate'].strip()
+                    if self.count_index > 0:
+                        seed_value += f':{self.count_index}'
+                    seed_value += self.generator.command_string.strip()
                     self.seed = int(hash_string(seed_value), 16) % 2**31
                     self.in_is_generated = True
                     self.rule['gen'] = self.generator.command_string
@@ -1427,7 +1441,15 @@ class GeneratorConfig:
                     if not self.process_testcase(parent.path / name):
                         continue
 
-                    t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
+                    t = TestcaseRule(
+                        self.problem,
+                        self,
+                        key,
+                        name,
+                        yaml,
+                        parent,
+                        count_index if count > 1 else None,
+                    )
                     if t.path in self.known_cases:
                         message(
                             f'was already parsed. Skipping.',

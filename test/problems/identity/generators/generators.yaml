@@ -177,7 +177,7 @@ data:
       numbered_count_group:
         data:
           - count1:
-              generate: stdout.py 700
+              generate: stdout.py 700 {count}
               count: 1
           - generate:
               generate: stdout.py 701
