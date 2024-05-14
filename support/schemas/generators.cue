@@ -8,8 +8,10 @@ import "struct"
 
 // A command invokes a generator, like "tree --n 5".
 // The regex restricts occurrences of curly-bracketed expressions
-// to things like "tree --random --seed {seed:5}"
-command: !="" & (=~"^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$")
+// to things like "tree --random --seed {seed:5} {name} {count}"
+// - {seed} can occure at most once
+// - {name} and {count} can occure any number of times
+command: !="" & (=~"^([^{}]|\\{name\\}|\\{count\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\}|\\{count\\})*$")
 
 #config: {
 	"testdata.yaml"?: #testdata_settings
