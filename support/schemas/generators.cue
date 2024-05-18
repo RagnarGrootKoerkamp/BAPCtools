@@ -9,8 +9,8 @@ import "struct"
 // A command invokes a generator, like "tree --n 5".
 // The regex restricts occurrences of curly-bracketed expressions
 // to things like "tree --random --seed {seed:5} {name} {count}"
-// - {seed} can occure at most once
-// - {name} and {count} can occure any number of times
+// - {seed} can occur at most once
+// - {name} and {count} can occur any number of times
 command: !="" & (=~"^([^{}]|\\{name\\}|\\{count\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\}|\\{count\\})*$")
 
 #config: {
