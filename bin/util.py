@@ -70,8 +70,8 @@ if not is_windows():
 
 def exit1(force=False):
     if force:
-        sys.stderr.close()
         sys.stdout.close()
+        sys.stderr.close()
         # exit even more forcefully to ensure that daemon threads dont break something
         os._exit(1)
     else:
@@ -1082,7 +1082,7 @@ def exec_command(
     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
     if process.returncode == -2:
         if threading.current_thread() is threading.main_thread():
-            fatal('Child process interrupted.')
+            fatal('Running interrupted')
         else:
             raise ChildProcessError()
 
