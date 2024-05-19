@@ -142,7 +142,7 @@ struct token_view {
 		return token == o.token;
 	}
 
-	bool insensitive_equal(token_view o) const {
+	bool case_insensitive_equal(token_view o) const {
 		if (token.size() != o.token.size()) return false;
 		for (std::size_t i = 0; i < token.size(); i++) {
 			int a = std::tolower(static_cast<unsigned char>(token[i]));
@@ -285,7 +285,7 @@ diff check(const std::filesystem::path& ans_path) {
 			}
 			jury.next();
 			team.next();
-		} else if (jury->insensitive_equal(*team)) {
+		} else if (jury->case_insensitive_equal(*team)) {
 			// tokens are "equal" but some characters have a different case
 			// ignore this if the token is actually a float
 			res.set_case_change(jury->formatted(), team->formatted());
