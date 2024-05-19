@@ -163,6 +163,15 @@ class ParallelQueue(AbstractQueue):
     def _interrupt_handler(self, sig, frame):
         util.fatal('Running interrupted', force=True)
 
+    def _handle_first_error(self):
+        if self.first_error is not None:
+            first_error = self.first_error
+            self.first_error = None
+            # we are the main thread now, so we can handle this
+            if isinstance(first_error, ChildProcessError):
+                self._interrupt_handler(None, None)
+            raise first_error
+
     # Add one task. Higher priority => done first
     def put(self, task, priority=0):
         with self.mutex:
@@ -180,8 +189,7 @@ class ParallelQueue(AbstractQueue):
         # wait for all current task to be completed
         with self.all_done:
             self.all_done.wait_for(lambda: self.missing == 0)
-            if self.first_error:
-                raise self.first_error
+            self._handle_first_error()
 
     # Wait for all tasks to be done and stop all threads
     def done(self):
@@ -197,8 +205,7 @@ class ParallelQueue(AbstractQueue):
 
         # mutex is no longer needed
         # report first error occurred during execution
-        if self.first_error is not None:
-            raise self.first_error
+        self._handle_first_error()
 
     # Discard all remaining work in the queue and stop all workers.
     # Call done() to join the threads.

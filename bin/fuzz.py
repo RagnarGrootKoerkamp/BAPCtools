@@ -4,6 +4,7 @@ import random
 import generate
 import time
 import threading
+from colorama import Fore, Style
 
 import parallel
 from util import *
@@ -184,6 +185,8 @@ class Fuzz:
             error('No submissions found.')
             return False
 
+        message('Press CTRL+C to stop\n', 'Fuzz', color_type=MessageType.LOG)
+
         # config.args.no_bar = True
         # max(len(s.name) for s in self.submissions)
         bar = ProgressBar(f'Fuzz', max_len=60)
@@ -191,6 +194,21 @@ class Fuzz:
         self.iteration = 0
         self.tasks = 0
         self.queue = parallel.new_queue(lambda task: task.run(bar), pin=True)
+
+        def soft_exit(sig, frame):
+            if self.queue.aborted:
+                fatal('Running interrupted', force=True)
+            else:
+                self.queue.abort()
+                with bar:
+                    bar.clearline()
+                    message(
+                        'Running interrupted (waiting on remaining tasks)\n',
+                        '\nFuzz',
+                        color_type=MessageType.ERROR,
+                    )
+
+        signal.signal(signal.SIGINT, soft_exit)
 
         # pool of ids used for generators
         self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
@@ -204,6 +222,10 @@ class Fuzz:
         self.queue.join()
         # At this point, no new tasks may be started anymore.
         self.queue.done()
+
+        if self.queue.aborted:
+            fatal('Running interrupted', force=True)
+
         bar.done()
         bar.finalize()
         return True
