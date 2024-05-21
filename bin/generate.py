@@ -1370,7 +1370,7 @@ class GeneratorConfig:
         testcase_id = 0
 
         def parse_count(yaml, warn_for=None):
-            if yaml is None or 'count' not in yaml or not isinstance(yaml['count'], int):
+            if yaml is None or not isinstance(yaml, dict) or 'count' not in yaml or not isinstance(yaml['count'], int):
                 return 1
             count = yaml['count']
             if count < 1:
