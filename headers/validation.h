@@ -1324,7 +1324,7 @@ class Validator {
 		if(in.eof()) return;
 		// Sometimes EOF hasn't been triggered yet.
 		if(!ws) in >> std::ws;
-		char c = in.get();
+		int c = in.get();
 		if(c == std::char_traits<char>::eof()) return;
 		std::string got = std::string("\"") + char(c) + '"';
 		if(c == '\n') got = "newline";
