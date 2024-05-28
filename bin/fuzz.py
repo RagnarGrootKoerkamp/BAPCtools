@@ -147,7 +147,7 @@ class Fuzz:
         self.problem = problem
 
         # GENERATOR INVOCATIONS
-        generator_config = generate.GeneratorConfig(self.problem)
+        generator_config = generate.GeneratorConfig(self.problem, config.args.testcases)
         self.testcase_rules = []
 
         # Filter to only keep valid rules depending on seed without duplicates from count
