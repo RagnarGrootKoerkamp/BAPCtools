@@ -151,14 +151,17 @@ class Fuzz:
         self.testcase_rules = []
 
         # Filter to only keep valid rules depending on seed without duplicates from count
+        added_testcase_rules = set()
+
         def add_testcase(t):
             if (
                 t.in_is_generated
-                and t.generator.uses_seed
                 and t.parse_error is None
-                and t.count_index == 0  # all rules with higher count index are duplicates anyway
+                and t.generator.uses_seed
+                and t.generator.command_string.strip() not in added_testcase_rules
             ):
                 self.testcase_rules.append(t)
+                added_testcase_rules.add(t.generator.command_string.strip())
 
         generator_config.root_dir.walk(add_testcase, dir_f=None)
         if len(self.testcase_rules) == 0:
