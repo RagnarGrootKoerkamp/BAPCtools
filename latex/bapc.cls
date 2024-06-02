@@ -264,7 +264,7 @@
 	\stepcounter{SampleCount}%
 	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
-	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
+	\begin{tabularx}{\textwidth}{|X|}%               http://tex.stackexchange.com/a/31704
 		\hline
 		\SampleListing{#1} \\
 		\hline
@@ -281,7 +281,7 @@
 }
 
 \newlength{\PS@idealwidth}
-\setlength{\PS@idealwidth}{0.48\textwidth}
+\setlength{\PS@idealwidth}{0.5\textwidth}
 \newsavebox{\PS@inputbox}
 \newsavebox{\PS@outputbox}
 \newlength{\PS@inputwidth}
