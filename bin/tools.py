@@ -730,6 +730,11 @@ Run this from one of:
         '--colors',
         help='Set the colors of the problems. Comma-separated list of hex-codes.',
     )
+    updateproblemsyamlparser.add_argument(
+        '--sort',
+        action='store_true',
+        help='Sort the problems by id.',
+    )
 
     # Print the corresponding temporary directory.
     tmpparser = subparsers.add_parser(

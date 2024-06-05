@@ -407,6 +407,16 @@ def update_problems_yaml(problems, colors=None):
                 change = True
             d['rgb'] = color
 
+    if config.args.sort:
+        sorted_data = sorted(data, key=lambda d: d['id'])
+        if data != sorted_data:
+            change = True
+            data = sorted_data
+            label = 'X' if contest_yaml().get('testsession') else 'A'
+            for d in data:
+                d['label'] = label
+                label = inc_label(label)
+
     if change:
         if config.args.action in ['update_problems_yaml']:
             a = 'y'
