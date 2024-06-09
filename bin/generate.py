@@ -1439,7 +1439,11 @@ class GeneratorConfig:
                 for count_index in range(count):
                     if count_index > 0:
                         name = name_gen()
-                    if 'count' in yaml:
+                    if (
+                        isinstance(yaml, dict)
+                        and 'count' in yaml
+                        and isinstance(yaml['count'], int)
+                    ):
                         name += f'-{count_index+1:0{len(str(count))}}'
 
                     # If a list of testcases was passed and this one is not in it, skip it.
