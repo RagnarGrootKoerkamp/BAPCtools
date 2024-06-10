@@ -229,7 +229,7 @@ while True:
             preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
         )
         validator_pid = validator.pid
-        # add all programs to the same group (for simiplcity we take the pid of the validator)
+        # add all programs to the same group (for simplicity we take the pid of the validator)
         # then we can wait for all program ins the same group
         gid = validator_pid
 
