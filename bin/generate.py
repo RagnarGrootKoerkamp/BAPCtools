@@ -920,22 +920,29 @@ class TestcaseRule(Rule):
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
                 return True
 
-            answer_validator_hashes = testcase.validator_hashes(validate.AnswerValidator, bar)
-            if not changed and all(
-                h in meta_yaml.get('answer_validator_hashes') for h in answer_validator_hashes
-            ):
-                return True
+            if problem.interactive or problem.multipass:
+                if ansfile.stat().st_size != 0:
+                    interactive = 'interaction ' if problem.interactive else ''
+                    multipass = 'multipass ' if problem.multipass else ''
+                    bar.warn(
+                        f'.ans file for {interactive}{multipass}problem is expected to be empty.'
+                    )
+            else:
+                answer_validator_hashes = testcase.validator_hashes(validate.AnswerValidator, bar)
+                if not changed and all(
+                    h in meta_yaml.get('answer_validator_hashes') for h in answer_validator_hashes
+                ):
+                    return True
 
-            if not testcase.validate_format(
-                validate.Mode.ANSWER, bar=bar, warn_instead_of_error=config.args.no_validators
-            ):
-                if not config.args.no_validators:
-                    bar.debug('Use generate --no-validators to ignore validation results.')
-                    return False
-
-            for h in answer_validator_hashes:
-                meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
-            write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+                if not testcase.validate_format(
+                    validate.Mode.ANSWER, bar=bar, warn_instead_of_error=config.args.no_validators
+                ):
+                    if not config.args.no_validators:
+                        bar.debug('Use generate --no-validators to ignore validation results.')
+                        return False
+                for h in answer_validator_hashes:
+                    meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
+                write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
             return True
 
         def generate_visualization():
