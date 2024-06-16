@@ -677,7 +677,7 @@ class TestcaseRule(Rule):
             if meta_yaml is None:
                 meta_yaml = {
                     'generate_hashes': dict(),
-                    'generated_extensions': set(),
+                    'generated_extensions': [],
                     'input_validator_hashes': dict(),
                     'solution_hash': dict(),
                     'answer_validator_hashes': dict(),
@@ -750,9 +750,9 @@ class TestcaseRule(Rule):
                     return False
 
                 # Step 5: save which files where generated
-                meta_yaml['generated_extensions'] = {
+                meta_yaml['generated_extensions'] = [
                     ext for ext in config.KNOWN_DATA_EXTENSIONS if infile.with_suffix(ext).is_file()
-                }
+                ]
 
                 # Step 6: update cache
                 meta_yaml['generate_hashes'] = generate_hashes
