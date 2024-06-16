@@ -969,10 +969,7 @@ class TestcaseRule(Rule):
             write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
             return True
 
-        # Returns False when some files were skipped.
         def copy_generated():
-            all_done = True
-
             for ext in config.KNOWN_DATA_EXTENSIONS:
                 source = infile.with_suffix(ext)
                 target = target_infile.with_suffix(ext)
@@ -999,7 +996,6 @@ class TestcaseRule(Rule):
                 else:
                     # both source and target do not exist
                     pass
-            return all_done
 
         def add_testdata_to_cache():
             # Used to identify generated testcases
