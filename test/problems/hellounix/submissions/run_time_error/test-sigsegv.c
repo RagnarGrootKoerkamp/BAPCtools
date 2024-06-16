@@ -3,12 +3,11 @@
  * giving an exitcode 139.
  */
 
-int main()
-{
+int main() {
 	int a[10];
-	int *b;
+	int* b;
 
-	b = 10;
+	b  = (int*)10;
 	*b = a[-1000000];
 
 	return 0;
