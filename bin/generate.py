@@ -687,7 +687,7 @@ class TestcaseRule(Rule):
             return meta_yaml
 
         meta_yaml = init_meta()
-        write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+        write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
         changed = False
 
@@ -712,7 +712,7 @@ class TestcaseRule(Rule):
                 shutil.rmtree(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
                 meta_yaml = init_meta()
-                write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
                 # Step 1: run `generate:` if present.
                 if t.generator:
@@ -756,7 +756,7 @@ class TestcaseRule(Rule):
 
                 # Step 6: update cache
                 meta_yaml['generate_hashes'] = generate_hashes
-                write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
             assert infile.is_file(), f'Failed to generate in file: {infile}'
             return True
@@ -853,7 +853,7 @@ class TestcaseRule(Rule):
 
             for h in input_validator_hashes:
                 meta_yaml['input_validator_hashes'][h] = input_validator_hashes[h]
-            write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+            write_yaml(meta_yaml, meta_path, allow_yamllib=True)
             return True
 
         def generate_ans():
@@ -908,7 +908,7 @@ class TestcaseRule(Rule):
 
             if used_solution:
                 meta_yaml['solution_hash'] = solution_hash
-                write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
             assert ansfile.is_file(), f'Failed to generate ans file: {ansfile}'
             return True
@@ -942,7 +942,7 @@ class TestcaseRule(Rule):
                         return False
                 for h in answer_validator_hashes:
                     meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
-                write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
             return True
 
         def generate_visualization():
@@ -966,7 +966,7 @@ class TestcaseRule(Rule):
             t.config.visualizer.run(bar, cwd, infile.stem)
 
             meta_yaml['visualizer_hash'] = visualizer_hash
-            write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+            write_yaml(meta_yaml, meta_path, allow_yamllib=True)
             return True
 
         def copy_generated():
@@ -1286,7 +1286,7 @@ class Directory(Rule):
                     meta_yaml['input_validator_hashes'][h] = input_validator_hashes[h]
 
                 # Update metadata
-                write_yaml(meta_yaml, meta_path.open('w'), allow_yamllib=True)
+                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
             # TODO: Validate the testcase output as well?
             t.link(problem, generator_config, bar, new_infile)
