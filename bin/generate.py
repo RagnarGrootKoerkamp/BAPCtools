@@ -689,11 +689,62 @@ class TestcaseRule(Rule):
         meta_yaml = init_meta()
         write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
-        changed = False
+        # For each generated .in file check that they
+        # use a deterministic generator by rerunning the generator with the
+        # same arguments.  This is done when --check-deterministic is passed,
+        # which is also set to True when running `bt all`.
+        # This doesn't do anything for non-generated cases.
+        # It also checks that the input changes when the seed changes.
+        def check_deterministic(force=False):
+            if not force and not config.args.check_deterministic:
+                return
+            if t.generator is None:
+                return
+
+            # Check that the generator is deterministic.
+            # TODO: Can we find a way to easily compare cpython vs pypy? These
+            # use different but fixed implementations to hash tuples of ints.
+            tmp = cwd / 'tmp'
+            tmp.mkdir(parents=True, exist_ok=True)
+            tmp_infile = tmp / 'testcase.in'
+            result = t.generator.run(bar, tmp, tmp_infile.stem, t.seed, t.config.retries)
+            if not result.status:
+                return
+
+            # Now check that the source and target are equal.
+            if infile.read_bytes() == tmp_infile.read_bytes():
+                if config.args.check_deterministic:
+                    bar.part_done(True, 'Generator is deterministic.')
+            else:
+                bar.part_done(
+                    False, f'Generator `{t.generator.command_string}` is not deterministic.'
+                )
+
+            # If {seed} is used, check that the generator depends on it.
+            if t.generator.uses_seed:
+                depends_on_seed = False
+                for run in range(config.SEED_DEPENDENCY_RETRIES):
+                    new_seed = (t.seed + 1 + run) % (2**31)
+                    result = t.generator.run(bar, tmp, tmp_infile.stem, new_seed, t.config.retries)
+                    if not result.status:
+                        return
+
+                    # Now check that the source and target are different.
+                    if infile.read_bytes() != tmp_infile.read_bytes():
+                        depends_on_seed = True
+                        break
+
+                if depends_on_seed:
+                    if config.args.check_deterministic:
+                        bar.debug('Generator depends on seed.')
+                else:
+                    bar.log(
+                        f'Generator `{t.generator.command_string}` likely does not depend on seed:',
+                        f'All values in [{t.seed}, {new_seed}] give the same result.',
+                    )
 
         def generate_in():
             nonlocal meta_yaml
-            nonlocal changed
 
             # create expected cache entry for generate
             generate_hashes = dict()
@@ -706,11 +757,10 @@ class TestcaseRule(Rule):
                 generate_hashes['generator'] = t.generator.cache_command(seed=t.seed)
 
             if not infile.is_file() or meta_yaml.get('generate_hashes') != generate_hashes:
-                changed = True
-
                 # clear all generated files
                 shutil.rmtree(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
+                # write clear meta_yaml
                 meta_yaml = init_meta()
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
@@ -758,73 +808,19 @@ class TestcaseRule(Rule):
                 meta_yaml['generate_hashes'] = generate_hashes
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
+                # Step 7: check deterministic:
+                check_deterministic(True)
+            else:
+                check_deterministic(False)
+
             assert infile.is_file(), f'Failed to generate in file: {infile}'
             return True
 
-        # For each generated .in file check that they
-        # use a deterministic generator by rerunning the generator with the
-        # same arguments.  This is done when --check-deterministic is passed,
-        # which is also set to True when running `bt all`.
-        # This doesn't do anything for non-generated cases.
-        # It also checks that the input changes when the seed changes.
-        def check_deterministic():
-            nonlocal changed
-
-            if not changed and not config.args.check_deterministic:
-                return
-            if t.generator is None:
-                return
-
-            # Check that the generator is deterministic.
-            # TODO: Can we find a way to easily compare cpython vs pypy? These
-            # use different but fixed implementations to hash tuples of ints.
-            tmp = cwd / 'tmp'
-            tmp.mkdir(parents=True, exist_ok=True)
-            tmp_infile = tmp / 'testcase.in'
-            result = t.generator.run(bar, tmp, tmp_infile.stem, t.seed, t.config.retries)
-            if not result.status:
-                return
-
-            # Now check that the source and target are equal.
-            if infile.read_bytes() == tmp_infile.read_bytes():
-                if config.args.check_deterministic:
-                    bar.part_done(True, 'Generator is deterministic.')
-            else:
-                bar.part_done(
-                    False, f'Generator `{t.generator.command_string}` is not deterministic.'
-                )
-
-            # If {seed} is used, check that the generator depends on it.
-            if t.generator.uses_seed:
-                depends_on_seed = False
-                for run in range(config.SEED_DEPENDENCY_RETRIES):
-                    new_seed = (t.seed + 1 + run) % (2**31)
-                    result = t.generator.run(bar, tmp, tmp_infile.stem, new_seed, t.config.retries)
-                    if not result.status:
-                        return
-
-                    # Now check that the source and target are different.
-                    if infile.read_bytes() != tmp_infile.read_bytes():
-                        depends_on_seed = True
-                        break
-
-                if depends_on_seed:
-                    if config.args.check_deterministic:
-                        bar.debug('Generator depends on seed.')
-                else:
-                    bar.log(
-                        f'Generator `{t.generator.command_string}` likely does not depend on seed:',
-                        f'All values in [{t.seed}, {new_seed}] give the same result.',
-                    )
-
         def validate_in(testcase):
             nonlocal meta_yaml
-            nonlocal changed
 
             input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
-            if not changed and all(
-                h in meta_yaml.get('input_validator_hashes') for h in input_validator_hashes
-            ):
+            if all(h in meta_yaml.get('input_validator_hashes') for h in input_validator_hashes):
                 return True
 
             if not testcase.validate_format(
@@ -858,7 +854,6 @@ class TestcaseRule(Rule):
 
         def generate_ans():
             nonlocal meta_yaml
-            nonlocal changed
 
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
                 return True
@@ -875,13 +870,14 @@ class TestcaseRule(Rule):
                     return False
                 if not infile.with_suffix(ext).is_file():
                     return True
-                return changed or meta_yaml.get('solution_hash') != solution_hash
+                return meta_yaml.get('solution_hash') != solution_hash
 
             used_solution = False
+            changed_ans = False
             if problem.interactive or problem.multipass:
                 if needed('.ans'):
                     testcase.ans_path.write_text('')
-                    changed = True
+                    changed_ans = True
                 # For interactive/multi-pass problems, run the solution and generate a .interaction.
                 if (
                     t.config.solution
@@ -899,7 +895,7 @@ class TestcaseRule(Rule):
                         if not t.config.solution.run(bar, cwd).status:
                             return False
                         used_solution = True
-                        changed = True
+                        changed_ans = True
                     else:
                         # Otherwise, it's a hard error.
                         bar.error(f'{ansfile.name} does not exist and was not generated.')
@@ -908,6 +904,10 @@ class TestcaseRule(Rule):
 
             if used_solution:
                 meta_yaml['solution_hash'] = solution_hash
+            if changed_ans:
+                meta_yaml['answer_validator_hashes'] = dict()
+                meta_yaml['visualizer_hash'] = dict()
+            if changed_ans or used_solution:
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
             assert ansfile.is_file(), f'Failed to generate ans file: {ansfile}'
@@ -915,7 +915,6 @@ class TestcaseRule(Rule):
 
         def validate_ans(testcase):
             nonlocal meta_yaml
-            nonlocal changed
 
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
                 return True
@@ -929,7 +928,7 @@ class TestcaseRule(Rule):
                     )
             else:
                 answer_validator_hashes = testcase.validator_hashes(validate.AnswerValidator, bar)
-                if not changed and all(
+                if all(
                     h in meta_yaml.get('answer_validator_hashes') for h in answer_validator_hashes
                 ):
                     return True
@@ -940,6 +939,7 @@ class TestcaseRule(Rule):
                     if not config.args.no_validators:
                         bar.debug('Use generate --no-validators to ignore validation results.')
                         return False
+
                 for h in answer_validator_hashes:
                     meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
@@ -947,7 +947,6 @@ class TestcaseRule(Rule):
 
         def generate_visualization():
             nonlocal meta_yaml
-            nonlocal changed
 
             if not t.config.visualizer:
                 return True
@@ -959,7 +958,7 @@ class TestcaseRule(Rule):
                 'visualizer': t.config.visualizer.cache_command(),
             }
 
-            if not changed and meta_yaml.get('visualizer_hash') == visualizer_hash:
+            if meta_yaml.get('visualizer_hash') == visualizer_hash:
                 return True
 
             # Generate visualization
@@ -1047,8 +1046,6 @@ class TestcaseRule(Rule):
         # Step 2: generate .in if needed (and possible other files)
         if not generate_in():
             return
-        # Step 2a: check deterministic
-        check_deterministic()
 
         # Step 3: check .in if needed
         testcase = Testcase(problem, infile, short_path=t.path / t.name)
@@ -1067,15 +1064,15 @@ class TestcaseRule(Rule):
         if not generate_visualization():
             return
 
-        # Stwp 7: copy all generated files
+        # Step 7: copy all generated files
         copy_generated()
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
         t.generate_success = True
         add_testdata_to_cache()
-        if not changed and config.args.action != 'generate':
+        if config.args.action != 'generate':
             bar.logged = True  # Disable redundant 'up to date' message in run mode.
-        bar.done(message='' if changed else 'SKIPPED: up to date')
+        bar.done(message='SKIPPED: up to date')
 
 
 # Helper that has the required keys needed from a parent directory.
@@ -1263,14 +1260,18 @@ class Directory(Rule):
                 meta_path.is_file()
             ), f"Metadata file not found for included case {d.path / key}\nwith hash {t.hash}\nfile {meta_path}"
             meta_yaml = read_yaml(meta_path)
-            testcase = Testcase(problem, infile, short_path=t.path / t.name)
-            input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
+            testcase = Testcase(problem, infile, short_path=new_case)
 
-            if any(
-                h not in meta_yaml.get('input_validator_hashes', {}) for h in input_validator_hashes
-            ):
+            def validate_in(testcase):
+                nonlocal meta_yaml
+
+                input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
+                if all(
+                    h in meta_yaml.get('input_validator_hashes') for h in input_validator_hashes
+                ):
+                    return True
+
                 # Validate the testcase input.
-                testcase = Testcase(problem, infile, short_path=new_case)
                 if not testcase.validate_format(
                     validate.Mode.INPUT,
                     bar=bar,
@@ -1280,15 +1281,60 @@ class Directory(Rule):
                     if not config.args.no_validators:
                         bar.debug('Use generate --no-validators to ignore validation results.')
                         bar.done()
-                        continue
-                # Add hashes to the cache.
+                        return False
+
                 for h in input_validator_hashes:
                     meta_yaml['input_validator_hashes'][h] = input_validator_hashes[h]
-
-                # Update metadata
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+                return True
 
-            # TODO: Validate the testcase output as well?
+            def validate_ans(testcase):
+                nonlocal meta_yaml
+
+                if testcase.root in config.INVALID_CASE_DIRECTORIES:
+                    return True
+
+                if problem.interactive or problem.multipass:
+                    if ansfile.stat().st_size != 0:
+                        interactive = 'interaction ' if problem.interactive else ''
+                        multipass = 'multipass ' if problem.multipass else ''
+                        bar.warn(
+                            f'.ans file for {interactive}{multipass}problem is expected to be empty.'
+                        )
+                else:
+                    answer_validator_hashes = testcase.validator_hashes(
+                        validate.AnswerValidator, bar
+                    )
+                    if all(
+                        h in meta_yaml.get('answer_validator_hashes')
+                        for h in answer_validator_hashes
+                    ):
+                        return True
+
+                    if not testcase.validate_format(
+                        validate.Mode.ANSWER,
+                        bar=bar,
+                        warn_instead_of_error=config.args.no_validators,
+                    ):
+                        if not config.args.no_validators:
+                            bar.debug('Use generate --no-validators to ignore validation results.')
+                            bar.done()
+                            return False
+
+                    # Add hashes to the cache.
+                    for h in answer_validator_hashes:
+                        meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
+                    write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+                return True
+
+            # Step 1: validate input
+            if not validate_in(testcase):
+                return
+
+            # Step 2: validate answer
+            if not validate_ans(testcase):
+                return
+
             t.link(problem, generator_config, bar, new_infile)
             bar.done()
 
