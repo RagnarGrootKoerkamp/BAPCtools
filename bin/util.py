@@ -453,7 +453,7 @@ class ProgressBar:
                     if warn_instead_of_error:
                         self.warn(message, data)
                     else:
-                        self.error(message, data)
+                        self.error(message, data, resume=True)
                 if self.parent:
                     self.parent._resume()
             return True

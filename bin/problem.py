@@ -837,8 +837,7 @@ class Problem:
 
             ok = testcase.validate_format(mode, bar=localbar, constraints=constraints)
             success &= ok
-            if ok:
-                localbar.done()
+            localbar.done(ok)
 
         parallel.run_tasks(process_testcase, testcases)
 

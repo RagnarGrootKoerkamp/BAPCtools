@@ -311,7 +311,14 @@ class Testcase:
             else:
                 data = ret.err
 
-            if expect_rejection:
+            if ret.returncode == 0:
+                bar.part_done(
+                    False,
+                    message,
+                    data='Exit code 0, did you forget to exit with WA or AC?',
+                    warn_instead_of_error=warn_instead_of_error,
+                )
+            elif expect_rejection:
                 bar.debug(
                     message,
                     data=data,
@@ -355,12 +362,10 @@ class Testcase:
         if expect_rejection:
             success = ExecStatus.REJECTED in results
             if not success:
-                bar.error(f'was not rejected by {mode} validation')
+                bar.error(f'was not rejected by {mode} validation', resume=True)
         else:
             success = all(results)
             if success:
                 sanity_check(self.in_path if mode == Mode.INPUT else self.ans_path, bar)
-            else:
-                bar.done(False)
 
         return success

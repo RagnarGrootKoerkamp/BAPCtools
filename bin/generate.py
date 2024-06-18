@@ -636,6 +636,9 @@ class TestcaseRule(Rule):
                 pass
 
     def validate_in(t, problem, testcase, meta_yaml, bar):
+        infile = problem.tmpdir / 'data' / t.hash / 'testcase.in'
+        assert infile.is_file()
+
         input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
         if all(h in meta_yaml.get('input_validator_hashes') for h in input_validator_hashes):
             return True
@@ -662,6 +665,7 @@ class TestcaseRule(Rule):
                         ),
                     )
                 bar.debug('Use generate --no-validators to ignore validation results.')
+                bar.done(False)
                 return False
 
         for h in input_validator_hashes:
@@ -670,11 +674,15 @@ class TestcaseRule(Rule):
         return True
 
     def validate_ans(t, problem, testcase, meta_yaml, bar):
+        infile = problem.tmpdir / 'data' / t.hash / 'testcase.in'
+        ansfile = problem.tmpdir / 'data' / t.hash / 'testcase.ans'
+        assert infile.is_file()
+        assert ansfile.is_file()
+
         if testcase.root in config.INVALID_CASE_DIRECTORIES:
             return True
 
         if problem.interactive or problem.multipass:
-            ansfile = problem.tmpdir / 'data' / t.hash / 'testcase.ans'
             if ansfile.stat().st_size != 0:
                 interactive = 'interaction ' if problem.interactive else ''
                 multipass = 'multipass ' if problem.multipass else ''
@@ -692,6 +700,7 @@ class TestcaseRule(Rule):
             ):
                 if not config.args.no_validators:
                     bar.debug('Use generate --no-validators to ignore validation results.')
+                    bar.done(False)
                     return False
 
             for h in answer_validator_hashes:
@@ -1263,12 +1272,10 @@ class Directory(Rule):
 
             # Step 1: validate input
             if not t.validate_in(problem, testcase, meta_yaml, bar):
-                bar.done()
                 continue
 
             # Step 2: validate answer
             if not t.validate_ans(problem, testcase, meta_yaml, bar):
-                bar.done()
                 continue
 
             t.link(problem, generator_config, bar, new_infile)
