@@ -1234,6 +1234,7 @@ class Directory(Rule):
             new_case = d.path / target.name
             bar.start(str(new_case))
             infile = problem.path / 'data' / target.parent / (target.name + '.in')
+            ansfile = problem.path / 'data' / target.parent / (target.name + '.ans')
             new_infile = problem.path / 'data' / d.path / (target.name + '.in')
 
             if not t.generate_success:
@@ -1243,6 +1244,11 @@ class Directory(Rule):
 
             if not infile.is_file():
                 bar.warn(f'{target}.in does not exist.')
+                bar.done()
+                continue
+
+            if not ansfile.is_file():
+                bar.warn(f'{target}.ans does not exist.')
                 bar.done()
                 continue
 
@@ -1258,12 +1264,12 @@ class Directory(Rule):
             # Step 1: validate input
             if not t.validate_in(problem, testcase, meta_yaml, bar):
                 bar.done()
-                return
+                continue
 
             # Step 2: validate answer
             if not t.validate_ans(problem, testcase, meta_yaml, bar):
                 bar.done()
-                return
+                continue
 
             t.link(problem, generator_config, bar, new_infile)
             bar.done()
