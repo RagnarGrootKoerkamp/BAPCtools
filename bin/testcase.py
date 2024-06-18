@@ -149,7 +149,7 @@ class Testcase:
              - hash
         indicating which validators will be run for this testcase.
         """
-        assert cls in [InputValidator, AnswerValidator]
+        assert cls in [InputValidator, AnswerValidator, OutputValidator]
         validators = self.problem.validators(cls) or []
 
         d = dict()

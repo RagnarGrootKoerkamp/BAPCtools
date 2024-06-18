@@ -687,7 +687,6 @@ class TestcaseRule(Rule):
             return meta_yaml
 
         meta_yaml = init_meta()
-        write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
         # For each generated .in file check that they
         # use a deterministic generator by rerunning the generator with the
@@ -760,9 +759,7 @@ class TestcaseRule(Rule):
                 # clear all generated files
                 shutil.rmtree(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
-                # write clear meta_yaml
                 meta_yaml = init_meta()
-                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
                 # Step 1: run `generate:` if present.
                 if t.generator:
@@ -899,7 +896,6 @@ class TestcaseRule(Rule):
                     else:
                         # Otherwise, it's a hard error.
                         bar.error(f'{ansfile.name} does not exist and was not generated.')
-                        bar.done()
                         return False
 
             if used_solution:
@@ -927,7 +923,10 @@ class TestcaseRule(Rule):
                         f'.ans file for {interactive}{multipass}problem is expected to be empty.'
                     )
             else:
-                answer_validator_hashes = testcase.validator_hashes(validate.AnswerValidator, bar)
+                answer_validator_hashes = {
+                    **testcase.validator_hashes(validate.AnswerValidator, bar),
+                    **testcase.validator_hashes(validate.OutputValidator, bar),
+                }
                 if all(
                     h in meta_yaml.get('answer_validator_hashes') for h in answer_validator_hashes
                 ):
@@ -1280,7 +1279,6 @@ class Directory(Rule):
                 ):
                     if not config.args.no_validators:
                         bar.debug('Use generate --no-validators to ignore validation results.')
-                        bar.done()
                         return False
 
                 for h in input_validator_hashes:
@@ -1318,7 +1316,6 @@ class Directory(Rule):
                     ):
                         if not config.args.no_validators:
                             bar.debug('Use generate --no-validators to ignore validation results.')
-                            bar.done()
                             return False
 
                     # Add hashes to the cache.
@@ -1329,10 +1326,12 @@ class Directory(Rule):
 
             # Step 1: validate input
             if not validate_in(testcase):
+                bar.done()
                 return
 
             # Step 2: validate answer
             if not validate_ans(testcase):
+                bar.done()
                 return
 
             t.link(problem, generator_config, bar, new_infile)
