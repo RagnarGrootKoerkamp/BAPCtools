@@ -674,6 +674,7 @@ class TestcaseRule(Rule):
             return True
 
         if problem.interactive or problem.multipass:
+            ansfile = problem.tmpdir / 'data' / t.hash / 'testcase.ans'
             if ansfile.stat().st_size != 0:
                 interactive = 'interaction ' if problem.interactive else ''
                 multipass = 'multipass ' if problem.multipass else ''
