@@ -1923,23 +1923,13 @@ def generate(problem):
     return True
 
 
-def testcases(problem, symlinks=False):
+def testcases(problem):
     gen_config = GeneratorConfig(problem)
     if gen_config.has_yaml:
-        if symlinks:
-            return {
-                problem.path / 'data' / p.parent / (p.name + '.in')
-                for p, x in gen_config.known_cases.items()
-                if x.parse_error is None
-            }
-        else:
-            return {
-                (problem.path / 'data' / x.path).with_suffix('.in')
-                for x in gen_config.known_cases.values()
-                if x.parse_error is None and not x.intended_copy
-            }
+        return {
+            problem.path / 'data' / p.parent / (p.name + '.in')
+            for p, x in gen_config.known_cases.items()
+            if x.parse_error is None
+        }
     else:
-        testcases = set(problem.path.glob('data/**/*.in'))
-        if not symlinks:
-            testcases = {t for t in testcases if not t.is_symlink()}
-        return testcases
+        return {t for t in problem.path.glob('data/**/*.in') if not t.is_symlink()}
