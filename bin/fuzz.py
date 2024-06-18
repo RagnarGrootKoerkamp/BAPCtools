@@ -67,7 +67,7 @@ class GeneratorTask:
         # Validate the generated .in.
         localbar = bar.start(f'{self.i}: validate input')
         if not testcase.validate_format(Mode.INPUT, bar=localbar, constraints=None):
-            localbar.done()
+            localbar.done(False)
             return False
         localbar.done()
 
@@ -86,7 +86,7 @@ class GeneratorTask:
             if ansfile.is_file():
                 localbar = bar.start(f'{self.i}: validate output')
                 if not testcase.validate_format(Mode.ANSWER, bar=localbar):
-                    localbar.done()
+                    localbar.done(False)
                     return False
                 localbar.done()
             else:
