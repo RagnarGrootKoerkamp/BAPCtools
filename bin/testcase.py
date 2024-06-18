@@ -311,18 +311,18 @@ class Testcase:
             else:
                 data = ret.err
 
-            if ret.returncode == 0:
+            if expect_rejection:
+                bar.debug(
+                    message,
+                    data=data,
+                    color=Fore.GREEN if ret.status == ExecStatus.REJECTED else Fore.YELLOW,
+                )
+            elif ret.status == ExecStatus.ERROR and ret.returncode == 0:
                 bar.part_done(
                     False,
                     message,
                     data='Exit code 0, did you forget to exit with WA or AC?',
                     warn_instead_of_error=warn_instead_of_error,
-                )
-            elif expect_rejection:
-                bar.debug(
-                    message,
-                    data=data,
-                    color=Fore.GREEN if ret.status == ExecStatus.REJECTED else Fore.YELLOW,
                 )
             else:
                 bar.part_done(
