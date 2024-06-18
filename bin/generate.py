@@ -675,12 +675,13 @@ class TestcaseRule(Rule):
 
     def validate_ans(t, problem, testcase, meta_yaml, bar):
         infile = problem.tmpdir / 'data' / t.hash / 'testcase.in'
-        ansfile = problem.tmpdir / 'data' / t.hash / 'testcase.ans'
         assert infile.is_file()
-        assert ansfile.is_file()
 
         if testcase.root in config.INVALID_CASE_DIRECTORIES:
             return True
+
+        ansfile = problem.tmpdir / 'data' / t.hash / 'testcase.ans'
+        assert ansfile.is_file()
 
         if problem.interactive or problem.multipass:
             if ansfile.stat().st_size != 0:
