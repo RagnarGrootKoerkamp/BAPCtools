@@ -635,6 +635,71 @@ class TestcaseRule(Rule):
                 # both source and target do not exist
                 pass
 
+    def validate_in(t, problem, testcase, meta_yaml, bar):
+        input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
+        if all(h in meta_yaml.get('input_validator_hashes') for h in input_validator_hashes):
+            return True
+
+        if not testcase.validate_format(
+            validate.Mode.INPUT,
+            bar=bar,
+            constraints=None,
+            warn_instead_of_error=config.args.no_validators,
+        ):
+            if not config.args.no_validators:
+                if t.generator:
+                    bar.warn(
+                        'Failed generator command: '
+                        + (
+                            ' '.join(
+                                [
+                                    str(t.generator.program_path),
+                                    *t.generator._sub_args(seed=t.seed),
+                                ]
+                            )
+                            if t.generator.uses_seed
+                            else t.generator.command_string
+                        ),
+                    )
+                bar.debug('Use generate --no-validators to ignore validation results.')
+                return False
+
+        for h in input_validator_hashes:
+            meta_yaml['input_validator_hashes'][h] = input_validator_hashes[h]
+        write_yaml(meta_yaml, problem.tmpdir / 'data' / t.hash / 'meta_.yaml', allow_yamllib=True)
+        return True
+
+    def validate_ans(t, problem, testcase, meta_yaml, bar):
+        if testcase.root in config.INVALID_CASE_DIRECTORIES:
+            return True
+
+        if problem.interactive or problem.multipass:
+            if ansfile.stat().st_size != 0:
+                interactive = 'interaction ' if problem.interactive else ''
+                multipass = 'multipass ' if problem.multipass else ''
+                bar.warn(f'.ans file for {interactive}{multipass}problem is expected to be empty.')
+        else:
+            answer_validator_hashes = {
+                **testcase.validator_hashes(validate.AnswerValidator, bar),
+                **testcase.validator_hashes(validate.OutputValidator, bar),
+            }
+            if all(h in meta_yaml.get('answer_validator_hashes') for h in answer_validator_hashes):
+                return True
+
+            if not testcase.validate_format(
+                validate.Mode.ANSWER, bar=bar, warn_instead_of_error=config.args.no_validators
+            ):
+                if not config.args.no_validators:
+                    bar.debug('Use generate --no-validators to ignore validation results.')
+                    return False
+
+            for h in answer_validator_hashes:
+                meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
+            write_yaml(
+                meta_yaml, problem.tmpdir / 'data' / t.hash / 'meta_.yaml', allow_yamllib=True
+            )
+        return True
+
     def generate(t, problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
@@ -813,42 +878,6 @@ class TestcaseRule(Rule):
             assert infile.is_file(), f'Failed to generate in file: {infile}'
             return True
 
-        def validate_in(testcase):
-            nonlocal meta_yaml
-
-            input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
-            if all(h in meta_yaml.get('input_validator_hashes') for h in input_validator_hashes):
-                return True
-
-            if not testcase.validate_format(
-                validate.Mode.INPUT,
-                bar=bar,
-                constraints=None,
-                warn_instead_of_error=config.args.no_validators,
-            ):
-                if not config.args.no_validators:
-                    if t.generator:
-                        bar.warn(
-                            'Failed generator command: '
-                            + (
-                                ' '.join(
-                                    [
-                                        str(t.generator.program_path),
-                                        *t.generator._sub_args(seed=t.seed),
-                                    ]
-                                )
-                                if t.generator.uses_seed
-                                else t.generator.command_string
-                            ),
-                        )
-                    bar.debug('Use generate --no-validators to ignore validation results.')
-                    return False
-
-            for h in input_validator_hashes:
-                meta_yaml['input_validator_hashes'][h] = input_validator_hashes[h]
-            write_yaml(meta_yaml, meta_path, allow_yamllib=True)
-            return True
-
         def generate_ans():
             nonlocal meta_yaml
 
@@ -907,41 +936,6 @@ class TestcaseRule(Rule):
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
             assert ansfile.is_file(), f'Failed to generate ans file: {ansfile}'
-            return True
-
-        def validate_ans(testcase):
-            nonlocal meta_yaml
-
-            if testcase.root in config.INVALID_CASE_DIRECTORIES:
-                return True
-
-            if problem.interactive or problem.multipass:
-                if ansfile.stat().st_size != 0:
-                    interactive = 'interaction ' if problem.interactive else ''
-                    multipass = 'multipass ' if problem.multipass else ''
-                    bar.warn(
-                        f'.ans file for {interactive}{multipass}problem is expected to be empty.'
-                    )
-            else:
-                answer_validator_hashes = {
-                    **testcase.validator_hashes(validate.AnswerValidator, bar),
-                    **testcase.validator_hashes(validate.OutputValidator, bar),
-                }
-                if all(
-                    h in meta_yaml.get('answer_validator_hashes') for h in answer_validator_hashes
-                ):
-                    return True
-
-                if not testcase.validate_format(
-                    validate.Mode.ANSWER, bar=bar, warn_instead_of_error=config.args.no_validators
-                ):
-                    if not config.args.no_validators:
-                        bar.debug('Use generate --no-validators to ignore validation results.')
-                        return False
-
-                for h in answer_validator_hashes:
-                    meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
-                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
             return True
 
         def generate_visualization():
@@ -1048,7 +1042,7 @@ class TestcaseRule(Rule):
 
         # Step 3: check .in if needed
         testcase = Testcase(problem, infile, short_path=t.path / t.name)
-        if not validate_in(testcase):
+        if not t.validate_in(problem, testcase, meta_yaml, bar):
             return
 
         # Step 4: generate .ans and .interaction if needed
@@ -1056,7 +1050,7 @@ class TestcaseRule(Rule):
             return
 
         # Step 5: validate .ans if needed
-        if not validate_ans(testcase):
+        if not t.validate_ans(problem, testcase, meta_yaml, bar):
             return
 
         # Step 6: generate visualization if needed
@@ -1252,7 +1246,6 @@ class Directory(Rule):
                 continue
 
             # Check if the testcase was already validated.
-            # TODO: Dedup some of this with TestcaseRule.generate?
             cwd = problem.tmpdir / 'data' / t.hash
             meta_path = cwd / 'meta_.yaml'
             assert (
@@ -1261,76 +1254,13 @@ class Directory(Rule):
             meta_yaml = read_yaml(meta_path)
             testcase = Testcase(problem, infile, short_path=new_case)
 
-            def validate_in(testcase):
-                nonlocal meta_yaml
-
-                input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
-                if all(
-                    h in meta_yaml.get('input_validator_hashes') for h in input_validator_hashes
-                ):
-                    return True
-
-                # Validate the testcase input.
-                if not testcase.validate_format(
-                    validate.Mode.INPUT,
-                    bar=bar,
-                    constraints=None,
-                    warn_instead_of_error=config.args.no_validators,
-                ):
-                    if not config.args.no_validators:
-                        bar.debug('Use generate --no-validators to ignore validation results.')
-                        return False
-
-                for h in input_validator_hashes:
-                    meta_yaml['input_validator_hashes'][h] = input_validator_hashes[h]
-                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
-                return True
-
-            def validate_ans(testcase):
-                nonlocal meta_yaml
-
-                if testcase.root in config.INVALID_CASE_DIRECTORIES:
-                    return True
-
-                if problem.interactive or problem.multipass:
-                    if ansfile.stat().st_size != 0:
-                        interactive = 'interaction ' if problem.interactive else ''
-                        multipass = 'multipass ' if problem.multipass else ''
-                        bar.warn(
-                            f'.ans file for {interactive}{multipass}problem is expected to be empty.'
-                        )
-                else:
-                    answer_validator_hashes = testcase.validator_hashes(
-                        validate.AnswerValidator, bar
-                    )
-                    if all(
-                        h in meta_yaml.get('answer_validator_hashes')
-                        for h in answer_validator_hashes
-                    ):
-                        return True
-
-                    if not testcase.validate_format(
-                        validate.Mode.ANSWER,
-                        bar=bar,
-                        warn_instead_of_error=config.args.no_validators,
-                    ):
-                        if not config.args.no_validators:
-                            bar.debug('Use generate --no-validators to ignore validation results.')
-                            return False
-
-                    # Add hashes to the cache.
-                    for h in answer_validator_hashes:
-                        meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
-                    write_yaml(meta_yaml, meta_path, allow_yamllib=True)
-                return True
-
             # Step 1: validate input
-            if not validate_in(testcase):
+            if not t.validate_in(problem, testcase, meta_yaml, bar):
                 bar.done()
                 return
 
             # Step 2: validate answer
-            if not validate_ans(testcase):
+            if not t.validate_ans(problem, testcase, meta_yaml, bar):
                 bar.done()
                 return
 
