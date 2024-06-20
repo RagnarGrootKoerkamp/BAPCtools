@@ -196,8 +196,7 @@ class Testcase:
             case Mode.ANSWER:
                 return self._run_validators(
                     Mode.ANSWER,
-                    self.problem.validators(AnswerValidator, check_constraints=check_constraints)
-                    + self.problem.validators(OutputValidator, check_constraints=check_constraints),
+                    self.problem.validators(AnswerValidator, check_constraints=check_constraints),
                     self.root == 'invalid_answers',
                     bar=bar,
                     constraints=constraints,
