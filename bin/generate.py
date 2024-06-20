@@ -839,7 +839,7 @@ class TestcaseRule(Rule):
 
                 # Step 0: write empty ans file for interactive problems
                 if problem.interactive or problem.multipass:
-                    testcase.ans_path.write_text('')
+                    ansfile.write_text('')
 
                 # Step 1: run `generate:` if present.
                 if t.generator:
