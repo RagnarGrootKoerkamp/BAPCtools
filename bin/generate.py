@@ -752,7 +752,7 @@ class TestcaseRule(Rule):
             meta_yaml = read_yaml(meta_path) if meta_path.is_file() else None
             if meta_yaml is None:
                 meta_yaml = {
-                    'generate_hashes': dict(),
+                    'rule_hashes': dict(),
                     'generated_extensions': [],
                     'input_validator_hashes': dict(),
                     'solution_hash': dict(),
@@ -818,24 +818,28 @@ class TestcaseRule(Rule):
                         f'All values in [{t.seed}, {new_seed}] give the same result.',
                     )
 
-        def generate_in():
+        def generate_from_rule():
             nonlocal meta_yaml
 
             # create expected cache entry for generate
-            generate_hashes = dict()
+            rule_hashes = dict()
             if t.copy:
-                generate_hashes['source_hash'] = t.hash
+                rule_hashes['source_hash'] = t.hash
             for ext, string in t.hardcoded.items():
-                generate_hashes['hardcoded_' + ext[1:]] = hash_string(string)
+                rule_hashes['hardcoded_' + ext[1:]] = hash_string(string)
             if t.generator:
-                generate_hashes['generator_hash'] = t.generator.hash(seed=t.seed)
-                generate_hashes['generator'] = t.generator.cache_command(seed=t.seed)
+                rule_hashes['generator_hash'] = t.generator.hash(seed=t.seed)
+                rule_hashes['generator'] = t.generator.cache_command(seed=t.seed)
 
-            if not infile.is_file() or meta_yaml.get('generate_hashes') != generate_hashes:
+            if not infile.is_file() or meta_yaml.get('rule_hashes') != rule_hashes:
                 # clear all generated files
                 shutil.rmtree(cwd)
                 cwd.mkdir(parents=True, exist_ok=True)
                 meta_yaml = init_meta()
+
+                # Step 0: write empty ans file for interactive problems
+                if problem.interactive or problem.multipass:
+                    testcase.ans_path.write_text('')
 
                 # Step 1: run `generate:` if present.
                 if t.generator:
@@ -878,7 +882,7 @@ class TestcaseRule(Rule):
                 ]
 
                 # Step 6: update cache
-                meta_yaml['generate_hashes'] = generate_hashes
+                meta_yaml['rule_hashes'] = rule_hashes
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
                 # Step 7: check deterministic:
@@ -889,7 +893,7 @@ class TestcaseRule(Rule):
             assert infile.is_file(), f'Failed to generate in file: {infile}'
             return True
 
-        def generate_ans():
+        def generate_from_solution():
             nonlocal meta_yaml
 
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
@@ -912,9 +916,6 @@ class TestcaseRule(Rule):
             used_solution = False
             changed_ans = False
             if problem.interactive or problem.multipass:
-                if needed('.ans'):
-                    testcase.ans_path.write_text('')
-                    changed_ans = True
                 # For interactive/multi-pass problems, run the solution and generate a .interaction.
                 if (
                     t.config.solution
@@ -1048,7 +1049,7 @@ class TestcaseRule(Rule):
             return
 
         # Step 2: generate .in if needed (and possible other files)
-        if not generate_in():
+        if not generate_from_rule():
             return
 
         # Step 3: check .in if needed
@@ -1057,7 +1058,7 @@ class TestcaseRule(Rule):
             return
 
         # Step 4: generate .ans and .interaction if needed
-        if not generate_ans():
+        if not generate_from_solution():
             return
 
         # Step 5: validate .ans if needed
