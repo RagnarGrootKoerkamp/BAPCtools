@@ -500,7 +500,7 @@ class Problem:
         return maybe_copy(submissions)
 
     def validators(
-        problem, cls: Type[validate.Validator], check_constraints=False
+        problem, cls: Type[validate.Validator], check_constraints=False, strict=False
     ) -> list[validate.Validator]:
         """
         Gets the validators of the given class.
@@ -513,7 +513,17 @@ class Problem:
             singleton list(OutputValidator) if cls is OutputValidator
             list(Validator) otherwise, maybe empty
         """
+        res = problem._validators(cls, check_constraints)
+        if not strict and cls == validate.AnswerValidator:
+            return problem._validators(cls, check_constraints) + problem._validators(
+                validate.OutputValidator, check_constraints
+            )
+        else:
+            return problem._validators(cls, check_constraints)
 
+    def _validators(
+        problem, cls: Type[validate.Validator], check_constraints=False
+    ) -> list[validate.Validator]:
         key = (cls, check_constraints)
         if key in problem._validators:
             return problem._validators[key]
@@ -781,13 +791,11 @@ class Problem:
                 assert not problem.interactive
                 assert not problem.multipass
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
-                problem.validators(validate.OutputValidator, check_constraints=check_constraints)
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
                 if not problem.interactive and not problem.multipass:
                     problem.validators(validate.AnswerValidator)
-                    problem.validators(validate.OutputValidator)
                 testcases = problem.testcases(mode=mode)
             case _:
                 ValueError(mode)
