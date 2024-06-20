@@ -38,7 +38,7 @@ class Problem:
         # Some caches.
         self._testcases = dict()
         self._submissions = None
-        self._validators = dict()
+        self._validators_cache = dict()
         self._programs = dict()
         self._program_callbacks = dict()
         # Dictionary from path to parsed file contents.
@@ -507,13 +507,12 @@ class Problem:
 
         If needed, builds them.
 
-        problem._validators caches previous calls to avoid rebuilding
+        problem._validators_cache caches previous calls to avoid rebuilding
 
         Returns:
             singleton list(OutputValidator) if cls is OutputValidator
             list(Validator) otherwise, maybe empty
         """
-        res = problem._validators(cls, check_constraints)
         if not strict and cls == validate.AnswerValidator:
             return problem._validators(cls, check_constraints) + problem._validators(
                 validate.OutputValidator, check_constraints
@@ -525,8 +524,8 @@ class Problem:
         problem, cls: Type[validate.Validator], check_constraints=False
     ) -> list[validate.Validator]:
         key = (cls, check_constraints)
-        if key in problem._validators:
-            return problem._validators[key]
+        if key in problem._validators_cache:
+            return problem._validators_cache[key]
         ok = True
 
         assert hasattr(cls, 'source_dirs')
@@ -597,7 +596,7 @@ class Problem:
         # TODO Really? Why not at least return those that built?
         result = validators if ok and build_ok else []
 
-        problem._validators[key] = result
+        problem._validators_cache[key] = result
         return validators
 
     def run_submissions(problem):
