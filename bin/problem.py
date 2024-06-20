@@ -504,6 +504,8 @@ class Problem:
     ) -> list[validate.Validator]:
         """
         Gets the validators of the given class.
+        If strict is true we only return the validators as the icpc specification indicates.
+        If strict is false we may return additional validators (right now we return OutputValdiators as AnswerValdiators).
 
         If needed, builds them.
 
