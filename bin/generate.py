@@ -837,10 +837,6 @@ class TestcaseRule(Rule):
                 cwd.mkdir(parents=True, exist_ok=True)
                 meta_yaml = init_meta()
 
-                # Step 0: write empty ans file for interactive problems
-                if problem.interactive or problem.multipass:
-                    ansfile.write_text('')
-
                 # Step 1: run `generate:` if present.
                 if t.generator:
                     result = t.generator.run(bar, cwd, infile.stem, t.seed, t.config.retries)
@@ -876,16 +872,21 @@ class TestcaseRule(Rule):
                     bar.error(f'No .in file was generated!')
                     return False
 
-                # Step 5: save which files where generated
+                # Step 5: write empty ans file for interactive/multipass problems
+                if problem.interactive or problem.multipass:
+                    if not ansfile.is_file():
+                        ansfile.write_text('')
+
+                # Step 6: save which files where generated
                 meta_yaml['generated_extensions'] = [
                     ext for ext in config.KNOWN_DATA_EXTENSIONS if infile.with_suffix(ext).is_file()
                 ]
 
-                # Step 6: update cache
+                # Step 7: update cache
                 meta_yaml['rule_hashes'] = rule_hashes
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
-                # Step 7: check deterministic:
+                # Step 8: check deterministic:
                 check_deterministic(True)
             else:
                 check_deterministic(False)
