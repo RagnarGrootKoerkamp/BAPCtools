@@ -872,21 +872,16 @@ class TestcaseRule(Rule):
                     bar.error(f'No .in file was generated!')
                     return False
 
-                # Step 5: write empty ans file for interactive/multipass problems
-                if problem.interactive or problem.multipass:
-                    if not ansfile.is_file():
-                        ansfile.write_text('')
-
-                # Step 6: save which files where generated
+                # Step 5: save which files where generated
                 meta_yaml['generated_extensions'] = [
                     ext for ext in config.KNOWN_DATA_EXTENSIONS if infile.with_suffix(ext).is_file()
                 ]
 
-                # Step 7: update cache
+                # Step 6: update cache
                 meta_yaml['rule_hashes'] = rule_hashes
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
-                # Step 8: check deterministic:
+                # Step 7: check deterministic:
                 check_deterministic(True)
             else:
                 check_deterministic(False)
@@ -917,6 +912,11 @@ class TestcaseRule(Rule):
             used_solution = False
             changed_ans = False
             if problem.interactive or problem.multipass:
+                # Generate empty ans file for interactive/multipass problems
+                if '.ans' not in meta_yaml['generated_extensions']:
+                    if not ansfile.is_file() or ansfile.stat().st_size != 0:
+                        ansfile.write_text('')
+                        changed_ans = True
                 # For interactive/multi-pass problems, run the solution and generate a .interaction.
                 if (
                     t.config.solution
