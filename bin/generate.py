@@ -1801,6 +1801,8 @@ class GeneratorConfig:
                 path.is_dir() and local in self.known_directories,
                 not path.is_dir() and path in self.known_files,
                 not path.is_dir() and not self.process_testcase(local),
+                # Do not remove output of visualizer when running with --no-visualizer
+                config.args.no_visualizer and path.suffix in config.KNOWN_VISUALIZER_EXTENSIONS,
             )
         )
         if keep:
