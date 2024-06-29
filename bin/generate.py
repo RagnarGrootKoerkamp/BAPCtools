@@ -628,6 +628,8 @@ class TestcaseRule(Rule):
                     ensure_symlink(target, source, relative=True)
                     bar.log(f'NEW: {target.name}')
             elif target.is_file():
+                if config.args.no_visualizer and ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                    continue  # Do not remove output of visualizer when running with --no-visualizer
                 # Target exists but source wasn't generated -> remove it
                 generator_config.remove(target)
                 bar.log(f'REMOVED: {target.name}')
@@ -995,6 +997,8 @@ class TestcaseRule(Rule):
                         shutil.copy(source, target, follow_symlinks=True)
                         bar.log(f'NEW: {target.name}')
                 elif target.is_file():
+                    if config.args.no_visualizer and ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                        continue  # Do not remove output of visualizer when running with --no-visualizer
                     # Target exists but source wasn't generated -> remove it
                     generator_config.remove(target)
                     bar.log(f'REMOVED: {target.name}')

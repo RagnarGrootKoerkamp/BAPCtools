@@ -48,17 +48,24 @@ KNOWN_TESTCASE_EXTENSIONS = [
     '.out',
 ]
 
-KNOWN_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
-    '.interaction',
-    '.hint',
-    '.desc',
+KNOWN_VISUALIZER_EXTENSIONS = [
     '.png',
     '.jpg',
     '.svg',
     '.pdf',
-    #'.args',
-    #'.files', # this is actually a folder
 ]
+
+KNOWN_DATA_EXTENSIONS = (
+    KNOWN_TESTCASE_EXTENSIONS
+    + KNOWN_VISUALIZER_EXTENSIONS
+    + [
+        '.interaction',
+        '.hint',
+        '.desc',
+        #'.args',
+        #'.files', # this is actually a folder
+    ]
+)
 
 KNOWN_TEXT_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
     '.interaction',
