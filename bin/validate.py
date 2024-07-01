@@ -399,7 +399,7 @@ def sanity_check(path, bar, strict_whitespace=True):
         elif len(file_bytes) == 0:
             bar.warn(f'{name} is empty but was accepted!')
         elif len(file_bytes) > 20_000_000:
-            bar.warn(f'{name} is larger than 20Mb!')
+            bar.warn(f'{name} is larger than 20MB!')
         elif strict_whitespace:
             if file_bytes[0] in [ord(' '), ord('\n')]:
                 bar.warn(f'{name} starts with whitespace but was accepted!')
