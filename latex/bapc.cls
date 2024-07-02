@@ -61,6 +61,7 @@
 \nonzeroparskip
 
 % Require some packages.
+\RequirePackage{microtype}
 \RequirePackage{eqparbox}
 \RequirePackage{tabularx}
 \RequirePackage{environ}
