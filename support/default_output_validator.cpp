@@ -55,7 +55,7 @@ namespace util {
 	constexpr bool is_integer(std::string_view token) {
 		if (token.substr(0, 1) == "-") token.remove_prefix(1);  // ignore optional - sign
 		if (token.empty()) return false;                        // integers need at least one digit
-		if (token.size() > 1 and token[0] == '0') return false; // integers dont start with 0x
+		if (token.size() > 1 and token[0] == '0') return false; // integers do not start with 0 (unless they are exactly "0")
 		if (not is_digits(token)) return false;                 // integers are just digits
 		return true;
 	}
@@ -69,8 +69,11 @@ namespace util {
 
 	constexpr bool is_float(std::string_view token) {
 		std::size_t e = token.find_first_of("eE");
-		if (not is_decimal(token.substr(0, e))) return false;                       // float is a decimal
-		if (e < token.size() and not is_integer(token.substr(e + 1))) return false; // followed by an otional e<integer>
+		if (not is_decimal(token.substr(0, e))) return false; // float is a decimal
+		if (e < token.size()) {                               // followed by an optional e[-+]?<digits>
+			bool has_sign = token[e + 1] == '-' || token[e + 1] == '+';
+			if (not is_digits(token.substr(e + 1 + has_sign))) return false;
+		}
 		return true;
 	}
 }
