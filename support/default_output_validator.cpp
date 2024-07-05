@@ -267,23 +267,22 @@ diff check(const std::filesystem::path& ans_path) {
 			bool equal = false;
 			if (float_absolute_tolerance >= 0) {
 				long double abs = std::abs(given-expected);
-				if (abs > float_absolute_tolerance) {
-					diff += " Absolute difference: " + std::to_string(abs);
-				} else {
+				diff += "Absolute difference: " + std::to_string(abs);
+				if (abs <= float_absolute_tolerance) {
 					equal = true;
 				}
 			}
 			if (float_relative_tolerance >= 0) {
 				long double rel = std::abs((given-expected)/expected);
-				if (rel > float_relative_tolerance) {
-					diff += " Relative difference: " + std::to_string(rel);
-				} else {
+				if (diff != "") diff += ", ";
+				diff += "Relative difference: " + std::to_string(rel);
+				if (rel <= float_relative_tolerance) {
 					equal = true;
 				}
 			}
 			if (not equal) {
 				res.set_diff(jury->formatted(), team->formatted());
-				res.message += "(" + diff + ")";
+				res.message += " (" + diff + ")";
 				return res;
 			}
 			jury.next();
