@@ -72,7 +72,8 @@ namespace util {
 		if (not is_decimal(token.substr(0, e))) return false; // float is a decimal
 		if (e < token.size()) {                               // followed by an optional e[-+]?<digits>
 			bool has_sign = token[e + 1] == '-' || token[e + 1] == '+';
-			if (not is_digits(token.substr(e + 1 + has_sign))) return false;
+			auto digits = token.substr(e + 1 + has_sign);
+			if (digits == "" or not is_digits(digits)) return false;
 		}
 		return true;
 	}
