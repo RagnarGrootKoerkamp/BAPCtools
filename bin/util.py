@@ -606,7 +606,8 @@ def write_yaml(data, path, allow_yamllib=False):
                 'This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
             )
             exit(1)
-        yamllib.dump(data, path)
+        with open(path, "w") as stream:
+            yamllib.dump(data, stream)
         return
     with write_yaml_lock:
         ryaml.dump(
