@@ -612,6 +612,7 @@ class TestcaseRule(Rule):
         for ext in config.KNOWN_DATA_EXTENSIONS:
             source = src.with_suffix(ext)
             target = dst.with_suffix(ext)
+
             if source.is_file() and source in generator_config.known_files:
                 generator_config.known_files.add(target)
                 if target.is_file():
@@ -628,8 +629,6 @@ class TestcaseRule(Rule):
                     ensure_symlink(target, source, relative=True)
                     bar.log(f'NEW: {target.name}')
             elif target.is_file():
-                if config.args.no_visualizer and ext in config.KNOWN_VISUALIZER_EXTENSIONS:
-                    continue  # Do not remove output of visualizer when running with --no-visualizer
                 # Target exists but source wasn't generated -> remove it
                 generator_config.remove(target)
                 bar.log(f'REMOVED: {target.name}')
