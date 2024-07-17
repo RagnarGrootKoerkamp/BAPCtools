@@ -1006,6 +1006,8 @@ class TestcaseRule(Rule):
                         # When running with --no-visualizer and .in/.ans files did not change,
                         # do not remove output of visualizer.
                         # This is useful for when a user/CI has a clean cache (e.g. after a reboot).
+                        # Also add target to known_files, so the cleanup step does not remove it.
+                        generator_config.known_files.add(target)
                         continue
                     # Target exists but source wasn't generated -> remove it
                     generator_config.remove(target)
@@ -1809,8 +1811,6 @@ class GeneratorConfig:
                 path.is_dir() and local in self.known_directories,
                 not path.is_dir() and path in self.known_files,
                 not path.is_dir() and not self.process_testcase(local),
-                # Do not remove output of visualizer when running with --no-visualizer
-                config.args.no_visualizer and path.suffix in config.KNOWN_VISUALIZER_EXTENSIONS,
             )
         )
         if keep:
