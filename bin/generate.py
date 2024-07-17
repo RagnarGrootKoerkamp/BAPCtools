@@ -975,6 +975,8 @@ class TestcaseRule(Rule):
             return True
 
         def copy_generated():
+            identical_exts = set()
+
             for ext in config.KNOWN_DATA_EXTENSIONS:
                 source = infile.with_suffix(ext)
                 target = target_infile.with_suffix(ext)
@@ -984,7 +986,7 @@ class TestcaseRule(Rule):
                     if target.is_file():
                         if source.read_bytes() == target.read_bytes() and not target.is_symlink():
                             # identical -> skip
-                            pass
+                            identical_exts.add(ext)
                         else:
                             # different -> overwrite
                             generator_config.remove(target)
@@ -995,8 +997,16 @@ class TestcaseRule(Rule):
                         shutil.copy(source, target, follow_symlinks=True)
                         bar.log(f'NEW: {target.name}')
                 elif target.is_file():
-                    if config.args.no_visualizer and ext in config.KNOWN_VISUALIZER_EXTENSIONS:
-                        continue  # Do not remove output of visualizer when running with --no-visualizer
+                    if (
+                        config.args.no_visualizer
+                        and ext in config.KNOWN_VISUALIZER_EXTENSIONS
+                        and '.in' in identical_exts
+                        and '.ans' in identical_exts
+                    ):
+                        # When running with --no-visualizer and .in/.ans files did not change,
+                        # do not remove output of visualizer.
+                        # This is useful for when a user/CI has a clean cache (e.g. after a reboot).
+                        continue
                     # Target exists but source wasn't generated -> remove it
                     generator_config.remove(target)
                     bar.log(f'REMOVED: {target.name}')
