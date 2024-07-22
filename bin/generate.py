@@ -48,7 +48,18 @@ def is_testcase(yaml):
             isinstance(yaml, dict)
             and any(
                 key in yaml
-                for key in ['copy', 'generate', 'in', 'ans', 'out', 'hint', 'desc', 'interaction']
+                for key in [
+                    'copy',
+                    'generate',
+                    'in',
+                    'ans',
+                    'out',
+                    'hint',
+                    'desc',
+                    'interaction',
+                    'in.statement',
+                    'ans.statement',
+                ]
             )
         )
     )

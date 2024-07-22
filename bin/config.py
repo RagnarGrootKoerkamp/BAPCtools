@@ -55,24 +55,16 @@ KNOWN_VISUALIZER_EXTENSIONS = [
     '.pdf',
 ]
 
-KNOWN_DATA_EXTENSIONS = (
-    KNOWN_TESTCASE_EXTENSIONS
-    + KNOWN_VISUALIZER_EXTENSIONS
-    + [
-        '.interaction',
-        '.hint',
-        '.desc',
-        #'.args',
-        #'.files', # this is actually a folder
-    ]
-)
-
 KNOWN_TEXT_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
     '.interaction',
     '.hint',
     '.desc',
+    '.in.statement',
+    '.ans.statement',
     #'.args',
 ]
+
+KNOWN_DATA_EXTENSIONS = KNOWN_TEXT_DATA_EXTENSIONS + KNOWN_VISUALIZER_EXTENSIONS
 
 INVALID_CASE_DIRECTORIES = [
     'invalid_inputs',
