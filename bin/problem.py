@@ -401,9 +401,10 @@ class Problem:
             testcases.append((in_path, ans_path))
 
         for in_path in statement_in_paths:
-            ans_path = in_path.with_suffix('.ans.statement')
+            # first remove .statement, then replace .in with .ans.statement
+            ans_path = in_path.with_suffix('').with_suffix('.ans.statement')
             if not ans_path.is_file():
-                warn(f'Found input file {in_path} without a .ans file. Skipping.')
+                warn(f'Found input file {in_path} without a .ans.statement file. Skipping.')
                 continue
             testcases.append((in_path, ans_path))
 
