@@ -69,8 +69,8 @@ if not os.getenv('GITLAB_CI', False):
 # TODO: Get rid of old problem.path and settings objects in tools.py.
 #       This mostly needs changes in the less frequently used subcommands.
 
-# Make sure f-strings are supported.
-f'f-strings are not supported by your python version. You need at least python 3.6.'
+if sys.version_info < (3, 10):
+    fatal('BAPCtools requires at least Python 3.10.')
 
 
 # Get the list of relevant problems.
