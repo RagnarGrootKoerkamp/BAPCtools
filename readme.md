@@ -200,11 +200,14 @@ and any hyphens should be replaced with an underscore (e.g., `no_bar: True` rath
 
 ## Contributing / Style guide
 
-- The python code in the repository is formatted using [black](https://github.com/psf/black).
+- The python code in the repository is formatted using [black](https://github.com/psf/black)
+  and type-checked using [mypy](https://mypy-lang.org/).
   To enable the pre-commit hook, install [pre-commit](https://pre-commit.com/)
   with `pip` or your package manager (Arch: `python-pre-commit`) and run
-  `pre-commit install` from the repository root. All python code will now automatically be formatted
-  on each commit.
+  `pre-commit install` from the repository root.
+  All python code will now automatically be formatted on each commit.
+  If you want to run the hooks before creating a commit,
+  use `pre-commit run` (only staged files) or `pre-commit run -a` (all files).
 
 - Imports are usually ordered with system libraries first, followed by a
   newline, followed by local includes. Both groups are sorted alphabetically,
