@@ -1023,9 +1023,11 @@ def run_parsed_arguments(args):
         if action in ['update_problems_yaml']:
             export.update_problems_yaml(
                 problems,
-                re.split("[^#0-9A-Za-z]", config.args.colors.strip())
-                if config.args.colors
-                else None,
+                (
+                    re.split("[^#0-9A-Za-z]", config.args.colors.strip())
+                    if config.args.colors
+                    else None
+                ),
             )
 
     if not success or config.n_error > 0 or config.n_warn > 0:
