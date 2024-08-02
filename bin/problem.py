@@ -30,7 +30,7 @@ class Problem:
         self.name = path.resolve().name
         # The Path of the problem directory.
         self.path = path
-        self.tmpdir = tmpdir / self.name
+        self.tmpdir: Path = tmpdir / self.name
         self.tmpdir.mkdir(parents=True, exist_ok=True)
         # Read problem.yaml and domjudge-problem.ini into self.settings Namespace object.
         self._read_settings()
@@ -107,7 +107,7 @@ class Problem:
 
     def _read_settings(self):
         # some defaults
-        self.settings = {
+        settings = {
             'timelimit': 1.0,
             'timelimit_is_default': True,
             'timeout': 3,
@@ -132,9 +132,9 @@ class Problem:
 
         if yamldata:
             for k, v in yamldata.items():
-                self.settings[k] = v
+                settings[k] = v
             if 'timelimit' in yamldata:
-                self.settings['timelimit_is_default'] = False
+                settings['timelimit_is_default'] = False
 
         # DEPRECATED: parse domjudge-problem.ini for the timelimit.
         domjudge_path = self.path / 'domjudge-problem.ini'
@@ -145,19 +145,19 @@ class Problem:
                 if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
                     var = var[1:-1]
                 if key == 'timelimit':
-                    self.settings[key] = float(var)
-                    self.settings['timelimit_is_default'] = False
+                    settings[key] = float(var)
+                    settings['timelimit_is_default'] = False
                 else:
-                    self.settings[key] = var
+                    settings[key] = var
 
         # Read the .timitlimit file if present.
         timelimit_path = self.path / '.timelimit'
         if timelimit_path.is_file():
-            self.settings['timelimit'] = float(timelimit_path.read_text())
-            self.settings['timelimit_is_default'] = False
+            settings['timelimit'] = float(timelimit_path.read_text())
+            settings['timelimit_is_default'] = False
 
         # Convert the dictionary to a namespace object.
-        self.settings = argparse.Namespace(**self.settings)
+        self.settings = argparse.Namespace(**settings)
 
         # Override settings by command line arguments.
         self.settings.timelimit = config.args.timelimit or self.settings.timelimit

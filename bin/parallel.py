@@ -3,16 +3,19 @@ import heapq
 import os
 import signal
 import threading
+from typing import Any, Callable, Generic, Literal, Optional, TypeVar
 
 import config
 import util
 
+T = TypeVar("T")
 
-class QueueItem:
-    def __init__(self, task, priority, id):
+
+class QueueItem(Generic[T]):
+    def __init__(self, task: T, priority: int, index: int):
         self.task = task
         self.priority = priority
-        self.id = id
+        self.index = index
 
     # Note: heapq uses a min heap, so higher priorities are 'smaller'.
     def __lt__(self, other):
@@ -22,17 +25,17 @@ class QueueItem:
             return self.priority > other.priority
         else:
             # items with same priority should be handled in FIFO order
-            return self.id < other.id
+            return self.index < other.index
 
 
-class AbstractQueue:
-    def __init__(self, f, pin):
+class AbstractQueue(Generic[T]):
+    def __init__(self, f: Callable[[T], Any], pin: bool):
         self.f = f
         self.pin = pin
         self.num_threads = 1
 
         # min heap
-        self.tasks: list[QueueItem] = []
+        self.tasks: list[QueueItem[T]] = []
         self.total_tasks = 0
         self.missing = 0
 
@@ -48,26 +51,26 @@ class AbstractQueue:
         self.mutex.__exit__(*args)
 
     # Add one task. Higher priority => done first
-    def put(self, task, priority=0):
-        raise "Abstract method"
+    def put(self, task: T, priority=0):
+        raise Exception("Abstract method")
 
     # By default, do nothing on .join(). This is overridden in ParallelQueue.
     def join(self):
         return
 
     def done(self):
-        raise "Abstract method"
+        raise Exception("Abstract method")
 
     def abort(self):
         self.aborted = True
 
 
-class SequentialQueue(AbstractQueue):
-    def __init__(self, f, pin):
+class SequentialQueue(AbstractQueue[T]):
+    def __init__(self, f: Callable[[T], Any], pin: bool):
         super().__init__(f, pin)
 
     # Add one task. Higher priority => done first
-    def put(self, task, priority=0):
+    def put(self, task: T, priority=0):
         # no task will be handled after self.abort() so skip adding
         if self.aborted:
             return
@@ -89,8 +92,8 @@ class SequentialQueue(AbstractQueue):
             os.sched_setaffinity(0, cores)
 
 
-class ParallelQueue(AbstractQueue):
-    def __init__(self, f, pin, num_threads):
+class ParallelQueue(AbstractQueue[T]):
+    def __init__(self, f: Callable[[T], Any], pin: bool, num_threads: int):
         super().__init__(f, pin)
 
         assert num_threads and type(num_threads) is int
@@ -101,7 +104,7 @@ class ParallelQueue(AbstractQueue):
         # condition used to notify join that the queue is empty
         self.all_done = threading.Condition(self.mutex)
 
-        self.first_error = None
+        self.first_error: Optional[Exception] = None
         self.finish = False
 
         if self.pin:
@@ -123,7 +126,7 @@ class ParallelQueue(AbstractQueue):
 
         signal.signal(signal.SIGINT, self._interrupt_handler)
 
-    def _worker(self, cores: bool | list[int] = False):
+    def _worker(self, cores: Literal[False] | list[int] = False):
         if cores is not False:
             os.sched_setaffinity(0, cores)
         while True:
@@ -173,7 +176,7 @@ class ParallelQueue(AbstractQueue):
             raise first_error
 
     # Add one task. Higher priority => done first
-    def put(self, task, priority=0):
+    def put(self, task: T, priority=0):
         with self.mutex:
             # no task should be added after .done() was called
             assert not self.finish
@@ -223,7 +226,7 @@ class ParallelQueue(AbstractQueue):
                 self.all_done.notify_all()
 
 
-def new_queue(f, pin=False):
+def new_queue(f: Callable[[T], Any], pin=False):
     """
     f(task): the function to run on each queue item.
 
@@ -238,7 +241,7 @@ def new_queue(f, pin=False):
         return SequentialQueue(f, pin)
 
 
-def run_tasks(f, tasks: list, pin=False):
+def run_tasks(f: Callable[[T], Any], tasks: list[T], pin=False):
     queue = new_queue(f, pin)
     for task in tasks:
         queue.put(task)

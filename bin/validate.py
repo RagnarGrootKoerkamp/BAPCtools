@@ -19,29 +19,32 @@ class Mode(Enum):
         }[self]
 
 
-def _merge_constraints(constraints_path, constraints):
+# loc -> (name, has_low, has_high, vmin, vmax, low, high)
+ConstraintsDict = dict[
+    str, tuple[str, bool, bool, int | float, int | float, int | float, int | float]
+]
+
+
+def _to_number(s: str) -> int | float:
+    try:
+        return int(s)
+    except ValueError:
+        return float(s)
+
+
+def _merge_constraints(constraints_path: Path, constraints: ConstraintsDict):
     # Merge with previous constraints.
     if constraints_path.is_file():
         for line in constraints_path.read_text().splitlines():
-            loc, name, has_low, has_high, vmin, vmax, low, high = line.split()
-            has_low = bool(int(has_low))
-            has_high = bool(int(has_high))
-            try:
-                vmin = int(vmin)
-            except ValueError:
-                vmin = float(vmin)
-            try:
-                vmax = int(vmax)
-            except ValueError:
-                vmax = float(vmax)
-            try:
-                low = int(low)
-            except ValueError:
-                low = float(low)
-            try:
-                high = int(high)
-            except ValueError:
-                high = float(high)
+            loc, *rest = line.split()
+            assert len(rest) == 7
+            name = rest[0]
+            has_low = bool(int(rest[1]))
+            has_high = bool(int(rest[2]))
+            vmin = _to_number(rest[3])
+            vmax = _to_number(rest[4])
+            low = _to_number(rest[5])
+            high = _to_number(rest[6])
             if loc in constraints:
                 c = constraints[loc]
                 has_low |= c[1]
@@ -85,7 +88,7 @@ class Validator(program.Program):
         )
 
         if check_constraints:
-            self.tmpdir = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
+            self.tmpdir: Path = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
         self.check_constraints = check_constraints
 
     def _run_helper(self, testcase, constraints, args):
@@ -125,6 +128,7 @@ class Validator(program.Program):
     # It may not read/write files.
     def _run_format_validator(self, testcase, cwd):
         assert self.language in Validator.FORMAT_VALIDATOR_LANGUAGES
+        assert self.run_command is not None, "Validator should be built before running it"
 
         if isinstance(self, InputValidator):
             main_path = testcase.in_path
@@ -175,13 +179,18 @@ class InputValidator(Validator):
     subdir = 'input_validators'
     source_dirs = ['input_validators', 'input_format_validators']
 
-    def run(self, testcase, mode=Mode.INPUT, constraints=None, args=None) -> ExecResult:
+    def run(
+        self, testcase, mode=Mode.INPUT, constraints: Optional[ConstraintsDict] = None, args=None
+    ) -> ExecResult:
         """
         Arguments
         ---------
         mode:
             must be Mode.INPUT
         """
+
+        assert self.run_command is not None, "Validator should be built before running it"
+
         if mode == Mode.ANSWER:
             raise ValueError("InputValidators do not support Mode.ANSWER")
         if mode == Mode.INVALID:
@@ -224,10 +233,14 @@ class AnswerValidator(Validator):
     subdir = 'answer_validators'
     source_dirs = ['answer_validators', 'answer_format_validators']
 
-    def run(self, testcase, mode=Mode.ANSWER, constraints=None, args=None):
+    def run(
+        self, testcase, mode=Mode.ANSWER, constraints: Optional[ConstraintsDict] = None, args=None
+    ):
         """Return:
         ExecResult
         """
+
+        assert self.run_command is not None, "Validator should be built before running it"
 
         if mode == Mode.INPUT:
             raise ValueError("AnswerValidators do no support Mode.INPUT")
@@ -269,7 +282,7 @@ class OutputValidator(Validator):
     subdir = 'output_validators'
     source_dirs = ['output_validator', 'output_validators']
 
-    def run(self, testcase, mode, constraints=None, args=None):
+    def run(self, testcase, mode, constraints: Optional[ConstraintsDict] = None, args=None):
         """
         Run this validator on the given testcase.
 
@@ -283,6 +296,8 @@ class OutputValidator(Validator):
         -------
         The ExecResult
         """
+
+        assert self.run_command is not None, "Validator should be built before running it"
 
         if mode == Mode.INPUT:
             raise ValueError("OutputValidator do no support Mode.INPUT")

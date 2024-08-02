@@ -242,12 +242,11 @@ class Submission(program.Program):
         # - RUN_TIME_ERROR / RUN-ERROR
         # Matching is case insensitive and all source files are checked.
         key = '@EXPECTED_RESULTS@: '
-        if self.path.is_file():
-            files = [self.path]
-        elif self.path.is_dir():
-            files = self.path.glob('**/*')
-        else:
-            files = []
+        files = (
+            [self.path]
+            if self.path.is_file()
+            else self.path.glob('**/*') if self.path.is_dir() else []
+        )
         for f in files:
             if not f.is_file():
                 continue
@@ -345,7 +344,7 @@ class Submission(program.Program):
             needs_leading_newline=needs_leading_newline,
         )
 
-        def process_run(run):
+        def process_run(run: Run):
             if not verdicts.run_is_needed(run.name):
                 bar.skip()
                 return
@@ -421,6 +420,7 @@ class Submission(program.Program):
         p.done()
 
         self.verdict = verdicts['.']
+        assert isinstance(self.verdict, Verdict), "Verdict of root must not be empty"
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
@@ -446,6 +446,9 @@ class Submission(program.Program):
             assert slowest_pair is not None
             (slowest_testcase, slowest_duration) = slowest_pair
             slowest_verdict = verdicts[slowest_testcase]
+            assert isinstance(
+                slowest_verdict, Verdict
+            ), "Verdict of slowest testcase must not be empty"
 
             slowest_color = (
                 Fore.GREEN

@@ -20,10 +20,13 @@ import os
 import sys
 import tempfile
 import shutil
+
 import colorama
 import json
+import re
 
 from pathlib import Path
+from typing import Literal, cast
 
 # Local imports
 import config
@@ -77,15 +80,17 @@ def get_problems():
     def is_problem_directory(path):
         return (path / 'problem.yaml').is_file()
 
-    contest = None
-    problem = None
-    level = None
+    contest: Optional[Path] = None
+    problem: Optional[Path] = None
+    level: Optional[Literal['problem', 'problemset']] = None
     if config.args.contest:
-        contest = config.args.contest.resolve()
+        # TODO replace cast with typed Namespace field
+        contest = cast(Path, config.args.contest).resolve()
         os.chdir(contest)
         level = 'problemset'
     if config.args.problem:
-        problem = config.args.problem.resolve()
+        # TODO replace cast with typed Namespace field
+        problem = cast(Path, config.args.problem).resolve()
         level = 'problem'
         os.chdir(problem.parent)
     elif is_problem_directory(Path('.')):
@@ -194,17 +199,17 @@ def get_problems():
             response.raise_for_status()
             contest_problems = json.loads(response.text)
             assert isinstance(problems, list)
-            for problem in contest_problems:
-                solves[problem['id']] = 0
+            for p in contest_problems:
+                solves[p['id']] = 0
 
             response = call_api('GET', f'/contests/{cid}/scoreboard?public=true')
             response.raise_for_status()
             scoreboard = json.loads(response.text)
 
             for team in scoreboard['rows']:
-                for problem in team['problems']:
-                    if problem['solved']:
-                        solves[problem['problem_id']] += 1
+                for p in team['problems']:
+                    if p['solved']:
+                        solves[p['problem_id']] += 1
 
             # Convert away from defaultdict, so any non matching keys below raise an error.
             solves = dict(solves)
@@ -213,10 +218,10 @@ def get_problems():
             # Sort the problems
             # Use negative solves instead of reversed, to preserver stable order.
             problems.sort(key=lambda p: (-solves[p.name], p.label))
-            order = ', '.join(map(lambda p: p.label, problems))
+            order = ', '.join(map(lambda p: str(p.label), problems))
             verbose('order: ' + order)
 
-    contest = Path().cwd().name
+    contest_name = Path().cwd().name
 
     # Filter problems by submissions/testcases, if given.
     if level == 'problemset' and (config.args.submissions or config.args.testcases):
@@ -239,7 +244,7 @@ def get_problems():
         problems = [p for p in problems if keep_problem(p)]
 
     config.level = level
-    return problems, level, contest, tmpdir
+    return problems, level, contest_name, tmpdir
 
 
 # NOTE: This is one of the few places that prints to stdout instead of stderr.
@@ -918,7 +923,7 @@ def run_parsed_arguments(args):
         if action in ['all', 'constraints', 'run'] and not config.args.no_generate:
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
-            config.args.jobs = os.cpu_count() // 2
+            config.args.jobs = (os.cpu_count() or 1) // 2
             config.args.add = None
             config.args.verbose = 0
             config.args.no_visualizer = True

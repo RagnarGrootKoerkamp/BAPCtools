@@ -1,6 +1,7 @@
 import re
 import itertools
 import sys
+from collections import defaultdict
 
 import validate
 from colorama import Fore, Style
@@ -17,8 +18,8 @@ from util import *
 
 
 def check_validators(problem):
-    in_constraints = {}
-    ans_constraints = {}
+    in_constraints: validate.ConstraintsDict = {}
+    ans_constraints: validate.ConstraintsDict = {}
     problem.validate_data(validate.Mode.INPUT, constraints=in_constraints)
     if not in_constraints:
         warn("No constraint validation of input values found in input validators.")
@@ -28,12 +29,12 @@ def check_validators(problem):
     print()
 
     validator_values = set()
-    validator_defs = []
+    validator_defs: list[str | tuple[int | float, str, int | float]] = []
 
     def f(cs):
         for loc, value in sorted(cs.items()):
             name, has_low, has_high, vmin, vmax, low, high = value
-            validator_defs.append([low, name, high])
+            validator_defs.append((low, name, high))
             validator_values.add(low)
             validator_values.add(high)
 
@@ -247,15 +248,13 @@ def check_statement(problem, language):
 
 def check_constraints(problem):
     validator_values, validator_defs = check_validators(problem)
-    statement_values = {}
-    statement_defs = {}
+    statement_values = defaultdict(set)
+    statement_defs = defaultdict(set)
     for lang in problem.statement_languages:
         values, defs = check_statement(problem, lang)
         for entry in values:
-            statement_values.setdefault(entry, set())
             statement_values[entry].add(lang)
         for entry in defs:
-            statement_defs.setdefault(entry, set())
             statement_defs[entry].add(lang)
 
     # print all the definitions.
@@ -308,8 +307,8 @@ def check_constraints(problem):
 
     warned = False
     for value in validator_values:
-        languages = statement_values.get(value, set())
-        missing = sorted(set(problem.statement_languages) - languages)
+        value_languages = statement_values.get(value, set())
+        missing = sorted(set(problem.statement_languages) - value_languages)
         if len(missing) > 0:
             if not warned:
                 warned = True

@@ -1,8 +1,13 @@
-from util import *
-from colorama import Fore, Style
-import generate
 import sys
-import numbers
+from pathlib import Path
+from typing import Callable
+
+from colorama import Fore, Style
+
+import generate
+from util import glob
+
+Selector = str | Callable | list[str] | list[Callable]
 
 
 # This prints the number belonging to the count.
@@ -16,7 +21,7 @@ def _get_stat(count, threshold=True, upper_bound=None):
         else:
             return Fore.RED + 'N' + Style.RESET_ALL
     color = Fore.WHITE
-    if upper_bound != None and count > upper_bound:
+    if upper_bound is not None and count > upper_bound:
         color = Fore.YELLOW
     if count < threshold:
         color = Fore.RED
@@ -24,7 +29,9 @@ def _get_stat(count, threshold=True, upper_bound=None):
 
 
 def stats(problems):
-    stats = [
+    stats: list[
+        tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, int, int]
+    ] = [
         # Roughly in order of importance
         ('  time', lambda p: p.settings.timelimit, 0),
         ('yaml', 'problem.yaml'),
@@ -100,7 +107,7 @@ def stats(problems):
                 return set.union(*(count(p) for p in path))
             if callable(path):
                 return path(generated_testcases)
-            results = set()
+            results: set[str | Path] = set()
             for p in glob(problem.path, path):
                 if p.is_file():
                     # Exclude files containing 'TODO: Remove'.
@@ -163,8 +170,10 @@ def stats(problems):
                 *[
                     _get_stat(
                         counts[i],
-                        True if len(stats[i]) <= 2 else stats[i][2],
-                        None if len(stats[i]) <= 3 else stats[i][3],
+                        # mypy does not support variable-length tuples very well:
+                        # https://github.com/python/mypy/pull/16237#:~:text=indirect%20comparisons
+                        True if len(stats[i]) <= 2 else stats[i][2],  # type: ignore[misc]
+                        None if len(stats[i]) <= 3 else stats[i][3],  # type: ignore[misc]
                     )
                     for i in range(len(stats))
                 ],

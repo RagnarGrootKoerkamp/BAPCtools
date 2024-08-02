@@ -5,6 +5,7 @@ import subprocess
 import threading
 import yaml as yamllib
 
+from problem import Problem
 from util import *
 from colorama import Fore
 
@@ -98,13 +99,13 @@ def sanitizer():
 #
 # build() will return the (run_command, message) pair.
 class Program:
-    def __init__(self, problem, path, deps=None, *, skip_double_build_warning=False):
+    def __init__(self, problem: Problem, path: Path, deps=None, *, skip_double_build_warning=False):
         if deps is not None:
             assert isinstance(self, Generator)
             assert isinstance(deps, list)
             assert len(deps) > 0
 
-        assert not self.__class__ is Program
+        assert self.__class__ is not Program
 
         # Make sure we never try to build the same program twice. That'd be stupid.
         if not skip_double_build_warning:
@@ -126,14 +127,14 @@ class Program:
             )
             self.short_path = relpath
             self.name = str(relpath)
-            self.tmpdir = problem.tmpdir / self.subdir / relpath
-        except ValueError as e:
+            self.tmpdir: Path = problem.tmpdir / self.subdir / relpath
+        except ValueError:
             self.short_path = Path(path.name)
             self.name = str(path.name)
-            self.tmpdir = problem.tmpdir / self.subdir / path.name
+            self.tmpdir: Path = problem.tmpdir / self.subdir / path.name
 
         self.compile_command = None
-        self.run_command = None
+        self.run_command: Optional[list[str]] = None
         self.hash = None
         self.env = {}
 
@@ -173,7 +174,9 @@ class Program:
             return shebang.search(o.readline())
 
     # Do not warn for the same fallback language multiple times.
-    warn_cache = set()
+    warn_cache: set[str] = set()
+
+    language: Optional[str]
 
     # Sets self.language and self.env['mainfile']
     def _get_language(self, deps=None):

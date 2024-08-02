@@ -13,8 +13,7 @@ def contest_yaml():
         return _contest_yaml
 
     # TODO: Do we need both here?
-    for p in ['contest.yaml', '../contest.yaml']:
-        p = Path(p)
+    for p in [Path('contest.yaml'), Path('../contest.yaml')]:
         if p.is_file():
             _contest_yaml = read_yaml_settings(p)
             return _contest_yaml

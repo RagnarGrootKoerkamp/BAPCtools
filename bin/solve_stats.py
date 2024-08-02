@@ -5,7 +5,7 @@ from contest import call_api, get_contest_id
 from util import ProgressBar
 
 
-def generate_solve_stats(post_freeze):
+def generate_solve_stats(post_freeze: bool):
     # Import takes more than 1000 ms to evaluate, so only import inside function (when it is actually needed)
     import matplotlib.pyplot as plt
 
@@ -24,10 +24,10 @@ def generate_solve_stats(post_freeze):
             print(f'\nError in decoding JSON:\n{e}\n{r.text()}')
 
     # Turns an endpoint list result into an object, mapped by 'id'
-    def req_assoc(endpoint):
+    def req_assoc(endpoint) -> dict[str, dict]:
         return {o['id']: o for o in req(endpoint)}
 
-    def time_string_to_minutes(time_string):
+    def time_string_to_minutes(time_string: str) -> float:
         hours, minutes, seconds = (time_string or '0:0:0').split(':')
         return int(hours) * 60 + int(minutes) + float(seconds) / 60
 
@@ -57,7 +57,7 @@ def generate_solve_stats(post_freeze):
 
     bar.finalize()
 
-    ac_teams = {p: set() for p in problems}
+    ac_teams: dict[str, set[str]] = {p: set() for p in problems}
     stats = {p: [{j: 0 for j in judgement_types} for _ in range(bins)] for p in problems}
     stats_sum = {p: {j: 0 for j in judgement_types} for p in problems}
     language_stats = {l: {j: 0 for j in judgement_types} for l in languages}
