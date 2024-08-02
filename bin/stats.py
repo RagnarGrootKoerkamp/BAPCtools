@@ -41,7 +41,7 @@ def stats(problems):
         (
             'secret',
             [lambda s: {x.stem for x in s if x.parts[2] == 'secret'}],
-            15,
+            30,
             100,
         ),
         (
