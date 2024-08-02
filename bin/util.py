@@ -1,26 +1,24 @@
 # read problem settings from config files
 
-import platform
-import shutil
-import time
 import copy
+import errno
+import hashlib
+import os
+import platform
+import secrets
+import shutil
+import signal
 import subprocess
 import sys
-import os
-import threading
-import signal
-import hashlib
 import tempfile
-import yaml as yamllib
-import errno
-import secrets
 import threading
-from typing import Any
-
+import time
 from enum import Enum
-from colorama import Fore, Style
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any, Optional, Sequence
+
+import yaml as yamllib
+from colorama import Fore, Style
 
 import config
 
@@ -196,7 +194,7 @@ class ProgressBar:
     def __init__(
         self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
     ):
-        assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix
+        assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix  # type: ignore[has-type]
         ProgressBar.current_bar = self
 
         assert not (items and (max_len or count))
@@ -264,8 +262,8 @@ class ProgressBar:
         assert self._is_locked()
         self._print(self.carriage_return, end='', flush=False)
 
+    @staticmethod
     def action(prefix, item, width=None, total_width=None, print_item=True):
-        input_width = width
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
         item = '' if item is None else (item if isinstance(item, str) else item.name)
@@ -651,8 +649,8 @@ def parse_validation(mode):
 
 
 # glob, but without hidden files
-def glob(path, expression, include_hidden=False):
-    def keep(p):
+def glob(path: Path, expression: str, include_hidden=False) -> list[Path]:
+    def keep(p: Path):
         if not include_hidden:
             for d in p.parts:
                 if d[0] == '.':
@@ -862,8 +860,8 @@ def tail(string, limit):
 
 # TODO: Move this to Problem.settings and read limits.memory variable from problem.yaml.
 # Return memory limit in MB.
-def get_memory_limit(kwargs=None):
-    memory_limit = 2048  # 2GB
+def get_memory_limit(kwargs=None) -> Optional[int]:
+    memory_limit: Optional[int] = 2048  # 2GB
     if config.args.sanitizer:
         memory_limit = None  # disabled
     elif config.args.memory:
@@ -947,6 +945,8 @@ def limit_setter(command, timeout, memory_limit, group=None, cores=False):
 
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen):
+    rusage: Any  # TODO use stricter type than `Any`
+
     # If wait4 is available, store resource usage information.
     if 'wait4' in dir(os):
 
@@ -1001,7 +1001,11 @@ def validator_exec_code_map(returncode):
 
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(
-    command, exec_code_map=default_exec_code_map, crop=True, preexec_fn=True, **kwargs
+    command: Sequence[str | Path],
+    exec_code_map=default_exec_code_map,
+    crop=True,
+    preexec_fn=True,
+    **kwargs,
 ):
     # By default: discard stdout, return stderr
     if 'stdout' not in kwargs or kwargs['stdout'] is True:
@@ -1022,7 +1026,7 @@ def exec_command(
             print(' < ', kwargs['stdin'].name, end='', file=sys.stderr)
         print(file=sys.stderr)
 
-    timeout = config.DEFAULT_TIMEOUT
+    timeout: Optional[int] = config.DEFAULT_TIMEOUT
     if 'timeout' in kwargs:
         if kwargs['timeout'] is None:
             timeout = None
@@ -1036,7 +1040,7 @@ def exec_command(
     if (is_windows() or is_wsl()) and 'memory' in kwargs:
         kwargs.pop('memory')
 
-    process = None
+    process: Optional[ResourcePopen] = None
 
     def interrupt_handler(sig, frame):
         nonlocal process
@@ -1048,8 +1052,8 @@ def exec_command(
         old_handler = signal.signal(signal.SIGINT, interrupt_handler)
 
     timeout_expired = False
-
     tstart = time.monotonic()
+
     try:
         if not is_windows() and not is_wsl() and preexec_fn:
             process = ResourcePopen(
@@ -1059,22 +1063,21 @@ def exec_command(
             )
         else:
             process = ResourcePopen(command, **kwargs)
+    except PermissionError as e:
+        # File is likely not executable.
+        return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
+    except OSError as e:
+        # File probably doesn't exist.
+        return ExecResult(None, ExecStatus.ERROR, 0, False, str(e), None)
+
+    try:
         (stdout, stderr) = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
         # Timeout expired.
         timeout_expired = True
         process.kill()
         (stdout, stderr) = process.communicate()
-    except PermissionError as e:
-        # File is likely not executable.
-        stdout = None
-        stderr = str(e)
-        return ExecResult(None, ExecStatus.ERROR, 0, False, stderr, stdout)
-    except OSError as e:
-        # File probably doesn't exist.
-        stdout = None
-        stderr = str(e)
-        return ExecResult(None, ExecStatus.ERROR, 0, False, stderr, stdout)
+
     tend = time.monotonic()
 
     if threading.current_thread() is threading.main_thread():
@@ -1181,13 +1184,13 @@ def hash_file_or_dir(file_or_dir, buffer_size=65536):
 
 
 def generate_problem_uuid():
-    uuid = bytearray(secrets.token_bytes(16))
+    uuid_bytes = bytearray(secrets.token_bytes(16))
     # mark this as v8 uuid (custom uuid) variant 0
-    uuid[6] &= 0b0000_1111
-    uuid[6] |= 0b1000_0000
-    uuid[8] &= 0b0011_1111
+    uuid_bytes[6] &= 0b0000_1111
+    uuid_bytes[6] |= 0b1000_0000
+    uuid_bytes[8] &= 0b0011_1111
     # format as uuid
-    uuid = uuid.hex()
+    uuid = uuid_bytes.hex()
     uuid = f'{uuid[0:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:32]}'
     # make the first bytes BAPCtools specific
     uuid = config.BAPC_UUID[: config.BAPC_UUID_PREFIX] + uuid[config.BAPC_UUID_PREFIX :]

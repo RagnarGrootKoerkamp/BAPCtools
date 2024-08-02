@@ -215,12 +215,7 @@ def build_problem_zip(problem, output):
     try:
         zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
-        for fname in sorted(copyfiles):
-            source = fname
-            target = fname
-            if isinstance(fname, tuple):
-                source = fname[0]
-                target = fname[1]
+        for source, target in sorted(copyfiles):
             zf.write(source, target, compress_type=zipfile.ZIP_DEFLATED)
 
         # Done.
@@ -471,7 +466,7 @@ def export_problem(problem, cid, pid):
 
     zip_path = problem.path / f'{problem.name}.zip'
     if not zip_path.is_file():
-        error(f'Did not find {zipfile}. First run `bt zip`.')
+        error(f'Did not find {zip_path}. First run `bt zip`.')
         return
     data = None if pid is None else {'problem': pid}
     with zip_path.open('rb') as zipfile:

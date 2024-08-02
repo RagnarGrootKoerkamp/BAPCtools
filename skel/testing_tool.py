@@ -67,16 +67,18 @@ with (
     ) as p,
 ):
     assert p.stdin is not None and p.stdout is not None
+    p_in = p.stdin
+    p_out = p.stdout
 
     def write(line: str):
         assert p.poll() is None, "Program terminated early"
         print(f"Write: {line}", flush=True)
-        p.stdin.write(f"{line}\n")
-        p.stdin.flush()
+        p_in.write(f"{line}\n")
+        p_in.flush()
 
-    def read():
+    def read() -> str:
         assert p.poll() is None, "Program terminated early"
-        line = p.stdout.readline().strip()
+        line = p_out.readline().strip()
         assert line != "", "Read empty line or closed output pipe"
         print(f"Read: {line}", flush=True)
         return line
@@ -122,9 +124,7 @@ with (
             else:
                 assert False, "Line does not start with question or exclamation mark"
 
-        assert (
-            p.stdout.readline() == ""
-        ), "Your submission printed extra data after finding a solution"
+        assert p_out.readline() == "", "Your submission printed extra data after finding a solution"
         assert p.wait() == 0, "Your submission did not exit cleanly after finishing"
 
         print(f"\nSuccess.\nQueries used: {queries}\n")

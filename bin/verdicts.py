@@ -1,15 +1,16 @@
-from pathlib import Path
+import io
 import shutil
 import sys
 import threading
 from enum import Enum
+from pathlib import Path
+from typing import Literal
 
-from util import ProgressBar
-import config
-import testcase
 from colorama import Fore, Style
 
-from typing import Literal
+import config
+import testcase
+from util import ProgressBar
 
 
 class Verdict(Enum):
@@ -620,8 +621,9 @@ class TableProgressBar(ProgressBar):
     def __enter__(self):
         super().__enter__()
         if ProgressBar.lock_depth == 1:
-            self.reset_line_buffering = sys.stderr.line_buffering
-            sys.stderr.reconfigure(line_buffering=False)
+            if isinstance(sys.stderr, io.TextIOWrapper):
+                self.reset_line_buffering = sys.stderr.line_buffering
+                sys.stderr.reconfigure(line_buffering=False)
             self.table._clear(force=False)
 
     # at the end of any IO the progress bar unlocks so we can reprint the table at this point
@@ -630,7 +632,8 @@ class TableProgressBar(ProgressBar):
             # ProgressBar.columns is just an educated guess for the number of printed chars
             # in the ProgressBar
             self.table.print(force=False, printed_lengths=[ProgressBar.columns])
-            sys.stderr.reconfigure(line_buffering=self.reset_line_buffering)
+            if isinstance(sys.stderr, io.TextIOWrapper):
+                sys.stderr.reconfigure(line_buffering=self.reset_line_buffering)
             print(end='', flush=True, file=sys.stderr)
         super().__exit__(*args)
 
@@ -639,7 +642,8 @@ class TableProgressBar(ProgressBar):
         # drop all flushes...
         print(*objects, sep=sep, end=end, file=file, flush=False)
 
-    def start(self, item):
+    # TODO: item has type `str` in the base class, but type `run.Run` here.
+    def start(self, item):  # type: ignore[override]
         self.table.add_testcase(item.testcase.name)
         return super().start(item)
 

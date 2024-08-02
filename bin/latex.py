@@ -212,7 +212,7 @@ def build_latex_pdf(
     output_pdf = Path(built_pdf.name).with_suffix(f'.{language}.pdf')
     dest_path = output_pdf if problem_path is None else problem_path / output_pdf
 
-    latexmk_command = [
+    latexmk_command: list[str | Path] = [
         'latexmk',
         '-cd',
         '-g',

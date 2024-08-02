@@ -1,10 +1,12 @@
 # Global variables that are constant after the programs arguments have been
 # parsed.
 
-from pathlib import Path
-import re
-import os
 import argparse
+import os
+import re
+from pathlib import Path
+from typing import Literal, Optional
+
 from verdicts import Verdict
 
 # return values
@@ -118,7 +120,7 @@ def set_default_args():
             setattr(args, arg, value)
 
 
-level = None
+level: Optional[Literal['problem', 'problemset']] = None
 
 # The number of warnings and errors encountered.
 # The program will return non-zero when the number of errors is nonzero.

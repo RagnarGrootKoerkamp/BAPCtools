@@ -5,6 +5,7 @@ import generate
 import time
 import threading
 from colorama import Fore, Style
+from typing import Callable
 
 import parallel
 from util import *
@@ -148,7 +149,7 @@ class Fuzz:
 
         # GENERATOR INVOCATIONS
         generator_config = generate.GeneratorConfig(self.problem, config.args.testcases)
-        self.testcase_rules = []
+        self.testcase_rules: list[generate.TestcaseRule] = []
 
         # Filter to only keep valid rules depending on seed without duplicates from count
         added_testcase_rules = set()
@@ -192,11 +193,12 @@ class Fuzz:
 
         # config.args.no_bar = True
         # max(len(s.name) for s in self.submissions)
-        bar = ProgressBar(f'Fuzz', max_len=60)
+        bar = ProgressBar('Fuzz', max_len=60)
         self.start_time = time.monotonic()
         self.iteration = 0
         self.tasks = 0
-        self.queue = parallel.new_queue(lambda task: task.run(bar), pin=True)
+        runner: Callable[[GeneratorTask], None] = lambda task: task.run(bar)
+        self.queue = parallel.new_queue(runner, pin=True)
 
         def soft_exit(sig, frame):
             if self.queue.aborted:
