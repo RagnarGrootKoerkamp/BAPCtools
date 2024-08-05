@@ -3,11 +3,15 @@ import shutil
 import stat
 import subprocess
 import threading
+from typing import TYPE_CHECKING
+
+from colorama import Fore
 import yaml as yamllib
 
-from problem import Problem
 from util import *
-from colorama import Fore
+
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    from problem import Problem
 
 EXTRA_LANGUAGES = '''
 checktestdata:
@@ -99,7 +103,9 @@ def sanitizer():
 #
 # build() will return the (run_command, message) pair.
 class Program:
-    def __init__(self, problem: Problem, path: Path, deps=None, *, skip_double_build_warning=False):
+    def __init__(
+        self, problem: "Problem", path: Path, deps=None, *, skip_double_build_warning=False
+    ):
         if deps is not None:
             assert isinstance(self, Generator)
             assert isinstance(deps, list)

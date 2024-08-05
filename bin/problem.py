@@ -1,6 +1,5 @@
 import re
 import argparse
-import hashlib
 import shlex
 import sys
 import threading
@@ -11,7 +10,6 @@ from typing import Optional, Type
 import config
 import latex
 import parallel
-import program
 import run
 import testcase
 import validate
@@ -494,7 +492,7 @@ class Problem:
         bar.finalize(print_done=False)
 
         submissions = dict()
-        for verdict in config.VERDICTS:
+        for verdict in verdicts.VERDICTS:
             submissions[verdict] = []
 
         # Filter out broken submissions.

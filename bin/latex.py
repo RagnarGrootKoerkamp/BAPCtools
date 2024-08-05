@@ -1,29 +1,37 @@
 # Subcommands for building problem pdfs from the latex source.
 
 import os
-import util
 import re
-import tempfile
+import shutil
 import sys
 from pathlib import Path
-from colorama import Fore, Style
 from typing import Dict, Optional
 
+from colorama import Fore, Style
+
 import config
-import util
-import generate
-from problem import Problem
-from util import *
-from contest import *
+from contest import contest_yaml
+import problem
+from util import (
+    copy_and_substitute,
+    ensure_symlink,
+    exec_command,
+    fatal,
+    message,
+    MessageType,
+    PrintBar,
+    substitute,
+    tail,
+)
 
 
-def latex_builddir(problem: Problem, language: str) -> Path:
+def latex_builddir(problem: "problem.Problem", language: str) -> Path:
     builddir = problem.tmpdir / 'latex' / language
     builddir.mkdir(parents=True, exist_ok=True)
     return builddir
 
 
-def create_samples_file(problem: Problem, language: str) -> None:
+def create_samples_file(problem: "problem.Problem", language: str) -> None:
     builddir = latex_builddir(problem, language)
 
     # create the samples.tex file
@@ -155,11 +163,11 @@ def create_samples_file(problem: Problem, language: str) -> None:
 
 
 # Steps needed for both problem and contest compilation.
-def prepare_problem(problem: Problem, language: str):
+def prepare_problem(problem: "problem.Problem", language: str):
     create_samples_file(problem, language)
 
 
-def get_tl(problem: Problem):
+def get_tl(problem: "problem.Problem"):
     problem_config = problem.settings
     tl = problem_config.timelimit
     tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
@@ -244,7 +252,7 @@ def build_latex_pdf(
         if config.args.open is not None:
             latexmk_command.append('-pv')
     if isinstance(config.args.open, Path):
-        if shutil.which(f'{config.args.open}') == None:
+        if shutil.which(f'{config.args.open}') is None:
             bar.warn(f"'{config.args.open}' not found. Using latexmk fallback.")
             config.args.open = True
         else:
@@ -260,7 +268,7 @@ def build_latex_pdf(
 
     def run_latexmk(stdout, stderr):
         logfile.unlink(True)
-        return util.exec_command(
+        return exec_command(
             latexmk_command,
             crop=False,
             preexec_fn=False,  # firefox and chrome crash with preexec_fn...
@@ -310,7 +318,7 @@ def build_latex_pdf(
 #    substituting variables.
 # 2. Create tmpdir/<problem>/latex/<language>/samples.tex.
 # 3. Run latexmk and link the resulting problem.<language>.pdf into the problem directory.
-def build_problem_pdf(problem: Problem, language: str, solution=False, web=False):
+def build_problem_pdf(problem: "problem.Problem", language: str, solution=False, web=False):
     """
     Arguments:
     -- language: str, the two-letter language code appearing the file name, such as problem.en.tex
@@ -326,7 +334,7 @@ def build_problem_pdf(problem: Problem, language: str, solution=False, web=False
     builddir = latex_builddir(problem, language)
 
     local_data = Path(main_file)
-    util.copy_and_substitute(
+    copy_and_substitute(
         local_data if local_data.is_file() else config.tools_root / 'latex' / main_file,
         builddir / main_file,
         {
@@ -385,7 +393,12 @@ def find_logo() -> Path:
 
 
 def build_contest_pdf(
-    contest: str, problems: list[Problem], tmpdir: Path, language: str, solutions=False, web=False
+    contest: str,
+    problems: list["problem.Problem"],
+    tmpdir: Path,
+    language: str,
+    solutions=False,
+    web=False,
 ) -> bool:
     builddir = tmpdir / contest / 'latex'
     builddir.mkdir(parents=True, exist_ok=True)
@@ -412,7 +425,7 @@ def build_contest_pdf(
     config_data['logofile'] = find_logo().as_posix()
 
     local_contest_data = Path('contest_data.tex')
-    util.copy_and_substitute(
+    copy_and_substitute(
         (
             local_contest_data
             if local_contest_data.is_file()
@@ -457,7 +470,7 @@ def build_contest_pdf(
                 bar.warn(f'solution.{language}.tex not found', problem.name)
                 continue
 
-        problems_data += util.substitute(
+        problems_data += substitute(
             per_problem_data,
             {
                 'problemlabel': problem.label,

@@ -7,19 +7,9 @@ import re
 from pathlib import Path
 from typing import Literal, Optional
 
-from verdicts import Verdict
-
 # return values
 RTV_AC = 42
 RTV_WA = 43
-
-VERDICTS = [
-    Verdict.ACCEPTED,
-    Verdict.WRONG_ANSWER,
-    Verdict.TIME_LIMIT_EXCEEDED,
-    Verdict.RUNTIME_ERROR,
-    Verdict.COMPILER_ERROR,
-]
 
 SUBMISSION_DIRS = [
     'accepted',

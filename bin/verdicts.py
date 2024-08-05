@@ -54,6 +54,15 @@ class Verdict(Enum):
         }[self]
 
 
+VERDICTS = [
+    Verdict.ACCEPTED,
+    Verdict.WRONG_ANSWER,
+    Verdict.TIME_LIMIT_EXCEEDED,
+    Verdict.RUNTIME_ERROR,
+    Verdict.COMPILER_ERROR,
+]
+
+
 class RunUntil(Enum):
     # Run until the lexicographically first error is known.
     FIRST_ERROR = 1

@@ -1,12 +1,10 @@
 """ Test case """
 
-import os
 from pathlib import Path
-from typing import Type, Literal
+from typing import Type
 
 from util import (
     fatal,
-    is_relative_to,
     combine_hashes_dict,
     shorten_path,
     print_name,
@@ -14,8 +12,8 @@ from util import (
     ExecStatus,
 )
 from colorama import Fore, Style
-from validate import Validator, InputValidator, AnswerValidator, OutputValidator, Mode, sanity_check
 import config
+import validate
 
 
 class Testcase:
@@ -120,12 +118,12 @@ class Testcase:
         or ["--max_N", "50"] or even [""].
         None if no flags were found
         """
-        if not isinstance(validator, Validator):
+        if not isinstance(validator, validate.Validator):
             raise ValueError(f"Validator expected, got {validator}")
 
         key, name = (
             ('input_validator_flags', validator.name)
-            if isinstance(validator, InputValidator)
+            if isinstance(validator, validate.InputValidator)
             else ('output_validator_flags', None)
         )
 
@@ -138,7 +136,7 @@ class Testcase:
             fatal(f'{key} must be a string in testdata.yaml, got {flags}')
         return flags.split()
 
-    def validator_hashes(self, cls: Type[Validator], bar):
+    def validator_hashes(self, cls: Type["validate.Validator"], bar):
         """
         Returns
         -------
@@ -149,7 +147,7 @@ class Testcase:
              - hash
         indicating which validators will be run for this testcase.
         """
-        assert cls in [InputValidator, AnswerValidator, OutputValidator]
+        assert cls in [validate.InputValidator, validate.AnswerValidator, validate.OutputValidator]
         validators = self.problem.validators(cls) or []
 
         d = dict()
@@ -173,7 +171,7 @@ class Testcase:
 
     def validate_format(
         self,
-        mode: Mode,
+        mode: "validate.Mode",
         *,
         bar,
         constraints=None,
@@ -183,31 +181,35 @@ class Testcase:
         check_constraints = constraints is not None
 
         match mode:
-            case Mode.INPUT:
+            case validate.Mode.INPUT:
                 return self._run_validators(
-                    Mode.INPUT,
-                    self.problem.validators(InputValidator, check_constraints=check_constraints),
+                    validate.Mode.INPUT,
+                    self.problem.validators(
+                        validate.InputValidator, check_constraints=check_constraints
+                    ),
                     self.root == 'invalid_inputs',
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                     args=args,
                 )
-            case Mode.ANSWER:
+            case validate.Mode.ANSWER:
                 return self._run_validators(
-                    Mode.ANSWER,
-                    self.problem.validators(AnswerValidator, check_constraints=check_constraints),
+                    validate.Mode.ANSWER,
+                    self.problem.validators(
+                        validate.AnswerValidator, check_constraints=check_constraints
+                    ),
                     self.root == 'invalid_answers',
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
                     args=args,
                 )
-            case Mode.INVALID:
+            case validate.Mode.INVALID:
                 assert self.root in config.INVALID_CASE_DIRECTORIES[:-1]
 
                 ok = self.validate_format(
-                    Mode.INPUT,
+                    validate.Mode.INPUT,
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -220,7 +222,7 @@ class Testcase:
                 assert not self.problem.multipass
 
                 ok = self.validate_format(
-                    Mode.ANSWER,
+                    validate.Mode.ANSWER,
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -230,8 +232,8 @@ class Testcase:
                     return ok
 
                 return self._run_validators(
-                    Mode.INVALID,
-                    self.problem.validators(OutputValidator),
+                    validate.Mode.INVALID,
+                    self.problem.validators(validate.OutputValidator),
                     True,
                     bar=bar,
                     constraints=constraints,
@@ -243,7 +245,7 @@ class Testcase:
 
     def _run_validators(
         self,
-        mode: Mode,
+        mode: "validate.Mode",
         validators,
         expect_rejection,
         *,
@@ -257,7 +259,7 @@ class Testcase:
         results = []
         for validator in validators:
             name = validator.name
-            if type(validator) == OutputValidator and mode == Mode.ANSWER:
+            if type(validator) == validate.OutputValidator and mode == validate.Mode.ANSWER:
                 args += ['case_sensitive', 'space_change_sensitive']
                 name = f'{name} (ans)'
             flags = self.testdata_yaml_validator_flags(validator, bar)
@@ -296,11 +298,11 @@ class Testcase:
                 elif ret.out:
                     data = ret.out
 
-                if mode == Mode.INPUT:
+                if mode == validate.Mode.INPUT:
                     file = self.in_path
-                elif mode == Mode.ANSWER:
+                elif mode == validate.Mode.ANSWER:
                     file = self.ans_path
-                elif mode == Mode.INVALID:
+                elif mode == validate.Mode.INVALID:
                     assert self.out_path is not None
                     file = self.out_path
 
@@ -349,7 +351,7 @@ class Testcase:
                     bar.log('Moved to ' + print_name(anstarget))
 
             # Remove testcase if specified.
-            elif mode == Mode.INPUT and config.args.remove:
+            elif mode == validate.Mode.INPUT and config.args.remove:
                 bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
                 if self.in_path.exists():
                     self.in_path.unlink()
@@ -365,6 +367,8 @@ class Testcase:
         else:
             success = all(results)
             if success:
-                sanity_check(self.in_path if mode == Mode.INPUT else self.ans_path, bar)
+                validate.sanity_check(
+                    self.in_path if mode == validate.Mode.INPUT else self.ans_path, bar
+                )
 
         return success
