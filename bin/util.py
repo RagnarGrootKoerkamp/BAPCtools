@@ -33,7 +33,7 @@ except Exception:
     has_ryaml = False
 
 
-# For some reasong ryaml.load doesn't work well in parallel.
+# For some reason ryaml.load doesn't work well in parallel.
 ruamel_lock = threading.Lock()
 
 

@@ -1,5 +1,5 @@
 import program
-import re
+import testcase
 from util import *
 from enum import Enum
 
@@ -163,6 +163,15 @@ class Validator(program.Program):
             )
             return result
 
+    def run(
+        self,
+        testcase: testcase.Testcase,
+        mode,
+        constraints: Optional[ConstraintsDict] = None,
+        args=None,
+    ) -> ExecResult:
+        raise Exception("Abstract method")
+
 
 class InputValidator(Validator):
     """
@@ -235,10 +244,7 @@ class AnswerValidator(Validator):
 
     def run(
         self, testcase, mode=Mode.ANSWER, constraints: Optional[ConstraintsDict] = None, args=None
-    ):
-        """Return:
-        ExecResult
-        """
+    ) -> ExecResult:
 
         assert self.run_command is not None, "Validator should be built before running it"
 
@@ -282,7 +288,9 @@ class OutputValidator(Validator):
     subdir = 'output_validators'
     source_dirs = ['output_validator', 'output_validators']
 
-    def run(self, testcase, mode, constraints: Optional[ConstraintsDict] = None, args=None):
+    def run(
+        self, testcase, mode, constraints: Optional[ConstraintsDict] = None, args=None
+    ) -> ExecResult:
         """
         Run this validator on the given testcase.
 

@@ -1,21 +1,33 @@
 import os
+import shutil
+import subprocess
 import sys
 
-import program
+from colorama import Fore, Style
+
 import config
 import interactive
 import parallel
-from testcase import Testcase
+import problem
+import program
 import validate
-from verdicts import Verdicts, Verdict, from_string, from_string_domjudge, RunUntil
-from typing import Type
-
-from util import *
-from colorama import Fore, Style
+from util import (
+    crop_output,
+    ensure_symlink,
+    error,
+    ExecResult,
+    ExecStatus,
+    exec_command,
+    is_bsd,
+    is_windows,
+    ProgressBar,
+    warn,
+)
+from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdicts
 
 
 class Run:
-    def __init__(self, problem, submission, testcase):
+    def __init__(self, problem: "problem.Problem", submission, testcase):
         self.problem = problem
         self.submission = submission
         self.testcase = testcase
