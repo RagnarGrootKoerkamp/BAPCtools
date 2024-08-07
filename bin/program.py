@@ -83,14 +83,13 @@ def sanitizer():
 # - a generator
 # - a visualizer
 #
-# Supports two way of calling:
-# - Program(path): specify an absolute path, or relative path ('problem/generators/gen.py), and build the
-#   file/directory.
-# - Program(name, deps): specify a target name ('problem/generators/gen.py') and a list of
-#   dependencies (must be Path objects).
+# Constructor parameters:
+# - problem: The Problem to which this Program belongs
+# - path: main source file/directory: an absolute or relative path ('problem/generators/gen.py')
+# - subdir: the subdirectory in which this Program belongs ('generators', 'submissions', ...)
+# - deps (optional): a list of dependencies (must be Path objects)
 #
 # Member variables are:
-# - path:           source file/directory
 # - short_path:     the path relative to problem/subdir/, or None
 # - tmpdir:         the build directory in tmpfs. This is only created when build() is called.
 # - input_files:    list of source files linked into tmpdir
@@ -103,12 +102,14 @@ def sanitizer():
 #
 # build() will return the (run_command, message) pair.
 class Program:
+    input_files: list[Path]  # Populated in Program.build
+
     def __init__(
         self,
         problem: "Problem",
         path: Path,
         subdir: str,
-        deps=None,
+        deps: Optional[list[Path]] = None,
         *,
         skip_double_build_warning=False,
     ):

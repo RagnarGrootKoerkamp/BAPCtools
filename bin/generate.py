@@ -1722,7 +1722,6 @@ class GeneratorConfig:
             programs = []
             for program_path in program_paths:
                 path = self.problem.path / program_path
-                deps = None
                 if program_type is program.Generator and program_path in self.generators:
                     deps = [Path(self.problem.path) / d for d in self.generators[program_path]]
                     programs.append(program.Generator(self.problem, path, deps=deps))
