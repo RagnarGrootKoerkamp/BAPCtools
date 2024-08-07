@@ -82,10 +82,11 @@ class Validator(program.Program):
     def __repr__(self):
         return type(self).__name__ + ': ' + str(self.path)
 
-    def __init__(self, problem, path, skip_double_build_warning=False, check_constraints=False):
-        program.Program.__init__(
-            self, problem, path, skip_double_build_warning=skip_double_build_warning
-        )
+    def __init__(
+        self, problem, path, subdir, skip_double_build_warning=False, check_constraints=False
+    ):
+        super().__init__(problem, path, subdir, skip_double_build_warning=skip_double_build_warning)
+        assert self.__class__ is not Validator  # Validator is abstract and may not be instantiated
 
         if check_constraints:
             self.tmpdir: Path = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
@@ -182,10 +183,12 @@ class InputValidator(Validator):
     Also supports checktestdata and viva files, with different invocation.
     """
 
+    def __init__(self, problem, path, **kwargs):
+        super().__init__(problem, path, 'input_validators', **kwargs)
+
     def __str__(self):
         return "input"
 
-    subdir = 'input_validators'
     source_dirs = ['input_validators', 'input_format_validators']
 
     def run(
@@ -236,10 +239,12 @@ class AnswerValidator(Validator):
     Also supports checktestdata and viva files, with different invocation.
     """
 
+    def __init__(self, problem, path, **kwargs):
+        super().__init__(problem, path, 'answer_validators', **kwargs)
+
     def __str__(self):
         return "answer"
 
-    subdir = 'answer_validators'
     source_dirs = ['answer_validators', 'answer_format_validators']
 
     def run(
@@ -282,10 +287,12 @@ class OutputValidator(Validator):
        ./validator input answer feedbackdir [arguments from problem.yaml] < output
     """
 
+    def __init__(self, problem, path, **kwargs):
+        super().__init__(problem, path, 'output_validators', **kwargs)
+
     def __str__(self):
         return "output"
 
-    subdir = 'output_validators'
     source_dirs = ['output_validator', 'output_validators']
 
     def run(

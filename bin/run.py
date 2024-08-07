@@ -218,10 +218,10 @@ class Run:
 
 
 class Submission(program.Program):
-    subdir = 'submissions'
-
     def __init__(self, problem, path, skip_double_build_warning=False):
-        super().__init__(problem, path, skip_double_build_warning=skip_double_build_warning)
+        super().__init__(
+            problem, path, 'submissions', skip_double_build_warning=skip_double_build_warning
+        )
 
         self.verdict = None
         self.duration = None
@@ -576,7 +576,7 @@ class Submission(program.Program):
             bar.start(name)
             # Reinitialize the underlying program, so that changed to the source
             # code can be picked up in build.
-            super().__init__(self.problem, self.path, skip_double_build_warning=True)
+            super().__init__(self.problem, self.path, self.subdir, skip_double_build_warning=True)
             bar.log('from stdin' if is_tty else 'from file')
 
             # Launch a separate thread to pass stdin to a pipe.

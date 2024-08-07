@@ -104,14 +104,20 @@ def sanitizer():
 # build() will return the (run_command, message) pair.
 class Program:
     def __init__(
-        self, problem: "Problem", path: Path, deps=None, *, skip_double_build_warning=False
+        self,
+        problem: "Problem",
+        path: Path,
+        subdir: str,
+        deps=None,
+        *,
+        skip_double_build_warning=False,
     ):
         if deps is not None:
             assert isinstance(self, Generator)
             assert isinstance(deps, list)
             assert len(deps) > 0
 
-        assert self.__class__ is not Program
+        assert self.__class__ is not Program  # Program is abstract and may not be instantiated
 
         # Make sure we never try to build the same program twice. That'd be stupid.
         if not skip_double_build_warning:
@@ -121,8 +127,9 @@ class Program:
             problem._programs[path] = self
 
         self.bar = None
-        self.path = path
         self.problem = problem
+        self.path = path
+        self.subdir = subdir
 
         # Set self.name and self.tmpdir.
         # Ideally they are the same as the path inside the problem, but fallback to just the name.
@@ -133,16 +140,16 @@ class Program:
             )
             self.short_path = relpath
             self.name = str(relpath)
-            self.tmpdir: Path = problem.tmpdir / self.subdir / relpath
+            self.tmpdir = problem.tmpdir / self.subdir / relpath
         except ValueError:
             self.short_path = Path(path.name)
             self.name = str(path.name)
-            self.tmpdir: Path = problem.tmpdir / self.subdir / path.name
+            self.tmpdir = problem.tmpdir / self.subdir / path.name
 
         self.compile_command = None
         self.run_command: Optional[list[str]] = None
         self.hash = None
-        self.env = {}
+        self.env: dict[str, int | str | Path] = {}
 
         self.ok = True
         self.built = False
@@ -488,7 +495,8 @@ class Program:
 
 
 class Generator(Program):
-    subdir = 'generators'
+    def __init__(self, problem: "Problem", path: Path, **kwargs):
+        super().__init__(problem, path, 'generators', **kwargs)
 
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
@@ -542,7 +550,8 @@ class Generator(Program):
 
 
 class Visualizer(Program):
-    subdir = 'visualizers'
+    def __init__(self, problem: "Problem", path: Path, **kwargs):
+        super().__init__(problem, path, 'visualizers', **kwargs)
 
     # Run the visualizer.
     # Stdin and stdout are not used.

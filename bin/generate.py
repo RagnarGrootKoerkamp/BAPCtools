@@ -1715,23 +1715,26 @@ class GeneratorConfig:
 
         self.root_dir.walk(collect_programs, dir_f=None)
 
-        def build_programs(program_type, program_paths):
+        def build_programs(
+            program_type: type[program.Generator | program.Visualizer | run.Submission],
+            program_paths: set[Path],
+        ):
             programs = []
             for program_path in program_paths:
                 path = self.problem.path / program_path
                 deps = None
                 if program_type is program.Generator and program_path in self.generators:
                     deps = [Path(self.problem.path) / d for d in self.generators[program_path]]
-                    programs.append(program_type(self.problem, path, deps=deps))
+                    programs.append(program.Generator(self.problem, path, deps=deps))
                 else:
                     if program_type is run.Submission:
                         programs.append(
-                            program_type(self.problem, path, skip_double_build_warning=True)
+                            run.Submission(self.problem, path, skip_double_build_warning=True)
                         )
                     else:
                         programs.append(program_type(self.problem, path))
 
-            bar = ProgressBar('Build ' + program_type.subdir, items=programs)
+            bar = ProgressBar(f'Build {program_type.__name__.lower()}s', items=programs)
 
             def build_program(p):
                 localbar = bar.start(p)
