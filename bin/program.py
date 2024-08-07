@@ -127,7 +127,6 @@ class Program:
                 assert path not in problem._programs
             problem._programs[path] = self
 
-        self.bar = None
         self.problem = problem
         self.path = path
         self.subdir = subdir
@@ -193,7 +192,7 @@ class Program:
     language: Optional[str]
 
     # Sets self.language and self.env['mainfile']
-    def _get_language(self, deps=None):
+    def _get_language(self, bar: ProgressBar):
         fallback = False
         candidates = []
         for lang in languages():
@@ -226,7 +225,7 @@ class Program:
                     fallback = True
                     if exe not in Program.warn_cache:
                         if config.args.verbose:
-                            self.bar.debug(
+                            bar.debug(
                                 f'Compile program {exe} not found for language {name}. Falling back to lower priority languages.'
                             )
                             Program.warn_cache.add(exe)
@@ -238,7 +237,7 @@ class Program:
                 if exe not in Program.warn_cache:
                     if config.args.verbose:
                         Program.warn_cache.add(exe)
-                        self.bar.debug(
+                        bar.debug(
                             f'Run program {exe} not found for language {name}. Falling back to lower priority languages.'
                         )
                 continue
@@ -247,11 +246,11 @@ class Program:
                 if lang not in Program.warn_cache:
                     if config.args.verbose:
                         Program.warn_cache.add(lang)
-                        self.bar.debug(f'Falling back to {languages()[lang]["name"]}.')
+                        bar.debug(f'Falling back to {languages()[lang]["name"]}.')
 
             if len(files) == 0:
                 self.ok = False
-                self.bar.error(f'No file detected for language {name} at {self.path}.')
+                bar.error(f'No file detected for language {name} at {self.path}.')
                 return False
 
             self.language = lang
@@ -265,7 +264,7 @@ class Program:
                             mainfile = f
                     mainfile = mainfile or sorted(files)[0]
             else:
-                mainfile = self.tmpdir / deps[0].name
+                mainfile = self.tmpdir / self.source_files[0].name
 
             mainclass = str(mainfile.with_suffix('').name)
             self.env = {
@@ -290,20 +289,20 @@ class Program:
 
         # The for loop did not find a suitable language.
         self.ok = False
-        self.bar.error(f'No language detected for {self.path}.')
+        bar.error(f'No language detected for {self.path}.')
         return False
 
-    def _checks(self):
+    def _checks(self, bar: ProgressBar):
         # Make sure C++ does not depend on stdc++.h, because it's not portable.
         if self.language == 'cpp':
             for f in self.source_files:
                 try:
                     if f.read_text().find('bits/stdc++.h') != -1:
                         if 'validators/' in str(f):
-                            self.bar.error(f'Must not depend on bits/stdc++.h.', resume=True)
+                            bar.error(f'Must not depend on bits/stdc++.h.', resume=True)
                             break
                         else:
-                            self.bar.log(f'Should not depend on bits/stdc++.h')
+                            bar.log(f'Should not depend on bits/stdc++.h')
                             break
                 except UnicodeDecodeError:
                     pass
@@ -333,11 +332,11 @@ class Program:
                                     bad_random.add(s)
                         if bad_random:
                             bad_message = ', '.join(bad_random)
-                            self.bar.warn(
+                            bar.warn(
                                 f'Calling {bad_message} in {f.name} is implementation dependent in C++. Use <validation.h> instead, or add `// bt ignore` to the line.'
                             )
                         if text.find('typeid(') != -1:
-                            self.bar.warn(
+                            bar.warn(
                                 f'Calling typeid() in {f.name} is implementation dependent in C++.'
                             )
                     except UnicodeDecodeError:
@@ -348,14 +347,14 @@ class Program:
                         text = f.read_text()
                         for s in ['list(set(']:
                             if text.find(s) != -1:
-                                self.bar.warn(
+                                bar.warn(
                                     f'The order of sets is not fixed across implementations. Please sort the list!'
                                 )
                     except UnicodeDecodeError:
                         pass
 
     # Return True on success.
-    def _compile(self):
+    def _compile(self, bar: ProgressBar):
         meta_path = self.tmpdir / 'meta_.yaml'
 
         # Remove all non-source files.
@@ -381,7 +380,7 @@ class Program:
             )
         except FileNotFoundError as err:
             self.ok = False
-            self.bar.error('Failed', str(err))
+            bar.error('Failed', str(err))
             return False
 
         if not ret.status:
@@ -391,7 +390,7 @@ class Program:
             if ret.out is not None:
                 data += strip_newline(ret.out) + '\n'
             self.ok = False
-            self.bar.error('Failed', data)
+            bar.error('Failed', data)
             return False
 
         yamllib.dump(
@@ -400,27 +399,26 @@ class Program:
         return True
 
     # Return True on success, False on failure.
-    def build(self, bar):
+    def build(self, bar: ProgressBar):
         assert not self.built
         self.built = True
 
         if not self.ok:
             return False
-        self.bar = bar
 
         if len(self.source_files) == 0:
             self.ok = False
             if self.path.is_dir():
-                self.bar.error(f'{self.short_path} is an empty directory.')
+                bar.error(f'{self.short_path} is an empty directory.')
             else:
-                self.bar.error(f'{self.path} does not exist.')
+                bar.error(f'{self.path} does not exist.')
             return False
 
         # Check file names.
         for f in self.source_files:
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
                 self.ok = False
-                self.bar.error(f'{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
+                bar.error(f'{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
                 return False
 
         # Link all source_files
@@ -434,15 +432,15 @@ class Program:
             self.input_files.append(self.tmpdir / f.name)
             if not f.is_file():
                 self.ok = False
-                self.bar.error(f'{str(f)} is not a file')
+                bar.error(f'{str(f)} is not a file')
                 return False
             hashes.append(hash_file(f))
         self.hash = combine_hashes(hashes)
 
-        if not self._get_language(self.source_files):
+        if not self._get_language(bar):
             return False
 
-        self._checks()
+        self._checks(bar)
 
         # A file containing the compile command and hash.
         meta_path = self.tmpdir / 'meta_.yaml'
@@ -475,7 +473,7 @@ class Program:
             )
 
         if not up_to_date or config.args.force_build:
-            if not self._compile():
+            if not self._compile(bar):
                 return False
 
         if self.path in self.problem._program_callbacks:
