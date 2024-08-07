@@ -146,9 +146,9 @@ class Program:
             self.name = str(path.name)
             self.tmpdir = problem.tmpdir / self.subdir / path.name
 
-        self.compile_command = None
+        self.compile_command: Optional[list[str]] = None
         self.run_command: Optional[list[str]] = None
-        self.hash = None
+        self.hash: Optional[str] = None
         self.env: dict[str, int | str | Path] = {}
 
         self.ok = True
@@ -393,9 +393,7 @@ class Program:
             bar.error('Failed', data)
             return False
 
-        yamllib.dump(
-            {'hash': self.hash, 'command': ' '.join(self.compile_command)}, meta_path.open('w')
-        )
+        yamllib.dump({'hash': self.hash, 'command': self.compile_command}, meta_path.open('w'))
         return True
 
     # Return True on success, False on failure.
@@ -468,8 +466,8 @@ class Program:
         up_to_date = False
         if meta_path.is_file():
             meta_yaml = read_yaml(meta_path)
-            up_to_date = meta_yaml['hash'] == self.hash and meta_yaml['command'] == ' '.join(
-                self.compile_command
+            up_to_date = (
+                meta_yaml['hash'] == self.hash and meta_yaml['command'] == self.compile_command
             )
 
         if not up_to_date or config.args.force_build:
