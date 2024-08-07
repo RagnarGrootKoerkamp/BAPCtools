@@ -193,9 +193,6 @@ class Program:
 
     # Sets self.language and self.env['mainfile']
     def _get_language(self, deps=None):
-        # language, matching files, priority
-        best = (None, [], 0)
-        message = None
         fallback = False
         candidates = []
         for lang in languages():
@@ -224,27 +221,25 @@ class Program:
             # Make sure we can run programs for this language.
             if 'compile' in lang_conf:
                 exe = lang_conf['compile'].split()[0]
-                if exe[0] != '{' and shutil.which(exe) == None:
-                    if best[0] is None or priority >= best[2]:
-                        fallback = True
-                        if exe not in Program.warn_cache:
-                            if config.args.verbose:
-                                self.bar.debug(
-                                    f'Compile program {exe} not found for language {name}. Falling back to lower priority languages.'
-                                )
-                                Program.warn_cache.add(exe)
+                if exe[0] != '{' and shutil.which(exe) is None:
+                    fallback = True
+                    if exe not in Program.warn_cache:
+                        if config.args.verbose:
+                            self.bar.debug(
+                                f'Compile program {exe} not found for language {name}. Falling back to lower priority languages.'
+                            )
+                            Program.warn_cache.add(exe)
                     continue
             assert 'run' in lang_conf
             exe = lang_conf['run'].split()[0]
-            if exe[0] != '{' and shutil.which(exe) == None:
+            if exe[0] != '{' and shutil.which(exe) is None:
                 fallback = True
-                if best[0] is None or priority >= best[2]:
-                    if exe not in Program.warn_cache:
-                        if config.args.verbose:
-                            Program.warn_cache.add(exe)
-                            self.bar.debug(
-                                f'Run program {exe} not found for language {name}. Falling back to lower priority languages.'
-                            )
+                if exe not in Program.warn_cache:
+                    if config.args.verbose:
+                        Program.warn_cache.add(exe)
+                        self.bar.debug(
+                            f'Run program {exe} not found for language {name}. Falling back to lower priority languages.'
+                        )
                 continue
 
             if fallback:
@@ -346,7 +341,7 @@ class Program:
                             )
                     except UnicodeDecodeError:
                         pass
-            if 'py' in self.language:
+            if self.language and 'py' in self.language:
                 for f in self.source_files:
                     try:
                         text = f.read_text()
