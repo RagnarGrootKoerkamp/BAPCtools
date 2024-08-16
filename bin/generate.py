@@ -908,10 +908,16 @@ class TestcaseRule(Rule):
             if config.args.no_solution:
                 return True
 
-            solution_hash = {
-                'solution_hash': t.config.solution.hash(),
-                'solution': t.config.solution.cache_command(),
-            }
+            if t.config.solution is not None:
+                solution_hash = {
+                    'solution_hash': t.config.solution.hash(),
+                    'solution': t.config.solution.cache_command(),
+                }
+            else:
+                solution_hash = {
+                    'solution_hash': None,
+                    'solution': None,
+                }
 
             def needed(ext):
                 if ext in meta_yaml['generated_extensions']:
