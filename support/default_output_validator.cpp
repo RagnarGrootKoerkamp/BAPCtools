@@ -52,28 +52,32 @@ namespace util {
 		return true;
 	}
 
+	template<bool EMPTY = false>
 	constexpr bool is_integer(std::string_view token) {
-		if (token.substr(0, 1) == "-") token.remove_prefix(1);  // ignore optional - sign
-		if (token.empty()) return false;                        // integers need at least one digit
-		if (token.size() > 1 and token[0] == '0') return false; // integers do not start with 0 (unless they are exactly "0")
-		if (not is_digits(token)) return false;                 // integers are just digits
+		if (token.find_first_of("+-") == 0) token.remove_prefix(1); // ignore optional +- sign
+		if (token.empty()) return EMPTY;                            // integers need at least one digit
+		if (token.size() > 1 and token[0] == '0') return false;     // integers do not start with 0 (unless they are exactly "0")
+		if (not is_digits(token)) return false;                     // integers are just digits
 		return true;
 	}
 
 	constexpr bool is_decimal(std::string_view token) {
-		std::size_t dot = token.find('.');
-		if (not is_integer(token.substr(0, dot))) return false;                        // decimals before the dot are *non empty* integers
+		std::size_t dot = token.find('.');                                             // dot is optional separator
+		if (dot > 0 && not is_integer<true>(token.substr(0, dot))) return false;       // decimals before the dot are integer or empty
 		if (dot < token.size() and not is_digits(token.substr(dot + 1))) return false; // decimals only have digits after the dot
+		bool hasSign = token.find_first_of("+-") == 0;                                 // ignore sign
+		bool hasDot = dot < token.size();                                              // ignore dot
+		if (token.size() <= hasSign + hasDot) return false;                            // decimals have at least one digit
 		return true;
 	}
 
 	constexpr bool is_float(std::string_view token) {
-		std::size_t e = token.find_first_of("eE");
-		if (not is_decimal(token.substr(0, e))) return false; // float is a decimal
-		if (e < token.size()) {                               // followed by an optional e[-+]?<digits>
-			bool has_sign = token[e + 1] == '-' || token[e + 1] == '+';
-			auto digits = token.substr(e + 1 + has_sign);
-			if (digits == "" or not is_digits(digits)) return false;
+		std::size_t e = token.find_first_of("eE");                      // exp indicator
+		if (not is_decimal(token.substr(0, e))) return false;           // floats starts with a decimal
+		if (e < token.size()) {                                         // optional exponent
+			token.remove_prefix(e + 1);                                 // ignore decimal part
+			if (token.find_first_of("+-") == 0) token.remove_prefix(1); // ignore optional +- sign of exponent
+			if (token.empty() or not is_digits(token)) return false;    // exponent must be non empty digits
 		}
 		return true;
 	}
