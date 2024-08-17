@@ -155,7 +155,7 @@ def run_interactive_testcase(
                 break
             elif not run._prepare_nextpass(nextpass):
                 break
-            elif pass_id >= self.problem.limits.validation_passes:
+            elif pass_id >= run.problem.limits.validation_passes:
                 bar.error(f'exceeded limit of validation_passes', resume=True)
                 verdict = Verdict.VALIDATOR_CRASH
                 break
@@ -419,7 +419,7 @@ while True:
             break
         elif not run._prepare_nextpass(nextpass):
             break
-        elif pass_id >= self.problem.limits.validation_passes:
+        elif pass_id >= run.problem.limits.validation_passes:
             bar.error(f'exceeded limit of validation_passes', resume=True)
             verdict = Verdict.VALIDATOR_CRASH
             break
