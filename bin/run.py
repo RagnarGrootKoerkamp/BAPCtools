@@ -52,11 +52,11 @@ class Run:
                 assert not interaction.is_relative_to(self.tmpdir)
                 interaction = interaction.open('a')
             nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else False
-            last_pass = 0
+            pass_id = 0
             max_duration = 0
             tle_result = None
             while True:
-                last_pass += 1
+                pass_id += 1
                 result = self.submission.run(self.in_path, self.out_path)
                 max_duration = max(max_duration, result.duration)
 
@@ -78,7 +78,7 @@ class Run:
                     result.verdict = Verdict.TIME_LIMIT_EXCEEDED
                     if tle_result is None:
                         tle_result = result
-                        tle_result.pass_id = last_pass if self.problem.multipass else None
+                        tle_result.pass_id = pass_id if self.problem.multipass else None
                     else:
                         tle_result.timeout_expired |= result.timeout_expired
                     if not self._continue_with_tle(result.verdict, result.timeout_expired):
@@ -119,6 +119,10 @@ class Run:
 
                 if not self._prepare_nextpass(nextpass):
                     break
+                elif pass_id >= self.problem.limits.validation_passes:
+                    bar.error(f'exceeded limit of validation_passes', resume=True)
+                    result.verdict = Verdict.VALIDATOR_CRASH
+                    break
 
                 if interaction:
                     print('---', file=interaction)
@@ -127,7 +131,7 @@ class Run:
                 interaction.close()
 
             if self.problem.multipass:
-                result.pass_id = last_pass
+                result.pass_id = pass_id
 
             if tle_result is not None:
                 result = tle_result

@@ -84,11 +84,11 @@ def run_interactive_testcase(
         if team_error is False:
             team_error = subprocess.PIPE
 
-        last_pass = 0
+        pass_id = 0
         max_duration = 0
         tle_result = None
         while True:
-            last_pass += 1
+            pass_id += 1
             # Start the validator.
             validator_command = get_validator_command()
             validator_process = subprocess.Popen(
@@ -137,7 +137,7 @@ def run_interactive_testcase(
                         _feedback(run, validator_err),
                         exec_res.err,
                         verdict,
-                        last_pass if run.problem.multipass else None,
+                        pass_id if run.problem.multipass else None,
                     )
                 else:
                     tle_result.timeout_expired |= max_duration >= timeout
@@ -155,6 +155,10 @@ def run_interactive_testcase(
                 break
             elif not run._prepare_nextpass(nextpass):
                 break
+            elif pass_id >= self.problem.limits.validation_passes:
+                bar.error(f'exceeded limit of validation_passes', resume=True)
+                verdict = Verdict.VALIDATOR_CRASH
+                break
 
         if tle_result is None:
             # Set result.err to validator error and result.out to team error.
@@ -166,7 +170,7 @@ def run_interactive_testcase(
                 _feedback(run, validator_err),
                 exec_res.err,
                 verdict,
-                last_pass if run.problem.multipass else None,
+                pass_id if run.problem.multipass else None,
             )
         else:
             tle_result.duration = max_duration
@@ -213,11 +217,11 @@ while True:
     new = l=='\n'
 '''
 
-    last_pass = 0
+    pass_id = 0
     max_duration = 0
     tle_result = None
     while True:
-        last_pass += 1
+        pass_id += 1
         validator_command = get_validator_command()
         validator = subprocess.Popen(
             validator_command,
@@ -406,7 +410,7 @@ while True:
                     val_err,
                     team_err,
                     verdict,
-                    last_pass if run.problem.multipass else None,
+                    pass_id if run.problem.multipass else None,
                 )
             else:
                 tle_result.timeout_expired |= aborted
@@ -414,6 +418,10 @@ while True:
         if not verdict and not self._continue_with_tle(verdict, aborted):
             break
         elif not run._prepare_nextpass(nextpass):
+            break
+        elif pass_id >= self.problem.limits.validation_passes:
+            bar.error(f'exceeded limit of validation_passes', resume=True)
+            verdict = Verdict.VALIDATOR_CRASH
             break
 
         if interaction:
@@ -431,7 +439,7 @@ while True:
             val_err,
             team_err,
             verdict,
-            last_pass if run.problem.multipass else None,
+            pass_id if run.problem.multipass else None,
         )
     else:
         tle_result.duration = max_duration

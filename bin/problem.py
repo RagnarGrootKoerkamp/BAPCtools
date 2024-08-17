@@ -116,6 +116,7 @@ class Problem:
             'validator_flags': [],
             'author': '',
             'uuid': None,
+            'limits': {},
         }
 
         yaml_path = self.path / 'problem.yaml'
@@ -175,6 +176,22 @@ class Problem:
             raw += f'\n# uuid added by BAPCtools\nuuid: {self.settings.uuid}\n'
             yaml_path.write_text(raw)
             log(f'Generated UUID for {self.name}, added to problem.yaml')
+
+        # TODO: implement other limits
+        # TODO move timelimit to this?
+        self.limits = {}
+
+        for k, v in self.settings.limits.items():
+            self.limits[k] = v
+
+        has_validation_passes = 'validation_passes' in self.limits
+        if self.multipass and not has_validation_passes:
+            self.limits['validation_passes'] = 2
+        if not self.multipass and has_validation_passes:
+            self.limits.pop('validation_passes')
+            warn('limit: validation_passes is only used for multipass problems. SKIPPED.')
+
+        self.limits = argparse.Namespace(**self.limits)
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / 'data')
