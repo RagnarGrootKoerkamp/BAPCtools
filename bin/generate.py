@@ -1687,9 +1687,9 @@ class GeneratorConfig:
         self.root_dir = parse('', lambda: '', yaml, RootDirectory())
 
     def build(self, build_visualizers=True):
-        generators_used = set()
-        solutions_used = set()
-        visualizers_used = set()
+        generators_used: set[Path] = set()
+        solutions_used: set[Path] = set()
+        visualizers_used: set[Path] = set()
 
         # Collect all programs that need building.
         # Also, convert the default submission into an actual Invocation.
