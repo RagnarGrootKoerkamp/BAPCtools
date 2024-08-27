@@ -22,6 +22,7 @@ from util import (
     PrintBar,
     substitute,
     tail,
+    warn,
 )
 
 
@@ -37,12 +38,11 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
     # create the samples.tex file
     # For samples, find all .in/.ans/.interaction pairs.
     samples = problem.statement_samples()
-    if samples is False:
-        samples = []
 
     samples_file_path = builddir / 'samples.tex'
 
-    if samples is []:
+    if not samples:
+        warn(f'Didn\'t find any statement samples for {problem.name}')
         samples_file_path.write_text('')
         return
 

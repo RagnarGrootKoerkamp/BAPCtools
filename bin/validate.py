@@ -186,8 +186,7 @@ class InputValidator(Validator):
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, 'input_validators', **kwargs)
 
-    def __str__(self):
-        return "input"
+    validator_type = "input"
 
     source_dirs = ['input_validators', 'input_format_validators']
 
@@ -242,8 +241,7 @@ class AnswerValidator(Validator):
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, 'answer_validators', **kwargs)
 
-    def __str__(self):
-        return "answer"
+    validator_type = "answer"
 
     source_dirs = ['answer_validators', 'answer_format_validators']
 
@@ -290,8 +288,7 @@ class OutputValidator(Validator):
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, 'output_validators', **kwargs)
 
-    def __str__(self):
-        return "output"
+    validator_type = "output"
 
     source_dirs = ['output_validator', 'output_validators']
 
@@ -355,6 +352,9 @@ class OutputValidator(Validator):
             _merge_constraints(constraints_path, constraints)
 
         return ret
+
+
+AnyValidator = InputValidator | AnswerValidator | OutputValidator
 
 
 # Checks if byte is printable or whitespace
