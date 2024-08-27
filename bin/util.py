@@ -15,7 +15,7 @@ import threading
 import time
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional, Sequence
+from typing import Any, NoReturn, Optional, Sequence
 
 import yaml as yamllib
 from colorama import Fore, Style
@@ -66,7 +66,7 @@ if not is_windows():
     import resource
 
 
-def exit1(force=False):
+def exit1(force=False) -> NoReturn:
     if force:
         sys.stdout.close()
         sys.stderr.close()
@@ -103,7 +103,7 @@ def error(msg: Any) -> None:
     config.n_error += 1
 
 
-def fatal(msg: Any, *, force=threading.active_count() > 1) -> None:
+def fatal(msg: Any, *, force=threading.active_count() > 1) -> NoReturn:
     print(f'\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
     exit1(force)
 
