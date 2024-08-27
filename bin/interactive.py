@@ -3,12 +3,15 @@ import time
 import subprocess
 import sys
 import threading
+from typing import Literal, Optional, TYPE_CHECKING
 
 import config
+from util import *
 import validate
 from verdicts import Verdict
 
-from util import *
+if TYPE_CHECKING:
+    from run import Run
 
 if not is_windows():
     import fcntl
@@ -19,17 +22,17 @@ BUFFER_SIZE = 2**20
 
 # Return a ExecResult object amended with verdict.
 def run_interactive_testcase(
-    run,
+    run: "Run",
     # False: Return as part of ExecResult
     # None: print to stdout
-    validator_error=False,
-    team_error=False,
+    validator_error: Literal[False] | None = False,
+    team_error: Literal[False] | None = False,
     *,
     # False/None: no output
     # True: stdout
     # else: path
-    interaction=False,
-    submission_args=None,
+    interaction: Optional[bool | Path] = False,
+    submission_args: Optional[list[str]] = None,
 ):
     output_validators = run.problem.validators(validate.OutputValidator)
     if output_validators is False:
@@ -47,6 +50,7 @@ def run_interactive_testcase(
 
     # Validator command
     def get_validator_command():
+        assert output_validator.run_command, "Output validator must be built"
         return (
             output_validator.run_command
             + [
@@ -79,13 +83,8 @@ def run_interactive_testcase(
     # This cannot handle cases where the validator reports WA and the submission timeout out
     # afterwards.
     if is_windows() or is_bsd():
-        if validator_error is False:
-            validator_error = subprocess.PIPE
-        if team_error is False:
-            team_error = subprocess.PIPE
-
         pass_id = 0
-        max_duration = 0
+        max_duration = 0.0
         tle_result = None
         while True:
             pass_id += 1
@@ -95,7 +94,7 @@ def run_interactive_testcase(
                 validator_command,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=validator_error,
+                stderr=subprocess.PIPE if validator_error is False else None,
                 cwd=validator_dir,
             )
 
@@ -106,7 +105,7 @@ def run_interactive_testcase(
                 submission_command,
                 stdin=validator_process.stdout,
                 stdout=validator_process.stdin,
-                stderr=team_error,
+                stderr=subprocess.PIPE if team_error is False else None,
                 cwd=submission_dir,
                 timeout=timeout,
             )
@@ -239,6 +238,8 @@ while True:
         # then we can wait for all program ins the same group
         gid = validator_pid
 
+        assert validator.stdin and validator.stdout
+
         set_pipe_size(validator.stdin)
         set_pipe_size(validator.stdout)
         if validator_error is False:
@@ -275,10 +276,13 @@ while True:
         )
         submission_pid = submission.pid
 
+        assert validator.stderr and submission.stderr
+
         if team_error is False:
             set_pipe_size(submission.stderr)
 
         stop_kill_handler = threading.Event()
+        submission_time: Optional[float] = None
 
         def kill_handler_function():
             if stop_kill_handler.wait(timeout + 1):
@@ -299,7 +303,6 @@ while True:
         # Will be filled in the loop below.
         validator_status = None
         submission_status = None
-        submission_time = None
         first = None
 
         # Wait for first to finish
@@ -319,6 +322,7 @@ while True:
                 # Close the output stream.
                 validator.stdout.close()
                 if interaction:
+                    assert val_tee.stdout
                     val_tee.stdout.close()
 
                 # Kill the team submission and everything else in case we already know it's WA.
@@ -334,6 +338,7 @@ while True:
                 # Close the output stream.
                 validator.stdin.close()
                 if interaction:
+                    assert team_tee.stdin
                     team_tee.stdin.close()
 
                 # Possibly already written by the alarm.
@@ -353,6 +358,7 @@ while True:
 
         stop_kill_handler.set()
 
+        assert submission_time is not None
         did_timeout = submission_time > timelimit
         aborted = submission_time >= timeout
         max_duration = max(max_duration, submission_time)
