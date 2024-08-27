@@ -124,7 +124,11 @@ and more information regarding the implementation is at [doc/implementation_note
 Without arguments, the `run` command runs all submissions against all testcases.
 Specify one or more submissions and one or more testcases to only run the given submissions against the given testcases.
 
-Before running the given submissions, this command first makes sure that all generated testcases are up to date (in case `generators/generators.yaml` was found).
+Before running the given submissions, this command first makes sure that all
+generated testcases are up to date (in case `generators/generators.yaml` was
+found). To disable automatically regenerating testcases, pass `-G`
+(`--no-generate`), or add `no_generate: true` to a `.bapctools.yaml` file in the
+problem or contest directory.
 
 ![run](doc/images/run.gif)
 
