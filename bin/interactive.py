@@ -123,7 +123,7 @@ def run_interactive_testcase(
                 config.n_error += 1
                 verdict = Verdict.VALIDATOR_CRASH
             elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-                bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
+                error(f'got WRONG_ANSWER but found nextpass.in')
                 verdict = Verdict.VALIDATOR_CRASH
             elif tend - tstart > timelimit:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -147,11 +147,13 @@ def run_interactive_testcase(
                 verdict = Verdict.WRONG_ANSWER
             elif validator_status == config.RTV_AC:
                 verdict = Verdict.ACCEPTED
+            else:
+                verdict = Verdict.VALIDATOR_CRASH
 
             if not validator_err:
                 validator_err = bytes()
 
-            if not result.verdict and not self._continue_with_tle(verdict, max_duration >= timeout):
+            if not verdict and not run._continue_with_tle(verdict, max_duration >= timeout):
                 break
             elif not run._prepare_nextpass(nextpass):
                 break
@@ -368,7 +370,7 @@ while True:
             config.n_error += 1
             verdict = Verdict.VALIDATOR_CRASH
         elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-            bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
+            error(f'got WRONG_ANSWER but found nextpass.in')
             verdict = Verdict.VALIDATOR_CRASH
         elif aborted:
             verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -415,7 +417,7 @@ while True:
             else:
                 tle_result.timeout_expired |= aborted
 
-        if not verdict and not self._continue_with_tle(verdict, aborted):
+        if not verdict and not run._continue_with_tle(verdict, aborted):
             break
         elif not run._prepare_nextpass(nextpass):
             break
