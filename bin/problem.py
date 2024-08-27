@@ -5,7 +5,10 @@ import sys
 import threading
 
 from pathlib import Path
-from typing import Optional, Type
+from typing import Callable, Literal, Optional, Type, TYPE_CHECKING
+
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    from program import Program
 
 import config
 import latex
@@ -34,13 +37,19 @@ class Problem:
         self._read_settings()
 
         # Some caches.
-        self._testcases = dict()
-        self._submissions = None
-        self._validators_cache = dict()
-        self._programs = dict()
-        self._program_callbacks = dict()
+        self._testcases = dict[
+            tuple[Optional[validate.Mode], bool, bool], list[testcase.Testcase]
+        ]()
+        self._submissions: Optional[
+            dict[verdicts.Verdict, list[run.Submission]] | Literal[False]
+        ] = None
+        self._validators_cache = dict[  # The "bool" is for "check_constraints"
+            tuple[Type[validate.AnyValidator], bool], list[validate.AnyValidator]
+        ]()
+        self._programs = dict[Path, "Program"]()
+        self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
-        self._testdata_yamls = dict()
+        self._testdata_yamls = dict[Path, dict[str, Any]]()  # TODO Add type for testdata.yaml
         self._testdata_lock = threading.Lock()
 
         # The label for the problem: A, B, A1, A2, X, ...
@@ -266,7 +275,7 @@ class Problem:
         # parse and cache testdata.yaml
         p._parse_testdata_yaml(path, bar)
 
-        # exctract the flags
+        # extract the flags
         for dir in [path] + list(path.parents):
             # Do not go above the data directory.
             if dir == p.path:
@@ -290,13 +299,15 @@ class Problem:
                     elif name in flags[key]:
                         return flags[key][name]
 
+        return None
+
     def testcases(
         p,
         *,
-        mode=None,
+        mode: Optional[validate.Mode] = None,
         needans=True,
         only_samples=False,
-    ):
+    ) -> list[testcase.Testcase]:
         only_samples = config.args.samples or only_samples
 
         key = (mode, needans, only_samples)
@@ -358,10 +369,10 @@ class Problem:
         if len(testcases) == 0:
             ans = ' with answer' if needans and mode != validate.Mode.INVALID else ''
             val = f' for {mode} validation' if mode is not None else ''
+            # TODO perhaps move this log to the use site?
             (log if mode == validate.Mode.INVALID else warn)(
                 f'Didn\'t find any testcases{ans}{val} in problem {p.name}. Skipping.'
             )
-            testcases = False
 
         p._testcases[key] = testcases
         return testcases
@@ -370,7 +381,7 @@ class Problem:
     # - (Path, Path): (.in, .ans) pair
     # - (Path, Path): (.in.statement, .ans.statement) pair
     # -  Path       :  .interaction file
-    def statement_samples(p):
+    def statement_samples(p) -> list[Path | tuple[Path, Path]]:
         statement_in_paths = list(glob(p.path, 'data/sample/**/*.in.statement'))
         interaction_paths = list(glob(p.path, 'data/sample/**/*.interaction'))
 
@@ -404,7 +415,7 @@ class Problem:
                 )
             interaction_paths = []
 
-        testcases = []
+        testcases = list[Path | tuple[Path, Path]]()
         for in_path in in_paths:
             ans_path = in_path.with_suffix('.ans')
             if not ans_path.is_file():
@@ -425,19 +436,17 @@ class Problem:
 
         testcases.sort()
 
-        if len(testcases) == 0:
-            warn(f'Didn\'t find any statement samples for {p.name}')
-            testcases = False
-
         return testcases
 
     # returns a map {expected verdict -> [(name, command)]}
-    def submissions(problem, accepted_only=False, copy=False):
+    def submissions(
+        problem, accepted_only=False, copy=False
+    ) -> dict[verdicts.Verdict, list["run.Submission"]] | list["run.Submission"] | Literal[False]:
         def maybe_copy(x):
-            return x.copy() if copy and isinstance(x, (list, dict)) else x
+            return x.copy() if copy else x
 
-        if problem._submissions is not None:
-            return maybe_copy(problem._submissions.copy())
+        if problem._submissions:
+            return problem._submissions.copy()
 
         paths = []
         if config.args.submissions:
@@ -491,7 +500,7 @@ class Problem:
 
         bar.finalize(print_done=False)
 
-        submissions = dict()
+        submissions = dict[verdicts.Verdict, list[run.Submission]]()
         for verdict in verdicts.VERDICTS:
             submissions[verdict] = []
 
@@ -501,10 +510,12 @@ class Problem:
                 submissions[p.expected_verdicts[0]].append(p)
 
         if sum(len(submissions[x]) for x in submissions) == 0:
-            submissions = False
+            problem._submissions = False
+            return False
+
         problem._submissions = submissions
         if accepted_only == 'all':
-            subs = []
+            subs = list[run.Submission]()
             for x in submissions:
                 subs += submissions[x]
             return subs
@@ -513,8 +524,8 @@ class Problem:
         return maybe_copy(submissions)
 
     def validators(
-        problem, cls: Type[validate.Validator], check_constraints=False, strict=False
-    ) -> list[validate.Validator]:
+        problem, cls: Type[validate.AnyValidator], check_constraints=False, strict=False
+    ) -> list[validate.AnyValidator]:
         """
         Gets the validators of the given class.
         If strict is true we only return the validators as the icpc specification indicates.
@@ -536,8 +547,9 @@ class Problem:
             return problem._validators(cls, check_constraints)
 
     def _validators(
-        problem, cls: Type[validate.Validator], check_constraints=False
-    ) -> list[validate.Validator]:
+        problem, cls: Type[validate.AnyValidator], check_constraints=False
+    ) -> list[validate.AnyValidator]:
+
         key = (cls, check_constraints)
         if key in problem._validators_cache:
             return problem._validators_cache[key]
@@ -594,7 +606,7 @@ class Problem:
             )
             for path in paths
         ]
-        bar = ProgressBar(f'Building {cls.__str__(cls)} validator', items=validators)
+        bar = ProgressBar(f'Building {cls.validator_type} validator', items=validators)
         build_ok = True
 
         def build_program(p):
@@ -617,7 +629,7 @@ class Problem:
     def run_submissions(problem):
         testcases = problem.testcases()
 
-        if testcases is False:
+        if not testcases:
             return False
 
         if problem.interactive:
@@ -684,7 +696,7 @@ class Problem:
                 return f'{Style.DIM}-{Style.RESET_ALL}'
 
         make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, tc), verdict_table))
-        resultant_count, resultant_id = dict(), dict()
+        resultant_count, resultant_id = dict[str, int](), dict[str, int]()
         special_id = 0
         for testcase in testcases:
             resultant = make_verdict(testcase)
@@ -695,7 +707,7 @@ class Problem:
                 special_id += 1
                 resultant_id[resultant] = special_id
 
-        scores = {}
+        scores = dict[str, float]()
         for t in testcases:
             scores[t.name] = 0
         for dct in verdict_table:
@@ -812,15 +824,10 @@ class Problem:
                     problem.validators(validate.AnswerValidator)
                 testcases = problem.testcases(mode=mode)
             case _:
-                ValueError(mode)
+                raise ValueError(mode)
 
-        needans = mode != validate.Mode.INPUT
-
-        if testcases is False:
-            return True
-        # TODO Why?
-
-        if len(testcases) == 0:
+        # If there are no testcases, validation succeeds
+        if not testcases:
             return True
 
         action = (
