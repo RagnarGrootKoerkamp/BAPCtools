@@ -114,7 +114,7 @@ def get_problems():
         if not isinstance(problemlist, list):
             fatal(f'problems.yaml must contain a problems: list.')
 
-        labels = dict()
+        labels = dict[str, str]()  # label -> shortname
         problems = []
         for p in problemlist:
             shortname = p['id']
@@ -145,6 +145,7 @@ def get_problems():
 
     problems = []
     if level == 'problem':
+        assert problem
         # If the problem is mentioned in problems.yaml, use that ID.
         problemsyaml = problems_yaml()
         if problemsyaml:
@@ -1043,13 +1044,16 @@ def read_personal_config():
     args = {}
 
     if is_windows():
-        home_config = Path(os.getenv('AppData'))
+        app_data = os.getenv('AppData')
+        if not app_data:
+            fatal("%AppData% does not exist")
+        home_config = Path(app_data)
     else:
-        home_config = (
-            Path(os.getenv('XDG_CONFIG_HOME'))
-            if os.getenv('XDG_CONFIG_HOME')
-            else Path(os.getenv('HOME')) / '.config'
-        )
+        home = os.getenv('HOME')
+        if not home:
+            fatal("$HOME does not exist")
+        xdg_config_home = os.getenv('XDG_CONFIG_HOME')
+        home_config = Path(xdg_config_home) if xdg_config_home else Path(home) / '.config'
 
     for config_file in [
         # Highest prio: contest directory
