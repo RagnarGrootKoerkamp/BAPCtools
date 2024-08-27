@@ -1,4 +1,5 @@
 import config
+import problem
 import run
 import random
 import generate
@@ -23,7 +24,7 @@ from verdicts import Verdict
 
 
 class GeneratorTask:
-    def __init__(self, fuzz, t, i, tmp_id):
+    def __init__(self, fuzz: "Fuzz", t, i, tmp_id):
         self.fuzz = fuzz
         self.generator = t.generator
         self.solution = t.config.solution
@@ -143,7 +144,7 @@ class SubmissionTask:
 
 
 class Fuzz:
-    def __init__(self, problem):
+    def __init__(self, problem: problem.Problem):
         self.generators_yaml_mutex = threading.Lock()
         self.problem = problem
 
@@ -174,7 +175,7 @@ class Fuzz:
         self.problem.validators(OutputValidator)
 
         # SUBMISSIONS
-        self.submissions = self.problem.submissions(accepted_only=True)
+        self.submissions = self.problem.selected_or_accepted_submissions()
 
     def run(self):
         if not has_ryaml:
@@ -185,7 +186,7 @@ class Fuzz:
             error('No invocations depending on {seed} found.')
             return False
 
-        if len(self.submissions) == 0:
+        if not self.submissions:
             error('No submissions found.')
             return False
 

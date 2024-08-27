@@ -438,20 +438,23 @@ class Problem:
 
         return testcases
 
-    # returns a map {expected verdict -> [(name, command)]}
-    def submissions(
-        problem, accepted_only=False, copy=False
-    ) -> dict[verdicts.Verdict, list["run.Submission"]] | list["run.Submission"] | Literal[False]:
-        def maybe_copy(x):
-            return x.copy() if copy else x
+    # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
+    def selected_or_accepted_submissions(problem) -> list["run.Submission"]:
+        submissions = problem.submissions()
+        if not submissions:
+            return []
+        if config.args.submissions:
+            return sum(submissions.values(), [])
+        else:
+            return submissions[verdicts.Verdict.ACCEPTED]
+
+    def submissions(problem) -> dict[verdicts.Verdict, list["run.Submission"]] | Literal[False]:
 
         if problem._submissions:
-            return problem._submissions.copy()
+            return {verdict: subs.copy() for verdict, subs in problem._submissions.items()}
 
         paths = []
         if config.args.submissions:
-            if accepted_only:
-                accepted_only = 'all'
 
             def add(s):
                 if s in paths:
@@ -472,7 +475,7 @@ class Problem:
                         if config.level == 'problem' or is_relative_to(problem.path, s):
                             add(s)
         else:
-            for s in glob(problem.path / 'submissions', ('accepted/*' if accepted_only else '*/*')):
+            for s in glob(problem.path / 'submissions', '*/*'):
                 if (
                     s.parent.name == 'time_limit_exceeded'
                     and config.RUNNING_TEST
@@ -514,14 +517,8 @@ class Problem:
             return False
 
         problem._submissions = submissions
-        if accepted_only == 'all':
-            subs = list[run.Submission]()
-            for x in submissions:
-                subs += submissions[x]
-            return subs
-        if accepted_only:
-            return maybe_copy(submissions[verdicts.Verdict.ACCEPTED])
-        return maybe_copy(submissions)
+
+        return submissions
 
     def validators(
         problem, cls: Type[validate.AnyValidator], check_constraints=False, strict=False
