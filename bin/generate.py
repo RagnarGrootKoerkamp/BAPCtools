@@ -9,10 +9,12 @@ import shutil
 import secrets
 
 from pathlib import Path, PurePosixPath, PurePath
+from typing import Callable, Literal, overload
 
 import config
 import inspect
 import parallel
+import problem
 import program
 import run
 import validate
@@ -98,7 +100,9 @@ class Invocation:
 
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
-    def __init__(self, problem, string, *, allow_absolute, allow_relative=True):
+    def __init__(
+        self, problem: problem.Problem, string: str, *, allow_absolute: bool, allow_relative=True
+    ):
         string = str(string)
         commands = string.split()
         command = commands[0]
@@ -124,7 +128,7 @@ class Invocation:
             raise ParseException('{seed(:[0-9]+)} may appear at most once.')
 
         # Automatically set self.program when that program has been built.
-        self.program = None
+        self.program: Optional[program.Generator | program.Visualizer | run.Submission] = None
 
         def callback(program):
             self.program = program
@@ -159,10 +163,6 @@ class Invocation:
 
         return [sub(arg) for arg in self.args]
 
-    # Interface only. Should be implemented by derived class.
-    def run(self, bar, cwd, name, seed):
-        assert False
-
 
 class GeneratorInvocation(Invocation):
     def __init__(self, problem, string):
@@ -170,6 +170,8 @@ class GeneratorInvocation(Invocation):
 
     # Try running the generator |retries| times, incrementing seed by 1 each time.
     def run(self, bar, cwd, name, seed, retries=1):
+        assert isinstance(self.program, program.Generator), "Generator program must be built!"
+
         for retry in range(retries):
             result = self.program.run(
                 bar, cwd, name, args=self._sub_args(seed=(seed + retry) % 2**31)
@@ -199,7 +201,10 @@ class VisualizerInvocation(Invocation):
 
     # Run the visualizer, taking {name} as a command line argument.
     # Stdin and stdout are not used.
-    def run(self, bar, cwd, name):
+    # {name} is no longer used and hardcoded to `testcase` (see #273), and {seed} is also not used.
+    def run(self, bar, cwd):
+        assert isinstance(self.program, program.Visualizer), "Visualizer program must be built!"
+
         result = self.program.run(cwd, args=self._sub_args())
 
         if result.status == ExecStatus.TIMEOUT:
@@ -221,6 +226,8 @@ class SolutionInvocation(Invocation):
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
     # If the .ans already exists, nothing is done
     def run(self, bar, cwd):
+        assert isinstance(self.program, run.Submission), "Submission program must be built!"
+
         in_path = cwd / 'testcase.in'
         ans_path = cwd / 'testcase.ans'
 
@@ -305,6 +312,7 @@ solution: /{config.args.default_solution}''',
 --default_solution {solution.relative_to(problem.path)}
 to use a specific solution.'''
             )
+    assert solution
     stored_solution.write_text(str(solution))
     return Path('/') / solution.relative_to(problem.path)
 
@@ -350,18 +358,21 @@ DEPRECATED_ROOT_KEYS = ['gitignore_generated']
 class Config:
     # Used at each directory or testcase level.
 
+    @staticmethod
     def parse_solution(p, x, path):
         assert_type('Solution', x, [type(None), str], path)
         if x is None:
             return None
         return SolutionInvocation(p, x)
 
+    @staticmethod
     def parse_visualizer(p, x, path):
         assert_type('Visualizer', x, [type(None), str], path)
         if x is None:
             return None
         return VisualizerInvocation(p, x)
 
+    @staticmethod
     def parse_random_salt(p, x, path):
         assert_type('Random_salt', x, [type(None), str], path)
         if x is None:
@@ -378,6 +389,11 @@ class Config:
         # by 1.
         ('retries', 1, lambda p, x, path: int(x)),
     ]
+
+    solution: SolutionInvocation
+    visualizer: Optional[VisualizerInvocation]
+    random_salt: str
+    retries: int
 
     def __init__(self, problem, path, yaml=None, parent_config=None):
         assert not yaml or isinstance(yaml, dict)
@@ -436,7 +452,7 @@ class TestcaseRule(Rule):
         self.hash = None
 
         # Yaml of rule
-        self.rule = {}
+        self.rule = dict[str, str | int]()
 
         # Used by `fuzz`
         self.in_is_generated = False
@@ -980,7 +996,7 @@ class TestcaseRule(Rule):
                 return True
 
             # Generate visualization
-            t.config.visualizer.run(bar, cwd, infile.stem)
+            t.config.visualizer.run(bar, cwd)
 
             meta_yaml['visualizer_hash'] = visualizer_hash
             write_yaml(meta_yaml, meta_path, allow_yamllib=True)
@@ -1116,7 +1132,14 @@ class RootDirectory:
 
 class Directory(Rule):
     # Process yaml object for a directory.
-    def __init__(self, problem, key, name: str, yaml: dict = None, parent=None):
+    def __init__(
+        self,
+        problem: problem.Problem,
+        key: str,
+        name: str,
+        yaml: dict,
+        parent: "AnyDirectory",
+    ):
         assert is_directory(yaml)
 
         # The root Directory object has name ''.
@@ -1170,9 +1193,9 @@ class Directory(Rule):
         self.numbered = False
 
         # List of child TestcaseRule/Directory objects, filled by parse().
-        self.data = []
+        self.data = list[TestcaseRule | Directory]()
         # Map of short_name => TestcaseRule, filled by parse().
-        self.includes = dict()
+        self.includes = dict[str, TestcaseRule]()
 
         # Sanity checks for possibly empty data.
         if 'data' not in yaml:
@@ -1205,6 +1228,23 @@ class Directory(Rule):
                             'Dictionary must contain exactly one named testcase/group.',
                             self.path,
                         )
+
+    @overload
+    def walk(
+        self,
+        testcase_f: Optional[Callable[["TestcaseRule | Directory"], Any]],
+        *,
+        dir_last=False,
+    ): ...
+
+    @overload
+    def walk(
+        self,
+        testcase_f: Optional[Callable[[TestcaseRule], Any]],
+        dir_f: Optional[Callable[["Directory"], Any]],
+        *,
+        dir_last=False,
+    ): ...
 
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
@@ -1322,7 +1362,11 @@ def numbered_testcase_name(basename, i, n):
         return number_prefix
 
 
+AnyDirectory = RootDirectory | Directory
+
+
 class GeneratorConfig:
+    @staticmethod
     def parse_generators(generators_yaml):
         assert_type('Generators', generators_yaml, dict)
         generators = {}
@@ -1348,8 +1392,10 @@ class GeneratorConfig:
 
     # Only used at the root directory level.
     ROOT_KEYS = [
-        ('generators', {}, parse_generators),
+        ('generators', dict[Path, list[Path]](), parse_generators),
     ]
+
+    generators: dict[Path, list[Path]]
 
     # Parse generators.yaml.
     def __init__(self, problem, restriction=None):
@@ -1367,7 +1413,9 @@ class GeneratorConfig:
         self.known_files = set()
         # A map from key to (is_included, list of testcases and directories),
         # used for `include` statements.
-        self.known_keys = collections.defaultdict(lambda: [False, []])
+        self.known_keys = collections.defaultdict[str, tuple[bool, list[TestcaseRule | Directory]]](
+            lambda: (False, [])
+        )
         # A set of testcase rules, including seeds.
         self.rules_cache = dict()
         # The set of generated testcases keyed by hash(testdata).
@@ -1390,7 +1438,7 @@ class GeneratorConfig:
             self.parse_yaml(yaml)
         except ParseException as e:
             # Handle fatal parse errors
-            message(e.message, 'generators.yaml', e.path, color_type=MessageType.ERROR)
+            message(e.message, 'generators.yaml', e.path, color_type=MessageType.FATAL)
             exit()
 
     # testcase_short_path: secret/1.in
@@ -1426,11 +1474,11 @@ class GeneratorConfig:
             else:
                 assert False
 
-            key = self.known_keys[obj.key]
-            key[1].append(obj)
-            if key[0] and len(key[1]) == 2:
+            is_included, cases_list = self.known_keys[obj.key]
+            cases_list.append(obj)
+            if is_included and len(cases_list) == 2:
                 message(
-                    f'Included key {name} exists more than once as {key[1][0].path} and {key[1][1].path}.',
+                    f'Included key {name} exists more than once as {cases_list[0].path} and {cases_list[1].path}.',
                     'generators.yaml',
                     obj.path,
                     color_type=MessageType.ERROR,
@@ -1493,7 +1541,7 @@ class GeneratorConfig:
         # key: the yaml key e.g. 'testcase'
         # name_gen: each call should result in the next (possibly numbered) name e.g. '01-testcase'
         # Returns either a single Rule or a list of Rules
-        def parse(key, name_gen, yaml, parent):
+        def parse(key: str, name_gen: Callable[[], str], yaml: dict, parent: AnyDirectory):
             name = name_gen()
             assert_type('Testcase/directory', yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
@@ -1545,7 +1593,7 @@ class GeneratorConfig:
             if 'data' in yaml and yaml['data']:
                 # Count the number of child testgroups.
                 num_testgroups = 0
-                for dictionary in d.data:
+                for dictionary in yaml['data']:
                     assert_type('Elements of data', dictionary, dict, d.path)
                     for child_name, child_yaml in sorted(dictionary.items()):
                         if is_directory(child_yaml):
@@ -1615,7 +1663,7 @@ class GeneratorConfig:
                             d.data.append(c)
 
             # Include TestcaseRule t for the current directory.
-            def add_included_case(t):
+            def add_included_case(t: TestcaseRule):
                 target = t.path
                 name = target.name
                 p = d.path / name
@@ -1654,8 +1702,8 @@ class GeneratorConfig:
                         continue
 
                     if include in self.known_keys:
-                        key = self.known_keys[include]
-                        if len(key[1]) != 1:
+                        is_included, cases_list = self.known_keys[include]
+                        if len(cases_list) != 1:
                             message(
                                 f'Included key {include} exists more than once.',
                                 'generators.yaml',
@@ -1664,8 +1712,8 @@ class GeneratorConfig:
                             )
                             continue
 
-                        key[0] = True
-                        obj = key[1][0]
+                        self.known_keys[include] = (True, cases_list)
+                        obj = cases_list[0]
                         if isinstance(obj, TestcaseRule):
                             add_included_case(obj)
                         else:
@@ -1719,7 +1767,7 @@ class GeneratorConfig:
             program_type: type[program.Generator | program.Visualizer | run.Submission],
             program_paths: set[Path],
         ):
-            programs = []
+            programs = list[program.Generator | program.Visualizer | run.Submission]()
             for program_path in program_paths:
                 path = self.problem.path / program_path
                 if program_type is program.Generator and program_path in self.generators:
@@ -1786,7 +1834,10 @@ class GeneratorConfig:
         #    included testcases.
 
         # 1
-        p = parallel.new_queue(lambda t: t.copy_of is None and t.generate(self.problem, self, bar))
+        runner: Callable[[TestcaseRule], Any] = lambda t: t.copy_of is None and t.generate(
+            self.problem, self, bar
+        )
+        p = parallel.new_queue(runner)
 
         def generate_dir(d):
             p.join()
@@ -1796,9 +1847,8 @@ class GeneratorConfig:
         p.done()
 
         # 2
-        p = parallel.new_queue(
-            lambda t: t.copy_of is not None and t.generate(self.problem, self, bar)
-        )
+        runner = lambda t: t.copy_of is not None and t.generate(self.problem, self, bar)
+        p = parallel.new_queue(runner)
 
         def generate_copies_and_includes(d):
             p.join()
