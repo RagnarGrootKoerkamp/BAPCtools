@@ -179,19 +179,16 @@ class Problem:
 
         # TODO: implement other limits
         # TODO move timelimit to this?
-        self.limits = {}
+        limits = self.settings.limits.copy()
 
-        for k, v in self.settings.limits.items():
-            self.limits[k] = v
-
-        has_validation_passes = 'validation_passes' in self.limits
+        has_validation_passes = 'validation_passes' in limits
         if self.multipass and not has_validation_passes:
-            self.limits['validation_passes'] = 2
+            limits['validation_passes'] = 2
         if not self.multipass and has_validation_passes:
-            self.limits.pop('validation_passes')
+            limits.pop('validation_passes')
             warn('limit: validation_passes is only used for multipass problems. SKIPPED.')
 
-        self.limits = argparse.Namespace(**self.limits)
+        self.limits = argparse.Namespace(**limits)  # TODO #102 typed Namespace?
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / 'data')
