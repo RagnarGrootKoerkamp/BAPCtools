@@ -474,11 +474,6 @@ class TestcaseRule(Rule):
         try:
             # files to consider for hashing
             hashes = {}
-            extensions = config.KNOWN_TESTCASE_EXTENSIONS.copy()
-            if self.root not in config.INVALID_CASE_DIRECTORIES[1:]:
-                extensions.remove('.ans')
-            if self.root not in config.INVALID_CASE_DIRECTORIES[2:]:
-                extensions.remove('.out')
 
             if yaml is None:
                 raise ParseException(
@@ -560,7 +555,7 @@ class TestcaseRule(Rule):
                     if self.copy.is_file():
                         self.in_is_generated = False
                     self.rule['copy'] = str(self.copy)
-                    for ext in extensions:
+                    for ext in config.KNOWN_TESTCASE_EXTENSIONS:
                         if self.copy.with_suffix(ext).is_file():
                             hashes[ext] = hash_file(self.copy.with_suffix(ext))
 
@@ -576,7 +571,7 @@ class TestcaseRule(Rule):
                 if '.in' in self.hardcoded:
                     self.in_is_generated = False
                     self.rule['in'] = self.hardcoded['.in']
-                for ext in extensions:
+                for ext in config.KNOWN_TESTCASE_EXTENSIONS:
                     if ext in self.hardcoded:
                         hashes[ext] = hash_string(self.hardcoded[ext])
 
