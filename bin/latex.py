@@ -57,6 +57,7 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
         current_sample = []
         if isinstance(sample, Path):
             assert sample.suffix == '.interaction'
+            sample_name = sample.with_suffix("").name
             if problem.interactive:
                 interaction_dir = builddir / 'interaction'
                 interaction_dir.mkdir(exist_ok=True)
@@ -73,9 +74,7 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
                     assert last in '<>'
                     nonlocal current_sample, interaction_id
 
-                    interaction_file = (
-                        interaction_dir / f'{sample.with_suffix("").name}-{interaction_id:02}'
-                    )
+                    interaction_file = interaction_dir / f'{sample_name}-{interaction_id:02}'
                     interaction_file.write_text(cur)
 
                     mode = 'InteractiveRead' if last == '<' else 'InteractiveWrite'
@@ -113,8 +112,8 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
                 def flush():
                     nonlocal current_sample
 
-                    in_path = multipass_dir / f'{sample.with_suffix("").name}-{pass_id:02}.in'
-                    out_path = multipass_dir / f'{sample.with_suffix("").name}-{pass_id:02}.out'
+                    in_path = multipass_dir / f'{sample_name}-{pass_id:02}.in'
+                    out_path = multipass_dir / f'{sample_name}-{pass_id:02}.out'
                     in_path.write_text(cur_in)
                     out_path.write_text(cur_out)
 
