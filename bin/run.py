@@ -96,7 +96,7 @@ class Run:
                 result = self._validate_output(bar)
                 if result is None:
                     bar.error(
-                        f'No output validators found for testcase {self.testcase.name}',
+                        f'No output validator found for testcase {self.testcase.name}',
                         resume=True,
                     )
                     result = ExecResult(
@@ -181,7 +181,7 @@ class Run:
 
     def _validate_output(self, bar):
         output_validators = self.problem.validators(validate.OutputValidator)
-        if output_validators is False:
+        if output_validators is False or len(output_validators) == 0:
             return None
         assert len(output_validators) == 1
         validator = output_validators[0]
