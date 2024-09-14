@@ -494,9 +494,12 @@ def export_problem(problem, cid, pid):
 # Export the contest and individual problems to DOMjudge.
 # Mimicked from https://github.com/DOMjudge/domjudge/blob/main/misc-tools/import-contest.sh
 def export_contest_and_problems(problems, statement_language):
-    cid = contest_yaml().get('contest_id')
-    if cid is not None and cid != '':
-        log(f'Reusing contest id {cid} from contest.yaml')
+    if config.args.contest_id:
+        cid = config.args.contest_id
+    else:
+        cid = contest_yaml().get('contest_id')
+        if cid is not None and cid != '':
+            log(f'Reusing contest id {cid} from contest.yaml')
     if not any(contest['id'] == cid for contest in get_contests()):
         cid = export_contest()
 
