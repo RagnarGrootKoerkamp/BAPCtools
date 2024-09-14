@@ -1595,6 +1595,8 @@ class GeneratorConfig:
                 num_testgroups = 0
                 for dictionary in yaml['data']:
                     assert_type('Elements of data', dictionary, dict, d.path)
+                    for key in dictionary.keys():
+                        assert_type('Key of data', key, [type(None), str], d.path / str(key))
                     for child_name, child_yaml in sorted(dictionary.items()):
                         if is_directory(child_yaml):
                             num_testgroups += 1
