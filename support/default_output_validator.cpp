@@ -52,22 +52,21 @@ namespace util {
 		return true;
 	}
 
-	template<bool EMPTY = false>
 	constexpr bool is_integer(std::string_view token) {
 		if (token.find_first_of("+-") == 0) token.remove_prefix(1); // ignore optional +- sign
-		if (token.empty()) return EMPTY;                            // integers need at least one digit
+		if (token.empty()) return false;                            // integers need at least one digit
 		if (token.size() > 1 and token[0] == '0') return false;     // integers do not start with 0 (unless they are exactly "0")
 		if (not is_digits(token)) return false;                     // integers are just digits
 		return true;
 	}
 
 	constexpr bool is_decimal(std::string_view token) {
-		std::size_t dot = token.find('.');                                             // dot is optional separator
-		if (dot > 0 && not is_integer<true>(token.substr(0, dot))) return false;       // decimals before the dot are integer or empty
-		if (dot < token.size() and not is_digits(token.substr(dot + 1))) return false; // decimals only have digits after the dot
-		bool hasSign = token.find_first_of("+-") == 0;                                 // ignore sign
-		bool hasDot = dot < token.size();                                              // ignore dot
-		if (token.size() <= hasSign + hasDot) return false;                            // decimals have at least one digit
+		if (token.find_first_of("+-") == 0) token.remove_prefix(1);        // ignore optional +- sign
+		std::size_t dot = token.find('.');                                 // dot is optional separator
+		bool hasDot = dot < token.size();                                  //
+		if (dot > 0 and not is_digits(token.substr(0, dot))) return false; // decimals only have digits before the dot
+		if (hasDot and not is_digits(token.substr(dot + 1))) return false; // decimals only have digits after the dot
+		if (token.size() <= hasDot) return false;                          // decimals have at least one digit
 		return true;
 	}
 
