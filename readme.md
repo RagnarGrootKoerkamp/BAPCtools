@@ -21,7 +21,7 @@ image](#Docker).
 Otherwise, clone this repository and install the required dependencies manually.
 (If you know how to make a Debian package, feel free to help out.)
 
-- Python 3 (>= 3.6).
+- Python 3 (>= 3.10).
 - The [yaml library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install pyyaml` or the `python[3]-yaml` Arch Linux package.
 - The [colorama library](https://pypi.org/project/colorama/) via `pip install colorama` or the `python[3]-colorama` Arch Linux package.
 - The `argcomplete` library for command line argument completion. Install via
