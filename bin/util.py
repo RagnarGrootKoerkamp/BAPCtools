@@ -945,7 +945,7 @@ def limit_setter(command, timeout, memory_limit, group=None, cores=False):
 
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen):
-    rusage: Any  # TODO use stricter type than `Any`
+    rusage: Any  # TODO #102: use stricter type than `Any`
 
     # If wait4 is available, store resource usage information.
     if 'wait4' in dir(os):
