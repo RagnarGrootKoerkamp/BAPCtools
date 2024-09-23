@@ -651,7 +651,7 @@ class TableProgressBar(ProgressBar):
         # drop all flushes...
         print(*objects, sep=sep, end=end, file=file, flush=False)
 
-    # TODO: item has type `str` in the base class, but type `run.Run` here.
+    # TODO #102: item has type `str` in the base class, but type `run.Run` here.
     def start(self, item):  # type: ignore[override]
         self.table.add_testcase(item.testcase.name)
         return super().start(item)

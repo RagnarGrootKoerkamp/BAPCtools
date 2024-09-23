@@ -49,7 +49,8 @@ class Problem:
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
-        self._testdata_yamls = dict[Path, dict[str, Any]]()  # TODO Add type for testdata.yaml
+        # TODO #102: Add type for testdata.yaml (typed Namespace?)
+        self._testdata_yamls = dict[Path, dict[str, Any]]()
         self._testdata_lock = threading.Lock()
 
         # The label for the problem: A, B, A1, A2, X, ...
@@ -195,7 +196,8 @@ class Problem:
             limits.pop('validation_passes')
             warn('limit: validation_passes is only used for multipass problems. SKIPPED.')
 
-        self.limits = argparse.Namespace(**limits)  # TODO #102 typed Namespace?
+        # TODO #102: typed Namespace? Or create type of problem.yaml and reuse `limits` field from there?
+        self.limits = argparse.Namespace(**limits)
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / 'data')
