@@ -1040,28 +1040,32 @@ def run_parsed_arguments(args):
         sys.exit(1)
 
 
-def read_personal_config():
-    args = {}
-
+def find_personal_config() -> Optional[Path]:
     if is_windows():
         app_data = os.getenv('AppData')
-        if not app_data:
-            fatal("%AppData% does not exist")
-        home_config = Path(app_data)
+        return Path(app_data) if app_data else None
     else:
         home = os.getenv('HOME')
-        if not home:
-            fatal("$HOME does not exist")
         xdg_config_home = os.getenv('XDG_CONFIG_HOME')
-        home_config = Path(xdg_config_home) if xdg_config_home else Path(home) / '.config'
+        return (
+            Path(xdg_config_home) if xdg_config_home else Path(home) / '.config' if home else None
+        )
+
+
+def read_personal_config():
+    args = {}
+    home_config = find_personal_config()
 
     for config_file in [
         # Highest prio: contest directory
         Path() / '.bapctools.yaml',
         Path() / '..' / '.bapctools.yaml',
+    ] + (
         # Lowest prio: user config directory
-        home_config / 'bapctools' / 'config.yaml',
-    ]:
+        [home_config / 'bapctools' / 'config.yaml']
+        if home_config
+        else []
+    ):
         if not config_file.is_file():
             continue
         config_data = read_yaml(config_file) or {}
