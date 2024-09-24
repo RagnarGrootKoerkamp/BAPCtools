@@ -1229,6 +1229,8 @@ class Directory(Rule):
                             self.path,
                         )
 
+    # The @overload definitions are purely here for static typing reasons.
+    # This overload takes a single function as argument, which is used for both files and directories.
     @overload
     def walk(
         self,
@@ -1237,6 +1239,7 @@ class Directory(Rule):
         dir_last=False,
     ): ...
 
+    # This overload takes one function for test cases and a separate function for directories.
     @overload
     def walk(
         self,
@@ -1245,6 +1248,9 @@ class Directory(Rule):
         *,
         dir_last=False,
     ): ...
+
+    # Below is the actual implementation of `walk`,
+    # no parameter types are needed here because they are already defined by the @overloads.
 
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
