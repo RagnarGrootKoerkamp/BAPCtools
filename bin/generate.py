@@ -690,10 +690,12 @@ class TestcaseRule(Rule):
                 bar.debug('Use generate --no-validators to ignore validation results.')
                 bar.done(False)
                 return False
-
-        for h in input_validator_hashes:
-            meta_yaml['input_validator_hashes'][h] = input_validator_hashes[h]
-        write_yaml(meta_yaml, problem.tmpdir / 'data' / t.hash / 'meta_.yaml', allow_yamllib=True)
+        else:
+            for h in input_validator_hashes:
+                meta_yaml['input_validator_hashes'][h] = input_validator_hashes[h]
+            write_yaml(
+                meta_yaml, problem.tmpdir / 'data' / t.hash / 'meta_.yaml', allow_yamllib=True
+            )
         return True
 
     def validate_ans(t, problem, testcase, meta_yaml, bar):
@@ -726,12 +728,12 @@ class TestcaseRule(Rule):
                     bar.debug('Use generate --no-validators to ignore validation results.')
                     bar.done(False)
                     return False
-
-            for h in answer_validator_hashes:
-                meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
-            write_yaml(
-                meta_yaml, problem.tmpdir / 'data' / t.hash / 'meta_.yaml', allow_yamllib=True
-            )
+            else:
+                for h in answer_validator_hashes:
+                    meta_yaml['answer_validator_hashes'][h] = answer_validator_hashes[h]
+                write_yaml(
+                    meta_yaml, problem.tmpdir / 'data' / t.hash / 'meta_.yaml', allow_yamllib=True
+                )
         return True
 
     def generate(t, problem, generator_config, parent_bar):
