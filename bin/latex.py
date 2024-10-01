@@ -5,7 +5,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 from colorama import Fore, Style
 
@@ -179,7 +179,7 @@ def get_tl(problem: "problem.Problem"):
     return tl if print_tl else ''
 
 
-def make_environment() -> Dict[str, str]:
+def make_environment() -> dict[str, str]:
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
     latex_paths = [

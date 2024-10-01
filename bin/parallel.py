@@ -3,7 +3,8 @@ import heapq
 import os
 import signal
 import threading
-from typing import Any, Callable, Generic, Literal, Optional, TypeVar
+from collections.abc import Callable
+from typing import Any, Generic, Literal, Optional, TypeVar
 
 import config
 import util

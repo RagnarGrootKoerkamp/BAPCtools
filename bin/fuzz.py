@@ -6,7 +6,7 @@ import generate
 import time
 import threading
 from colorama import Fore, Style
-from typing import Callable
+from collections.abc import Callable
 
 import parallel
 from util import *

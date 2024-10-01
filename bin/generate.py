@@ -8,8 +8,9 @@ import collections
 import shutil
 import secrets
 
+from collections.abc import Callable
 from pathlib import Path, PurePosixPath, PurePath
-from typing import Callable, Literal, overload
+from typing import Literal, overload
 
 import config
 import inspect
