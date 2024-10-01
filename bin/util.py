@@ -14,8 +14,9 @@ import tempfile
 import threading
 import time
 from enum import Enum
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, NoReturn, Optional, Sequence
+from typing import Any, NoReturn, Optional
 
 import yaml as yamllib
 from colorama import Fore, Style
