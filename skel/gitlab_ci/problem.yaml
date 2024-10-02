@@ -9,11 +9,13 @@ verify_{%problem%}:
       #- {%changesdir%}/problem_statement/**/*
       - {%changesdir%}/problem.yaml
       - {%changesdir%}/.timelimit
-      - {%changesdir%}/generators/**/*
       - {%changesdir%}/data/**/*
+      - {%changesdir%}/generators/**/*
       - {%changesdir%}/input_validators/**/*
+      - {%changesdir%}/answer_validators/**/*
       - {%changesdir%}/output_validators/**/*
       - {%changesdir%}/submissions/**/*
+      - {%changesdir%}/visualizers/**/*
       #- {%changesdir%}/attachments/**/*
   artifacts:
     expire_in: 1 week
