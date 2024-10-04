@@ -53,11 +53,19 @@ def get_api():
 
 
 def get_contest_id():
-    if config.args.contest_id:
-        return config.args.contest_id
-    if 'contest_id' in contest_yaml():
-        return contest_yaml()['contest_id']
+    contest_id = (
+        config.args.contest_id
+        if config.args.contest_id
+        else contest_yaml()['contest_id'] if 'contest_id' in contest_yaml() else None
+    )
     contests = get_contests()
+    if contest_id is not None:
+        if contest_id not in {c['id'] for c in contests}:
+            for contest in contests:
+                log(f'{contest["id"]}: {contest["name"]}')
+            fatal(f'Contest {contest_id} not found.')
+        else:
+            return contest_id
     if len(contests) > 1:
         for contest in contests:
             log(f'{contest["id"]}: {contest["name"]}')
