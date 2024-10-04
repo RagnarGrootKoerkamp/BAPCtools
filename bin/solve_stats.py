@@ -1,59 +1,124 @@
 from os import makedirs
+from multiprocessing import Pool
 from pathlib import Path
 
+import config
 from contest import call_api, get_contest_id
 from util import ProgressBar
+
+# Note on multiprocessing:
+# Our custom parallel module uses light-weight threads, which all compete for the global interpreter lock:
+# https://docs.python.org/3.10/glossary.html#term-global-interpreter-lock
+# But matplotlib.pyplot almost exclusively uses the interpreter, so light-weight threads would simply
+# wait on each other until they can obtain the lock.
+# Instead, multiprocessing spawns full-fledged Python processes and pickles the arguments and return values.
+# This means we cannot use closures or share global data, e.g. we cannot share `bar` instance between the processes.
+
+bins = 120
+judgement_colors = {'AC': 'lime', 'WA': 'red', 'TLE': '#c0f', 'RTE': 'orange', '': 'skyblue'}
+
+
+def req(url: str):
+    r = call_api('GET', url)
+    r.raise_for_status()
+    try:
+        return r.json()
+    except Exception as e:
+        print(f'\nError in decoding JSON:\n{e}\n{r.text()}')
+
+
+# Turns an endpoint list result into an object, mapped by 'id'
+def req_assoc(url: str) -> dict[str, dict]:
+    return {o['id']: o for o in req(url)}
+
+
+def time_string_to_minutes(time_string: str) -> float:
+    hours, minutes, seconds = (time_string or '0:0:0').split(':')
+    return int(hours) * 60 + int(minutes) + float(seconds) / 60
+
+
+def plot_problem(
+    problem_id: str, minutes: list[dict[str, int]], label: str, judgement_types: dict[str, dict]
+):
+    import matplotlib.pyplot as plt  # Have to import it separately in multiprocessing worker.
+
+    fig, ax = plt.subplots(figsize=(12, 2))
+    # Ugly accumulator. Matplotlib doesn't support negative stacked bars properly: https://stackoverflow.com/a/38900035
+    neg_acc = [0 for m in minutes]
+    # Reverse order, so that the order at the bottom is WA-TLE-RTE
+    for jt in sorted(judgement_types, reverse=True):
+        if jt == 'CE':
+            continue
+        is_neg = any(m[jt] < 0 for m in minutes)
+        ax.bar(
+            range(bins),
+            [m[jt] for m in minutes],
+            1,
+            color=judgement_colors.get(jt) or judgement_colors['RTE'],
+            bottom=neg_acc if is_neg else None,
+        )
+        if is_neg:
+            neg_acc = [a + b for a, b in zip(neg_acc, (m[jt] for m in minutes))]
+    ax.axhline(y=0, linewidth=1, color='gray')
+    ax.autoscale(enable=True, axis='both', tight=True)
+    fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+    ax.axis('off')
+    fig.tight_layout(pad=0)
+    fig.savefig(f'solve_stats/activity/{label}.pdf', bbox_inches='tight', transparent=True)
 
 
 def generate_solve_stats(post_freeze: bool):
     # Import takes more than 1000 ms to evaluate, so only import inside function (when it is actually needed)
+    import matplotlib
     import matplotlib.pyplot as plt
 
+    # Default back-end uses Qt, which cannot run in parallel threads
+    # See: https://github.com/matplotlib/matplotlib/issues/13296
+    matplotlib.use('pdf')
+
+    num_jobs = max(1, config.args.jobs)
+
     contest_id = get_contest_id()
+    url_prefix = f'/contests/{contest_id}/'
 
-    # The endpoint should not start with a slash
-    def req(endpoint):
-        url = f'/contests/{contest_id}/{endpoint}'
-        bar.start(url)
-        r = call_api('GET', url)
-        r.raise_for_status()
-        bar.done()
-        try:
-            return r.json()
-        except Exception as e:
-            print(f'\nError in decoding JSON:\n{e}\n{r.text()}')
+    bar = ProgressBar('Fetching', count=3, max_len=len('Contest data'))
 
-    # Turns an endpoint list result into an object, mapped by 'id'
-    def req_assoc(endpoint) -> dict[str, dict]:
-        return {o['id']: o for o in req(endpoint)}
+    bar.start('Contest')
+    contest = req(url_prefix)
+    bar.done()
 
-    def time_string_to_minutes(time_string: str) -> float:
-        hours, minutes, seconds = (time_string or '0:0:0').split(':')
-        return int(hours) * 60 + int(minutes) + float(seconds) / 60
-
-    bar = ProgressBar('Fetching', count=7, max_len=28 + len(contest_id))
-
-    contest = req('')
     freeze_duration = time_string_to_minutes(contest['scoreboard_freeze_duration'])
     contest_duration = time_string_to_minutes(contest['duration'])
-    bins = 120
     scale = contest_duration / bins
 
-    problems = req_assoc('problems')
-    submissions = req_assoc('submissions')
-    teams = req_assoc(f'teams?public=1')
-    languages = req_assoc('languages')
-    judgement_types = req_assoc('judgement-types')
-    judgement_types[''] = {'id': '', 'name': 'pending'}
-    judgement_colors = {'AC': 'lime', 'WA': 'red', 'TLE': '#c0f', 'RTE': 'orange', '': 'skyblue'}
+    bar.start('Contest data')
+    with Pool(num_jobs) as p:
+        problems, submissions, teams, languages, judgement_types = p.map(
+            req_assoc,
+            [
+                url_prefix + endpoint
+                for endpoint in [
+                    'problems',
+                    'submissions',
+                    'teams?public=1',
+                    'languages',
+                    'judgement-types',
+                ]
+            ],
+        )
+    bar.done()
 
-    for j in req('judgements'):
+    judgement_types[''] = {'id': '', 'name': 'pending'}
+
+    bar.start('Judgements')
+    for j in req(url_prefix + 'judgements'):
         # Firstly, only one judgement should be 'valid': in case of rejudgings, this should be the "active" judgement.
         # Secondly, note that the submissions list only contains submissions that were submitted on time,
         # while the judgements list contains all judgements, therefore the submission might not exist.
         if j['valid'] and j['submission_id'] in submissions:
             # Add judgement to submission.
             submissions[j['submission_id']]['judgement'] = j
+    bar.done()
 
     bar.finalize()
 
@@ -80,52 +145,44 @@ def generate_solve_stats(post_freeze: bool):
             stats_sum[s['problem_id']][jt] += 1
             language_stats[s['language_id']][jt] += 1
 
-    problem_stats = ''
+    problem_stats = dict[str, str]()
 
-    bar = ProgressBar('Plotting', items=[*stats.keys(), 'Language Stats'])
-
+    bar = ProgressBar('Plotting', items=['Problem activity', 'Language stats'])
     makedirs(f'solve_stats/activity', exist_ok=True)
-    for p, minutes in stats.items():
-        bar.start(p)
-        label = problems[p]['label']
-        fig, ax = plt.subplots(figsize=(12, 2))
-        # Ugly accumulator. Matplotlib doesn't support negative stacked bars properly: https://stackoverflow.com/a/38900035
-        neg_acc = [0 for m in minutes]
-        # Reverse order, so that the order at the bottom is WA-TLE-RTE
-        for jt in sorted(judgement_types, reverse=True):
-            if jt == 'CE':
-                continue
-            is_neg = any(m[jt] < 0 for m in minutes)
-            ax.bar(
-                range(bins),
-                [m[jt] for m in minutes],
-                1,
-                color=judgement_colors.get(jt) or judgement_colors['RTE'],
-                bottom=neg_acc if is_neg else None,
-            )
-            if is_neg:
-                neg_acc = [a + b for a, b in zip(neg_acc, (m[jt] for m in minutes))]
-        plt.axhline(y=0, linewidth=1, color='gray')
-        ax.autoscale(enable=True, axis='both', tight=True)
-        fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
-        plt.axis('off')
-        plt.tight_layout(pad=0)
-        plt.savefig(f'solve_stats/activity/{label}.pdf', bbox_inches='tight', transparent=True)
 
-        problem_stats += (
+    bar.start('Problem activity')
+    with Pool(num_jobs) as p:
+        p.starmap(
+            plot_problem,
+            [
+                # Passing all required data to plot_problem, because we dan't use closures (see comment at top of file)
+                [problem_id, stats[problem_id], problems[problem_id]['label'], judgement_types]
+                for problem_id in stats
+            ],
+        )
+    bar.done()
+
+    for problem_id in stats:
+        problem_stats[problem_id] = (
             r'\providecommand{\solvestats'
-            + label
+            + problems[problem_id]['label']
             + r'}{\printsolvestats{'
             + '}{'.join(
-                str(x) for x in [sum(stats_sum[p].values()), len(ac_teams[p]), stats_sum[p]['']]
+                str(x)
+                for x in [
+                    sum(stats_sum[problem_id].values()),
+                    len(ac_teams[problem_id]),
+                    stats_sum[problem_id][''],
+                ]
             )
             + '}}\n'
         )
-        bar.done()
 
-    Path('solve_stats/problem_stats.tex').write_text(problem_stats)
+    Path('solve_stats/problem_stats.tex').write_text(
+        ''.join(problem_stats[p] for p in sorted(problem_stats.keys()))
+    )
 
-    bar.start('Language Stats')
+    bar.start('Language stats')
     fig, ax = plt.subplots(figsize=(8, 4))
     for j, (jt, color) in enumerate(judgement_colors.items()):
         ax.bar(
@@ -138,7 +195,7 @@ def generate_solve_stats(post_freeze: bool):
     ax.set_xticks(range(len(languages)), [l['name'] for l in languages.values()])
     ax.legend()
     fig.tight_layout()
-    plt.savefig(f'solve_stats/language_stats.pdf', bbox_inches='tight', transparent=True)
+    fig.savefig(f'solve_stats/language_stats.pdf', bbox_inches='tight', transparent=True)
     bar.done()
 
     bar.finalize()

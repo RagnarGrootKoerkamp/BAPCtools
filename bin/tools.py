@@ -895,6 +895,7 @@ def run_parsed_arguments(args):
     if action == 'solve_stats':
         if level == 'problem':
             fatal('solve_stats only works for a contest')
+        config.args.jobs = (os.cpu_count() or 1) // 2
         solve_stats.generate_solve_stats(config.args.post_freeze)
         return
 
