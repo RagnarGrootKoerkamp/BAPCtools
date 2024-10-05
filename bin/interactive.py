@@ -263,8 +263,6 @@ while True:
         )
         submission_pid = submission.pid
 
-        assert validator.stderr and submission.stderr
-
         stop_kill_handler = threading.Event()
         submission_time: Optional[float] = None
 
@@ -387,9 +385,11 @@ while True:
 
         val_err = None
         if validator_error is False:
+            assert validator.stderr
             val_err = _feedback(run, validator.stderr.read())
         team_err = None
         if team_error is False:
+            assert submission.stderr
             team_err = submission.stderr.read().decode('utf-8', 'replace')
 
         if verdict == Verdict.TIME_LIMIT_EXCEEDED:
