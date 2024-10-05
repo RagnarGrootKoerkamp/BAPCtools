@@ -527,7 +527,7 @@ def export_contest_and_problems(problems, statement_language):
     def get_problem_id(problem):
         nonlocal ccs_problems
         for p in ccs_problems:
-            if p['short_name'] == problem.name or p.get('externalid') == problem.name:
+            if problem.name in [p.get('short_name'), p.get('id'), p.get('externalid')]:
                 return p['id']
 
     for problem in problems:
