@@ -10,6 +10,7 @@ import config
 import util
 import base64
 from pathlib import Path
+from typing import Optional
 
 from contest import *
 
@@ -285,13 +286,12 @@ def update_contest_id(cid):
         error('ruamel.yaml library not found. Update the id manually.')
 
 
-def export_contest():
+def export_contest(cid: Optional[str]):
     data = contest_yaml()
 
     if not data:
         fatal('Exporting a contest only works if contest.yaml is available and not empty.')
 
-    cid = get_contest_id()
     if cid:
         data['id'] = cid
 
@@ -496,7 +496,7 @@ def export_contest_and_problems(problems, statement_language):
         if cid is not None and cid != '':
             log(f'Reusing contest id {cid} from contest.yaml')
     if not any(contest['id'] == cid for contest in get_contests()):
-        cid = export_contest()
+        cid = export_contest(cid)
 
     with open(f'contest.{statement_language}.pdf', 'rb') as pdf_file:
         r = call_api(
