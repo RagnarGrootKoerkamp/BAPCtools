@@ -127,6 +127,13 @@ class Problem:
             'uuid': None,
             'limits': {},
         }
+        # TODO: implement other limits
+        # TODO move timelimit to this?
+        limits = {
+            'time_multiplier': 2,
+            'time_safety_margin': 1.5,
+            'time_resolution': 1.0,
+        }
 
         yaml_path = self.path / 'problem.yaml'
 
@@ -165,16 +172,15 @@ class Problem:
             settings['timelimit'] = float(timelimit_path.read_text())
             settings['timelimit_is_default'] = False
 
+        # move limits to own dictionary
+        settings_limits = settings['limits']
+        settings.pop('limits')
+        assert isinstance(settings_limits, dict)
+        for k, v in settings_limits:
+            limits[k] = v
+
         # Convert the dictionary to a namespace object.
         self.settings = argparse.Namespace(**settings)
-
-        # Override settings by command line arguments.
-        self.settings.timelimit = config.args.timelimit or self.settings.timelimit
-        self.settings.timeout = int(config.args.timeout or 1.5 * self.settings.timelimit + 1)
-
-        mode = parse_validation(self.settings.validation)
-        self.interactive = mode['interactive']
-        self.multipass = mode['multi-pass']
 
         if isinstance(self.settings.validator_flags, str):
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
@@ -186,9 +192,9 @@ class Problem:
             yaml_path.write_text(raw)
             log(f'Generated UUID for {self.name}, added to problem.yaml')
 
-        # TODO: implement other limits
-        # TODO move timelimit to this?
-        limits = self.settings.limits.copy()
+        mode = parse_validation(self.settings.validation)
+        self.interactive = mode['interactive']
+        self.multipass = mode['multi-pass']
 
         has_validation_passes = 'validation_passes' in limits
         if self.multipass and not has_validation_passes:
@@ -199,6 +205,12 @@ class Problem:
 
         # TODO #102: typed Namespace? Or create type of problem.yaml and reuse `limits` field from there?
         self.limits = argparse.Namespace(**limits)
+
+        # Override settings by command line arguments.
+        self.settings.timelimit = config.args.timelimit or self.settings.timelimit
+        self.settings.timeout = int(
+            config.args.timeout or self.limits.time_safety_margin * self.settings.timelimit + 1
+        )
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / 'data')
@@ -626,9 +638,8 @@ class Problem:
         problem._validators_cache[key] = result
         return validators
 
-    def run_submissions(problem):
+    def prepare_run(problem):
         testcases = problem.testcases()
-
         if not testcases:
             return False
 
@@ -637,15 +648,23 @@ class Problem:
             if not validators:
                 return False
 
+        # Pre build the output validator to prevent nested ProgressBars.
+        if problem.validators(validate.OutputValidator) is False:
+            return False
+
         submissions = problem.submissions()
         if not submissions:
             return False
 
-        max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
+        return testcases, submissions
 
-        # Pre build the output validator to prevent nested ProgressBars.
-        if problem.validators(validate.OutputValidator) is False:
+    def run_submissions(problem):
+        ts_pair = problem.prepare_run()
+        if ts_pair == False:
             return False
+        testcases, submissions = ts_pair
+
+        max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
 
         ok = True
         verdict_table = verdicts.VerdictTable(submissions, testcases)
@@ -889,3 +908,94 @@ class Problem:
                     )
 
         return success
+
+    def determine_timelimit(problem):
+        ts_pair = problem.prepare_run()
+        if ts_pair == False:
+            return False
+        testcases, submissions = ts_pair
+
+        max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
+
+        problem.settings.timelimit = float('inf')
+        problem.settings.timelimit_is_default = False
+        problem.settings.timeout = float('inf')
+
+        ok = True
+
+        def run_all(cur_verdicts, select):
+            nonlocal ok
+
+            cur_submissions = {v: submissions[v] for v in cur_verdicts}
+            verdict_table = verdicts.VerdictTable(cur_submissions, testcases)
+            needs_leading_newline = False if config.args.verbose else True
+            for verdict in cur_verdicts:
+                for submission in cur_submissions[verdict]:
+                    submission_ok, printed_newline = submission.run_all_testcases(
+                        max_submission_len,
+                        verdict_table=verdict_table,
+                        needs_leading_newline=needs_leading_newline,
+                    )
+                    needs_leading_newline = not printed_newline
+                    ok &= submission_ok
+
+            if not verdict_table.results:
+                return None, None, None
+
+            def get_slowest(result):
+                slowest_pair = result.slowest_testcase()
+                assert slowest_pair is not None
+                return slowest_pair
+
+            durations = [get_slowest(result)[1] for result in verdict_table.results]
+            selected = durations.index(select(durations))
+            testcase, duration = get_slowest(verdict_table.results[selected])
+            return verdict_table.submissions[selected], testcase, duration
+
+        submission, testcase, duration = run_all({verdicts.Verdict.ACCEPTED}, max)
+        if submission is None:
+            return False
+
+        problem.settings.timelimit = problem.limits.time_resolution * math.ceil(
+            duration * problem.limits.time_multiplier / problem.limits.time_resolution
+        )
+        safety_timelimit = problem.settings.timelimit * problem.limits.time_safety_margin
+        problem.settings.timeout = int(safety_timelimit * problem.limits.time_safety_margin + 1)
+
+        if config.args.write:
+            (problem.path / '.timelimit').write_text(f'{problem.settings.timelimit:.3f}')
+
+        print()
+        message(f'{duration:.3f}s @ {testcase} ({submission})', 'slowest AC')
+        message(
+            f'{problem.settings.timelimit:.3f}s >= {duration:.3f}s * {problem.limits.time_multiplier}',
+            'timelimit',
+        )
+        print()
+
+        submission, testcase, duration = run_all({verdicts.Verdict.TIME_LIMIT_EXCEEDED}, min)
+        if submission is not None:
+            print()
+            message(f'{duration:.3f}s @ {testcase} ({submission})', 'fastest TLE')
+            if duration <= problem.settings.timelimit:
+                error(f'TLE submission runs within timelimit')
+            elif duration <= safety_timelimit:
+                warn(f'TLE submission runs within safety margin')
+            else:
+                log(
+                    f'No TLE submission finished within {problem.settings.timeout}s >= {problem.settings.timelimit:.3f}s * {problem.limits.time_safety_margin}^2'
+                )
+            print()
+
+        if config.args.all:
+            submission, testcase, duration = run_all(
+                submissions.keys()
+                - {verdicts.Verdict.ACCEPTED, verdicts.Verdict.TIME_LIMIT_EXCEEDED},
+                max,
+            )
+            if submission is not None:
+                if duration > problem.settings.timelimit:
+                    warn(f'Non TLE submission timed out')
+                else:
+                    log(f'All non TLE submission finished within timelimit')
+        return ok

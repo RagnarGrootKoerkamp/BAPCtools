@@ -641,6 +641,28 @@ Run this from one of:
         help='Run submissions with additional sanitizer flags (currently only C++). Note that this sets --memory unlimited.',
     )
 
+    timelimitparser = subparsers.add_parser(
+        'timelimit', parents=[global_parser], help='Determine the timelimit for a problem.'
+    )
+    timelimitparser.add_argument(
+        'submissions',
+        nargs='*',
+        type=Path,
+        help='optionally supply a list of programs and testcases on which the timelimit should be based.',
+    )
+    timelimitparser.add_argument(
+        '--all',
+        '-a',
+        action='store_true',
+        help='Run all submissions, not only AC and TLE.',
+    )
+    timelimitparser.add_argument(
+        '--write',
+        '-w',
+        action='store_true',
+        help='Write .timelimit file.',
+    )
+
     # Test
     testparser = subparsers.add_parser(
         'test', parents=[global_parser], help='Run a single program and print the output.'
@@ -955,6 +977,8 @@ def run_parsed_arguments(args):
             success &= problem.test_submissions()
         if action in ['constraints']:
             success &= constraints.check_constraints(problem)
+        if action in ['timelimit']:
+            success &= problem.determine_timelimit()
         if action in ['zip']:
             output = problem.path / f'{problem.name}.zip'
 
