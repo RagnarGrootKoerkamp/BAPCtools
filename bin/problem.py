@@ -176,7 +176,7 @@ class Problem:
         settings_limits = settings['limits']
         settings.pop('limits')
         assert isinstance(settings_limits, dict)
-        for k, v in settings_limits:
+        for k, v in settings_limits.items():
             limits[k] = v
 
         # Convert the dictionary to a namespace object.
