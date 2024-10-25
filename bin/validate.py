@@ -359,15 +359,15 @@ AnyValidator = InputValidator | AnswerValidator | OutputValidator
 
 
 # Checks if byte is printable or whitespace
-INVALID_BYTES_NO_WHITESPACE = re.compile(b'[^\n\x20-\x7E]')
-INVALID_BYTES_WHITESPACE = re.compile(b'[^\t\r\v\f\n\x20-\x7E]')
+INVALID_BYTES_WITH_OTHER = re.compile(b'[^\t\r\v\f\n\x20-\x7E]')
+INVALID_BYTES = re.compile(b'[^\n\x20-\x7E]')
 
 
 def _has_invalid_byte(bytes, *, other_whitespaces=False):
     if other_whitespaces:
-        return INVALID_BYTES_WHITESPACE.search(bytes) is not None
+        return INVALID_BYTES_WITH_OTHER.search(bytes) is not None
     else:
-        return INVALID_BYTES_NO_WHITESPACE.search(bytes) is not None
+        return INVALID_BYTES.search(bytes) is not None
 
 
 # assumes that the only possible whitespaces are space and newline
