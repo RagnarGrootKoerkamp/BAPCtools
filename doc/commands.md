@@ -14,6 +14,7 @@ This lists all subcommands and their most important options.
 - Problem development:
   - [`bt run [-v] [-t TIMELIMIT] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
+  - [`bt timelimit [-a] [-w] [submissions [submissions ...]] [testcases [testcases ...]]`](#timelimit)
   - [`bt generate [-v] [-t TIMEOUT] [--add] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [testcases [testcases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
@@ -143,6 +144,21 @@ This is useful for running submissions without having to compile them manually. 
 - `[<testcases>]`: The testcases to run the submission on. See `run <testcases>` for more. Can not be used together with `--samples`.
 - `--samples`: Run the submission on the samples only. Can not be used together with explicitly listed testcases.
 - `--timeout <second>`/`-t <second>`: The timeout to use for the submission.
+
+## `timelimit`
+
+The `timelimit` command is used determine a timelimit based on `time_multiplier` and `time_safety_margin`.
+The syntax is:
+
+```
+bt timelimit [<submissions and/or testcases>]
+```
+
+**Flags**
+- `--write`/`-w`: write the determined timelimit to `.timelimit`
+- `--all`/`-a`: run all submissions not only AC and TLE submissions.
+- `<submission>`: The path to the submission to use to determine the timelimit. See `run <submissions>` for more.
+- `<testcases>`: The path to the testcases to use determine the timelimit. See `run <testcases>` for more.
 
 ## `generate`
 
