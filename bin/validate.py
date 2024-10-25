@@ -2,6 +2,7 @@ import program
 import testcase
 from util import *
 from enum import Enum
+import re
 
 
 class Mode(Enum):
@@ -358,38 +359,23 @@ AnyValidator = InputValidator | AnswerValidator | OutputValidator
 
 
 # Checks if byte is printable or whitespace
-def _in_invalid_byte(byte, *, other_whitespaces=False):
-    if other_whitespaces:
-        if byte == ord('\t'):
-            return False
-        if byte == ord('\r'):
-            return False
-        if byte == ord('\v'):
-            return False
-        if byte == ord('\f'):
-            return False
-    if byte == ord('\n'):
-        return False
-    if byte >= 0x20 and byte < 0x7F:
-        return False
-    return True
+INVALID_BYTES_NO_WHITESPACE = re.compile(b'[^\n\x20-\x7E]')
+INVALID_BYTES_WHITESPACE = re.compile(b'[^\t\r\v\f\n\x20-\x7E]')
 
 
 def _has_invalid_byte(bytes, *, other_whitespaces=False):
-    return any(_in_invalid_byte(b, other_whitespaces=other_whitespaces) for b in bytes)
+    if other_whitespaces:
+        return INVALID_BYTES_WHITESPACE.search(bytes) is not None
+    else:
+        return INVALID_BYTES_NO_WHITESPACE.search(bytes) is not None
 
 
 # assumes that the only possible whitespaces are space and newline
 # allows \n\n
 def _has_consecutive_whitespaces(bytes):
-    last = -1
-    for byte in bytes:
-        cur_whitespace = byte == ord(' ') or byte == ord('\n')
-        if last == ord(' ') and cur_whitespace:
+    for bad in [b' \n', b'  ', b'\n ']:
+        if bytes.find(bad) >= 0:
             return True
-        if last == ord('\n') and byte == ord(' '):
-            return True
-        last = byte
     return False
 
 
