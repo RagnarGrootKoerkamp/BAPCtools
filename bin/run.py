@@ -337,7 +337,11 @@ class Submission(program.Program):
         padding_len = max_submission_name_len - len(self.name)
         run_until = RunUntil.FIRST_ERROR
 
-        if config.args.all == 1 or config.args.verbose or config.args.action == 'all':
+        if (
+            config.args.all == 1
+            or config.args.verbose
+            or config.args.action in ['all', 'timelimit']
+        ):
             run_until = RunUntil.DURATION
         if config.args.all == 2:
             run_until = RunUntil.ALL
@@ -453,7 +457,7 @@ class Submission(program.Program):
         # Summary line is the only thing shown.
         message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_testcase:{max_testcase_len}}{Style.RESET_ALL}'
 
-        if run_until in [RunUntil.DURATION, RunUntil.ALL]:
+        if verdicts.run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_testcase()
             assert slowest_pair is not None
             (slowest_testcase, slowest_duration) = slowest_pair

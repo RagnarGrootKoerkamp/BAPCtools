@@ -3,6 +3,7 @@
 import copy
 import errno
 import hashlib
+import math
 import os
 import platform
 import secrets
@@ -1037,6 +1038,8 @@ def exec_command(
         elif kwargs['timeout']:
             timeout = kwargs['timeout']
         kwargs.pop('timeout')
+    if timeout is not None and math.isinf(timeout):
+        timeout = None
 
     if (is_windows() or is_wsl()) and 'memory' in kwargs:
         kwargs.pop('memory')
