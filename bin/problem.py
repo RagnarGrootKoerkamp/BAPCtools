@@ -981,7 +981,7 @@ class Problem:
                 error(f'TLE submission runs within timelimit')
             elif duration <= safety_timelimit:
                 warn(f'TLE submission runs within safety margin')
-            else:
+            elif duration >= problem.settings.timeout:
                 log(
                     f'No TLE submission finished within {problem.settings.timeout}s >= {problem.settings.timelimit:.3f}s * {problem.limits.time_safety_margin}^2'
                 )
