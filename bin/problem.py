@@ -41,9 +41,7 @@ class Problem:
         self._testcases = dict[
             tuple[Optional[validate.Mode], bool, bool], list[testcase.Testcase]
         ]()
-        self._submissions: Optional[
-            dict[verdicts.Verdict, list[run.Submission]] | Literal[False]
-        ] = None
+        self._submissions: Optional[list[run.Submission] | Literal[False]] = None
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
             tuple[Type[validate.AnyValidator], bool], list[validate.AnyValidator]
         ]()
@@ -454,19 +452,21 @@ class Problem:
         return testcases
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
-    def selected_or_accepted_submissions(problem) -> list["run.Submission"]:
+    def selected_or_accepted_submissions(problem) -> list[run.Submission]:
         submissions = problem.submissions()
         if not submissions:
             return []
         if config.args.submissions:
-            return sum(submissions.values(), [])
+            return submissions
         else:
-            return submissions[verdicts.Verdict.ACCEPTED]
+            return [s for s in submissions if verdicts.Verdict.ACCEPTED in s.expected_verdicts]
 
-    def submissions(problem) -> dict[verdicts.Verdict, list["run.Submission"]] | Literal[False]:
-
-        if problem._submissions:
-            return {verdict: subs.copy() for verdict, subs in problem._submissions.items()}
+    def submissions(problem) -> list[run.Submission] | Literal[False]:
+        if problem._submissions is not None:
+            if problem._submissions is False:
+                return False
+            else:
+                return problem._submissions.copy()
 
         paths = []
         if config.args.submissions:
@@ -518,22 +518,28 @@ class Problem:
 
         bar.finalize(print_done=False)
 
-        submissions = dict[verdicts.Verdict, list[run.Submission]]()
-        for verdict in verdicts.VERDICTS:
-            submissions[verdict] = []
-
         # Filter out broken submissions.
-        for p in programs:
-            if p.ok:
-                submissions[p.expected_verdicts[0]].append(p)
+        problem._submissions = [p for p in programs if p.ok]
 
-        if sum(len(submissions[x]) for x in submissions) == 0:
+        if len(problem._submissions) == 0:
             problem._submissions = False
             return False
 
-        problem._submissions = submissions
+        assert isinstance(problem._submissions, list)
 
-        return submissions
+        # - first all submission with just one verdict (sorted by that verdict)
+        # - then by subdir
+        # - then by list of verdicts
+        # - then by name
+        def submissions_key(x):
+            if len(x.expected_verdicts) == 1:
+                return (1, x.expected_verdicts[0], x.name)
+            else:
+                return (len(x.expected_verdicts), x.subdir, x.expected_verdicts, x.name)
+
+        problem._submissions.sort(key=submissions_key)
+
+        return problem._submissions.copy()
 
     def validators(
         problem, cls: Type[validate.AnyValidator], check_constraints=False, strict=False
@@ -664,21 +670,20 @@ class Problem:
             return False
         testcases, submissions = ts_pair
 
-        max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
+        max_submission_len = max([len(x.name) for x in submissions])
 
         ok = True
         verdict_table = verdicts.VerdictTable(submissions, testcases)
         # When true, the ProgressBar will print a newline before the first error log.
         needs_leading_newline = False if config.args.verbose else True
-        for verdict in submissions:
-            for submission in submissions[verdict]:
-                submission_ok, printed_newline = submission.run_all_testcases(
-                    max_submission_len,
-                    verdict_table=verdict_table,
-                    needs_leading_newline=needs_leading_newline,
-                )
-                needs_leading_newline = not printed_newline
-                ok &= submission_ok
+        for submission in submissions:
+            submission_ok, printed_newline = submission.run_all_testcases(
+                max_submission_len,
+                verdict_table=verdict_table,
+                needs_leading_newline=needs_leading_newline,
+            )
+            needs_leading_newline = not printed_newline
+            ok &= submission_ok
 
         if config.args.table:
             Problem._print_table(verdict_table.results, testcases, submissions)
@@ -696,16 +701,15 @@ class Problem:
         if submissions is False:
             return False
 
-        for verdict in submissions:
-            for submission in submissions[verdict]:
-                if config.args.interactive:
-                    submission.test_interactive()
-                else:
-                    submission.test()
+        for submission in submissions:
+            if config.args.interactive:
+                submission.test_interactive()
+            else:
+                submission.test()
         return True
 
     @staticmethod
-    def _print_table(verdict_table, testcases, submission):
+    def _print_table(verdict_table, testcases, submissions):
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
         def single_verdict(row, testcase):
             assert row[testcase.name] is not None
@@ -915,7 +919,7 @@ class Problem:
             return False
         testcases, submissions = ts_pair
 
-        max_submission_len = max([len(x.name) for cat in submissions for x in submissions[cat]])
+        max_submission_len = max([len(x.name) for x in submissions])
 
         problem.settings.timelimit = float('inf')
         problem.settings.timelimit_is_default = False
@@ -923,21 +927,20 @@ class Problem:
 
         ok = True
 
-        def run_all(cur_verdicts, select):
+        def run_all(select_verdict, select):
             nonlocal ok
 
-            cur_submissions = {v: submissions[v] for v in cur_verdicts}
+            cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
             verdict_table = verdicts.VerdictTable(cur_submissions, testcases)
             needs_leading_newline = False if config.args.verbose else True
-            for verdict in cur_verdicts:
-                for submission in cur_submissions[verdict]:
-                    submission_ok, printed_newline = submission.run_all_testcases(
-                        max_submission_len,
-                        verdict_table=verdict_table,
-                        needs_leading_newline=needs_leading_newline,
-                    )
-                    needs_leading_newline = not printed_newline
-                    ok &= submission_ok
+            for submission in cur_submissions:
+                submission_ok, printed_newline = submission.run_all_testcases(
+                    max_submission_len,
+                    verdict_table=verdict_table,
+                    needs_leading_newline=needs_leading_newline,
+                )
+                needs_leading_newline = not printed_newline
+                ok &= submission_ok
 
             if not verdict_table.results:
                 return None, None, None
@@ -952,7 +955,7 @@ class Problem:
             testcase, duration = get_slowest(verdict_table.results[selected])
             return verdict_table.submissions[selected], testcase, duration
 
-        submission, testcase, duration = run_all({verdicts.Verdict.ACCEPTED}, max)
+        submission, testcase, duration = run_all(lambda vs: vs == [verdicts.Verdict.ACCEPTED], max)
         if submission is None:
             return False
 
@@ -973,7 +976,9 @@ class Problem:
         )
         print()
 
-        submission, testcase, duration = run_all({verdicts.Verdict.TIME_LIMIT_EXCEEDED}, min)
+        submission, testcase, duration = run_all(
+            lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
+        )
         if submission is not None:
             print()
             message(f'{duration:.3f}s @ {testcase} ({submission})', 'fastest TLE')
@@ -989,8 +994,8 @@ class Problem:
 
         if config.args.all:
             submission, testcase, duration = run_all(
-                submissions.keys()
-                - {verdicts.Verdict.ACCEPTED, verdicts.Verdict.TIME_LIMIT_EXCEEDED},
+                lambda vs: vs != [verdicts.Verdict.ACCEPTED]
+                and vs != [verdicts.Verdict.TIME_LIMIT_EXCEEDED],
                 max,
             )
             if submission is not None:
