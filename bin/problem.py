@@ -931,6 +931,10 @@ class Problem:
             nonlocal ok
 
             cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
+
+            if len(cur_submissions) == 0:
+                return None, None, None
+
             verdict_table = verdicts.VerdictTable(cur_submissions, testcases)
             needs_leading_newline = False if config.args.verbose else True
             for submission in cur_submissions:
@@ -941,9 +945,6 @@ class Problem:
                 )
                 needs_leading_newline = not printed_newline
                 ok &= submission_ok
-
-            if not verdict_table.results:
-                return None, None, None
 
             def get_slowest(result):
                 slowest_pair = result.slowest_testcase()
@@ -957,6 +958,7 @@ class Problem:
 
         submission, testcase, duration = run_all(lambda vs: vs == [verdicts.Verdict.ACCEPTED], max)
         if submission is None:
+            error('No AC submissions found')
             return False
 
         problem.settings.timelimit = problem.limits.time_resolution * math.ceil(
@@ -991,6 +993,8 @@ class Problem:
                     f'No TLE submission finished within {problem.settings.timeout}s >= {problem.settings.timelimit:.3f}s * {problem.limits.time_safety_margin}^2'
                 )
             print()
+        else:
+            log('No TLE submissions found')
 
         if config.args.all:
             submission, testcase, duration = run_all(
