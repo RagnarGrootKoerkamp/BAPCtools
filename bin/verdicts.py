@@ -102,7 +102,7 @@ def from_string(s: str) -> Verdict:
             return Verdict.RUNTIME_ERROR
         case 'NO-OUTPUT':
             return Verdict.WRONG_ANSWER
-        case 'COMPILER-ERROR':
+        case 'COMPILER-ERROR' | 'CE':
             return Verdict.COMPILER_ERROR
         case 'CHECK-MANUALLY':
             raise NotImplementedError

@@ -39,6 +39,7 @@ import run
 import skel
 import slack
 import solve_stats
+import download_submissions
 import stats
 import validate
 import signal
@@ -792,6 +793,17 @@ Run this from one of:
         help='When given, the solve stats will include submissions from after the scoreboard freeze.',
     )
 
+    download_submissions_parser = subparsers.add_parser(
+        'download_submissions',
+        parents=[global_parser],
+        help='Download all submissions for a contest and write them to submissions/.',
+    )
+    download_submissions_parser.add_argument(
+        '--contest-id',
+        action='store',
+        help='Contest ID to use when reading from the API. Defaults to value of contest_id in contest.yaml.',
+    )
+
     create_slack_channel_parser = subparsers.add_parser(
         'create_slack_channels',
         parents=[global_parser],
@@ -919,6 +931,12 @@ def run_parsed_arguments(args):
             fatal('solve_stats only works for a contest')
         config.args.jobs = (os.cpu_count() or 1) // 2
         solve_stats.generate_solve_stats(config.args.post_freeze)
+        return
+
+    if action == 'download_submissions':
+        if level == 'problem':
+            fatal('download_submissions only works for a contest')
+        download_submissions.download_submissions()
         return
 
     if action == 'create_slack_channels':
