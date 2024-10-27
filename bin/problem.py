@@ -459,7 +459,7 @@ class Problem:
         if config.args.submissions:
             return submissions
         else:
-            return [s for s in submissions if verdicts.Verdict.ACCEPTED in s.expected_verdicts]
+            return [s for s in submissions if s.expected_verdicts == [verdicts.Verdict.ACCEPTED]]
 
     def submissions(problem) -> list[run.Submission] | Literal[False]:
         if problem._submissions is not None:
