@@ -686,7 +686,7 @@ class Problem:
             ok &= submission_ok
 
         if config.args.table:
-            Problem._print_table(verdict_table.results, testcases, submissions)
+            Problem._print_table(verdict_table.results, testcases)
         elif config.args.overview and not config.args.tree:
             verdict_table.print(force=True, new_lines=1)
 
@@ -709,7 +709,7 @@ class Problem:
         return True
 
     @staticmethod
-    def _print_table(verdict_table, testcases, submissions):
+    def _print_table(verdict_table, testcases):
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
         def single_verdict(row, testcase):
             assert row[testcase.name] is not None
