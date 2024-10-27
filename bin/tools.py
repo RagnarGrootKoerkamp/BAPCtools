@@ -822,7 +822,7 @@ def run_parsed_arguments(args):
     action = config.args.action
 
     # Split submissions and testcases when needed.
-    if action in ['run', 'fuzz']:
+    if action in ['run', 'fuzz', 'timelimit']:
         if config.args.submissions:
             config.args.submissions, config.args.testcases = split_submissions_and_testcases(
                 config.args.submissions
