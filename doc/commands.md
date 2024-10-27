@@ -147,7 +147,7 @@ This is useful for running submissions without having to compile them manually. 
 
 ## `timelimit`
 
-The `timelimit` command is used determine a timelimit based on `time_multiplier` and `time_safety_margin`.
+The `timelimit` command is used determine a timelimit based on `time_multiplier` (factor on top of the slowest AC submission) and `time_safety_margin` (range in which a warning for an TLE submission is raised).
 The syntax is:
 
 ```
@@ -157,7 +157,7 @@ bt timelimit [<submissions and/or testcases>]
 **Flags**
 - `--write`/`-w`: write the determined timelimit to `.timelimit`
 - `--all`/`-a`: run all submissions not only AC and TLE submissions.
-- `<submission>`: The path to the submission to use to determine the timelimit. See `run <submissions>` for more.
+- `<submissions>`: The path to the submission to use to determine the timelimit. See `run <submissions>` for more.
 - `<testcases>`: The path to the testcases to use determine the timelimit. See `run <testcases>` for more.
 
 ## `generate`

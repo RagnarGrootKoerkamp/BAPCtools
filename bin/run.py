@@ -295,6 +295,7 @@ class Submission(program.Program):
                         f'Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to ACCEPTED.'
                     )
 
+        expected_verdicts.sort()
         return expected_verdicts or [Verdict.ACCEPTED]
 
     # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.

@@ -33,6 +33,9 @@ class Verdict(Enum):
             Verdict.COMPILER_ERROR: 'COMPILER ERROR',
         }[self]
 
+    def __lt__(self, other):
+        return self.value < other.value
+
     def short(self):
         return {
             Verdict.ACCEPTED: 'AC',
@@ -373,9 +376,7 @@ class VerdictTable:
         height: int = shutil.get_terminal_size().lines,
         max_name_width: int = 50,
     ):
-        self.submissions: list[str] = [
-            submission.name for verdict in submissions for submission in submissions[verdict]
-        ]
+        self.submissions: list[str] = [s.name for s in submissions]
         self.testcases: list[str] = [t.name for t in testcases]
         self.samples: set[str] = set(t.name for t in testcases if t.root == 'sample')
         self.results: list[Verdicts] = []
