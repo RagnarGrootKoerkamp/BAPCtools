@@ -2,12 +2,12 @@
 import base64
 from os import makedirs
 
-from pathlib import Path
-
 import config
-from verdicts import Verdict, from_string
+import parallel
 from contest import call_api, get_contest_id
 from util import ProgressBar, fatal
+from verdicts import Verdict, from_string
+
 
 # Example usage:
 # bt download_submissions [--user <username>] [--password <password>] [--contest <contest_id>] [--api <domjudge_url>]
@@ -52,18 +52,17 @@ def download_submissions():
     bar.done()
     bar.finalize()
 
-    problems = {s["problem_id"] for s in submissions.values()}
-
     bar = ProgressBar('Downloading sources', count=len(submissions), max_len=4)
 
-    for i, s in submissions.items():
-        bar.start(str(i))
+    def download_submission(s):
+        i = int(s["id"])
+        bar.start(s["id"])
         if "judgement_type_id" not in s:
             bar.done()
-            continue
+            return
         if accounts[s["team_id"]]["type"] != "team":
             bar.done()
-            continue
+            return
 
         verdict = from_string(s["judgement_type_id"])
         verdict_dir = {
@@ -81,7 +80,7 @@ def download_submissions():
                 f"\nSkipping submission {i}: has {len(source_code)} source files instead of 1."
             )
             bar.done()
-            continue
+            return
         source: bytes = base64.b64decode(source_code[0]["source"])
         makedirs(f"submissions/{s['problem_id']}/{verdict_dir}", exist_ok=True)
         teamid = f"{s['team_id']:>0{team_digits}}" if s['team_id'].isdigit() else s['team_id']
@@ -93,5 +92,9 @@ def download_submissions():
         ) as f:
             f.write(source)
         bar.done()
+
+    # When downloading submissions, we need to wait for the server to respond, so we can use more jobs
+    config.args.jobs *= 10
+    parallel.run_tasks(download_submission, list(submissions.values()))
 
     bar.finalize()
