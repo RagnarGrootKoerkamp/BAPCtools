@@ -3,7 +3,7 @@ from multiprocessing import Pool
 from pathlib import Path
 
 import config
-from contest import call_api, get_contest_id
+from contest import get_contest_id, call_api_get_json
 from util import ProgressBar
 
 # Note on multiprocessing:
@@ -18,18 +18,9 @@ bins = 120
 judgement_colors = {'AC': 'lime', 'WA': 'red', 'TLE': '#c0f', 'RTE': 'orange', '': 'skyblue'}
 
 
-def req(url: str):
-    r = call_api('GET', url)
-    r.raise_for_status()
-    try:
-        return r.json()
-    except Exception as e:
-        print(f'\nError in decoding JSON:\n{e}\n{r.text()}')
-
-
 # Turns an endpoint list result into an object, mapped by 'id'
-def req_assoc(url: str) -> dict[str, dict]:
-    return {o['id']: o for o in req(url)}
+def get_json_assoc(url: str) -> dict[str, dict]:
+    return {o['id']: o for o in call_api_get_json(url)}
 
 
 def time_string_to_minutes(time_string: str) -> float:
@@ -84,7 +75,7 @@ def generate_solve_stats(post_freeze: bool):
     bar = ProgressBar('Fetching', count=3, max_len=len('Contest data'))
 
     bar.start('Contest')
-    contest = req(url_prefix)
+    contest = call_api_get_json(url_prefix)
     bar.done()
 
     freeze_duration = time_string_to_minutes(contest['scoreboard_freeze_duration'])
@@ -94,7 +85,7 @@ def generate_solve_stats(post_freeze: bool):
     bar.start('Contest data')
     with Pool(num_jobs) as p:
         problems, submissions, teams, languages, judgement_types = p.map(
-            req_assoc,
+            get_json_assoc,
             [
                 url_prefix + endpoint
                 for endpoint in [
@@ -111,7 +102,7 @@ def generate_solve_stats(post_freeze: bool):
     judgement_types[''] = {'id': '', 'name': 'pending'}
 
     bar.start('Judgements')
-    for j in req(url_prefix + 'judgements'):
+    for j in call_api_get_json(url_prefix + 'judgements'):
         # Firstly, only one judgement should be 'valid': in case of rejudgings, this should be the "active" judgement.
         # Secondly, note that the submissions list only contains submissions that were submitted on time,
         # while the judgements list contains all judgements, therefore the submission might not exist.

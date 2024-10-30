@@ -510,17 +510,12 @@ def export_contest_and_problems(problems, statement_language):
         r.raise_for_status()
         log('Uploaded contest.pdf.')
 
-    def get_problems():
-        r = call_api('GET', f'/contests/{cid}/problems')
-        r.raise_for_status()
-        return yaml.load(r.text, Loader=yaml.SafeLoader)
-
     # Query the internal DOMjudge problem IDs.
-    ccs_problems = get_problems()
+    ccs_problems = call_api_get_json(f'/contests/{cid}/problems')
     if not ccs_problems:
         export_problems(problems, cid)
         # Need to query the API again, because `/problems/add-data` returns a list of IDs, not the full problem objects.
-        ccs_problems = get_problems()
+        ccs_problems = call_api_get_json(f'/contests/{cid}/problems')
 
     check_if_user_has_team()
 
@@ -537,9 +532,8 @@ def export_contest_and_problems(problems, statement_language):
 
 def check_if_user_has_team():
     # Not using the /users/{uid} route, because {uid} is either numeric or a string depending on the DOMjudge config.
-    r = call_api('GET', f'/users')
-    r.raise_for_status()
-    if not any(user['username'] == config.args.username and user['team'] for user in r.json()):
+    users = call_api_get_json(f'/users')
+    if not any(user['username'] == config.args.username and user['team'] for user in users):
         warn(f'User "{config.args.username}" is not associated with a team.')
         warn('Therefore, the jury submissions will not be run by the judgehosts.')
         log('Continue export to DOMjudge? [N/y]')
