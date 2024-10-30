@@ -5,22 +5,13 @@ from os import makedirs
 
 import config
 import parallel
-from contest import call_api, get_contest_id
+from contest import call_api_get_json, get_contest_id
 from util import ProgressBar, fatal
 from verdicts import Verdict, from_string
 
 
 # Example usage:
 # bt download_submissions [--user <username>] [--password <password>] [--contest <contest_id>] [--api <domjudge_url>]
-
-
-def req(url: str):
-    r = call_api('GET', url)
-    r.raise_for_status()
-    try:
-        return r.json()
-    except Exception as e:
-        fatal(f'\nError in decoding JSON:\n{e}\n{r.text()}')
 
 
 def download_submissions():
@@ -30,7 +21,7 @@ def download_submissions():
 
     bar = ProgressBar('Downloading metadata', count=4, max_len=len('submissions'))
     bar.start('submissions')
-    submissions = {s["id"]: s for s in req(f"/contests/{contest_id}/submissions")}
+    submissions = {s["id"]: s for s in call_api_get_json(f"/contests/{contest_id}/submissions")}
     bar.done()
 
     submission_digits = max(len(s['id']) for s in submissions.values())
@@ -45,11 +36,11 @@ def download_submissions():
 
     # Fetch account info so we can filter for team submissions
     bar.start('accounts')
-    accounts = {a['team_id']: a for a in req(f"/contests/{contest_id}/accounts")}
+    accounts = {a['team_id']: a for a in call_api_get_json(f"/contests/{contest_id}/accounts")}
     bar.done()
 
     bar.start('judgements')
-    for j in req(f"/contests/{contest_id}/judgements"):
+    for j in call_api_get_json(f"/contests/{contest_id}/judgements"):
         # Note that the submissions list only contains submissions that were submitted on time,
         # while the judgements list contains all judgements, therefore the submission might not exist.
         if j["submission_id"] in submissions:
@@ -80,7 +71,7 @@ def download_submissions():
             Verdict.COMPILER_ERROR: 'compiler_error',
         }[verdict]
 
-        source_code = req(f"/contests/{contest_id}/submissions/{i}/source-code")
+        source_code = call_api_get_json(f"/contests/{contest_id}/submissions/{i}/source-code")
         if len(source_code) != 1:
             bar.warn(
                 f"\nSkipping submission {i}: has {len(source_code)} source files instead of 1."

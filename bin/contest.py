@@ -80,9 +80,7 @@ def get_contest_id():
 def get_contests():
     url = f'{get_api()}/contests'
     verbose(f'query {url}')
-    r = call_api('GET', '/contests')
-    r.raise_for_status()
-    contests = json.loads(r.text)
+    contests = call_api_get_json('/contests')
     assert isinstance(contests, list)
     return contests
 
@@ -102,3 +100,12 @@ def call_api(method, endpoint, **kwargs):
     if not r.ok:
         error(r.text)
     return r
+
+
+def call_api_get_json(url):
+    r = call_api('GET', url)
+    r.raise_for_status()
+    try:
+        return r.json()
+    except Exception as e:
+        print(f'\nError in decoding JSON:\n{e}\n{r.text()}')

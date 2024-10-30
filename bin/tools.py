@@ -197,16 +197,12 @@ def get_problems():
             solves = dict()
 
             # Read set of problems
-            response = call_api('GET', f'/contests/{cid}/problems?public=true')
-            response.raise_for_status()
-            contest_problems = json.loads(response.text)
+            contest_problems = call_api_get_json(f'/contests/{cid}/problems?public=true')
             assert isinstance(problems, list)
             for p in contest_problems:
                 solves[p['id']] = 0
 
-            response = call_api('GET', f'/contests/{cid}/scoreboard?public=true')
-            response.raise_for_status()
-            scoreboard = json.loads(response.text)
+            scoreboard = call_api_get_json(f'/contests/{cid}/scoreboard?public=true')
 
             for team in scoreboard['rows']:
                 for p in team['problems']:
