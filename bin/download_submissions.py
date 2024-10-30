@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import base64
+import json
 from os import makedirs
 
 import config
@@ -27,7 +28,7 @@ def download_submissions():
     if contest_id is None:
         fatal("No contest ID found. Set in contest.yaml or pass --contest-id <cid>.")
 
-    bar = ProgressBar('Downloading metadata', count=3, max_len=len('submissions'))
+    bar = ProgressBar('Downloading metadata', count=4, max_len=len('submissions'))
     bar.start('submissions')
     submissions = {s["id"]: s for s in req(f"/contests/{contest_id}/submissions")}
     bar.done()
@@ -36,6 +37,11 @@ def download_submissions():
     team_digits = max(
         len(s['team_id']) if s['team_id'].isdigit() else 0 for s in submissions.values()
     )
+
+    bar.start('teams')
+    with open(f"submissions/teams.json", "w") as f:
+        f.write(json.dumps(call_api_get_json(f"/contests/{contest_id}/teams"), indent=2))
+    bar.done()
 
     # Fetch account info so we can filter for team submissions
     bar.start('accounts')
