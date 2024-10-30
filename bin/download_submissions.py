@@ -2,13 +2,12 @@
 import base64
 from os import makedirs
 
-import requests
 from pathlib import Path
 
 import config
 from verdicts import Verdict, from_string
 from contest import call_api, get_contest_id
-from util import ProgressBar
+from util import ProgressBar, fatal
 
 # Example usage:
 # bt download_submissions [--user <username>] [--password <password>] [--contest <contest_id>] [--api <domjudge_url>]
@@ -83,7 +82,7 @@ def download_submissions():
             )
             bar.done()
             continue
-        source = base64.b64decode(source_code[0]["source"])  # type: list[bytes]
+        source: bytes = base64.b64decode(source_code[0]["source"])
         makedirs(f"submissions/{s['problem_id']}/{verdict_dir}", exist_ok=True)
         teamid = f"{s['team_id']:>0{team_digits}}" if s['team_id'].isdigit() else s['team_id']
         submissionid = f"{i:>0{submission_digits}}"
