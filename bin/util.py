@@ -337,7 +337,9 @@ class ProgressBar:
             # start may only be called on the root bar.
             assert self.parent is None
             self.i += 1
-            assert self.count is None or self.i <= self.count
+            assert (
+                self.count is None or self.i <= self.count
+            ), f'Starting more items than the max of {self.count}'
 
             # assert self.item is None
             self.item = item
@@ -465,7 +467,9 @@ class ProgressBar:
         with self:
             self.clearline()
             assert self.parent is None
-            assert self.count is None or self.i == self.count
+            assert (
+                self.count is None or self.i == self.count
+            ), f'Bar has done only {self.i} of {self.count} items'
             assert self.item is None
             # At most one of print_done and message may be passed.
             if message:
