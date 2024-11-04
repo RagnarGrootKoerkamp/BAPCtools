@@ -43,28 +43,19 @@ def assert_type(name, obj, types, path=None):
     )
 
 
+UNIQUE_TESTCASE_KEYS = [
+    'copy',
+    'generate',
+    'retries',
+    'count',
+] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
+
+
 def is_testcase(yaml):
     return (
         yaml == None
         or isinstance(yaml, str)
-        or (
-            isinstance(yaml, dict)
-            and any(
-                key in yaml
-                for key in [
-                    'copy',
-                    'generate',
-                    'in',
-                    'ans',
-                    'out',
-                    'hint',
-                    'desc',
-                    'interaction',
-                    'in.statement',
-                    'ans.statement',
-                ]
-            )
-        )
+        or (isinstance(yaml, dict) and any(key in yaml for key in UNIQUE_TESTCASE_KEYS))
     )
 
 
@@ -1221,9 +1212,10 @@ class Directory(Rule):
             for d in data:
                 assert_type('Numbered case', d, dict)
                 if len(d) != 1:
-                    if 'in' in d or 'ans' in d or 'copy' in d:
+                    found_keys = [key for key in UNIQUE_TESTCASE_KEYS if key in d]
+                    if found_keys:
                         raise ParseException(
-                            'Dictionary must contain exactly one named testcase/group.\nTo specify hardcoded in/ans/copy, indent one more level.',
+                            f'Dictionary must contain exactly one named testcase/group.\nTo specify {"/".join(found_keys)}, indent one more level.',
                             self.path,
                         )
                     else:
