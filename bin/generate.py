@@ -1988,12 +1988,12 @@ data/*
             else:
                 entry.append(ruamel.yaml.comments.CommentedMap())
                 path_in_gen = in_file.relative_to('generators')
-                name = path_in_gen.as_posix().replace('/', '_')
+                name = path_in_gen.with_suffix('').as_posix().replace('/', '_')
                 new = ruamel.yaml.comments.CommentedMap(
                     {'copy': path_in_gen.with_suffix('').as_posix()}
                 )
                 new.fa.set_flow_style()
-                entry[-1][f'{name}_{in_file.stem}'] = new
+                entry[-1][str(name)] = new
                 bar.log('added to generators.yaml.')
             bar.done()
 
