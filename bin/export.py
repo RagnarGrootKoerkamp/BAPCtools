@@ -38,8 +38,8 @@ def fix_problem_yaml_name(problem):
 
 
 def force_single_language(problems):
-    if config.args.language:
-        statement_language = config.args.language
+    if config.args.languages and len(config.args.languages) == 1:
+        statement_language = config.args.languages[0]
     else:
         all_languages = set.union(*(set(p.statement_languages) for p in problems))
         if len(all_languages) > 1:
@@ -235,9 +235,10 @@ def build_problem_zip(problem, output):
 # solutions*.{lang}.pdf
 # Output is <outfile>
 def build_contest_zip(problems, zipfiles, outfile, statement_language):
-    print("writing ZIP file %s" % outfile, file=sys.stderr)
+    print(f"writing ZIP file {outfile}", file=sys.stderr)
 
-    update_problems_yaml(problems)
+    if not config.args.kattis:  # Kattis does not use problems.yaml.
+        update_problems_yaml(problems)
 
     zf = zipfile.ZipFile(outfile, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
