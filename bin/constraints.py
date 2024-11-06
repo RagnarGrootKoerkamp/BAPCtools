@@ -122,7 +122,7 @@ def check_statement(problem, language):
                 tmp = math_eval(p)
                 if tmp is not None:
                     statement_values.add(tmp)
-                    parts[i] = str(tmp)
+                    parts[i] = f'{tmp:_}'
                 else:
                     parts[i] = parts[i].strip()
             # join back together with single paces
