@@ -291,7 +291,7 @@ def check_constraints(problem):
                 print('{:^{width}}'.format(val, width=left_width), sep='', end='')
             else:
                 print(
-                    '{:>{value_len}} <= {:^{name_len}} <= {:<{value_len}}'.format(
+                    '{:>{value_len}_} <= {:^{name_len}} <= {:<{value_len}_}'.format(
                         *val, name_len=name_len, value_len=value_len
                     ),
                     sep='',
