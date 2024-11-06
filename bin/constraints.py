@@ -82,6 +82,12 @@ def check_statement(problem, language):
             return
         # remove unnecessary whitespaces
         text = ' '.join(text.split())
+
+        # If text is of the form "x, y \in {l, .., h}" then convert it to "l <= x, y <= h"
+        if m := re.search(r"([^(]*)\\in.*\\{(.*),\s*\\[lc]?dots\s*,(.*)\\}", text):
+            variables, lo, hi = m.groups()
+            text = f"{lo} <= {variables} <= {hi}"
+
         # evaluate known commands (flat)
         for key in commands:
             text = text.replace(f'\\{key}', commands[key])
