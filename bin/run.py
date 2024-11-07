@@ -328,9 +328,9 @@ class Submission(program.Program):
     # Run this submission on all testcases for the current problem.
     # Returns (OK verdict, printed newline)
     def run_all_testcases(
-        self, max_submission_name_len: int, verdict_table, *, needs_leading_newline
+        self, max_submission_name_len: int, verdict_table, testcases, *, needs_leading_newline
     ):
-        runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
+        runs = [Run(self.problem, self, testcase) for testcase in testcases]
         max_testcase_len = max(len(run.name) for run in runs)
         if self.problem.multipass:
             max_testcase_len += 2
@@ -344,11 +344,11 @@ class Submission(program.Program):
             or config.args.action in ['all', 'timelimit']
         ):
             run_until = RunUntil.DURATION
-        if config.args.all == 2:
+        if config.args.all == 2 or config.args.reorder:
             run_until = RunUntil.ALL
 
         verdicts = Verdicts(
-            self.problem.testcases(),
+            testcases,
             self.problem.settings.timeout,
             run_until,
         )

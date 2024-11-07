@@ -15,12 +15,12 @@ from typing import Literal, overload
 import config
 import inspect
 import parallel
-import problem
 import program
 import run
 import validate
 from testcase import Testcase
 from verdicts import Verdict
+from problem import Problem
 
 from util import *
 
@@ -101,9 +101,7 @@ class Invocation:
 
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
-    def __init__(
-        self, problem: problem.Problem, string: str, *, allow_absolute: bool, allow_relative=True
-    ):
+    def __init__(self, problem: Problem, string: str, *, allow_absolute: bool, allow_relative=True):
         string = str(string)
         commands = string.split()
         command = commands[0]
@@ -429,6 +427,8 @@ class Rule:
         self.name = name
         # Path of the current directory/testcase relative to data/.
         self.path: Path = parent.path / self.name
+        # store Yaml
+        self.yaml = yaml
 
 
 class TestcaseRule(Rule):
@@ -1137,7 +1137,7 @@ class Directory(Rule):
     # Process yaml object for a directory.
     def __init__(
         self,
-        problem: problem.Problem,
+        problem: Problem,
         key: str,
         name: str,
         yaml: dict,
@@ -1416,8 +1416,8 @@ class GeneratorConfig:
         # For generated cases this is the rule itself.
         # For included cases, this is the 'resolved' location of the testcase that is included.
         self.known_cases = dict()
-        # A set of paths `secret/testgroup`.
-        self.known_directories = set()
+        # A map of paths `secret/testgroup` to Directory rules.
+        self.known_directories = dict()
         # Used for cleanup
         self.known_files = set()
         # A map from key to (is_included, list of testcases and directories),
@@ -1437,14 +1437,15 @@ class GeneratorConfig:
         self.restriction = restriction
 
         if yaml_path.is_file():
-            yaml = read_yaml(yaml_path, plain=True)
+            # TODO: was plain=True needed
+            self.yaml = read_yaml(yaml_path)
             self.has_yaml = True
         else:
-            yaml = None
+            self.yaml = None
             self.has_yaml = False
 
         try:
-            self.parse_yaml(yaml)
+            self.parse_yaml(self.yaml)
         except ParseException as e:
             # Handle fatal parse errors
             message(e.message, 'generators.yaml', e.path, color_type=MessageType.FATAL)
@@ -1479,7 +1480,7 @@ class GeneratorConfig:
             if isinstance(obj, TestcaseRule):
                 self.known_cases[path] = obj
             elif isinstance(obj, Directory):
-                self.known_directories.add(path)
+                self.known_directories[path] = obj
             else:
                 assert False
 
@@ -1944,7 +1945,7 @@ data/*
             error(
                 'generate --add needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
             )
-            return
+            return False
 
         in_files = []
         for path in to_add:
@@ -2002,7 +2003,58 @@ data/*
 
         write_yaml(data, generators_yaml)
         bar.finalize()
-        return
+        return True
+
+    # reorder all testcases in the given directories
+    def reorder(self):
+        if not has_ryaml:
+            error(
+                'generate --reorder needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
+            )
+            return False
+
+        directory_rules = set()
+        for d in config.args.testcases:
+            path = d.relative_to('data')
+            parts = path.parts
+            if not parts:
+                warn(f'Cannot reorder Root directory. Skipping.')
+            elif parts[0] in config.INVALID_CASE_DIRECTORIES:
+                warn(f'{d} is used for invalid test data. Skipping.')
+            elif path not in self.known_directories:
+                warn(f'{d} is not a generated directory. Skipping.')
+            elif not self.known_directories[path].numbered:
+                warn(f'{d} is not numbered. Skipping.')
+            else:
+                directory_rules.add(self.known_directories[path])
+
+        testcase_filter = set()
+        for d in directory_rules:
+            for c in d.data:
+                testcase_filter.add(self.problem.path / 'data' / c.path.with_suffix('.in'))
+
+        ts_pair = self.problem.prepare_run()
+        if ts_pair == False:
+            return False
+
+        testcases = [t for t in ts_pair[0] if t.in_path in testcase_filter]
+        submissions = [s for s in ts_pair[1] if s.expected_verdicts != [Verdict.ACCEPTED]]
+
+        if not testcases:
+            error(f'No testcases found.')
+            return False
+        if not submissions:
+            error(f'No rejected submissions found.')
+            return False
+
+        ok, verdict_table = Problem.run_some(testcases, submissions)
+        verdict_table.print(new_lines=1)
+
+        # now we only need to reorder...
+
+        generators_yaml = self.problem.path / 'generators' / 'generators.yaml'
+        write_yaml(self.yaml, generators_yaml)
+        return ok
 
 
 # Delete files in the tmpdir trash directory. By default all files older than 10min are removed
@@ -2041,18 +2093,24 @@ def generate(problem):
     gen_config = GeneratorConfig(problem, config.args.testcases)
 
     if config.args.add is not None:
-        gen_config.add(config.args.add)
-        return True
+        return gen_config.add(config.args.add)
 
     if config.args.action == 'generate':
         if not gen_config.has_yaml:
             error('Did not find generators/generators.yaml')
-            return True
+            return False
 
     if gen_config.has_yaml:
         gen_config.build()
         gen_config.run()
         gen_config.clean_up()
+
+    if gen_config.n_parse_error > 0:
+        return False
+
+    if config.args.reorder:
+        return gen_config.reorder()
+
     return True
 
 
