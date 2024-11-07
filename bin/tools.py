@@ -524,6 +524,11 @@ Run this from one of:
     genparser_group.add_argument(
         '--clean', '-C', action='store_true', help='Delete all cached files.'
     )
+    genparser_group.add_argument(
+        '--reorder',
+        action='store_true',
+        help='Reorder cases by difficulty inside the given directories.',
+    )
 
     genparser.add_argument(
         '--interaction',
@@ -869,10 +874,24 @@ def run_parsed_arguments(args):
         checked_paths = []
         for path in config.args.add:
             if path.parts[0] != 'generators':
-                warn(f'Path {path} does not math "generators/*". Skipping.')
+                warn(f'Path {path} does not match "generators/*". Skipping.')
             else:
                 checked_paths.append(path)
         config.args.add = checked_paths
+
+    if config.args.reorder is not None:
+        # default to 'data/secret'
+        if not config.args.testcases:
+            config.args.testcases = [Path('data/secret')]
+
+        # Paths *must* be inside data/.
+        checked_paths = []
+        for path in config.args.testcases:
+            if path.parts[0] != 'data':
+                warn(f'Path {path} does not match "data/*". Skipping.')
+            else:
+                checked_paths.append(path)
+        config.args.testcases = checked_paths
 
     # Handle one-off subcommands.
     if action == 'tmp':

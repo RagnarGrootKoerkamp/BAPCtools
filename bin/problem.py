@@ -452,7 +452,7 @@ class Problem:
         return testcases
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
-    def selected_or_accepted_submissions(problem) -> list[run.Submission]:
+    def selected_or_accepted_submissions(problem) -> list['run.Submission']:
         submissions = problem.submissions()
         if not submissions:
             return []
@@ -461,7 +461,7 @@ class Problem:
         else:
             return [s for s in submissions if s.expected_verdicts == [verdicts.Verdict.ACCEPTED]]
 
-    def submissions(problem) -> list[run.Submission] | Literal[False]:
+    def submissions(problem) -> list['run.Submission'] | Literal[False]:
         if problem._submissions is not None:
             if problem._submissions is False:
                 return False
@@ -644,6 +644,7 @@ class Problem:
         problem._validators_cache[key] = result
         return validators
 
+    # get all testcses and submissions and prepare the output validator
     def prepare_run(problem):
         testcases = problem.testcases()
         if not testcases:
@@ -664,12 +665,8 @@ class Problem:
 
         return testcases, submissions
 
-    def run_submissions(problem):
-        ts_pair = problem.prepare_run()
-        if ts_pair == False:
-            return False
-        testcases, submissions = ts_pair
-
+    @staticmethod
+    def run_some(testcases, submissions):
         max_submission_len = max([len(x.name) for x in submissions])
 
         ok = True
@@ -679,11 +676,21 @@ class Problem:
         for submission in submissions:
             submission_ok, printed_newline = submission.run_all_testcases(
                 max_submission_len,
-                verdict_table=verdict_table,
+                verdict_table,
+                testcases,
                 needs_leading_newline=needs_leading_newline,
             )
             needs_leading_newline = not printed_newline
             ok &= submission_ok
+        return ok, verdict_table
+
+    # called by bt run
+    def run_submissions(problem):
+        ts_pair = problem.prepare_run()
+        if ts_pair == False:
+            return False
+        testcases, submissions = ts_pair
+        ok, verdict_table = Problem.run_some(testcases, submissions)
 
         if config.args.table:
             Problem._print_table(verdict_table.results, testcases)
@@ -935,16 +942,8 @@ class Problem:
             if len(cur_submissions) == 0:
                 return None, None, None
 
-            verdict_table = verdicts.VerdictTable(cur_submissions, testcases)
-            needs_leading_newline = False if config.args.verbose else True
-            for submission in cur_submissions:
-                submission_ok, printed_newline = submission.run_all_testcases(
-                    max_submission_len,
-                    verdict_table=verdict_table,
-                    needs_leading_newline=needs_leading_newline,
-                )
-                needs_leading_newline = not printed_newline
-                ok &= submission_ok
+            cur_ok, verdict_table = Problem.run_some(testcases, cur_submissions)
+            ok &= cur_ok
 
             def get_slowest(result):
                 slowest_pair = result.slowest_testcase()

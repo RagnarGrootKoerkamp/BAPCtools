@@ -31,6 +31,7 @@ try:
     ryaml = ruamel.yaml.YAML(typ='rt')
     ryaml.default_flow_style = False
     ryaml.indent(mapping=2, sequence=4, offset=2)
+    ryaml.width = sys.maxsize
 except Exception:
     has_ryaml = False
 
@@ -547,7 +548,7 @@ def path_size(path):
     if path.is_file():
         return path.stat().st_size
     else:
-        return sum(f.stat().st_size for f in path.rglob('*'))
+        return sum(f.stat().st_size for f in path.rglob('*') if f.exists())
 
 
 # Drops the first two path components <problem>/<type>/
