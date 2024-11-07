@@ -1210,10 +1210,7 @@ class Directory(Rule):
             return
         assert_type('Data', data, [dict, list])
 
-        if isinstance(data, dict):
-            yaml['data'] = [data]
-            data = yaml['data']
-        else:
+        if isinstance(data, list):
             self.numbered = True
             if len(data) == 0:
                 return
@@ -1601,9 +1598,10 @@ class GeneratorConfig:
 
             # Parse child directories/testcases.
             if 'data' in yaml and yaml['data']:
+                data = yaml['data'] if isinstance(yaml['data'], list) else [yaml['data']]
                 # Count the number of child testgroups.
                 num_testgroups = 0
-                for dictionary in yaml['data']:
+                for dictionary in data:
                     assert_type('Elements of data', dictionary, dict, d.path)
                     for key in dictionary.keys():
                         assert_type('Key of data', key, [type(None), str], d.path / str(key))
@@ -1612,7 +1610,7 @@ class GeneratorConfig:
                             num_testgroups += 1
 
                 testgroup_id = 0
-                for dictionary in yaml['data']:
+                for dictionary in data:
                     for key in dictionary:
                         assert_type('Testcase/directory name', key, [type(None), str], d.path)
 
