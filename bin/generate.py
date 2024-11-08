@@ -9,6 +9,7 @@ import shutil
 import secrets
 
 from collections.abc import Callable
+from colorama import Fore, Style
 from pathlib import Path, PurePosixPath, PurePath
 from typing import Literal, overload
 
@@ -70,6 +71,10 @@ def is_testcase(yaml):
 
 def is_directory(yaml):
     return isinstance(yaml, dict) and not is_testcase(yaml)
+
+
+def has_count(yaml):
+    return isinstance(yaml, dict) and 'count' in yaml and isinstance(yaml['count'], int)
 
 
 # Returns the given path relative to the problem root.
@@ -654,7 +659,7 @@ class TestcaseRule(Rule):
             elif target.is_file():
                 # Target exists but source wasn't generated -> remove it
                 generator_config.remove(target)
-                bar.log(f'REMOVED: {target.name}')
+                bar.log(f'REreordered: {target.name}')
             else:
                 # both source and target do not exist
                 pass
@@ -1042,7 +1047,7 @@ class TestcaseRule(Rule):
                         continue
                     # Target exists but source wasn't generated -> remove it
                     generator_config.remove(target)
-                    bar.log(f'REMOVED: {target.name}')
+                    bar.log(f'REreordered: {target.name}')
                 else:
                     # both source and target do not exist
                     pass
@@ -1308,7 +1313,7 @@ class Directory(Rule):
         elif d.testdata_yaml == '' and testdata_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(testdata_yaml_path)
-            bar.log(f'REMOVED: testdata.yaml')
+            bar.log(f'REreordered: testdata.yaml')
         bar.done()
 
     def generate_includes(d, problem, generator_config, bar):
@@ -1495,11 +1500,7 @@ class GeneratorConfig:
         testcase_id = 0
 
         def parse_count(yaml, warn_for=None):
-            if (
-                not isinstance(yaml, dict)
-                or 'count' not in yaml
-                or not isinstance(yaml['count'], int)
-            ):
+            if not has_count(yaml):
                 return 1
             count = yaml['count']
             if count < 1:
@@ -1564,11 +1565,7 @@ class GeneratorConfig:
                 for count_index in range(count):
                     if count_index > 0:
                         name = name_gen()
-                    if (
-                        isinstance(yaml, dict)
-                        and 'count' in yaml
-                        and isinstance(yaml['count'], int)
-                    ):
+                    if has_count(yaml):
                         name += f'-{count_index+1:0{len(str(count))}}'
 
                     # If a list of testcases was passed and this one is not in it, skip it.
@@ -1744,7 +1741,7 @@ class GeneratorConfig:
 
         self.root_dir = parse('', lambda: '', yaml, RootDirectory())
 
-    def build(self, build_visualizers=True):
+    def build(self, build_visualizers=True, skip_double_build_warning=False):
         generators_used: set[Path] = set()
         solutions_used: set[Path] = set()
         visualizers_used: set[Path] = set()
@@ -1789,7 +1786,13 @@ class GeneratorConfig:
                             run.Submission(self.problem, path, skip_double_build_warning=True)
                         )
                     else:
-                        programs.append(program_type(self.problem, path))
+                        programs.append(
+                            program_type(
+                                self.problem,
+                                path,
+                                skip_double_build_warning=skip_double_build_warning,
+                            )
+                        )
 
             bar = ProgressBar(f'Build {program_type.__name__.lower()}s', items=programs)
 
@@ -1901,9 +1904,9 @@ class GeneratorConfig:
         else:
             self.remove(path)
             if silent:
-                bar.debug(f'REMOVED: {path.name}')
+                bar.debug(f'REreordered: {path.name}')
             else:
-                bar.log(f'REMOVED: {path.name}')
+                bar.log(f'REreordered: {path.name}')
 
     # remove all files in data that were not written by the during run
     def clean_up(self):
@@ -1911,7 +1914,7 @@ class GeneratorConfig:
 
         self._remove_unknown(self.problem.path / 'data', bar)
         if self.trashdir is not None:
-            bar.warn('Some files were changed/removed.', f'-> {self.trashdir}')
+            bar.warn('Some files were changed/rereordered.', f'-> {self.trashdir}')
         bar.finalize()
 
     # write a gitignore file to ignore everything in data/ except data/sample/
@@ -2005,6 +2008,9 @@ data/*
 
     # reorder all testcases in the given directories
     def reorder(self):
+        if self.n_parse_error > 0:
+            return False
+
         if not has_ryaml:
             error(
                 'generate --reorder needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
@@ -2023,13 +2029,17 @@ data/*
                 warn(f'{d} is not a generated directory. Skipping.')
             elif not self.known_directories[path].numbered:
                 warn(f'{d} is not numbered. Skipping.')
+            elif not self.known_directories[path].data:
+                warn(f'{d} is empty. Skipping.')
             else:
                 directory_rules.add(self.known_directories[path])
+
+        data = self.problem.path / 'data'
 
         testcase_filter = set()
         for d in directory_rules:
             for c in d.data:
-                testcase_filter.add(self.problem.path / 'data' / c.path.with_suffix('.in'))
+                testcase_filter.add(data / c.path.with_suffix('.in'))
 
         ts_pair = self.problem.prepare_run()
         if ts_pair == False:
@@ -2046,17 +2056,103 @@ data/*
             return False
 
         ok, verdict_table = Problem.run_some(testcases, submissions)
-        verdict_table.print(new_lines=1)
+        if not ok:
+            return False
+        # verdict_table.print(new_lines=1)
 
-        # now we only need to reorder...
+        testcase_paths = {t.in_path.relative_to(data).with_suffix('') for t in testcases}
+        max_testcase_len = max([len(str(t)) for t in testcase_paths])
+        print()
+        print('Moving testcases to the front:')
+        for d in directory_rules:
+            # directory must be numbered
+            assert 'data' in d.yaml
+            assert isinstance(d.yaml['data'], list)
+
+            # dont move unknown cases/directories or testcases with count
+            testnodes = {
+                id(c.yaml): str(c.path)
+                for c in d.data
+                if c.path in testcase_paths and not has_count(c.yaml)
+            }
+            others = [e for e in d.yaml['data'] if id(next(iter(e.values()))) not in testnodes]
+
+            class TestcaseResult:
+                def __init__(self, yaml):
+                    self.yaml = yaml
+                    self.testnode = testnodes[id(next(iter(yaml.values())))]
+                    self.scores = []
+                    self.result = []
+                    for i in range(len(submissions)):
+                        verdict = verdict_table.results[i][self.testnode]
+                        # moving TLE cases to the front is most important to save resources
+                        # RTE are less reliable and therefore less important than WA
+                        if verdict == Verdict.TIME_LIMIT_EXCEEDED:
+                            self.scores.append((i, 8))
+                        elif verdict == Verdict.WRONG_ANSWER:
+                            self.scores.append((i, 4))
+                        elif verdict == Verdict.RUNTIME_ERROR:
+                            self.scores.append((i, 3))
+                        self.result.append(verdict_table._get_verdict(i, self.testnode))
+
+                def __str__(self):
+                    padding = ' ' * (max_testcase_len - len(self.testnode))
+                    return f'{Fore.CYAN}{self.testnode}{Style.RESET_ALL}: {padding}{"".join(self.result)}'
+
+                def score(self, points):
+                    return sum(points[i] * x for i, x in self.scores)
+
+                def update(self, points):
+                    # the points for each submission that did not fail on this testcase get doubled
+                    # up to a limit of 2**16
+                    points = [x * 2 for x in points]
+                    even = True
+                    for i, _ in self.scores:
+                        points[i] //= 2
+                        even &= points[i] % 2 == 0
+                    if even:
+                        points = [x // 2 for x in points]
+                    else:
+                        points = [min(2**16, x) for x in points]
+                    return points
+
+            todo = [
+                TestcaseResult(e) for e in d.yaml['data'] if id(next(iter(e.values()))) in testnodes
+            ]
+
+            # Worstcase runtime testcases^2 * submissions
+            # TODO: ProgressBar?
+            done = []
+            points = [1] * len(submissions)
+            while todo:
+                scores = [t.score(points) for t in todo]
+                score = max(scores)
+                if score == 0:
+                    break
+                index = scores.index(score)
+                result = todo.pop(index)
+                done.append(result.yaml)
+                points = result.update(points)
+                print(result)
+            print()
+
+            # move all unknown subgroups/testcases to the end (keeping their relative order)
+            d.yaml['data'].clear()
+            d.yaml['data'] += done + [t.yaml for t in todo] + others
 
         generators_yaml = self.problem.path / 'generators' / 'generators.yaml'
         write_yaml(self.yaml, generators_yaml)
-        return ok
+
+        # regenerate cases
+        new_config = GeneratorConfig(self.problem, config.args.testcases)
+        new_config.build(skip_double_build_warning=True)
+        new_config.run()
+        new_config.clean_up()
+        return new_config.n_parse_error == 0
 
 
-# Delete files in the tmpdir trash directory. By default all files older than 10min are removed
-# and additionally the oldest files are removed until the trash is less than 1 GiB
+# Delete files in the tmpdir trash directory. By default all files older than 10min are rereordered
+# and additionally the oldest files are rereordered until the trash is less than 1 GiB
 def clean_trash(problem, time_limit=10 * 60, size_lim=1024 * 1024 * 1024):
     trashdir = problem.tmpdir / 'trash'
     if trashdir.exists():
@@ -2102,9 +2198,6 @@ def generate(problem):
         gen_config.build()
         gen_config.run()
         gen_config.clean_up()
-
-    if gen_config.n_parse_error > 0:
-        return False
 
     if config.args.reorder:
         return gen_config.reorder()
