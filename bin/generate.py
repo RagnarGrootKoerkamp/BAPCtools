@@ -3,7 +3,6 @@ import random
 import io
 import re
 import shutil
-import yaml as yamllib
 import collections
 import shutil
 import secrets
@@ -1295,7 +1294,7 @@ class Directory(Rule):
         testdata_yaml_path = dir_path / 'testdata.yaml'
         if d.testdata_yaml:
             generator_config.known_files.add(testdata_yaml_path)
-            yaml_text = yamllib.dump(dict(d.testdata_yaml))
+            yaml_text = dump_yaml(dict(d.testdata_yaml))
 
             if testdata_yaml_path.is_file():
                 if yaml_text == testdata_yaml_path.read_text():
