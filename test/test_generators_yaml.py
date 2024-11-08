@@ -29,7 +29,7 @@ class MockGeneratorConfig(generate.GeneratorConfig):
         self.known_cases = dict()
         # A set of paths `secret/testgroup`.
         # Used for cleanup.
-        self.known_directories = set()
+        self.known_directories = dict()
         # Used for cleanup
         self.known_files = set()
         # A map from key to (is_included, list of testcases and directories),
