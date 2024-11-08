@@ -6,7 +6,6 @@ import threading
 from typing import TYPE_CHECKING
 
 from colorama import Fore
-import yaml as yamllib
 
 from util import *
 
@@ -393,7 +392,9 @@ class Program:
             bar.error('Failed', data)
             return False
 
-        yamllib.dump({'hash': self.hash, 'command': self.compile_command}, meta_path.open('w'))
+        write_yaml(
+            {'hash': self.hash, 'command': self.compile_command}, meta_path, allow_yamllib=True
+        )
         return True
 
     # Return True on success, False on failure.
