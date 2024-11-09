@@ -674,7 +674,7 @@ class Problem:
         # When true, the ProgressBar will print a newline before the first error log.
         needs_leading_newline = False if config.args.verbose else True
         for submission in submissions:
-            submission_ok, printed_newline = submission.run_all_testcases(
+            submission_ok, printed_newline = submission.run_testcases(
                 max_submission_len,
                 verdict_table,
                 testcases,
