@@ -604,18 +604,24 @@ def read_yaml_settings(path):
 write_yaml_lock = threading.Lock()
 
 
-# Writing a yaml file only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
-def write_yaml(data, path, allow_yamllib=False):
+# Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
+def write_yaml(data, path=None, allow_yamllib=False):
     if not has_ryaml:
         if not allow_yamllib:
             error(
                 'This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
             )
             exit(1)
+        if path is None:
+            return yamllib.dump(data)
         with open(path, "w") as stream:
             yamllib.dump(data, stream)
         return
     with write_yaml_lock:
+        return_string = False
+        if path is None:
+            path = StringIO()
+            return_string = True
         ryaml.dump(
             data,
             path,
@@ -633,37 +639,10 @@ def write_yaml(data, path, allow_yamllib=False):
                 else None
             ),
         )
-
-
-def dump_yaml(data, allow_yamllib=False):
-    if not has_ryaml:
-        if not allow_yamllib:
-            error(
-                'This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
-            )
-            exit(1)
-        return yamllib.dump(data)
-    stream = StringIO()
-    ryaml.dump(
-        data,
-        stream,
-        # Remove spaces at the start of each (non-commented) line, caused by the indent configuration.
-        # This is only needed when the YAML data is a list of items, like in the problems.yaml file.
-        # See also: https://stackoverflow.com/a/58773229
-        transform=(
-            (
-                lambda yaml_str: "\n".join(
-                    line if line.strip().startswith('#') else line[2:]
-                    for line in yaml_str.split("\n")
-                )
-            )
-            if isinstance(data, list)
-            else None
-        ),
-    )
-    string = stream.getvalue()
-    stream.close()
-    return string
+        if return_string:
+            string = path.getvalue()
+            path.close()
+            return string
 
 
 # Parse validation mode
