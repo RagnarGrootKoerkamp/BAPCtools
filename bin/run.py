@@ -325,9 +325,9 @@ class Submission(program.Program):
                 out_file.close()
             return result
 
-    # Run this submission on all testcases for the current problem.
+    # Run this submission on all testcases that are given.
     # Returns (OK verdict, printed newline)
-    def run_all_testcases(
+    def run_testcases(
         self, max_submission_name_len: int, verdict_table, testcases, *, needs_leading_newline
     ):
         runs = [Run(self.problem, self, testcase) for testcase in testcases]

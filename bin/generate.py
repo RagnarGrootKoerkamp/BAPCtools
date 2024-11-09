@@ -658,7 +658,7 @@ class TestcaseRule(Rule):
             elif target.is_file():
                 # Target exists but source wasn't generated -> remove it
                 generator_config.remove(target)
-                bar.log(f'REreordered: {target.name}')
+                bar.log(f'REMOVE: {target.name}')
             else:
                 # both source and target do not exist
                 pass
@@ -1046,7 +1046,7 @@ class TestcaseRule(Rule):
                         continue
                     # Target exists but source wasn't generated -> remove it
                     generator_config.remove(target)
-                    bar.log(f'REreordered: {target.name}')
+                    bar.log(f'REMOVE: {target.name}')
                 else:
                     # both source and target do not exist
                     pass
@@ -1312,7 +1312,7 @@ class Directory(Rule):
         elif d.testdata_yaml == '' and testdata_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(testdata_yaml_path)
-            bar.log(f'REreordered: testdata.yaml')
+            bar.log(f'REMOVE: testdata.yaml')
         bar.done()
 
     def generate_includes(d, problem, generator_config, bar):
@@ -1438,7 +1438,6 @@ class GeneratorConfig:
         self.restriction = restriction
 
         if yaml_path.is_file():
-            # TODO: was plain=True needed
             self.yaml = read_yaml(yaml_path)
             self.has_yaml = True
         else:
@@ -1903,9 +1902,9 @@ class GeneratorConfig:
         else:
             self.remove(path)
             if silent:
-                bar.debug(f'REreordered: {path.name}')
+                bar.debug(f'REMOVE: {path.name}')
             else:
-                bar.log(f'REreordered: {path.name}')
+                bar.log(f'REMOVE: {path.name}')
 
     # remove all files in data that were not written by the during run
     def clean_up(self):
@@ -1913,7 +1912,7 @@ class GeneratorConfig:
 
         self._remove_unknown(self.problem.path / 'data', bar)
         if self.trashdir is not None:
-            bar.warn('Some files were changed/rereordered.', f'-> {self.trashdir}')
+            bar.warn('Some files were changed/removed.', f'-> {self.trashdir}')
         bar.finalize()
 
     # write a gitignore file to ignore everything in data/ except data/sample/
@@ -2055,8 +2054,9 @@ data/*
             return False
 
         ok, verdict_table = Problem.run_some(testcases, submissions)
-        if not ok:
-            return False
+        # ok == False only indicates that some submission did not Fail
+        # if not ok:
+        #     return False
         # verdict_table.print(new_lines=1)
 
         testcase_paths = {t.in_path.relative_to(data).with_suffix('') for t in testcases}
@@ -2098,40 +2098,45 @@ data/*
                     padding = ' ' * (max_testcase_len - len(self.testnode))
                     return f'{Fore.CYAN}{self.testnode}{Style.RESET_ALL}: {padding}{"".join(self.result)}'
 
-                def score(self, points):
-                    return sum(points[i] * x for i, x in self.scores)
+                def score(self, weights):
+                    return sum(weights[i] * x for i, x in self.scores)
 
-                def update(self, points):
-                    # the points for each submission that did not fail on this testcase get doubled
-                    # up to a limit of 2**16
-                    points = [x * 2 for x in points]
+                def update(self, weights):
+                    # the weights for each submission that did not fail on this testcase get doubled
+                    # up to a limit of 2**16. (The same as halving the weight of all submission that failed)
+                    weights = [x * 2 for x in weights]
                     even = True
                     for i, _ in self.scores:
-                        points[i] //= 2
-                        even &= points[i] % 2 == 0
+                        weights[i] //= 2
+                        even &= weights[i] % 2 == 0
                     if even:
-                        points = [x // 2 for x in points]
+                        weights = [x // 2 for x in weights]
                     else:
-                        points = [min(2**16, x) for x in points]
-                    return points
+                        weights = [min(2**16, x) for x in weights]
+                    return weights
 
             todo = [
                 TestcaseResult(e) for e in d.yaml['data'] if id(next(iter(e.values()))) in testnodes
             ]
 
-            # Worstcase runtime testcases^2 * submissions
             # TODO: ProgressBar?
+            # Each submission is initially assigned a weight of one. The weight contributes to the score of a testcase if
+            # the submission fails on this testcase. If a testcase is selected the weights for each submission that it fails
+            # get halved (or all other get doubled) to encourage making the remaining submissions fail. We greedily pick the
+            # submission that has the heighest score. Note that we additionally consider the type of failing (WA/TLE/RTE)
+            # see class TestcaseResult.
+            # Worstcase runtime testcases^2 * submissions
             done = []
-            points = [1] * len(submissions)
+            weights = [1] * len(submissions)
             while todo:
-                scores = [t.score(points) for t in todo]
+                scores = [t.score(weights) for t in todo]
                 score = max(scores)
                 if score == 0:
                     break
                 index = scores.index(score)
                 result = todo.pop(index)
                 done.append(result.yaml)
-                points = result.update(points)
+                weights = result.update(weights)
                 print(result)
             print()
 
@@ -2150,8 +2155,8 @@ data/*
         return new_config.n_parse_error == 0
 
 
-# Delete files in the tmpdir trash directory. By default all files older than 10min are rereordered
-# and additionally the oldest files are rereordered until the trash is less than 1 GiB
+# Delete files in the tmpdir trash directory. By default all files older than 10min are removed
+# and additionally the oldest files are removed until the trash is less than 1 GiB
 def clean_trash(problem, time_limit=10 * 60, size_lim=1024 * 1024 * 1024):
     trashdir = problem.tmpdir / 'trash'
     if trashdir.exists():
