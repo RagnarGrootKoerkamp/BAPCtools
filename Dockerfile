@@ -28,12 +28,12 @@ RUN pacman -Syu --noconfirm \
 	boost-libs \
 	asymptote \
 	ghostscript \
+    nodejs \
+    cue \
 	&& \
 	pacman -Scc --noconfirm
 RUN git clone https://github.com/RagnarGrootKoerkamp/BAPCtools /opt/bapctools && \
     ln -sfn /opt/bapctools/bin/tools.py /usr/bin/bt && ln -sfn /opt/bapctools/third_party/checktestdata /usr/bin/checktestdata
-# TODO: Replace by installing cue package once that's on 0.6.0
-COPY cue /usr/bin/cue
 RUN mkdir /data
 WORKDIR /data
 ENTRYPOINT ["/bin/bt"]
