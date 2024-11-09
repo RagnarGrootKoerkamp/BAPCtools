@@ -649,7 +649,7 @@ class TestcaseRule(Rule):
             elif target.is_file():
                 # Target exists but source wasn't generated -> remove it
                 generator_config.remove(target)
-                bar.log(f'REMOVE: {target.name}')
+                bar.log(f'REMOVED: {target.name}')
             else:
                 # both source and target do not exist
                 pass
@@ -1037,7 +1037,7 @@ class TestcaseRule(Rule):
                         continue
                     # Target exists but source wasn't generated -> remove it
                     generator_config.remove(target)
-                    bar.log(f'REMOVE: {target.name}')
+                    bar.log(f'REMOVED: {target.name}')
                 else:
                     # both source and target do not exist
                     pass
@@ -1304,7 +1304,7 @@ class Directory(Rule):
         elif d.testdata_yaml == '' and testdata_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(testdata_yaml_path)
-            bar.log(f'REMOVE: testdata.yaml')
+            bar.log(f'REMOVED: testdata.yaml')
         bar.done()
 
     def generate_includes(d, problem, generator_config, bar):
@@ -1894,9 +1894,9 @@ class GeneratorConfig:
         else:
             self.remove(path)
             if silent:
-                bar.debug(f'REMOVE: {path.name}')
+                bar.debug(f'REMOVED: {path.name}')
             else:
-                bar.log(f'REMOVE: {path.name}')
+                bar.log(f'REMOVED: {path.name}')
 
     # remove all files in data that were not written by the during run
     def clean_up(self):
