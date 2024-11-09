@@ -15,7 +15,7 @@ This lists all subcommands and their most important options.
   - [`bt run [-v] [-t TIMELIMIT] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
   - [`bt timelimit [-a] [-w] [submissions [submissions ...]] [testcases [testcases ...]]`](#timelimit)
-  - [`bt generate [-v] [-t TIMEOUT] [--add] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [testcases [testcases ...]]`](#generate)
+  - [`bt generate [-v] [-t TIMEOUT] [--add] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [--reorder] [testcases [testcases ...]]`](#generate)
   - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
   - [`bt stats`](#stats)
@@ -175,6 +175,7 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check.
 - `--add [<testcases>, <directories>]`: Add the testcases (inside the directories) as `copy` entries in the `generator.yaml`
 - `--clean`: Delete all cached files.
+- `--reorder`: Runs all submissions that should fail and reorders the testcases in the given directories by difficulty.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
 - `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
 - `--no-validators`: Ignore the results of input and output validators.

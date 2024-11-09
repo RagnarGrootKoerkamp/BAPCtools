@@ -2061,9 +2061,10 @@ data/*
 
         testcase_paths = {t.in_path.relative_to(data).with_suffix('') for t in testcases}
         max_testcase_len = max([len(str(t)) for t in testcase_paths])
-        print()
-        print('Moving testcases to the front:')
         for d in directory_rules:
+            print(file=sys.stderr)
+            print(f'{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}', file=sys.stderr)
+
             # directory must be numbered
             assert 'data' in d.yaml
             assert isinstance(d.yaml['data'], list)
@@ -2095,8 +2096,7 @@ data/*
                         self.result.append(verdict_table._get_verdict(i, self.testnode))
 
                 def __str__(self):
-                    padding = ' ' * (max_testcase_len - len(self.testnode))
-                    return f'{Fore.CYAN}{self.testnode}{Style.RESET_ALL}: {padding}{"".join(self.result)}'
+                    return f'{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.testnode:<{max_testcase_len}} {"".join(self.result)}'
 
                 def score(self, weights):
                     return sum(weights[i] * x for i, x in self.scores)
@@ -2137,8 +2137,7 @@ data/*
                 result = todo.pop(index)
                 done.append(result.yaml)
                 weights = result.update(weights)
-                print(result)
-            print()
+                print(result, file=sys.stderr)
 
             # move all unknown subgroups/testcases to the end (keeping their relative order)
             d.yaml['data'].clear()
@@ -2148,6 +2147,7 @@ data/*
         write_yaml(self.yaml, generators_yaml)
 
         # regenerate cases
+        print(file=sys.stderr)
         new_config = GeneratorConfig(self.problem, config.args.testcases)
         new_config.build(skip_double_build_warning=True)
         new_config.run()
