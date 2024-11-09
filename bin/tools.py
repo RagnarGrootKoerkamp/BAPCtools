@@ -62,7 +62,7 @@ if not is_windows():
 # See:
 # - https://github.com/conan-io/conan/issues/4718#issuecomment-473102953
 # - https://docs.gitlab.com/runner/faq/#how-can-i-get-colored-output-on-the-web-terminal
-if not os.getenv('GITLAB_CI', False):
+if not os.getenv('GITLAB_CI', False) and not os.getenv('CI', False):
     colorama.init()
 
 # List of high level todos:
