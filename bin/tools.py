@@ -62,8 +62,12 @@ if not is_windows():
 # See:
 # - https://github.com/conan-io/conan/issues/4718#issuecomment-473102953
 # - https://docs.gitlab.com/runner/faq/#how-can-i-get-colored-output-on-the-web-terminal
-if not os.getenv('GITLAB_CI', False) and not os.getenv('CI', False):
-    colorama.init()
+
+if os.getenv('CI', False):
+    print('RUNNING in CI; using default colour output')
+else:
+    if not os.getenv('GITLAB_CI', False) and not os.getenv('CI', False):
+        colorama.init()
 
 # List of high level todos:
 # TODO: Do more things in parallel (running testcases, building submissions)
