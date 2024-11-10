@@ -9,6 +9,8 @@ jobs:
   build_pdfs:
     name: {%contest%} PDFs
     runs-on: bapctools-docker
+    container:
+      image: ragnargrootkoerkamp/bapctools
     steps:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/setup
