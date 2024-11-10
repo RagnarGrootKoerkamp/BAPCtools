@@ -327,3 +327,37 @@ def create_gitlab_jobs(contest, problems):
         problem = problem_obj.name
         print('\n')
         print(substitute(problem_yml, locals()), end='')
+
+
+def create_forgejo_actions(contest, problems):
+    if Path('.git').is_dir():
+        contest_path = Path('.')
+        forgejo = Path('.forgejo')
+    elif Path('../.git').is_dir():
+        contest_path = Path(contest)
+        forgejo = Path('../.forgejo')
+    else:
+        fatal('.git and ../.git not found after changing to contest directory.')
+
+    # Copy the 'setup' action:
+    setup_action_source = config.tools_root / 'skel/forgejo_actions/setup.yaml'
+    setup_action_target = forgejo / Path('actions/setup/action.yml')
+    setup_action_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(setup_action_source, setup_action_target)
+
+    # Copy the contest-level workflow.
+    contest_workflow_source = (config.tools_root / 'skel/forgejo_actions/contest.yaml').read_text()
+    contest_workflow = substitute(contest_workflow_source, locals())
+    contest_workflow_target = forgejo / Path(f'workflows/{contest}/contest.yaml')
+    contest_workflow_target.parent.mkdir(parents=True, exist_ok=True)
+    contest_workflow_target.write_text(contest_workflow)
+
+    # Copy the problem-level workflows.
+    problem_workflow_source = (config.tools_root / 'skel/forgejo_actions/problem.yaml').read_text()
+    for problem_obj in problems:
+        problem = problem_obj.name
+        problem_path = contest_path / problem
+        problem_workflow = substitute(problem_workflow_source, locals())
+        problem_workflow_target = forgejo / Path(f'workflows/{contest}/{problem}.yaml')
+        problem_workflow_target.parent.mkdir(parents=True, exist_ok=True)
+        problem_workflow_target.write_text(problem_workflow)
