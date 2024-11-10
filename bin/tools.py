@@ -813,22 +813,29 @@ Run this from one of:
         "samplezip", parents=[global_parser], help="Create zip file of all samples."
     )
 
-    subparsers.add_parser(
-        "gitlabci",
-        parents=[global_parser],
-        help="Print a list of jobs for the given contest.",
+    gitlab_parser = subparsers.add_parser(
+        "gitlabci", parents=[global_parser], help="Print a list of jobs for the given contest."
+    )
+    gitlab_parser.add_argument(
+        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
     )
 
-    subparsers.add_parser(
+    forgejo_parser = subparsers.add_parser(
         "forgejo_actions",
         parents=[global_parser],
         help="Setup Forgejo Actions workflows in .forgejo.",
     )
+    forgejo_parser.add_argument(
+        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
+    )
 
-    subparsers.add_parser(
+    github_parser = subparsers.add_parser(
         "github_actions",
         parents=[global_parser],
         help="Setup Github Actions workflows in .github.",
+    )
+    github_parser.add_argument(
+        "--latest-bt", action="store_true", help="Cache the latest version of BAPCtools."
     )
 
     exportparser = subparsers.add_parser(

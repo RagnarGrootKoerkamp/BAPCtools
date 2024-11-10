@@ -96,12 +96,12 @@ DEFAULT_ARGS: Final[Mapping] = {
 
 # The list of arguments below is generated using the following command:
 """
-for cmd in $(bapctools --help | grep '^  {' | sed 's/  {//;s/}//;s/,/ /g') ; do bapctools $cmd --help ; done |& \
+for cmd in $(bt --help | grep '^  {' | sed 's/  {//;s/}//;s/,/ /g') ; do bt $cmd --help ; done |& \
 grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_/g' | sort -u | \
-grep -Ev '^(h|jobs|time|verbose)$' | sed "s/^/'/;s/$/',/" | tr '\n' ' ' | sed 's/^/ARGS_LIST: Final[Sequence[str]] = [/;s/, $/]\n/'
+grep -Ev '^(h|jobs|time|verbose)$' | sed 's/^/"/;s/$/",/' | tr '\n' ' ' | sed 's/^/ARGS_LIST: Final[Sequence[str]] = [/;s/, $/]\n/'
 """
 # fmt: off
-ARGS_LIST: Final[Sequence[str]] = ['1', 'add', 'all', 'answer', 'api', 'author', 'check_deterministic', 'clean', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'default_solution', 'defaults', 'depth', 'directory', 'error', 'force', 'force_build', 'generic', 'input', 'interaction', 'interactive', 'invalid', 'kattis', 'language', 'memory', 'more', 'move_to', 'no_bar', 'no_generate', 'no_solution', 'no_solutions', 'no_testcase_sanity_checks', 'no_time_limit', 'no_validators', 'no_visualizer', 'open', 'order', 'order_from_ccs', 'overview', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'reorder', 'samples', 'sanitizer', 'skel', 'skip', 'sort', 'submissions', 'table', 'testcases', 'time_limit', 'timeout', 'token', 'tree', 'type', 'username', 'valid_output', 'watch', 'web', 'write']
+ARGS_LIST: Final[Sequence[str]] = ["1", "add", "all", "answer", "api", "author", "check_deterministic", "clean", "colors", "contest", "contest_id", "contestname", "cp", "defaults", "default_solution", "depth", "directory", "error", "force", "force_build", "generic", "input", "interaction", "interactive", "invalid", "kattis", "language", "latest_bt", "memory", "more", "move_to", "no_bar", "no_generate", "no_solution", "no_solutions", "no_testcase_sanity_checks", "no_time_limit", "no_validators", "no_visualizer", "open", "order", "order_from_ccs", "overview", "password", "post_freeze", "problem", "problemname", "remove", "reorder", "samples", "sanitizer", "skel", "skip", "sort", "submissions", "table", "testcases", "time_limit", "timeout", "token", "tree", "type", "username", "valid_output", "watch", "web", "write"]
 # fmt: on
 
 
