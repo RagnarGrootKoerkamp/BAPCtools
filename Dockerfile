@@ -34,6 +34,11 @@ RUN pacman -Syu --noconfirm \
 	pacman -Scc --noconfirm
 RUN git clone https://github.com/RagnarGrootKoerkamp/BAPCtools /opt/bapctools && \
     ln -sfn /opt/bapctools/bin/tools.py /usr/bin/bt && ln -sfn /opt/bapctools/third_party/checktestdata /usr/bin/checktestdata
+# TODO: Roll this into the big install above on a bigger update.
+RUN pacman -Syu --noconfirm \
+	texlive-langeuropean \
+	&& \
+	pacman -Scc --noconfirm
 RUN mkdir /data
 WORKDIR /data
 ENTRYPOINT ["/bin/bt"]
