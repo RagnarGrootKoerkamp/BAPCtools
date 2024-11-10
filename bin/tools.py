@@ -819,6 +819,12 @@ Run this from one of:
         help="Print a list of jobs for the given contest.",
     )
 
+    subparsers.add_parser(
+        "forgejo_actions",
+        parents=[global_parser],
+        help="Setup Forgejo Actions workflows in .forgejo.",
+    )
+
     exportparser = subparsers.add_parser(
         "export",
         parents=[global_parser],
@@ -1014,6 +1020,10 @@ def run_parsed_arguments(args):
 
     if action == "gitlabci":
         skel.create_gitlab_jobs(contest, problems)
+        return
+
+    if action == "forgejo_actions":
+        skel.create_forgejo_actions(contest, problems)
         return
 
     if action == "skel":
