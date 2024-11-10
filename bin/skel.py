@@ -405,3 +405,51 @@ def create_forgejo_actions(contest: str, problems: list[Problem]):
         problem_workflow_target = forgejo / Path(f"workflows/{contest}/{problem}.yaml")
         problem_workflow_target.parent.mkdir(parents=True, exist_ok=True)
         problem_workflow_target.write_text(problem_workflow)
+
+
+# Differences with forgejo:
+# - flat structure, with all workflows directly in `.github/workflows`.
+def create_github_actions(contest: str, problems: list[Problem]):
+    if Path(".git").is_dir():
+        contest_path = Path(".")
+        github = Path(".github")
+        nest = False
+    elif Path("../.git").is_dir():
+        contest_path = Path(contest)
+        github = Path("../.github")
+        nest = True
+    else:
+        fatal(".git and ../.git not found after changing to contest directory.")
+
+    # Copy the 'setup' action:
+    setup_action_source = config.tools_root / "skel/forgejo_actions/setup.yaml"
+    setup_action_target = github / Path("actions/setup/action.yml")
+    setup_action_target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(setup_action_source, setup_action_target)
+
+    # Copy the contest-level workflow.
+    contest_workflow_source = (config.TOOLS_ROOT / "skel/forgejo_actions/contest.yaml").read_text()
+    contest_workflow = substitute(
+        contest_workflow_source, {"contest": contest, "contest_path": str(contest_path)}
+    )
+    if nest:
+        contest_workflow_target = github / Path(f"workflows/{contest}.yaml")
+    else:
+        contest_workflow_target = github / Path("workflows/contest.yaml")
+    contest_workflow_target.parent.mkdir(parents=True, exist_ok=True)
+    contest_workflow_target.write_text(contest_workflow)
+
+    # Copy the problem-level workflows.
+    problem_workflow_source = (config.tools_root / "skel/forgejo_actions/problem.yaml").read_text()
+    for problem_obj in problems:
+        problem = problem_obj.name
+        problem_path = contest_path / problem
+        problem_workflow = substitute(
+            problem_workflow_source, {"problem": problem, "problem_path": str(problem_path)}
+        )
+        if nest:
+            problem_workflow_target = github / Path(f"workflows/{contest}_{problem}.yaml")
+        else:
+            problem_workflow_target = github / Path(f"workflows/{problem}.yaml")
+        problem_workflow_target.parent.mkdir(parents=True, exist_ok=True)
+        problem_workflow_target.write_text(problem_workflow)

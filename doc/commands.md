@@ -33,6 +33,7 @@ This lists all subcommands and their most important options.
   - [`bt rename_problem [problemname]`](#rename_problem)
   - [`bt gitlabci`](#gitlabci)
   - [`bt forgejo_actions`](#forgejo_actions)
+  - [`bt github_actions`](#github_actions)
 - Exporting
   - [`bt samplezip`](#samplezip)
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
@@ -501,6 +502,15 @@ and use the following label in `.runner`:
   ]
 }
 ```
+
+## `github_actions`
+
+`bt github_actions` writes Github Actions workflows for the current contest to
+the `.github` directory in the root of the git repository.
+When there are multiple contests, run `bt github_actions` once for each
+contest (either in the contest directory, or by passing `--contest <contest>`).
+
+The generated workflows are similar to those for `bt gitlabci` described above.
 
 # Exporting
 
