@@ -32,6 +32,7 @@ This lists all subcommands and their most important options.
   - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
   - [`bt rename_problem [problemname]`](#rename_problem)
   - [`bt gitlabci`](#gitlabci)
+  - [`bt forgejo_actions`](#forgejo_actions)
 - Exporting
   - [`bt samplezip`](#samplezip)
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
@@ -475,6 +476,30 @@ We use the following configuration for the gitlab runners:
     [runners.cache.gcs]
   [runners.docker.tmpfs]
     "/tmp" = "rw,exec"
+```
+
+## `forgejo_actions`
+
+`bt forgejo_actions` writes Forgejo Actions workflows for the current contest to
+the `.forgejo` directory in the root of the git repository.
+When there are multiple contests, run `bt forgejo_actions` once for each
+contest (either in the contest directory, or by passing `--contest <contest>`).
+
+The generated workflows are similar to those for `bt gitlabci` described above.
+
+For smooth operation, use the following in the forgejo runner `config.yaml` to
+increase the memory limit of the container and mount `/tmp` to memory.
+```
+container:
+  options: --memory=4g --memory-swap=4g --tmpfs /tmp:exec
+```
+and use the following label in `.runner`:
+```json
+{
+  "labels": [
+    "bapctools-docker:docker://ragnargrootkoerkamp/bapctools"
+  ]
+}
 ```
 
 # Exporting

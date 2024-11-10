@@ -1,0 +1,18 @@
+name: {%problem_path%}
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - {%problem_path%}/**
+      - "!{%problem_path%}/problem_statement/**"
+      - "!{%problem_path%}/attachments/**"
+jobs:
+  verify:
+    name: Verify {%problem%}
+    runs-on: bapctools-docker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.forgejo/actions/setup
+      - run: |
+          ./bt all --cp --error --no-bar --force --jobs 0 --problem {%problem_path%}
