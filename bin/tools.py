@@ -748,6 +748,12 @@ Run this from one of:
         help='Setup Forgejo Actions workflows in .forgejo.',
     )
 
+    subparsers.add_parser(
+        'github_actions',
+        parents=[global_parser],
+        help='Setup Github Actions workflows in .github.',
+    )
+
     exportparser = subparsers.add_parser(
         'export', parents=[global_parser], help='Export the problem or contest to DOMjudge.'
     )
@@ -945,6 +951,10 @@ def run_parsed_arguments(args):
 
     if action == 'forgejo_actions':
         skel.create_forgejo_actions(contest, problems)
+        return
+
+    if action == 'github_actions':
+        skel.create_github_actions(contest, problems)
         return
 
     if action == 'skel':
