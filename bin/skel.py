@@ -343,7 +343,10 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]):
     def problem_source_dir(problem: Problem):
         return problem.path.resolve().relative_to(git_root_path)
 
-    header_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/header.yaml").read_text()
+    if config.args.latest_bt:
+        header_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/header_latest_bt.yaml").read_text()
+    else:
+        header_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/header_docker_bt.yaml").read_text()
     print(header_yml)
 
     contest_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/contest.yaml").read_text()
@@ -379,14 +382,20 @@ def create_forgejo_actions(contest: str, problems: list[Problem]):
     else:
         fatal(".git and ../.git not found after changing to contest directory.")
 
-    # Copy the 'setup' action:
-    setup_action_source = config.TOOLS_ROOT / "skel/forgejo_actions/setup.yaml"
-    setup_action_target = forgejo / Path("actions/setup/action.yml")
-    setup_action_target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(setup_action_source, setup_action_target)
+    if config.args.latest_bt:
+        src = config.TOOLS_ROOT / "skel/forgejo_actions_latest_bt"
+    else:
+        src = config.TOOLS_ROOT / "skel/forgejo_actions_docker_bt"
+
+    if config.args.latest_bt:
+        # Copy the 'setup' action:
+        setup_action_source = src / "setup.yaml"
+        setup_action_target = forgejo / Path("actions/setup/action.yml")
+        setup_action_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(setup_action_source, setup_action_target)
 
     # Copy the contest-level workflow.
-    contest_workflow_source = (config.TOOLS_ROOT / "skel/forgejo_actions/contest.yaml").read_text()
+    contest_workflow_source = (src / "contest.yaml").read_text()
     contest_workflow = substitute(
         contest_workflow_source, {"contest": contest, "contest_path": str(contest_path)}
     )
@@ -395,7 +404,7 @@ def create_forgejo_actions(contest: str, problems: list[Problem]):
     contest_workflow_target.write_text(contest_workflow)
 
     # Copy the problem-level workflows.
-    problem_workflow_source = (config.TOOLS_ROOT / "skel/forgejo_actions/problem.yaml").read_text()
+    problem_workflow_source = (src / "problem.yaml").read_text()
     for problem_obj in problems:
         problem = problem_obj.name
         problem_path = contest_path / problem
@@ -410,6 +419,9 @@ def create_forgejo_actions(contest: str, problems: list[Problem]):
 # Differences with forgejo:
 # - flat structure, with all workflows directly in `.github/workflows`.
 def create_github_actions(contest: str, problems: list[Problem]):
+    if config.args.latest_bt:
+        fatal("Caching the latest BAPCtools is not supported for github actions.")
+
     if Path(".git").is_dir():
         contest_path = Path(".")
         github = Path(".github")
@@ -421,14 +433,10 @@ def create_github_actions(contest: str, problems: list[Problem]):
     else:
         fatal(".git and ../.git not found after changing to contest directory.")
 
-    # Copy the 'setup' action:
-    setup_action_source = config.tools_root / "skel/forgejo_actions/setup.yaml"
-    setup_action_target = github / Path("actions/setup/action.yml")
-    setup_action_target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy(setup_action_source, setup_action_target)
-
     # Copy the contest-level workflow.
-    contest_workflow_source = (config.TOOLS_ROOT / "skel/forgejo_actions/contest.yaml").read_text()
+    contest_workflow_source = (
+        config.TOOLS_ROOT / "skel/forgejo_actions_docker_bt/contest.yaml"
+    ).read_text()
     contest_workflow = substitute(
         contest_workflow_source, {"contest": contest, "contest_path": str(contest_path)}
     )
@@ -440,7 +448,9 @@ def create_github_actions(contest: str, problems: list[Problem]):
     contest_workflow_target.write_text(contest_workflow)
 
     # Copy the problem-level workflows.
-    problem_workflow_source = (config.tools_root / "skel/forgejo_actions/problem.yaml").read_text()
+    problem_workflow_source = (
+        config.TOOLS_ROOT / "skel/forgejo_actions_docker_bt/problem.yaml"
+    ).read_text()
     for problem_obj in problems:
         problem = problem_obj.name
         problem_path = contest_path / problem

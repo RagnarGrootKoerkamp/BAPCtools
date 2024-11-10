@@ -31,8 +31,8 @@ This lists all subcommands and their most important options.
   - [`bt new_problem [problemname] [--author AUTHOR] [--type {pass-fail,float,custom,interactive,...}] [--defaults] [--skel SKEL]`](#new_problem)
   - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
   - [`bt rename_problem [problemname]`](#rename_problem)
-  - [`bt gitlabci`](#gitlabci)
-  - [`bt forgejo_actions`](#forgejo_actions)
+  - [`bt gitlabci [--latest-bt]`](#gitlabci)
+  - [`bt forgejo_actions [--latest-bt]`](#forgejo_actions)
   - [`bt github_actions`](#github_actions)
 - Exporting
   - [`bt samplezip`](#samplezip)
@@ -407,6 +407,9 @@ Do not forget to pass a `--problem` to rename when running this from a contest d
 
 `bt gitlabici` prints configuration for Gitlab Continuous Integration to the terminal. This can be piped into the `.gitlab-ci.yml` file in the root of the repository. When there are multiple contests, just append the `bt gitlabci` of each of them, but deduplicate the top level `image:` and `default:` keys.
 
+Use the `--latest-bt` flag to pull the latest version of BAPCtools before each
+run. By default, the version in the docker image is used.
+
 Example output:
 
 ```
@@ -485,6 +488,9 @@ We use the following configuration for the gitlab runners:
 the `.forgejo` directory in the root of the git repository.
 When there are multiple contests, run `bt forgejo_actions` once for each
 contest (either in the contest directory, or by passing `--contest <contest>`).
+
+Use the `--latest-bt` flag to pull the latest version of BAPCtools before each
+run. By default, the version in the docker image is used.
 
 The generated workflows are similar to those for `bt gitlabci` described above.
 
