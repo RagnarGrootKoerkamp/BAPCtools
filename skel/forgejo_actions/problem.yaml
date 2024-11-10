@@ -11,6 +11,8 @@ jobs:
   verify:
     name: Verify {%problem%}
     runs-on: bapctools-docker
+    container:
+      image: ragnargrootkoerkamp/bapctools
     steps:
       - uses: actions/checkout@v4
       - uses: ./.forgejo/actions/setup
