@@ -12,11 +12,11 @@ some testcases and some not.
 
 See [`./generators.yaml`](./generators.yaml) for an exhaustive example file with explanations.
 
-A Json schema can be found [here](../support/generators_yaml_schema.json), which
+A Json schema can be found [here](../support/schemas/generators_yaml_schema.json), which
 can be used together with most YAML LSP's to provide autocompletion and
 validation when editing `generator.yaml` files.
 
-A [CUE](https://cuelang.org/docs/references/spec/) specification can be found [here](../support/generators_yaml_schema.cue).
+A [CUE](https://cuelang.org/docs/references/spec/) specification can be found [here](../support/schemas/generators.cue).
 A `generators.yaml` file can be validated against this spec using the `cue`
 command line tool.
 
