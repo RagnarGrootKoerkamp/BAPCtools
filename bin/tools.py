@@ -496,8 +496,11 @@ Run this from one of:
     )
 
     # Stats
-    subparsers.add_parser(
+    statsparser = subparsers.add_parser(
         'stats', parents=[global_parser], help='show statistics for contest/problem'
+    )
+    statsparser.add_argument(
+        '--slides', '-s', action='store_true', help='Print stats for presentation slides.'
     )
 
     # Generate Testcases

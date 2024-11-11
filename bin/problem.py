@@ -507,6 +507,18 @@ class Problem:
 
         programs = [run.Submission(problem, path) for path in paths]
 
+        # - first all submission with just one verdict (sorted by that verdict)
+        # - then by subdir
+        # - then by list of verdicts
+        # - then by name
+        def submissions_key(x):
+            if len(x.expected_verdicts) == 1:
+                return (1, x.expected_verdicts[0], x.name)
+            else:
+                return (len(x.expected_verdicts), x.subdir, x.expected_verdicts, x.name)
+
+        programs.sort(key=submissions_key)
+
         bar = ProgressBar('Build submissions', items=programs)
 
         def build_program(p):
@@ -526,19 +538,6 @@ class Problem:
             return False
 
         assert isinstance(problem._submissions, list)
-
-        # - first all submission with just one verdict (sorted by that verdict)
-        # - then by subdir
-        # - then by list of verdicts
-        # - then by name
-        def submissions_key(x):
-            if len(x.expected_verdicts) == 1:
-                return (1, x.expected_verdicts[0], x.name)
-            else:
-                return (len(x.expected_verdicts), x.subdir, x.expected_verdicts, x.name)
-
-        problem._submissions.sort(key=submissions_key)
-
         return problem._submissions.copy()
 
     def validators(
@@ -674,7 +673,7 @@ class Problem:
         # When true, the ProgressBar will print a newline before the first error log.
         needs_leading_newline = False if config.args.verbose else True
         for submission in submissions:
-            submission_ok, printed_newline = submission.run_testcases(
+            submission_ok, printed_newline = submission.run_all_testcases(
                 max_submission_len,
                 verdict_table,
                 testcases,
