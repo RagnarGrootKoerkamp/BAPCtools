@@ -399,7 +399,7 @@ def build_contest_pdf(
     solutions=False,
     web=False,
 ) -> bool:
-    builddir = tmpdir / contest / 'latex'
+    builddir = tmpdir / contest / language / 'latex'
     builddir.mkdir(parents=True, exist_ok=True)
     build_type = 'solution' if solutions else 'problem'
 
