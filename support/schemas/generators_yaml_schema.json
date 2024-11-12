@@ -206,7 +206,7 @@
       "description": "Invocation of a generator to create this testcase",
       "examples": ["forest --n 40 --connected", "path.cpp 20", "random {seed}"],
       "type": "string",
-      "pattern": "^[^{}]*(\\{seed(:[0-9]+)?\\}[^{}]*)*$"
+      "pattern": "^([^{}]|\\{name\\}|\\{count\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\}|\\{count\\})*$"
     },
     "slashedfilepath": {
       "type": "string",
