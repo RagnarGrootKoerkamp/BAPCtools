@@ -68,6 +68,7 @@
 \RequirePackage{etoolbox}
 \RequirePackage{float}
 \RequirePackage{listingsutf8}
+\RequirePackage{upquote}
 \RequirePackage{tocloft}
 \RequirePackage{xparse}
 \RequirePackage{siunitx}
