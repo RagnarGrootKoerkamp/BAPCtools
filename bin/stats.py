@@ -2,8 +2,10 @@ import shutil
 import statistics
 import sys
 from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
+from dateutil import parser
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Any
 
 from colorama import ansi, Fore, Style
 
@@ -13,6 +15,12 @@ import program
 from util import error, glob, exec_command
 
 Selector = str | Callable | list[str] | list[Callable]
+
+
+def stats(problems):
+    problem_stats(problems)
+    if config.args.slides:
+        slides_stats(problems)
 
 
 # This prints the number belonging to the count.
@@ -31,12 +39,6 @@ def _get_stat(count, threshold=True, upper_bound=None):
     if count < threshold:
         color = Fore.RED
     return color + str(count) + Style.RESET_ALL
-
-
-def stats(problems):
-    problem_stats(problems)
-    if config.args.slides:
-        slides_stats(problems)
 
 
 def problem_stats(problems):
@@ -208,13 +210,23 @@ def problem_stats(problems):
 
 try:
     import pygount  # type: ignore
-    import pygments  # type: ignore
+    import pygments
 
-    pygount.analysis._SUFFIX_TO_FALLBACK_LEXER_MAP['py3'] = pygments.lexers.PythonLexer()
-    pygount.analysis._SUFFIX_TO_FALLBACK_LEXER_MAP['py2'] = pygments.lexers.PythonLexer()
+    pygount.analysis._SUFFIX_TO_FALLBACK_LEXER_MAP['py3'] = pygments.lexers.PythonLexer()  # type: ignore
+    pygount.analysis._SUFFIX_TO_FALLBACK_LEXER_MAP['py2'] = pygments.lexers.PythonLexer()  # type: ignore
+    pygount_cache: dict[Path, int] = {}
     has_pygount = True
 except Exception:
     has_pygount = False
+
+
+def loc(file):
+    if file not in pygount_cache:
+        state = pygount.SourceAnalysis.from_file(file, 'submissions')
+        pygount_cache[file] = (
+            state.code_count if state.state == pygount.SourceState.analyzed else None
+        )
+    return pygount_cache[file]
 
 
 def slides_stats(problems):
@@ -224,7 +236,14 @@ def slides_stats(problems):
 
     stat_name_len = 10
     stat_len = 5
+
+    # solution stats
     columns = [p.label for p in problems] + ['sum', 'min', 'avg', 'max']
+
+    def get_stats(values, missing='-'):
+        if not values:
+            return [missing] * 4
+        return [sum(values), min(values), statistics.mean(values), max(values)]
 
     header_string = f'{{:<{stat_name_len}}}' + f' {{:>{stat_len}}}' * len(columns)
     format_string = (
@@ -232,22 +251,32 @@ def slides_stats(problems):
         + f' {{:>{stat_len + len(Fore.WHITE)}}}{Style.RESET_ALL}' * len(columns)
     )
 
+    print(file=sys.stderr)
+    header = header_string.format('', *columns)
+    print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
+    print('-' * len(header), file=sys.stderr)
+
     def format_row(*values):
         printable = []
         for value in values:
             if isinstance(value, float):
                 value = f'{value:.1f}'
+            elif isinstance(value, timedelta):
+                hours = int(value.total_seconds()) // (60 * 60)
+                days = int(value.total_seconds()) // (60 * 60 * 24)
+                weeks = int(value.total_seconds()) // (60 * 60 * 24 * 7)
+                if hours < 3 * 24:
+                    value = f'{hours}h'
+                elif days < 4 * 7:
+                    value = f'{days}d'
+                else:
+                    value = f'{weeks}w'
             elif not isinstance(value, str):
                 value = str(value)
             if not value.startswith(ansi.CSI):
                 value = f'{Fore.WHITE}{value}'
             printable.append(value)
         return format_string.format(*printable)
-
-    print(file=sys.stderr)
-    header = header_string.format('', *columns)
-    print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
-    print('-' * len(header))
 
     languages: dict[str, list[str] | Literal[True]] = {
         'C(++)': ['C', 'C++'],
@@ -256,7 +285,7 @@ def slides_stats(problems):
         'Kotlin': ['Kotlin'],
     }
 
-    def get_row(colum, names):
+    def get_submissions_row(display_name, names):
         paths = []
         if names is True:
             paths.append('submissions/accepted/*')
@@ -268,35 +297,87 @@ def slides_stats(problems):
                     paths += [f'submissions/accepted/{glob}' for glob in globs]
             paths = list(set(paths))
 
-        lines = [colum]
+        lines = [display_name]
         values = []
         for problem in problems:
             files = {file for path in paths for file in glob(problem.path, path)}
-            if files:
-                cur_lines = [
-                    pygount.SourceAnalysis.from_file(file, "pygount").code_count for file in files
-                ]
+            cur_lines = [loc(file) for file in files]
+            cur_lines = [x for x in cur_lines if x is not None]
+            if cur_lines:
                 best = min(cur_lines)
                 values.append(best)
                 lines.append(best)
             else:
                 lines.append(f'{Fore.RED}-')
-        lines += (
-            [sum(values), min(values), statistics.mean(values), max(values)]
-            if values
-            else ['-'] * 4
-        )
+        lines += get_stats(values)
         return lines
 
-    best = get_row('Any', True)
+    best = get_submissions_row('Solution', True)
     print(format_row(*best), file=sys.stderr)
-    for column, names in languages.items():
-        values = get_row(column, names)
+    for display_name, names in languages.items():
+        values = get_submissions_row(display_name, names)
         for i in range(1, 1 + len(problems)):
             if values[i] == best[i]:
                 values[i] = f'{Fore.CYAN}{values[i]}'
         print(format_row(*values), file=sys.stderr)
 
-    # TODO: git rev-list --all | wc -l
-    # TODO: last testcase change
     # TODO: analyze team submissions?
+
+    # git stats
+    if shutil.which('git') is None:
+        error('git not found!')
+        return
+
+    if not exec_command(['git', 'rev-parse', '--is-inside-work-tree']).out.startswith('true'):
+        error('not inside git')
+        return
+
+    def git(*args):
+        res = exec_command(
+            ['git', *args],
+            crop=False,
+            preexec_fn=False,
+            timeout=None,
+        )
+        return res.out if res else ''
+
+    print('-' * len(header), file=sys.stderr)
+    testcases = [len(generate.testcases(p)) for p in problems]
+    testcases += get_stats(testcases)
+    print(format_row('Testcases', *testcases), file=sys.stderr)
+    changed: list[Any] = []
+    for p in problems:
+        time = max(
+            [
+                parser.parse(git('log', '--format=%cI', '-1', '--', p.path / path))
+                for path in ['generators', 'data']
+            ]
+        )
+        duration = datetime.now(timezone.utc) - time
+        changed.append(duration.total_seconds())
+    changed += get_stats(changed)
+    changed = [timedelta(seconds=s) for s in changed]
+    changed[-4] = '-'  # sum of last changed is meaninless...
+    print(format_row('└─changed', *changed), file=sys.stderr)
+
+    commits = [int(git('rev-list', '--all', '--count', '--', p.path)) for p in problems]
+    commits += get_stats(None, '')  # commits can change multiple problems...
+    print(format_row('Commits', *commits), file=sys.stderr)
+    print(file=sys.stderr)
+    print(
+        f'{Fore.CYAN}Total Commits{Style.RESET_ALL}:',
+        int(git('rev-list', '--all', '--count')),
+        file=sys.stderr,
+    )
+    print(
+        f'{Fore.CYAN}Total Authors{Style.RESET_ALL}:',
+        git('shortlog', '--group=%ae', '-s').count('\n'),
+        file=sys.stderr,
+    )
+    duration = datetime.now(timezone.utc) - parser.parse(
+        git('log', '--reverse', '--format=%cI').partition('\n')[0]
+    )
+    print(
+        f'{Fore.CYAN}Preparation{Style.RESET_ALL}: {duration.days}d, {duration.seconds // 3600}h',
+        file=sys.stderr,
+    )
