@@ -805,6 +805,8 @@ class TestcaseRule(Rule):
             tmp_infile = tmp / 'testcase.in'
             result = t.generator.run(bar, tmp, tmp_infile.stem, t.seed, t.config.retries)
             if not result.status:
+                # clean up
+                shutil.rmtree(tmp)
                 return
 
             # Now check that the source and target are equal.
@@ -838,6 +840,8 @@ class TestcaseRule(Rule):
                         f'Generator `{t.generator.command_string}` likely does not depend on seed:',
                         f'All values in [{t.seed}, {new_seed}] give the same result.',
                     )
+            # clean up
+            shutil.rmtree(tmp)
 
         def generate_from_rule():
             nonlocal meta_yaml
