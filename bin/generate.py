@@ -825,6 +825,8 @@ class TestcaseRule(Rule):
                     new_seed = (t.seed + 1 + run) % (2**31)
                     result = t.generator.run(bar, tmp, tmp_infile.stem, new_seed, t.config.retries)
                     if not result.status:
+                        # clean up
+                        shutil.rmtree(tmp)
                         return
 
                     # Now check that the source and target are different.
