@@ -12,13 +12,15 @@ import "struct"
 // - {seed} can occur at most once
 // - {name} and {count} can occur any number of times
 command: !="" & (=~"^([^{}]|\\{name\\}|\\{count\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\}|\\{count\\})*$")
+// Same, but not allowing {count}.
+visualizer_command: !="" & (=~"^([^{}]|\\{name\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\})*$")
 
 #config: {
 	"testdata.yaml"?: #testdata_settings
 	// Path to solution starts with slash, such as "/submissions/accepted/foo.py"
 	solution?: filepath & =~"^/"
 	// Path to visualiser can be omitted
-	visualizer?:  command & =~"^/" | null
+	visualizer?:  visualizer_command & =~"^/" | null
 	random_salt?: string
 }
 
