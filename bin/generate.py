@@ -785,28 +785,10 @@ class TestcaseRule(Rule):
 
         meta_yaml = init_meta()
 
-        # For each generated .in file check that they
-        # use a deterministic generator by rerunning the generator with the
-        # same arguments.  This is done when --check-deterministic is passed,
-        # which is also set to True when running `bt all`.
-        # This doesn't do anything for non-generated cases.
-        # It also checks that the input changes when the seed changes.
-        def check_deterministic(force=False):
-            if not force and not config.args.check_deterministic:
-                return
-            if t.generator is None:
-                return
-
-            # Check that the generator is deterministic.
-            # TODO: Can we find a way to easily compare cpython vs pypy? These
-            # use different but fixed implementations to hash tuples of ints.
-            tmp = cwd / 'tmp'
-            tmp.mkdir(parents=True, exist_ok=True)
-            tmp_infile = tmp / 'testcase.in'
+        def _check_deterministic(tmp, tmp_infile):
+            assert t.generator is not None
             result = t.generator.run(bar, tmp, tmp_infile.stem, t.seed, t.config.retries)
             if not result.status:
-                # clean up
-                shutil.rmtree(tmp)
                 return
 
             # Now check that the source and target are equal.
@@ -825,8 +807,6 @@ class TestcaseRule(Rule):
                     new_seed = (t.seed + 1 + run) % (2**31)
                     result = t.generator.run(bar, tmp, tmp_infile.stem, new_seed, t.config.retries)
                     if not result.status:
-                        # clean up
-                        shutil.rmtree(tmp)
                         return
 
                     # Now check that the source and target are different.
@@ -842,6 +822,26 @@ class TestcaseRule(Rule):
                         f'Generator `{t.generator.command_string}` likely does not depend on seed:',
                         f'All values in [{t.seed}, {new_seed}] give the same result.',
                     )
+
+        # For each generated .in file check that they
+        # use a deterministic generator by rerunning the generator with the
+        # same arguments.  This is done when --check-deterministic is passed,
+        # which is also set to True when running `bt all`.
+        # This doesn't do anything for non-generated cases.
+        # It also checks that the input changes when the seed changes.
+        def check_deterministic(force=False):
+            if not force and not config.args.check_deterministic:
+                return
+            if t.generator is None:
+                return
+
+            # Check that the generator is deterministic.
+            # TODO: Can we find a way to easily compare cpython vs pypy? These
+            # use different but fixed implementations to hash tuples of ints.
+            tmp = cwd / 'tmp'
+            tmp.mkdir(parents=True, exist_ok=True)
+            tmp_infile = tmp / 'testcase.in'
+            _check_deterministic(tmp, tmp_infile)
             # clean up
             shutil.rmtree(tmp)
 
