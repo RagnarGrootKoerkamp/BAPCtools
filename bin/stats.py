@@ -370,9 +370,7 @@ def slides_stats(problems):
             '\n'
         )
         names = {(git_dir / p).parent for p in paths if p.strip() != ''}
-        renames = len(names) - 1
-        # the renaming commits are counted for the old and the new name, therefore we subtract them again
-        return sum(int(git('rev-list', '--all', '--count', '--', name)) for name in names) - renames
+        return int(git('rev-list', '--all', '--count', '--', *names))
 
     commits = [countCommits(p) for p in problems]
     commits += get_stats(None, '')  # commits can change multiple problems...
