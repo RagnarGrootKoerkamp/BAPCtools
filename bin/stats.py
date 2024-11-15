@@ -357,10 +357,24 @@ def slides_stats(problems):
         changed.append(duration.total_seconds())
     changed += get_stats(changed)
     changed = [timedelta(seconds=s) for s in changed]
-    changed[-4] = '-'  # sum of last changed is meaninless...
+    changed[-4] = '-'  # sum of last changed is meaningless...
     print(format_row('└─changed', *changed), file=sys.stderr)
 
-    commits = [int(git('rev-list', '--all', '--count', '--', p.path)) for p in problems]
+    git_dir = Path(git('rev-parse', '--show-toplevel').strip())
+
+    # this is hacky and does not handle all renames properly...
+    # for example: if A is renamed to C and B is renamed to A this will break
+    def countCommits(problem):
+        yaml_path = problem.path / 'problem.yaml'
+        paths = git('log', '--all', '--follow', '--name-only', '--format=', '--', yaml_path).split(
+            '\n'
+        )
+        names = {(git_dir / p).parent for p in paths if p.strip() != ''}
+        renames = len(names) - 1
+        # the renaming commits are counted for the old and the new name, therefore we subtract them again
+        return sum(int(git('rev-list', '--all', '--count', '--', name)) for name in names) - renames
+
+    commits = [countCommits(p) for p in problems]
     commits += get_stats(None, '')  # commits can change multiple problems...
     print(format_row('Commits', *commits), file=sys.stderr)
     print(file=sys.stderr)
