@@ -1517,16 +1517,13 @@ class GeneratorConfig:
                         color_type=MessageType.ERROR,
                     )
                 return 1000
-            if count > 100:
-                if warn_for is not None:
-                    message(
-                        f'Found large count: {count}.',
-                        'generators.yaml',
-                        warn_for,
-                        color_type=MessageType.LOG,
-                    )
-                return count
-
+            if count > 100 and warn_for is not None:
+                message(
+                    f'Found large count: {count}.',
+                    'generators.yaml',
+                    warn_for,
+                    color_type=MessageType.LOG,
+                )
             return count
 
         # Count the number of testcases in the given directory yaml.
