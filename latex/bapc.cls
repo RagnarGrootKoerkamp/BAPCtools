@@ -244,9 +244,7 @@
 }
 
 \newcommand{\SideBySideSampleNoHeading}[2]{
-	\par\bigskip\noindent%
 	\normalsize%
-	\stepcounter{SampleCount}%
 	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
 	\begin{tabularx}{\textwidth}{|X|X|}%             http://tex.stackexchange.com/a/31704
@@ -261,9 +259,7 @@
 }
 
 \newcommand{\FullWidthSampleNoHeading}[2]{
-	\par\bigskip\noindent%
 	\normalsize%
-	\stepcounter{SampleCount}%
 	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
 	\begin{tabularx}{\textwidth}{|X|}%               http://tex.stackexchange.com/a/31704
@@ -329,14 +325,30 @@
 	\fi
 }
 
-\newcommand{\SamplePass}[1]{
-	\vspace{-1.5em}
-	\par\bgroup\bigskip\noindent%
-	\centering\large\bfseries\textrm{\langpass{} #1}%
-	\nopagebreak
-	\vspace{-1.0em}
-	\par\egroup
+\newcommand{\MultipassSampleHeading}{
+	\stepcounter{SampleCount}
+	\par%
+	\begin{tabularx}{0.983\textwidth}{X}%
+		\centering \large\bfseries\textrm{\langsamplecase{} \arabic{SampleCount}}%
+	\end{tabularx}
+  \par%
+	\nopagebreak[4]%
 }
+
+\newcommand{\SamplePass}[3]{%
+  \begin{samepage}%
+	\begin{tabularx}{0.983\textwidth}{XXX}%
+		\large\bfseries\textrm{\langinput{}} \hfill%
+		& %
+		\centering \large\bfseries\textrm{\langpass{} #1}%
+		& %
+		\hfill \large\bfseries\textrm{\langoutput{}}\\%
+	\end{tabularx}
+  \\%
+  \SampleNoHeading{#2}{#3}%
+  \end{samepage}%
+}
+
 
 \newcommand{\InteractiveSampleHeading}{
 	\par\bigskip\noindent%
