@@ -199,6 +199,5 @@ data:
           seed:
               generate: random_gen.py {seed:10}
               count: 3
-    unknown_key:
 
 unknown_key:
