@@ -1,5 +1,5 @@
 schemadir="../../support/schemas"
-all_valid_yaml=(../../doc ../problems valid_yaml)
+all_valid_yaml=(../../doc ../../skel/problem/ ../problems valid_yaml)
 
 any_failed=0
 
