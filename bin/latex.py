@@ -109,6 +109,8 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
 
                 pass_id = 1
 
+                current_sample.append(f'\\MultipassSampleHeading{{}}\n')
+
                 def flush():
                     nonlocal current_sample
 
@@ -117,15 +119,9 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
                     in_path.write_text(cur_in)
                     out_path.write_text(cur_out)
 
-                    if pass_id == 1:
-                        current_sample.append(
-                            f'\\Sample{{{in_path.as_posix()}}}{{{out_path.as_posix()}}}\n'
-                        )
-                    else:
-                        current_sample.append(f'\\SamplePass{{{pass_id}}}\n')
-                        current_sample.append(
-                            f'\\SampleNoHeading{{{in_path.as_posix()}}}{{{out_path.as_posix()}}}\n'
-                        )
+                    current_sample.append(
+                        f'\\SamplePass{{{pass_id}}}{{{in_path.as_posix()}}}{{{out_path.as_posix()}}}\n'
+                    )
 
                 for line in lines.splitlines():
                     if line == '---':
