@@ -7,3 +7,5 @@ data:
           in: "-1"
       - "":
           in: "-2"
+  secret:
+    data: []
