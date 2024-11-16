@@ -1523,7 +1523,7 @@ class GeneratorConfig:
                         f'Found large count: {count}.',
                         'generators.yaml',
                         warn_for,
-                        color_type=MessageType.WARN,
+                        color_type=MessageType.LOG,
                     )
                 return count
 
