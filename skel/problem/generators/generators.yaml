@@ -1,6 +1,6 @@
 #solution: /submissions/accepted/submission.py
 #visualizer: /visualizers/asy.sh
-
+version: 2024-11 # use this version of the generators framework
 data:
   sample:
     data: []
