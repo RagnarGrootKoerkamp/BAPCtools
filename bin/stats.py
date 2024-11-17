@@ -209,29 +209,69 @@ def problem_stats(problems):
 
 
 try:
-    import pygount  # type: ignore
     import pygments
+    from pygments import lexers
 
-    pygount.analysis._SUFFIX_TO_FALLBACK_LEXER_MAP['py3'] = pygments.lexers.PythonLexer()  # type: ignore
-    pygount.analysis._SUFFIX_TO_FALLBACK_LEXER_MAP['py2'] = pygments.lexers.PythonLexer()  # type: ignore
-    pygount_cache: dict[Path, int] = {}
-    has_pygount = True
+    loc_cache: dict[Path, int | None] = {}
+    has_pygments = True
 except Exception:
-    has_pygount = False
+    has_pygments = False
+
+
+def _is_code(language, type, text):
+    if type in pygments.token.Comment and type not in (
+        pygments.token.Comment.Preproc,  # pygments treats preprocessor statements as comments
+        pygments.token.Comment.PreprocFile,
+    ):
+        return False
+    if type in pygments.token.String:
+        return False
+    if text.rstrip(' \f\n\r\t(),:;[]{}') == '':
+        return False
+    # ignore some language specific keywords
+    text = text.strip()
+    if language == 'python':
+        return text != 'pass'
+    elif language == 'batchfile':
+        return text != '@'
+    elif language == 'sql' and text == 'pass':
+        return text not in ['begin', 'end']
+    else:
+        return True
 
 
 def loc(file):
-    if file not in pygount_cache:
-        state = pygount.SourceAnalysis.from_file(file, 'submissions')
-        pygount_cache[file] = (
-            state.code_count if state.state == pygount.SourceState.analyzed else None
-        )
-    return pygount_cache[file]
+    if file not in loc_cache:
+        try:
+            content = file.read_text()
+            lexer = lexers.guess_lexer_for_filename(file, content)
+            assert isinstance(lexer, pygments.lexer.Lexer)
+            language = lexer.name.lower()
+            tokens = lexer.get_tokens(content)
+
+            count = 0
+            has_code = False
+            for type, text in tokens:
+                for line in text.splitlines(True):
+                    if _is_code(language, type, line):
+                        has_code = True
+                    if line.endswith('\n') and has_code:
+                        count += 1
+                        has_code = False
+            if has_code:
+                count += 1
+
+            loc_cache[file] = count
+        except:
+            # Either we could not read the file (for example binaries)
+            # or we did not find a lexer
+            loc_cache[file] = None
+    return loc_cache[file]
 
 
 def slides_stats(problems):
-    if not has_pygount:
-        error('stats --slides needs pygount. Install python[3]-pygount.')
+    if not has_pygments:
+        error('stats --slides needs pygments. Install python[3]-pygments.')
         return
 
     stat_name_len = 10
