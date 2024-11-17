@@ -28,7 +28,7 @@ visualizer_command: !="" & (=~"^([^{}]|\\{name\\})*(\\{seed(:[0-9]+)?\\})?([^{}]
 	command |
 	{
 		generate?: command
-		count?: int & >= 1 & <= 100
+		count?:    int & >=1 & <=100
 		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
 		// such as "manual/samples/3".
 		copy?:                                    casepath
@@ -59,6 +59,7 @@ visualizer_command: !="" & (=~"^([^{}]|\\{name\\})*(\\{seed(:[0-9]+)?\\})?([^{}]
 		invalid_outputs?: #testgroup
 	})
 	#config
+	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2024-11"
 
 	... // Do allow unknown_key at top level for tooling
 }
