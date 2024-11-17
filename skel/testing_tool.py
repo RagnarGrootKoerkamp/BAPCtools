@@ -11,7 +11,6 @@
 # The input file should contain three lines:
 # - The first line contains the width and height of the image.
 # - The second and third line each contain the coordinates of one point on the horizon.
-#
 
 # You can compile and run your solution as follows:
 
@@ -19,14 +18,14 @@
 #   g++ solution.cpp
 #   python3 testing_tool.py -f 1.in ./a.out
 
-# Python3
+# Python:
 #   python3 testing_tool.py -f 1.in python3 ./solution.py
 
-# Java
+# Java:
 #   javac solution.java
 #   python3 testing_tool.py -f 1.in java solution
 
-# Kotlin
+# Kotlin:
 #   kotlinc solution.kt
 #   python3 testing_tool.py -f 1.in kotlin solutionKt
 
@@ -148,7 +147,6 @@ with (
         except subprocess.TimeoutExpired:
             print("Killing your submission after 2 second timeout.")
             p.kill()
-        raise e
 
     finally:
         print(f"Exit code: {p.wait()}\n", flush=True)
