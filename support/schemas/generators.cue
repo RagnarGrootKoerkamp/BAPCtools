@@ -12,8 +12,7 @@ import "struct"
 // - {seed} can occur at most once
 // - {name} and {count} can occur any number of times
 command: !="" & (=~"^([^{}]|\\{name\\}|\\{count\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\}|\\{count\\})*$")
-// Same, but not allowing {count}.
-visualizer_command: !="" & (=~"^([^{}]|\\{name\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\})*$")
+visualizer_command: command & !~"\\{count\\}"
 
 #config: {
 	"testdata.yaml"?: #testdata_settings
