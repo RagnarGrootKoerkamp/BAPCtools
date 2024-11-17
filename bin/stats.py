@@ -411,7 +411,8 @@ def slides_stats(problems):
         return int(git('rev-list', '--all', '--count', '--', *names))
 
     commits = [countCommits(p) for p in problems]
-    commits += get_stats(None, '')  # commits can change multiple problems...
+    commits += get_stats(commits, '-')
+    commits[-4] = '-'  # one commit can change multiple problems so the sum is meaningless...
     print(format_row('Commits', *commits), file=sys.stderr)
     print(file=sys.stderr)
     print(
