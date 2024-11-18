@@ -19,8 +19,8 @@ Selector = str | Callable | list[str] | list[Callable]
 
 def stats(problems):
     problem_stats(problems)
-    if config.args.slides:
-        slides_stats(problems)
+    if config.args.more:
+        more_stats(problems)
 
 
 # This prints the number belonging to the count.
@@ -269,9 +269,9 @@ def loc(file):
     return loc_cache[file]
 
 
-def slides_stats(problems):
+def more_stats(problems):
     if not has_pygments:
-        error('stats --slides needs pygments. Install python[3]-pygments.')
+        error('stats --more needs pygments. Install python[3]-pygments.')
         return
 
     stat_name_len = 10
