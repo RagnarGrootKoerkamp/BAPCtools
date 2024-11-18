@@ -312,7 +312,10 @@ def create_gitlab_jobs(contest, problems):
     def problem_source_dir(problem):
         return problem.path.resolve().relative_to(Path('..').resolve())
 
-    header_yml = (config.tools_root / 'skel/gitlab_ci/header.yaml').read_text()
+    if config.args.latest_bt:
+        header_yml = (config.tools_root / 'skel/gitlab_ci/header_latest_bt.yaml').read_text()
+    else:
+        header_yml = (config.tools_root / 'skel/gitlab_ci/header_docker_bt.yaml').read_text()
     print(substitute(header_yml, locals()))
 
     contest_yml = (config.tools_root / 'skel/gitlab_ci/contest.yaml').read_text()
@@ -327,3 +330,88 @@ def create_gitlab_jobs(contest, problems):
         problem = problem_obj.name
         print('\n')
         print(substitute(problem_yml, locals()), end='')
+
+
+def create_forgejo_actions(contest, problems):
+    if Path('.git').is_dir():
+        contest_path = Path('.')
+        forgejo = Path('.forgejo')
+    elif Path('../.git').is_dir():
+        contest_path = Path(contest)
+        forgejo = Path('../.forgejo')
+    else:
+        fatal('.git and ../.git not found after changing to contest directory.')
+
+    if config.args.latest_bt:
+        src = config.tools_root / 'skel/forgejo_actions_latest_bt'
+    else:
+        src = config.tools_root / 'skel/forgejo_actions_docker_bt'
+
+    if config.args.latest_bt:
+        # Copy the 'setup' action:
+        setup_action_source = src / 'setup.yaml'
+        setup_action_target = forgejo / Path('actions/setup/action.yml')
+        setup_action_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(setup_action_source, setup_action_target)
+
+    # Copy the contest-level workflow.
+    contest_workflow_source = (src / 'contest.yaml').read_text()
+    contest_workflow = substitute(contest_workflow_source, locals())
+    contest_workflow_target = forgejo / Path(f'workflows/{contest}/contest.yaml')
+    contest_workflow_target.parent.mkdir(parents=True, exist_ok=True)
+    contest_workflow_target.write_text(contest_workflow)
+
+    # Copy the problem-level workflows.
+    problem_workflow_source = (src / 'problem.yaml').read_text()
+    for problem_obj in problems:
+        problem = problem_obj.name
+        problem_path = contest_path / problem
+        problem_workflow = substitute(problem_workflow_source, locals())
+        problem_workflow_target = forgejo / Path(f'workflows/{contest}/{problem}.yaml')
+        problem_workflow_target.parent.mkdir(parents=True, exist_ok=True)
+        problem_workflow_target.write_text(problem_workflow)
+
+
+# Differences with forgejo:
+# - flat structure, with all workflows directly in `.github/workflows`.
+def create_github_actions(contest, problems):
+    if config.args.latest_bt:
+        fatal('Caching the latest BAPCtools is not supported for github actions.')
+
+    if Path('.git').is_dir():
+        contest_path = Path('.')
+        github = Path('.github')
+        nest = False
+    elif Path('../.git').is_dir():
+        contest_path = Path(contest)
+        github = Path('../.github')
+        nest = True
+    else:
+        fatal('.git and ../.git not found after changing to contest directory.')
+
+    # Copy the contest-level workflow.
+    contest_workflow_source = (
+        config.tools_root / 'skel/forgejo_actions_docker_bt/contest.yaml'
+    ).read_text()
+    contest_workflow = substitute(contest_workflow_source, locals())
+    if nest:
+        contest_workflow_target = github / Path(f'workflows/{contest}.yaml')
+    else:
+        contest_workflow_target = github / Path(f'workflows/contest.yaml')
+    contest_workflow_target.parent.mkdir(parents=True, exist_ok=True)
+    contest_workflow_target.write_text(contest_workflow)
+
+    # Copy the problem-level workflows.
+    problem_workflow_source = (
+        config.tools_root / 'skel/forgejo_actions_docker_bt/problem.yaml'
+    ).read_text()
+    for problem_obj in problems:
+        problem = problem_obj.name
+        problem_path = contest_path / problem
+        problem_workflow = substitute(problem_workflow_source, locals())
+        if nest:
+            problem_workflow_target = github / Path(f'workflows/{contest}_{problem}.yaml')
+        else:
+            problem_workflow_target = github / Path(f'workflows/{problem}.yaml')
+        problem_workflow_target.parent.mkdir(parents=True, exist_ok=True)
+        problem_workflow_target.write_text(problem_workflow)
