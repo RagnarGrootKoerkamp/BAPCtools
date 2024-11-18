@@ -499,7 +499,7 @@ Run this from one of:
     statsparser = subparsers.add_parser(
         'stats', parents=[global_parser], help='show statistics for contest/problem'
     )
-    statsparser.add_argument('--more', '-m', action='store_true', help='Print more stats.')
+    statsparser.add_argument('--more', action='store_true', help='Print more stats.')
 
     # Generate Testcases
     genparser = subparsers.add_parser(
