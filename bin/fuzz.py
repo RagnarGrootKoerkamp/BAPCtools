@@ -114,7 +114,7 @@ class GeneratorTask:
                 self.saved = True
                 save = True
         # only save rule if we set self.saved to True
-        if save:
+        if save and not self.fuzz.queue.aborted:
             localbar = bar.start(f'{self.i}: {self.command}')
             localbar.log('Saving testcase in generators.yaml.')
             localbar.done()
