@@ -100,8 +100,10 @@ def from_string(s: str) -> Verdict:
             return Verdict.TIME_LIMIT_EXCEEDED
         case 'RUN-ERROR' | 'RUN_TIME_ERROR' | 'RUNTIME_ERROR' | 'RTE':
             return Verdict.RUNTIME_ERROR
-        case 'NO-OUTPUT':
+        case 'NO-OUTPUT' | 'NO':
             return Verdict.WRONG_ANSWER
+        case 'OUTPUT-LIMIT' | 'OLE':
+            return Verdict.RUNTIME_ERROR
         case 'COMPILER-ERROR' | 'CE':
             return Verdict.COMPILER_ERROR
         case 'CHECK-MANUALLY':
