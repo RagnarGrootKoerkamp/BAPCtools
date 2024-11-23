@@ -20,6 +20,7 @@ RUN pacman -Syu --noconfirm \
 	python-yaml \
 	jdk17-openjdk \
 	kotlin \
+	rust \
 	texlive-core \
 	texlive-binextra \
 	texlive-latexextra \
