@@ -1,0 +1,7 @@
+generators:
+  a:
+    - foo
+    - foo/bar
+    - foo/g/a.b
+    - foo/g
+data: { sample: { data: []}, secret: { data: [] }}
