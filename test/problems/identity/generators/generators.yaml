@@ -77,7 +77,7 @@ data:
         data:
           - dir: dir 300
           - dir2: dir 301
-          - dir: dir/ 306
+          #- dir: dir/ 306 # TODO disallow
           - dir_run: dir_run 303
           - dir_build: dir_build 304
           - dir_build_run: dir_build_run 305
