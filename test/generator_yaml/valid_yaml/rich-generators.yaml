@@ -1,0 +1,50 @@
+data:
+  sample: {}
+  secret:
+    data:
+      'nocount':
+        generate: my_generator {count}
+      'count-1':
+        generate: my_generator {count}
+        count: 1
+      'count-100':
+        generate: my_generator {count}
+        count: 100
+      'copied':
+        copy: ab
+        in: "1 2"
+        count: 100
+      'generage_and_copy':
+        generate: my_generator
+        copy: ab
+        in: "1 2"
+      'explicit':
+        in: "-1 2"
+        ans: "1"
+        desc: "Negative numbers"
+        hint: "Remember that a can be negative"
+      'curlies': my_generator {seed:1} --name {name} 
+      'morecurlies': 
+        generate: my_generator {seed:1} --name {name} --ctr {count} --arg {count}
+        count: 5
+      'group_with_testdata':
+        "testdata.yaml":
+          input_validator_flags: "--connected --max_n 2000"
+        visualizer: "/foo/bar/baz"
+        data:
+          'a': my_generator
+  invalid_inputs:
+    data:
+    - '':
+        in: "1 2 3"
+  invalid_answers:
+    data:
+    - '':
+        in: "1 2 3"
+        ans: "foo"
+  invalid_outputs:
+    data:
+    - '':
+        in: "1 2 3"
+        ans: "6"
+        out: "7"
