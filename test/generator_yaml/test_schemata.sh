@@ -12,7 +12,7 @@ all_valid_yaml=(../../doc ../../skel/problem ../problems valid_yaml)
 
 schemadir="../../support/schemas"
 
-any_failed=0
+failed=0
 
 SNIPPETS_DIR=$(mktemp -d)
 trap "rm -rf $SNIPPETS_DIR" EXIT
@@ -26,7 +26,7 @@ for dir in "${all_valid_yaml[@]}"; do
 		    echo -n -e "\033[0;32mOK(cue)\033[0m"
 	    else
 		    echo -n -e "\033[0;31mError(cue)\033[0m"
-		    any_failed=1
+		    ((failed++))
 	    fi
 
 	    output_json=""
@@ -37,7 +37,7 @@ for dir in "${all_valid_yaml[@]}"; do
 			    echo -n -e "\033[0;32m OK(json)\033[0m"
 		    else
 			    echo -n -e "\033[0;31m Error(json)\033[0m"
-			    any_failed=1
+			    ((failed++))
 		    fi
 	    fi
 	    echo "$output_cue" | head -n 1
@@ -77,6 +77,7 @@ for snippet in "$SNIPPETS_DIR"/*.yaml; do
 	else
 		echo -n -e "\033[0;31mIncorrectly accepted\033[0m"
 		snippet_failed=1
+		((failed++))
 	fi
 	if [ "$1" = "-j" ]; then
 		cue vet $snippet $schemadir/generators_yaml_schema.json > /dev/null 2>&1
@@ -86,16 +87,16 @@ for snippet in "$SNIPPETS_DIR"/*.yaml; do
 		else
 			echo -n -e "\033[0;31m Error(json)\033[0m"
 			snipped_failed=1
+			((failed++))
 		fi
 	fi
 	printf "\n"
 	if [ $snippet_failed = 1 ]; then
-		any_failed=1
 		cat $snippet
 	fi
 done
-if [ $any_failed -ne 0 ]; then
-    echo "One or more cue vet commands failed." >&2
+if [ $failed -ne 0 ]; then
+    echo "$failed errors." >&2
     exit 1
 else
     echo "All cue vet commands completed successfully."
