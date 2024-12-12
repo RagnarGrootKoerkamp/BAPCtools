@@ -1,0 +1,50 @@
+accepted/th.py:
+  permitted: ["AC"]
+---
+# applies to all submissions in accepted/
+accepted:
+  permitted: ["AC"]
+---
+# this submissions passes all samples
+accepted/a.py:
+  sample:
+    permitted: ["AC"]
+---
+# use globs for testnodes
+accepted/a.py:
+  sample:
+    required: ["AC"]
+  secret/*/huge:
+    required: ["TLE"]
+---
+# specify many things for a submission
+accepted/lovelace.ada:
+  author: Ada Lovelace <ada@byron.co.uk>
+  score: [0, 20]
+  sample:
+    required: ["AC"]
+  secret/*/huge:
+    required: ["TLE"]
+---
+# More than one submission:
+accepted/a.py:
+  score: [60, 80]
+accepted/b.py:
+  score: [70, 74]
+---
+other/*.py:
+  required: ["TLE"]
+---
+other/*:
+  required: ["TLE"]
+---
+accepted:
+    author: "Ragnar van’t Höfnarß <foo_@bar>"
+    permitted: ["AC", "TLE", "WA"]
+    required: ["TLE"]
+    score: [40, 50] 
+    sample: { required: [WA] }
+    sample/1 : { required: [AC] }
+    secret/*/huge: { required: [TLE] }       # can use globbing
+    "*/sample/foo": { permitted: [AC, TLE] } # remember quotes bc * is weird in YAML
+    secret/*/*/1: { required: [TLE] }     # no **

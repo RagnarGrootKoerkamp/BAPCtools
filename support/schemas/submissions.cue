@@ -6,13 +6,21 @@ import "list"
 
 #verdict: "AC" | "WA" | "RTE" | "TLE"
 
-#testnode_pattern: =~"[a-zA-Z0-9_/\\*]+" // TODO
+let globbed_dirname = "[A-Za-z0-9*]([A-Za-z0-9_*-]{0,253}[A-Za-z0-9*])?"
+#globbed_dirpath: =~"^(\(globbed_dirname)/)*\(globbed_dirname)$" & !~ "\\*\\*"
+let globbed_filename = "([A-Za-z0-9*][A-Za-z0-9_.*-]{0,253}[A-Za-z0-9*]|\\*)"
+
+#globbed_submissionpath: =~"^(\(globbed_dirname)/)*\(globbed_filename)$" & !~ "\\*\\*"
 #Submissions: {
+	[#globbed_submissionpath]: #submission
+}
+
+#submission: {
 	language?:   string
 	entrypoint?: string
 	author?: #person | [...#person]
 	#expectation
-	[=~"^(sample|secret|\\*)" & #testnode_pattern]: #expectation
+	[=~"^(sample|secret|\\*)" & #globbed_dirpath]: #expectation
 }
 
 #expectation: {
