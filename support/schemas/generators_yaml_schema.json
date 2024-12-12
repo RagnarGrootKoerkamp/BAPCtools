@@ -182,7 +182,7 @@
       "oneOf": [
         {
           "type": "string",
-          "pattern": "^([^{}]|\\{name\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\})*$"
+          "pattern": "^\/([^{}]|\\{name\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\})*$"
         },
         {
           "type": "null"
@@ -216,9 +216,20 @@
       "type": "string",
       "pattern": "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]/)*[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]$"
     },
-    "casepath": {
+    "dirpath": {
       "type": "string",
-      "pattern": "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]/)*([A-Za-z0-9]|A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]$"
+      "pattern": "^([A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?/)*[A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?$"
+    },
+    "path": {
+      "type": "string",
+      "anyOf": [
+        {
+          "pattern": "^([A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?/)*[A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?$"
+        },
+        {
+          "pattern": "^/?([A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?/)*[A-Za-z0-9][A-Za-z0-9_.-]{0,253}[A-Za-z0-9]$"
+        }
+      ]
     }
   },
   "additionalProperties": true,
@@ -242,7 +253,7 @@
           "title": "Generator",
           "type": "array",
           "items": {
-            "$ref": "#/$defs/unslashedfilepath"
+            "$ref": "#/$defs/path"
           }
         }
       },
