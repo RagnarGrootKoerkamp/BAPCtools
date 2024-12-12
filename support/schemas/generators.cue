@@ -31,7 +31,7 @@ import "strings"
 
 #testgroup_config: {
 	#config
-	"testdata.yaml": #testdata_settings 
+	"testdata.yaml": #testdata_settings
 }
 
 #testcase:
@@ -48,7 +48,7 @@ import "strings"
 	}
 
 #data_dict: {[#name]: #testgroup | #testcase}
-#data_list: {[#name | ""]: #testgroup | #testcase} &  struct.MinFields(1) & struct.MaxFields(1)
+#data_list: {[#name | ""]: #testgroup | #testcase} & struct.MinFields(1) & struct.MaxFields(1)
 
 #testgroup: {
 	data?: #data_dict | [...#data_list]
