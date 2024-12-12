@@ -103,11 +103,12 @@ data:
   - true
 ---
 # Unnumbered keys must not be empty.
+# TODO not picked up by JSON schema
 data:
   sample: {data: []}
   secret:
     data:
-      '': str
+      '': str 
 ---
 data:
   sample: {data: []}
@@ -161,6 +162,7 @@ data:
       a: gen {seed:1} {seed:2}
 ---
 # no empty string TODO
+# TODO not picked up by JSON schema
 data:
   sample: {data: []}
   secret:
@@ -220,6 +222,7 @@ data:
         generate: []
 ---
 # Copied cases must not have an absolute path. TODO
+# TODO not picked up by JSON schema
 data:
   sample: {data: []}
   secret:
@@ -228,6 +231,7 @@ data:
         copy: /a/b/c
 ---
 # Copied cases must not have an absolute path. TODO
+# TODO not picked up by JSON schema
 data:
   sample: {data: []}
   secret:
@@ -236,6 +240,7 @@ data:
         copy: /testcase
 ---
 # Copied cases must not have an absolute path. TODO
+# TODO not picked up by JSON schema
 data:
   sample: {data: []}
   secret:
@@ -244,6 +249,7 @@ data:
         copy: /generators/a/b/c
 ---
 # Generator invocations must not have an absolute path.
+# TODO not picked up by JSON schema
 data:
   sample: {data: []}
   secret:
@@ -252,6 +258,7 @@ data:
         generate: /generators/gen_tree
 ---
 # Generator invocations must not have an absolute path.
+# TODO not picked up by JSON schema
 data:
   sample: {data: []}
   secret:
@@ -339,13 +346,13 @@ data:
 #---
 # Numbered cases must contain exactly one testcase
 data:
-  sample: {data: []} 
+  sample: {} 
   secret:
     data:
       - {}
 ---
 data:
-  sample: {data: []} 
+  sample: {} 
   secret:
     data:
       - a: a
@@ -353,21 +360,51 @@ data:
 ---
 # Numbered testcases must contain a dict
 data:
-  sample: {data: []} 
+  sample: {} 
   secret:
     data:
       - 1
 ---
 # Numbered testcases must contain a dict
 data:
-  sample: {data: []} 
+  sample: {} 
   secret:
     data:
       - foo
 ---
 # Numbered testcases must contain a dict
 data:
-  sample: {data: []} 
+  sample: {} 
   secret:
     data:
       - []
+---
+# Count is at least 1
+data:
+  sample: {}
+  secret:
+    data:
+    - '':
+       generate: my_generator {count}
+       count: 0
+---
+# Count is at most 100
+data:
+  sample: {}
+  secret:
+    data:
+    - '':
+       generate: my_generator {count}
+       count: 101
+---
+# No testdata.yaml on testcase level
+# TODO Not picked up by JSON schema
+data:
+  sample: {}
+  secret:
+    data:
+    - '':
+        in: '1 2'
+        visualizer: "/ab/c" # this is fine
+        testdata.yaml:      # this is not
+          input_validator_flags: "connected" 
