@@ -1,6 +1,6 @@
 # Validate all valid generator YAML found in the following dirs agains the CUE schema:
 
-all_valid_yaml=(../../doc ../../skel/problem ../problems valid_yaml)
+all_valid_yaml=(../../../doc ../../../skel/problem ../../problems valid_yaml)
 
 # Arguments
 #
@@ -10,7 +10,7 @@ all_valid_yaml=(../../doc ../../skel/problem ../problems valid_yaml)
 # here the yaml can be split using `---` and each snippet is individually 
 # validated.
 
-schemadir="../../support/schemas"
+schemadir="../../../support/schemas"
 
 failed=0
 
