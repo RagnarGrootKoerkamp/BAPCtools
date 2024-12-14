@@ -1022,9 +1022,15 @@ def run_parsed_arguments(args):
             # --all is passed.
             if level == 'problem' or (level == 'problemset' and config.args.all):
                 success &= latex.build_problem_pdfs(problem)
-        if action in ['solutions']:
-            if level == 'problem':
-                success &= latex.build_problem_pdfs(problem, solutions=True, web=config.args.web)
+        if level == 'problem':
+            if action in ['solutions']:
+                success &= latex.build_problem_pdfs(
+                    problem, build_type=latex.PdfType.SOLUTION, web=config.args.web
+                )
+            if action in ['problem_slides']:
+                success &= latex.build_problem_pdfs(
+                    problem, build_type=latex.PdfType.PROBLEM_SLIDE, web=config.args.web
+                )
         if action in ['validate', 'all']:
             if not (action == 'validate' and (config.args.input or config.args.answer)):
                 success &= problem.validate_data(validate.Mode.INVALID)

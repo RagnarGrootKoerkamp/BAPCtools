@@ -27,6 +27,12 @@ from util import (
 )
 
 
+class PdfType(str, Enum):
+    PROBLEM = 'problem'
+    PROBLEM_SLIDE = 'problem-slide'
+    SOLUTION = 'solution'
+
+
 def latex_builddir(problem: "problem.Problem", language: str) -> Path:
     builddir = problem.tmpdir / 'latex' / language
     builddir.mkdir(parents=True, exist_ok=True)
@@ -176,6 +182,33 @@ def get_tl(problem: "problem.Problem"):
     return tl if print_tl else ''
 
 
+def problem_data(problem: "problem.Problem", language: str):
+    background = next(
+        (p['rgb'][1:] for p in problems_yaml() if p['id'] == str(problem.path) and 'rgb' in p),
+        'ffffff',
+    )
+    # Source: https://github.com/DOMjudge/domjudge/blob/095854650facda41dbb40966e70199840b887e33/webapp/src/Twig/TwigExtension.php#L1056
+    foreground = (
+        '000000' if sum(int(background[i : i + 2], 16) for i in range(0, 6, 2)) > 450 else 'ffffff'
+    )
+    border = "".join(
+        ("00" + hex(max(0, int(background[i : i + 2], 16) - 64))[2:])[-2:] for i in range(0, 6, 2)
+    )
+
+    return {
+        'problemlabel': problem.label,
+        'problemyamlname': problem.settings.name[language].replace('_', ' '),
+        'problemauthor': problem.settings.author,
+        'problembackground': background,
+        'problemforeground': foreground,
+        'problemborder': border,
+        'timelimit': get_tl(problem),
+        'problemdir': problem.path.absolute().as_posix(),
+        'problemdirname': problem.name,
+        'builddir': latex_builddir(problem, language).as_posix(),
+    }
+
+
 def make_environment() -> dict[str, str]:
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
@@ -313,13 +346,15 @@ def build_latex_pdf(
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/latex/<language>/problem.tex,
 #    substituting variables.
 # 2. Create tmpdir/<problem>/latex/<language>/samples.tex.
-# 3. Run latexmk and link the resulting problem.<language>.pdf into the problem directory.
-def build_problem_pdf(problem: "problem.Problem", language: str, solution=False, web=False):
+# 3. Run latexmk and link the resulting <build_type>.<language>.pdf into the problem directory.
+def build_problem_pdf(
+    problem: "problem.Problem", language: str, build_type=PdfType.PROBLEM, web=False
+):
     """
     Arguments:
     -- language: str, the two-letter language code appearing the file name, such as problem.en.tex
     """
-    main_file = 'solution' if solution else 'problem'
+    main_file = build_type.value
     main_file += '-web.tex' if web else '.tex'
 
     bar = PrintBar(f'{main_file[:-3]}{language}.pdf')
@@ -333,21 +368,13 @@ def build_problem_pdf(problem: "problem.Problem", language: str, solution=False,
     copy_and_substitute(
         local_data if local_data.is_file() else config.tools_root / 'latex' / main_file,
         builddir / main_file,
-        {
-            'problemlabel': problem.label,
-            'problemyamlname': problem.settings.name[language].replace('_', ' '),
-            'problemauthor': problem.settings.author,
-            'timelimit': get_tl(problem),
-            'problemdir': problem.path.absolute().as_posix(),
-            'problemdirname': problem.name,
-            'builddir': builddir.as_posix(),
-        },
+        problem_data(problem, language),
     )
 
     return build_latex_pdf(builddir, builddir / main_file, language, bar, problem.path)
 
 
-def build_problem_pdfs(problem, solutions=False, web=False):
+def build_problem_pdfs(problem: "problem.Problem", build_type=PdfType.PROBLEM, web=False):
     """Build PDFs for various languages. If list of languages is specified,
     (either via config files or --language arguments), build those. Otherwise
     build all languages for which there is a statement latex source.
@@ -363,20 +390,22 @@ def build_problem_pdfs(problem, solutions=False, web=False):
         languages = config.args.languages
     else:
         languages = problem.statement_languages
-        # For solutions, filter for `solution.xy.tex` files that exist.
-        if solutions:
+        # For solutions or problem slides, filter for `<build_type>.<language>.tex` files that exist.
+        if build_type != PdfType.PROBLEM:
             filtered_languages = []
             for lang in languages:
-                if (problem.path / 'problem_statement' / f'solution.{lang}.tex').exists():
+                if (problem.path / 'problem_statement' / f'{build_type.value}.{lang}.tex').exists():
                     filtered_languages.append(lang)
                 else:
                     message(
-                        f'solution.{lang}.tex not found', problem.name, color_type=MessageType.WARN
+                        f'{build_type.value}.{lang}.tex not found',
+                        problem.name,
+                        color_type=MessageType.WARN,
                     )
             languages = filtered_languages
     if config.args.watch and len(languages) > 1:
         fatal('--watch does not work with multiple languages. Please use --language')
-    return all([build_problem_pdf(problem, lang, solutions, web) for lang in languages])
+    return all([build_problem_pdf(problem, lang, build_type, web) for lang in languages])
 
 
 def find_logo() -> Path:
@@ -386,12 +415,6 @@ def find_logo() -> Path:
             if logo.exists():
                 return logo
     return config.tools_root / 'latex' / 'images' / 'logo-not-found.pdf'
-
-
-class PdfType(str, Enum):
-    PROBLEM = 'problem'
-    PROBLEM_SLIDE = 'problem-slide'
-    SOLUTION = 'solution'
 
 
 def build_contest_pdf(
@@ -451,13 +474,11 @@ def build_contest_pdf(
             problems_data += f'\\input{{{headertex}}}\n'
 
     local_per_problem_data = Path(f'contest-{build_type.value}.tex')
-    per_problem_data = (
+    per_problem_data_tex = (
         local_per_problem_data
         if local_per_problem_data.is_file()
         else config.tools_root / 'latex' / f'contest-{build_type.value}.tex'
     ).read_text()
-
-    probyaml = problems_yaml()
 
     for problem in problems:
         if build_type == PdfType.PROBLEM:
@@ -476,33 +497,9 @@ def build_contest_pdf(
                 bar.warn(f'solution.{language}.tex not found', problem.name)
                 continue
 
-        background = next(
-            (p['rgb'] for p in probyaml if p['id'] == str(problem.path) and 'rgb' in p), '#ffffff'
-        )[1:]
-        # Source: https://github.com/DOMjudge/domjudge/blob/095854650facda41dbb40966e70199840b887e33/webapp/src/Twig/TwigExtension.php#L1056
-        foreground = (
-            '000000'
-            if sum(int(background[i : i + 2], 16) for i in range(0, 6, 2)) > 450
-            else 'ffffff'
-        )
-        border = "".join(
-            ("00" + hex(max(0, int(background[i : i + 2], 16) - 64))[2:])[-2:]
-            for i in range(0, 6, 2)
-        )
         problems_data += substitute(
-            per_problem_data,
-            {
-                'problemlabel': problem.label,
-                'problemyamlname': problem.settings.name[language].replace('_', ' '),
-                'problemauthor': problem.settings.author,
-                'problembackground': background,
-                'problemforeground': foreground,
-                'problemborder': border,
-                'timelimit': get_tl(problem),
-                'problemdir': problem.path.absolute().as_posix(),
-                'problemdirname': problem.name,
-                'builddir': latex_builddir(problem, language).as_posix(),
-            },
+            per_problem_data_tex,
+            problem_data(problem, language),
         )
 
     if solutions:

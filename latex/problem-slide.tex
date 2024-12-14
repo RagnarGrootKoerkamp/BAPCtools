@@ -1,0 +1,14 @@
+\documentclass[rgb,dvipsnames,aspectratio=169,9pt,t]{beamer}
+\input{problem-slides-base.tex}
+\begin{document}
+\begingroup\graphicspath{{{%problemdir%}/problem_statement/}}
+	\renewcommand{\problemlabel}{{%problemlabel%}}
+	\renewcommand{\problemyamlname}{{%problemyamlname%}}
+	\renewcommand{\problemauthor}{{%problemauthor%}}
+	\renewcommand{\problembackground}{{%problembackground%}}
+	\renewcommand{\problemforeground}{{%problemforeground%}}
+	\renewcommand{\problemborder}{{%problemborder%}}
+	\renewcommand{\timelimit}{{%timelimit%}}
+	\input{{%problemdir%}/problem_statement/problem-slide.\lang.tex}
+\endgroup
+\end{document}
