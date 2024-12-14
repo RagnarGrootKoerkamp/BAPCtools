@@ -424,12 +424,6 @@ Run this from one of:
     pdfparser = subparsers.add_parser(
         'problem_slides', parents=[global_parser], help='Build the problem slides pdf.'
     )
-    # pdfparser.add_argument(
-    #     '--all',
-    #     '-a',
-    #     action='store_true',
-    #     help='Create problem statements for individual problems as well.',
-    # )
     pdfparser.add_argument('--no-timelimit', action='store_true', help='Do not print timelimits.')
     pdfparser.add_argument(
         '--watch',
@@ -445,7 +439,6 @@ Run this from one of:
         type=Path,
         help='Open the continuously compiled pdf (with a specified program).',
     )
-    # pdfparser.add_argument('--web', action='store_true', help='Create a web version of the pdf.')
     pdfparser.add_argument('-1', action='store_true', help='Only run the LaTeX compiler once.')
 
     # Solution slides
