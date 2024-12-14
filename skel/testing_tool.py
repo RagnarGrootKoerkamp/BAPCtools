@@ -123,30 +123,28 @@ with (
             else:
                 assert False, "Line does not start with question or exclamation mark"
 
-        assert p_out.readline() == "", "Your submission printed extra data after finding a solution"
+        print()
+        print(f"Found a valid solution: ({x1}, {y1}) and ({x2}, {y2})")
+        print(f"Queries used: {queries}", flush=True)
+        assert (
+            extra := p_out.readline()
+        ) == "", f"Your submission printed extra data after finding a solution: '{extra[:100].strip()}{'...' if len(extra) > 100 else ''}'"
+        print(f"Exit code: {p.wait()}", flush=True)
         assert p.wait() == 0, "Your submission did not exit cleanly after finishing"
-
-        print(f"\nSuccess.\nQueries used: {queries}\n")
 
     except AssertionError as e:
         print()
         print(f"Error: {e}")
         print()
-        try:
-            p.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            print("Killing your submission after 2 second timeout.")
-            p.kill()
+        print(f"Killing your submission.", flush=True)
+        p.kill()
+        exit(1)
 
     except Exception as e:
         print()
+        print("Unexpected error:")
         traceback.print_exc()
         print()
-        try:
-            p.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            print("Killing your submission after 2 second timeout.")
-            p.kill()
-
-    finally:
-        print(f"Exit code: {p.wait()}\n", flush=True)
+        print(f"Killing your submission.", flush=True)
+        p.kill()
+        exit(1)
