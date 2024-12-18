@@ -48,8 +48,8 @@ def problem_stats(problems):
         # Roughly in order of importance
         ('  time', lambda p: p.settings.timelimit, 0),
         ('yaml', 'problem.yaml'),
-        ('tex', 'problem_statement/problem*.tex'),
-        ('sol', 'problem_statement/solution*.tex'),
+        ('tex', 'problem_statement/problem*.tex', 1),
+        ('sol', 'problem_statement/solution*.tex', 1),
         ('  val: I', ['input_validators/*', 'input_format_validators/*']),
         ('A', ['answer_validators/*']),
         ('O', ['output_validators/*']),
@@ -57,6 +57,7 @@ def problem_stats(problems):
             '  sample',
             [lambda s: {x.stem for x in s if x.parts[2] == 'sample'}],
             2,
+            6,
         ),
         (
             'secret',
