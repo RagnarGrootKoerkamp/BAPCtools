@@ -78,6 +78,12 @@ class TestIdentityProblem:
     def test_pdf(self):
         tools.test(['pdf'])
 
+    def test_solutions(self):
+        tools.test(['solutions'])
+
+    def test_problem_slides(self):
+        tools.test(['problem_slides'])
+
     def test_stats(self):
         tools.test(['stats'])
 
@@ -146,6 +152,9 @@ class TestContest:
     def test_solutions(self):
         tools.test(['solutions'])
 
+    def test_problem_slides(self):
+        tools.test(['problem_slides'])
+
     def test_gitlabci(self):
         tools.test(['gitlabci'])
 
@@ -187,6 +196,7 @@ class TestNewContestProblem:
         assert config.n_warn == 2
         assert Path('contest_name/contest.en.pdf').is_file()
         tools.test(['solutions', '--contest', 'contest_name'])
+        tools.test(['problem_slides', '--contest', 'contest_name'])
         tools.test(['tmp', '--clean', '--contest', 'contest_name'])
 
 

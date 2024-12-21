@@ -16,8 +16,9 @@ This lists all subcommands and their most important options.
   - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
   - [`bt timelimit [-a] [-w] [submissions [submissions ...]] [testcases [testcases ...]]`](#timelimit)
   - [`bt generate [-v] [-t TIMEOUT] [--add] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [--reorder] [testcases [testcases ...]]`](#generate)
-  - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
-  - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
+  - [`bt pdf [-v] [--all] [--web] [--cp] [-w] [-o PROGRAM] [--no-timelimit]`](#pdf)
+  - [`bt solutions [-v] [--web] [--cp] [-w] [-o PROGRAM] [--order ORDER]`](#solutions)
+  - [`bt problem_slides [-v] [--cp] [-w] [-o PROGRAM]`](#problem_slides)
   - [`bt stats`](#stats)
   - [`bt fuzz [-v] [-t TIME] [--timeout TIMEOUT] [testcases [testcases ...]]`](#fuzz)
 - Problem validation
@@ -85,7 +86,7 @@ Use `bt run -v` to show results for all testcases.
 
   - The path of the single file: `submissions/accepted/submission.py`
   - The path of the submission directory (when it contains multiple files): `submissions/accepted/directory_submission/`
-  - One of the directories inside `submissions/`: `submissions/time_limit_exceeded`. This will add all solutions in the given directory.
+  - One of the directories inside `submissions/`: `submissions/time_limit_exceeded`. This will add all submissions in the given directory.
   - Any file/directory outside `submission` is also allowed. Directories will be interpreted as a single multi-file submission.
 
   Duplicate submissions will deduplicated.
@@ -105,7 +106,7 @@ Use `bt run -v` to show results for all testcases.
 - `--no-generate`/`-G`: Do not generate testcases before running the submissions. This usually won't be needed since checking that generated testcases are up to date is fast.
 - `--timelimit <second>`/`-t <second>`: The timelimit to use for the submission.
 - `--timeout <second>`: The timeout to use for the submission.
-- `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
+- `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same submissions.
 - `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and testcases. If combined with `--no-bar` only the final table is printed.
 - `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 - `--sanitizer`: when passed, run submissions with additional sanitizer flags (currently only C++). Note that this sets --memory unlimited.
@@ -196,14 +197,14 @@ If there are problem statements (and problem names in `problem.yaml`) present fo
 - `--all`/`-a`: When run from the contest level, this enables building pdfs for all problems in the contest as well.
 - `--cp`: Instead of symlinking the final pdf, copy it into the problem/contest directory.
 - `--no-timelimit`: When passed, time limits will not be shown in the problem/contest pdfs.
-- `--watch`/`-w`: Continuously compile the pdf whenever a `problem.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.
-- `--open`/`-o`: Open the continuously compiled pdf (with a specified program).
-- `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Note that this implies `--cp`.
+- `--open <program>`/`-o <program>`: Open the continuously compiled pdf (with a specified program).
+- `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.tex) and [problem-web.tex](../latex/problem-web.tex) instead of [problem.tex](../latex/problem.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
 - `-1`: Run the LaTeX compiler only once.
 
 ## `solutions`
 
-Renders a pdf for the current problem or contest. The pdf is written to `solution.en.pdf` or `solutionss.en.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
+Renders a pdf with solutions for the current problem or contest. The pdf is written to `solution.en.pdf` or `solutions.en.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
 See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
 
 **Flags**
@@ -212,9 +213,21 @@ See the [Implementation notes](implementation_notes.md#building-latex-files) for
 - `--order`: The order of the problems, e.g. `BDCA`. Can be used to order problems from easy to difficult. When labels have multiple letters, `B1,A1,A2,B2` is also allowed.
 - `--order-from-ccs`: Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of `api` in contest.yaml.
 - `--contest-id`: Contest ID to use when reading from the API. Only useful with `--order-from-ccs`. Defaults to value of `contest_id` in `contest.yaml`.
-- `--watch`/`-w`: Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Further Note that this implies `--cp`.
-- `--open`/`-o`: Open the continuously compiled pdf (with a specified program).
+- `--watch`/`-w`: Continuously compile the pdf whenever a `solution.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Note that this implies `--cp`.
+- `--open <program>`/`-o <program>`: Open the continuously compiled pdf (with a specified program).
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages.
+- `-1`: Run the LaTeX compiler only once.
+
+## `problem_slides`
+
+Renders a pdf with problem slides for the current problem or contest. The pdf is written to `problem-slide.en.pdf` or `problem-slides.en.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
+See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
+
+**Flags**
+
+- `--cp`: Instead of symlinking the final pdf, copy it into the contest directory.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem-slide.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Note that this implies `--cp`.
+- `--open <program>`/`-o <program>`: Open the continuously compiled pdf (with a specified program).
 - `-1`: Run the LaTeX compiler only once.
 
 ## `stats`
