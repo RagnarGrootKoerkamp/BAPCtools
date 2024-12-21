@@ -483,18 +483,22 @@ def build_contest_pdf(
     for problem in problems:
         if build_type == PdfType.PROBLEM:
             prepare_problem(problem, language)
-
-        if solutions:
-            solutiontex = problem.path / 'problem_statement' / 'solution.tex'
-            solutionlangtex = problem.path / 'problem_statement' / f'solution.{language}.tex'
-            if solutionlangtex.is_file():
+        else:  # i.e. for SOLUTION and PROBLEM_SLIDE
+            tex_no_lang = problem.path / 'problem_statement' / f'{build_type.value}.tex'
+            tex_with_lang = (
+                problem.path / 'problem_statement' / f'{build_type.value}.{language}.tex'
+            )
+            if tex_with_lang.is_file():
                 # All is good
                 pass
-            elif solutiontex.is_file():
-                bar.warn(f'Rename solution.tex to solution.{language}.tex', problem.name)
+            elif tex_no_lang.is_file():
+                bar.warn(
+                    f'Rename {build_type.value}.tex to {build_type.value}.{language}.tex',
+                    problem.name,
+                )
                 continue
             else:
-                bar.warn(f'solution.{language}.tex not found', problem.name)
+                bar.warn(f'{build_type.value}.{language}.tex not found', problem.name)
                 continue
 
         problems_data += substitute(
