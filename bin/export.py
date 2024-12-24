@@ -302,12 +302,10 @@ def export_contest(cid: Optional[str]):
     if not has_ryaml:
         for key in ('duration', 'scoreboard_freeze_duration'):
             if key in data:
-                value = data[key]
                 # YAML 1.1 parses 1:00:00 as 3600. Convert it back to a string if so.
-                # (YAML 1.2 parses it as a string.)
-                if isinstance(value, int):
-                    str(datetime.timedelta(seconds=data[key]))
-                data[key] = value
+                # (YAML 1.2 and ruamel.yaml parse it as a string.)
+                if isinstance(data[key], int):
+                    data[key] = str(datetime.timedelta(seconds=data[key]))
 
     verbose("Uploading contest.yaml:")
     verbose(data)
