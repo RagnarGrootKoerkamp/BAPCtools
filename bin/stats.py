@@ -122,9 +122,8 @@ def problem_stats(problems):
         generated_testcases = generate.testcases(problem)
 
         def count(path):
-            if type(path) is list:
-                paths = [*(count(p) for p in path)]
-                return set.union(*paths) if paths else set()
+            if isinstance(path, list):
+                return set.union(*(count(p) for p in path))
             if callable(path):
                 return path(generated_testcases)
             results: set[str | Path] = set()
