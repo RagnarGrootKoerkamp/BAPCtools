@@ -15,17 +15,20 @@ from typing import Optional
 from contest import *
 
 
-# Replace \problemyamlname by the value of `name:` in problems.yaml in all .tex files.
-def fix_problem_yaml_name(problem):
+# Replace \problemname{...} by the value of `name:` in problems.yaml in all .tex files.
+# This is needed because Kattis is currently still running the legacy version of the problem spec,
+# rather than 2023-07-draft.
+def fix_problem_name_cmd(problem):
     reverts = []
     for f in (problem.path / 'problem_statement').iterdir():
         if f.is_file() and f.suffix == '.tex' and len(f.suffixes) >= 2:
             lang = f.suffixes[-2][1:]
             t = f.read_text()
-            if r'\problemyamlname' in t:
+            match = re.search(r'\\problemname\{\s*(\\problemyamlname)?\s*\}', t)
+            if match:
                 if lang in problem.settings.name:
                     reverts.append((f, t))
-                    t = t.replace(r'\problemyamlname', problem.settings.name[lang])
+                    t = t.replace(match[0], r'\problemname{' + problem.settings.name[lang] + '}')
                     f.write_text(t)
                 else:
                     util.error(f'{f}: no name set for language {lang}.')
@@ -211,7 +214,7 @@ def build_problem_zip(problem, output):
     # Build .ZIP file.
     print("writing ZIP file:", output, file=sys.stderr)
 
-    revert_problem_yaml_name = fix_problem_yaml_name(problem)
+    revert_problem_name_cmd = fix_problem_name_cmd(problem)
 
     try:
         zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
@@ -225,7 +228,7 @@ def build_problem_zip(problem, output):
         print(file=sys.stderr)
 
     finally:
-        revert_problem_yaml_name()
+        revert_problem_name_cmd()
 
     return True
 
