@@ -184,7 +184,11 @@ def get_tl(problem: "problem.Problem"):
 
 def problem_data(problem: "problem.Problem", language: str):
     background = next(
-        (p['rgb'][1:] for p in problems_yaml() if p['id'] == str(problem.path) and 'rgb' in p),
+        (
+            p['rgb'][1:]
+            for p in problems_yaml() or []
+            if p['id'] == str(problem.path) and 'rgb' in p
+        ),
         'ffffff',
     )
     # Source: https://github.com/DOMjudge/domjudge/blob/095854650facda41dbb40966e70199840b887e33/webapp/src/Twig/TwigExtension.php#L1056
