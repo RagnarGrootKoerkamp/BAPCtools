@@ -140,7 +140,7 @@ class Problem:
             try:
                 yamldata = read_yaml_settings(yaml_path)
             except ruamel.yaml.scanner.ScannerError:
-                fatal('Make sure problem.yaml does not contain any more {% ... %}.')
+                fatal(f'Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.')
         else:
             yamldata = read_yaml_settings(yaml_path)
 

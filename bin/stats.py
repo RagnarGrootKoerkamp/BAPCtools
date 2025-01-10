@@ -93,7 +93,8 @@ def problem_stats(problems):
             if config['name'] in names:
                 globs = config['files'].split() or []
                 paths += [f'submissions/accepted/{glob}' for glob in globs]
-        stats.append((column, list(set(paths)), 1))
+        if paths:
+            stats.append((column, list(set(paths)), 1))
 
     headers = ['problem', *(h[0] for h in stats), '   comment']
     cumulative = [0] * (len(stats))
