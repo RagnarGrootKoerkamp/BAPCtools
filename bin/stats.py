@@ -12,7 +12,7 @@ from colorama import ansi, Fore, Style
 import config
 import generate
 import program
-from util import error, glob, exec_command
+from util import error, exec_command, glob, warn
 
 Selector = str | Callable | list[str] | list[Callable]
 
@@ -87,14 +87,27 @@ def problem_stats(problems):
         'java': ['Java'],
         'kt': ['Kotlin'],
     }
-    for column, names in languages.items():
+    for column, lang_names in languages.items():
         paths = []
-        for config in program.languages().values():
-            if config['name'] in names:
-                globs = config['files'].split() or []
-                paths += [f'submissions/accepted/{glob}' for glob in globs]
+        lang_defined = False
+        for lang_id, lang_definition in program.languages().items():
+            if lang_definition['name'] in lang_names:
+                lang_defined = True
+                # dict.get() returns None if key 'files' is not declared
+                lang_globs = lang_definition.get('files')
+                if lang_globs:
+                    paths += [f'submissions/accepted/{glob}' for glob in lang_globs.split()]
+                else:
+                    warn(
+                        f"Language {lang_id} ('{lang_definition['name']}') "
+                        "does not define `files:` in languages.yaml"
+                    )
         if paths:
             stats.append((column, list(set(paths)), 1))
+        if not lang_defined:
+            warn(
+                f'Language {column.strip()} ({str(lang_names)[1:-1]}) not defined in languages.yaml'
+            )
 
     headers = ['problem', *(h[0] for h in stats), '   comment']
     cumulative = [0] * (len(stats))
