@@ -186,7 +186,7 @@ class Problem:
         if self.settings.uuid == None:
             self.settings.uuid = generate_problem_uuid()
             raw = yaml_path.read_text().rstrip()
-            raw += f'\n# uuid added by BAPCtools\nuuid: {self.settings.uuid}\n'
+            raw += f"\n# uuid added by BAPCtools\nuuid: '{self.settings.uuid}'\n"
             yaml_path.write_text(raw)
             log(f'Generated UUID for {self.name}, added to problem.yaml')
 
