@@ -275,7 +275,7 @@ class Program:
                 'mainclass': mainclass,
                 'Mainclass': mainclass[0].upper() + mainclass[1:],
                 # Memory limit in MB.
-                # 'memlim': 2048,
+                'memlim': 2048,  # TODO use validation_memory?
                 # Out-of-spec variables used by 'manual' and 'Viva' languages.
                 'build': (
                     self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else ''
