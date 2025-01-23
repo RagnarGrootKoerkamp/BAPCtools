@@ -319,6 +319,7 @@ class Submission(program.Program):
                 stdout=out_file,
                 stderr=None if out_file is None else True,
                 timeout=True if default_timeout else self.problem.settings.timeout,
+                memory=self.problem.limits.memory,
                 cwd=cwd,
             )
             if out_file:
@@ -513,6 +514,7 @@ class Submission(program.Program):
                         stdout=None,
                         stderr=None,
                         timeout=self.problem.settings.timeout,
+                        memory=self.problem.limits.memory,
                     )
 
                 assert result.err is None and result.out is None
@@ -617,7 +619,13 @@ while True:
 
                 assert self.run_command is not None
                 result = exec_command(
-                    self.run_command, crop=False, stdin=r, stdout=None, stderr=None, timeout=None
+                    self.run_command,
+                    crop=False,
+                    stdin=r,
+                    stdout=None,
+                    stderr=None,
+                    timeout=None,
+                    memory=self.problem.limits.memory,
                 )
 
                 assert result.err is None and result.out is None

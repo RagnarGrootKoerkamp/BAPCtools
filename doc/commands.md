@@ -51,7 +51,6 @@ The flags below work for any subcommand:
 - `--verbose`/`-v`: Without this, only failing steps are printed to the terminal. With `-v`, progress bars print one line for each processed item. Pass `-v` twice to see all commands that are executed.
 - `--contest <directory>`: The directory of the contest to use, if not the current directory. At most one of `--contest` and `--problem` may be used. Useful in CI jobs.
 - `--problem <directory>`: The directory of the problem to use, if not the current directory. At most one of `--contest` and `--problem` may be used. Useful in CI jobs.
-- `--memory <MB>`/`-m <MB>`: The maximum amount of memory in MB a subprocess (submission/generator/etc.) may use. Does not work for Java. Default: 2048.
 - `--no-bar`: Disable showing progress bars. This is useful when running in non-interactive contexts (such as CI jobs) or on platforms/terminals that don't handle the progress bars well.
 - `--error`/`-e`: show full output of failing commands using `--error`. The default is to show a short snippet only.
 - `--force-build`: Force rebuilding binaries instead of reusing cached version.
@@ -109,7 +108,7 @@ Use `bt run -v` to show results for all testcases.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same submissions.
 - `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and testcases. If combined with `--no-bar` only the final table is printed.
 - `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
-- `--sanitizer`: when passed, run submissions with additional sanitizer flags (currently only C++). Note that this sets --memory unlimited.
+- `--sanitizer`: when passed, run submissions with additional sanitizer flags (currently only C++). Note that this removes all memory limits for submissions.
 
 ## `test`
 

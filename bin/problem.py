@@ -131,6 +131,7 @@ class Problem:
             'time_multiplier': 2,
             'time_safety_margin': 1.5,
             'time_resolution': 1.0,
+            'memory': 2048,
         }
 
         yaml_path = self.path / 'problem.yaml'

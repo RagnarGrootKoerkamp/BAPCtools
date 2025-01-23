@@ -876,23 +876,6 @@ def tail(string, limit):
     return '\n'.join(lines)
 
 
-# TODO: Move this to Problem.settings and read limits.memory variable from problem.yaml.
-# Return memory limit in MB.
-def get_memory_limit(kwargs=None) -> Optional[int]:
-    memory_limit: Optional[int] = 2048  # 2GB
-    if config.args.sanitizer:
-        memory_limit = None  # disabled
-    elif config.args.memory:
-        if config.args.memory != 'unlimited':
-            memory_limit = int(config.args.memory)
-        else:
-            memory_limit = None  # disabled
-    if kwargs and 'memory' in kwargs:
-        memory_limit = kwargs['memory']
-        kwargs.pop('memory')
-    return memory_limit
-
-
 class ExecStatus(Enum):
     ACCEPTED = 1
     REJECTED = 2
@@ -1057,8 +1040,14 @@ def exec_command(
     if timeout is not None and math.isinf(timeout):
         timeout = None
 
-    if (is_windows() or is_wsl()) and 'memory' in kwargs:
+    memory: Optional[int] = None
+    if 'memory' in kwargs:
+        if kwargs['memory'] is not None:
+            memory = kwargs['memory']
         kwargs.pop('memory')
+
+    if is_windows() or is_wsl() or config.args.sanitizer:
+        memory = None
 
     process: Optional[ResourcePopen] = None
 
@@ -1078,7 +1067,7 @@ def exec_command(
         if not is_windows() and not is_wsl() and preexec_fn:
             process = ResourcePopen(
                 command,
-                preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs)),
+                preexec_fn=limit_setter(command, timeout, memory),
                 **kwargs,
             )
         else:

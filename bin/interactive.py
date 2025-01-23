@@ -44,9 +44,9 @@ def run_interactive_testcase(
     # Set limits
     validator_timeout = config.DEFAULT_INTERACTION_TIMEOUT
 
-    memory_limit = get_memory_limit()
     timelimit = run.problem.settings.timelimit
     timeout = run.problem.settings.timeout
+    memory = run.problem.limits.memory
 
     # Validator command
     def get_validator_command():
@@ -108,6 +108,7 @@ def run_interactive_testcase(
                 stderr=subprocess.PIPE if team_error is False else None,
                 cwd=submission_dir,
                 timeout=timeout,
+                memory=memory,
             )
 
             # Wait
@@ -259,7 +260,7 @@ while True:
             stderr=subprocess.PIPE if team_error is False else None,
             cwd=submission_dir,
             pipesize=BUFFER_SIZE,
-            preexec_fn=limit_setter(submission_command, timeout, memory_limit, gid),
+            preexec_fn=limit_setter(submission_command, timeout, memory, gid),
         )
         submission_pid = submission.pid
 
