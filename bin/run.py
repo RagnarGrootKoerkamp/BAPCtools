@@ -514,7 +514,6 @@ class Submission(program.Program):
                         stdout=None,
                         stderr=None,
                         timeout=self.problem.settings.timeout,
-                        memory=self.problem.limits.memory,
                     )
 
                 assert result.err is None and result.out is None
@@ -625,7 +624,6 @@ while True:
                     stdout=None,
                     stderr=None,
                     timeout=None,
-                    memory=self.problem.limits.memory,
                 )
 
                 assert result.err is None and result.out is None
