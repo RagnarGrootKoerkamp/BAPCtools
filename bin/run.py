@@ -225,6 +225,7 @@ class Submission(program.Program):
 
         self.verdict = None
         self.duration = None
+        self.memory = problem.limits.memory
 
         # The first element will match the directory the file is in, if possible.
         self.expected_verdicts = self._get_expected_verdicts()
@@ -319,7 +320,7 @@ class Submission(program.Program):
                 stdout=out_file,
                 stderr=None if out_file is None else True,
                 timeout=True if default_timeout else self.problem.settings.timeout,
-                memory=self.problem.limits.memory,
+                memory=self.memory,
                 cwd=cwd,
             )
             if out_file:

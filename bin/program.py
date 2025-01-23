@@ -149,6 +149,7 @@ class Program:
         self.run_command: Optional[list[str]] = None
         self.hash: Optional[str] = None
         self.env: dict[str, int | str | Path] = {}
+        self.memory: Optional[int] = None
 
         self.ok = True
         self.built = False
@@ -275,7 +276,7 @@ class Program:
                 'mainclass': mainclass,
                 'Mainclass': mainclass[0].upper() + mainclass[1:],
                 # Memory limit in MB.
-                'memlim': 2048,
+                'memlim': self.memory or 2048,
                 # Out-of-spec variables used by 'manual' and 'Viva' languages.
                 'build': (
                     self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else ''
