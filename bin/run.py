@@ -245,6 +245,14 @@ class Submission(program.Program):
                     self.expected_verdicts += wrong_verdicts
                     break
 
+    def build(self, bar: ProgressBar):
+        ok = super().build(bar)
+        if ok:
+            size = sum(f.stat().st_size for f in self.source_files)
+            if size > self.problem.limits.code * 1024:
+                bar.warn(f'Code limit exceeded ({size // 1024}KiB)')
+        return ok
+
     def _get_expected_verdicts(self) -> list[Verdict]:
         expected_verdicts = []
 

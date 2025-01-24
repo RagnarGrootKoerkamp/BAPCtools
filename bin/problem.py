@@ -131,14 +131,14 @@ class Problem:
             'time_multiplier': 2,
             'time_safety_margin': 1.5,
             'time_resolution': 1.0,
-            'memory': 2048,
-            # 'output': 8MiB,
-            # 'code': 128KiB,
-            # 'compilation_time': 60s,
-            # 'compilation_memory': 2048MiB,
-            'validation_time': 60,
-            'validation_memory': 2048,
-            # 'validation_output': 8MiB,
+            'memory': 2048,  # in MiB
+            # 'output': 8,  # in MiB
+            'code': 128,  # in KiB
+            # 'compilation_time': 60,  # in seconds
+            # 'compilation_memory': 2048,  # in MiB
+            'validation_time': 60,  # in seconds
+            'validation_memory': 2048,  # in MiB
+            # 'validation_output': 8,  # in MiB
         }
 
         yaml_path = self.path / 'problem.yaml'
