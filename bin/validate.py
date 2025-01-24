@@ -92,6 +92,7 @@ class Validator(program.Program):
         if check_constraints:
             self.tmpdir: Path = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
         self.check_constraints = check_constraints
+        self.memory = problem.limits.validation_memory
 
     def _run_helper(self, testcase, constraints, args):
         """Helper method for the run method in subclasses.
@@ -153,7 +154,12 @@ class Validator(program.Program):
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
                 return exec_command(
-                    self.run_command, exec_code_map=format_exec_code_map, stdin=main_file, cwd=cwd
+                    self.run_command,
+                    exec_code_map=format_exec_code_map,
+                    stdin=main_file,
+                    cwd=cwd,
+                    timeout=self.problem.limits.validation_time,
+                    memory=self.memory,
                 )
 
         if self.language == 'viva':
@@ -162,6 +168,8 @@ class Validator(program.Program):
                 self.run_command + [main_path.resolve()],
                 exec_code_map=format_exec_code_map,
                 cwd=cwd,
+                timeout=self.problem.limits.validation_time,
+                memory=self.memory,
             )
             return result
 
@@ -221,7 +229,8 @@ class InputValidator(Validator):
                 exec_code_map=validator_exec_code_map,
                 stdin=in_file,
                 cwd=cwd,
-                timeout=config.get_timeout(),
+                timeout=self.problem.limits.validation_time,
+                memory=self.memory,
             )
 
         if constraints is not None:
@@ -270,7 +279,8 @@ class AnswerValidator(Validator):
                 exec_code_map=validator_exec_code_map,
                 stdin=ans_file,
                 cwd=cwd,
-                timeout=config.get_timeout(),
+                timeout=self.problem.limits.validation_time,
+                memory=self.memory,
             )
 
         if constraints is not None:
@@ -346,7 +356,8 @@ class OutputValidator(Validator):
                 exec_code_map=validator_exec_code_map,
                 stdin=file,
                 cwd=cwd,
-                timeout=config.get_timeout(),
+                timeout=self.problem.limits.validation_time,
+                memory=self.memory,
             )
 
         if constraints is not None:

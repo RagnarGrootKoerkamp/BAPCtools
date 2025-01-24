@@ -132,6 +132,13 @@ class Problem:
             'time_safety_margin': 1.5,
             'time_resolution': 1.0,
             'memory': 2048,
+            # 'output': 8MiB,
+            # 'code': 128KiB,
+            # 'compilation_time': 60s,
+            # 'compilation_memory': 2048MiB,
+            'validation_time': 60,
+            'validation_memory': 2048,
+            # 'validation_output': 8MiB,
         }
 
         yaml_path = self.path / 'problem.yaml'
@@ -210,7 +217,9 @@ class Problem:
         self.settings.timeout = int(
             config.args.timeout or self.limits.time_safety_margin * self.settings.timelimit + 1
         )
+        self.limits.validation_time = config.args.timeout or self.limits.validation_time
         self.limits.memory = config.args.memory or self.limits.memory
+        self.limits.validation_memory = config.args.memory or self.limits.validation_memory
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / 'data')
