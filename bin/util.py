@@ -1045,7 +1045,8 @@ def exec_command(
         if kwargs['memory'] is not None:
             memory = kwargs['memory']
         kwargs.pop('memory')
-
+    if config.args.memory:
+        memory_limit = config.args.memory
     if is_windows() or is_wsl() or config.args.sanitizer:
         memory = None
 

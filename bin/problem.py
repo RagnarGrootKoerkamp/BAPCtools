@@ -210,6 +210,7 @@ class Problem:
         self.settings.timeout = int(
             config.args.timeout or self.limits.time_safety_margin * self.settings.timelimit + 1
         )
+        self.limits.memory = config.args.memory or self.limits.memory
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / 'data')

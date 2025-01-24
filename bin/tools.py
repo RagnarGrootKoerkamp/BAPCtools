@@ -326,6 +326,12 @@ Run this from one of:
         help='The number of jobs to use. Default: cpu_count()/2.',
     )
     global_parser.add_argument(
+        '--memory',
+        '-m',
+        type=int,
+        help='The maximum amount of memory in MB a subprocess may use.',
+    )
+    global_parser.add_argument(
         '--api',
         help='CCS API endpoint to use, e.g. https://www.domjudge.org/demoweb. Defaults to the value in contest.yaml.',
     )
