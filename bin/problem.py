@@ -139,6 +139,9 @@ class Problem:
             'validation_time': 60,  # in seconds
             'validation_memory': 2048,  # in MiB
             # 'validation_output': 8,  # in MiB
+            # BAPCtools extension:
+            'generator_time': config.DEFAULT_TIMEOUT,  # in seconds
+            'visualizer_time': config.DEFAULT_TIMEOUT,  # in seconds
         }
 
         yaml_path = self.path / 'problem.yaml'
@@ -218,6 +221,8 @@ class Problem:
             config.args.timeout or self.limits.time_safety_margin * self.settings.timelimit + 1
         )
         self.limits.validation_time = config.args.timeout or self.limits.validation_time
+        self.limits.generator_time = config.args.timeout or self.limits.generator_time
+        self.limits.visualizer_time = config.args.timeout or self.limits.visualizer_time
         self.limits.memory = config.args.memory or self.limits.memory
         self.limits.validation_memory = config.args.memory or self.limits.validation_memory
 

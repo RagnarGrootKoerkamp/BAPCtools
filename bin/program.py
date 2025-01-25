@@ -509,7 +509,7 @@ class Generator(Program):
             else:
                 f.unlink()
 
-        timeout = config.args.timeout or config.DEFAULT_TIMEOUT
+        timeout = self.problem.limits.generator_time
 
         with stdout_path.open('w') as stdout_file:
             result = exec_command(
@@ -552,7 +552,7 @@ class Visualizer(Program):
         assert self.run_command is not None
         return exec_command(
             self.run_command + args,
-            timeout=config.args.timeout or config.DEFAULT_TIMEOUT,
+            timeout=self.problem.limits.visualizer_time,
             cwd=cwd,
             memory=None,
         )
