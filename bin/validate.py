@@ -390,7 +390,7 @@ def _has_consecutive_whitespaces(bytes):
     return False
 
 
-def sanity_check(path, bar, strict_whitespace=True):
+def sanity_check(problem, path, bar, strict_whitespace=True):
     """
     Does some generic checks on input, answer, or output files of a testcase, including
 
@@ -427,6 +427,13 @@ def sanity_check(path, bar, strict_whitespace=True):
             bar.warn(f'{name} is empty but was accepted!')
         elif len(file_bytes) > 20_000_000:
             bar.warn(f'{name} is larger than 20MB!')
+        elif (
+            path.suffix in ['.ans', '.out']
+            and len(file_bytes) > problem.limits.output * 1024 * 1024
+        ):
+            bar.warn(
+                f'{name} exceeds output limit (set limits->output to at least {(len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)'
+            )
         elif strict_whitespace:
             if file_bytes[0] in [ord(' '), ord('\n')]:
                 bar.warn(f'{name} starts with whitespace but was accepted!')

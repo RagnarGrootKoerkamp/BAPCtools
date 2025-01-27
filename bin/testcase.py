@@ -368,7 +368,9 @@ class Testcase:
             success = all(results)
             if success:
                 validate.sanity_check(
-                    self.in_path if mode == validate.Mode.INPUT else self.ans_path, bar
+                    self.problem,
+                    self.in_path if mode == validate.Mode.INPUT else self.ans_path,
+                    bar,
                 )
 
         return success

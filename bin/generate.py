@@ -710,6 +710,15 @@ class TestcaseRule(Rule):
                 multipass = 'multipass ' if problem.multipass else ''
                 bar.warn(f'.ans file for {interactive}{multipass}problem is expected to be empty.')
         else:
+            size = ansfile.stat().st_size
+            if (
+                size <= problem.limits.output * 1024 * 1024
+                and problem.limits.output * 1024 * 1024 < 2 * size
+            ):  # we already warn if the limit is exceeded
+                bar.warn(
+                    f'.ans file is close to output limit (set limits->output to at least {(2*size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)'
+                )
+
             answer_validator_hashes = {
                 **testcase.validator_hashes(validate.AnswerValidator, bar),
                 **testcase.validator_hashes(validate.OutputValidator, bar),

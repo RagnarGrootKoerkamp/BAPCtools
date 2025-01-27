@@ -116,7 +116,7 @@ class Run:
                     )
                 elif result.status:
                     result.verdict = Verdict.ACCEPTED
-                    validate.sanity_check(self.out_path, bar, strict_whitespace=False)
+                    validate.sanity_check(self.problem, self.out_path, bar, strict_whitespace=False)
                 elif result.status == ExecStatus.REJECTED:
                     result.verdict = Verdict.WRONG_ANSWER
                     if nextpass and nextpass.is_file():
@@ -250,7 +250,9 @@ class Submission(program.Program):
         if ok:
             size = sum(f.stat().st_size for f in self.source_files)
             if size > self.problem.limits.code * 1024:
-                bar.warn(f'Code limit exceeded ({size // 1024}KiB)')
+                bar.warn(
+                    f'Code limit exceeded (set limits->code to at least {(size + 1023) // 1024}KiB in problem.yaml)'
+                )
         return ok
 
     def _get_expected_verdicts(self) -> list[Verdict]:

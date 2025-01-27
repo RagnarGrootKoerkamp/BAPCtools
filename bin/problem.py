@@ -132,7 +132,7 @@ class Problem:
             'time_safety_margin': 1.5,
             'time_resolution': 1.0,
             'memory': 2048,  # in MiB
-            # 'output': 8,  # in MiB
+            'output': 8,  # in MiB
             'code': 128,  # in KiB
             # 'compilation_time': 60,  # in seconds
             # 'compilation_memory': 2048,  # in MiB
