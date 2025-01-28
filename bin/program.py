@@ -95,6 +95,12 @@ def sanitizer():
 # - language:       the detected language
 # - env:            the environment variables used for compile/run command substitution
 # - hash:           a hash of all of the program including all source files
+# - limits          a dict of the optional limts, keys are:
+#                   - code
+#                   - compilation_time
+#                   - compilation_memory
+#                   - timeout
+#                   - memory
 #
 # After build() has been called, the following are available:
 # - run_command:    command to be executed. E.g. ['/path/to/run'] or ['python3', '/path/to/main.py']. `None` if something failed.
@@ -111,6 +117,7 @@ class Program:
         deps: Optional[list[Path]] = None,
         *,
         skip_double_build_warning=False,
+        limits: dict[str, int] = {},
     ):
         if deps is not None:
             assert isinstance(self, Generator)
@@ -149,7 +156,7 @@ class Program:
         self.run_command: Optional[list[str]] = None
         self.hash: Optional[str] = None
         self.env: dict[str, int | str | Path] = {}
-        self.memory: Optional[int] = None
+        self.limits: dict[str, int] = limits
 
         self.ok = True
         self.built = False
@@ -276,7 +283,7 @@ class Program:
                 'mainclass': mainclass,
                 'Mainclass': mainclass[0].upper() + mainclass[1:],
                 # Memory limit in MB.
-                'memlim': self.memory or 2048,
+                'memlim': self.limits.get('memory', 2048),
                 # Out-of-spec variables used by 'manual' and 'Viva' languages.
                 'build': (
                     self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else ''
@@ -376,6 +383,8 @@ class Program:
                 cwd=self.tmpdir,
                 # Compile errors are never cropped.
                 crop=False,
+                timeout=self.limits.get('compilation_time', None),
+                memory=self.limits.get('compilation_memory', None),
             )
         except FileNotFoundError as err:
             self.ok = False
@@ -478,6 +487,14 @@ class Program:
         if self.path in self.problem._program_callbacks:
             for c in self.problem._program_callbacks[self.path]:
                 c(self)
+
+        if 'code' in self.limits:
+            size = sum(f.stat().st_size for f in self.source_files)
+            if size > self.limits['code'] * 1024:
+                bar.warn(
+                    f'Code limit exceeded (set limits->code to at least {(size + 1023) // 1024}KiB in problem.yaml)'
+                )
+
         return True
 
     @staticmethod
@@ -489,7 +506,9 @@ class Program:
 
 class Generator(Program):
     def __init__(self, problem: "Problem", path: Path, **kwargs):
-        super().__init__(problem, path, 'generators', **kwargs)
+        super().__init__(
+            problem, path, 'generators', limits={'timeout': problem.limits.generator_time}, **kwargs
+        )
 
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
@@ -509,11 +528,15 @@ class Generator(Program):
             else:
                 f.unlink()
 
-        timeout = self.problem.limits.generator_time
+        timeout = self.limits['timeout']
 
         with stdout_path.open('w') as stdout_file:
             result = exec_command(
-                self.run_command + args, stdout=stdout_file, timeout=timeout, cwd=cwd, memory=None
+                self.run_command + args,
+                stdout=stdout_file,
+                cwd=cwd,
+                timeout=timeout,
+                memory=None,
             )
 
         result.retry = False
@@ -544,7 +567,13 @@ class Generator(Program):
 
 class Visualizer(Program):
     def __init__(self, problem: "Problem", path: Path, **kwargs):
-        super().__init__(problem, path, 'visualizers', **kwargs)
+        super().__init__(
+            problem,
+            path,
+            'visualizers',
+            limits={'timeout': problem.limits.visualizer_time},
+            **kwargs,
+        )
 
     # Run the visualizer.
     # Stdin and stdout are not used.
@@ -552,7 +581,7 @@ class Visualizer(Program):
         assert self.run_command is not None
         return exec_command(
             self.run_command + args,
-            timeout=self.problem.limits.visualizer_time,
             cwd=cwd,
+            timeout=self.limits['timeout'],
             memory=None,
         )

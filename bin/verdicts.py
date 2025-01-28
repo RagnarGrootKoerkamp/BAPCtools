@@ -167,7 +167,7 @@ class Verdicts:
     def __init__(
         self,
         testcases_list: list[testcase.Testcase],
-        timeout: float = 1,
+        timeout: int = 1,
         run_until: RunUntil = RunUntil.FIRST_ERROR,
     ):
         testcases: set[str] = set(t.name for t in testcases_list)

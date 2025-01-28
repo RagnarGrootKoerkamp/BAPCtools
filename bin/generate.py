@@ -226,7 +226,9 @@ class SolutionInvocation(Invocation):
         ans_path = cwd / 'testcase.ans'
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        result = self.program.run(in_path, ans_path, args=self.args, cwd=cwd, default_timeout=True)
+        result = self.program.run(
+            in_path, ans_path, args=self.args, cwd=cwd, generator_timeout=True
+        )
 
         if result.status == ExecStatus.TIMEOUT:
             bar.debug(f'{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}')

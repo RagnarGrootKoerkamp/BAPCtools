@@ -86,13 +86,21 @@ class Validator(program.Program):
     def __init__(
         self, problem, path, subdir, skip_double_build_warning=False, check_constraints=False
     ):
-        super().__init__(problem, path, subdir, skip_double_build_warning=skip_double_build_warning)
+        super().__init__(
+            problem,
+            path,
+            subdir,
+            limits={
+                'timeout': problem.limits.validation_time,
+                'memory': problem.limits.validation_memory,
+            },
+            skip_double_build_warning=skip_double_build_warning,
+        )
         assert self.__class__ is not Validator  # Validator is abstract and may not be instantiated
 
         if check_constraints:
             self.tmpdir: Path = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
         self.check_constraints = check_constraints
-        self.memory = problem.limits.validation_memory
 
     def _run_helper(self, testcase, constraints, args):
         """Helper method for the run method in subclasses.
@@ -158,8 +166,8 @@ class Validator(program.Program):
                     exec_code_map=format_exec_code_map,
                     stdin=main_file,
                     cwd=cwd,
-                    timeout=self.problem.limits.validation_time,
-                    memory=self.memory,
+                    timeout=self.limits['timeout'],
+                    memory=self.limits['memory'],
                 )
 
         if self.language == 'viva':
@@ -168,8 +176,8 @@ class Validator(program.Program):
                 self.run_command + [main_path.resolve()],
                 exec_code_map=format_exec_code_map,
                 cwd=cwd,
-                timeout=self.problem.limits.validation_time,
-                memory=self.memory,
+                timeout=self.limits['timeout'],
+                memory=self.limits['memory'],
             )
             return result
 
@@ -229,8 +237,8 @@ class InputValidator(Validator):
                 exec_code_map=validator_exec_code_map,
                 stdin=in_file,
                 cwd=cwd,
-                timeout=self.problem.limits.validation_time,
-                memory=self.memory,
+                timeout=self.limits['timeout'],
+                memory=self.limits['memory'],
             )
 
         if constraints is not None:
@@ -279,8 +287,8 @@ class AnswerValidator(Validator):
                 exec_code_map=validator_exec_code_map,
                 stdin=ans_file,
                 cwd=cwd,
-                timeout=self.problem.limits.validation_time,
-                memory=self.memory,
+                timeout=self.limits['timeout'],
+                memory=self.limits['memory'],
             )
 
         if constraints is not None:
@@ -356,8 +364,8 @@ class OutputValidator(Validator):
                 exec_code_map=validator_exec_code_map,
                 stdin=file,
                 cwd=cwd,
-                timeout=self.problem.limits.validation_time,
-                memory=self.memory,
+                timeout=self.limits['timeout'],
+                memory=self.limits['memory'],
             )
 
         if constraints is not None:
