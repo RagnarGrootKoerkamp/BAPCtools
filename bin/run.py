@@ -17,7 +17,6 @@ from util import (
     error,
     ExecResult,
     ExecStatus,
-    exec_command,
     is_bsd,
     is_windows,
     ProgressBar,
@@ -59,6 +58,14 @@ class Run:
             result = interactive.run_interactive_testcase(
                 self, interaction=interaction, submission_args=submission_args
             )
+            if result is None:
+                bar.error(
+                    f'No output validator found for testcase {self.testcase.name}',
+                    resume=True,
+                )
+                result = ExecResult(
+                    None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
+                )
         else:
             if interaction:
                 assert not interaction.is_relative_to(self.tmpdir)
@@ -193,9 +200,8 @@ class Run:
 
     def _validate_output(self, bar):
         output_validators = self.problem.validators(validate.OutputValidator)
-        if output_validators is False or len(output_validators) == 0:
+        if len(output_validators) != 1:
             return None
-        assert len(output_validators) == 1
         validator = output_validators[0]
 
         flags = self.testcase.testdata_yaml_validator_flags(validator, bar)
@@ -322,19 +328,18 @@ class Submission(program.Program):
             out_file = out_path.open('wb') if out_path else None
 
             # Print stderr to terminal is stdout is None, otherwise return its value.
-            result = exec_command(
+            result = self._exec_command(
                 self.run_command + args,
                 crop=crop,
                 stdin=inf,
                 stdout=out_file,
                 stderr=None if out_file is None else True,
+                cwd=cwd,
                 timeout=(
                     self.problem.limits.generator_time
                     if generator_timeout
                     else self.limits['timeout']
                 ),
-                memory=self.limits['memory'],
-                cwd=cwd,
             )
             if out_file:
                 out_file.close()
@@ -519,14 +524,12 @@ class Submission(program.Program):
             if not self.problem.interactive:
                 assert self.run_command is not None
                 with testcase.in_path.open('rb') as inf:
-                    result = exec_command(
+                    result = self._exec_command(
                         self.run_command,
                         crop=False,
                         stdin=inf,
                         stdout=None,
                         stderr=None,
-                        timeout=self.limits['timeout'],
-                        memory=self.limits['memory'],
                     )
 
                 assert result.err is None and result.out is None
@@ -636,14 +639,13 @@ while True:
                 writer = subprocess.Popen(['python3', '-c', TEE_CODE], stdin=None, stdout=w)
 
                 assert self.run_command is not None
-                result = exec_command(
+                result = self._exec_command(
                     self.run_command,
                     crop=False,
                     stdin=r,
                     stdout=None,
                     stderr=None,
                     timeout=None,  # no timeout since we wait for user input
-                    memory=self.limits['memory'],
                 )
 
                 assert result.err is None and result.out is None

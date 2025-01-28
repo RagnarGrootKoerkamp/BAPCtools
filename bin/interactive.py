@@ -35,14 +35,13 @@ def run_interactive_testcase(
     submission_args: Optional[list[str]] = None,
 ):
     output_validators = run.problem.validators(validate.OutputValidator)
-    if output_validators is False:
-        fatal('No output validator found!')
-
-    assert len(output_validators) == 1
+    if len(output_validators) != 1:
+        return None
     output_validator = output_validators[0]
 
     # Set limits
-    validator_timeout = config.DEFAULT_INTERACTION_TIMEOUT
+    validation_time = run.problem.limits.validation_time
+    validation_memory = run.problem.limits.validation_memory
 
     timelimit = run.problem.settings.timelimit
     timeout = run.problem.settings.timeout
@@ -90,12 +89,14 @@ def run_interactive_testcase(
             pass_id += 1
             # Start the validator.
             validator_command = get_validator_command()
-            validator_process = subprocess.Popen(
+            validator_process = exec_command(
                 validator_command,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if validator_error is False else None,
                 cwd=validator_dir,
+                timeout=validation_time,
+                memory=validation_memory,
             )
 
             # Start and time the submission.
@@ -224,7 +225,7 @@ while True:
             stderr=subprocess.PIPE if validator_error is False else None,
             cwd=validator_dir,
             pipesize=BUFFER_SIZE,
-            preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
+            preexec_fn=limit_setter(validator_command, validation_time, validation_memory, 0),
         )
         validator_pid = validator.pid
         # add all programs to the same group (for simplicity we take the pid of the validator)
@@ -276,7 +277,7 @@ while True:
                 os.kill(submission_pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
-            if validator_timeout > timeout and stop_kill_handler.wait(validator_timeout - timeout):
+            if validation_time > timeout and stop_kill_handler.wait(validation_time - timeout):
                 return
             os.killpg(gid, signal.SIGKILL)
 

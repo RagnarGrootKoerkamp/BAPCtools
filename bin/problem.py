@@ -45,6 +45,7 @@ class Problem:
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
             tuple[Type[validate.AnyValidator], bool], list[validate.AnyValidator]
         ]()
+        self._validators_warn_cache = set[tuple[Type[validate.AnyValidator], bool]]()
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
@@ -577,13 +578,17 @@ class Problem:
             validators += problem._validators(validate.OutputValidator, check_constraints)
 
         # Check that the proper number of validators is present
-        match cls, len(validators):
-            case validate.InputValidator, 0:
-                warn(f'No input validators found.')
-            case validate.AnswerValidator, 0:
-                log(f"No answer validators found")
-            case validate.OutputValidator, l if l != 1:
-                error(f'Found {len(validators)} output validators, expected exactly one.')
+        # do this after handling the strict flag but dont warn every time
+        key = (cls, check_constraints)
+        if key not in problem._validators_warn_cache:
+            problem._validators_warn_cache.add(key)
+            match cls, len(validators):
+                case validate.InputValidator, 0:
+                    warn(f'No input validators found.')
+                case validate.AnswerValidator, 0:
+                    warn(f"No answer validators found")
+                case validate.OutputValidator, l if l != 1:
+                    error(f'Found {len(validators)} output validators, expected exactly one.')
 
         build_ok = all(v.ok for v in validators)
 

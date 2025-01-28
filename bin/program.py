@@ -497,6 +497,13 @@ class Program:
 
         return True
 
+    def _exec_command(self, *args, **kwargs):
+        if 'timeout' not in kwargs and 'timeout' in self.limits:
+            kwargs['timeout'] = self.limits['timeout']
+        if 'memory' not in kwargs and 'memory' in self.limits:
+            kwargs['memory'] = self.limits['memory']
+        return exec_command(*args, **kwargs)
+
     @staticmethod
     def add_callback(problem, path, c):
         if path not in problem._program_callbacks:
@@ -531,12 +538,10 @@ class Generator(Program):
         timeout = self.limits['timeout']
 
         with stdout_path.open('w') as stdout_file:
-            result = exec_command(
+            result = self._exec_command(
                 self.run_command + args,
                 stdout=stdout_file,
                 cwd=cwd,
-                timeout=timeout,
-                memory=None,
             )
 
         result.retry = False
@@ -579,9 +584,7 @@ class Visualizer(Program):
     # Stdin and stdout are not used.
     def run(self, cwd, args=[]):
         assert self.run_command is not None
-        return exec_command(
+        return self._exec_command(
             self.run_command + args,
             cwd=cwd,
-            timeout=self.limits['timeout'],
-            memory=None,
         )
