@@ -89,14 +89,12 @@ def run_interactive_testcase(
             pass_id += 1
             # Start the validator.
             validator_command = get_validator_command()
-            validator_process = exec_command(
+            validator_process = subprocess.Popen(
                 validator_command,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if validator_error is False else None,
                 cwd=validator_dir,
-                timeout=validation_time,
-                memory=validation_memory,
             )
 
             # Start and time the submission.
@@ -113,7 +111,7 @@ def run_interactive_testcase(
             )
 
             # Wait
-            (validator_out, validator_err) = validator_process.communicate()
+            (validator_out, validator_err) = validator_process.communicate(timeout=validation_time)
 
             tend = time.monotonic()
             max_duration = max(max_duration, tend - tstart)
