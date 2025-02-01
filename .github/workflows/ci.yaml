@@ -46,5 +46,6 @@ jobs:
                 kotlin
                 texlive
                 texlive-latex-extra
+                latexmk
       - shell: wsl-bash {0}
         run: pytest
