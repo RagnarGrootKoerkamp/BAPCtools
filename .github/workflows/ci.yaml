@@ -25,7 +25,6 @@ jobs:
         run:
             shell: wsl-bash {0}
     steps:
-      - uses: actions/checkout@v4
       - uses: Vampire/setup-wsl@v4
         with:
             distribution: Ubuntu-24.04
@@ -43,4 +42,7 @@ jobs:
                 build-essential
                 default-jre
                 default-jdk
+                kotlin
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
       - run: pytest
