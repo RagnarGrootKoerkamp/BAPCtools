@@ -126,8 +126,8 @@ class Problem:
             'uuid': None,
             'limits': {},
         }
-        # TODO: implement other limits
         # TODO move timelimit to this?
+        # defaults from https://github.com/Kattis/problem-package-format/blob/master/spec/legacy-icpc.md#limits
         limits = {
             'time_multiplier': 2,
             'time_safety_margin': 1.5,

@@ -492,7 +492,7 @@ class Program:
             size = sum(f.stat().st_size for f in self.source_files)
             if size > self.limits['code'] * 1024:
                 bar.warn(
-                    f'Code limit exceeded (set limits->code to at least {(size + 1023) // 1024}KiB in problem.yaml)'
+                    f'Code limit exceeded (set limits.code to at least {(size + 1023) // 1024}KiB in problem.yaml)'
                 )
 
         return True
