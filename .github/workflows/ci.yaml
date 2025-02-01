@@ -40,4 +40,7 @@ jobs:
                 python3-requests
                 python3-questionary
                 python3-pytest
+                build-essential
+                default-jre
+                default-jdk
       - run: pytest
