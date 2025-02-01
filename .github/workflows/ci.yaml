@@ -45,6 +45,7 @@ jobs:
                 default-jdk
                 kotlin
                 texlive
+                texlive-generic-extra
                 texlive-latex-extra
                 latexmk
       - shell: wsl-bash {0}

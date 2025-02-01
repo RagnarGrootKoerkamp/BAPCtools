@@ -1057,7 +1057,7 @@ def exec_command(
     if timeout is not None and math.isinf(timeout):
         timeout = None
 
-    if (is_windows() or is_wsl()) and 'memory' in kwargs:
+    if is_windows() and 'memory' in kwargs:
         kwargs.pop('memory')
 
     process: Optional[ResourcePopen] = None
@@ -1075,7 +1075,7 @@ def exec_command(
     tstart = time.monotonic()
 
     try:
-        if not is_windows() and not is_wsl() and preexec_fn:
+        if not is_windows() and preexec_fn:
             process = ResourcePopen(
                 command,
                 preexec_fn=limit_setter(command, timeout, get_memory_limit(kwargs)),
