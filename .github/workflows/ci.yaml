@@ -30,5 +30,8 @@ jobs:
         with:
             distribution: Ubuntu-24.04
             wsl-version: 2
+            additional-packages:
+                python3
+                python3-pip
       - run: pip install pyyaml colorama argcomplete ruamel.yaml matplotlib requests questionary pytest
       - run: pytest
