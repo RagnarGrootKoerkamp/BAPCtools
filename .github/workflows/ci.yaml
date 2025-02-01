@@ -21,9 +21,6 @@ jobs:
 
   wsl:
     runs-on: windows-latest
-    defaults:
-        run:
-            shell: wsl-bash {0}
     steps:
       - run: |
           git config --global core.autocrlf false
@@ -49,4 +46,5 @@ jobs:
                 kotlin
                 texlive
                 texlive-latex-extra
-      - run: pytest
+      - shell: wsl-bash {0}
+        run: pytest
