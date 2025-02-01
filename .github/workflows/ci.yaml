@@ -44,12 +44,7 @@ jobs:
                 default-jre
                 default-jdk
                 kotlin
-                texlive
-                texlive-latex-base
-                texlive-latex-recommended
-                texlive-fonts-recommended
-                texlive-latex-extra
-                texlive-science
+                texlive-full
                 latexmk
       - shell: wsl-bash {0}
         run: pytest
