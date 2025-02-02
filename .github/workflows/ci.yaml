@@ -51,5 +51,4 @@ jobs:
                 texlive-science
                 latexmk
       - shell: wsl-bash {0}
-        run: python3 -c "import sys;import platform;print(sys.platform,platform.uname())"
         run: pytest

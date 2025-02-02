@@ -42,12 +42,8 @@ ruamel_lock = threading.Lock()
 
 
 def is_windows() -> bool:
+    return False
     return sys.platform in ['win32', 'cygwin']
-
-
-# https://www.scivision.dev/python-detect-wsl/
-def is_wsl() -> bool:
-    return 'Microsoft' in platform.uname().release
 
 
 def is_mac() -> bool:
@@ -63,6 +59,7 @@ def is_aquabsd() -> bool:
 
 
 def is_bsd() -> bool:
+    return False
     return is_mac() or is_freebsd() or is_aquabsd()
 
 
