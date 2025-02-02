@@ -47,6 +47,7 @@ def is_windows() -> bool:
 
 # https://www.scivision.dev/python-detect-wsl/
 def is_wsl() -> bool:
+    return False
     return 'Microsoft' in platform.uname().release
 
 
