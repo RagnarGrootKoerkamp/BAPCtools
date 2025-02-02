@@ -46,7 +46,6 @@ jobs:
                 texlive
                 texlive-latex-base
                 texlive-latex-recommended
-                texlive-latex-extra
                 lmodern
                 texlive-science
                 latexmk
