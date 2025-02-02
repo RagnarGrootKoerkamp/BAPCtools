@@ -46,8 +46,10 @@ jobs:
                 texlive
                 texlive-latex-base
                 texlive-latex-recommended
+                texlive-latex-extra
                 lmodern
                 texlive-science
                 latexmk
       - shell: wsl-bash {0}
+        run: python3 -c "import sys;import platform;print(sys.platform,platform.uname())"
         run: pytest
