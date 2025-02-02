@@ -48,6 +48,7 @@ jobs:
                 texlive-latex-recommended
                 texlive-latex-extra
                 texlive-fonts-extra
+                lmodern
                 texlive-science
                 latexmk
       - shell: wsl-bash {0}
