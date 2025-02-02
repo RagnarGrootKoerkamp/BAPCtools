@@ -49,6 +49,7 @@ jobs:
                 texlive-latex-recommended
                 texlive-latex-extra
                 texlive-fonts-extra
+                texlive-science
                 latexmk
       - shell: wsl-bash {0}
         run: pytest
