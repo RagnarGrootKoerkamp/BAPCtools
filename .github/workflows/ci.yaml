@@ -38,13 +38,14 @@ jobs:
                 python3-ruamel.yaml
                 python3-matplotlib
                 python3-requests
-                python3-questionary
+                #python3-questionary
                 python3-pytest
                 build-essential
                 default-jre
                 default-jdk
                 kotlin
                 texlive
+                #texlive-full
                 texlive-latex-base
                 texlive-latex-recommended
                 texlive-latex-extra
