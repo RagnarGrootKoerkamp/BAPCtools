@@ -42,7 +42,6 @@ ruamel_lock = threading.Lock()
 
 
 def is_windows() -> bool:
-    return False
     return sys.platform in ['win32', 'cygwin']
 
 
@@ -59,7 +58,6 @@ def is_aquabsd() -> bool:
 
 
 def is_bsd() -> bool:
-    return False
     return is_mac() or is_freebsd() or is_aquabsd()
 
 
