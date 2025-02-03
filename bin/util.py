@@ -45,11 +45,6 @@ def is_windows() -> bool:
     return sys.platform in ['win32', 'cygwin']
 
 
-# https://www.scivision.dev/python-detect-wsl/
-def is_wsl() -> bool:
-    return 'Microsoft' in platform.uname().release
-
-
 def is_mac() -> bool:
     return sys.platform in ['darwin']
 
@@ -1044,7 +1039,7 @@ def exec_command(
         kwargs.pop('memory')
     if config.args.memory:
         memory_limit = config.args.memory
-    if is_windows() or is_wsl() or config.args.sanitizer:
+    if is_windows() or config.args.sanitizer:
         memory = None
 
     process: Optional[ResourcePopen] = None
@@ -1062,7 +1057,7 @@ def exec_command(
     tstart = time.monotonic()
 
     try:
-        if not is_windows() and not is_wsl() and preexec_fn:
+        if not is_windows() and preexec_fn:
             process = ResourcePopen(
                 command,
                 preexec_fn=limit_setter(command, timeout, memory),
