@@ -24,4 +24,4 @@ validation: default
 # Warning for submissions within 1 second of limit:
 #     time_safety_margin: 1
 limits:
-  memory: 100
+  memory: 512
