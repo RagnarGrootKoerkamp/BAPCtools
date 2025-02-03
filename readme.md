@@ -54,22 +54,22 @@ After cloning the repository, symlink [bin/tools.py](bin/tools.py) to somewhere 
 ```
 
 ### Windows
-For Windows the preferred way to use BAPCtools is inside the Windows Subsystem for Linux (WSL).
+For Windows, the preferred way to use BAPCtools is inside the Windows Subsystem for Linux (WSL).
 
-Note that BAPCtools makes use of symlinks for building programs. By default users are not allowed to create symlinks on Windows.
-This can be fixed by enabling Developer Mode on Windows (Only since Windows 10, version 1703 or newer).<br>
+Note that BAPCtools makes use of symlinks for building programs.
+By default, users are not allowed to create symlinks on Windows.
+This can be fixed by enabling Developer Mode on Windows (only since Windows 10 version 1703, or newer).<br>
 In case you're still having problems with symlinks in combination with Git after enabling this setting,
 please try the suggestions at https://stackoverflow.com/a/59761201.
 Specifically, `git config -g core.symlinks true` should do the trick,
 after which you can restore broken symlinks using `git checkout -- path/to/symlink`.
 
 ### Native Windows
-If you cannot or do not want to use WSL you'll need the following in your
-`path`:
+If you cannot or do not want to use WSL, you'll need the following in your `%PATH%`:
 
-- `Python` for Python 3
+- `python` for Python 3
 - `g++` to compile C++
-- `javac` and `java` to compile and run `java`.
+- `javac` and `java` to compile and run Java.
 
 Resource limits (memory limit/hard cpu time limit) are not supported.
 

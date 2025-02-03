@@ -19,7 +19,7 @@ jobs:
       - run: bash test/yaml/generators/test_schemata.sh
       - run: pytest
 
-  wsl:
+  test-wsl:
     runs-on: windows-latest
     steps:
       - run: |
