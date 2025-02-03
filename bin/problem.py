@@ -24,7 +24,7 @@ from colorama import Fore, Style
 
 # A problem.
 class Problem:
-    _SHORTNAME_REGEX_STRING = '^[a-z0-9]+$'
+    _SHORTNAME_REGEX_STRING = "^[a-z0-9]+$"
     _SHORTNAME_REGEX = re.compile(_SHORTNAME_REGEX_STRING)
 
     def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):
@@ -60,7 +60,7 @@ class Problem:
         assert path.is_dir()
         if not Problem._SHORTNAME_REGEX.match(self.name):
             warn(
-                f'Problem has a bad shortname: {self.name} does not match {self._SHORTNAME_REGEX_STRING}'
+                f"Problem has a bad shortname: {self.name} does not match {self._SHORTNAME_REGEX_STRING}"
             )
 
         self.statement_languages = self._determine_statement_languages()
@@ -72,10 +72,10 @@ class Problem:
         If problem.yaml's name key is a string, convert into dict; assume `en` as default language.
         """
         if isinstance(self.settings.name, str):
-            self.settings.name = {'en': self.settings.name}
+            self.settings.name = {"en": self.settings.name}
         yamllangs = set(self.settings.name)
         texlangs = set(
-            path.suffixes[0][1:] for path in glob(self.path, 'problem_statement/problem.*.tex')
+            path.suffixes[0][1:] for path in glob(self.path, "problem_statement/problem.*.tex")
         )
         for lang in texlangs - yamllangs:
             error(
@@ -88,103 +88,103 @@ class Problem:
         # Check that names in problem.yaml and \problemname{} in problem.*.tex agree:
         for lang in texlangs & yamllangs:
             unnormalised_yamlname = self.settings.name[lang]
-            yamlname = ' '.join(unnormalised_yamlname.split())
-            with open(self.path / 'problem_statement' / f'problem.{lang}.tex') as texfile:
-                match texname := latex.get_argument_for_command(texfile, 'problemname'):
+            yamlname = " ".join(unnormalised_yamlname.split())
+            with open(self.path / "problem_statement" / f"problem.{lang}.tex") as texfile:
+                match texname := latex.get_argument_for_command(texfile, "problemname"):
                     case None:
                         error(rf"No \problemname found in problem.{lang}.tex")
                         continue
-                    case '':
+                    case "":
                         continue
-                    case r'\problemyamlname':
+                    case r"\problemyamlname":
                         warn(
                             rf"Prefer using \problemname{{}} instead of \problemname{{\problemyamlname}} in problem.{lang}.tex"
                         )
                         continue
-                    case s if '\\' in s or '_' in s or '^' in s:
+                    case s if "\\" in s or "_" in s or "^" in s:
                         # texname contains markup, like "CO_2" or "\emph{Hello}":
                         # Assume authors know what they're doing
                         continue
                     case s if s != yamlname:
                         warn(
-                            f'Problem titles in problem.{lang}.tex ({texname})'
-                            + f' and problem.yaml ({yamlname}) differ;'
-                            + r' consider using \problemname{}.'
+                            f"Problem titles in problem.{lang}.tex ({texname})"
+                            + f" and problem.yaml ({yamlname}) differ;"
+                            + r" consider using \problemname{}."
                         )
         return sorted(texlangs & yamllangs)
 
     def _read_settings(self):
         # some defaults
         settings = {
-            'timelimit': 1.0,
-            'timelimit_is_default': True,
-            'timeout': 3,
-            'name': '',
-            'validation': 'default',
-            'validator_flags': [],
-            'author': '',
-            'uuid': None,
-            'limits': {},
+            "timelimit": 1.0,
+            "timelimit_is_default": True,
+            "timeout": 3,
+            "name": "",
+            "validation": "default",
+            "validator_flags": [],
+            "author": "",
+            "uuid": None,
+            "limits": {},
         }
         # TODO move timelimit to this?
         # defaults from https://github.com/Kattis/problem-package-format/blob/master/spec/legacy-icpc.md#limits
         limits = {
-            'time_multiplier': 2,
-            'time_safety_margin': 1.5,
-            'time_resolution': 1.0,
-            'memory': 2048,  # in MiB
-            'output': 8,  # in MiB
-            'code': 128,  # in KiB
-            'compilation_time': 60,  # in seconds
-            'compilation_memory': 2048,  # in MiB
-            'validation_time': 60,  # in seconds
-            'validation_memory': 2048,  # in MiB
+            "time_multiplier": 2,
+            "time_safety_margin": 1.5,
+            "time_resolution": 1.0,
+            "memory": 2048,  # in MiB
+            "output": 8,  # in MiB
+            "code": 128,  # in KiB
+            "compilation_time": 60,  # in seconds
+            "compilation_memory": 2048,  # in MiB
+            "validation_time": 60,  # in seconds
+            "validation_memory": 2048,  # in MiB
             # 'validation_output': 8,  # in MiB
             # BAPCtools extension:
-            'generator_time': config.DEFAULT_TIMEOUT,  # in seconds
-            'visualizer_time': config.DEFAULT_TIMEOUT,  # in seconds
+            "generator_time": config.DEFAULT_TIMEOUT,  # in seconds
+            "visualizer_time": config.DEFAULT_TIMEOUT,  # in seconds
         }
 
-        yaml_path = self.path / 'problem.yaml'
+        yaml_path = self.path / "problem.yaml"
 
         # parse problem.yaml
         if has_ryaml:
             try:
                 yamldata = read_yaml_settings(yaml_path)
             except ruamel.yaml.scanner.ScannerError:
-                fatal(f'Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.')
+                fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
         else:
             yamldata = read_yaml_settings(yaml_path)
 
         if yamldata:
             for k, v in yamldata.items():
                 settings[k] = v
-            if 'timelimit' in yamldata:
-                settings['timelimit_is_default'] = False
+            if "timelimit" in yamldata:
+                settings["timelimit_is_default"] = False
 
         # DEPRECATED: parse domjudge-problem.ini for the timelimit.
-        domjudge_path = self.path / 'domjudge-problem.ini'
+        domjudge_path = self.path / "domjudge-problem.ini"
         if domjudge_path.is_file():
-            verbose('domjudge-problem.ini is DEPRECATED. Use a .timelimit file instead.')
+            verbose("domjudge-problem.ini is DEPRECATED. Use a .timelimit file instead.")
             for line in domjudge_path.read_text().splitlines():
-                key, var = map(str.strip, line.strip().split('='))
+                key, var = map(str.strip, line.strip().split("="))
                 if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
                     var = var[1:-1]
-                if key == 'timelimit':
+                if key == "timelimit":
                     settings[key] = float(var)
-                    settings['timelimit_is_default'] = False
+                    settings["timelimit_is_default"] = False
                 else:
                     settings[key] = var
 
         # Read the .timitlimit file if present.
-        timelimit_path = self.path / '.timelimit'
+        timelimit_path = self.path / ".timelimit"
         if timelimit_path.is_file():
-            settings['timelimit'] = float(timelimit_path.read_text())
-            settings['timelimit_is_default'] = False
+            settings["timelimit"] = float(timelimit_path.read_text())
+            settings["timelimit_is_default"] = False
 
         # move limits to own dictionary
-        settings_limits = settings['limits']
-        settings.pop('limits')
+        settings_limits = settings["limits"]
+        settings.pop("limits")
         assert isinstance(settings_limits, dict)
         for k, v in settings_limits.items():
             limits[k] = v
@@ -200,18 +200,18 @@ class Problem:
             raw = yaml_path.read_text().rstrip()
             raw += f"\n# uuid added by BAPCtools\nuuid: '{self.settings.uuid}'\n"
             yaml_path.write_text(raw)
-            log(f'Generated UUID for {self.name}, added to problem.yaml')
+            log(f"Generated UUID for {self.name}, added to problem.yaml")
 
         mode = parse_validation(self.settings.validation)
-        self.interactive = mode['interactive']
-        self.multipass = mode['multi-pass']
+        self.interactive = mode["interactive"]
+        self.multipass = mode["multi-pass"]
 
-        has_validation_passes = 'validation_passes' in limits
+        has_validation_passes = "validation_passes" in limits
         if self.multipass and not has_validation_passes:
-            limits['validation_passes'] = 2
+            limits["validation_passes"] = 2
         if not self.multipass and has_validation_passes:
-            limits.pop('validation_passes')
-            warn('limit: validation_passes is only used for multipass problems. SKIPPED.')
+            limits.pop("validation_passes")
+            warn("limit: validation_passes is only used for multipass problems. SKIPPED.")
 
         # TODO #102: typed Namespace? Or create type of problem.yaml and reuse `limits` field from there?
         self.limits = argparse.Namespace(**limits)
@@ -228,13 +228,13 @@ class Problem:
         self.limits.validation_memory = config.args.memory or self.limits.validation_memory
 
     def _parse_testdata_yaml(p, path, bar):
-        assert path.is_relative_to(p.path / 'data')
+        assert path.is_relative_to(p.path / "data")
         for dir in [path] + list(path.parents):
             # Do not go above the data directory.
             if dir == p.path:
                 return
 
-            f = dir / 'testdata.yaml'
+            f = dir / "testdata.yaml"
             if not f.is_file() or f in p._testdata_yamls:
                 continue
             with p._testdata_lock:
@@ -244,14 +244,14 @@ class Problem:
                     # verify testdata.yaml
                     for k in flags:
                         match k:
-                            case 'output_validator_flags':
+                            case "output_validator_flags":
                                 if not isinstance(flags[k], str):
                                     bar.error(
                                         "ouput_validator_flags must be string",
                                         resume=True,
                                         print_item=False,
                                     )
-                            case 'input_validator_flags':
+                            case "input_validator_flags":
                                 if not isinstance(flags[k], (str, dict)):
                                     bar.error(
                                         "input_validator_flags must be string or map",
@@ -264,16 +264,16 @@ class Problem:
                                     )
                                     for name in set(flags[k]) - input_validator_names:
                                         bar.warn(
-                                            f'Unknown input validator {name}; expected {input_validator_names}',
+                                            f"Unknown input validator {name}; expected {input_validator_names}",
                                             print_item=False,
                                         )
-                            case 'grading' | 'run_samples':
-                                bar.warn(f'{k} not implemented in BAPCtools', print_item=False)
+                            case "grading" | "run_samples":
+                                bar.warn(f"{k} not implemented in BAPCtools", print_item=False)
                             case _:
-                                path = f.relative_to(p.path / 'data')
+                                path = f.relative_to(p.path / "data")
                                 bar.warn(f'Unknown key "{k}" in {path}', print_item=False)
             # Do not go above the data directory.
-            if dir == p.path / 'data':
+            if dir == p.path / "data":
                 break
 
     def get_testdata_yaml(p, path, key, bar, name=None) -> str | None:
@@ -295,9 +295,9 @@ class Problem:
         string or None if no testdata.yaml is found.
         TODO: when 'grading' is supported, it also can return dict
         """
-        if key not in ['input_validator_flags', 'output_validator_flags']:
+        if key not in ["input_validator_flags", "output_validator_flags"]:
             raise NotImplementedError(key)
-        if key != 'input_validator_flags' and name is not None:
+        if key != "input_validator_flags" and name is not None:
             raise ValueError(
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
@@ -311,17 +311,17 @@ class Problem:
             if dir == p.path:
                 return None
 
-            f = dir / 'testdata.yaml'
+            f = dir / "testdata.yaml"
             if f not in p._testdata_yamls:
                 continue
             flags = p._testdata_yamls[f]
             if key in flags:
-                if key == 'output_validator_flags':
+                if key == "output_validator_flags":
                     if not isinstance(flags[key], str):
                         bar.error("ouput_validator_flags must be string")
                     return flags[key]
 
-                if key == 'input_validator_flags':
+                if key == "input_validator_flags":
                     if not isinstance(flags[key], (str, dict)):
                         bar.error("input_validator_flags must be string or map")
                     if isinstance(flags[key], str):
@@ -351,12 +351,12 @@ class Problem:
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
             for t in config.args.testcases:
-                t = resolve_path_argument(p, t, 'data', suffixes=['.in'])
+                t = resolve_path_argument(p, t, "data", suffixes=[".in"])
                 if t:
                     # When running from contest level, the testcase must be inside the problem.
-                    if config.level != 'problemset' or is_relative_to(p.path, t):
+                    if config.level != "problemset" or is_relative_to(p.path, t):
                         if t.is_dir():
-                            in_paths += glob(t, '**/*.in')
+                            in_paths += glob(t, "**/*.in")
                         else:
                             in_paths.append(t)
 
@@ -364,15 +364,15 @@ class Problem:
         elif mode is not None:
             in_paths = []
             for prefix in {
-                validate.Mode.INPUT: ['secret', 'sample'],
-                validate.Mode.ANSWER: ['secret', 'sample'],
+                validate.Mode.INPUT: ["secret", "sample"],
+                validate.Mode.ANSWER: ["secret", "sample"],
                 validate.Mode.INVALID: config.INVALID_CASE_DIRECTORIES,
             }[mode]:
-                in_paths += glob(p.path, f'data/{prefix}/**/*.in')
+                in_paths += glob(p.path, f"data/{prefix}/**/*.in")
         else:
-            in_paths = list(glob(p.path, 'data/sample/**/*.in'))
+            in_paths = list(glob(p.path, "data/sample/**/*.in"))
             if not only_samples:
-                in_paths += list(glob(p.path, 'data/secret/**/*.in'))
+                in_paths += list(glob(p.path, "data/secret/**/*.in"))
 
         testcases = []
         for f in in_paths:
@@ -380,28 +380,28 @@ class Problem:
             if (
                 (p.interactive or p.multipass)
                 and mode == validate.Mode.INVALID
-                and t.root in ['invalid_answers', 'invalid_outputs']
+                and t.root in ["invalid_answers", "invalid_outputs"]
             ):
-                msg = ''
+                msg = ""
                 if p.interactive:
-                    msg += ' interactive'
+                    msg += " interactive"
                 if p.multipass:
-                    msg += ' multi-pass'
-                warn(f'Found file {f} for {mode} validation in{msg} problem. Skipping.')
+                    msg += " multi-pass"
+                warn(f"Found file {f} for {mode} validation in{msg} problem. Skipping.")
                 continue
             if needans and not t.ans_path.is_file():
-                if t.root != 'invalid_inputs':
-                    warn(f'Found input file {f} without a .ans file. Skipping.')
+                if t.root != "invalid_inputs":
+                    warn(f"Found input file {f} without a .ans file. Skipping.")
                     continue
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            ans = ' with answer' if needans and mode != validate.Mode.INVALID else ''
-            val = f' for {mode} validation' if mode is not None else ''
+            ans = " with answer" if needans and mode != validate.Mode.INVALID else ""
+            val = f" for {mode} validation" if mode is not None else ""
             # TODO perhaps move this log to the use site?
             (log if mode == validate.Mode.INVALID else warn)(
-                f'Didn\'t find any testcases{ans}{val} in problem {p.name}. Skipping.'
+                f"Didn't find any testcases{ans}{val} in problem {p.name}. Skipping."
             )
 
         p._testcases[key] = testcases
@@ -412,28 +412,28 @@ class Problem:
     # - (Path, Path): (.in.statement, .ans.statement) pair
     # -  Path       :  .interaction file
     def statement_samples(p) -> list[Path | tuple[Path, Path]]:
-        statement_in_paths = list(glob(p.path, 'data/sample/**/*.in.statement'))
-        interaction_paths = list(glob(p.path, 'data/sample/**/*.interaction'))
+        statement_in_paths = list(glob(p.path, "data/sample/**/*.in.statement"))
+        interaction_paths = list(glob(p.path, "data/sample/**/*.interaction"))
 
         # Make sure that .in.statement files are not mixed with .interaction files.
         for in_path in interaction_paths:
-            if in_path.with_suffix('.in.statement').is_file():
+            if in_path.with_suffix(".in.statement").is_file():
                 warn(
-                    f'Do not mix .in.statement files and .interaction files with the same basename in {p}.'
+                    f"Do not mix .in.statement files and .interaction files with the same basename in {p}."
                 )
 
         # A .in may be shadowed by either .in.statement or .interaction, in which case the .in itself is not shown in the PDF.
         in_paths = []
-        for in_path in list(glob(p.path, 'data/sample/**/*.in')):
-            if in_path.with_suffix('.in.statement').is_file():
+        for in_path in list(glob(p.path, "data/sample/**/*.in")):
+            if in_path.with_suffix(".in.statement").is_file():
                 continue
-            if in_path.with_suffix('.interaction').is_file():
+            if in_path.with_suffix(".interaction").is_file():
                 continue
             in_paths.append(in_path)
 
         # .interaction files cannot be mixed with .in/.ans pairs.
         if len(interaction_paths) != 0 and len(in_paths) + len(statement_in_paths) != 0:
-            warn(f'Do not mix .interaction files with .in/.ans files in {p}.')
+            warn(f"Do not mix .interaction files with .in/.ans files in {p}.")
 
         # Non-interactive and Non-multi-pass problems should not have .interaction files.
         # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
@@ -441,23 +441,23 @@ class Problem:
         if not p.interactive and not p.multipass:
             if len(interaction_paths) != 0:
                 warn(
-                    f'Non-interactive/Non-multi-pass problem {p.name} should not have data/sample/*.interaction files.'
+                    f"Non-interactive/Non-multi-pass problem {p.name} should not have data/sample/*.interaction files."
                 )
             interaction_paths = []
 
         testcases = list[Path | tuple[Path, Path]]()
         for in_path in in_paths:
-            ans_path = in_path.with_suffix('.ans')
+            ans_path = in_path.with_suffix(".ans")
             if not ans_path.is_file():
-                warn(f'Found input file {in_path} without a .ans file. Skipping.')
+                warn(f"Found input file {in_path} without a .ans file. Skipping.")
                 continue
             testcases.append((in_path, ans_path))
 
         for in_path in statement_in_paths:
             # first remove .statement, then replace .in with .ans.statement
-            ans_path = in_path.with_suffix('').with_suffix('.ans.statement')
+            ans_path = in_path.with_suffix("").with_suffix(".ans.statement")
             if not ans_path.is_file():
-                warn(f'Found input file {in_path} without a .ans.statement file. Skipping.')
+                warn(f"Found input file {in_path} without a .ans.statement file. Skipping.")
                 continue
             testcases.append((in_path, ans_path))
 
@@ -469,7 +469,7 @@ class Problem:
         return testcases
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
-    def selected_or_accepted_submissions(problem) -> list['run.Submission']:
+    def selected_or_accepted_submissions(problem) -> list["run.Submission"]:
         submissions = problem.submissions()
         if not submissions:
             return []
@@ -478,7 +478,7 @@ class Problem:
         else:
             return [s for s in submissions if s.expected_verdicts == [verdicts.Verdict.ACCEPTED]]
 
-    def submissions(problem) -> list['run.Submission'] | Literal[False]:
+    def submissions(problem) -> list["run.Submission"] | Literal[False]:
         if problem._submissions is not None:
             if problem._submissions is False:
                 return False
@@ -490,26 +490,26 @@ class Problem:
 
             def add(s):
                 if s in paths:
-                    warn(f'Ignoring duplicate submission: {s}')
+                    warn(f"Ignoring duplicate submission: {s}")
                     return
                 paths.append(s)
 
             for submission in config.args.submissions:
-                s = resolve_path_argument(problem, submission, 'submissions')
+                s = resolve_path_argument(problem, submission, "submissions")
                 if s:
-                    if s == problem.path / 'submissions':
-                        paths += glob(s, '*/*')
-                    elif s.parent == problem.path / 'submissions':
-                        for s in glob(s, '*'):
+                    if s == problem.path / "submissions":
+                        paths += glob(s, "*/*")
+                    elif s.parent == problem.path / "submissions":
+                        for s in glob(s, "*"):
                             add(s)
                     else:
                         # If running from a contest, the submission must be inside a problem.
-                        if config.level == 'problem' or is_relative_to(problem.path, s):
+                        if config.level == "problem" or is_relative_to(problem.path, s):
                             add(s)
         else:
-            for s in glob(problem.path / 'submissions', '*/*'):
+            for s in glob(problem.path / "submissions", "*/*"):
                 if (
-                    s.parent.name == 'time_limit_exceeded'
+                    s.parent.name == "time_limit_exceeded"
                     and config.RUNNING_TEST
                     and not config.TEST_TLE_SUBMISSIONS
                 ):
@@ -518,7 +518,7 @@ class Problem:
                 paths.append(s)
 
         if len(paths) == 0:
-            error('No submissions found!')
+            error("No submissions found!")
             problem._submissions = False
             return False
 
@@ -536,7 +536,7 @@ class Problem:
 
         programs.sort(key=submissions_key)
 
-        bar = ProgressBar('Build submissions', items=programs)
+        bar = ProgressBar("Build submissions", items=programs)
 
         def build_program(p):
             localbar = bar.start(p)
@@ -584,11 +584,11 @@ class Problem:
             problem._validators_warn_cache.add(key)
             match cls, len(validators):
                 case validate.InputValidator, 0:
-                    warn(f'No input validators found.')
+                    warn(f"No input validators found.")
                 case validate.AnswerValidator, 0:
                     warn(f"No answer validators found")
                 case validate.OutputValidator, l if l != 1:
-                    error(f'Found {len(validators)} output validators, expected exactly one.')
+                    error(f"Found {len(validators)} output validators, expected exactly one.")
 
         build_ok = all(v.ok for v in validators)
 
@@ -604,21 +604,21 @@ class Problem:
         if key in problem._validators_cache:
             return problem._validators_cache[key]
 
-        assert hasattr(cls, 'source_dirs')
-        paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, '*')]
+        assert hasattr(cls, "source_dirs")
+        paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, "*")]
 
         # Handle default output validation
-        if cls == validate.OutputValidator and problem.settings.validation == 'default':
+        if cls == validate.OutputValidator and problem.settings.validation == "default":
             if paths:
                 error("Validation is default but custom output validator exists (ignoring it)")
-            paths = [config.tools_root / 'support' / 'default_output_validator.cpp']
+            paths = [config.tools_root / "support" / "default_output_validator.cpp"]
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
             if not f.is_file():
                 return False
             try:
-                return 'constraints_file' in f.read_text()
+                return "constraints_file" in f.read_text()
             except UnicodeDecodeError:
                 return False
 
@@ -628,7 +628,7 @@ class Problem:
                 for f in paths
                 if any(
                     has_constraints_checking(source)
-                    for source in ([f] if f.is_file() else glob(f, '**/*'))
+                    for source in ([f] if f.is_file() else glob(f, "**/*"))
                 )
             ]
 
@@ -644,7 +644,7 @@ class Problem:
             )
             for path in paths
         ]
-        bar = ProgressBar(f'Building {cls.validator_type} validator', items=validators)
+        bar = ProgressBar(f"Building {cls.validator_type} validator", items=validators)
 
         def build_program(p):
             localbar = bar.start(p)
@@ -736,9 +736,9 @@ class Problem:
             if row[testcase.name] is not False:
                 return verdicts.to_char(row[testcase.name])
             else:
-                return f'{Style.DIM}-{Style.RESET_ALL}'
+                return f"{Style.DIM}-{Style.RESET_ALL}"
 
-        make_verdict = lambda tc: ''.join(map(lambda row: single_verdict(row, tc), verdict_table))
+        make_verdict = lambda tc: "".join(map(lambda row: single_verdict(row, tc), verdict_table))
         resultant_count, resultant_id = dict[str, int](), dict[str, int]()
         special_id = 0
         for testcase in testcases:
@@ -764,8 +764,8 @@ class Problem:
         scores_list = sorted(scores.values())
 
         print(
-            '\nVerdict analysis table. Submissions are ordered per column as above. Higher '
-            'scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.',
+            "\nVerdict analysis table. Submissions are ordered per column as above. Higher "
+            "scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.",
             file=sys.stderr,
         )
         fail = (
@@ -773,9 +773,9 @@ class Problem:
             + verdicts.to_char(verdicts.Verdict.TIME_LIMIT_EXCEEDED)
             + verdicts.to_char(verdicts.Verdict.RUNTIME_ERROR)
         )
-        print(f'{fail}: submission fails testcase', file=sys.stderr)
+        print(f"{fail}: submission fails testcase", file=sys.stderr)
         print(
-            f'{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n',
+            f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n",
             file=sys.stderr,
         )
 
@@ -793,9 +793,9 @@ class Problem:
 
             name = testcase.name
             if len(name) > name_col_width:
-                name = '...' + name[-name_col_width + 3 :]
-            padding = ' ' * (name_col_width - len(name))
-            print(f'{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}', end=' ', file=sys.stderr)
+                name = "..." + name[-name_col_width + 3 :]
+            padding = " " * (name_col_width - len(name))
+            print(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ", file=sys.stderr)
 
             color = Style.RESET_ALL
             if len(scores_list) > 6 and scores[testcase.name] >= scores_list[-6]:
@@ -803,20 +803,20 @@ class Problem:
             if len(scores_list) > 3 and scores[testcase.name] >= scores_list[-3]:
                 color = Fore.RED
             resultant = make_verdict(testcase)
-            print(resultant, end='  ', file=sys.stderr)
+            print(resultant, end="  ", file=sys.stderr)
             print(
-                f'{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ', end='', file=sys.stderr
+                f"{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ", end="", file=sys.stderr
             )
             if resultant in resultant_id:
-                print(str.format('(Type {})', resultant_id[resultant]), end='', file=sys.stderr)
-            print(end='\n', file=sys.stderr)
+                print(str.format("(Type {})", resultant_id[resultant]), end="", file=sys.stderr)
+            print(end="\n", file=sys.stderr)
 
     def reset_testcase_hashes(self):
         self._testcase_hashes = {}
 
     # Returns None for new testcases or the Testcase object it equals.
     def matches_existing_testcase(self, t):
-        if t.root in ['invalid_input', 'invalid_answer']:
+        if t.root in ["invalid_input", "invalid_answer"]:
             return None
         h = hash_file_content(t.in_path)
         if h in self._testcase_hashes:
@@ -840,13 +840,13 @@ class Problem:
         assert constraints is None or isinstance(constraints, dict)
 
         if (problem.interactive or problem.multipass) and mode == validate.Mode.ANSWER:
-            if (problem.path / 'answer_validators').exists():
-                msg = ''
+            if (problem.path / "answer_validators").exists():
+                msg = ""
                 if problem.interactive:
-                    msg += ' interactive'
+                    msg += " interactive"
                 if problem.multipass:
-                    msg += ' multi-pass'
-                log(f'Not running answer_validators for{msg} problems.')
+                    msg += " multi-pass"
+                log(f"Not running answer_validators for{msg} problems.")
             return True
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
@@ -874,10 +874,10 @@ class Problem:
             return True
 
         action = (
-            'Invalidation'
+            "Invalidation"
             if mode == validate.Mode.INVALID
             else (
-                f'{mode} validation' if not check_constraints else f'Collecting {mode} constraints'
+                f"{mode} validation" if not check_constraints else f"Collecting {mode} constraints"
             ).capitalize()
         )
 
@@ -896,13 +896,13 @@ class Problem:
             if (
                 mode == validate.Mode.INPUT
                 and not testcase.in_path.is_symlink()
-                and not testcase.root == 'invalid_answers'
-                and not testcase.root == 'invalid_outputs'
+                and not testcase.root == "invalid_answers"
+                and not testcase.root == "invalid_outputs"
             ):
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     localbar.warn(
-                        f'Duplicate testcase: identical to {t2.name}. If this is intentional use symlinks/count/includes.'
+                        f"Duplicate testcase: identical to {t2.name}. If this is intentional use symlinks/count/includes."
                     )
                     localbar.done()
                     return
@@ -923,12 +923,12 @@ class Problem:
                 if not has_low:
                     success = False
                     warn(
-                        f'BOUND NOT REACHED: `{name}` never equals lower bound {low}. Min value found: {vmin}'
+                        f"BOUND NOT REACHED: `{name}` never equals lower bound {low}. Min value found: {vmin}"
                     )
                 if not has_high:
                     success = False
                     warn(
-                        f'BOUND NOT REACHED: `{name}` never equals upper bound {high}. Max value found: {vmax}'
+                        f"BOUND NOT REACHED: `{name}` never equals upper bound {high}. Max value found: {vmax}"
                     )
 
         return success
@@ -941,9 +941,9 @@ class Problem:
 
         max_submission_len = max([len(x.name) for x in submissions])
 
-        problem.settings.timelimit = float('inf')
+        problem.settings.timelimit = float("inf")
         problem.settings.timelimit_is_default = False
-        problem.settings.timeout = float('inf')
+        problem.settings.timeout = float("inf")
 
         ok = True
 
@@ -970,7 +970,7 @@ class Problem:
 
         submission, testcase, duration = run_all(lambda vs: vs == [verdicts.Verdict.ACCEPTED], max)
         if submission is None:
-            error('No AC submissions found')
+            error("No AC submissions found")
             return False
 
         problem.settings.timelimit = problem.limits.time_resolution * math.ceil(
@@ -980,13 +980,13 @@ class Problem:
         problem.settings.timeout = int(safety_timelimit * problem.limits.time_safety_margin + 1)
 
         if config.args.write:
-            (problem.path / '.timelimit').write_text(f'{problem.settings.timelimit:.3f}')
+            (problem.path / ".timelimit").write_text(f"{problem.settings.timelimit:.3f}")
 
         print()
-        message(f'{duration:.3f}s @ {testcase} ({submission})', 'slowest AC')
+        message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
         message(
-            f'{problem.settings.timelimit:.3f}s >= {duration:.3f}s * {problem.limits.time_multiplier}',
-            'timelimit',
+            f"{problem.settings.timelimit:.3f}s >= {duration:.3f}s * {problem.limits.time_multiplier}",
+            "timelimit",
         )
         print()
 
@@ -995,18 +995,18 @@ class Problem:
         )
         if submission is not None:
             print()
-            message(f'{duration:.3f}s @ {testcase} ({submission})', 'fastest TLE')
+            message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
             if duration <= problem.settings.timelimit:
-                error(f'TLE submission runs within timelimit')
+                error(f"TLE submission runs within timelimit")
             elif duration <= safety_timelimit:
-                warn(f'TLE submission runs within safety margin')
+                warn(f"TLE submission runs within safety margin")
             elif duration >= problem.settings.timeout:
                 log(
-                    f'No TLE submission finished within {problem.settings.timeout}s >= {problem.settings.timelimit:.3f}s * {problem.limits.time_safety_margin}^2'
+                    f"No TLE submission finished within {problem.settings.timeout}s >= {problem.settings.timelimit:.3f}s * {problem.limits.time_safety_margin}^2"
                 )
             print()
         else:
-            log('No TLE submissions found')
+            log("No TLE submissions found")
 
         if config.args.all:
             submission, testcase, duration = run_all(
@@ -1016,7 +1016,7 @@ class Problem:
             )
             if submission is not None:
                 if duration > problem.settings.timelimit:
-                    warn(f'Non TLE submission timed out')
+                    warn(f"Non TLE submission timed out")
                 else:
-                    log(f'All non TLE submission finished within timelimit')
+                    log(f"All non TLE submission finished within timelimit")
         return ok

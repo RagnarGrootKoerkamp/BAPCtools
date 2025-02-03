@@ -12,57 +12,57 @@ RTV_AC = 42
 RTV_WA = 43
 
 SUBMISSION_DIRS = [
-    'accepted',
-    'wrong_answer',
-    'time_limit_exceeded',
-    'run_time_error',
+    "accepted",
+    "wrong_answer",
+    "time_limit_exceeded",
+    "run_time_error",
 ]
 
 KNOWN_LICENSES = [
-    'cc by-sa',
-    'cc by',
-    'cc0',
-    'public domain',
-    'educational',
-    'permission',
-    'unknown',
+    "cc by-sa",
+    "cc by",
+    "cc0",
+    "public domain",
+    "educational",
+    "permission",
+    "unknown",
 ]
 
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD = 4
 
-FILE_NAME_REGEX = '[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]'
+FILE_NAME_REGEX = "[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]"
 COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
 
 KNOWN_TESTCASE_EXTENSIONS = [
-    '.in',
-    '.ans',
-    '.out',
+    ".in",
+    ".ans",
+    ".out",
 ]
 
 KNOWN_VISUALIZER_EXTENSIONS = [
-    '.png',
-    '.jpg',
-    '.svg',
-    '.pdf',
+    ".png",
+    ".jpg",
+    ".svg",
+    ".pdf",
 ]
 
 KNOWN_TEXT_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
-    '.interaction',
-    '.hint',
-    '.desc',
-    '.in.statement',
-    '.ans.statement',
+    ".interaction",
+    ".hint",
+    ".desc",
+    ".in.statement",
+    ".ans.statement",
     #'.args',
 ]
 
 KNOWN_DATA_EXTENSIONS = KNOWN_TEXT_DATA_EXTENSIONS + KNOWN_VISUALIZER_EXTENSIONS
 
 INVALID_CASE_DIRECTORIES = [
-    'invalid_inputs',
-    'invalid_answers',
-    'invalid_outputs',
-    'bad',
+    "invalid_inputs",
+    "invalid_answers",
+    "invalid_outputs",
+    "bad",
 ]
 
 
@@ -75,17 +75,17 @@ tools_root = Path(__file__).resolve().parent.parent
 current_working_directory = Path.cwd().resolve()
 
 # Add third_party/ to the $PATH for checktestdata.
-os.environ["PATH"] += os.pathsep + str(tools_root / 'third_party')
+os.environ["PATH"] += os.pathsep + str(tools_root / "third_party")
 
 # Below here is some global state that will be filled in main().
 
 args = argparse.Namespace()
 
 default_args = {
-    'jobs': (os.cpu_count() or 1) // 2,
-    'time': 600,  # Used for `bt fuzz`
-    'verbose': 0,
-    'languages': None,
+    "jobs": (os.cpu_count() or 1) // 2,
+    "time": 600,  # Used for `bt fuzz`
+    "verbose": 0,
+    "languages": None,
 }
 
 
@@ -110,7 +110,7 @@ def set_default_args():
             setattr(args, arg, value)
 
 
-level: Optional[Literal['problem', 'problemset']] = None
+level: Optional[Literal["problem", "problemset"]] = None
 
 # The number of warnings and errors encountered.
 # The program will return non-zero when the number of errors is nonzero.
@@ -127,5 +127,5 @@ DEFAULT_TIMEOUT = 30
 DEFAULT_INTERACTION_TIMEOUT = 60
 
 # Randomly generated uuid4 for BAPCtools
-BAPC_UUID = '8ee7605a-d1ce-47b3-be37-15de5acd757e'
+BAPC_UUID = "8ee7605a-d1ce-47b3-be37-15de5acd757e"
 BAPC_UUID_PREFIX = 8

@@ -3,4 +3,4 @@
 # character, e.g. \n will produce a newline.
 import sys
 
-print(' '.join(sys.argv[1:]).encode('ascii').decode('unicode_escape'))
+print(" ".join(sys.argv[1:]).encode("ascii").decode("unicode_escape"))

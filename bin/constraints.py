@@ -39,40 +39,40 @@ def check_validators(problem):
             validator_values.add(high)
 
     f(in_constraints)
-    validator_defs.append('')
-    validator_defs.append('OUTPUT')
+    validator_defs.append("")
+    validator_defs.append("OUTPUT")
     f(ans_constraints)
 
     return validator_values, validator_defs
 
 
 def check_statement(problem, language):
-    statement_file = problem.path / f'problem_statement/problem.{language}.tex'
+    statement_file = problem.path / f"problem_statement/problem.{language}.tex"
     statement = statement_file.read_text()
 
     statement_values = set()
     statement_defs = []
 
-    defines = ['\\def', '\\newcommand']
-    sections = ['Input', 'Output', 'Interaction']
-    maths = [('$', '$'), ('\\(', '\\)')]
+    defines = ["\\def", "\\newcommand"]
+    sections = ["Input", "Output", "Interaction"]
+    maths = [("$", "$"), ("\\(", "\\)")]
     commands = {
-        'leq': '<=',
-        'le': '<=',
-        'ge': '>=',
-        'geq': '>=',
+        "leq": "<=",
+        "le": "<=",
+        "ge": ">=",
+        "geq": ">=",
         #'eq' : '=',
-        'neq': '!=',
-        'cdot': '*',
-        'ell': 'l',
+        "neq": "!=",
+        "cdot": "*",
+        "ell": "l",
     }
-    relations = re.compile(r'(<=|!=|>=|<|=|>)')
+    relations = re.compile(r"(<=|!=|>=|<|=|>)")
 
     def math_eval(text):
         try:
             # eval is dangerous, but on the other hand we run submission code so this is fine
-            text = text.replace('^', '**')
-            return eval(text, {'__builtin__': None})
+            text = text.replace("^", "**")
+            return eval(text, {"__builtin__": None})
         except (SyntaxError, NameError, TypeError, ZeroDivisionError) as e:
             return None
 
@@ -81,7 +81,7 @@ def check_statement(problem, language):
         if len(text) == 0:
             return
         # remove unnecessary whitespaces
-        text = ' '.join(text.split())
+        text = " ".join(text.split())
 
         # If text is of the form "x, y \in {l, .., h}" then convert it to "l <= x, y <= h"
         if m := re.search(r"([^(]*)\\in.*\\{(.*),\s*\\[lc]?dots\s*,(.*)\\}", text):
@@ -90,25 +90,25 @@ def check_statement(problem, language):
 
         # evaluate known commands (flat)
         for key in commands:
-            text = text.replace(f'\\{key}', commands[key])
+            text = text.replace(f"\\{key}", commands[key])
         # substitute more known math
-        text = re.sub(r'\\frac{(.*)}{(.*)}', r'(\1)/(\2)', text)
-        text = text.replace('\\,', '')
-        text = text.replace('{}', ' ')
-        text = text.replace('{', '(')
-        text = text.replace('}', ')')
-        text = re.sub(r'(\d)\(', r'\1*(', text)
-        text = re.sub(r'\)(\d)', r')*\1', text)
+        text = re.sub(r"\\frac{(.*)}{(.*)}", r"(\1)/(\2)", text)
+        text = text.replace("\\,", "")
+        text = text.replace("{}", " ")
+        text = text.replace("{", "(")
+        text = text.replace("}", ")")
+        text = re.sub(r"(\d)\(", r"\1*(", text)
+        text = re.sub(r"\)(\d)", r")*\1", text)
 
         # remove outer most parenthesis if they exist
         # allows $(constraint)$ and ($constraint$)
-        if text[0] == '(' and text[-1] == ')':
+        if text[0] == "(" and text[-1] == ")":
             cur = 0
             neg = False
             for c in text[1:-1]:
-                if c == '(':
+                if c == "(":
                     cur += 1
-                elif c == ')':
+                elif c == ")":
                     cur -= 1
                 neg |= cur < 0
             if not neg:
@@ -122,11 +122,11 @@ def check_statement(problem, language):
                 tmp = math_eval(p)
                 if tmp is not None:
                     statement_values.add(tmp)
-                    parts[i] = f'{tmp:_}'
+                    parts[i] = f"{tmp:_}"
                 else:
                     parts[i] = parts[i].strip()
             # join back together with single paces
-            statement_defs.append(' '.join(parts))
+            statement_defs.append(" ".join(parts))
 
     # parse a flat latex structure (does not handle nested environments)
     pos = 0
@@ -141,13 +141,13 @@ def check_statement(problem, language):
 
     def parse_group():
         nonlocal pos
-        assert statement[pos] == '{'
+        assert statement[pos] == "{"
         next = pos + 1
         depth = 1
         while next < len(statement) and depth > 0:
-            if statement[next] == '{':
+            if statement[next] == "{":
                 depth += 1
-            elif statement[next] == '}':
+            elif statement[next] == "}":
                 depth -= 1
             next += 1
         if depth != 0:
@@ -158,9 +158,9 @@ def check_statement(problem, language):
 
     def parse_command():
         nonlocal pos
-        assert statement[pos] == '\\'
+        assert statement[pos] == "\\"
         next = pos + 1
-        while next < len(statement) and statement[next] != '\\' and statement[pos] != '{':
+        while next < len(statement) and statement[next] != "\\" and statement[pos] != "{":
             next += 1
         name = statement[pos + 1 : next]
         pos = next
@@ -174,38 +174,38 @@ def check_statement(problem, language):
     # 5) if a new define starts parse that
     # 6) if inline math starts in an input/ouput part parse it as constraint
     while pos < len(statement):
-        if statement[pos] == '%':
-            next = statement.find('\n', pos)
+        if statement[pos] == "%":
+            next = statement.find("\n", pos)
             pos = next + 1 if pos < next else len(statement)
         elif end is not None and matches(end):
             pos += len(end)
             end = None
             in_io = False
-        elif matches('\\begin{'):
+        elif matches("\\begin{"):
             for section in sections:
-                if matches(f'\\begin{{{section}}}'):
+                if matches(f"\\begin{{{section}}}"):
                     # io environments should not be nested
                     if end is not None:
                         error(f'Unexpected "\\begin{{{section}}}" in {statement_file.name}!')
                         return statement_values, statement_defs
                     pos += 8 + len(section)
-                    end = f'\\end{{{section}}}'
+                    end = f"\\end{{{section}}}"
                     in_io = True
                     break
             else:
                 pos += 7
-        elif matches('\\section{') or matches('\\section*{'):
+        elif matches("\\section{") or matches("\\section*{"):
             # no section should start inside an io environment
             if end is not None:
                 error(f'Unexpected "\\section" in {statement_file.name}!')
                 return statement_values, statement_defs
             in_io = False
             for section in sections:
-                if matches(f'\\section{{{section}}}'):
+                if matches(f"\\section{{{section}}}"):
                     pos += 10 + len(section)
                     in_io = True
                     break
-                elif matches(f'\\section*{{{section}}}'):
+                elif matches(f"\\section*{{{section}}}"):
                     pos += 11 + len(section)
                     in_io = True
                     break
@@ -213,23 +213,23 @@ def check_statement(problem, language):
                 pos += 9
         else:
             for define in defines:
-                if matches(define + '{'):
+                if matches(define + "{"):
                     pos += len(define)
                     name = parse_group()
-                elif matches(define + '\\'):
+                elif matches(define + "\\"):
                     pos += len(define)
                     name = parse_command()
                 else:
                     continue
-                if matches('{'):
+                if matches("{"):
                     value = parse_group()
-                elif matches('\\'):
+                elif matches("\\"):
                     value = parse_command()
                 else:
                     error(f'Could not parse "{define}{{{name}}}[...]"!')
                     return statement_values, statement_defs
                 for key in commands:
-                    value = value.replace(f'\\{key}', commands[key])
+                    value = value.replace(f"\\{key}", commands[key])
                 commands[name[1:]] = value
                 break
             else:
@@ -269,8 +269,8 @@ def check_constraints(problem):
     left_width = 8 + name_len + 2 * value_len
 
     print(
-        '{:^{width}}|{:^40}'.format('VALIDATORS', 'PROBLEM STATEMENT', width=left_width),
-        sep='',
+        "{:^{width}}|{:^40}".format("VALIDATORS", "PROBLEM STATEMENT", width=left_width),
+        sep="",
     )
 
     while statement_defs or validator_defs:
@@ -288,23 +288,23 @@ def check_constraints(problem):
         if val is not None:
             validator_defs.remove(val)
             if isinstance(val, str):
-                print('{:^{width}}'.format(val, width=left_width), sep='', end='')
+                print("{:^{width}}".format(val, width=left_width), sep="", end="")
             else:
                 print(
-                    '{:>{value_len}_} <= {:^{name_len}} <= {:<{value_len}_}'.format(
+                    "{:>{value_len}_} <= {:^{name_len}} <= {:<{value_len}_}".format(
                         *val, name_len=name_len, value_len=value_len
                     ),
-                    sep='',
-                    end='',
+                    sep="",
+                    end="",
                 )
         else:
-            print('{:^{width}}'.format('', width=left_width), sep='', end='')
-        print('|', end='')
+            print("{:^{width}}".format("", width=left_width), sep="", end="")
+        print("|", end="")
         if st is not None:
-            languages = ','.join(statement_defs[st])
-            print('{:^40} {}'.format(st, languages), sep='', end='')
+            languages = ",".join(statement_defs[st])
+            print("{:^40} {}".format(st, languages), sep="", end="")
         else:
-            print('{:^40}'.format(''), sep='', end='')
+            print("{:^40}".format(""), sep="", end="")
         print()
         if st is not None:
             statement_defs.pop(st)
@@ -318,16 +318,16 @@ def check_constraints(problem):
         if len(missing) > 0:
             if not warned:
                 warned = True
-                warn('Values in validators but missing in some statement:')
-            print(f'{Fore.YELLOW}{value}{Style.RESET_ALL} missing in', ','.join(missing))
+                warn("Values in validators but missing in some statement:")
+            print(f"{Fore.YELLOW}{value}{Style.RESET_ALL} missing in", ",".join(missing))
 
     extra_in_statement = set(statement_values.keys()).difference(validator_values)
     if extra_in_statement:
-        warn('Values in some statement but not in input validators:')
+        warn("Values in some statement but not in input validators:")
         for value in extra_in_statement:
             print(
-                f'{Fore.YELLOW}{value}{Style.RESET_ALL} in',
-                ','.join(sorted(statement_values[value])),
+                f"{Fore.YELLOW}{value}{Style.RESET_ALL} in",
+                ",".join(sorted(statement_values[value])),
             )
 
     return True

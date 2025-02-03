@@ -165,7 +165,7 @@ class ParallelQueue(AbstractQueue[T]):
                     self.all_done.notify_all()
 
     def _interrupt_handler(self, sig, frame):
-        util.fatal('Running interrupted', force=True)
+        util.fatal("Running interrupted", force=True)
 
     def _handle_first_error(self):
         if self.first_error is not None:

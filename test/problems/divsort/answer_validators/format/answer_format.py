@@ -13,7 +13,7 @@ if not re.match("[a-z]+", tokens[1]):
     print("Lowercase .ans files expected", file=sys.stderr)
     sys.exit(43)
 
-if '--forbid_abcd' in sys.argv[1:]:
+if "--forbid_abcd" in sys.argv[1:]:
     if tokens[1] == "abcd":
         print("abcd forbidden", file=sys.stderr)
         sys.exit(43)

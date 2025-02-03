@@ -28,11 +28,11 @@ def stats(problems):
 def _get_stat(count, threshold=True, upper_bound=None):
     if threshold is True:
         if count is None:
-            return Fore.WHITE + ' ' + Style.RESET_ALL
+            return Fore.WHITE + " " + Style.RESET_ALL
         if count >= 1:
-            return Fore.WHITE + 'Y' + Style.RESET_ALL
+            return Fore.WHITE + "Y" + Style.RESET_ALL
         else:
-            return Fore.RED + 'N' + Style.RESET_ALL
+            return Fore.RED + "N" + Style.RESET_ALL
     color = Fore.WHITE
     if upper_bound is not None and count > upper_bound:
         color = Fore.YELLOW
@@ -46,57 +46,57 @@ def problem_stats(problems):
         tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, int, int]
     ] = [
         # Roughly in order of importance
-        ('  time', lambda p: p.settings.timelimit, 0),
-        ('yaml', 'problem.yaml'),
-        ('tex', 'problem_statement/problem*.tex', 1),
-        ('sol', 'problem_statement/solution*.tex', 1),
-        ('  val: I', ['input_validators/*', 'input_format_validators/*']),
-        ('A', ['answer_validators/*']),
-        ('O', ['output_validators/*']),
+        ("  time", lambda p: p.settings.timelimit, 0),
+        ("yaml", "problem.yaml"),
+        ("tex", "problem_statement/problem*.tex", 1),
+        ("sol", "problem_statement/solution*.tex", 1),
+        ("  val: I", ["input_validators/*", "input_format_validators/*"]),
+        ("A", ["answer_validators/*"]),
+        ("O", ["output_validators/*"]),
         (
-            '  sample',
-            [lambda s: {x.stem for x in s if x.parts[2] == 'sample'}],
+            "  sample",
+            [lambda s: {x.stem for x in s if x.parts[2] == "sample"}],
             2,
             6,
         ),
         (
-            'secret',
-            [lambda s: {x.stem for x in s if x.parts[2] == 'secret'}],
+            "secret",
+            [lambda s: {x.stem for x in s if x.parts[2] == "secret"}],
             30,
             100,
         ),
         (
-            'bad',
+            "bad",
             [
                 lambda s: {
                     x.stem
                     for x in s
-                    if x.parts[2] in ['invalid_inputs', 'invalid_answers', 'invalid_outputs', 'bad']
+                    if x.parts[2] in ["invalid_inputs", "invalid_answers", "invalid_outputs", "bad"]
                 }
             ],
             0,
         ),
-        ('   AC', 'submissions/accepted/*', 3),
-        (' WA', 'submissions/wrong_answer/*', 2),
-        ('TLE', 'submissions/time_limit_exceeded/*', 1),
-        ('subs', lambda p: len(glob(p.path, 'submissions/*/*')), 6),
+        ("   AC", "submissions/accepted/*", 3),
+        (" WA", "submissions/wrong_answer/*", 2),
+        ("TLE", "submissions/time_limit_exceeded/*", 1),
+        ("subs", lambda p: len(glob(p.path, "submissions/*/*")), 6),
     ]
     languages = {
-        '  c(++)': ['C', 'C++'],
-        'py': ['Python 2', 'Python 3', 'CPython 2', 'CPython 3'],
-        'java': ['Java'],
-        'kt': ['Kotlin'],
+        "  c(++)": ["C", "C++"],
+        "py": ["Python 2", "Python 3", "CPython 2", "CPython 3"],
+        "java": ["Java"],
+        "kt": ["Kotlin"],
     }
     for column, lang_names in languages.items():
         paths = []
         lang_defined = False
         for lang_id, lang_definition in program.languages().items():
-            if lang_definition['name'] in lang_names:
+            if lang_definition["name"] in lang_names:
                 lang_defined = True
                 # dict.get() returns None if key 'files' is not declared
-                lang_globs = lang_definition.get('files')
+                lang_globs = lang_definition.get("files")
                 if lang_globs:
-                    paths += [f'submissions/accepted/{glob}' for glob in lang_globs.split()]
+                    paths += [f"submissions/accepted/{glob}" for glob in lang_globs.split()]
                 else:
                     warn(
                         f"Language {lang_id} ('{lang_definition['name']}') "
@@ -106,28 +106,28 @@ def problem_stats(problems):
             stats.append((column, list(set(paths)), 1))
         if not lang_defined:
             warn(
-                f'Language {column.strip()} ({str(lang_names)[1:-1]}) not defined in languages.yaml'
+                f"Language {column.strip()} ({str(lang_names)[1:-1]}) not defined in languages.yaml"
             )
 
-    headers = ['problem', *(h[0] for h in stats), '   comment']
+    headers = ["problem", *(h[0] for h in stats), "   comment"]
     cumulative = [0] * (len(stats))
 
-    header_string = ''
-    format_string = ''
+    header_string = ""
+    format_string = ""
     for header in headers:
-        if header == 'problem':
+        if header == "problem":
             width = len(header)
             for problem in problems:
-                width = max(width, len(problem.label + ' ' + problem.name))
-            header_string += '{:<' + str(width) + '}'
-            format_string += '{:<' + str(width) + '}'
-        elif header == '  comment':
-            header_string += '{}'
-            format_string += '{}'
+                width = max(width, len(problem.label + " " + problem.name))
+            header_string += "{:<" + str(width) + "}"
+            format_string += "{:<" + str(width) + "}"
+        elif header == "  comment":
+            header_string += "{}"
+            format_string += "{}"
         else:
             width = len(header)
-            header_string += ' {:>' + str(width) + '}'
-            format_string += ' {:>' + str(width + len(Fore.WHITE) + len(Style.RESET_ALL)) + '}'
+            header_string += " {:>" + str(width) + "}"
+            format_string += " {:>" + str(width + len(Fore.WHITE) + len(Style.RESET_ALL)) + "}"
 
     header = header_string.format(*headers)
     print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
@@ -148,18 +148,18 @@ def problem_stats(problems):
                         data = p.read_text()
                     except UnicodeDecodeError:
                         continue
-                    if 'TODO: Remove' in data:
+                    if "TODO: Remove" in data:
                         continue
                     results.add(p.stem)
 
                 if p.is_dir():
                     ok = True
-                    for f in glob(p, '*'):
+                    for f in glob(p, "*"):
                         # Exclude files containing 'TODO: Remove'.
                         if f.is_file():
                             try:
                                 data = f.read_text()
-                                if data.find('TODO: Remove') != -1:
+                                if data.find("TODO: Remove") != -1:
                                     ok = False
                                     break
                             except UnicodeDecodeError:
@@ -171,11 +171,11 @@ def problem_stats(problems):
             return results
 
         def value(x):
-            if x[0] == '  time' or x[0] == 'subs':
+            if x[0] == "  time" or x[0] == "subs":
                 return x[1](problem)
-            if x[0] == 'A' and (problem.interactive or problem.multipass):
+            if x[0] == "A" and (problem.interactive or problem.multipass):
                 return None  # Do not show an entry for the answer validator if it is not required
-            if x[0] == 'O' and problem.settings.validation == 'default':
+            if x[0] == "O" and problem.settings.validation == "default":
                 return None  # Do not show an entry for the output validator if it is not required
             return len(count(x[1]))
 
@@ -184,22 +184,22 @@ def problem_stats(problems):
             cumulative[i] += counts[i] or 0
 
         verified = False
-        comment = ''
-        if 'verified' in problem.settings:
+        comment = ""
+        if "verified" in problem.settings:
             verified = bool(problem.settings.verified)
-        if 'comment' in problem.settings:
+        if "comment" in problem.settings:
             comment = problem.settings.comment
 
         if verified:
             if not comment:
-                comment = 'DONE'
+                comment = "DONE"
             comment = Fore.GREEN + comment + Style.RESET_ALL
         else:
             comment = Fore.YELLOW + comment + Style.RESET_ALL
 
         print(
             format_string.format(
-                problem.label + ' ' + problem.name,
+                problem.label + " " + problem.name,
                 *[
                     _get_stat(
                         counts[i],
@@ -216,9 +216,9 @@ def problem_stats(problems):
         )
 
     # print the cumulative count
-    print('-' * len(header), file=sys.stderr)
+    print("-" * len(header), file=sys.stderr)
     print(
-        format_string.format('TOTAL', *(_get_stat(x, False) for x in cumulative), ''),
+        format_string.format("TOTAL", *(_get_stat(x, False) for x in cumulative), ""),
         file=sys.stderr,
     )
 
@@ -241,16 +241,16 @@ def _is_code(language, type, text):
         return False
     if type in pygments.token.String:
         return False
-    if text.rstrip(' \f\n\r\t(),:;[]{}') == '':
+    if text.rstrip(" \f\n\r\t(),:;[]{}") == "":
         return False
     # ignore some language specific keywords
     text = text.strip()
-    if language == 'python':
-        return text != 'pass'
-    elif language == 'batchfile':
-        return text != '@'
-    elif language == 'sql' and text == 'pass':
-        return text not in ['begin', 'end']
+    if language == "python":
+        return text != "pass"
+    elif language == "batchfile":
+        return text != "@"
+    elif language == "sql" and text == "pass":
+        return text not in ["begin", "end"]
     else:
         return True
 
@@ -270,7 +270,7 @@ def loc(file):
                 for line in text.splitlines(True):
                     if _is_code(language, type, line):
                         has_code = True
-                    if line.endswith('\n') and has_code:
+                    if line.endswith("\n") and has_code:
                         count += 1
                         has_code = False
             if has_code:
@@ -286,70 +286,70 @@ def loc(file):
 
 def more_stats(problems):
     if not has_pygments:
-        error('stats --more needs pygments. Install python[3]-pygments.')
+        error("stats --more needs pygments. Install python[3]-pygments.")
         return
 
     stat_name_len = 10
     stat_len = 5
 
     # solution stats
-    columns = [p.label for p in problems] + ['sum', 'min', 'avg', 'max']
+    columns = [p.label for p in problems] + ["sum", "min", "avg", "max"]
 
-    def get_stats(values, missing='-'):
+    def get_stats(values, missing="-"):
         if not values:
             return [missing] * 4
         return [sum(values), min(values), statistics.mean(values), max(values)]
 
-    header_string = f'{{:<{stat_name_len}}}' + f' {{:>{stat_len}}}' * len(columns)
+    header_string = f"{{:<{stat_name_len}}}" + f" {{:>{stat_len}}}" * len(columns)
     format_string = (
-        f'{{:<{stat_name_len + len(Fore.WHITE)}}}{Style.RESET_ALL}'
-        + f' {{:>{stat_len + len(Fore.WHITE)}}}{Style.RESET_ALL}' * len(columns)
+        f"{{:<{stat_name_len + len(Fore.WHITE)}}}{Style.RESET_ALL}"
+        + f" {{:>{stat_len + len(Fore.WHITE)}}}{Style.RESET_ALL}" * len(columns)
     )
 
     print(file=sys.stderr)
-    header = header_string.format('', *columns)
+    header = header_string.format("", *columns)
     print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
-    print('-' * len(header), file=sys.stderr)
+    print("-" * len(header), file=sys.stderr)
 
     def format_row(*values):
         printable = []
         for value in values:
             if isinstance(value, float):
-                value = f'{value:.1f}'
+                value = f"{value:.1f}"
             elif isinstance(value, timedelta):
                 hours = int(value.total_seconds()) // (60 * 60)
                 days = int(value.total_seconds()) // (60 * 60 * 24)
                 weeks = int(value.total_seconds()) // (60 * 60 * 24 * 7)
                 if hours < 3 * 24:
-                    value = f'{hours}h'
+                    value = f"{hours}h"
                 elif days < 4 * 7:
-                    value = f'{days}d'
+                    value = f"{days}d"
                 else:
-                    value = f'{weeks}w'
+                    value = f"{weeks}w"
             elif not isinstance(value, str):
                 value = str(value)
             if not value.startswith(ansi.CSI):
-                value = f'{Fore.WHITE}{value}'
+                value = f"{Fore.WHITE}{value}"
             printable.append(value)
         return format_string.format(*printable)
 
     languages: dict[str, list[str] | Literal[True]] = {
-        'C(++)': ['C', 'C++'],
-        'Python': ['Python 2', 'Python 3', 'CPython 2', 'CPython 3'],
-        'Java': ['Java'],
-        'Kotlin': ['Kotlin'],
+        "C(++)": ["C", "C++"],
+        "Python": ["Python 2", "Python 3", "CPython 2", "CPython 3"],
+        "Java": ["Java"],
+        "Kotlin": ["Kotlin"],
     }
 
     def get_submissions_row(display_name, names):
         paths = []
         if names is True:
-            paths.append('submissions/accepted/*')
+            paths.append("submissions/accepted/*")
         else:
             assert isinstance(names, list)
             for config in program.languages().values():
-                if config['name'] in names:
-                    globs = config['files'].split() or []
-                    paths += [f'submissions/accepted/{glob}' for glob in globs]
+                if config["name"] in names:
+                    globs = config["files"].split() or []
+                    paths += [f"submissions/accepted/{glob}" for glob in globs]
             paths = list(set(paths))
 
         lines = [display_name]
@@ -363,87 +363,87 @@ def more_stats(problems):
                 values.append(best)
                 lines.append(best)
             else:
-                lines.append(f'{Fore.RED}-')
+                lines.append(f"{Fore.RED}-")
         lines += get_stats(values)
         return lines
 
-    best = get_submissions_row('Solution', True)
+    best = get_submissions_row("Solution", True)
     print(format_row(*best), file=sys.stderr)
     for display_name, names in languages.items():
         values = get_submissions_row(display_name, names)
         for i in range(1, 1 + len(problems)):
             if values[i] == best[i]:
-                values[i] = f'{Fore.CYAN}{values[i]}'
+                values[i] = f"{Fore.CYAN}{values[i]}"
         print(format_row(*values), file=sys.stderr)
 
     # TODO: analyze team submissions?
 
     # git stats
-    if shutil.which('git') is None:
-        error('git not found!')
+    if shutil.which("git") is None:
+        error("git not found!")
         return
 
-    if not exec_command(['git', 'rev-parse', '--is-inside-work-tree']).out.startswith('true'):
-        error('not inside git')
+    if not exec_command(["git", "rev-parse", "--is-inside-work-tree"]).out.startswith("true"):
+        error("not inside git")
         return
 
     def git(*args):
         res = exec_command(
-            ['git', *args],
+            ["git", *args],
             crop=False,
             preexec_fn=False,
             timeout=None,
         )
-        return res.out if res else ''
+        return res.out if res else ""
 
-    print('-' * len(header), file=sys.stderr)
+    print("-" * len(header), file=sys.stderr)
     testcases = [len(generate.testcases(p)) for p in problems]
     testcases += get_stats(testcases)
-    print(format_row('Testcases', *testcases), file=sys.stderr)
+    print(format_row("Testcases", *testcases), file=sys.stderr)
     changed: list[Any] = []
     for p in problems:
         time = max(
             [
-                parser.parse(git('log', '--format=%cI', '-1', '--', p.path / path))
-                for path in ['generators', 'data']
+                parser.parse(git("log", "--format=%cI", "-1", "--", p.path / path))
+                for path in ["generators", "data"]
             ]
         )
         duration = datetime.now(timezone.utc) - time
         changed.append(duration.total_seconds())
     changed += get_stats(changed)
     changed = [timedelta(seconds=s) for s in changed]
-    changed[-4] = '-'  # sum of last changed is meaningless...
-    print(format_row('└─changed', *changed), file=sys.stderr)
+    changed[-4] = "-"  # sum of last changed is meaningless...
+    print(format_row("└─changed", *changed), file=sys.stderr)
 
     # this is hacky and does not handle all renames properly...
     # for example: if A is renamed to C and B is renamed to A this will break
     def countCommits(problem):
-        yaml_path = problem.path / 'problem.yaml'
+        yaml_path = problem.path / "problem.yaml"
         paths = git(
-            'log', '--all', '--follow', '--name-only', '--relative', '--format=', '--', yaml_path
-        ).split('\n')
-        names = {Path(p).parent for p in paths if p.strip() != ''}
-        return int(git('rev-list', '--all', '--count', '--', *names))
+            "log", "--all", "--follow", "--name-only", "--relative", "--format=", "--", yaml_path
+        ).split("\n")
+        names = {Path(p).parent for p in paths if p.strip() != ""}
+        return int(git("rev-list", "--all", "--count", "--", *names))
 
     commits = [countCommits(p) for p in problems]
-    commits += get_stats(commits, '-')
-    commits[-4] = '-'  # one commit can change multiple problems so the sum is meaningless...
-    print(format_row('Commits', *commits), file=sys.stderr)
+    commits += get_stats(commits, "-")
+    commits[-4] = "-"  # one commit can change multiple problems so the sum is meaningless...
+    print(format_row("Commits", *commits), file=sys.stderr)
     print(file=sys.stderr)
     print(
-        f'{Fore.CYAN}Total Commits{Style.RESET_ALL}:',
-        int(git('rev-list', '--all', '--count')),
+        f"{Fore.CYAN}Total Commits{Style.RESET_ALL}:",
+        int(git("rev-list", "--all", "--count")),
         file=sys.stderr,
     )
     print(
-        f'{Fore.CYAN}Total Authors{Style.RESET_ALL}:',
-        git('shortlog', '--group=%ae', '-s').count('\n'),
+        f"{Fore.CYAN}Total Authors{Style.RESET_ALL}:",
+        git("shortlog", "--group=%ae", "-s").count("\n"),
         file=sys.stderr,
     )
     duration = datetime.now(timezone.utc) - parser.parse(
-        git('log', '--reverse', '--format=%cI').partition('\n')[0]
+        git("log", "--reverse", "--format=%cI").partition("\n")[0]
     )
     print(
-        f'{Fore.CYAN}Preparation{Style.RESET_ALL}: {duration.days}d, {duration.seconds // 3600}h',
+        f"{Fore.CYAN}Preparation{Style.RESET_ALL}: {duration.days}d, {duration.seconds // 3600}h",
         file=sys.stderr,
     )

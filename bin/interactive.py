@@ -68,11 +68,11 @@ def run_interactive_testcase(
     validator_dir = output_validator.tmpdir
     submission_dir = run.submission.tmpdir
 
-    nextpass = run.feedbackdir / 'nextpass.in' if run.problem.multipass else False
+    nextpass = run.feedbackdir / "nextpass.in" if run.problem.multipass else False
 
     if config.args.verbose >= 2:
-        print('Validator:  ', *get_validator_command(), file=sys.stderr)
-        print('Submission: ', *submission_command, file=sys.stderr)
+        print("Validator:  ", *get_validator_command(), file=sys.stderr)
+        print("Submission: ", *submission_command, file=sys.stderr)
 
     # On Windows:
     # - Start the validator
@@ -122,7 +122,7 @@ def run_interactive_testcase(
                 config.n_error += 1
                 verdict = Verdict.VALIDATOR_CRASH
             elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-                error(f'got WRONG_ANSWER but found nextpass.in')
+                error(f"got WRONG_ANSWER but found nextpass.in")
                 verdict = Verdict.VALIDATOR_CRASH
             elif tend - tstart > timelimit:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -157,7 +157,7 @@ def run_interactive_testcase(
             elif not run._prepare_nextpass(nextpass):
                 break
             elif pass_id >= run.problem.limits.validation_passes:
-                error('exceeded limit of validation_passes')
+                error("exceeded limit of validation_passes")
                 verdict = Verdict.VALIDATOR_CRASH
                 break
 
@@ -190,11 +190,11 @@ def run_interactive_testcase(
     # TODO: Print interaction when needed.
     if interaction and interaction is not True:
         assert not interaction.is_relative_to(run.tmpdir)
-        interaction_file = interaction.open('a')
+        interaction_file = interaction.open("a")
         interaction = True
 
     # Connect pipes with tee.
-    TEE_CODE = R'''
+    TEE_CODE = R"""
 import sys
 c = sys.argv[1]
 new = True
@@ -207,7 +207,7 @@ while True:
     sys.stderr.write(l)
     sys.stderr.flush()
     new = l=='\n'
-'''
+"""
 
     pass_id = 0
     max_duration = 0
@@ -234,7 +234,7 @@ while True:
 
         if interaction:
             team_tee = subprocess.Popen(
-                ['python3', '-c', TEE_CODE, '>'],
+                ["python3", "-c", TEE_CODE, ">"],
                 stdin=subprocess.PIPE,
                 stdout=validator.stdin,
                 stderr=interaction_file,
@@ -243,7 +243,7 @@ while True:
             )
             team_tee_pid = team_tee.pid
             val_tee = subprocess.Popen(
-                ['python3', '-c', TEE_CODE, '<'],
+                ["python3", "-c", TEE_CODE, "<"],
                 stdin=validator.stdout,
                 stdout=subprocess.PIPE,
                 stderr=interaction_file,
@@ -298,7 +298,7 @@ while True:
 
             if pid == validator_pid:
                 if first is None:
-                    first = 'validator'
+                    first = "validator"
                 validator_status = status
 
                 # Close the output stream.
@@ -314,7 +314,7 @@ while True:
                 first_done = False
             elif pid == submission_pid:
                 if first is None:
-                    first = 'submission'
+                    first = "submission"
                 submission_status = status
 
                 # Close the output stream.
@@ -358,11 +358,11 @@ while True:
             config.n_error += 1
             verdict = Verdict.VALIDATOR_CRASH
         elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-            error(f'got WRONG_ANSWER but found nextpass.in')
+            error(f"got WRONG_ANSWER but found nextpass.in")
             verdict = Verdict.VALIDATOR_CRASH
         elif aborted:
             verdict = Verdict.TIME_LIMIT_EXCEEDED
-        elif first == 'validator':
+        elif first == "validator":
             # WA has priority because validator reported it first.
             if did_timeout:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -373,7 +373,7 @@ while True:
             else:
                 verdict = Verdict.ACCEPTED
         else:
-            assert first == 'submission'
+            assert first == "submission"
             if submission_status != 0:
                 verdict = Verdict.RUNTIME_ERROR
             elif did_timeout:
@@ -390,7 +390,7 @@ while True:
         team_err = None
         if team_error is False:
             assert submission.stderr
-            team_err = submission.stderr.read().decode('utf-8', 'replace')
+            team_err = submission.stderr.read().decode("utf-8", "replace")
 
         if verdict == Verdict.TIME_LIMIT_EXCEEDED:
             if tle_result is None:
@@ -412,12 +412,12 @@ while True:
         elif not run._prepare_nextpass(nextpass):
             break
         elif pass_id >= run.problem.limits.validation_passes:
-            error('exceeded limit of validation_passes')
+            error("exceeded limit of validation_passes")
             verdict = Verdict.VALIDATOR_CRASH
             break
 
         if interaction:
-            print('---', file=sys.stderr if interaction is None else interaction_file, flush=True)
+            print("---", file=sys.stderr if interaction is None else interaction_file, flush=True)
 
     if interaction_file is not None:
         interaction_file.close()
@@ -439,14 +439,14 @@ while True:
 
 
 def _feedback(run, err):
-    judgemessage = run.feedbackdir / 'judgemessage.txt'
-    judgeerror = run.feedbackdir / 'judgeerror.txt'
+    judgemessage = run.feedbackdir / "judgemessage.txt"
+    judgeerror = run.feedbackdir / "judgeerror.txt"
     if err is None:
-        err = ''
+        err = ""
     else:
-        err = err.decode('utf-8', 'replace')
+        err = err.decode("utf-8", "replace")
     if judgeerror.is_file():
-        err = judgeerror.read_text(errors='replace')
+        err = judgeerror.read_text(errors="replace")
     if len(err) == 0 and judgemessage.is_file():
-        err = judgemessage.read_text(errors='replace')
+        err = judgemessage.read_text(errors="replace")
     return err

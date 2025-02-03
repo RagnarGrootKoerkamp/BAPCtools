@@ -25,12 +25,12 @@ class Verdict(Enum):
 
     def __str__(self):
         return {
-            Verdict.ACCEPTED: 'ACCEPTED',
-            Verdict.WRONG_ANSWER: 'WRONG ANSWER',
-            Verdict.TIME_LIMIT_EXCEEDED: 'TIME LIMIT EXCEEDED',
-            Verdict.RUNTIME_ERROR: 'RUNTIME ERROR',
-            Verdict.VALIDATOR_CRASH: 'VALIDATOR CRASH',
-            Verdict.COMPILER_ERROR: 'COMPILER ERROR',
+            Verdict.ACCEPTED: "ACCEPTED",
+            Verdict.WRONG_ANSWER: "WRONG ANSWER",
+            Verdict.TIME_LIMIT_EXCEEDED: "TIME LIMIT EXCEEDED",
+            Verdict.RUNTIME_ERROR: "RUNTIME ERROR",
+            Verdict.VALIDATOR_CRASH: "VALIDATOR CRASH",
+            Verdict.COMPILER_ERROR: "COMPILER ERROR",
         }[self]
 
     def __lt__(self, other):
@@ -38,12 +38,12 @@ class Verdict(Enum):
 
     def short(self):
         return {
-            Verdict.ACCEPTED: 'AC',
-            Verdict.WRONG_ANSWER: 'WA',
-            Verdict.TIME_LIMIT_EXCEEDED: 'TLE',
-            Verdict.RUNTIME_ERROR: 'RTE',
-            Verdict.VALIDATOR_CRASH: 'VC',
-            Verdict.COMPILER_ERROR: 'CE',
+            Verdict.ACCEPTED: "AC",
+            Verdict.WRONG_ANSWER: "WA",
+            Verdict.TIME_LIMIT_EXCEEDED: "TLE",
+            Verdict.RUNTIME_ERROR: "RTE",
+            Verdict.VALIDATOR_CRASH: "VC",
+            Verdict.COMPILER_ERROR: "CE",
         }[self]
 
     def color(self):
@@ -77,36 +77,36 @@ class RunUntil(Enum):
 
 def to_char(v: Verdict | None | Literal[False], lower: bool = False):
     if v is None or v is False:
-        return f'{Fore.BLUE}?{Style.RESET_ALL}'
+        return f"{Fore.BLUE}?{Style.RESET_ALL}"
     else:
         char = str(v)[0].lower() if lower else str(v)[0].upper()
-        return f'{v.color()}{char}{Style.RESET_ALL}'
+        return f"{v.color()}{char}{Style.RESET_ALL}"
 
 
 def to_string(v: Verdict | None | Literal[False]):
     if v is None or v is False:
         return to_char(v)
     else:
-        return f'{v.color()}{str(v)}{Style.RESET_ALL}'
+        return f"{v.color()}{str(v)}{Style.RESET_ALL}"
 
 
 def from_string(s: str) -> Verdict:
     match s:
-        case 'CORRECT' | 'ACCEPTED' | 'AC':
+        case "CORRECT" | "ACCEPTED" | "AC":
             return Verdict.ACCEPTED
-        case 'WRONG-ANSWER' | 'WRONG_ANSWER' | 'WA':
+        case "WRONG-ANSWER" | "WRONG_ANSWER" | "WA":
             return Verdict.WRONG_ANSWER
-        case 'TIMELIMIT' | 'TIME_LIMIT_EXCEEDED' | 'TLE':
+        case "TIMELIMIT" | "TIME_LIMIT_EXCEEDED" | "TLE":
             return Verdict.TIME_LIMIT_EXCEEDED
-        case 'RUN-ERROR' | 'RUN_TIME_ERROR' | 'RUNTIME_ERROR' | 'RTE':
+        case "RUN-ERROR" | "RUN_TIME_ERROR" | "RUNTIME_ERROR" | "RTE":
             return Verdict.RUNTIME_ERROR
-        case 'NO-OUTPUT' | 'NO':
+        case "NO-OUTPUT" | "NO":
             return Verdict.WRONG_ANSWER
-        case 'OUTPUT-LIMIT' | 'OLE':
+        case "OUTPUT-LIMIT" | "OLE":
             return Verdict.RUNTIME_ERROR
-        case 'COMPILER-ERROR' | 'CE':
+        case "COMPILER-ERROR" | "CE":
             return Verdict.COMPILER_ERROR
-        case 'CHECK-MANUALLY':
+        case "CHECK-MANUALLY":
             raise NotImplementedError
         case _:
             raise ValueError(f"Unknown verdict string {s}")
@@ -114,19 +114,19 @@ def from_string(s: str) -> Verdict:
 
 def from_string_domjudge(s: str) -> Verdict:
     match s:
-        case 'CORRECT' | 'ACCEPTED':
+        case "CORRECT" | "ACCEPTED":
             return Verdict.ACCEPTED
-        case 'WRONG-ANSWER' | 'WRONG_ANSWER':
+        case "WRONG-ANSWER" | "WRONG_ANSWER":
             return Verdict.WRONG_ANSWER
-        case 'TIMELIMIT' | 'TIME_LIMIT_EXCEEDED':
+        case "TIMELIMIT" | "TIME_LIMIT_EXCEEDED":
             return Verdict.TIME_LIMIT_EXCEEDED
-        case 'RUN-ERROR' | 'RUN_TIME_ERROR':
+        case "RUN-ERROR" | "RUN_TIME_ERROR":
             return Verdict.RUNTIME_ERROR
-        case 'NO-OUTPUT':
+        case "NO-OUTPUT":
             return Verdict.WRONG_ANSWER
-        case 'COMPILER-ERROR':
+        case "COMPILER-ERROR":
             return Verdict.COMPILER_ERROR
-        case 'CHECK-MANUALLY':
+        case "CHECK-MANUALLY":
             raise NotImplementedError
         case _:
             raise ValueError(f"Unknown DOMjudge verdict string {s}")
@@ -190,7 +190,7 @@ class Verdicts:
         # const testgroup -> [testgroup | testcase]
         self.children: dict[str, list[str]] = {node: [] for node in testgroups}
         for node in testcases | testgroups:
-            if node != '.':
+            if node != ".":
                 parent = str(Path(node).parent)
                 self.children[parent].append(node)
         for tg in self.children:
@@ -236,7 +236,7 @@ class Verdicts:
         If self['.'] is Verdict.ACCEPTED, then this is the slowest testcase.
         Otherwise, it is the lexicographically first testcase that was rejected."""
         with self:
-            match self['.']:
+            match self["."]:
                 case None:
                     raise ValueError("Salient testcase called before submission verdict determined")
                 case Verdict.ACCEPTED:
@@ -300,7 +300,7 @@ class Verdicts:
                 f"Overwriting verdict of {testnode} to {verdict} (was {self.verdict[testnode]})"
             )
         self.verdict[testnode] = verdict
-        if testnode != '.':
+        if testnode != ".":
             parent = str(Path(testnode).parent)
 
             # Possibly mark sibling cases as unneeded.
@@ -380,7 +380,7 @@ class VerdictTable:
     ):
         self.submissions: list[str] = [s.name for s in submissions]
         self.testcases: list[str] = [t.name for t in testcases]
-        self.samples: set[str] = set(t.name for t in testcases if t.root == 'sample')
+        self.samples: set[str] = set(t.name for t in testcases if t.root == "sample")
         self.results: list[Verdicts] = []
         self.current_testcases: set[str] = set()
         self.last_printed: list[int] = []
@@ -401,37 +401,37 @@ class VerdictTable:
             )
             if self.print_without_force:
                 # generate example lines for one submission
-                name = 'x' * self.name_width
-                lines = [f'{Style.DIM}{Fore.CYAN}{name}{Fore.WHITE}:']
+                name = "x" * self.name_width
+                lines = [f"{Style.DIM}{Fore.CYAN}{name}{Fore.WHITE}:"]
 
                 verdicts = []
                 for t, testcase in enumerate(self.testcases):
                     if t % 10 == 0:
-                        verdicts.append(VerdictTable.Group(0, ''))
+                        verdicts.append(VerdictTable.Group(0, ""))
                     verdicts[-1].length += 1
-                    verdicts[-1].text += 's' if testcase in self.samples else '-'
+                    verdicts[-1].text += "s" if testcase in self.samples else "-"
 
                 printed = self.name_width + 1
                 for length, tmp in verdicts:
                     if printed + 1 + length > self.width:
-                        lines.append(f'{str():{self.name_width+1}}')
+                        lines.append(f"{str():{self.name_width+1}}")
                         printed = self.name_width + 1
-                    lines[-1] += f' {tmp}'
+                    lines[-1] += f" {tmp}"
                     printed += length + 1
 
                 # dont print table if it fills too much of the screen
                 self.print_without_force = len(lines) * len(self.submissions) + 5 < height
                 if not self.print_without_force:
                     print(
-                        f'{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}',
+                        f"{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                     print(
                         *lines,
-                        f'[times {len(self.submissions)}...]',
+                        f"[times {len(self.submissions)}...]",
                         Style.RESET_ALL,
-                        sep='\n',
-                        end='\n',
+                        sep="\n",
+                        end="\n",
                         file=sys.stderr,
                     )
 
@@ -456,8 +456,8 @@ class VerdictTable:
                 )
 
                 print(
-                    f'\033[{lines - 1}A\r\033[0J',
-                    end='',
+                    f"\033[{lines - 1}A\r\033[0J",
+                    end="",
                     flush=True,
                     file=sys.stderr,
                 )
@@ -465,7 +465,7 @@ class VerdictTable:
                 self.last_printed = []
 
     def _get_verdict(self, s: int, testcase: str, check_sample: bool = True) -> str:
-        res = f'{Style.DIM}-{Style.RESET_ALL}'
+        res = f"{Style.DIM}-{Style.RESET_ALL}"
         if s < len(self.results) and self.results[s][testcase] not in [None, False]:
             res = to_char(self.results[s][testcase], check_sample and testcase in self.samples)
         elif s + 1 == len(self.results) and testcase in self.current_testcases:
@@ -484,22 +484,22 @@ class VerdictTable:
         if printed_lengths is None:
             printed_lengths = []
         if force or self.print_without_force:
-            printed_text = ['\n' * new_lines]
+            printed_text = ["\n" * new_lines]
             printed_lengths += [0] * new_lines
 
             max_depth = None
             show_root = False
 
-            stack = [('.', '', '', True)]
+            stack = [(".", "", "", True)]
             while stack:
                 node, indent, prefix, last = stack.pop()
-                if node != '.' or show_root:
+                if node != "." or show_root:
                     name = f'{node.split("/")[-1]}'
                     verdict = self.results[-1][node]
                     verdict_str = (
                         to_string(verdict)
                         if verdict is not False
-                        else f'{Style.DIM}-{Style.RESET_ALL}'
+                        else f"{Style.DIM}-{Style.RESET_ALL}"
                     )
                     verdict_len = 1 if verdict in [None, False] else len(str(verdict))
                     printed_text.append(
@@ -508,52 +508,52 @@ class VerdictTable:
                     printed_lengths.append(len(indent) + len(prefix) + len(name) + 2 + verdict_len)
                 if max_depth is not None and len(indent) >= 2 * max_depth:
                     continue
-                pipe = ' ' if last else '│'
+                pipe = " " if last else "│"
                 first = True
                 verdicts = []
                 for child in reversed(self.results[-1].children[node]):
                     if self.results[-1].is_testgroup(child):
                         if first:
-                            stack.append((child, indent + pipe + ' ', '└─', True))
+                            stack.append((child, indent + pipe + " ", "└─", True))
                             first = False
                         else:
-                            stack.append((child, indent + pipe + ' ', '├─', False))
+                            stack.append((child, indent + pipe + " ", "├─", False))
                     else:
                         verdicts.append(self._get_verdict(len(self.results) - 1, child, False))
                 if verdicts:
                     verdicts.reverse()
-                    edge = '└' if first else '├'
-                    pipe2 = ' ' if first else '│'
+                    edge = "└" if first else "├"
+                    pipe2 = " " if first else "│"
 
                     grouped = []
                     for i, v in enumerate(verdicts):
                         if i % 10 == 0:
-                            grouped.append(VerdictTable.Group(0, ''))
+                            grouped.append(VerdictTable.Group(0, ""))
                         grouped[-1].length += 1
                         grouped[-1].text += v
 
-                    printed_text.append(f'{Style.DIM}{indent}{pipe} {edge}─{Style.RESET_ALL}')
+                    printed_text.append(f"{Style.DIM}{indent}{pipe} {edge}─{Style.RESET_ALL}")
                     pref_len = len(indent) + len(pipe) + 1 + len(edge) + 1
                     printed = pref_len
 
                     width = -1 if ProgressBar.columns - pref_len < 10 else self.width
-                    space = ''
+                    space = ""
 
                     for length, group in grouped:
                         if width >= 0 and printed + 1 + length > width:
                             printed_text.append(
-                                f'\n{Style.DIM}{indent}{pipe} {pipe2} {Style.RESET_ALL}'
+                                f"\n{Style.DIM}{indent}{pipe} {pipe2} {Style.RESET_ALL}"
                             )
                             printed_lengths.append(printed)
                             printed = pref_len
-                            space = ''
+                            space = ""
 
-                        printed_text.append(f'{space}{group}')
+                        printed_text.append(f"{space}{group}")
                         printed += length + len(space)
-                        space = ' '
+                        space = " "
 
                     printed_lengths.append(printed)
-                    printed_text.append('\n')
+                    printed_text.append("\n")
 
             self._clear(force=True)
 
@@ -563,7 +563,7 @@ class VerdictTable:
                 )
                 if self.checked_height < height + 5:
                     print(
-                        f'\033[0J{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}\n',
+                        f"\033[0J{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}\n",
                         file=sys.stderr,
                     )
                     self.print_without_force = False
@@ -571,7 +571,7 @@ class VerdictTable:
                 if not force and not self.print_without_force:
                     return
 
-            print(''.join(printed_text), end='', flush=True, file=sys.stderr)
+            print("".join(printed_text), end="", flush=True, file=sys.stderr)
             self.last_printed = printed_lengths
 
     def _print_table(
@@ -580,43 +580,43 @@ class VerdictTable:
         if printed_lengths is None:
             printed_lengths = []
         if force or self.print_without_force:
-            printed_text = ['\n' * new_lines]
+            printed_text = ["\n" * new_lines]
             printed_lengths += [0] * new_lines
             for s, submission in enumerate(self.submissions):
                 # pad/truncate submission names to not break table layout
                 name = submission
                 if len(name) > self.name_width:
-                    name = '...' + name[-self.name_width + 3 :]
-                padding = ' ' * (self.name_width - len(name))
-                printed_text.append(f'{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}')
+                    name = "..." + name[-self.name_width + 3 :]
+                padding = " " * (self.name_width - len(name))
+                printed_text.append(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}")
                 printed = self.name_width + 1
 
                 # group verdicts in parts of length at most ten
                 verdicts = []
                 for t, testcase in enumerate(self.testcases):
                     if t % 10 == 0:
-                        verdicts.append(VerdictTable.Group(0, ''))
+                        verdicts.append(VerdictTable.Group(0, ""))
                     verdicts[-1].length += 1
                     verdicts[-1].text += self._get_verdict(s, testcase)
 
                 for length, tmp in verdicts:
                     if self.width >= 0 and printed + 1 + length > self.width:
-                        printed_text.append(f'\n{str():{self.name_width+1}}')
+                        printed_text.append(f"\n{str():{self.name_width+1}}")
                         printed_lengths.append(printed)
                         printed = self.name_width + 1
 
-                    printed_text.append(f' {tmp}')
+                    printed_text.append(f" {tmp}")
                     printed += length + 1
 
                 printed_lengths.append(printed)
-                printed_text.append('\n')
+                printed_text.append("\n")
             self._clear(force=True)
-            print(''.join(printed_text), end='', flush=True, file=sys.stderr)
+            print("".join(printed_text), end="", flush=True, file=sys.stderr)
             self.last_printed = printed_lengths
 
     def ProgressBar(
         self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
-    ) -> 'TableProgressBar':
+    ) -> "TableProgressBar":
         return TableProgressBar(
             self, prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline
         )
@@ -646,10 +646,10 @@ class TableProgressBar(ProgressBar):
             self.table.print(force=False, printed_lengths=[ProgressBar.columns])
             if isinstance(sys.stderr, io.TextIOWrapper):
                 sys.stderr.reconfigure(line_buffering=self.reset_line_buffering)
-            print(end='', flush=True, file=sys.stderr)
+            print(end="", flush=True, file=sys.stderr)
         super().__exit__(*args)
 
-    def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
+    def _print(self, *objects, sep="", end="\n", file=sys.stderr, flush=True):
         assert self._is_locked()
         # drop all flushes...
         print(*objects, sep=sep, end=end, file=file, flush=False)
@@ -659,7 +659,7 @@ class TableProgressBar(ProgressBar):
         self.table.add_testcase(item.testcase.name)
         return super().start(item)
 
-    def done(self, success=True, message='', data='', print_item=True):
+    def done(self, success=True, message="", data="", print_item=True):
         return super().done(success, message, data, print_item)
 
     def finalize(self, *, print_done=True, message=None, suppress_newline=False):

@@ -70,14 +70,14 @@ class Testcase:
             is the (absolute) path to the input file, and `short_path` is used as the equivalent of the testcase's
             path relative to  `problem.path / 'data'`.
         """
-        assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
+        assert path.suffix == ".in" or path.suffixes == [".in", ".statement"]
 
         self.problem = base_problem
 
         # TODO add self.out_path
         if short_path is None:
             try:
-                self.short_path = path.relative_to(self.problem.path / 'data')
+                self.short_path = path.relative_to(self.problem.path / "data")
             except ValueError:
                 fatal(f"Testcase {path} is not inside {self.problem.path / 'data'}.")
         else:
@@ -87,19 +87,19 @@ class Testcase:
 
         self.in_path = path
         self.ans_path = (
-            self.in_path.with_suffix('.ans')
-            if path.suffix == '.in'
-            else self.in_path.with_name(self.in_path.with_suffix('').stem + '.ans.statement')
+            self.in_path.with_suffix(".ans")
+            if path.suffix == ".in"
+            else self.in_path.with_name(self.in_path.with_suffix("").stem + ".ans.statement")
         )
-        self.out_path = None if self.root != 'invalid_outputs' else self.in_path.with_suffix('.out')
+        self.out_path = None if self.root != "invalid_outputs" else self.in_path.with_suffix(".out")
         # Display name: everything after data/.
-        self.name = str(self.short_path.with_suffix(''))
+        self.name = str(self.short_path.with_suffix(""))
 
         # Backwards compatibility support for `data/bad`.
-        if self.root == 'bad':
+        if self.root == "bad":
             if print_warn:
-                warn('data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.')
-            self.root = 'invalid_answers' if self.ans_path.is_file() else 'invalid_inputs'
+                warn("data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.")
+            self.root = "invalid_answers" if self.ans_path.is_file() else "invalid_inputs"
 
     def __repr__(self):
         return self.name
@@ -122,18 +122,18 @@ class Testcase:
             raise ValueError(f"Validator expected, got {validator}")
 
         key, name = (
-            ('input_validator_flags', validator.name)
+            ("input_validator_flags", validator.name)
             if isinstance(validator, validate.InputValidator)
-            else ('output_validator_flags', None)
+            else ("output_validator_flags", None)
         )
 
-        path = self.problem.path / 'data' / self.short_path
+        path = self.problem.path / "data" / self.short_path
         flags = self.problem.get_testdata_yaml(path, key, bar, name=name)
 
         if flags is None:
             return None
         if not isinstance(flags, str):
-            fatal(f'{key} must be a string in testdata.yaml, got {flags}')
+            fatal(f"{key} must be a string in testdata.yaml, got {flags}")
         return flags.split()
 
     def validator_hashes(self, cls: Type["validate.Validator"], bar):
@@ -156,15 +156,15 @@ class Testcase:
             flags = self.testdata_yaml_validator_flags(validator, bar)
             if flags is False:
                 continue
-            flags_string = ' '.join(flags) if flags is not None else None
+            flags_string = " ".join(flags) if flags is not None else None
             o = {
-                'name': validator.name,
-                'flags': flags_string,
-                'hash': validator.hash,
+                "name": validator.name,
+                "flags": flags_string,
+                "hash": validator.hash,
             }
             h = combine_hashes_dict(o)
             # Don't actually store the somewhat useless validator hash.
-            del o['hash']
+            del o["hash"]
             d[h] = o
 
         return d
@@ -187,7 +187,7 @@ class Testcase:
                     self.problem.validators(
                         validate.InputValidator, check_constraints=check_constraints
                     ),
-                    self.root == 'invalid_inputs',
+                    self.root == "invalid_inputs",
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -199,7 +199,7 @@ class Testcase:
                     self.problem.validators(
                         validate.AnswerValidator, check_constraints=check_constraints
                     ),
-                    self.root == 'invalid_answers',
+                    self.root == "invalid_answers",
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -215,7 +215,7 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                     args=args,
                 )
-                if not ok or self.root == 'invalid_inputs':
+                if not ok or self.root == "invalid_inputs":
                     return ok
 
                 assert not self.problem.interactive
@@ -228,7 +228,7 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                     args=args,
                 )
-                if not ok or self.root == 'invalid_answers':
+                if not ok or self.root == "invalid_answers":
                     return ok
 
                 return self._run_validators(
@@ -260,8 +260,8 @@ class Testcase:
         for validator in validators:
             name = validator.name
             if type(validator) == validate.OutputValidator and mode == validate.Mode.ANSWER:
-                args += ['case_sensitive', 'space_change_sensitive']
-                name = f'{name} (ans)'
+                args += ["case_sensitive", "space_change_sensitive"]
+                name = f"{name} (ans)"
             flags = self.testdata_yaml_validator_flags(validator, bar)
             if flags is False:
                 continue
@@ -272,24 +272,24 @@ class Testcase:
 
             message = name
             if flags:
-                message += ' [' + ', '.join(flags) + ']'
-            message += ': '
+                message += " [" + ", ".join(flags) + "]"
+            message += ": "
             if ret.status:
-                message += 'accepted'
+                message += "accepted"
             elif ret.status == ExecStatus.TIMEOUT:
-                message += 'timeout'
+                message += "timeout"
             elif ret.status == ExecStatus.REJECTED:
-                message += 'rejected'
+                message += "rejected"
             else:
-                message += 'crashed'
+                message += "crashed"
 
             # Print stdout and stderr whenever something is printed
-            data = ''
+            data = ""
             if not (ret.status or expect_rejection) or config.args.error:
                 if ret.err and ret.out:
                     ret.out = (
                         ret.err
-                        + f'\n{Fore.RED}VALIDATOR STDOUT{Style.RESET_ALL}\n'
+                        + f"\n{Fore.RED}VALIDATOR STDOUT{Style.RESET_ALL}\n"
                         + Fore.YELLOW
                         + ret.out
                     )
@@ -307,7 +307,7 @@ class Testcase:
                     file = self.out_path
 
                 data += (
-                    f'{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n'
+                    f"{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n"
                 )
             else:
                 data = ret.err
@@ -322,7 +322,7 @@ class Testcase:
                 bar.part_done(
                     False,
                     message,
-                    data='Exit code 0, did you forget to exit with WA or AC?',
+                    data="Exit code 0, did you forget to exit with WA or AC?",
                     warn_instead_of_error=warn_instead_of_error,
                 )
             else:
@@ -343,16 +343,16 @@ class Testcase:
                 targetdir.mkdir(parents=True, exist_ok=True)
                 intarget = targetdir / infile.name
                 infile.rename(intarget)
-                bar.log('Moved to ' + print_name(intarget))
+                bar.log("Moved to " + print_name(intarget))
                 ansfile = self.ans_path
                 if ansfile.is_file():
-                    anstarget = intarget.with_suffix('.ans')
+                    anstarget = intarget.with_suffix(".ans")
                     ansfile.rename(anstarget)
-                    bar.log('Moved to ' + print_name(anstarget))
+                    bar.log("Moved to " + print_name(anstarget))
 
             # Remove testcase if specified.
             elif mode == validate.Mode.INPUT and config.args.remove:
-                bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
+                bar.log(Fore.RED + "REMOVING TESTCASE!" + Style.RESET_ALL)
                 if self.in_path.exists():
                     self.in_path.unlink()
                 if self.ans_path.exists():
@@ -363,7 +363,7 @@ class Testcase:
         if expect_rejection:
             success = ExecStatus.REJECTED in results
             if not success:
-                bar.error(f'was not rejected by {mode} validation', resume=True)
+                bar.error(f"was not rejected by {mode} validation", resume=True)
         else:
             success = all(results)
             if success:

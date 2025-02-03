@@ -12,7 +12,7 @@ from util import *
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
 
-EXTRA_LANGUAGES = '''
+EXTRA_LANGUAGES = """
 checktestdata:
     name: 'Checktestdata'
     priority: 1
@@ -31,12 +31,12 @@ manual:
     files: 'build run'
     compile: '{build}'
     run: '{run}'
-'''
+"""
 
-SANITIZER_FLAGS = '''
+SANITIZER_FLAGS = """
 cpp:
     compile: -fsanitize=undefined,address
-'''
+"""
 
 # The cached languages.yaml for the current contest.
 _languages = None
@@ -50,10 +50,10 @@ def languages():
         if _languages is not None:
             return _languages
 
-        if Path('languages.yaml').is_file():
-            _languages = read_yaml(Path('languages.yaml'))
+        if Path("languages.yaml").is_file():
+            _languages = read_yaml(Path("languages.yaml"))
         else:
-            _languages = read_yaml(config.tools_root / 'config/languages.yaml')
+            _languages = read_yaml(config.tools_root / "config/languages.yaml")
 
         # Add custom languages.
         extra_langs = parse_yaml(EXTRA_LANGUAGES)
@@ -129,7 +129,7 @@ class Program:
         # Make sure we never try to build the same program twice. That'd be stupid.
         if not skip_double_build_warning:
             if path in problem._programs:
-                error(f'Why would you build {path} twice?')
+                error(f"Why would you build {path} twice?")
                 assert path not in problem._programs
             problem._programs[path] = self
 
@@ -167,10 +167,10 @@ class Program:
             self.has_deps = True
         else:
             if path.is_dir():
-                self.source_files = list(glob(path, '*'))
+                self.source_files = list(glob(path, "*"))
                 # Filter out __pycache__ files.
                 self.source_files = list(
-                    filter(lambda f: f.name != '__pycache__', self.source_files)
+                    filter(lambda f: f.name != "__pycache__", self.source_files)
                 )
             elif path.is_file():
                 self.source_files = [path]
@@ -204,9 +204,9 @@ class Program:
         candidates = []
         for lang in languages():
             lang_conf = languages()[lang]
-            globs = lang_conf['files'].split() or []
-            shebang = re.compile(lang_conf['shebang']) if lang_conf.get('shebang') else None
-            priority = int(lang_conf['priority'])
+            globs = lang_conf["files"].split() or []
+            shebang = re.compile(lang_conf["shebang"]) if lang_conf.get("shebang") else None
+            priority = int(lang_conf["priority"])
 
             matching_files = []
             for f in self.input_files:
@@ -223,29 +223,29 @@ class Program:
 
         for _, _, priority, lang, files in candidates:
             lang_conf = languages()[lang]
-            name = lang_conf['name']
+            name = lang_conf["name"]
 
             # Make sure we can run programs for this language.
-            if 'compile' in lang_conf:
-                exe = lang_conf['compile'].split()[0]
-                if exe[0] != '{' and shutil.which(exe) is None:
+            if "compile" in lang_conf:
+                exe = lang_conf["compile"].split()[0]
+                if exe[0] != "{" and shutil.which(exe) is None:
                     fallback = True
                     if exe not in Program.warn_cache:
                         if config.args.verbose:
                             bar.debug(
-                                f'Compile program {exe} not found for language {name}. Falling back to lower priority languages.'
+                                f"Compile program {exe} not found for language {name}. Falling back to lower priority languages."
                             )
                             Program.warn_cache.add(exe)
                     continue
-            assert 'run' in lang_conf
-            exe = lang_conf['run'].split()[0]
-            if exe[0] != '{' and shutil.which(exe) is None:
+            assert "run" in lang_conf
+            exe = lang_conf["run"].split()[0]
+            if exe[0] != "{" and shutil.which(exe) is None:
                 fallback = True
                 if exe not in Program.warn_cache:
                     if config.args.verbose:
                         Program.warn_cache.add(exe)
                         bar.debug(
-                            f'Run program {exe} not found for language {name}. Falling back to lower priority languages.'
+                            f"Run program {exe} not found for language {name}. Falling back to lower priority languages."
                         )
                 continue
 
@@ -257,7 +257,7 @@ class Program:
 
             if len(files) == 0:
                 self.ok = False
-                bar.error(f'No file detected for language {name} at {self.path}.')
+                bar.error(f"No file detected for language {name} at {self.path}.")
                 return False
 
             self.language = lang
@@ -267,49 +267,49 @@ class Program:
                     mainfile = files[0]
                 else:
                     for f in files:
-                        if f.name.lower().startswith('main'):
+                        if f.name.lower().startswith("main"):
                             mainfile = f
                     mainfile = mainfile or sorted(files)[0]
             else:
                 mainfile = self.tmpdir / self.source_files[0].name
 
-            mainclass = str(mainfile.with_suffix('').name)
+            mainclass = str(mainfile.with_suffix("").name)
             self.env = {
-                'path': str(self.tmpdir),
+                "path": str(self.tmpdir),
                 # NOTE: This only contains files matching the winning language.
-                'files': ' '.join(str(f) for f in files),
-                'binary': self.tmpdir / 'run',
-                'mainfile': str(mainfile),
-                'mainclass': mainclass,
-                'Mainclass': mainclass[0].upper() + mainclass[1:],
+                "files": " ".join(str(f) for f in files),
+                "binary": self.tmpdir / "run",
+                "mainfile": str(mainfile),
+                "mainclass": mainclass,
+                "Mainclass": mainclass[0].upper() + mainclass[1:],
                 # Memory limit in MB.
-                'memlim': self.limits.get('memory', 2048),
+                "memlim": self.limits.get("memory", 2048),
                 # Out-of-spec variables used by 'manual' and 'Viva' languages.
-                'build': (
-                    self.tmpdir / 'build' if (self.tmpdir / 'build') in self.input_files else ''
+                "build": (
+                    self.tmpdir / "build" if (self.tmpdir / "build") in self.input_files else ""
                 ),
-                'run': self.tmpdir / 'run',
-                'viva_jar': config.tools_root / 'third_party/viva/viva.jar',
+                "run": self.tmpdir / "run",
+                "viva_jar": config.tools_root / "third_party/viva/viva.jar",
             }
 
             return True
 
         # The for loop did not find a suitable language.
         self.ok = False
-        bar.error(f'No language detected for {self.path}.')
+        bar.error(f"No language detected for {self.path}.")
         return False
 
     def _checks(self, bar: ProgressBar):
         # Make sure C++ does not depend on stdc++.h, because it's not portable.
-        if self.language == 'cpp':
+        if self.language == "cpp":
             for f in self.source_files:
                 try:
-                    if f.read_text().find('bits/stdc++.h') != -1:
-                        if 'validators/' in str(f):
-                            bar.error(f'Must not depend on bits/stdc++.h.', resume=True)
+                    if f.read_text().find("bits/stdc++.h") != -1:
+                        if "validators/" in str(f):
+                            bar.error(f"Must not depend on bits/stdc++.h.", resume=True)
                             break
                         else:
-                            bar.log(f'Should not depend on bits/stdc++.h')
+                            bar.log(f"Should not depend on bits/stdc++.h")
                             break
                 except UnicodeDecodeError:
                     pass
@@ -318,54 +318,54 @@ class Program:
         from validate import Validator
 
         if isinstance(self, Generator) or isinstance(self, Validator):
-            if self.language == 'cpp':
+            if self.language == "cpp":
                 for f in self.source_files:
                     try:
                         text = f.read_text()
                         bad_random = set()
                         for s in [
-                            'rand\\(\\)',
-                            'uniform_int_distribution',
-                            'uniform_real_distribution',
-                            'normal_distribution',
-                            'exponential_distribution',
-                            'geometric_distribution',
-                            'binomial_distribution',
-                            'random_device',
-                            'default_random_engine',
+                            "rand\\(\\)",
+                            "uniform_int_distribution",
+                            "uniform_real_distribution",
+                            "normal_distribution",
+                            "exponential_distribution",
+                            "geometric_distribution",
+                            "binomial_distribution",
+                            "random_device",
+                            "default_random_engine",
                         ]:
                             for line in text.splitlines():
-                                if s in line and 'bt ignore' not in line:
+                                if s in line and "bt ignore" not in line:
                                     bad_random.add(s)
                         if bad_random:
-                            bad_message = ', '.join(bad_random)
+                            bad_message = ", ".join(bad_random)
                             bar.warn(
-                                f'Calling {bad_message} in {f.name} is implementation dependent in C++. Use <validation.h> instead, or add `// bt ignore` to the line.'
+                                f"Calling {bad_message} in {f.name} is implementation dependent in C++. Use <validation.h> instead, or add `// bt ignore` to the line."
                             )
-                        if text.find('typeid(') != -1:
+                        if text.find("typeid(") != -1:
                             bar.warn(
-                                f'Calling typeid() in {f.name} is implementation dependent in C++.'
+                                f"Calling typeid() in {f.name} is implementation dependent in C++."
                             )
                     except UnicodeDecodeError:
                         pass
-            if self.language and 'py' in self.language:
+            if self.language and "py" in self.language:
                 for f in self.source_files:
                     try:
                         text = f.read_text()
-                        for s in ['list(set(']:
+                        for s in ["list(set("]:
                             if text.find(s) != -1:
                                 bar.warn(
-                                    f'The order of sets is not fixed across implementations. Please sort the list!'
+                                    f"The order of sets is not fixed across implementations. Please sort the list!"
                                 )
                     except UnicodeDecodeError:
                         pass
 
     # Return True on success.
     def _compile(self, bar: ProgressBar):
-        meta_path = self.tmpdir / 'meta_.yaml'
+        meta_path = self.tmpdir / "meta_.yaml"
 
         # Remove all non-source files.
-        for f in self.tmpdir.glob('*'):
+        for f in self.tmpdir.glob("*"):
             if f not in (self.input_files + [meta_path]):
                 if f.is_dir() and not f.is_symlink():
                     shutil.rmtree(f)
@@ -383,26 +383,26 @@ class Program:
                 cwd=self.tmpdir,
                 # Compile errors are never cropped.
                 crop=False,
-                timeout=self.limits.get('compilation_time', None),
-                memory=self.limits.get('compilation_memory', None),
+                timeout=self.limits.get("compilation_time", None),
+                memory=self.limits.get("compilation_memory", None),
             )
         except FileNotFoundError as err:
             self.ok = False
-            bar.error('Failed', str(err))
+            bar.error("Failed", str(err))
             return False
 
         if not ret.status:
-            data = ''
+            data = ""
             if ret.err is not None:
-                data += strip_newline(ret.err) + '\n'
+                data += strip_newline(ret.err) + "\n"
             if ret.out is not None:
-                data += strip_newline(ret.out) + '\n'
+                data += strip_newline(ret.out) + "\n"
             self.ok = False
-            bar.error('Failed', data)
+            bar.error("Failed", data)
             return False
 
         write_yaml(
-            {'hash': self.hash, 'command': self.compile_command}, meta_path, allow_yamllib=True
+            {"hash": self.hash, "command": self.compile_command}, meta_path, allow_yamllib=True
         )
         return True
 
@@ -417,16 +417,16 @@ class Program:
         if len(self.source_files) == 0:
             self.ok = False
             if self.path.is_dir():
-                bar.error(f'{self.short_path} is an empty directory.')
+                bar.error(f"{self.short_path} is an empty directory.")
             else:
-                bar.error(f'{self.path} does not exist.')
+                bar.error(f"{self.path} does not exist.")
             return False
 
         # Check file names.
         for f in self.source_files:
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
                 self.ok = False
-                bar.error(f'{str(f)} does not match file name regex {config.FILE_NAME_REGEX}')
+                bar.error(f"{str(f)} does not match file name regex {config.FILE_NAME_REGEX}")
                 return False
 
         # Link all source_files
@@ -440,7 +440,7 @@ class Program:
             self.input_files.append(self.tmpdir / f.name)
             if not f.is_file():
                 self.ok = False
-                bar.error(f'{str(f)} is not a file')
+                bar.error(f"{str(f)} is not a file")
                 return False
             hashes.append(hash_file(f))
         self.hash = combine_hashes(hashes)
@@ -451,23 +451,23 @@ class Program:
         self._checks(bar)
 
         # A file containing the compile command and hash.
-        meta_path = self.tmpdir / 'meta_.yaml'
+        meta_path = self.tmpdir / "meta_.yaml"
 
         lang_config = languages()[self.language]
         sanitizer_config = sanitizer()
 
-        compile_command = lang_config['compile'] if 'compile' in lang_config else ''
-        run_command = lang_config['run']
+        compile_command = lang_config["compile"] if "compile" in lang_config else ""
+        run_command = lang_config["run"]
 
         if (
-            self.subdir == 'submissions'
+            self.subdir == "submissions"
             and config.args.sanitizer
             and self.language in sanitizer_config
         ):
-            if 'compile' in sanitizer_config[self.language]:
-                compile_command += ' ' + sanitizer_config[self.language]['compile']
-            if 'run' in sanitizer_config[self.language]:
-                run_command += ' ' + sanitizer_config[self.language]['run']
+            if "compile" in sanitizer_config[self.language]:
+                compile_command += " " + sanitizer_config[self.language]["compile"]
+            if "run" in sanitizer_config[self.language]:
+                run_command += " " + sanitizer_config[self.language]["run"]
 
         self.compile_command = compile_command.format(**self.env).split()
         self.run_command = run_command.format(**self.env).split()
@@ -477,7 +477,7 @@ class Program:
         if meta_path.is_file():
             meta_yaml = read_yaml(meta_path)
             up_to_date = (
-                meta_yaml['hash'] == self.hash and meta_yaml['command'] == self.compile_command
+                meta_yaml["hash"] == self.hash and meta_yaml["command"] == self.compile_command
             )
 
         if not up_to_date or config.args.force_build:
@@ -488,20 +488,20 @@ class Program:
             for c in self.problem._program_callbacks[self.path]:
                 c(self)
 
-        if 'code' in self.limits:
+        if "code" in self.limits:
             size = sum(f.stat().st_size for f in self.source_files)
-            if size > self.limits['code'] * 1024:
+            if size > self.limits["code"] * 1024:
                 bar.warn(
-                    f'Code limit exceeded (set limits.code to at least {(size + 1023) // 1024}KiB in problem.yaml)'
+                    f"Code limit exceeded (set limits.code to at least {(size + 1023) // 1024}KiB in problem.yaml)"
                 )
 
         return True
 
     def _exec_command(self, *args, **kwargs):
-        if 'timeout' not in kwargs and 'timeout' in self.limits:
-            kwargs['timeout'] = self.limits['timeout']
-        if 'memory' not in kwargs and 'memory' in self.limits:
-            kwargs['memory'] = self.limits['memory']
+        if "timeout" not in kwargs and "timeout" in self.limits:
+            kwargs["timeout"] = self.limits["timeout"]
+        if "memory" not in kwargs and "memory" in self.limits:
+            kwargs["memory"] = self.limits["memory"]
         return exec_command(*args, **kwargs)
 
     @staticmethod
@@ -514,7 +514,7 @@ class Program:
 class Generator(Program):
     def __init__(self, problem: "Problem", path: Path, **kwargs):
         super().__init__(
-            problem, path, 'generators', limits={'timeout': problem.limits.generator_time}, **kwargs
+            problem, path, "generators", limits={"timeout": problem.limits.generator_time}, **kwargs
         )
 
     # Run the generator in the given working directory.
@@ -523,21 +523,21 @@ class Generator(Program):
     def run(self, bar, cwd, name, args=[]):
         assert self.run_command is not None
 
-        in_path = cwd / (name + '.in')
-        stdout_path = cwd / (name + '.in_')
+        in_path = cwd / (name + ".in")
+        stdout_path = cwd / (name + ".in_")
 
         # Clean the directory, but not the meta_.yaml file.
         for f in cwd.iterdir():
-            if f.name == 'meta_.yaml':
+            if f.name == "meta_.yaml":
                 continue
             if f.is_dir() and not f.is_symlink():
                 shutil.rmtree(f)
             else:
                 f.unlink()
 
-        timeout = self.limits['timeout']
+        timeout = self.limits["timeout"]
 
-        with stdout_path.open('w') as stdout_file:
+        with stdout_path.open("w") as stdout_file:
             result = self._exec_command(
                 self.run_command + args,
                 stdout=stdout_file,
@@ -548,7 +548,7 @@ class Generator(Program):
 
         if result.status == ExecStatus.TIMEOUT:
             # Timeout -> stop retrying and fail.
-            bar.log(f'TIMEOUT after {timeout}s', color=Fore.RED)
+            bar.log(f"TIMEOUT after {timeout}s", color=Fore.RED)
             return result
 
         if not result.status:
@@ -558,12 +558,12 @@ class Generator(Program):
 
         if stdout_path.read_text():
             if in_path.is_file():
-                bar.warn(f'Generator wrote to both {name}.in and stdout. Ignoring stdout.')
+                bar.warn(f"Generator wrote to both {name}.in and stdout. Ignoring stdout.")
             else:
                 stdout_path.rename(in_path)
         else:
             if not in_path.is_file():
-                bar.log(f'Did not write {name}.in and stdout is empty!', color=Fore.RED)
+                bar.log(f"Did not write {name}.in and stdout is empty!", color=Fore.RED)
                 result.status = ExecStatus.REJECTED
                 return result
 
@@ -575,8 +575,8 @@ class Visualizer(Program):
         super().__init__(
             problem,
             path,
-            'visualizers',
-            limits={'timeout': problem.limits.visualizer_time},
+            "visualizers",
+            limits={"timeout": problem.limits.visualizer_time},
             **kwargs,
         )
 

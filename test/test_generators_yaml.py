@@ -13,7 +13,7 @@ config.set_default_args()
 
 class MockProblem:
     def __init__(self):
-        self.path = Path('.')
+        self.path = Path(".")
         self._program_callbacks = dict()
         self._rules_cache = dict()
 
@@ -48,9 +48,9 @@ class MockGeneratorConfig(generate.GeneratorConfig):
 
 class TestGeneratorConfig:
     @pytest.mark.parametrize(
-        'yamldoc',
+        "yamldoc",
         yaml.load_all(
-            Path('test/yaml/generators/invalid_yaml/bad_generators.yaml').read_text(),
+            Path("test/yaml/generators/invalid_yaml/bad_generators.yaml").read_text(),
             Loader=yaml.SafeLoader,
         ),
     )

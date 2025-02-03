@@ -13,38 +13,38 @@ from util import *
 def call_slack_api(path, **kwargs):
     import requests  # Slow import, so only import it inside this function.
 
-    verbose(f'Calling slack api {path}')
+    verbose(f"Calling slack api {path}")
     result = requests.post(
-        f'https://slack.com/api/{path}',
-        {'token': config.args.token, **kwargs},
+        f"https://slack.com/api/{path}",
+        {"token": config.args.token, **kwargs},
     )
 
-    if not result.json()['ok'] and result.json()['error'] == 'ratelimited':
-        fatal('Slack API rate limit exceeded. Try again later.')
+    if not result.json()["ok"] and result.json()["error"] == "ratelimited":
+        fatal("Slack API rate limit exceeded. Try again later.")
 
     return result
 
 
 def get_channel_ids():
-    r = call_slack_api('conversations.list').json()
-    if not r['ok']:
-        fatal(r['error'])
+    r = call_slack_api("conversations.list").json()
+    if not r["ok"]:
+        fatal(r["error"])
 
     channel_ids = {}
-    for c in r['channels']:
-        channel_ids[c['name']] = c['id']
+    for c in r["channels"]:
+        channel_ids[c["name"]] = c["id"]
     return channel_ids
 
 
 def get_user_id(username):
-    r = call_slack_api('users.list').json()
-    if not r['ok']:
-        fatal(r['error'])
-    members = r['members']
+    r = call_slack_api("users.list").json()
+    if not r["ok"]:
+        fatal(r["error"])
+    members = r["members"]
     for m in members:
-        if m['profile']['real_name'] == username or m['profile']['display_name'] == username:
-            return m['id']
-    fatal(f'User {username} not found')
+        if m["profile"]["real_name"] == username or m["profile"]["display_name"] == username:
+            return m["id"]
+    fatal(f"User {username} not found")
 
 
 # Function to create a slack channel for each problem
@@ -54,15 +54,15 @@ def create_slack_channels(problems):
 
 
 def create_slack_channel(name):
-    r = call_slack_api('conversations.create', name=name)
+    r = call_slack_api("conversations.create", name=name)
     if not r.ok:
         error(r.text)
         return
     response = r.json()
-    if not response['ok']:
-        error(response['error'])
+    if not response["ok"]:
+        error(response["error"])
         return
-    log(f'Created channel {name}')
+    log(f"Created channel {name}")
 
 
 def join_slack_channels(problems, username):
@@ -75,12 +75,12 @@ def join_slack_channels(problems, username):
 
 def join_slack_channel(channel_name, channel_id, username, userid):
     # The bot account invites the user to the channel.
-    r = call_slack_api('conversations.invite', channel=channel_id, users=userid)
+    r = call_slack_api("conversations.invite", channel=channel_id, users=userid)
     if not r.ok:
         error(r.text)
         return
     response = r.json()
-    if not response['ok']:
-        error(response['error'])
+    if not response["ok"]:
+        error(response["error"])
         return
-    log(f'Invited {username} to channel {channel_name}')
+    log(f"Invited {username} to channel {channel_name}")

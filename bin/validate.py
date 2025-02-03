@@ -78,10 +78,10 @@ class Validator(program.Program):
         ExecResult.status == ExecStatus.REJECTED if the validator rejected.
     """
 
-    FORMAT_VALIDATOR_LANGUAGES = ['checktestdata', 'viva']
+    FORMAT_VALIDATOR_LANGUAGES = ["checktestdata", "viva"]
 
     def __repr__(self):
-        return type(self).__name__ + ': ' + str(self.path)
+        return type(self).__name__ + ": " + str(self.path)
 
     def __init__(
         self, problem, path, subdir, skip_double_build_warning=False, check_constraints=False
@@ -91,15 +91,15 @@ class Validator(program.Program):
             path,
             subdir,
             limits={
-                'timeout': problem.limits.validation_time,
-                'memory': problem.limits.validation_memory,
+                "timeout": problem.limits.validation_time,
+                "memory": problem.limits.validation_memory,
             },
             skip_double_build_warning=skip_double_build_warning,
         )
         assert self.__class__ is not Validator  # Validator is abstract and may not be instantiated
 
         if check_constraints:
-            self.tmpdir: Path = self.tmpdir.parent / (self.tmpdir.name + '_check_constraints')
+            self.tmpdir: Path = self.tmpdir.parent / (self.tmpdir.name + "_check_constraints")
         self.check_constraints = check_constraints
 
     def _run_helper(self, testcase, constraints, args):
@@ -110,14 +110,14 @@ class Validator(program.Program):
             args: (possibly empty) list of arguments, possibly including --contraints_file
         """
         if testcase.in_path.is_relative_to(self.problem.tmpdir):
-            cwd = testcase.in_path.with_suffix('.feedbackdir')
+            cwd = testcase.in_path.with_suffix(".feedbackdir")
         else:
             name = self.tmpdir.relative_to(self.problem.tmpdir)
             cwd = (
                 self.problem.tmpdir
-                / 'tool_runs'
+                / "tool_runs"
                 / name
-                / testcase.short_path.with_suffix('.feedbackdir')
+                / testcase.short_path.with_suffix(".feedbackdir")
             )
         cwd.mkdir(parents=True, exist_ok=True)
         arglist = []
@@ -125,11 +125,11 @@ class Validator(program.Program):
             assert isinstance(args, list)
             arglist += args
         if constraints is not None:
-            prefix = 'input' if isinstance(self, InputValidator) else 'answer'
-            constraints_path = cwd / f'{prefix}_constraints_'
+            prefix = "input" if isinstance(self, InputValidator) else "answer"
+            constraints_path = cwd / f"{prefix}_constraints_"
             if constraints_path.is_file():
                 constraints_path.unlink()
-            arglist += ['--constraints_file', constraints_path]
+            arglist += ["--constraints_file", constraints_path]
         else:
             constraints_path = None
 
@@ -143,10 +143,10 @@ class Validator(program.Program):
 
         if isinstance(self, InputValidator):
             main_path = testcase.in_path
-            bad = testcase.root == 'invalid_inputs'
+            bad = testcase.root == "invalid_inputs"
         elif isinstance(self, AnswerValidator):
             main_path = testcase.ans_path
-            bad = testcase.root == 'invalid_answers'
+            bad = testcase.root == "invalid_answers"
         else:
             assert False  # now also catches OutputValidator
 
@@ -159,7 +159,7 @@ class Validator(program.Program):
                 return ExecStatus.TIMEOUT
             return ExecStatus.ERROR
 
-        if self.language == 'checktestdata':
+        if self.language == "checktestdata":
             with main_path.open() as main_file:
                 return self._exec_command(
                     self.run_command,
@@ -168,7 +168,7 @@ class Validator(program.Program):
                     cwd=cwd,
                 )
 
-        if self.language == 'viva':
+        if self.language == "viva":
             # Called as `viva validator.viva testcase.in`.
             result = self._exec_command(
                 self.run_command + [main_path.resolve()],
@@ -197,11 +197,11 @@ class InputValidator(Validator):
     """
 
     def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, 'input_validators', **kwargs)
+        super().__init__(problem, path, "input_validators", **kwargs)
 
     validator_type = "input"
 
-    source_dirs = ['input_validators', 'input_format_validators']
+    source_dirs = ["input_validators", "input_format_validators"]
 
     def run(
         self, testcase, mode=Mode.INPUT, constraints: Optional[ConstraintsDict] = None, args=None
@@ -251,11 +251,11 @@ class AnswerValidator(Validator):
     """
 
     def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, 'answer_validators', **kwargs)
+        super().__init__(problem, path, "answer_validators", **kwargs)
 
     validator_type = "answer"
 
-    source_dirs = ['answer_validators', 'answer_format_validators']
+    source_dirs = ["answer_validators", "answer_format_validators"]
 
     def run(
         self, testcase, mode=Mode.ANSWER, constraints: Optional[ConstraintsDict] = None, args=None
@@ -297,11 +297,11 @@ class OutputValidator(Validator):
     """
 
     def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, 'output_validators', **kwargs)
+        super().__init__(problem, path, "output_validators", **kwargs)
 
     validator_type = "output"
 
-    source_dirs = ['output_validator', 'output_validators']
+    source_dirs = ["output_validator", "output_validators"]
 
     def run(
         self, testcase, mode, constraints: Optional[ConstraintsDict] = None, args=None
@@ -330,7 +330,7 @@ class OutputValidator(Validator):
         if mode == Mode.ANSWER:
             path = ans_path
         elif mode == Mode.INVALID:
-            if testcase.root != 'invalid_outputs':
+            if testcase.root != "invalid_outputs":
                 raise ValueError(
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_outputs"
                 )
@@ -368,8 +368,8 @@ AnyValidator = InputValidator | AnswerValidator | OutputValidator
 
 
 # Checks if byte is printable or whitespace
-INVALID_BYTES_WITH_OTHER = re.compile(b'[^\t\r\v\f\n\x20-\x7E]')
-INVALID_BYTES = re.compile(b'[^\n\x20-\x7E]')
+INVALID_BYTES_WITH_OTHER = re.compile(b"[^\t\r\v\f\n\x20-\x7E]")
+INVALID_BYTES = re.compile(b"[^\n\x20-\x7E]")
 
 
 def _has_invalid_byte(bytes, *, other_whitespaces=False):
@@ -382,7 +382,7 @@ def _has_invalid_byte(bytes, *, other_whitespaces=False):
 # assumes that the only possible whitespaces are space and newline
 # allows \n\n
 def _has_consecutive_whitespaces(bytes):
-    for bad in [b' \n', b'  ', b'\n ']:
+    for bad in [b" \n", b"  ", b"\n "]:
         if bytes.find(bad) >= 0:
             return True
     return False
@@ -412,30 +412,30 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
     if not path.exists():
         fatal(f"{path} not found during sanity check")
         return
-    with open(path, 'rb') as file:
+    with open(path, "rb") as file:
         name = {
-            '.in': "Input",
-            '.ans': "Answer",
-            '.out': "Output",
+            ".in": "Input",
+            ".ans": "Answer",
+            ".out": "Output",
         }[path.suffix]
         file_bytes = file.read()
         if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
-            bar.warn(f'{name} contains unexpected characters but was accepted!')
+            bar.warn(f"{name} contains unexpected characters but was accepted!")
         elif len(file_bytes) == 0:
-            bar.warn(f'{name} is empty but was accepted!')
+            bar.warn(f"{name} is empty but was accepted!")
         elif len(file_bytes) > 20_000_000:
-            bar.warn(f'{name} is larger than 20MB!')
+            bar.warn(f"{name} is larger than 20MB!")
         elif (
-            path.suffix in ['.ans', '.out']
+            path.suffix in [".ans", ".out"]
             and len(file_bytes) > problem.limits.output * 1024 * 1024
         ):
             bar.warn(
-                f'{name} exceeds output limit (set limits->output to at least {(len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)'
+                f"{name} exceeds output limit (set limits->output to at least {(len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
             )
         elif strict_whitespace:
-            if file_bytes[0] in [ord(' '), ord('\n')]:
-                bar.warn(f'{name} starts with whitespace but was accepted!')
-            elif file_bytes[-1] != ord('\n'):
-                bar.warn(f'{name} does not end with a newline but was accepted!')
+            if file_bytes[0] in [ord(" "), ord("\n")]:
+                bar.warn(f"{name} starts with whitespace but was accepted!")
+            elif file_bytes[-1] != ord("\n"):
+                bar.warn(f"{name} does not end with a newline but was accepted!")
             elif _has_consecutive_whitespaces(file_bytes):
-                bar.warn(f'{name} contains consecutive whitespace characters but was accepted!')
+                bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")

@@ -1,5 +1,3 @@
 [tool.black]
 # Line length 100
 line-length = 100
-# Keep ' instead of converting to "
-skip-string-normalization = true

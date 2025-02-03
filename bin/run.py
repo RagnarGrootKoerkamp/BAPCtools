@@ -35,14 +35,14 @@ class Run:
 
         self.tmpdir = (
             self.problem.tmpdir
-            / 'runs'
+            / "runs"
             / self.submission.short_path
-            / self.testcase.short_path.with_suffix('')
+            / self.testcase.short_path.with_suffix("")
         )
 
-        self.in_path = self.tmpdir / 'testcase.in'
-        self.out_path = self.tmpdir / 'testcase.out'
-        self.feedbackdir = self.in_path.with_suffix('.feedbackdir')
+        self.in_path = self.tmpdir / "testcase.in"
+        self.out_path = self.tmpdir / "testcase.out"
+        self.feedbackdir = self.in_path.with_suffix(".feedbackdir")
 
         if self.tmpdir.is_file():
             self.tmpdir.unlink()
@@ -60,7 +60,7 @@ class Run:
             )
             if result is None:
                 bar.error(
-                    f'No output validator found for testcase {self.testcase.name}',
+                    f"No output validator found for testcase {self.testcase.name}",
                     resume=True,
                 )
                 result = ExecResult(
@@ -69,8 +69,8 @@ class Run:
         else:
             if interaction:
                 assert not interaction.is_relative_to(self.tmpdir)
-                interaction = interaction.open('a')
-            nextpass = self.feedbackdir / 'nextpass.in' if self.problem.multipass else False
+                interaction = interaction.open("a")
+            nextpass = self.feedbackdir / "nextpass.in" if self.problem.multipass else False
             pass_id = 0
             max_duration = 0
             tle_result = None
@@ -82,16 +82,16 @@ class Run:
                 # write an interaction file for samples
                 if interaction:
                     data = self.in_path.read_text()
-                    if len(data) > 0 and data[-1] == '\n':
+                    if len(data) > 0 and data[-1] == "\n":
                         data = data[:-1]
-                    data = data.replace('\n', '\n<')
-                    print('<', data, sep='', file=interaction)
+                    data = data.replace("\n", "\n<")
+                    print("<", data, sep="", file=interaction)
 
                     data = self.out_path.read_text()
-                    if len(data) > 0 and data[-1] == '\n':
+                    if len(data) > 0 and data[-1] == "\n":
                         data = data[:-1]
-                    data = data.replace('\n', '\n>')
-                    print('>', data, sep='', file=interaction)
+                    data = data.replace("\n", "\n>")
+                    print(">", data, sep="", file=interaction)
 
                 if result.duration > self.problem.settings.timelimit:
                     result.verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -106,16 +106,16 @@ class Run:
                     result.verdict = Verdict.RUNTIME_ERROR
                     if config.args.error:
                         result.err = (
-                            'Exited with code ' + str(result.returncode) + ':\n' + result.err
+                            "Exited with code " + str(result.returncode) + ":\n" + result.err
                         )
                     else:
-                        result.err = 'Exited with code ' + str(result.returncode)
+                        result.err = "Exited with code " + str(result.returncode)
                     break
 
                 result = self._validate_output(bar)
                 if result is None:
                     bar.error(
-                        f'No output validator found for testcase {self.testcase.name}',
+                        f"No output validator found for testcase {self.testcase.name}",
                         resume=True,
                     )
                     result = ExecResult(
@@ -127,7 +127,7 @@ class Run:
                 elif result.status == ExecStatus.REJECTED:
                     result.verdict = Verdict.WRONG_ANSWER
                     if nextpass and nextpass.is_file():
-                        bar.error(f'got WRONG_ANSWER but found nextpass.in', resume=True)
+                        bar.error(f"got WRONG_ANSWER but found nextpass.in", resume=True)
                         result.verdict = Verdict.VALIDATOR_CRASH
                 else:
                     config.n_error += 1
@@ -139,12 +139,12 @@ class Run:
                 if not self._prepare_nextpass(nextpass):
                     break
                 elif pass_id >= self.problem.limits.validation_passes:
-                    bar.error(f'exceeded limit of validation_passes', resume=True)
+                    bar.error(f"exceeded limit of validation_passes", resume=True)
                     result.verdict = Verdict.VALIDATOR_CRASH
                     break
 
                 if interaction:
-                    print('---', file=interaction)
+                    print("---", file=interaction)
 
             if interaction:
                 interaction.close()
@@ -165,9 +165,9 @@ class Run:
             ):
                 self.out_path.unlink()
 
-        if result.verdict and (self.feedbackdir / 'nextpass.in').is_file():
+        if result.verdict and (self.feedbackdir / "nextpass.in").is_file():
             assert not self.problem.multipass
-            bar.warn(f'Validator created nextpass.in for non multi-pass problem. Ignored.')
+            bar.warn(f"Validator created nextpass.in for non multi-pass problem. Ignored.")
 
         self.result = result
         return result
@@ -180,7 +180,7 @@ class Run:
             return False
         if timeout_expired:
             return False
-        return any([config.args.verbose, config.args.all, config.args.action == 'all'])
+        return any([config.args.verbose, config.args.all, config.args.action == "all"])
 
     # prepare next pass
     def _prepare_nextpass(self, nextpass):
@@ -208,16 +208,16 @@ class Run:
 
         ret = validator.run(self.testcase, self, args=flags)
 
-        judgemessage = self.feedbackdir / 'judgemessage.txt'
-        judgeerror = self.feedbackdir / 'judgeerror.txt'
+        judgemessage = self.feedbackdir / "judgemessage.txt"
+        judgeerror = self.feedbackdir / "judgeerror.txt"
         if ret.err is None:
-            ret.err = ''
+            ret.err = ""
         if judgeerror.is_file():
-            ret.err = judgeerror.read_text(errors='replace')
+            ret.err = judgeerror.read_text(errors="replace")
         if len(ret.err) == 0 and judgemessage.is_file():
-            ret.err = judgemessage.read_text(errors='replace')
+            ret.err = judgemessage.read_text(errors="replace")
         if ret.err:
-            header = validator.name + ': ' if len(output_validators) > 1 else ''
+            header = validator.name + ": " if len(output_validators) > 1 else ""
             ret.err = header + ret.err
 
         return ret
@@ -228,13 +228,13 @@ class Submission(program.Program):
         super().__init__(
             problem,
             path,
-            'submissions',
+            "submissions",
             limits={
-                'code': problem.limits.code,
-                'compilation_time': problem.limits.compilation_time,
-                'compilation_memory': problem.limits.compilation_memory,
-                'timeout': problem.settings.timeout,
-                'memory': problem.limits.memory,
+                "code": problem.limits.code,
+                "compilation_time": problem.limits.compilation_time,
+                "compilation_memory": problem.limits.compilation_memory,
+                "timeout": problem.settings.timeout,
+                "memory": problem.limits.memory,
             },
             skip_double_build_warning=skip_double_build_warning,
         )
@@ -269,11 +269,11 @@ class Submission(program.Program):
         # - TIME_LIMIT_EXCEEDED / TIMELIMIT
         # - RUN_TIME_ERROR / RUN-ERROR
         # Matching is case insensitive and all source files are checked.
-        key = '@EXPECTED_RESULTS@: '
+        key = "@EXPECTED_RESULTS@: "
         files = (
             [self.path]
             if self.path.is_file()
-            else self.path.glob('**/*') if self.path.is_dir() else []
+            else self.path.glob("**/*") if self.path.is_dir() else []
         )
         for f in files:
             if not f.is_file():
@@ -281,14 +281,14 @@ class Submission(program.Program):
             try:
                 text = f.read_text().upper()
                 beginpos = text.index(key) + len(key)
-                endpos = text.find('\n', beginpos)
-                arguments = map(str.strip, text[beginpos:endpos].split(','))
+                endpos = text.find("\n", beginpos)
+                arguments = map(str.strip, text[beginpos:endpos].split(","))
                 for arg in arguments:
                     try:
                         expected_verdicts.append(from_string_domjudge(arg))
                     except ValueError:
                         error(
-                            f'@EXPECTED_RESULTS@: `{arg}` for submission {self.short_path} is not valid'
+                            f"@EXPECTED_RESULTS@: `{arg}` for submission {self.short_path} is not valid"
                         )
                         continue
                 break
@@ -297,18 +297,18 @@ class Submission(program.Program):
                 # Skip files where the key does not occur.
                 pass
 
-        if len(self.path.parts) >= 3 and self.path.parts[-3] == 'submissions':
+        if len(self.path.parts) >= 3 and self.path.parts[-3] == "submissions":
             # Submissions in any of config.VERDICTS should not have `@EXPECTED_RESULTS@: `, and vice versa.
             # See https://github.com/DOMjudge/domjudge/issues/1861
             subdir = self.short_path.parts[0]
             if subdir in config.SUBMISSION_DIRS:
                 if len(expected_verdicts) != 0:
-                    warn(f'@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.')
+                    warn(f"@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.")
                 expected_verdicts = [from_string(subdir.upper())]
             else:
                 if len(expected_verdicts) == 0:
                     error(
-                        f'Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to ACCEPTED.'
+                        f"Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to ACCEPTED."
                     )
 
         expected_verdicts.sort()
@@ -324,8 +324,8 @@ class Submission(program.Program):
         # Just for safety reasons, change the cwd.
         if cwd is None:
             cwd = self.tmpdir
-        with in_path.open('rb') as inf:
-            out_file = out_path.open('wb') if out_path else None
+        with in_path.open("rb") as inf:
+            out_file = out_path.open("wb") if out_path else None
 
             # Print stderr to terminal is stdout is None, otherwise return its value.
             result = self._exec_command(
@@ -338,7 +338,7 @@ class Submission(program.Program):
                 timeout=(
                     self.problem.limits.generator_time
                     if generator_timeout
-                    else self.limits['timeout']
+                    else self.limits["timeout"]
                 ),
             )
             if out_file:
@@ -361,7 +361,7 @@ class Submission(program.Program):
         if (
             config.args.all == 1
             or config.args.verbose
-            or config.args.action in ['all', 'timelimit']
+            or config.args.action in ["all", "timelimit"]
         ):
             run_until = RunUntil.DURATION
         if config.args.all == 2 or config.args.reorder:
@@ -369,7 +369,7 @@ class Submission(program.Program):
 
         verdicts = Verdicts(
             testcases,
-            self.limits['timeout'],
+            self.limits["timeout"],
             run_until,
         )
 
@@ -393,28 +393,28 @@ class Submission(program.Program):
 
             # Print stderr whenever something is printed
             if result.out and result.err:
-                output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
+                output_type = "PROGRAM STDERR" if self.problem.interactive else "STDOUT"
                 data = (
-                    f'STDERR:'
+                    f"STDERR:"
                     + localbar._format_data(result.err)
-                    + f'\n{output_type}:'
+                    + f"\n{output_type}:"
                     + localbar._format_data(result.out)
-                    + '\n'
+                    + "\n"
                 )
             else:
-                data = ''
+                data = ""
                 if result.err:
                     data = crop_output(result.err)
                 if result.out:
                     data = crop_output(result.out)
 
-            judgemessage = run.feedbackdir / 'judgemessage.txt'
-            judgeerror = run.feedbackdir / 'judgeerror.txt'
+            judgemessage = run.feedbackdir / "judgemessage.txt"
+            judgeerror = run.feedbackdir / "judgeerror.txt"
             # Add data from feedbackdir.
             for f in run.feedbackdir.iterdir():
                 if f in [judgemessage, judgeerror]:
                     continue
-                if f.name.startswith('.'):
+                if f.name.startswith("."):
                     continue  # skip "hidden" files
                 if not f.is_file():
                     localbar.warn(f"Validator wrote to {f} but it's not a file.")
@@ -423,29 +423,29 @@ class Submission(program.Program):
                     t = f.read_text()
                 except UnicodeDecodeError:
                     localbar.warn(
-                        f'Validator wrote to {f} but it cannot be parsed as unicode text.'
+                        f"Validator wrote to {f} but it cannot be parsed as unicode text."
                     )
                     continue
                 if not t:
                     continue
-                if len(data) > 0 and data[-1] != '\n':
-                    data += '\n'
-                data += f'{f.name}:' + localbar._format_data(t) + '\n'
+                if len(data) > 0 and data[-1] != "\n":
+                    data += "\n"
+                data += f"{f.name}:" + localbar._format_data(t) + "\n"
 
             got_expected = result.verdict in [Verdict.ACCEPTED] + self.expected_verdicts
 
             if result.verdict == Verdict.ACCEPTED:
-                color = f'{Style.DIM}'
+                color = f"{Style.DIM}"
             else:
                 color = Fore.GREEN if got_expected else Fore.RED
-            timeout = result.duration >= self.limits['timeout']
-            duration_style = Style.BRIGHT if timeout else ''
+            timeout = result.duration >= self.limits["timeout"]
+            duration_style = Style.BRIGHT if timeout else ""
             passmsg = (
-                f':{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}' if self.problem.multipass else ''
+                f":{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}" if self.problem.multipass else ""
             )
-            testcase = f'{run.name}{Style.RESET_ALL}{passmsg}'
-            style_len = len(f'{Style.RESET_ALL}')
-            message = f'{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {testcase:{max_testcase_len+style_len}}'
+            testcase = f"{run.name}{Style.RESET_ALL}{passmsg}"
+            style_len = len(f"{Style.RESET_ALL}")
+            message = f"{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {testcase:{max_testcase_len+style_len}}"
 
             # Update padding since we already print the testcase name after the verdict.
             localbar.item_width = padding_len
@@ -456,7 +456,7 @@ class Submission(program.Program):
             p.put(run)
         p.done()
 
-        self.verdict = verdicts['.']
+        self.verdict = verdicts["."]
         assert isinstance(self.verdict, Verdict), "Verdict of root must not be empty"
 
         # Use a bold summary line if things were printed before.
@@ -471,10 +471,10 @@ class Submission(program.Program):
 
         (salient_testcase, salient_duration) = verdicts.salient_testcase()
         salient_print_verdict = self.verdict
-        salient_duration_style = Style.BRIGHT if salient_duration >= self.limits['timeout'] else ''
+        salient_duration_style = Style.BRIGHT if salient_duration >= self.limits["timeout"] else ""
 
         # Summary line is the only thing shown.
-        message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_testcase:{max_testcase_len}}{Style.RESET_ALL}'
+        message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_testcase:{max_testcase_len}}{Style.RESET_ALL}"
 
         if verdicts.run_until in [RunUntil.DURATION, RunUntil.ALL]:
             slowest_pair = verdicts.slowest_testcase()
@@ -492,10 +492,10 @@ class Submission(program.Program):
             )
 
             slowest_duration_style = (
-                Style.BRIGHT if slowest_duration >= self.limits['timeout'] else ''
+                Style.BRIGHT if slowest_duration >= self.limits["timeout"] else ""
             )
 
-            message += f' {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_testcase}{Style.RESET_ALL}'
+            message += f" {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_testcase}{Style.RESET_ALL}"
 
         bar.item_width -= max_testcase_len + 1
         printed_newline = bar.finalize(message=message, suppress_newline=config.args.tree)
@@ -508,7 +508,7 @@ class Submission(program.Program):
         return self.verdict in self.expected_verdicts, printed_newline
 
     def test(self):
-        print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
+        print(ProgressBar.action("Running", str(self.name)), file=sys.stderr)
 
         testcases = self.problem.testcases(needans=False)
 
@@ -518,12 +518,12 @@ class Submission(program.Program):
                 return
 
         for testcase in testcases:
-            header = ProgressBar.action('Running ' + str(self.name), testcase.name)
+            header = ProgressBar.action("Running " + str(self.name), testcase.name)
             print(header, file=sys.stderr)
 
             if not self.problem.interactive:
                 assert self.run_command is not None
-                with testcase.in_path.open('rb') as inf:
+                with testcase.in_path.open("rb") as inf:
                     result = self._exec_command(
                         self.run_command,
                         crop=False,
@@ -533,28 +533,28 @@ class Submission(program.Program):
                     )
 
                 assert result.err is None and result.out is None
-                if result.duration >= self.limits['timeout']:
-                    status = f'{Fore.RED}Aborted!'
+                if result.duration >= self.limits["timeout"]:
+                    status = f"{Fore.RED}Aborted!"
                     config.n_error += 1
                 elif not result.status and result.status != ExecStatus.TIMEOUT:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                 elif (
                     result.duration > self.problem.settings.timelimit
                     or result.status == ExecStatus.TIMEOUT
                 ):
-                    status = f'{Fore.YELLOW}Done (TLE):'
+                    status = f"{Fore.YELLOW}Done (TLE):"
                     config.n_warn += 1
                 else:
-                    status = f'{Fore.GREEN}Done:'
+                    status = f"{Fore.GREEN}Done:"
 
                 if status:
                     print(
-                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                 print(file=sys.stderr)
@@ -568,12 +568,12 @@ class Submission(program.Program):
                 if result.verdict != Verdict.ACCEPTED:
                     config.n_error += 1
                     print(
-                        f'{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                 else:
                     print(
-                        f'{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
 
@@ -584,7 +584,7 @@ class Submission(program.Program):
             if output_validators is False:
                 return
 
-        bar = ProgressBar('Running ' + str(self.name), max_len=1, count=1)
+        bar = ProgressBar("Running " + str(self.name), max_len=1, count=1)
         bar.start()
         # print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
 
@@ -593,7 +593,7 @@ class Submission(program.Program):
         tc = 0
         while True:
             tc += 1
-            name = f'run {tc}'
+            name = f"run {tc}"
             bar.update(1, len(name))
             bar.start(name)
             # Reinitialize the underlying program, so that changed to the source
@@ -605,21 +605,21 @@ class Submission(program.Program):
                 limits=self.limits,
                 skip_double_build_warning=True,
             )
-            bar.log('from stdin' if is_tty else 'from file')
+            bar.log("from stdin" if is_tty else "from file")
 
             # Launch a separate thread to pass stdin to a pipe.
             r, w = os.pipe()
             ok = True
             eof = False
 
-            TEE_CODE = R'''
+            TEE_CODE = R"""
 import sys
 while True:
     l = sys.stdin.read(1)
     if l=='': break
     sys.stdout.write(l)
     sys.stdout.flush()
-'''
+"""
             writer = None
 
             # Wait for first input
@@ -631,12 +631,12 @@ while True:
                     # needed after the first line has been entered.
                     if not self.build(bar):
                         return
-                    os.write(w, bytes(l, 'utf8'))
+                    os.write(w, bytes(l, "utf8"))
                     break
                 if not read:
                     return
 
-                writer = subprocess.Popen(['python3', '-c', TEE_CODE], stdin=None, stdout=w)
+                writer = subprocess.Popen(["python3", "-c", TEE_CODE], stdin=None, stdout=w)
 
                 assert self.run_command is not None
                 result = self._exec_command(
@@ -653,15 +653,15 @@ while True:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                 else:
-                    status = f'{Fore.GREEN}Done:'
+                    status = f"{Fore.GREEN}Done:"
 
                 if status:
                     print(
-                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                 print(file=sys.stderr)

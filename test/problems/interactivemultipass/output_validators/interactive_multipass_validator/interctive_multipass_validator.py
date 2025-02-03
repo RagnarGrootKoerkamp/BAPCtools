@@ -9,7 +9,7 @@ if test_in < 0:
     # first pass
     if team_ans < 0:
         sys.exit(43)  # WA
-    nextpass = pathlib.Path(sys.argv[3]) / 'nextpass.in'
+    nextpass = pathlib.Path(sys.argv[3]) / "nextpass.in"
     nextpass.write_text(str(team_ans))
     sys.exit(42)  # AC + nextpass.in => next run
 else:

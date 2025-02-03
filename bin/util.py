@@ -29,7 +29,7 @@ try:
     import ruamel.yaml
 
     has_ryaml = True
-    ryaml = ruamel.yaml.YAML(typ='rt')
+    ryaml = ruamel.yaml.YAML(typ="rt")
     ryaml.default_flow_style = False
     ryaml.indent(mapping=2, sequence=4, offset=2)
     ryaml.width = sys.maxsize
@@ -42,11 +42,11 @@ ruamel_lock = threading.Lock()
 
 
 def is_windows() -> bool:
-    return sys.platform in ['win32', 'cygwin']
+    return sys.platform in ["win32", "cygwin"]
 
 
 def is_mac() -> bool:
-    return sys.platform in ['darwin']
+    return sys.platform in ["darwin"]
 
 
 def is_freebsd() -> bool:
@@ -76,34 +76,34 @@ def exit1(force=False) -> NoReturn:
 
 
 def debug(*msg: Any) -> None:
-    print(Fore.CYAN, end='', file=sys.stderr)
-    print('DEBUG:', *msg, end='', file=sys.stderr)
+    print(Fore.CYAN, end="", file=sys.stderr)
+    print("DEBUG:", *msg, end="", file=sys.stderr)
     print(Style.RESET_ALL, file=sys.stderr)
 
 
 def log(msg: Any) -> None:
-    print(f'{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}', file=sys.stderr)
+    print(f"{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}", file=sys.stderr)
 
 
 def verbose(msg: Any) -> None:
     if config.args.verbose >= 1:
-        print(f'{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}', file=sys.stderr)
+        print(f"{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}", file=sys.stderr)
 
 
 def warn(msg: Any) -> None:
-    print(f'{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}', file=sys.stderr)
+    print(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}", file=sys.stderr)
     config.n_warn += 1
 
 
 def error(msg: Any) -> None:
     if config.RUNNING_TEST:
         fatal(msg)
-    print(f'{Fore.RED}ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
+    print(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
     config.n_error += 1
 
 
 def fatal(msg: Any, *, force=threading.active_count() > 1) -> NoReturn:
-    print(f'\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}', file=sys.stderr)
+    print(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
     exit1(force)
 
 
@@ -122,12 +122,12 @@ class MessageType(Enum):
         }[self]
 
 
-def message(msg, task=None, item=None, *, color_type=''):
+def message(msg, task=None, item=None, *, color_type=""):
     if task is not None:
-        print(f'{Fore.CYAN}{task}{Style.RESET_ALL}: ', end='', file=sys.stderr)
+        print(f"{Fore.CYAN}{task}{Style.RESET_ALL}: ", end="", file=sys.stderr)
     if item is not None:
-        print(item, end='   ', file=sys.stderr)
-    print(f'{color_type}{msg}{Style.RESET_ALL}', file=sys.stderr)
+        print(item, end="   ", file=sys.stderr)
+    print(f"{color_type}{msg}{Style.RESET_ALL}", file=sys.stderr)
     if color_type == MessageType.WARN:
         config.n_warn += 1
     if color_type == MessageType.ERROR:
@@ -208,8 +208,8 @@ class ProgressBar:
         self.item_width = max_len + 1  # The max length of the items we're processing
         self.count = count  # The number of items we're processing
         self.i = 0
-        emptyline = ' ' * self.total_width() + '\r'
-        self.carriage_return = emptyline if is_windows() else '\033[K'
+        emptyline = " " * self.total_width() + "\r"
+        self.carriage_return = emptyline if is_windows() else "\033[K"
         self.logged = False
         self.global_logged = False
 
@@ -233,7 +233,7 @@ class ProgressBar:
         ProgressBar.lock_depth -= 1
         ProgressBar.lock.__exit__(*args)
 
-    def _print(self, *objects, sep='', end='\n', file=sys.stderr, flush=True):
+    def _print(self, *objects, sep="", end="\n", file=sys.stderr, flush=True):
         print(*objects, sep=sep, end=end, file=file, flush=flush)
 
     def total_width(self):
@@ -259,19 +259,19 @@ class ProgressBar:
         if config.args.no_bar:
             return
         assert self._is_locked()
-        self._print(self.carriage_return, end='', flush=False)
+        self._print(self.carriage_return, end="", flush=False)
 
     @staticmethod
     def action(prefix, item, width=None, total_width=None, print_item=True):
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
-        item = '' if item is None else (item if isinstance(item, str) else item.name)
+        item = "" if item is None else (item if isinstance(item, str) else item.name)
         if width is not None and len(item) > width:
             item = item[:width]
         if width is None or width <= 0:
             width = 0
         if print_item:
-            return f'{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}'
+            return f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}"
         else:
             return f'{Fore.CYAN}{prefix}{Style.RESET_ALL}: {" " * width}'
 
@@ -283,13 +283,13 @@ class ProgressBar:
     def get_bar(self):
         bar_width = self.bar_width()
         if self.count is None or bar_width < 4:
-            return ''
+            return ""
         done = (self.i - 1) * (bar_width - 2) // self.count
-        text = f' {self.i}/{self.count}'
-        fill = '#' * done + '-' * (bar_width - 2 - done)
+        text = f" {self.i}/{self.count}"
+        fill = "#" * done + "-" * (bar_width - 2 - done)
         if len(text) <= len(fill):
             fill = fill[: -len(text)] + text
-        return '[' + fill + ']'
+        return "[" + fill + "]"
 
     def draw_bar(self):
         assert self._is_locked()
@@ -297,10 +297,10 @@ class ProgressBar:
             return
         bar = self.get_bar()
         prefix = self.get_prefix()
-        if bar is None or bar == '':
-            self._print(prefix, end='\r')
+        if bar is None or bar == "":
+            self._print(prefix, end="\r")
         else:
-            self._print(prefix, bar, end='\r')
+            self._print(prefix, bar, end="\r")
 
     # Remove the current item from in_progress.
     def _release_item(self):
@@ -329,14 +329,14 @@ class ProgressBar:
                 p = self.item
             self.draw_bar()
 
-    def start(self, item=''):
+    def start(self, item=""):
         with self:
             # start may only be called on the root bar.
             assert self.parent is None
             self.i += 1
             assert (
                 self.count is None or self.i <= self.count
-            ), f'Starting more items than the max of {self.count}'
+            ), f"Starting more items than the max of {self.count}"
 
             # assert self.item is None
             self.item = item
@@ -351,16 +351,16 @@ class ProgressBar:
     @staticmethod
     def _format_data(data):
         if not data:
-            return ''
-        prefix = '  ' if data.count('\n') <= 1 else '\n'
+            return ""
+        prefix = "  " if data.count("\n") <= 1 else "\n"
         return prefix + Fore.YELLOW + strip_newline(crop_output(data)) + Style.RESET_ALL
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message='', data='', color=Fore.GREEN, *, resume=True, print_item=True):
+    def log(self, message="", data="", color=Fore.GREEN, *, resume=True, print_item=True):
         with self:
             if message is None:
-                message = ''
+                message = ""
             self.clearline()
             self.logged = True
 
@@ -390,18 +390,18 @@ class ProgressBar:
                     self._resume()
 
     # Same as log, but only in verbose mode.
-    def debug(self, message, data='', color=Fore.GREEN, *, resume=True, print_item=True):
+    def debug(self, message, data="", color=Fore.GREEN, *, resume=True, print_item=True):
         if config.args.verbose:
             self.log(message, data, color=color, resume=resume, print_item=print_item)
 
-    def warn(self, message='', data='', *, print_item=True):
+    def warn(self, message="", data="", *, print_item=True):
         with self.lock:
             config.n_warn += 1
             self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     # Error by default removes the current item from the in_progress set.
     # Set `resume` to `True` to continue processing the item.
-    def error(self, message='', data='', resume=False, print_item=True):
+    def error(self, message="", data="", resume=False, print_item=True):
         with self:
             config.n_error += 1
             self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
@@ -414,7 +414,7 @@ class ProgressBar:
             self.i += 1
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
-    def done(self, success=True, message='', data='', print_item=True):
+    def done(self, success=True, message="", data="", print_item=True):
         with self:
             self.clearline()
 
@@ -438,7 +438,7 @@ class ProgressBar:
 
     # Log an intermediate line if it's an error or we're in verbose mode.
     # Return True when something was printed
-    def part_done(self, success=True, message='', data='', warn_instead_of_error=False):
+    def part_done(self, success=True, message="", data="", warn_instead_of_error=False):
         if not success:
             if warn_instead_of_error:
                 config.n_warn += 1
@@ -466,7 +466,7 @@ class ProgressBar:
             assert self.parent is None
             assert (
                 self.count is None or self.i == self.count
-            ), f'Bar has done only {self.i} of {self.count} items'
+            ), f"Bar has done only {self.i} of {self.count} items"
             assert self.item is None
             # At most one of print_done and message may be passed.
             if message:
@@ -478,7 +478,7 @@ class ProgressBar:
 
             # Print 'DONE' when nothing was printed yet but a summary was requested.
             if print_done and not self.global_logged and not message:
-                message = f'{Fore.GREEN}Done{Style.RESET_ALL}'
+                message = f"{Fore.GREEN}Done{Style.RESET_ALL}"
 
             if message:
                 self._print(self.get_prefix(), message)
@@ -522,7 +522,7 @@ def resolve_path_argument(problem, path, type, suffixes=[]):
             p = basedir / suffixed_path
             if p.exists():
                 return p
-    warn(f'{path} not found')
+    warn(f"{path} not found")
     return None
 
 
@@ -533,7 +533,7 @@ def shorten_path(problem, path):
     if not path.resolve().is_relative_to(problem.tmpdir):
         return path
     short_hash = hashlib.sha256(bytes(path)).hexdigest()[-6:]
-    dir = problem.tmpdir / 'links'
+    dir = problem.tmpdir / "links"
     dir.mkdir(parents=True, exist_ok=True)
     short_path = dir / short_hash
     ensure_symlink(short_path, path)
@@ -544,7 +544,7 @@ def path_size(path):
     if path.is_file():
         return path.stat().st_size
     else:
-        return sum(f.stat().st_size for f in path.rglob('*') if f.exists())
+        return sum(f.stat().st_size for f in path.rglob("*") if f.exists())
 
 
 # Drops the first two path components <problem>/<type>/
@@ -561,9 +561,9 @@ def parse_yaml(data, path=None, plain=False):
                 ret = ryaml.load(data)
             except ruamel.yaml.constructor.DuplicateKeyError as error:
                 if path is not None:
-                    fatal(f'Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}')
+                    fatal(f"Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}")
                 else:
-                    fatal(f'Duplicate key in yaml object!\n{str(error)}')
+                    fatal(f"Duplicate key in yaml object!\n{str(error)}")
         return ret
 
     else:
@@ -572,12 +572,12 @@ def parse_yaml(data, path=None, plain=False):
 
             return yaml.safe_load(data)
         except Exception as e:
-            print(f'{Fore.YELLOW}{e}{Style.RESET_ALL}', end='', file=sys.stderr)
-            fatal(f'Failed to parse {path}.')
+            print(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="", file=sys.stderr)
+            fatal(f"Failed to parse {path}.")
 
 
 def read_yaml(path, plain=False):
-    assert path.is_file(), f'File {path} does not exist'
+    assert path.is_file(), f"File {path} does not exist"
     return parse_yaml(path.read_text(), path=path, plain=plain)
 
 
@@ -591,7 +591,7 @@ def read_yaml_settings(path):
         if isinstance(config, list):
             return config
         for key, value in config.items():
-            settings[key] = '' if value is None else value
+            settings[key] = "" if value is None else value
     return settings
 
 
@@ -604,7 +604,7 @@ def write_yaml(data, path=None, allow_yamllib=False):
     if not has_ryaml:
         if not allow_yamllib:
             error(
-                'This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.'
+                "This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml."
             )
             exit(1)
         if path is None:
@@ -626,7 +626,7 @@ def write_yaml(data, path=None, allow_yamllib=False):
             transform=(
                 (
                     lambda yaml_str: "\n".join(
-                        line if line.strip().startswith('#') else line[2:]
+                        line if line.strip().startswith("#") else line[2:]
                         for line in yaml_str.split("\n")
                     )
                 )
@@ -642,22 +642,22 @@ def write_yaml(data, path=None, allow_yamllib=False):
 
 # Parse validation mode
 def parse_validation(mode):
-    if mode == 'default':
+    if mode == "default":
         return {
-            'mode': 'default',
-            'interactive': False,
-            'multi-pass': False,
+            "mode": "default",
+            "interactive": False,
+            "multi-pass": False,
         }
     else:
         res = {
-            'mode': 'custom',
-            'interactive': 'interactive' in mode,
-            'multi-pass': 'multi-pass' in mode,
+            "mode": "custom",
+            "interactive": "interactive" in mode,
+            "multi-pass": "multi-pass" in mode,
         }
-        temp = mode.replace(' interactive', '', 1)
-        temp = temp.replace(' multi-pass', '', 1)
-        if temp != 'custom':
-            fatal(f'Unrecognised validation mode {mode}.')
+        temp = mode.replace(" interactive", "", 1)
+        temp = temp.replace(" multi-pass", "", 1)
+        if temp != "custom":
+            fatal(f"Unrecognised validation mode {mode}.")
         return res
 
 
@@ -666,17 +666,17 @@ def glob(path: Path, expression: str, include_hidden=False) -> list[Path]:
     def keep(p: Path):
         if not include_hidden:
             for d in p.parts:
-                if d[0] == '.':
+                if d[0] == ".":
                     return False
 
-        if p.suffix in ['.template', '.disabled']:
+        if p.suffix in [".template", ".disabled"]:
             return False
 
         if config.RUNNING_TEST:
             suffixes = p.suffixes
-            if len(suffixes) >= 1 and suffixes[-1] == '.bad':
+            if len(suffixes) >= 1 and suffixes[-1] == ".bad":
                 return False
-            if len(suffixes) >= 2 and suffixes[-2] == '.bad':
+            if len(suffixes) >= 2 and suffixes[-2] == ".bad":
                 return False
 
         return True
@@ -685,7 +685,7 @@ def glob(path: Path, expression: str, include_hidden=False) -> list[Path]:
 
 
 def strip_newline(s: str) -> str:
-    if s.endswith('\n'):
+    if s.endswith("\n"):
         return s[:-1]
     else:
         return s
@@ -693,10 +693,10 @@ def strip_newline(s: str) -> str:
 
 # check if windows supports symlinks
 if is_windows():
-    link_parent = Path(tempfile.gettempdir()) / 'bapctools'
-    link_dest = link_parent / 'dir'
+    link_parent = Path(tempfile.gettempdir()) / "bapctools"
+    link_dest = link_parent / "dir"
     link_dest.mkdir(parents=True, exist_ok=True)
-    link_src = link_parent / 'link'
+    link_src = link_parent / "link"
     if link_src.exists() or link_src.is_symlink():
         link_src.unlink()
     try:
@@ -705,12 +705,12 @@ if is_windows():
     except OSError:
         windows_can_symlink = False
         warn(
-            '''Please enable the developer mode in Windows to enable symlinks!
+            """Please enable the developer mode in Windows to enable symlinks!
 - Open the Windows Settings
 - Go to "Update & security"
 - Go to "For developers"
 - Enable the option "Developer Mode"
-'''
+"""
         )
 
 
@@ -756,10 +756,10 @@ def substitute(data, variables):
     if variables is None:
         return data
     for key in variables:
-        r = ''
+        r = ""
         if variables[key] != None:
             r = variables[key]
-        data = data.replace('{%' + key + '%}', str(r))
+        data = data.replace("{%" + key + "%}", str(r))
     return data
 
 
@@ -781,7 +781,7 @@ def substitute_file_variables(path, variables):
 
 
 def substitute_dir_variables(dirname, variables):
-    for path in dirname.rglob('*'):
+    for path in dirname.rglob("*"):
         if path.is_file():
             substitute_file_variables(path, variables)
 
@@ -843,32 +843,32 @@ def crop_output(output):
     if config.args.error:
         return output
 
-    lines = output.split('\n')
+    lines = output.split("\n")
     numlines = len(lines)
     cropped = False
     # Cap number of lines
     if numlines > 30:
-        output = '\n'.join(lines[:25])
-        output += '\n'
+        output = "\n".join(lines[:25])
+        output += "\n"
         cropped = True
 
     # Cap total length.
     if len(output) > 2000:
         output = output[:2000]
-        output += ' ...\n'
+        output += " ...\n"
         cropped = True
 
     if cropped:
-        output += Fore.YELLOW + 'Use -e to show more.' + Style.RESET_ALL
+        output += Fore.YELLOW + "Use -e to show more." + Style.RESET_ALL
     return output
 
 
 def tail(string, limit):
-    lines = string.split('\n')
+    lines = string.split("\n")
     if len(lines) > limit:
         lines = lines[-limit:]
-        lines[0] = f'{Style.DIM}[...]{Style.RESET_ALL}'
-    return '\n'.join(lines)
+        lines[0] = f"{Style.DIM}[...]{Style.RESET_ALL}"
+    return "\n".join(lines)
 
 
 class ExecStatus(Enum):
@@ -917,7 +917,7 @@ def limit_setter(command, timeout, memory_limit, group=None, cores=False):
 
         if (
             memory_limit
-            and not Path(command[0]).name in ['java', 'javac', 'kotlin', 'kotlinc']
+            and not Path(command[0]).name in ["java", "javac", "kotlin", "kotlinc"]
             and not is_bsd()
         ):
             resource.setrlimit(
@@ -944,7 +944,7 @@ class ResourcePopen(subprocess.Popen):
     rusage: Any  # TODO #102: use stricter type than `Any`
 
     # If wait4 is available, store resource usage information.
-    if 'wait4' in dir(os):
+    if "wait4" in dir(os):
 
         def _try_wait(self, wait_flags):
             """All callers to this function MUST hold self._waitpid_lock."""
@@ -1004,39 +1004,39 @@ def exec_command(
     **kwargs,
 ):
     # By default: discard stdout, return stderr
-    if 'stdout' not in kwargs or kwargs['stdout'] is True:
-        kwargs['stdout'] = subprocess.PIPE
-    if 'stderr' not in kwargs or kwargs['stderr'] is True:
-        kwargs['stderr'] = subprocess.PIPE
+    if "stdout" not in kwargs or kwargs["stdout"] is True:
+        kwargs["stdout"] = subprocess.PIPE
+    if "stderr" not in kwargs or kwargs["stderr"] is True:
+        kwargs["stderr"] = subprocess.PIPE
 
     # Convert any Pathlib objects to string.
     command = [str(x) for x in command]
 
     if config.args.verbose >= 2:
-        if 'cwd' in kwargs:
-            print('cd', kwargs['cwd'], '; ', end='', file=sys.stderr)
+        if "cwd" in kwargs:
+            print("cd", kwargs["cwd"], "; ", end="", file=sys.stderr)
         else:
-            print('cd', Path.cwd(), '; ', end='', file=sys.stderr)
-        print(*command, end='', file=sys.stderr)
-        if 'stdin' in kwargs:
-            print(' < ', kwargs['stdin'].name, end='', file=sys.stderr)
+            print("cd", Path.cwd(), "; ", end="", file=sys.stderr)
+        print(*command, end="", file=sys.stderr)
+        if "stdin" in kwargs:
+            print(" < ", kwargs["stdin"].name, end="", file=sys.stderr)
         print(file=sys.stderr)
 
     timeout: Optional[int] = config.DEFAULT_TIMEOUT
-    if 'timeout' in kwargs:
-        if kwargs['timeout'] is None:
+    if "timeout" in kwargs:
+        if kwargs["timeout"] is None:
             timeout = None
-        elif kwargs['timeout']:
-            timeout = kwargs['timeout']
-        kwargs.pop('timeout')
+        elif kwargs["timeout"]:
+            timeout = kwargs["timeout"]
+        kwargs.pop("timeout")
     if timeout is not None and math.isinf(timeout):
         timeout = None
 
     memory: Optional[int] = None
-    if 'memory' in kwargs:
-        if kwargs['memory'] is not None:
-            memory = kwargs['memory']
-        kwargs.pop('memory')
+    if "memory" in kwargs:
+        if kwargs["memory"] is not None:
+            memory = kwargs["memory"]
+        kwargs.pop("memory")
     if config.args.memory:
         memory_limit = config.args.memory
     if is_windows() or config.args.sanitizer:
@@ -1048,7 +1048,7 @@ def exec_command(
         nonlocal process
         if process is not None:
             process.kill()
-        fatal('Running interrupted', force=True)
+        fatal("Running interrupted", force=True)
 
     if threading.current_thread() is threading.main_thread():
         old_handler = signal.signal(signal.SIGINT, interrupt_handler)
@@ -1088,7 +1088,7 @@ def exec_command(
     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
     if process.returncode == -2:
         if threading.current_thread() is threading.main_thread():
-            fatal('Running interrupted')
+            fatal("Running interrupted")
         else:
             raise ChildProcessError()
 
@@ -1096,10 +1096,10 @@ def exec_command(
         return crop_output(s) if crop else s
 
     ok = exec_code_map(process.returncode)
-    err = maybe_crop(stderr.decode('utf-8', 'replace')) if stderr is not None else None
-    out = maybe_crop(stdout.decode('utf-8', 'replace')) if stdout is not None else None
+    err = maybe_crop(stderr.decode("utf-8", "replace")) if stderr is not None else None
+    out = maybe_crop(stdout.decode("utf-8", "replace")) if stdout is not None else None
 
-    if hasattr(process, 'rusage'):
+    if hasattr(process, "rusage"):
         duration = process.rusage.ru_utime + process.rusage.ru_stime
         # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
         # To prevent under-reporting the duration, we take the max with wall time in this case.
@@ -1113,11 +1113,11 @@ def exec_command(
 
 def inc_label(label):
     for x in range(len(label) - 1, -1, -1):
-        if label[x] != 'Z':
+        if label[x] != "Z":
             label = label[:x] + chr(ord(label[x]) + 1) + label[x + 1 :]
             return label
-        label = label[:x] + 'A' + label[x + 1 :]
-    return 'A' + label
+        label = label[:x] + "A" + label[x + 1 :]
+    return "A" + label
 
 
 def combine_hashes(values):
@@ -1148,7 +1148,7 @@ def hash_file_content(file, buffer_size=65536):
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
     sha = hashlib.sha512(usedforsecurity=False)
 
-    with open(file, 'rb') as f:
+    with open(file, "rb") as f:
         while True:
             data = f.read(buffer_size)
             if not data:
@@ -1162,11 +1162,11 @@ def hash_file(file, buffer_size=65536):
     if not file.is_file():
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
     sha = hashlib.sha512(usedforsecurity=False)
-    name = file.name.encode('utf-8')
-    sha.update(len(name).to_bytes(8, 'big'))
+    name = file.name.encode("utf-8")
+    sha.update(len(name).to_bytes(8, "big"))
     sha.update(name)
 
-    with open(file, 'rb') as f:
+    with open(file, "rb") as f:
         while True:
             data = f.read(buffer_size)
             if not data:
@@ -1193,7 +1193,7 @@ def generate_problem_uuid():
     uuid_bytes[8] &= 0b0011_1111
     # format as uuid
     uuid = uuid_bytes.hex()
-    uuid = f'{uuid[0:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:32]}'
+    uuid = f"{uuid[0:8]}-{uuid[8:12]}-{uuid[12:16]}-{uuid[16:20]}-{uuid[20:32]}"
     # make the first bytes BAPCtools specific
     uuid = config.BAPC_UUID[: config.BAPC_UUID_PREFIX] + uuid[config.BAPC_UUID_PREFIX :]
     return uuid

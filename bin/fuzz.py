@@ -47,27 +47,27 @@ class GeneratorTask:
 
     def _run(self, bar):
         # GENERATE THE TEST DATA
-        dir = Path('fuzz') / f'tmp_id_{str(self.tmp_id)}'
-        cwd = self.fuzz.problem.tmpdir / 'tool_runs' / dir
+        dir = Path("fuzz") / f"tmp_id_{str(self.tmp_id)}"
+        cwd = self.fuzz.problem.tmpdir / "tool_runs" / dir
         cwd.mkdir(parents=True, exist_ok=True)
-        name = 'testcase'
-        infile = cwd / (name + '.in')
-        ansfile = cwd / (name + '.ans')
+        name = "testcase"
+        infile = cwd / (name + ".in")
+        ansfile = cwd / (name + ".ans")
 
-        localbar = bar.start(f'{self.i}: {self.command}')
+        localbar = bar.start(f"{self.i}: {self.command}")
         localbar.log()
         localbar.done()
 
-        localbar = bar.start(f'{self.i}: generate')
+        localbar = bar.start(f"{self.i}: generate")
         result = self.generator.run(localbar, cwd, name, self.seed)
         if not result.status:
             return False  # No need to call bar.done() in this case, because the Generator calls bar.error()
         localbar.done()
 
-        testcase = Testcase(self.fuzz.problem, infile, short_path=dir / (name + '.in'))
+        testcase = Testcase(self.fuzz.problem, infile, short_path=dir / (name + ".in"))
 
         # Validate the generated .in.
-        localbar = bar.start(f'{self.i}: validate input')
+        localbar = bar.start(f"{self.i}: validate input")
         if not testcase.validate_format(Mode.INPUT, bar=localbar, constraints=None):
             localbar.done(False)
             return False
@@ -79,24 +79,24 @@ class GeneratorTask:
                 if testcase.ans_path.is_file():
                     testcase.ans_path.unlink()
                 # Run the solution and validate the generated .ans.
-                localbar = bar.start(f'{self.i}: generate ans')
+                localbar = bar.start(f"{self.i}: generate ans")
                 if not self.solution.run(bar, cwd).status:
                     localbar.done()
                     return False
                 localbar.done()
 
             if ansfile.is_file():
-                localbar = bar.start(f'{self.i}: validate output')
+                localbar = bar.start(f"{self.i}: validate output")
                 if not testcase.validate_format(Mode.ANSWER, bar=localbar):
                     localbar.done(False)
                     return False
                 localbar.done()
             else:
-                bar.error(f'{self.i}: {ansfile.name} was not generated.')
+                bar.error(f"{self.i}: {ansfile.name} was not generated.")
                 return False
         else:
             if not testcase.ans_path.is_file():
-                testcase.ans_path.write_text('')
+                testcase.ans_path.write_text("")
 
         # Run all submissions against the testcase.
         with self.fuzz.queue:
@@ -115,8 +115,8 @@ class GeneratorTask:
                 save = True
         # only save rule if we set self.saved to True
         if save and not self.fuzz.queue.aborted:
-            localbar = bar.start(f'{self.i}: {self.command}')
-            localbar.log('Saving testcase in generators.yaml.')
+            localbar = bar.start(f"{self.i}: {self.command}")
+            localbar.log("Saving testcase in generators.yaml.")
             localbar.done()
             self.fuzz.save_test(self.command)
 
@@ -134,11 +134,11 @@ class SubmissionTask:
 
     def _run(self, bar):
         r = run.Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
-        localbar = bar.start(f'{self.generator_task.i}: {self.submission.name}')
+        localbar = bar.start(f"{self.generator_task.i}: {self.submission.name}")
         result = r.run(localbar)
         if result.verdict != Verdict.ACCEPTED:
             self.generator_task.save_test(bar)
-            localbar.done(False, f'{result.verdict}!')
+            localbar.done(False, f"{result.verdict}!")
         else:
             localbar.done()
 
@@ -179,22 +179,22 @@ class Fuzz:
 
     def run(self):
         if not has_ryaml:
-            error('Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.')
+            error("Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
             return False
 
         if len(self.testcase_rules) == 0:
-            error('No invocations depending on {seed} found.')
+            error("No invocations depending on {seed} found.")
             return False
 
         if not self.submissions:
-            error('No submissions found.')
+            error("No submissions found.")
             return False
 
-        message('Press CTRL+C to stop\n', 'Fuzz', color_type=MessageType.LOG)
+        message("Press CTRL+C to stop\n", "Fuzz", color_type=MessageType.LOG)
 
         # config.args.no_bar = True
         # max(len(s.name) for s in self.submissions)
-        bar = ProgressBar('Fuzz', max_len=60)
+        bar = ProgressBar("Fuzz", max_len=60)
         self.start_time = time.monotonic()
         self.iteration = 0
         self.tasks = 0
@@ -203,14 +203,14 @@ class Fuzz:
 
         def soft_exit(sig, frame):
             if self.queue.aborted:
-                fatal('Running interrupted', force=True)
+                fatal("Running interrupted", force=True)
             else:
                 self.queue.abort()
                 with bar:
                     bar.clearline()
                     message(
-                        'Running interrupted (waiting on remaining tasks)\n',
-                        '\nFuzz',
+                        "Running interrupted (waiting on remaining tasks)\n",
+                        "\nFuzz",
                         color_type=MessageType.ERROR,
                     )
 
@@ -230,7 +230,7 @@ class Fuzz:
         self.queue.done()
 
         if self.queue.aborted:
-            fatal('Running interrupted', force=True)
+            fatal("Running interrupted", force=True)
 
         bar.done()
         bar.finalize()
@@ -269,7 +269,7 @@ class Fuzz:
     # lock between read and write to ensure that no rule gets lost
     def save_test(self, command):
         with self.generators_yaml_mutex:
-            generators_yaml = self.problem.path / 'generators/generators.yaml'
+            generators_yaml = self.problem.path / "generators/generators.yaml"
             data = None
             if generators_yaml.is_file():
                 data = read_yaml(generators_yaml)
@@ -283,12 +283,12 @@ class Fuzz:
                 assert isinstance(yaml[key], t)
                 return yaml[key]
 
-            parent = get_or_add(data, 'data')
-            parent = get_or_add(parent, 'fuzz')
-            entry = get_or_add(parent, 'data', ruamel.yaml.comments.CommentedSeq)
+            parent = get_or_add(data, "data")
+            parent = get_or_add(parent, "fuzz")
+            entry = get_or_add(parent, "data", ruamel.yaml.comments.CommentedSeq)
 
             entry.append(ruamel.yaml.comments.CommentedMap())
-            entry[-1][''] = command
+            entry[-1][""] = command
 
             # Overwrite generators.yaml.
             write_yaml(data, generators_yaml)
