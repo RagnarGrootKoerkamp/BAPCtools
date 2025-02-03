@@ -2,6 +2,7 @@
 import sys
 import pathlib
 
+
 def wrong_answer(message: str):
     judgemessage = pathlib.Path(sys.argv[3]) / 'judgemessage.txt'
     judgemessage.write_text(message)

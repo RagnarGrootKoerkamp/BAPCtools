@@ -50,7 +50,8 @@ class TestGeneratorConfig:
     @pytest.mark.parametrize(
         'yamldoc',
         yaml.load_all(
-            Path('test/yaml/generators/invalid_yaml/bad_generators.yaml').read_text(), Loader=yaml.SafeLoader
+            Path('test/yaml/generators/invalid_yaml/bad_generators.yaml').read_text(),
+            Loader=yaml.SafeLoader,
         ),
     )
     def test_bad_generators_yamls(self, yamldoc):

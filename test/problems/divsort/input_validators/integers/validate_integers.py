@@ -6,7 +6,7 @@ line = sys.stdin.readline()
 if not len(line.split()) == 4:
     print("Expected 4 tokens, got {len(line.split())}", file=sys.stderr)
     sys.exit(43)
-a, b, _, _= line.split()
+a, b, _, _ = line.split()
 
 if '--integer' in sys.argv[1:]:
     if float(a) != int(float(a)) or float(b) != int(float(b)):
