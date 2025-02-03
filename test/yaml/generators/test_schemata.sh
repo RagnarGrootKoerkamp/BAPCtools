@@ -7,7 +7,7 @@ all_valid_yaml=(../../../doc ../../../skel/problem ../../problems valid_yaml)
 #  -j: also validate the JSON schema
 #
 # Also make sure invalide YAML in invalid_yaml/*generators.yaml is rejected;
-# here the yaml can be split using `---` and each snippet is individually 
+# here the yaml can be split using `---` and each snippet is individually
 # validated.
 
 schemadir="../../../support/schemas"

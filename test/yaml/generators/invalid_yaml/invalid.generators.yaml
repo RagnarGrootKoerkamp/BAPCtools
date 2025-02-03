@@ -108,7 +108,7 @@ data:
   sample: {data: []}
   secret:
     data:
-      '': str 
+      '': str
 ---
 data:
   sample: {data: []}
@@ -294,14 +294,14 @@ data: {sample: {data: []}, secret: {data: []}}
 #---
 # No testgroup generate
 data:
-  sample: {data: []} 
+  sample: {data: []}
   secret:
     generate: x
     data: []
 ---
 # Testcases may not have data:
 data:
-  sample: {data: []} 
+  sample: {data: []}
   secret:
     data:
       a:
@@ -310,21 +310,21 @@ data:
 ---
 ## Keys are strings
 #data:
-#  sample: {data: []} 
+#  sample: {data: []}
 #  secret:
 #    data:
 #      1.: { in: a }
 #---
 ## Keys are strings
 #data:
-#  sample: {data: []} 
+#  sample: {data: []}
 #  secret:
 #    data:
 #      true: { in: a }
 #---
 ## Keys are strings; here "1" and "1" are given twice (with different content)
 #data:
-#  sample: {data: []} 
+#  sample: {data: []}
 #  secret:
 #    data:
 #      '1': a
@@ -332,27 +332,27 @@ data:
 #---
 ## Keys are strings
 #data:
-#  sample: {data: []} 
+#  sample: {data: []}
 #  secret:
 #    data:
 #      01: a
 #      '1': a
 #---
 #data:
-#  sample: {data: []} 
+#  sample: {data: []}
 #  secret:
 #    data:
 #      0: a
 #---
 # Numbered cases must contain exactly one testcase
 data:
-  sample: {} 
+  sample: {}
   secret:
     data:
       - {}
 ---
 data:
-  sample: {} 
+  sample: {}
   secret:
     data:
       - a: a
@@ -360,21 +360,21 @@ data:
 ---
 # Numbered testcases must contain a dict
 data:
-  sample: {} 
+  sample: {}
   secret:
     data:
       - 1
 ---
 # Numbered testcases must contain a dict
 data:
-  sample: {} 
+  sample: {}
   secret:
     data:
       - foo
 ---
 # Numbered testcases must contain a dict
 data:
-  sample: {} 
+  sample: {}
   secret:
     data:
       - []
@@ -407,4 +407,4 @@ data:
         in: '1 2'
         visualizer: "/ab/c" # this is fine
         testdata.yaml:      # this is not
-          input_validator_flags: "connected" 
+          input_validator_flags: "connected"

@@ -20,7 +20,7 @@ data:
               ans: 5.0 abcd
       sorted:
         testdata.yaml:
-          input_validator_flags: 
+          input_validator_flags:
             strings: --sorted
         data:
           - 'sorted-integer':
@@ -52,7 +52,7 @@ data:
               in: 10.0 3.0 ab dc
               ans: 3.33 abcd
               desc: |
-                Must be AC. Compare invalid_outputs/imprecise, which is (there) 
+                Must be AC. Compare invalid_outputs/imprecise, which is (there)
                 invalid because of float_tolerance
 
   invalid_inputs:

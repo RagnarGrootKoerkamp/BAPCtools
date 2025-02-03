@@ -1,6 +1,6 @@
 name: hellounix
 author: various
-# Various tests whose behaviour is only consistent on 
+# Various tests whose behaviour is only consistent on
 # unix-y operating systems
 source:
 source_url:
