@@ -1,5 +1,4 @@
 import shutil
-import sys
 import datetime
 import re
 
@@ -157,7 +156,7 @@ def new_problem():
         if validation == "float":
             validation = "default"
             validator_flags = "validator_flags:\n  float_tolerance 1e-6\n"
-            log(f"Using default float tolerance of 1e-6")
+            log("Using default float tolerance of 1e-6")
         if validation == "custom":
             if _ask_variable_bool("interactive", False):
                 validation += " interactive"
@@ -192,7 +191,7 @@ def new_problem():
 
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
-    log(f"Copying {skeldir} to {target_dir/dirname}.")
+    log(f"Copying {skeldir} to {target_dir / dirname}.")
 
     problems_yaml = target_dir / "problems.yaml"
 

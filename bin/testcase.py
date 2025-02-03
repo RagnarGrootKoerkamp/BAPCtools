@@ -1,4 +1,4 @@
-""" Test case """
+"""Test case"""
 
 from pathlib import Path
 from typing import Type
@@ -259,7 +259,7 @@ class Testcase:
         results = []
         for validator in validators:
             name = validator.name
-            if type(validator) == validate.OutputValidator and mode == validate.Mode.ANSWER:
+            if type(validator) is validate.OutputValidator and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
             flags = self.testdata_yaml_validator_flags(validator, bar)

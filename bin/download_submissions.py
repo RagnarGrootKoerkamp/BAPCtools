@@ -30,7 +30,7 @@ def download_submissions():
     )
 
     bar.start("teams")
-    with open(f"submissions/teams.json", "w") as f:
+    with open("submissions/teams.json", "w") as f:
         f.write(json.dumps(call_api_get_json(f"/contests/{contest_id}/teams"), indent=2))
     bar.done()
 

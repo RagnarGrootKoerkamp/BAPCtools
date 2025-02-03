@@ -1,6 +1,4 @@
 import re
-import itertools
-import sys
 from collections import defaultdict
 
 import validate
@@ -73,7 +71,7 @@ def check_statement(problem, language):
             # eval is dangerous, but on the other hand we run submission code so this is fine
             text = text.replace("^", "**")
             return eval(text, {"__builtin__": None})
-        except (SyntaxError, NameError, TypeError, ZeroDivisionError) as e:
+        except (SyntaxError, NameError, TypeError, ZeroDivisionError):
             return None
 
     def constraint(text):

@@ -64,7 +64,13 @@ class Run:
                     resume=True,
                 )
                 result = ExecResult(
-                    None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
+                    None,
+                    ExecStatus.REJECTED,
+                    0,
+                    False,
+                    None,
+                    None,
+                    Verdict.VALIDATOR_CRASH,
                 )
         else:
             if interaction:
@@ -119,7 +125,13 @@ class Run:
                         resume=True,
                     )
                     result = ExecResult(
-                        None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
+                        None,
+                        ExecStatus.REJECTED,
+                        0,
+                        False,
+                        None,
+                        None,
+                        Verdict.VALIDATOR_CRASH,
                     )
                 elif result.status:
                     result.verdict = Verdict.ACCEPTED
@@ -127,7 +139,7 @@ class Run:
                 elif result.status == ExecStatus.REJECTED:
                     result.verdict = Verdict.WRONG_ANSWER
                     if nextpass and nextpass.is_file():
-                        bar.error(f"got WRONG_ANSWER but found nextpass.in", resume=True)
+                        bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
                         result.verdict = Verdict.VALIDATOR_CRASH
                 else:
                     config.n_error += 1
@@ -139,7 +151,7 @@ class Run:
                 if not self._prepare_nextpass(nextpass):
                     break
                 elif pass_id >= self.problem.limits.validation_passes:
-                    bar.error(f"exceeded limit of validation_passes", resume=True)
+                    bar.error("exceeded limit of validation_passes", resume=True)
                     result.verdict = Verdict.VALIDATOR_CRASH
                     break
 
@@ -167,7 +179,7 @@ class Run:
 
         if result.verdict and (self.feedbackdir / "nextpass.in").is_file():
             assert not self.problem.multipass
-            bar.warn(f"Validator created nextpass.in for non multi-pass problem. Ignored.")
+            bar.warn("Validator created nextpass.in for non multi-pass problem. Ignored.")
 
         self.result = result
         return result
@@ -273,7 +285,9 @@ class Submission(program.Program):
         files = (
             [self.path]
             if self.path.is_file()
-            else self.path.glob("**/*") if self.path.is_dir() else []
+            else self.path.glob("**/*")
+            if self.path.is_dir()
+            else []
         )
         for f in files:
             if not f.is_file():
@@ -348,7 +362,12 @@ class Submission(program.Program):
     # Run this submission on all testcases that are given.
     # Returns (OK verdict, printed newline)
     def run_testcases(
-        self, max_submission_name_len: int, verdict_table, testcases, *, needs_leading_newline
+        self,
+        max_submission_name_len: int,
+        verdict_table,
+        testcases,
+        *,
+        needs_leading_newline,
     ):
         runs = [Run(self.problem, self, testcase) for testcase in testcases]
         max_testcase_len = max(len(run.name) for run in runs)
@@ -395,7 +414,7 @@ class Submission(program.Program):
             if result.out and result.err:
                 output_type = "PROGRAM STDERR" if self.problem.interactive else "STDOUT"
                 data = (
-                    f"STDERR:"
+                    "STDERR:"
                     + localbar._format_data(result.err)
                     + f"\n{output_type}:"
                     + localbar._format_data(result.out)
@@ -445,7 +464,7 @@ class Submission(program.Program):
             )
             testcase = f"{run.name}{Style.RESET_ALL}{passmsg}"
             style_len = len(f"{Style.RESET_ALL}")
-            message = f"{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {testcase:{max_testcase_len+style_len}}"
+            message = f"{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {testcase:{max_testcase_len + style_len}}"
 
             # Update padding since we already print the testcase name after the verdict.
             localbar.item_width = padding_len
@@ -481,9 +500,9 @@ class Submission(program.Program):
             assert slowest_pair is not None
             (slowest_testcase, slowest_duration) = slowest_pair
             slowest_verdict = verdicts[slowest_testcase]
-            assert isinstance(
-                slowest_verdict, Verdict
-            ), "Verdict of slowest testcase must not be empty"
+            assert isinstance(slowest_verdict, Verdict), (
+                "Verdict of slowest testcase must not be empty"
+            )
 
             slowest_color = (
                 Fore.GREEN
@@ -609,8 +628,6 @@ class Submission(program.Program):
 
             # Launch a separate thread to pass stdin to a pipe.
             r, w = os.pipe()
-            ok = True
-            eof = False
 
             TEE_CODE = R"""
 import sys
@@ -625,13 +642,13 @@ while True:
             # Wait for first input
             try:
                 read = False
-                for l in sys.stdin:
+                for line in sys.stdin:
                     read = True
                     # Read the first line of input, and re-build the program if
                     # needed after the first line has been entered.
                     if not self.build(bar):
                         return
-                    os.write(w, bytes(l, "utf8"))
+                    os.write(w, bytes(line, "utf8"))
                     break
                 if not read:
                     return

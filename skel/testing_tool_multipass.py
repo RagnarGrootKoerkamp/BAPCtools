@@ -73,23 +73,23 @@ def single_pass(action: str, words: list[str]) -> list[str]:
         (stdout, stderr) = p.communicate(input=raw)
         output = [line.strip() for line in stdout.strip().split("\n") if line.strip()]
 
-        assert len(output) == len(
-            words
-        ), f"Your submission printed {len(output)} words, expected {len(words)} words."
+        assert len(output) == len(words), (
+            f"Your submission printed {len(output)} words, expected {len(words)} words."
+        )
         print(f"{action} exit code: {p.returncode}")
         print(f"{action} output:")
         print()
         print(stdout, flush=True)
 
         for word_a, word_b in zip(words, output):
-            assert len(word_a) == len(
-                word_b
-            ), f"Your submission changed the length of '{word_a}', you printed '{word_b}'"
+            assert len(word_a) == len(word_b), (
+                f"Your submission changed the length of '{word_a}', you printed '{word_b}'"
+            )
 
             for i, (char_a, char_b) in enumerate(zip(word_a, word_b), start=1):
-                assert (
-                    char_a != char_b
-                ), f"Letter at position {i} ({char_a}) is the same: '{word_a}' => '{word_b}'"
+                assert char_a != char_b, (
+                    f"Letter at position {i} ({char_a}) is the same: '{word_a}' => '{word_b}'"
+                )
 
         return output
 
@@ -97,7 +97,7 @@ def single_pass(action: str, words: list[str]) -> list[str]:
 try:
     with args.inputfile as f:
         # Parse input
-        lines = [l.strip() for l in f.readlines()]
+        lines = [line.strip() for line in f.readlines()]
         action = lines[0]
         n = int(lines[1])
         words = lines[2:]
@@ -118,7 +118,7 @@ except AssertionError as e:
     print()
     exit(1)
 
-except Exception as e:
+except Exception:
     print()
     print("Unexpected error:")
     traceback.print_exc()

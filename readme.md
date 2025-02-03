@@ -202,7 +202,7 @@ and any hyphens should be replaced with an underscore (e.g., `no_bar: True` rath
 
 ## Contributing / Style guide
 
-- The python code in the repository is formatted using [black](https://github.com/psf/black)
+- The python code in the repository is formatted using [Ruff](https://github.com/astral-sh/ruff)
   and type-checked using [mypy](https://mypy-lang.org/).
   To enable the pre-commit hook, install [pre-commit](https://pre-commit.com/)
   with `pip` or your package manager (Arch: `python-pre-commit`) and run

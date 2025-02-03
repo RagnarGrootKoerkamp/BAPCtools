@@ -259,7 +259,8 @@ class Verdicts:
         """The slowest testcase, if all cases were run or a timeout occurred."""
         with self:
             tc, d = max(
-                ((tc, d) for tc, d in self.duration.items() if d is not None), key=lambda x: x[1]
+                ((tc, d) for tc, d in self.duration.items() if d is not None),
+                key=lambda x: x[1],
             )
 
             # If not all test cases were run and the max duration is less than the timeout,
@@ -392,7 +393,8 @@ class VerdictTable:
             self.checked_height: int | bool = height
         else:
             self.name_width: int = min(
-                max_name_width, max([len(submission) for submission in self.submissions])
+                max_name_width,
+                max([len(submission) for submission in self.submissions]),
             )
             self.width = width if width >= self.name_width + 2 + 10 else -1
 
@@ -414,7 +416,7 @@ class VerdictTable:
                 printed = self.name_width + 1
                 for length, tmp in verdicts:
                     if printed + 1 + length > self.width:
-                        lines.append(f"{str():{self.name_width+1}}")
+                        lines.append(f"{str():{self.name_width + 1}}")
                         printed = self.name_width + 1
                     lines[-1] += f" {tmp}"
                     printed += length + 1
@@ -479,7 +481,11 @@ class VerdictTable:
             self._print_table(**kwargs)
 
     def _print_tree(
-        self, *, force: bool = True, new_lines: int = 1, printed_lengths: list[int] | None = None
+        self,
+        *,
+        force: bool = True,
+        new_lines: int = 1,
+        printed_lengths: list[int] | None = None,
     ):
         if printed_lengths is None:
             printed_lengths = []
@@ -494,7 +500,7 @@ class VerdictTable:
             while stack:
                 node, indent, prefix, last = stack.pop()
                 if node != "." or show_root:
-                    name = f'{node.split("/")[-1]}'
+                    name = f"{node.split('/')[-1]}"
                     verdict = self.results[-1][node]
                     verdict_str = (
                         to_string(verdict)
@@ -575,7 +581,11 @@ class VerdictTable:
             self.last_printed = printed_lengths
 
     def _print_table(
-        self, *, force: bool = True, new_lines: int = 2, printed_lengths: list[int] | None = None
+        self,
+        *,
+        force: bool = True,
+        new_lines: int = 2,
+        printed_lengths: list[int] | None = None,
     ):
         if printed_lengths is None:
             printed_lengths = []
@@ -601,7 +611,7 @@ class VerdictTable:
 
                 for length, tmp in verdicts:
                     if self.width >= 0 and printed + 1 + length > self.width:
-                        printed_text.append(f"\n{str():{self.name_width+1}}")
+                        printed_text.append(f"\n{str():{self.name_width + 1}}")
                         printed_lengths.append(printed)
                         printed = self.name_width + 1
 
@@ -615,17 +625,32 @@ class VerdictTable:
             self.last_printed = printed_lengths
 
     def ProgressBar(
-        self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
+        self,
+        prefix,
+        max_len=None,
+        count=None,
+        *,
+        items=None,
+        needs_leading_newline=False,
     ) -> "TableProgressBar":
         return TableProgressBar(
-            self, prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline
+            self,
+            prefix,
+            max_len,
+            count,
+            items=items,
+            needs_leading_newline=needs_leading_newline,
         )
 
 
 class TableProgressBar(ProgressBar):
     def __init__(self, table, prefix, max_len, count, *, items, needs_leading_newline):
         super().__init__(
-            prefix, max_len, count, items=items, needs_leading_newline=needs_leading_newline
+            prefix,
+            max_len,
+            count,
+            items=items,
+            needs_leading_newline=needs_leading_newline,
         )
         self.table = table
 
@@ -665,7 +690,9 @@ class TableProgressBar(ProgressBar):
     def finalize(self, *, print_done=True, message=None, suppress_newline=False):
         with self:
             res = super().finalize(
-                print_done=print_done, message=message, suppress_newline=suppress_newline
+                print_done=print_done,
+                message=message,
+                suppress_newline=suppress_newline,
             )
             self.table._clear(force=True)
             return res

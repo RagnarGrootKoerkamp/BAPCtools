@@ -1,5 +1,4 @@
 import pytest
-import argparse
 import yaml
 import os
 import hashlib
@@ -7,7 +6,6 @@ import tempfile
 from pathlib import Path
 
 import problem
-import run
 import testcase
 import validate
 import util

@@ -1,19 +1,15 @@
-import hashlib
 import random
-import io
 import re
 import shutil
 import collections
-import shutil
 import secrets
 
 from collections.abc import Callable
 from colorama import Fore, Style
-from pathlib import Path, PurePosixPath, PurePath
-from typing import Literal, overload
+from pathlib import Path, PurePosixPath
+from typing import overload
 
 import config
-import inspect
 import parallel
 import program
 import run
@@ -39,7 +35,8 @@ def assert_type(name, obj, types, path=None):
         return
     named_types = " or ".join(str(t) if t is None else t.__name__ for t in types)
     raise ParseException(
-        f"{name} must be of type {named_types}, found {obj.__class__.__name__}: {obj}", path
+        f"{name} must be of type {named_types}, found {obj.__class__.__name__}: {obj}",
+        path,
     )
 
 
@@ -53,7 +50,7 @@ UNIQUE_TESTCASE_KEYS = [
 
 def is_testcase(yaml):
     return (
-        yaml == None
+        yaml is None
         or isinstance(yaml, str)
         or (isinstance(yaml, dict) and any(key in yaml for key in UNIQUE_TESTCASE_KEYS))
     )
@@ -181,7 +178,7 @@ class GeneratorInvocation(Invocation):
                 bar.error(f"Generator failed {retry + 1} times", result.err)
             else:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-                bar.error(f"Generator failed", result.err)
+                bar.error("Generator failed", result.err)
 
         if result.status and config.args.error and result.err:
             bar.log("stderr", result.err)
@@ -280,7 +277,7 @@ solution: /{config.args.default_solution}""",
         # Use one of the accepted submissions.
         solutions = list(glob(problem.path, "submissions/accepted/*"))
         if len(solutions) == 0:
-            fatal(f"No solution specified and no accepted submissions found.")
+            fatal("No solution specified and no accepted submissions found.")
 
         # always try to take the same solution to not mess with hashing
         if stored_solution.is_file():
@@ -396,7 +393,7 @@ class Config:
 
         for key, default, func in Config.INHERITABLE_KEYS:
             if func is None:
-                func = lambda p, x, path: x
+                func = lambda p, x, path: x  # noqa: E731  # TODO this can probably be prettier
             if yaml and key in yaml:
                 setattr(self, key, func(problem, yaml[key], path))
             elif parent_config is not None:
@@ -528,7 +525,7 @@ class TestcaseRule(Rule):
                     if "{count}" in command_string:
                         if "count" in yaml:
                             command_string = command_string.replace(
-                                "{count}", f"{self.count_index+1}"
+                                "{count}", f"{self.count_index + 1}"
                             )
                         else:
                             message(
@@ -602,7 +599,7 @@ class TestcaseRule(Rule):
                             color_type=MessageType.LOG,
                         )
 
-            if not ".in" in hashes:
+            if ".in" not in hashes:
                 generator_config.n_parse_error += 1
                 # An error is shown during generate.
                 return
@@ -692,7 +689,9 @@ class TestcaseRule(Rule):
             for h in input_validator_hashes:
                 meta_yaml["input_validator_hashes"][h] = input_validator_hashes[h]
             write_yaml(
-                meta_yaml, problem.tmpdir / "data" / t.hash / "meta_.yaml", allow_yamllib=True
+                meta_yaml,
+                problem.tmpdir / "data" / t.hash / "meta_.yaml",
+                allow_yamllib=True,
             )
         return True
 
@@ -718,7 +717,7 @@ class TestcaseRule(Rule):
                 and problem.limits.output * 1024 * 1024 < 2 * size
             ):  # we already warn if the limit is exceeded
                 bar.warn(
-                    f".ans file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2*size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
+                    f".ans file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2 * size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
                 )
 
             answer_validator_hashes = {
@@ -729,7 +728,9 @@ class TestcaseRule(Rule):
                 return True
 
             if not testcase.validate_format(
-                validate.Mode.ANSWER, bar=bar, warn_instead_of_error=config.args.no_validators
+                validate.Mode.ANSWER,
+                bar=bar,
+                warn_instead_of_error=config.args.no_validators,
             ):
                 if not config.args.no_validators:
                     bar.debug("Use generate --no-validators to ignore validation results.")
@@ -739,7 +740,9 @@ class TestcaseRule(Rule):
                 for h in answer_validator_hashes:
                     meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
                 write_yaml(
-                    meta_yaml, problem.tmpdir / "data" / t.hash / "meta_.yaml", allow_yamllib=True
+                    meta_yaml,
+                    problem.tmpdir / "data" / t.hash / "meta_.yaml",
+                    allow_yamllib=True,
                 )
         return True
 
@@ -761,7 +764,7 @@ class TestcaseRule(Rule):
             bar.done(False, f"{t.parse_error} Skipping.")
             return
         if t.generator and t.generator.program is None:
-            bar.done(False, f"Generator didn't build. Skipping.")
+            bar.done(False, "Generator didn't build. Skipping.")
             return
         if t.hash is None:
             # Input can only be missing when the `copy:` does not have a corresponding `.in` file.
@@ -771,7 +774,6 @@ class TestcaseRule(Rule):
 
         target_dir = problem.path / "data" / t.path.parent
         target_infile = target_dir / (t.name + ".in")
-        target_ansfile = target_dir / (t.name + ".ans")
 
         # E.g. bapctmp/problem/data/<hash>.in
         cwd = problem.tmpdir / "data" / t.hash
@@ -808,7 +810,8 @@ class TestcaseRule(Rule):
                     bar.part_done(True, "Generator is deterministic.")
             else:
                 bar.part_done(
-                    False, f"Generator `{t.generator.command_string}` is not deterministic."
+                    False,
+                    f"Generator `{t.generator.command_string}` is not deterministic.",
                 )
 
             # If {seed} is used, check that the generator depends on it.
@@ -898,7 +901,7 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == "" and not t.root in ["bad", "invalid_inputs"]:
+                    if contents == "" and t.root not in ["bad", "invalid_inputs"]:
                         bar.error(f"Hardcoded {ext} data must not be empty!")
                         return False
                     else:
@@ -906,7 +909,7 @@ class TestcaseRule(Rule):
 
                 # Step 4: Error if infile was not generated.
                 if not infile.is_file():
-                    bar.error(f"No .in file was generated!")
+                    bar.error("No .in file was generated!")
                     return False
 
                 # Step 5: save which files where generated
@@ -1160,7 +1163,7 @@ class Directory(Rule):
         # The root Directory object has name ''.
         if not isinstance(parent, RootDirectory):
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name):
-                raise ParseException(f"Directory does not have a valid name.", parent.path / name)
+                raise ParseException("Directory does not have a valid name.", parent.path / name)
 
         super().__init__(problem, key, name, yaml, parent)
 
@@ -1233,7 +1236,7 @@ class Directory(Rule):
                     found_keys = [key for key in UNIQUE_TESTCASE_KEYS if key in d]
                     if found_keys:
                         raise ParseException(
-                            f'Dictionary must contain exactly one named testcase/group.\nTo specify {"/".join(found_keys)}, indent one more level.',
+                            f"Dictionary must contain exactly one named testcase/group.\nTo specify {'/'.join(found_keys)}, indent one more level.",
                             self.path,
                         )
                     else:
@@ -1313,15 +1316,15 @@ class Directory(Rule):
                     # different -> overwrite
                     generator_config.remove(testdata_yaml_path)
                     testdata_yaml_path.write_text(yaml_text)
-                    bar.log(f"CHANGED: testdata.yaml")
+                    bar.log("CHANGED: testdata.yaml")
             else:
                 # new file -> create it
                 testdata_yaml_path.write_text(yaml_text)
-                bar.log(f"NEW: testdata.yaml")
+                bar.log("NEW: testdata.yaml")
         elif d.testdata_yaml == "" and testdata_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(testdata_yaml_path)
-            bar.log(f"REMOVED: testdata.yaml")
+            bar.log("REMOVED: testdata.yaml")
         bar.done()
 
     def generate_includes(d, problem, generator_config, bar):
@@ -1352,9 +1355,9 @@ class Directory(Rule):
             # Check if the testcase was already validated.
             cwd = problem.tmpdir / "data" / t.hash
             meta_path = cwd / "meta_.yaml"
-            assert (
-                meta_path.is_file()
-            ), f"Metadata file not found for included case {d.path / key}\nwith hash {t.hash}\nfile {meta_path}"
+            assert meta_path.is_file(), (
+                f"Metadata file not found for included case {d.path / key}\nwith hash {t.hash}\nfile {meta_path}"
+            )
             meta_yaml = read_yaml(meta_path)
             testcase = Testcase(problem, infile, short_path=new_case)
 
@@ -1440,7 +1443,7 @@ class GeneratorConfig:
         # The set of generated testcases keyed by hash(testdata).
         self.generated_testdata = dict()
         # Path to the trash directory for this run
-        self.trashdir = None
+        self.trashdir: Optional[Path] = None
         # Set of hash(.in) for all generated testcases
         self.hashed_in = set()
         # Files that should be processed
@@ -1567,11 +1570,11 @@ class GeneratorConfig:
             name = name_gen()
             assert_type("Testcase/directory", yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
-                raise ParseException(f"not parsed as a testcase or directory.", parent.path / name)
+                raise ParseException("not parsed as a testcase or directory.", parent.path / name)
 
             if is_testcase(yaml):
                 if isinstance(parent, RootDirectory):
-                    raise ParseException(f"Testcase must be inside Directory", name)
+                    raise ParseException("Testcase must be inside Directory", name)
 
                 count = parse_count(yaml, parent.path / name)
 
@@ -1580,7 +1583,7 @@ class GeneratorConfig:
                     if count_index > 0:
                         name = name_gen()
                     if has_count(yaml):
-                        name += f"-{count_index+1:0{len(str(count))}}"
+                        name += f"-{count_index + 1:0{len(str(count))}}"
 
                     # If a list of testcases was passed and this one is not in it, skip it.
                     if not self.process_testcase(parent.path / name):
@@ -1589,7 +1592,7 @@ class GeneratorConfig:
                     t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
                     if t.path in self.known_cases:
                         message(
-                            f"was already parsed. Skipping.",
+                            "was already parsed. Skipping.",
                             "generators.yaml",
                             t.path,
                             color_type=MessageType.ERROR,
@@ -1668,10 +1671,10 @@ class GeneratorConfig:
                                 child_name = next_testcase_name
                             else:
                                 # Use error will be given inside parse(child).
-                                child_name = lambda: ""
+                                child_name = lambda: ""  # noqa: E731  # TODO this can probably be prettier
 
                         else:
-                            child_name = lambda: child_key
+                            child_name = lambda: child_key  # noqa: E731  # TODO this can probably be prettier
                             if not child_name():
                                 raise ParseException(
                                     "Unnumbered testcases must not have an empty key",
@@ -1861,9 +1864,9 @@ class GeneratorConfig:
         #    included testcases.
 
         # 1
-        runner: Callable[[TestcaseRule], Any] = lambda t: t.copy_of is None and t.generate(
-            self.problem, self, bar
-        )
+        def runner(t: TestcaseRule) -> Any:
+            return t.copy_of is None and t.generate(self.problem, self, bar)
+
         p = parallel.new_queue(runner)
 
         def generate_dir(d):
@@ -1874,8 +1877,10 @@ class GeneratorConfig:
         p.done()
 
         # 2
-        runner = lambda t: t.copy_of is not None and t.generate(self.problem, self, bar)
-        p = parallel.new_queue(runner)
+        def runner_copies(t: TestcaseRule):
+            return t.copy_of is not None and t.generate(self.problem, self, bar)
+
+        p = parallel.new_queue(runner_copies)
 
         def generate_copies_and_includes(d):
             p.join()
@@ -1985,7 +1990,7 @@ data/*
 
         def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
             assert isinstance(data, ruamel.yaml.comments.CommentedMap)
-            if not key in yaml or yaml[key] is None:
+            if key not in yaml or yaml[key] is None:
                 yaml[key] = t()
             assert isinstance(yaml[key], t)
             return yaml[key]
@@ -2036,7 +2041,7 @@ data/*
             path = d.relative_to("data")
             parts = path.parts
             if not parts:
-                warn(f"Cannot reorder Root directory. Skipping.")
+                warn("Cannot reorder Root directory. Skipping.")
             elif parts[0] in config.INVALID_CASE_DIRECTORIES:
                 warn(f"{d} is used for invalid test data. Skipping.")
             elif path not in self.known_directories:
@@ -2056,17 +2061,17 @@ data/*
                 testcase_filter.add(data / c.path.with_suffix(".in"))
 
         ts_pair = self.problem.prepare_run()
-        if ts_pair == False:
+        if not ts_pair:
             return False
 
         testcases = [t for t in ts_pair[0] if t.in_path in testcase_filter]
         submissions = [s for s in ts_pair[1] if s.expected_verdicts != [Verdict.ACCEPTED]]
 
         if not testcases:
-            error(f"No testcases found.")
+            error("No testcases found.")
             return False
         if not submissions:
-            error(f"No rejected submissions found.")
+            error("No rejected submissions found.")
             return False
 
         ok, verdict_table = Problem.run_some(testcases, submissions)
@@ -2112,7 +2117,7 @@ data/*
                         self.result.append(verdict_table._get_verdict(i, self.testnode))
 
                 def __str__(self):
-                    return f'{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.testnode:<{max_testcase_len}} {"".join(self.result)}'
+                    return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.testnode:<{max_testcase_len}} {''.join(self.result)}"
 
                 def score(self, weights):
                     return sum(weights[i] * x for i, x in self.scores)

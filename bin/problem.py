@@ -195,7 +195,7 @@ class Problem:
         if isinstance(self.settings.validator_flags, str):
             self.settings.validator_flags = shlex.split(self.settings.validator_flags)
 
-        if self.settings.uuid == None:
+        if self.settings.uuid is None:
             self.settings.uuid = generate_problem_uuid()
             raw = yaml_path.read_text().rstrip()
             raw += f"\n# uuid added by BAPCtools\nuuid: '{self.settings.uuid}'\n"
@@ -238,7 +238,7 @@ class Problem:
             if not f.is_file() or f in p._testdata_yamls:
                 continue
             with p._testdata_lock:
-                if not f in p._testdata_yamls:
+                if f not in p._testdata_yamls:
                     p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
 
                     # verify testdata.yaml
@@ -584,9 +584,9 @@ class Problem:
             problem._validators_warn_cache.add(key)
             match cls, len(validators):
                 case validate.InputValidator, 0:
-                    warn(f"No input validators found.")
+                    warn("No input validators found.")
                 case validate.AnswerValidator, 0:
-                    warn(f"No answer validators found")
+                    warn("No answer validators found")
                 case validate.OutputValidator, l if l != 1:
                     error(f"Found {len(validators)} output validators, expected exactly one.")
 
@@ -599,7 +599,6 @@ class Problem:
     def _validators(
         problem, cls: Type[validate.AnyValidator], check_constraints=False
     ) -> list[validate.AnyValidator]:
-
         key = (cls, check_constraints)
         if key in problem._validators_cache:
             return problem._validators_cache[key]
@@ -700,7 +699,7 @@ class Problem:
     # called by bt run
     def run_submissions(problem):
         ts_pair = problem.prepare_run()
-        if ts_pair == False:
+        if not ts_pair:
             return False
         testcases, submissions = ts_pair
         ok, verdict_table = Problem.run_some(testcases, submissions)
@@ -738,11 +737,13 @@ class Problem:
             else:
                 return f"{Style.DIM}-{Style.RESET_ALL}"
 
-        make_verdict = lambda tc: "".join(map(lambda row: single_verdict(row, tc), verdict_table))
+        def make_verdict(tc):
+            return "".join(map(lambda row: single_verdict(row, tc), verdict_table))
+
         resultant_count, resultant_id = dict[str, int](), dict[str, int]()
         special_id = 0
-        for testcase in testcases:
-            resultant = make_verdict(testcase)
+        for case in testcases:
+            resultant = make_verdict(case)
             if resultant not in resultant_count:
                 resultant_count[resultant] = 0
             resultant_count[resultant] += 1
@@ -781,32 +782,30 @@ class Problem:
 
         name_col_width = min(50, max([len(testcase.name) for testcase in testcases]))
 
-        for testcase in testcases:
+        for case in testcases:
             # Skip all AC testcases
             if all(
                 map(
-                    lambda row: row[testcase.name] == verdicts.Verdict.ACCEPTED,
+                    lambda row: row[case.name] == verdicts.Verdict.ACCEPTED,
                     verdict_table,
                 )
             ):
                 continue
 
-            name = testcase.name
+            name = case.name
             if len(name) > name_col_width:
                 name = "..." + name[-name_col_width + 3 :]
             padding = " " * (name_col_width - len(name))
             print(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ", file=sys.stderr)
 
             color = Style.RESET_ALL
-            if len(scores_list) > 6 and scores[testcase.name] >= scores_list[-6]:
+            if len(scores_list) > 6 and scores[case.name] >= scores_list[-6]:
                 color = Fore.YELLOW
-            if len(scores_list) > 3 and scores[testcase.name] >= scores_list[-3]:
+            if len(scores_list) > 3 and scores[case.name] >= scores_list[-3]:
                 color = Fore.RED
-            resultant = make_verdict(testcase)
+            resultant = make_verdict(case)
             print(resultant, end="  ", file=sys.stderr)
-            print(
-                f"{color}{scores[testcase.name]:0.3f}{Style.RESET_ALL}  ", end="", file=sys.stderr
-            )
+            print(f"{color}{scores[case.name]:0.3f}{Style.RESET_ALL}  ", end="", file=sys.stderr)
             if resultant in resultant_id:
                 print(str.format("(Type {})", resultant_id[resultant]), end="", file=sys.stderr)
             print(end="\n", file=sys.stderr)
@@ -935,11 +934,9 @@ class Problem:
 
     def determine_timelimit(problem):
         ts_pair = problem.prepare_run()
-        if ts_pair == False:
+        if not ts_pair:
             return False
         testcases, submissions = ts_pair
-
-        max_submission_len = max([len(x.name) for x in submissions])
 
         problem.settings.timelimit = float("inf")
         problem.settings.timelimit_is_default = False
@@ -997,9 +994,9 @@ class Problem:
             print()
             message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
             if duration <= problem.settings.timelimit:
-                error(f"TLE submission runs within timelimit")
+                error("TLE submission runs within timelimit")
             elif duration <= safety_timelimit:
-                warn(f"TLE submission runs within safety margin")
+                warn("TLE submission runs within safety margin")
             elif duration >= problem.settings.timeout:
                 log(
                     f"No TLE submission finished within {problem.settings.timeout}s >= {problem.settings.timelimit:.3f}s * {problem.limits.time_safety_margin}^2"
@@ -1016,7 +1013,7 @@ class Problem:
             )
             if submission is not None:
                 if duration > problem.settings.timelimit:
-                    warn(f"Non TLE submission timed out")
+                    warn("Non TLE submission timed out")
                 else:
-                    log(f"All non TLE submission finished within timelimit")
+                    log("All non TLE submission finished within timelimit")
         return ok

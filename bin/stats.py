@@ -277,7 +277,7 @@ def loc(file):
                 count += 1
 
             loc_cache[file] = count
-        except:
+        except Exception:
             # Either we could not read the file (for example binaries)
             # or we did not find a lexer
             loc_cache[file] = None
@@ -420,7 +420,14 @@ def more_stats(problems):
     def countCommits(problem):
         yaml_path = problem.path / "problem.yaml"
         paths = git(
-            "log", "--all", "--follow", "--name-only", "--relative", "--format=", "--", yaml_path
+            "log",
+            "--all",
+            "--follow",
+            "--name-only",
+            "--relative",
+            "--format=",
+            "--",
+            yaml_path,
         ).split("\n")
         names = {Path(p).parent for p in paths if p.strip() != ""}
         return int(git("rev-list", "--all", "--count", "--", *names))

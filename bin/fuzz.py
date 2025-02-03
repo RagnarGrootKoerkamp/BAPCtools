@@ -5,8 +5,6 @@ import random
 import generate
 import time
 import threading
-from colorama import Fore, Style
-from collections.abc import Callable
 
 import parallel
 from util import *
@@ -192,13 +190,15 @@ class Fuzz:
 
         message("Press CTRL+C to stop\n", "Fuzz", color_type=MessageType.LOG)
 
+        def runner(task: GeneratorTask):
+            task.run(bar)
+
         # config.args.no_bar = True
         # max(len(s.name) for s in self.submissions)
         bar = ProgressBar("Fuzz", max_len=60)
         self.start_time = time.monotonic()
         self.iteration = 0
         self.tasks = 0
-        runner: Callable[[GeneratorTask], None] = lambda task: task.run(bar)
         self.queue = parallel.new_queue(runner, pin=True)
 
         def soft_exit(sig, frame):
@@ -262,7 +262,8 @@ class Fuzz:
                 self.tmp_id_count[tmp_id] = new_tasks
                 self.tasks += new_tasks
                 self.queue.put(
-                    GeneratorTask(self, testcase_rule, self.iteration, tmp_id), priority=1
+                    GeneratorTask(self, testcase_rule, self.iteration, tmp_id),
+                    priority=1,
                 )
 
     # Write new rule to yaml
@@ -278,7 +279,7 @@ class Fuzz:
 
             def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
                 assert isinstance(data, ruamel.yaml.comments.CommentedMap)
-                if not key in yaml or yaml[key] is None:
+                if key not in yaml or yaml[key] is None:
                     yaml[key] = t()
                 assert isinstance(yaml[key], t)
                 return yaml[key]

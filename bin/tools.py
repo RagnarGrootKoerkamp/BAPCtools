@@ -22,7 +22,6 @@ import tempfile
 import shutil
 
 import colorama
-import json
 import re
 
 from pathlib import Path
@@ -35,7 +34,6 @@ import export
 import generate
 import fuzz
 import latex
-import run
 import skel
 import slack
 import solve_stats
@@ -113,7 +111,7 @@ def get_problems():
         if problemlist is None:
             problemlist = []
         if not isinstance(problemlist, list):
-            fatal(f"problems.yaml must contain a problems: list.")
+            fatal("problems.yaml must contain a problems: list.")
 
         labels = dict[str, str]()  # label -> shortname
         problems = []
@@ -139,7 +137,7 @@ def get_problems():
         problem_paths = list(filter(is_problem_directory, glob(Path("."), "*/")))
         label = chr(ord("Z") - len(problem_paths) + 1) if contest_yaml().get("testsession") else "A"
         problems = []
-        for i, path in enumerate(problem_paths):
+        for path in problem_paths:
             problems.append((path, label))
             label = inc_label(label)
         return problems
@@ -157,11 +155,11 @@ def get_problems():
                     break
 
         if len(problems) == 0:
-            label = None
-            for p, l in fallback_problems():
-                if p.name == problem.name:
-                    label = l
-            problems = [Problem(Path(problem.name), tmpdir, label)]
+            found_label = None
+            for path, label in fallback_problems():
+                if path.name == problem.name:
+                    found_label = label
+            problems = [Problem(Path(problem.name), tmpdir, found_label)]
     else:
         level = "problemset"
         # If problems.yaml is available, use it.
@@ -199,15 +197,15 @@ def get_problems():
             # Read set of problems
             contest_problems = call_api_get_json(f"/contests/{cid}/problems?public=true")
             assert isinstance(problems, list)
-            for p in contest_problems:
-                solves[p["id"]] = 0
+            for path in contest_problems:
+                solves[path["id"]] = 0
 
             scoreboard = call_api_get_json(f"/contests/{cid}/scoreboard?public=true")
 
             for team in scoreboard["rows"]:
-                for p in team["problems"]:
-                    if p["solved"]:
-                        solves[p["problem_id"]] += 1
+                for path in team["problems"]:
+                    if path["solved"]:
+                        solves[path["problem_id"]] += 1
 
             # Convert away from defaultdict, so any non matching keys below raise an error.
             solves = dict(solves)
@@ -317,7 +315,9 @@ Run this from one of:
         help="Print full error of failing commands and some succeeding commands.",
     )
     global_parser.add_argument(
-        "--force-build", action="store_true", help="Force rebuild instead of only on changed files."
+        "--force-build",
+        action="store_true",
+        help="Force rebuild instead of only on changed files.",
     )
     global_parser.add_argument(
         "--jobs",
@@ -338,7 +338,9 @@ Run this from one of:
     global_parser.add_argument("--username", "-u", help="The username to login to the CCS.")
     global_parser.add_argument("--password", "-p", help="The password to login to the CCS.")
     global_parser.add_argument(
-        "--cp", action="store_true", help="Copy the output pdf instead of symlinking it."
+        "--cp",
+        action="store_true",
+        help="Copy the output pdf instead of symlinking it.",
     )
     global_parser.add_argument(
         "--language", dest="languages", action="append", help="Set language."
@@ -351,13 +353,17 @@ Run this from one of:
 
     # New contest
     contestparser = subparsers.add_parser(
-        "new_contest", parents=[global_parser], help="Add a new contest to the current directory."
+        "new_contest",
+        parents=[global_parser],
+        help="Add a new contest to the current directory.",
     )
     contestparser.add_argument("contestname", nargs="?", help="The name of the contest")
 
     # New problem
     problemparser = subparsers.add_parser(
-        "new_problem", parents=[global_parser], help="Add a new problem to the current directory."
+        "new_problem",
+        parents=[global_parser],
+        help="Add a new problem to the current directory.",
     )
     problemparser.add_argument("problemname", nargs="?", help="The name of the problem,")
     problemparser.add_argument("--author", help="The author of the problem,")
@@ -389,7 +395,9 @@ Run this from one of:
 
     # Rename problem
     renameproblemparser = subparsers.add_parser(
-        "rename_problem", parents=[global_parser], help="Rename a problem, including its directory."
+        "rename_problem",
+        parents=[global_parser],
+        help="Rename a problem, including its directory.",
     )
     renameproblemparser.add_argument("problemname", nargs="?", help="The new name of the problem,")
 
@@ -525,7 +533,9 @@ Run this from one of:
 
     # Generate Testcases
     genparser = subparsers.add_parser(
-        "generate", parents=[global_parser], help="Generate testcases according to .gen files."
+        "generate",
+        parents=[global_parser],
+        help="Generate testcases according to .gen files.",
     )
     genparser.add_argument(
         "--check-deterministic",
@@ -598,8 +608,8 @@ Run this from one of:
         parents=[global_parser],
         help="Generate random testcases and search for inconsistencies in AC submissions.",
     )
-    fuzzparser.add_argument("--time", type=int, help=f"Number of seconds to run for. Default: 600")
-    fuzzparser.add_argument("--timelimit", "-t", type=int, help=f"Time limit for submissions.")
+    fuzzparser.add_argument("--time", type=int, help="Number of seconds to run for. Default: 600")
+    fuzzparser.add_argument("--timelimit", "-t", type=int, help="Time limit for submissions.")
     fuzzparser.add_argument(
         "submissions",
         nargs="*",
@@ -612,7 +622,9 @@ Run this from one of:
 
     # Run
     runparser = subparsers.add_parser(
-        "run", parents=[global_parser], help="Run multiple programs against some or all input."
+        "run",
+        parents=[global_parser],
+        help="Run multiple programs against some or all input.",
     )
     runparser.add_argument(
         "submissions",
@@ -641,10 +653,15 @@ Run this from one of:
         help="The default solution to use for generating .ans files. Not compatible with generators.yaml.",
     )
     runparser.add_argument(
-        "--table", action="store_true", help="Print a submissions x testcases table for analysis."
+        "--table",
+        action="store_true",
+        help="Print a submissions x testcases table for analysis.",
     )
     runparser.add_argument(
-        "--overview", "-o", action="store_true", help="Print a live overview for the judgings."
+        "--overview",
+        "-o",
+        action="store_true",
+        help="Print a live overview for the judgings.",
     )
     runparser.add_argument("--tree", action="store_true", help="Show a tree of verdicts.")
 
@@ -667,7 +684,9 @@ Run this from one of:
     )
 
     timelimitparser = subparsers.add_parser(
-        "timelimit", parents=[global_parser], help="Determine the timelimit for a problem."
+        "timelimit",
+        parents=[global_parser],
+        help="Determine the timelimit for a problem.",
     )
     timelimitparser.add_argument(
         "submissions",
@@ -690,7 +709,9 @@ Run this from one of:
 
     # Test
     testparser = subparsers.add_parser(
-        "test", parents=[global_parser], help="Run a single program and print the output."
+        "test",
+        parents=[global_parser],
+        help="Run a single program and print the output.",
     )
     testparser.add_argument("submissions", nargs=1, type=Path, help="A single submission to run")
     testcasesgroup = testparser.add_mutually_exclusive_group()
@@ -721,7 +742,9 @@ Run this from one of:
 
     # All
     allparser = subparsers.add_parser(
-        "all", parents=[global_parser], help="validate input, validate answers, and run programs"
+        "all",
+        parents=[global_parser],
+        help="validate input, validate answers, and run programs",
     )
     allparser.add_argument("--no-timelimit", action="store_true", help="Do not print timelimits.")
     allparser.add_argument(
@@ -738,16 +761,24 @@ Run this from one of:
         "--timeout", "-t", type=int, help="Override the default timeout. Default: 30."
     )
     allparser.add_argument(
-        "--overview", "-o", action="store_true", help="Print a live overview for the judgings."
+        "--overview",
+        "-o",
+        action="store_true",
+        help="Print a live overview for the judgings.",
     )
 
     # Build DOMjudge zip
     zipparser = subparsers.add_parser(
-        "zip", parents=[global_parser], help="Create zip file that can be imported into DOMjudge"
+        "zip",
+        parents=[global_parser],
+        help="Create zip file that can be imported into DOMjudge",
     )
     zipparser.add_argument("--skip", action="store_true", help="Skip recreation of problem zips.")
     zipparser.add_argument(
-        "--force", "-f", action="store_true", help="Skip validation of input and answers."
+        "--force",
+        "-f",
+        action="store_true",
+        help="Skip validation of input and answers.",
     )
     zipparser.add_argument(
         "--kattis",
@@ -762,11 +793,15 @@ Run this from one of:
     )
 
     subparsers.add_parser(
-        "gitlabci", parents=[global_parser], help="Print a list of jobs for the given contest."
+        "gitlabci",
+        parents=[global_parser],
+        help="Print a list of jobs for the given contest.",
     )
 
     exportparser = subparsers.add_parser(
-        "export", parents=[global_parser], help="Export the problem or contest to DOMjudge."
+        "export",
+        parents=[global_parser],
+        help="Export the problem or contest to DOMjudge.",
     )
     exportparser.add_argument(
         "--contest-id",
@@ -1088,7 +1123,11 @@ def run_parsed_arguments(args):
 
         if action in ["solutions"]:
             success &= latex.build_contest_pdfs(
-                contest, problems, tmpdir, build_type=latex.PdfType.SOLUTION, web=config.args.web
+                contest,
+                problems,
+                tmpdir,
+                build_type=latex.PdfType.SOLUTION,
+                web=config.args.web,
             )
 
         if action in ["problem_slides"]:
@@ -1182,9 +1221,7 @@ def read_personal_config():
         Path() / ".." / ".bapctools.yaml",
     ] + (
         # Lowest prio: user config directory
-        [home_config / "bapctools" / "config.yaml"]
-        if home_config
-        else []
+        [home_config / "bapctools" / "config.yaml"] if home_config else []
     ):
         if not config_file.is_file():
             continue

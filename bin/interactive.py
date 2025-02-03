@@ -13,10 +13,6 @@ from verdicts import Verdict
 if TYPE_CHECKING:
     from run import Run
 
-if not is_windows():
-    import fcntl
-    import resource
-
 BUFFER_SIZE = 2**20
 
 
@@ -122,7 +118,7 @@ def run_interactive_testcase(
                 config.n_error += 1
                 verdict = Verdict.VALIDATOR_CRASH
             elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-                error(f"got WRONG_ANSWER but found nextpass.in")
+                error("got WRONG_ANSWER but found nextpass.in")
                 verdict = Verdict.VALIDATOR_CRASH
             elif tend - tstart > timelimit:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
@@ -358,7 +354,7 @@ while True:
             config.n_error += 1
             verdict = Verdict.VALIDATOR_CRASH
         elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-            error(f"got WRONG_ANSWER but found nextpass.in")
+            error("got WRONG_ANSWER but found nextpass.in")
             verdict = Verdict.VALIDATOR_CRASH
         elif aborted:
             verdict = Verdict.TIME_LIMIT_EXCEEDED

@@ -253,7 +253,7 @@ class Program:
                 if lang not in Program.warn_cache:
                     if config.args.verbose:
                         Program.warn_cache.add(lang)
-                        bar.debug(f'Falling back to {languages()[lang]["name"]}.')
+                        bar.debug(f"Falling back to {languages()[lang]['name']}.")
 
             if len(files) == 0:
                 self.ok = False
@@ -306,10 +306,10 @@ class Program:
                 try:
                     if f.read_text().find("bits/stdc++.h") != -1:
                         if "validators/" in str(f):
-                            bar.error(f"Must not depend on bits/stdc++.h.", resume=True)
+                            bar.error("Must not depend on bits/stdc++.h.", resume=True)
                             break
                         else:
-                            bar.log(f"Should not depend on bits/stdc++.h")
+                            bar.log("Should not depend on bits/stdc++.h")
                             break
                 except UnicodeDecodeError:
                     pass
@@ -355,7 +355,7 @@ class Program:
                         for s in ["list(set("]:
                             if text.find(s) != -1:
                                 bar.warn(
-                                    f"The order of sets is not fixed across implementations. Please sort the list!"
+                                    "The order of sets is not fixed across implementations. Please sort the list!"
                                 )
                     except UnicodeDecodeError:
                         pass
@@ -402,7 +402,9 @@ class Program:
             return False
 
         write_yaml(
-            {"hash": self.hash, "command": self.compile_command}, meta_path, allow_yamllib=True
+            {"hash": self.hash, "command": self.compile_command},
+            meta_path,
+            allow_yamllib=True,
         )
         return True
 
@@ -514,7 +516,11 @@ class Program:
 class Generator(Program):
     def __init__(self, problem: "Problem", path: Path, **kwargs):
         super().__init__(
-            problem, path, "generators", limits={"timeout": problem.limits.generator_time}, **kwargs
+            problem,
+            path,
+            "generators",
+            limits={"timeout": problem.limits.generator_time},
+            **kwargs,
         )
 
     # Run the generator in the given working directory.

@@ -1,14 +1,10 @@
 import datetime
 import sys
-import argparse
-import os
 import yaml
-import os.path
 import re
 import zipfile
 import config
 import util
-import base64
 from pathlib import Path
 from typing import Optional
 
@@ -423,10 +419,10 @@ def update_problems_yaml(problems, colors=None):
             a = input().lower()
         if a == "" or a[0] == "y":
             write_yaml(data, path)
-            log(f"Updated problems.yaml")
+            log("Updated problems.yaml")
     else:
         if config.args.action == "update_problems_yaml":
-            log(f"Already up to date")
+            log("Already up to date")
 
 
 def export_problems(problems, cid):
@@ -481,11 +477,11 @@ def export_problem(problem, cid, pid):
         )
     yaml_response = yaml.load(r.text, Loader=yaml.SafeLoader)
     if "messages" in yaml_response:
-        verbose(f"RESPONSE:\n" + "\n".join(yaml_response["messages"]))
+        verbose("RESPONSE:\n" + "\n".join(yaml_response["messages"]))
     elif "message" in yaml_response:
-        verbose(f"RESPONSE: " + yaml_response["message"])
+        verbose("RESPONSE: " + yaml_response["message"])
     else:
-        verbose(f"RESPONSE:\n" + str(yaml_response))
+        verbose("RESPONSE:\n" + str(yaml_response))
     r.raise_for_status()
 
 
@@ -535,7 +531,7 @@ def export_contest_and_problems(problems, statement_language):
 
 def check_if_user_has_team():
     # Not using the /users/{uid} route, because {uid} is either numeric or a string depending on the DOMjudge config.
-    users = call_api_get_json(f"/users")
+    users = call_api_get_json("/users")
     if not any(user["username"] == config.args.username and user["team"] for user in users):
         warn(f'User "{config.args.username}" is not associated with a team.')
         warn("Therefore, the jury submissions will not be run by the judgehosts.")

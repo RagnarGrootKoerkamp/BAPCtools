@@ -29,7 +29,10 @@ def time_string_to_minutes(time_string: str) -> float:
 
 
 def plot_problem(
-    problem_id: str, minutes: list[dict[str, int]], label: str, judgement_types: dict[str, dict]
+    problem_id: str,
+    minutes: list[dict[str, int]],
+    label: str,
+    judgement_types: dict[str, dict],
 ):
     import matplotlib.pyplot as plt  # Have to import it separately in multiprocessing worker.
 
@@ -116,9 +119,9 @@ def generate_solve_stats(post_freeze: bool):
     ac_teams: dict[str, set[str]] = {p: set() for p in problems}
     stats = {p: [{j: 0 for j in judgement_types} for _ in range(bins)] for p in problems}
     stats_sum = {p: {j: 0 for j in judgement_types} for p in problems}
-    language_stats = {l: {j: 0 for j in judgement_types} for l in languages}
+    language_stats = {lang: {j: 0 for j in judgement_types} for lang in languages}
 
-    for i, s in submissions.items():
+    for s in submissions.values():
         if s["team_id"] not in teams:
             continue
         minute = time_string_to_minutes(s["contest_time"])
@@ -139,7 +142,7 @@ def generate_solve_stats(post_freeze: bool):
     problem_stats = dict[str, str]()
 
     bar = ProgressBar("Plotting", items=["Problem activity", "Language stats"])
-    makedirs(f"solve_stats/activity", exist_ok=True)
+    makedirs("solve_stats/activity", exist_ok=True)
 
     bar.start("Problem activity")
     with Pool(num_jobs) as p:
@@ -178,15 +181,15 @@ def generate_solve_stats(post_freeze: bool):
     for j, (jt, color) in enumerate(judgement_colors.items()):
         ax.bar(
             [i + (j - 2) * 0.15 for i in range(len(languages))],
-            [language_stats[l][jt] for l in languages],
+            [language_stats[lang][jt] for lang in languages],
             0.15,
             label=judgement_types[jt]["name"],
             color=color,
         )
-    ax.set_xticks(range(len(languages)), [l["name"] for l in languages.values()])
+    ax.set_xticks(range(len(languages)), [lang["name"] for lang in languages.values()])
     ax.legend()
     fig.tight_layout()
-    fig.savefig(f"solve_stats/language_stats.pdf", bbox_inches="tight", transparent=True)
+    fig.savefig("solve_stats/language_stats.pdf", bbox_inches="tight", transparent=True)
     bar.done()
 
     bar.finalize()

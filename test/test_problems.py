@@ -1,5 +1,4 @@
 import pytest
-import yaml
 import os
 import io
 from pathlib import Path
@@ -72,7 +71,12 @@ class TestIdentityProblem:
         # pass submissions + testcases
         tools.test(["run", "data/sample/1.in", "submissions/accepted/author.cpp"])
         tools.test(
-            ["run", "submissions/accepted/author.c", "submissions/accepted/author.cpp", "--samples"]
+            [
+                "run",
+                "submissions/accepted/author.c",
+                "submissions/accepted/author.cpp",
+                "--samples",
+            ],
         )
 
     def test_test(self):
@@ -126,10 +130,11 @@ class TestIdentityProblem:
         tools.test(["tmp"])
 
     @pytest.mark.parametrize(
-        "bad_submission", Path(RUN_DIR / "test/problems/identity/submissions").glob("*/*.bad.*")
+        "bad_submission",
+        Path(RUN_DIR / "test/problems/identity/submissions").glob("*/*.bad.*"),
     )
     def test_bad_submission(self, bad_submission):
-        with pytest.raises(SystemExit) as e:
+        with pytest.raises(SystemExit):
             tools.test(["run", str(bad_submission)])
 
 
@@ -199,7 +204,7 @@ class TestNewContestProblem:
         assert "id: problemone" in problemsyaml
         assert "id: problemtwo" in problemsyaml
 
-        with pytest.raises(SystemExit) as e:
+        with pytest.raises(SystemExit):
             tools.test(["pdf", "--contest", "contest_name"])
         assert config.n_warn == 2
         assert Path("contest_name/contest.en.pdf").is_file()

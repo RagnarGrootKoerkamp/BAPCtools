@@ -126,9 +126,9 @@ with (
         print()
         print(f"Found a valid solution: ({x1}, {y1}) and ({x2}, {y2})")
         print(f"Queries used: {queries}", flush=True)
-        assert (
-            extra := p_out.readline()
-        ) == "", f"Your submission printed extra data after finding a solution: '{extra[:100].strip()}{'...' if len(extra) > 100 else ''}'"
+        assert (extra := p_out.readline()) == "", (
+            f"Your submission printed extra data after finding a solution: '{extra[:100].strip()}{'...' if len(extra) > 100 else ''}'"
+        )
         print(f"Exit code: {p.wait()}", flush=True)
         assert p.wait() == 0, "Your submission did not exit cleanly after finishing"
 
@@ -136,15 +136,15 @@ with (
         print()
         print(f"Error: {e}")
         print()
-        print(f"Killing your submission.", flush=True)
+        print("Killing your submission.", flush=True)
         p.kill()
         exit(1)
 
-    except Exception as e:
+    except Exception:
         print()
         print("Unexpected error:")
         traceback.print_exc()
         print()
-        print(f"Killing your submission.", flush=True)
+        print("Killing your submission.", flush=True)
         p.kill()
         exit(1)

@@ -84,7 +84,12 @@ class Validator(program.Program):
         return type(self).__name__ + ": " + str(self.path)
 
     def __init__(
-        self, problem, path, subdir, skip_double_build_warning=False, check_constraints=False
+        self,
+        problem,
+        path,
+        subdir,
+        skip_double_build_warning=False,
+        check_constraints=False,
     ):
         super().__init__(
             problem,
@@ -143,10 +148,8 @@ class Validator(program.Program):
 
         if isinstance(self, InputValidator):
             main_path = testcase.in_path
-            bad = testcase.root == "invalid_inputs"
         elif isinstance(self, AnswerValidator):
             main_path = testcase.ans_path
-            bad = testcase.root == "invalid_answers"
         else:
             assert False  # now also catches OutputValidator
 
@@ -204,7 +207,11 @@ class InputValidator(Validator):
     source_dirs = ["input_validators", "input_format_validators"]
 
     def run(
-        self, testcase, mode=Mode.INPUT, constraints: Optional[ConstraintsDict] = None, args=None
+        self,
+        testcase,
+        mode=Mode.INPUT,
+        constraints: Optional[ConstraintsDict] = None,
+        args=None,
     ) -> ExecResult:
         """
         Arguments
@@ -258,9 +265,12 @@ class AnswerValidator(Validator):
     source_dirs = ["answer_validators", "answer_format_validators"]
 
     def run(
-        self, testcase, mode=Mode.ANSWER, constraints: Optional[ConstraintsDict] = None, args=None
+        self,
+        testcase,
+        mode=Mode.ANSWER,
+        constraints: Optional[ConstraintsDict] = None,
+        args=None,
     ) -> ExecResult:
-
         assert self.run_command is not None, "Validator should be built before running it"
 
         if mode == Mode.INPUT:
@@ -368,8 +378,8 @@ AnyValidator = InputValidator | AnswerValidator | OutputValidator
 
 
 # Checks if byte is printable or whitespace
-INVALID_BYTES_WITH_OTHER = re.compile(b"[^\t\r\v\f\n\x20-\x7E]")
-INVALID_BYTES = re.compile(b"[^\n\x20-\x7E]")
+INVALID_BYTES_WITH_OTHER = re.compile(b"[^\t\r\v\f\n\x20-\x7e]")
+INVALID_BYTES = re.compile(b"[^\n\x20-\x7e]")
 
 
 def _has_invalid_byte(bytes, *, other_whitespaces=False):

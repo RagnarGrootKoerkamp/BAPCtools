@@ -1,5 +1,4 @@
 from pathlib import Path
-import json
 
 from util import *
 
@@ -56,24 +55,26 @@ def get_contest_id():
     contest_id = (
         config.args.contest_id
         if config.args.contest_id
-        else contest_yaml()["contest_id"] if "contest_id" in contest_yaml() else None
+        else contest_yaml()["contest_id"]
+        if "contest_id" in contest_yaml()
+        else None
     )
     contests = get_contests()
     if contest_id is not None:
         if contest_id not in {c["id"] for c in contests}:
             for contest in contests:
-                log(f'{contest["id"]}: {contest["name"]}')
+                log(f"{contest['id']}: {contest['name']}")
             fatal(f"Contest {contest_id} not found.")
         else:
             return contest_id
     if len(contests) > 1:
         for contest in contests:
-            log(f'{contest["id"]}: {contest["name"]}')
+            log(f"{contest['id']}: {contest['name']}")
         fatal(
             "Server has multiple active contests. Pass --contest-id <cid> or set it in contest.yaml."
         )
     if len(contests) == 1:
-        log(f'The only active contest has id {contests[0]["id"]}')
+        log(f"The only active contest has id {contests[0]['id']}")
         return contests[0]["id"]
 
 

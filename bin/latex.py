@@ -54,12 +54,12 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
         return
 
     def build_sample_command(content):
-        return f"\\expandafter\\def\\csname Sample{i+1}\\endcsname{{{content}}}\n"
+        return f"\\expandafter\\def\\csname Sample{i + 1}\\endcsname{{{content}}}\n"
 
     samples_data = []
     fallback_call = []
     for i, sample in enumerate(samples):
-        fallback_call.append(f"\t\\csname Sample{i+1}\\endcsname\n")
+        fallback_call.append(f"\t\\csname Sample{i + 1}\\endcsname\n")
 
         current_sample = []
         if isinstance(sample, Path):
@@ -116,7 +116,7 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
 
                 pass_id = 1
 
-                current_sample.append(f"\\MultipassSampleHeading{{}}\n")
+                current_sample.append("\\MultipassSampleHeading{}\n")
 
                 def flush():
                     nonlocal current_sample
@@ -331,7 +331,7 @@ def build_latex_pdf(
         ret = run_latexmk(None, None)
 
     if not ret.status:
-        bar.error(f"Failure compiling PDF:")
+        bar.error("Failure compiling PDF:")
         if ret.out is not None:
             print(ret.out, file=sys.stderr)
             if logfile.exists():
@@ -484,30 +484,28 @@ def build_contest_pdf(
         else config.tools_root / "latex" / f"contest-{build_type.value}.tex"
     ).read_text()
 
-    for problem in problems:
+    for prob in problems:
         if build_type == PdfType.PROBLEM:
-            prepare_problem(problem, language)
+            prepare_problem(prob, language)
         else:  # i.e. for SOLUTION and PROBLEM_SLIDE
-            tex_no_lang = problem.path / "problem_statement" / f"{build_type.value}.tex"
-            tex_with_lang = (
-                problem.path / "problem_statement" / f"{build_type.value}.{language}.tex"
-            )
+            tex_no_lang = prob.path / "problem_statement" / f"{build_type.value}.tex"
+            tex_with_lang = prob.path / "problem_statement" / f"{build_type.value}.{language}.tex"
             if tex_with_lang.is_file():
                 # All is good
                 pass
             elif tex_no_lang.is_file():
                 bar.warn(
                     f"Rename {build_type.value}.tex to {build_type.value}.{language}.tex",
-                    problem.name,
+                    prob.name,
                 )
                 continue
             else:
-                bar.warn(f"{build_type.value}.{language}.tex not found", problem.name)
+                bar.warn(f"{build_type.value}.{language}.tex not found", prob.name)
                 continue
 
         problems_data += substitute(
             per_problem_data_tex,
-            problem_data(problem, language),
+            problem_data(prob, language),
         )
 
     if solutions:

@@ -5,7 +5,6 @@ import errno
 import hashlib
 import math
 import os
-import platform
 import secrets
 import shutil
 import signal
@@ -191,7 +190,13 @@ class ProgressBar:
 
     # When needs_leading_newline is True, this will print an additional empty line before the first log message.
     def __init__(
-        self, prefix, max_len=None, count=None, *, items=None, needs_leading_newline=False
+        self,
+        prefix,
+        max_len=None,
+        count=None,
+        *,
+        items=None,
+        needs_leading_newline=False,
     ):
         assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix  # type: ignore[has-type]
         ProgressBar.current_bar = self
@@ -273,7 +278,7 @@ class ProgressBar:
         if print_item:
             return f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}"
         else:
-            return f'{Fore.CYAN}{prefix}{Style.RESET_ALL}: {" " * width}'
+            return f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: {' ' * width}"
 
     def get_prefix(self, print_item=True):
         return ProgressBar.action(
@@ -322,11 +327,8 @@ class ProgressBar:
             return
 
         if len(self.in_progress) > 0:
-            p = None
-            if not self.item in self.in_progress:
-                old = self.item
+            if self.item not in self.in_progress:
                 self.item = next(iter(self.in_progress))
-                p = self.item
             self.draw_bar()
 
     def start(self, item=""):
@@ -334,9 +336,9 @@ class ProgressBar:
             # start may only be called on the root bar.
             assert self.parent is None
             self.i += 1
-            assert (
-                self.count is None or self.i <= self.count
-            ), f"Starting more items than the max of {self.count}"
+            assert self.count is None or self.i <= self.count, (
+                f"Starting more items than the max of {self.count}"
+            )
 
             # assert self.item is None
             self.item = item
@@ -464,9 +466,9 @@ class ProgressBar:
         with self:
             self.clearline()
             assert self.parent is None
-            assert (
-                self.count is None or self.i == self.count
-            ), f"Bar has done only {self.i} of {self.count} items"
+            assert self.count is None or self.i == self.count, (
+                f"Bar has done only {self.i} of {self.count} items"
+            )
             assert self.item is None
             # At most one of print_done and message may be passed.
             if message:
@@ -757,7 +759,7 @@ def substitute(data, variables):
         return data
     for key in variables:
         r = ""
-        if variables[key] != None:
+        if variables[key] is not None:
             r = variables[key]
         data = data.replace("{%" + key + "%}", str(r))
     return data
@@ -917,11 +919,12 @@ def limit_setter(command, timeout, memory_limit, group=None, cores=False):
 
         if (
             memory_limit
-            and not Path(command[0]).name in ["java", "javac", "kotlin", "kotlinc"]
+            and Path(command[0]).name not in ["java", "javac", "kotlin", "kotlinc"]
             and not is_bsd()
         ):
             resource.setrlimit(
-                resource.RLIMIT_AS, (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024)
+                resource.RLIMIT_AS,
+                (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
             )
 
         # TODO: with python 3.11 it is better to use Popen(process_group=group)
@@ -1038,7 +1041,7 @@ def exec_command(
             memory = kwargs["memory"]
         kwargs.pop("memory")
     if config.args.memory:
-        memory_limit = config.args.memory
+        memory = config.args.memory
     if is_windows() or config.args.sanitizer:
         memory = None
 
