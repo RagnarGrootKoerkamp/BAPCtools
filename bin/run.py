@@ -17,7 +17,6 @@ from util import (
     error,
     ExecResult,
     ExecStatus,
-    exec_command,
     is_bsd,
     is_windows,
     ProgressBar,
@@ -59,6 +58,14 @@ class Run:
             result = interactive.run_interactive_testcase(
                 self, interaction=interaction, submission_args=submission_args
             )
+            if result is None:
+                bar.error(
+                    f'No output validator found for testcase {self.testcase.name}',
+                    resume=True,
+                )
+                result = ExecResult(
+                    None, ExecStatus.REJECTED, 0, False, None, None, Verdict.VALIDATOR_CRASH
+                )
         else:
             if interaction:
                 assert not interaction.is_relative_to(self.tmpdir)
@@ -116,7 +123,7 @@ class Run:
                     )
                 elif result.status:
                     result.verdict = Verdict.ACCEPTED
-                    validate.sanity_check(self.out_path, bar, strict_whitespace=False)
+                    validate.sanity_check(self.problem, self.out_path, bar, strict_whitespace=False)
                 elif result.status == ExecStatus.REJECTED:
                     result.verdict = Verdict.WRONG_ANSWER
                     if nextpass and nextpass.is_file():
@@ -193,9 +200,8 @@ class Run:
 
     def _validate_output(self, bar):
         output_validators = self.problem.validators(validate.OutputValidator)
-        if output_validators is False or len(output_validators) == 0:
+        if len(output_validators) != 1:
             return None
-        assert len(output_validators) == 1
         validator = output_validators[0]
 
         flags = self.testcase.testdata_yaml_validator_flags(validator, bar)
@@ -220,7 +226,17 @@ class Run:
 class Submission(program.Program):
     def __init__(self, problem, path, skip_double_build_warning=False):
         super().__init__(
-            problem, path, 'submissions', skip_double_build_warning=skip_double_build_warning
+            problem,
+            path,
+            'submissions',
+            limits={
+                'code': problem.limits.code,
+                'compilation_time': problem.limits.compilation_time,
+                'compilation_memory': problem.limits.compilation_memory,
+                'timeout': problem.settings.timeout,
+                'memory': problem.limits.memory,
+            },
+            skip_double_build_warning=skip_double_build_warning,
         )
 
         self.verdict = None
@@ -301,9 +317,9 @@ class Submission(program.Program):
     # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
     # args is used by SubmissionInvocation to pass on additional arguments.
     # Returns ExecResult
-    # The `default_timeout` argument is used when a submission is run as a solution when
+    # The `generator_timeout` argument is used when a submission is run as a solution when
     # generating testcases.
-    def run(self, in_path, out_path, crop=True, args=[], cwd=None, default_timeout=False):
+    def run(self, in_path, out_path, crop=True, args=[], cwd=None, generator_timeout=False):
         assert self.run_command is not None
         # Just for safety reasons, change the cwd.
         if cwd is None:
@@ -312,14 +328,18 @@ class Submission(program.Program):
             out_file = out_path.open('wb') if out_path else None
 
             # Print stderr to terminal is stdout is None, otherwise return its value.
-            result = exec_command(
+            result = self._exec_command(
                 self.run_command + args,
                 crop=crop,
                 stdin=inf,
                 stdout=out_file,
                 stderr=None if out_file is None else True,
-                timeout=True if default_timeout else self.problem.settings.timeout,
                 cwd=cwd,
+                timeout=(
+                    self.problem.limits.generator_time
+                    if generator_timeout
+                    else self.limits['timeout']
+                ),
             )
             if out_file:
                 out_file.close()
@@ -349,7 +369,7 @@ class Submission(program.Program):
 
         verdicts = Verdicts(
             testcases,
-            self.problem.settings.timeout,
+            self.limits['timeout'],
             run_until,
         )
 
@@ -418,7 +438,7 @@ class Submission(program.Program):
                 color = f'{Style.DIM}'
             else:
                 color = Fore.GREEN if got_expected else Fore.RED
-            timeout = result.duration >= self.problem.settings.timeout
+            timeout = result.duration >= self.limits['timeout']
             duration_style = Style.BRIGHT if timeout else ''
             passmsg = (
                 f':{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}' if self.problem.multipass else ''
@@ -451,9 +471,7 @@ class Submission(program.Program):
 
         (salient_testcase, salient_duration) = verdicts.salient_testcase()
         salient_print_verdict = self.verdict
-        salient_duration_style = (
-            Style.BRIGHT if salient_duration >= self.problem.settings.timeout else ''
-        )
+        salient_duration_style = Style.BRIGHT if salient_duration >= self.limits['timeout'] else ''
 
         # Summary line is the only thing shown.
         message = f'{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_testcase:{max_testcase_len}}{Style.RESET_ALL}'
@@ -474,7 +492,7 @@ class Submission(program.Program):
             )
 
             slowest_duration_style = (
-                Style.BRIGHT if slowest_duration >= self.problem.settings.timeout else ''
+                Style.BRIGHT if slowest_duration >= self.limits['timeout'] else ''
             )
 
             message += f' {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_testcase}{Style.RESET_ALL}'
@@ -506,17 +524,16 @@ class Submission(program.Program):
             if not self.problem.interactive:
                 assert self.run_command is not None
                 with testcase.in_path.open('rb') as inf:
-                    result = exec_command(
+                    result = self._exec_command(
                         self.run_command,
                         crop=False,
                         stdin=inf,
                         stdout=None,
                         stderr=None,
-                        timeout=self.problem.settings.timeout,
                     )
 
                 assert result.err is None and result.out is None
-                if result.duration >= self.problem.settings.timeout:
+                if result.duration >= self.limits['timeout']:
                     status = f'{Fore.RED}Aborted!'
                     config.n_error += 1
                 elif not result.status and result.status != ExecStatus.TIMEOUT:
@@ -581,7 +598,13 @@ class Submission(program.Program):
             bar.start(name)
             # Reinitialize the underlying program, so that changed to the source
             # code can be picked up in build.
-            super().__init__(self.problem, self.path, self.subdir, skip_double_build_warning=True)
+            super().__init__(
+                self.problem,
+                self.path,
+                self.subdir,
+                limits=self.limits,
+                skip_double_build_warning=True,
+            )
             bar.log('from stdin' if is_tty else 'from file')
 
             # Launch a separate thread to pass stdin to a pipe.
@@ -616,8 +639,13 @@ while True:
                 writer = subprocess.Popen(['python3', '-c', TEE_CODE], stdin=None, stdout=w)
 
                 assert self.run_command is not None
-                result = exec_command(
-                    self.run_command, crop=False, stdin=r, stdout=None, stderr=None, timeout=None
+                result = self._exec_command(
+                    self.run_command,
+                    crop=False,
+                    stdin=r,
+                    stdout=None,
+                    stderr=None,
+                    timeout=None,  # no timeout since we wait for user input
                 )
 
                 assert result.err is None and result.out is None

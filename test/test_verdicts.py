@@ -11,7 +11,7 @@ PATHS = [MockTestcase(p) for p in ["sample/1", "sample/2", "secret/a/1", "secret
 
 class TestVerdicts:
     def test_inherited_inference(self):
-        verds = verdicts.Verdicts(PATHS, 1.0)
+        verds = verdicts.Verdicts(PATHS, 1)
         verds.set("secret/a/1", AC, 0.5)
         verds.set("secret/a/2", AC, 0.5)
         verds.set("secret/a/3", AC, 0.5)
@@ -23,7 +23,7 @@ class TestVerdicts:
         assert verds["."] == AC
 
     def test_first_error(self):
-        verds = verdicts.Verdicts(PATHS, 1.0)
+        verds = verdicts.Verdicts(PATHS, 1)
         assert all(verds.run_is_needed(f"secret/a/{i}") for i in range(1, 3))
         verds.set("secret/a/1", AC, 0.5)
         verds.set("secret/a/3", WA, 0.5)
@@ -42,7 +42,7 @@ class TestVerdicts:
         # This means that this test_efficiency() runs in quadratic time.
         size = 1000
         many_paths = [MockTestcase(f"a/{i}") for i in range(size)]
-        verds = verdicts.Verdicts(many_paths, 1.0)
+        verds = verdicts.Verdicts(many_paths, 1)
         evens = range(0, size, 2)
         odds = range(1, size, 2)
         for i in reversed(evens):
@@ -52,7 +52,7 @@ class TestVerdicts:
 
     def test_parent_overwrite(self):
         # If implemented badly, will overwrite verdict at `secret/a' (and crash)
-        verds = verdicts.Verdicts(PATHS, 1.0)
+        verds = verdicts.Verdicts(PATHS, 1)
         verds.set("secret/a/1", WA, 0.5)
         assert verds["secret/a"] == WA
         verds.set("secret/a/2", WA, 0.5)  # should not try to write 'secret/a' again

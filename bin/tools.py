@@ -328,7 +328,8 @@ Run this from one of:
     global_parser.add_argument(
         '--memory',
         '-m',
-        help='The maximum amount of memory in MB a subprocess may use. Does not work for Java. Default: 2048.',
+        type=int,
+        help='The maximum amount of memory in MB a subprocess may use.',
     )
     global_parser.add_argument(
         '--api',
@@ -662,7 +663,7 @@ Run this from one of:
     runparser.add_argument(
         '--sanitizer',
         action='store_true',
-        help='Run submissions with additional sanitizer flags (currently only C++). Note that this sets --memory unlimited.',
+        help='Run submissions with additional sanitizer flags (currently only C++). Note that this removes all memory limits for submissions.',
     )
 
     timelimitparser = subparsers.add_parser(

@@ -35,18 +35,17 @@ def run_interactive_testcase(
     submission_args: Optional[list[str]] = None,
 ):
     output_validators = run.problem.validators(validate.OutputValidator)
-    if output_validators is False:
-        fatal('No output validator found!')
-
-    assert len(output_validators) == 1
+    if len(output_validators) != 1:
+        return None
     output_validator = output_validators[0]
 
     # Set limits
-    validator_timeout = config.DEFAULT_INTERACTION_TIMEOUT
+    validation_time = run.problem.limits.validation_time
+    validation_memory = run.problem.limits.validation_memory
 
-    memory_limit = get_memory_limit()
     timelimit = run.problem.settings.timelimit
     timeout = run.problem.settings.timeout
+    memory = run.problem.limits.memory
 
     # Validator command
     def get_validator_command():
@@ -108,10 +107,11 @@ def run_interactive_testcase(
                 stderr=subprocess.PIPE if team_error is False else None,
                 cwd=submission_dir,
                 timeout=timeout,
+                memory=memory,
             )
 
             # Wait
-            (validator_out, validator_err) = validator_process.communicate()
+            (validator_out, validator_err) = validator_process.communicate(timeout=validation_time)
 
             tend = time.monotonic()
             max_duration = max(max_duration, tend - tstart)
@@ -223,7 +223,7 @@ while True:
             stderr=subprocess.PIPE if validator_error is False else None,
             cwd=validator_dir,
             pipesize=BUFFER_SIZE,
-            preexec_fn=limit_setter(validator_command, validator_timeout, None, 0),
+            preexec_fn=limit_setter(validator_command, validation_time, validation_memory, 0),
         )
         validator_pid = validator.pid
         # add all programs to the same group (for simplicity we take the pid of the validator)
@@ -259,7 +259,7 @@ while True:
             stderr=subprocess.PIPE if team_error is False else None,
             cwd=submission_dir,
             pipesize=BUFFER_SIZE,
-            preexec_fn=limit_setter(submission_command, timeout, memory_limit, gid),
+            preexec_fn=limit_setter(submission_command, timeout, memory, gid),
         )
         submission_pid = submission.pid
 
@@ -275,7 +275,7 @@ while True:
                 os.kill(submission_pid, signal.SIGKILL)
             except ProcessLookupError:
                 pass
-            if validator_timeout > timeout and stop_kill_handler.wait(validator_timeout - timeout):
+            if validation_time > timeout and stop_kill_handler.wait(validation_time - timeout):
                 return
             os.killpg(gid, signal.SIGKILL)
 

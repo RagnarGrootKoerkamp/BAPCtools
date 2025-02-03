@@ -86,7 +86,16 @@ class Validator(program.Program):
     def __init__(
         self, problem, path, subdir, skip_double_build_warning=False, check_constraints=False
     ):
-        super().__init__(problem, path, subdir, skip_double_build_warning=skip_double_build_warning)
+        super().__init__(
+            problem,
+            path,
+            subdir,
+            limits={
+                'timeout': problem.limits.validation_time,
+                'memory': problem.limits.validation_memory,
+            },
+            skip_double_build_warning=skip_double_build_warning,
+        )
         assert self.__class__ is not Validator  # Validator is abstract and may not be instantiated
 
         if check_constraints:
@@ -152,13 +161,16 @@ class Validator(program.Program):
 
         if self.language == 'checktestdata':
             with main_path.open() as main_file:
-                return exec_command(
-                    self.run_command, exec_code_map=format_exec_code_map, stdin=main_file, cwd=cwd
+                return self._exec_command(
+                    self.run_command,
+                    exec_code_map=format_exec_code_map,
+                    stdin=main_file,
+                    cwd=cwd,
                 )
 
         if self.language == 'viva':
             # Called as `viva validator.viva testcase.in`.
-            result = exec_command(
+            result = self._exec_command(
                 self.run_command + [main_path.resolve()],
                 exec_code_map=format_exec_code_map,
                 cwd=cwd,
@@ -216,12 +228,11 @@ class InputValidator(Validator):
         invocation = self.run_command.copy()
 
         with testcase.in_path.open() as in_file:
-            ret = exec_command(
+            ret = self._exec_command(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
                 stdin=in_file,
                 cwd=cwd,
-                timeout=config.get_timeout(),
             )
 
         if constraints is not None:
@@ -265,12 +276,11 @@ class AnswerValidator(Validator):
         invocation = self.run_command + [testcase.in_path.resolve()]
 
         with testcase.ans_path.open() as ans_file:
-            ret = exec_command(
+            ret = self._exec_command(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
                 stdin=ans_file,
                 cwd=cwd,
-                timeout=config.get_timeout(),
             )
 
         if constraints is not None:
@@ -341,12 +351,11 @@ class OutputValidator(Validator):
         invocation = self.run_command + [in_path, ans_path, cwd] + flags
 
         with path.open() as file:
-            ret = exec_command(
+            ret = self._exec_command(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
                 stdin=file,
                 cwd=cwd,
-                timeout=config.get_timeout(),
             )
 
         if constraints is not None:
@@ -379,7 +388,7 @@ def _has_consecutive_whitespaces(bytes):
     return False
 
 
-def sanity_check(path, bar, strict_whitespace=True):
+def sanity_check(problem, path, bar, strict_whitespace=True):
     """
     Does some generic checks on input, answer, or output files of a testcase, including
 
@@ -416,6 +425,13 @@ def sanity_check(path, bar, strict_whitespace=True):
             bar.warn(f'{name} is empty but was accepted!')
         elif len(file_bytes) > 20_000_000:
             bar.warn(f'{name} is larger than 20MB!')
+        elif (
+            path.suffix in ['.ans', '.out']
+            and len(file_bytes) > problem.limits.output * 1024 * 1024
+        ):
+            bar.warn(
+                f'{name} exceeds output limit (set limits->output to at least {(len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)'
+            )
         elif strict_whitespace:
             if file_bytes[0] in [ord(' '), ord('\n')]:
                 bar.warn(f'{name} starts with whitespace but was accepted!')

@@ -45,6 +45,7 @@ class Problem:
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
             tuple[Type[validate.AnyValidator], bool], list[validate.AnyValidator]
         ]()
+        self._validators_warn_cache = set[tuple[Type[validate.AnyValidator], bool]]()
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
@@ -125,12 +126,23 @@ class Problem:
             'uuid': None,
             'limits': {},
         }
-        # TODO: implement other limits
         # TODO move timelimit to this?
+        # defaults from https://github.com/Kattis/problem-package-format/blob/master/spec/legacy-icpc.md#limits
         limits = {
             'time_multiplier': 2,
             'time_safety_margin': 1.5,
             'time_resolution': 1.0,
+            'memory': 2048,  # in MiB
+            'output': 8,  # in MiB
+            'code': 128,  # in KiB
+            'compilation_time': 60,  # in seconds
+            'compilation_memory': 2048,  # in MiB
+            'validation_time': 60,  # in seconds
+            'validation_memory': 2048,  # in MiB
+            # 'validation_output': 8,  # in MiB
+            # BAPCtools extension:
+            'generator_time': config.DEFAULT_TIMEOUT,  # in seconds
+            'visualizer_time': config.DEFAULT_TIMEOUT,  # in seconds
         }
 
         yaml_path = self.path / 'problem.yaml'
@@ -209,6 +221,11 @@ class Problem:
         self.settings.timeout = int(
             config.args.timeout or self.limits.time_safety_margin * self.settings.timelimit + 1
         )
+        self.limits.validation_time = config.args.timeout or self.limits.validation_time
+        self.limits.generator_time = config.args.timeout or self.limits.generator_time
+        self.limits.visualizer_time = config.args.timeout or self.limits.visualizer_time
+        self.limits.memory = config.args.memory or self.limits.memory
+        self.limits.validation_memory = config.args.memory or self.limits.validation_memory
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / 'data')
@@ -556,12 +573,28 @@ class Problem:
             singleton list(OutputValidator) if cls is OutputValidator
             list(Validator) otherwise, maybe empty
         """
+        validators = problem._validators(cls, check_constraints)
         if not strict and cls == validate.AnswerValidator:
-            return problem._validators(cls, check_constraints) + problem._validators(
-                validate.OutputValidator, check_constraints
-            )
-        else:
-            return problem._validators(cls, check_constraints)
+            validators += problem._validators(validate.OutputValidator, check_constraints)
+
+        # Check that the proper number of validators is present
+        # do this after handling the strict flag but dont warn every time
+        key = (cls, check_constraints)
+        if key not in problem._validators_warn_cache:
+            problem._validators_warn_cache.add(key)
+            match cls, len(validators):
+                case validate.InputValidator, 0:
+                    warn(f'No input validators found.')
+                case validate.AnswerValidator, 0:
+                    warn(f"No answer validators found")
+                case validate.OutputValidator, l if l != 1:
+                    error(f'Found {len(validators)} output validators, expected exactly one.')
+
+        build_ok = all(v.ok for v in validators)
+
+        # All validators must build.
+        # TODO Really? Why not at least return those that built?
+        return validators if build_ok else []
 
     def _validators(
         problem, cls: Type[validate.AnyValidator], check_constraints=False
@@ -570,7 +603,6 @@ class Problem:
         key = (cls, check_constraints)
         if key in problem._validators_cache:
             return problem._validators_cache[key]
-        ok = True
 
         assert hasattr(cls, 'source_dirs')
         paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, '*')]
@@ -580,17 +612,6 @@ class Problem:
             if paths:
                 error("Validation is default but custom output validator exists (ignoring it)")
             paths = [config.tools_root / 'support' / 'default_output_validator.cpp']
-
-        # Check that the proper number of validators is present
-        match cls, len(paths):
-            case validate.InputValidator, 0:
-                warn(f'No input validators found.')
-            case validate.AnswerValidator, 0:
-                log(f"No answer validators found")
-            case validate.OutputValidator, l if l != 1:
-                print(cls)
-                error(f'Found {len(paths)} output validators, expected exactly one.')
-                ok = False
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
@@ -624,23 +645,16 @@ class Problem:
             for path in paths
         ]
         bar = ProgressBar(f'Building {cls.validator_type} validator', items=validators)
-        build_ok = True
 
         def build_program(p):
-            nonlocal build_ok
             localbar = bar.start(p)
-            build_ok &= p.build(localbar)
+            p.build(localbar)
             localbar.done()
 
         parallel.run_tasks(build_program, validators)
-
         bar.finalize(print_done=False)
 
-        # All validators must build.
-        # TODO Really? Why not at least return those that built?
-        result = validators if ok and build_ok else []
-
-        problem._validators_cache[key] = result
+        problem._validators_cache[key] = validators
         return validators
 
     # get all testcses and submissions and prepare the output validator

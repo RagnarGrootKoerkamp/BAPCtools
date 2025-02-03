@@ -145,9 +145,9 @@ class Verdicts:
     available (and returns the topmost inferred testgroup).
     Verdicts (registered and inferred) are accessed with __getitem__
 
-    >>> V = Verdicts(["a/b/1", "a/b/2", "a/c/1", "a/d/1", "b/3"], timeout=1.0)
-    >>> V.set('a/b/1', 'ACCEPTED', 1.0)
-    >>> V.set('a/b/2', 'AC', 1.0) # returns 'a/b' because that verdict will be set as well
+    >>> V = Verdicts(["a/b/1", "a/b/2", "a/c/1", "a/d/1", "b/3"], timeout=1)
+    >>> V.set('a/b/1', 'ACCEPTED', 0.9)
+    >>> V.set('a/b/2', 'AC', 0.9) # returns 'a/b' because that verdict will be set as well
     >>> print(V['a/b'], V['.'])
     ACCEPTED None
 
@@ -167,7 +167,7 @@ class Verdicts:
     def __init__(
         self,
         testcases_list: list[testcase.Testcase],
-        timeout: float = 1,
+        timeout: int,
         run_until: RunUntil = RunUntil.FIRST_ERROR,
     ):
         testcases: set[str] = set(t.name for t in testcases_list)
