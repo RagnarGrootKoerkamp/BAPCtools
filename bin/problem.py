@@ -156,11 +156,12 @@ class Problem:
         else:
             yamldata = read_yaml_settings(yaml_path)
 
-        if yamldata:
-            for k, v in yamldata.items():
-                settings[k] = v
-            if "timelimit" in yamldata:
-                settings["timelimit_is_default"] = False
+        yamldata = yamldata or {}
+        assert isinstance(yamldata, dict)
+        for k, v in yamldata.items():
+            settings[k] = v
+        if "timelimit" in yamldata:
+            settings["timelimit_is_default"] = False
 
         # DEPRECATED: parse domjudge-problem.ini for the timelimit.
         domjudge_path = self.path / "domjudge-problem.ini"
@@ -183,7 +184,7 @@ class Problem:
             settings["timelimit_is_default"] = False
 
         # move limits to own dictionary
-        settings_limits = settings["limits"]
+        settings_limits = settings["limits"] or {}
         settings.pop("limits")
         assert isinstance(settings_limits, dict)
         for k, v in settings_limits.items():
