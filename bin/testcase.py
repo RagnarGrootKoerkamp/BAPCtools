@@ -1,7 +1,6 @@
 """Test case"""
 
 from pathlib import Path
-from typing import Type
 
 from util import (
     fatal,
@@ -136,7 +135,7 @@ class Testcase:
             fatal(f"{key} must be a string in testdata.yaml, got {flags}")
         return flags.split()
 
-    def validator_hashes(self, cls: Type["validate.Validator"], bar):
+    def validator_hashes(self, cls: type["validate.Validator"], bar):
         """
         Returns
         -------
