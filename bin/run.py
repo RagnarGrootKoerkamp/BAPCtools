@@ -150,7 +150,9 @@ class Run:
 
                 if not self._prepare_nextpass(nextpass):
                     break
-                elif pass_id >= self.problem.limits.validation_passes:
+
+                assert self.problem.limits.validation_passes is not None
+                if pass_id >= self.problem.limits.validation_passes:
                     bar.error("exceeded limit of validation_passes", resume=True)
                     result.verdict = Verdict.VALIDATOR_CRASH
                     break

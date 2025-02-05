@@ -706,6 +706,9 @@ Run this from one of:
         action="store_true",
         help="Write .timelimit file.",
     )
+    timelimitparser.add_argument(
+        "--timeout", "-t", type=int, help="Override the default timeout. Default: 60."
+    )
 
     # Test
     testparser = subparsers.add_parser(

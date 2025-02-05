@@ -1,18 +1,18 @@
 import re
-import argparse
 import shlex
 import sys
 import threading
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Literal, Optional, Type, TYPE_CHECKING
+from typing import Any, Literal, Optional, TypeVar, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
 
 import config
 import latex
+import math
 import parallel
 import run
 import testcase
@@ -20,6 +20,115 @@ import validate
 import verdicts
 from util import *
 from colorama import Fore, Style
+
+T = TypeVar("T")
+
+
+def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
+    default = None
+    if key in yamldata:
+        value = yamldata.pop(key)
+        if isinstance(value, int) and t is float:
+            value = float(value)
+        if isinstance(value, t):
+            default = value
+        elif value == "":
+            # handle empty yaml keys
+            default = t()
+        else:
+            warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+    return default
+
+
+def parse_setting(yamldata: dict[str, Any], key: str, default: T) -> T:
+    value = parse_optional_setting(yamldata, key, type(default))
+    return default if value is None else value
+
+
+# TODO move timeout and timelimit to this?
+class ProblemLimits:
+    def __init__(self, yamldata: dict[str, Any]):
+        assert isinstance(yamldata, dict)
+
+        # known keys
+        # defaults from https://github.com/Kattis/problem-package-format/blob/master/spec/legacy-icpc.md#limits
+        self.time_multiplier: float = parse_setting(yamldata, "time_multiplier", 2.0)
+        self.time_safety_margin: float = parse_setting(
+            yamldata, "time_safety_margin", 1.5
+        )  # in seconds
+        self.time_resolution: float = parse_setting(yamldata, "time_resolution", 1.0)
+        self.memory: int = parse_setting(yamldata, "memory", 2048)  # in MiB
+        self.output: int = parse_setting(yamldata, "output", 8)  # in MiB
+        self.code: int = parse_setting(yamldata, "code", 128)  # in KiB
+        self.compilation_time: int = parse_setting(yamldata, "compilation_time", 60)  # in seconds
+        self.compilation_memory: int = parse_setting(yamldata, "compilation_memory", 2048)  # in MiB
+        self.validation_time: int = parse_setting(yamldata, "validation_time", 60)  # in seconds
+        self.validation_memory: int = parse_setting(yamldata, "validation_memory", 2048)  # in MiB
+        self.validation_output: int = parse_setting(yamldata, "validation_output", 8)  # in MiB
+        # extension:
+        self.generator_time: int = parse_setting(
+            yamldata, "generator_time", config.DEFAULT_TIMEOUT
+        )  # in seconds
+        self.visualizer_time: int = parse_setting(
+            yamldata, "visualizer_time", config.DEFAULT_TIMEOUT
+        )  # in seconds
+
+        self.validation_passes: Optional[int] = None
+        if "validation_passes" in yamldata:
+            self.validation_passes = parse_setting(yamldata, "validation_passes", int())
+
+        # check for unknown keys
+        for key in yamldata:
+            assert isinstance(key, str)
+            warn(f"found unknown problem.yaml key: {key} in limits")
+
+        # Override limmits by command line arguments.
+        self.validation_time = config.args.timeout or self.validation_time
+        self.generator_time = config.args.timeout or self.generator_time
+        self.visualizer_time = config.args.timeout or self.visualizer_time
+        self.memory = config.args.memory or self.memory
+        self.validation_memory = config.args.memory or self.validation_memory
+
+
+class ProblemSettings:
+    def __init__(
+        self, yamldata: dict[str, Any], limits: ProblemLimits, timelimit: Optional[float] = None
+    ):
+        assert isinstance(yamldata, dict)
+
+        self.timelimit_is_default: bool = timelimit is not None or "timelimit" in yamldata
+
+        if "name" in yamldata and isinstance(yamldata["name"], str):
+            yamldata["name"] = {"en", yamldata["name"]}
+
+        if "validator_flags" in yamldata and isinstance(yamldata["validator_flags"], str):
+            yamldata["validator_flags"] = shlex.split(yamldata["validator_flags"])
+
+        # known keys
+        self.name: dict[str, str] = parse_setting(yamldata, "name", {"en": ""})
+        self.uuid: str = parse_setting(yamldata, "uuid", "")
+        self.author: str = parse_setting(yamldata, "author", "")
+        self.source: str = parse_setting(yamldata, "source", "")
+        self.source_url: str = parse_setting(yamldata, "source_url", "")
+        self.license: str = parse_setting(yamldata, "license", "")
+        self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
+        # self.limits
+        self.validation: str = parse_setting(yamldata, "validation", "default")
+        self.validator_flags: list[str] = parse_setting(yamldata, "validator_flags", [])
+        self.keywords: str = parse_setting(yamldata, "keywords", "")
+        # extension:
+        self.timelimit: float = parse_setting(yamldata, "timelimit", timelimit or 1.0)
+        self.verified: Optional[str] = parse_optional_setting(yamldata, "verified", str)
+        self.comment: Optional[str] = parse_optional_setting(yamldata, "comment", str)
+
+        # check for unknown keys
+        for key in yamldata:
+            assert isinstance(key, str)
+            warn(f"found unknown problem.yaml key: {key}")
+
+        # Override limmits by command line arguments.
+        self.timelimit = config.args.timelimit or self.timelimit
+        self.timeout = int(config.args.timeout or limits.time_safety_margin * self.timelimit + 1)
 
 
 # A problem.
@@ -43,9 +152,9 @@ class Problem:
         ]()
         self._submissions: Optional[list[run.Submission] | Literal[False]] = None
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
-            tuple[Type[validate.AnyValidator], bool], list[validate.AnyValidator]
+            tuple[type[validate.AnyValidator], bool], list[validate.AnyValidator]
         ]()
-        self._validators_warn_cache = set[tuple[Type[validate.AnyValidator], bool]]()
+        self._validators_warn_cache = set[tuple[type[validate.AnyValidator], bool]]()
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
@@ -114,54 +223,7 @@ class Problem:
         return sorted(texlangs & yamllangs)
 
     def _read_settings(self):
-        # some defaults
-        settings = {
-            "timelimit": 1.0,
-            "timelimit_is_default": True,
-            "timeout": 3,
-            "name": "",
-            "validation": "default",
-            "validator_flags": [],
-            "author": "",
-            "uuid": None,
-            "limits": {},
-        }
-        # TODO move timelimit to this?
-        # defaults from https://github.com/Kattis/problem-package-format/blob/master/spec/legacy-icpc.md#limits
-        limits = {
-            "time_multiplier": 2,
-            "time_safety_margin": 1.5,
-            "time_resolution": 1.0,
-            "memory": 2048,  # in MiB
-            "output": 8,  # in MiB
-            "code": 128,  # in KiB
-            "compilation_time": 60,  # in seconds
-            "compilation_memory": 2048,  # in MiB
-            "validation_time": 60,  # in seconds
-            "validation_memory": 2048,  # in MiB
-            # 'validation_output': 8,  # in MiB
-            # BAPCtools extension:
-            "generator_time": config.DEFAULT_TIMEOUT,  # in seconds
-            "visualizer_time": config.DEFAULT_TIMEOUT,  # in seconds
-        }
-
-        yaml_path = self.path / "problem.yaml"
-
-        # parse problem.yaml
-        if has_ryaml:
-            try:
-                yamldata = read_yaml_settings(yaml_path)
-            except ruamel.yaml.scanner.ScannerError:
-                fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
-        else:
-            yamldata = read_yaml_settings(yaml_path)
-
-        yamldata = yamldata or {}
-        assert isinstance(yamldata, dict)
-        for k, v in yamldata.items():
-            settings[k] = v
-        if "timelimit" in yamldata:
-            settings["timelimit_is_default"] = False
+        timelimit: Optional[float] = None
 
         # DEPRECATED: parse domjudge-problem.ini for the timelimit.
         domjudge_path = self.path / "domjudge-problem.ini"
@@ -172,61 +234,47 @@ class Problem:
                 if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
                     var = var[1:-1]
                 if key == "timelimit":
-                    settings[key] = float(var)
-                    settings["timelimit_is_default"] = False
-                else:
-                    settings[key] = var
+                    timelimit = float(var)
 
+        # TODO make this deprecated as well?
         # Read the .timitlimit file if present.
         timelimit_path = self.path / ".timelimit"
         if timelimit_path.is_file():
-            settings["timelimit"] = float(timelimit_path.read_text())
-            settings["timelimit_is_default"] = False
+            timelimit = float(timelimit_path.read_text())
 
-        # move limits to own dictionary
-        settings_limits = settings["limits"] or {}
-        settings.pop("limits")
-        assert isinstance(settings_limits, dict)
-        for k, v in settings_limits.items():
-            limits[k] = v
+        # parse problem.yaml
+        yaml_path = self.path / "problem.yaml"
+        if has_ryaml:
+            try:
+                settings = read_yaml_settings(yaml_path)
+            except ruamel.yaml.scanner.ScannerError:
+                fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
+        else:
+            settings = read_yaml_settings(yaml_path)
+        settings = settings or {}
 
-        # Convert the dictionary to a namespace object.
-        self.settings = argparse.Namespace(**settings)
-
-        if isinstance(self.settings.validator_flags, str):
-            self.settings.validator_flags = shlex.split(self.settings.validator_flags)
-
-        if self.settings.uuid is None:
-            self.settings.uuid = generate_problem_uuid()
+        if "uuid" not in settings:
+            uuid = generate_problem_uuid()
+            settings["uuid"] = uuid
             raw = yaml_path.read_text().rstrip()
-            raw += f"\n# uuid added by BAPCtools\nuuid: '{self.settings.uuid}'\n"
+            raw += f"\n# uuid added by BAPCtools\nuuid: '{uuid}'\n"
             yaml_path.write_text(raw)
-            log(f"Generated UUID for {self.name}, added to problem.yaml")
+            log("Added new UUID to problem.yaml")
+
+        limits: dict[str, Any] = parse_setting(settings, "limits", {})
+        self.limits = ProblemLimits(limits)
+        self.settings = ProblemSettings(settings, self.limits, timelimit)
 
         mode = parse_validation(self.settings.validation)
-        self.interactive = mode["interactive"]
-        self.multipass = mode["multi-pass"]
+        self.interactive = "interactive" in mode
+        self.multipass = "multi-pass" in mode
 
-        has_validation_passes = "validation_passes" in limits
+        # Handle dependencies...
+        has_validation_passes = self.limits.validation_passes is not None
         if self.multipass and not has_validation_passes:
-            limits["validation_passes"] = 2
+            self.limits.validation_passes = 2
         if not self.multipass and has_validation_passes:
-            limits.pop("validation_passes")
             warn("limit: validation_passes is only used for multipass problems. SKIPPED.")
-
-        # TODO #102: typed Namespace? Or create type of problem.yaml and reuse `limits` field from there?
-        self.limits = argparse.Namespace(**limits)
-
-        # Override settings by command line arguments.
-        self.settings.timelimit = config.args.timelimit or self.settings.timelimit
-        self.settings.timeout = int(
-            config.args.timeout or self.limits.time_safety_margin * self.settings.timelimit + 1
-        )
-        self.limits.validation_time = config.args.timeout or self.limits.validation_time
-        self.limits.generator_time = config.args.timeout or self.limits.generator_time
-        self.limits.visualizer_time = config.args.timeout or self.limits.visualizer_time
-        self.limits.memory = config.args.memory or self.limits.memory
-        self.limits.validation_memory = config.args.memory or self.limits.validation_memory
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / "data")
@@ -559,7 +607,7 @@ class Problem:
         return problem._submissions.copy()
 
     def validators(
-        problem, cls: Type[validate.AnyValidator], check_constraints=False, strict=False
+        problem, cls: type[validate.AnyValidator], check_constraints=False, strict=False
     ) -> list[validate.AnyValidator]:
         """
         Gets the validators of the given class.
@@ -598,7 +646,7 @@ class Problem:
         return validators if build_ok else []
 
     def _validators(
-        problem, cls: Type[validate.AnyValidator], check_constraints=False
+        problem, cls: type[validate.AnyValidator], check_constraints=False
     ) -> list[validate.AnyValidator]:
         key = (cls, check_constraints)
         if key in problem._validators_cache:
@@ -939,9 +987,9 @@ class Problem:
             return False
         testcases, submissions = ts_pair
 
-        problem.settings.timelimit = float("inf")
+        problem.settings.timelimit = config.args.timeout or 60
         problem.settings.timelimit_is_default = False
-        problem.settings.timeout = float("inf")
+        problem.settings.timeout = problem.settings.timelimit
 
         ok = True
 
@@ -967,6 +1015,9 @@ class Problem:
             return verdict_table.submissions[selected], testcase, duration
 
         submission, testcase, duration = run_all(lambda vs: vs == [verdicts.Verdict.ACCEPTED], max)
+        if not ok:
+            error("AC submissions failed")
+            return False
         if submission is None:
             error("No AC submissions found")
             return False
