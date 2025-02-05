@@ -41,12 +41,8 @@ class ProblemLimits:
         self.validation_memory: int = parse_setting(yamldata, "validation_memory", 2048)  # in MiB
         self.validation_output: int = parse_setting(yamldata, "validation_output", 8)  # in MiB
         # BAPCtools extensions:
-        self.generator_time: int = parse_setting(
-            yamldata, "generator_time", config.DEFAULT_TIMEOUT
-        )  # in seconds
-        self.visualizer_time: int = parse_setting(
-            yamldata, "visualizer_time", config.DEFAULT_TIMEOUT
-        )  # in seconds
+        self.generator_time: int = parse_setting(yamldata, "generator_time", 60)  # in seconds
+        self.visualizer_time: int = parse_setting(yamldata, "visualizer_time", 60)  # in seconds
 
         self.validation_passes: Optional[int] = parse_optional_setting(
             yamldata, "validation_passes", int

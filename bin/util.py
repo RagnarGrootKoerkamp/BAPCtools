@@ -1045,7 +1045,7 @@ def exec_command(
             print(" < ", kwargs["stdin"].name, end="", file=sys.stderr)
         print(file=sys.stderr)
 
-    timeout: Optional[int] = config.DEFAULT_TIMEOUT
+    timeout: Optional[int] = None
     if "timeout" in kwargs:
         if kwargs["timeout"] is None:
             timeout = None
