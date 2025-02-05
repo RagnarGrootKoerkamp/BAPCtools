@@ -122,9 +122,6 @@ n_warn = 0
 RUNNING_TEST = False
 TEST_TLE_SUBMISSIONS = False
 
-# The default timeout used for generators, visualizer etc.
-DEFAULT_TIMEOUT = 30
-DEFAULT_INTERACTION_TIMEOUT = 60
 
 # Randomly generated uuid4 for BAPCtools
 BAPC_UUID = "8ee7605a-d1ce-47b3-be37-15de5acd757e"
