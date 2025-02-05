@@ -53,9 +53,7 @@ class ProblemLimits:
         # known keys
         # defaults from https://github.com/Kattis/problem-package-format/blob/master/spec/legacy-icpc.md#limits
         self.time_multiplier: float = parse_setting(yamldata, "time_multiplier", 2.0)
-        self.time_safety_margin: float = parse_setting(
-            yamldata, "time_safety_margin", 1.5
-        )  # in seconds
+        self.time_safety_margin: float = parse_setting(yamldata, "time_safety_margin", 1.5)
         self.time_resolution: float = parse_setting(yamldata, "time_resolution", 1.0)
         self.memory: int = parse_setting(yamldata, "memory", 2048)  # in MiB
         self.output: int = parse_setting(yamldata, "output", 8)  # in MiB
@@ -73,9 +71,9 @@ class ProblemLimits:
             yamldata, "visualizer_time", config.DEFAULT_TIMEOUT
         )  # in seconds
 
-        self.validation_passes: Optional[int] = None
-        if "validation_passes" in yamldata:
-            self.validation_passes = parse_setting(yamldata, "validation_passes", int())
+        self.validation_passes: Optional[int] = parse_optional_setting(
+            yamldata, "validation_passes", int
+        )
 
         # check for unknown keys
         for key in yamldata:
@@ -114,7 +112,7 @@ class ProblemSettings:
         self.source_url: str = parse_setting(yamldata, "source_url", "")
         self.license: str = parse_setting(yamldata, "license", "unknown")
         self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
-        # self.limits
+        # self.limits, already handled
         self.validation: str = parse_setting(yamldata, "validation", "default")
         self.validator_flags: list[str] = parse_setting(yamldata, "validator_flags", [])
         self.keywords: str = parse_setting(yamldata, "keywords", "")

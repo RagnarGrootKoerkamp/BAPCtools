@@ -183,12 +183,8 @@ def problem_stats(problems):
         for i in range(0, len(stats)):
             cumulative[i] += counts[i] or 0
 
-        verified = False
-        comment = ""
-        if problem.settings.verified is not None:
-            verified = bool(problem.settings.verified)
-        if problem.settings.comment is not None:
-            comment = problem.settings.comment
+        verified = bool(problem.settings.verified)
+        comment = problem.settings.comment or ""
 
         if verified:
             if not comment:

@@ -21,7 +21,6 @@ try:
 
 except Exception:
     has_questionary = False
-has_questionary = False
 
 
 def _ask_variable(name, default=None, allow_empty=False):
@@ -74,7 +73,7 @@ def _ask_variable_choice(name, choices, default=None):
             if got in choices:
                 return got
             else:
-                warn(f"unknown license: {got}")
+                warn(f"unknown option: {got}")
 
 
 # Returns the alphanumeric version of a string:
