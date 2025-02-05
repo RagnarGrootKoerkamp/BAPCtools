@@ -15,7 +15,7 @@ import time
 from enum import Enum
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, NoReturn, Optional
+from typing import Any, NoReturn, Optional, TypeVar
 from uuid import UUID
 
 import yaml as yamllib
@@ -640,6 +640,30 @@ def write_yaml(data, path=None, allow_yamllib=False):
             string = path.getvalue()
             path.close()
             return string
+
+
+T = TypeVar("T")
+
+
+def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
+    default = None
+    if key in yamldata:
+        value = yamldata.pop(key)
+        if isinstance(value, int) and t is float:
+            value = float(value)
+        if isinstance(value, t):
+            default = value
+        elif value == "" and t in [list, dict]:
+            # handle empty yaml keys
+            default = t()
+        else:
+            warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+    return default
+
+
+def parse_setting(yamldata: dict[str, Any], key: str, default: T) -> T:
+    value = parse_optional_setting(yamldata, key, type(default))
+    return default if value is None else value
 
 
 # Parse validation mode
