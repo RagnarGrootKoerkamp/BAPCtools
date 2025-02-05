@@ -83,11 +83,10 @@ class ProblemLimits:
             warn(f"found unknown problem.yaml key: {key} in limits")
 
         # Override limmits by command line arguments.
-        self.validation_time = config.args.timeout or self.validation_time
-        self.generator_time = config.args.timeout or self.generator_time
-        self.visualizer_time = config.args.timeout or self.visualizer_time
-        self.memory = config.args.memory or self.memory
-        self.validation_memory = config.args.memory or self.validation_memory
+        if config.args.timeout:
+            self.validation_time = self.generator_time = self.visualizer_time = config.args.timeout
+        if config.args.memory:
+            self.memory = self.validation_memory = config.args.memory
 
 
 class ProblemSettings:
