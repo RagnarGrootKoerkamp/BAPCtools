@@ -32,7 +32,7 @@ def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Op
             value = float(value)
         if isinstance(value, t):
             default = value
-        elif value == "" and isinstance(t, (list, dict)):
+        elif value == "" and t in [list, dict]:
             # handle empty yaml keys
             default = t()
         else:
@@ -105,12 +105,15 @@ class ProblemSettings:
             yamldata["validator_flags"] = shlex.split(yamldata["validator_flags"])
 
         # known keys
+        self.problem_format_version: str = parse_setting(
+            yamldata, "problem_format_version", "legacy-icpc"
+        )
         self.name: dict[str, str] = parse_setting(yamldata, "name", {"en": ""})
         self.uuid: str = parse_setting(yamldata, "uuid", "")
         self.author: str = parse_setting(yamldata, "author", "")
         self.source: str = parse_setting(yamldata, "source", "")
         self.source_url: str = parse_setting(yamldata, "source_url", "")
-        self.license: str = parse_setting(yamldata, "license", "")
+        self.license: str = parse_setting(yamldata, "license", "unknown")
         self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
         # self.limits
         self.validation: str = parse_setting(yamldata, "validation", "default")
@@ -129,6 +132,13 @@ class ProblemSettings:
         # Override limmits by command line arguments.
         self.timelimit = config.args.timelimit or self.timelimit
         self.timeout = int(config.args.timeout or limits.time_safety_margin * self.timelimit + 1)
+
+        # checks
+        if not is_uuid(self.uuid):
+            warn(f"invalid uuid: {self.uuid}")
+        if self.license not in config.KNOWN_LICENSES:
+            warn(f"invalid license: {self.license}")
+            self.license = "unknown"
 
 
 # A problem.
