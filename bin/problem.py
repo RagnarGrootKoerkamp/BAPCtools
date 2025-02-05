@@ -32,7 +32,7 @@ def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Op
             value = float(value)
         if isinstance(value, t):
             default = value
-        elif value == "":
+        elif value == "" and isinstance(t, (list, dict)):
             # handle empty yaml keys
             default = t()
         else:
