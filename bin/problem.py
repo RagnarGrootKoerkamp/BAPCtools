@@ -99,7 +99,7 @@ class ProblemSettings:
         self.timelimit_is_default: bool = timelimit is not None or "timelimit" in yamldata
 
         if "name" in yamldata and isinstance(yamldata["name"], str):
-            yamldata["name"] = {"en", yamldata["name"]}
+            yamldata["name"] = {"en": yamldata["name"]}
 
         if "validator_flags" in yamldata and isinstance(yamldata["validator_flags"], str):
             yamldata["validator_flags"] = shlex.split(yamldata["validator_flags"])
@@ -180,8 +180,6 @@ class Problem:
 
         If problem.yaml's name key is a string, convert into dict; assume `en` as default language.
         """
-        if isinstance(self.settings.name, str):
-            self.settings.name = {"en": self.settings.name}
         yamllangs = set(self.settings.name)
         texlangs = set(
             path.suffixes[0][1:] for path in glob(self.path, "problem_statement/problem.*.tex")
