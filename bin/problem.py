@@ -5,7 +5,7 @@ import threading
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal, Optional, TypeVar, TYPE_CHECKING
+from typing import Any, Literal, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
@@ -20,29 +20,6 @@ import validate
 import verdicts
 from util import *
 from colorama import Fore, Style
-
-T = TypeVar("T")
-
-
-def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
-    default = None
-    if key in yamldata:
-        value = yamldata.pop(key)
-        if isinstance(value, int) and t is float:
-            value = float(value)
-        if isinstance(value, t):
-            default = value
-        elif value == "" and t in [list, dict]:
-            # handle empty yaml keys
-            default = t()
-        else:
-            warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
-    return default
-
-
-def parse_setting(yamldata: dict[str, Any], key: str, default: T) -> T:
-    value = parse_optional_setting(yamldata, key, type(default))
-    return default if value is None else value
 
 
 # TODO move timeout and timelimit to this?
