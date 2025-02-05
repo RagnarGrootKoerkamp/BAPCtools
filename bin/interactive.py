@@ -150,9 +150,12 @@ def run_interactive_testcase(
 
             if not verdict and not run._continue_with_tle(verdict, max_duration >= timeout):
                 break
-            elif not run._prepare_nextpass(nextpass):
+
+            if not run._prepare_nextpass(nextpass):
                 break
-            elif pass_id >= run.problem.limits.validation_passes:
+
+            assert run.problem.limits.validation_passes is not None
+            if pass_id >= run.problem.limits.validation_passes:
                 error("exceeded limit of validation_passes")
                 verdict = Verdict.VALIDATOR_CRASH
                 break
@@ -405,9 +408,12 @@ while True:
 
         if not verdict and not run._continue_with_tle(verdict, aborted):
             break
-        elif not run._prepare_nextpass(nextpass):
+
+        if not run._prepare_nextpass(nextpass):
             break
-        elif pass_id >= run.problem.limits.validation_passes:
+
+        assert run.problem.limits.validation_passes is not None
+        if pass_id >= run.problem.limits.validation_passes:
             error("exceeded limit of validation_passes")
             verdict = Verdict.VALIDATOR_CRASH
             break

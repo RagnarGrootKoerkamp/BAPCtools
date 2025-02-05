@@ -3,7 +3,6 @@
 import copy
 import errno
 import hashlib
-import math
 import os
 import secrets
 import shutil
@@ -643,24 +642,20 @@ def write_yaml(data, path=None, allow_yamllib=False):
 
 
 # Parse validation mode
-def parse_validation(mode):
+def parse_validation(mode: str) -> set[str]:
     if mode == "default":
-        return {
-            "mode": "default",
-            "interactive": False,
-            "multi-pass": False,
-        }
+        return {mode}
     else:
-        res = {
-            "mode": "custom",
-            "interactive": "interactive" in mode,
-            "multi-pass": "multi-pass" in mode,
-        }
-        temp = mode.replace(" interactive", "", 1)
-        temp = temp.replace(" multi-pass", "", 1)
-        if temp != "custom":
+        ok = True
+        parsed = set()
+        for part in mode.split():
+            if part in ["custom", "interactive", "multi-pass"] and part not in parsed:
+                parsed.add(part)
+            else:
+                ok = False
+        if "custom" not in parsed or not ok:
             fatal(f"Unrecognised validation mode {mode}.")
-        return res
+        return parsed
 
 
 # glob, but without hidden files
@@ -1032,8 +1027,6 @@ def exec_command(
         elif kwargs["timeout"]:
             timeout = kwargs["timeout"]
         kwargs.pop("timeout")
-    if timeout is not None and math.isinf(timeout):
-        timeout = None
 
     memory: Optional[int] = None
     if "memory" in kwargs:

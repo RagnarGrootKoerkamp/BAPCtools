@@ -185,9 +185,9 @@ def problem_stats(problems):
 
         verified = False
         comment = ""
-        if "verified" in problem.settings:
+        if problem.settings.verified is not None:
             verified = bool(problem.settings.verified)
-        if "comment" in problem.settings:
+        if problem.settings.comment is not None:
             comment = problem.settings.comment
 
         if verified:
