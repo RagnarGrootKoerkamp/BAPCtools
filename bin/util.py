@@ -16,6 +16,7 @@ from enum import Enum
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, NoReturn, Optional
+from uuid import UUID
 
 import yaml as yamllib
 from colorama import Fore, Style
@@ -1193,3 +1194,10 @@ def generate_problem_uuid():
     # make the first bytes BAPCtools specific
     uuid = config.BAPC_UUID[: config.BAPC_UUID_PREFIX] + uuid[config.BAPC_UUID_PREFIX :]
     return uuid
+
+
+def is_uuid(uuid: str):
+    try:
+        return uuid.casefold() == str(UUID(uuid)).casefold()
+    except ValueError:
+        return False
