@@ -99,7 +99,7 @@ class Run:
                     data = data.replace("\n", "\n>")
                     print(">", data, sep="", file=interaction)
 
-                if result.duration > self.problem.settings.timelimit:
+                if result.duration > self.problem.limits.timelimit:
                     result.verdict = Verdict.TIME_LIMIT_EXCEEDED
                     if tle_result is None:
                         tle_result = result
@@ -247,7 +247,7 @@ class Submission(program.Program):
                 "code": problem.limits.code,
                 "compilation_time": problem.limits.compilation_time,
                 "compilation_memory": problem.limits.compilation_memory,
-                "timeout": problem.settings.timeout,
+                "timeout": problem.limits.timeout,
                 "memory": problem.limits.memory,
             },
             skip_double_build_warning=skip_double_build_warning,
@@ -565,7 +565,7 @@ class Submission(program.Program):
                         file=sys.stderr,
                     )
                 elif (
-                    result.duration > self.problem.settings.timelimit
+                    result.duration > self.problem.limits.timelimit
                     or result.status == ExecStatus.TIMEOUT
                 ):
                     status = f"{Fore.YELLOW}Done (TLE):"

@@ -39,8 +39,8 @@ def run_interactive_testcase(
     validation_time = run.problem.limits.validation_time
     validation_memory = run.problem.limits.validation_memory
 
-    timelimit = run.problem.settings.timelimit
-    timeout = run.problem.settings.timeout
+    timelimit = run.problem.limits.timelimit
+    timeout = run.problem.limits.timeout
     memory = run.problem.limits.memory
 
     # Validator command
