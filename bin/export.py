@@ -370,12 +370,11 @@ def update_problems_yaml(problems, colors=None):
                     change = True
                     d["rgb"] = "#000000"
 
-                if (
-                    not problem.settings.timelimit_is_default
-                    and problem.settings.timelimit != d.get("time_limit")
+                if not problem.limits.timelimit_is_default and problem.limits.timelimit != d.get(
+                    "time_limit"
                 ):
                     change = True
-                    d["time_limit"] = problem.settings.timelimit
+                    d["time_limit"] = problem.limits.timelimit
                 break
         if not found:
             change = True
@@ -386,7 +385,7 @@ def update_problems_yaml(problems, colors=None):
                     "label": problem.label,
                     "name": problem_name,
                     "rgb": "#000000",
-                    "time_limit": problem.settings.timelimit,
+                    "time_limit": problem.limits.timelimit,
                 }
             )
 

@@ -646,19 +646,18 @@ T = TypeVar("T")
 
 
 def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
-    default = None
     if key in yamldata:
         value = yamldata.pop(key)
         if isinstance(value, int) and t is float:
             value = float(value)
         if isinstance(value, t):
-            default = value
-        elif value == "" and t in [list, dict]:
+            return value
+        if value == "" and t in [list, dict]:
             # handle empty yaml keys
-            default = t()
+            return t()
         else:
             warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
-    return default
+    return None
 
 
 def parse_setting(yamldata: dict[str, Any], key: str, default: T) -> T:
