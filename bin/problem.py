@@ -67,7 +67,7 @@ class ProblemLimits:
 
 
 class ProblemSettings:
-    def __init__(self, yamldata: dict[str, Any], limits: ProblemLimits):
+    def __init__(self, yamldata: dict[str, Any], timelimit: Optional[float] = None):
         assert isinstance(yamldata, dict)
 
         if "name" in yamldata and isinstance(yamldata["name"], str):
@@ -87,11 +87,11 @@ class ProblemSettings:
         self.source_url: str = parse_setting(yamldata, "source_url", "")
         self.license: str = parse_setting(yamldata, "license", "unknown")
         self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
-        # self.limits, already handled
+        self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), timelimit)
         self.validation: str = parse_setting(yamldata, "validation", "default")
         self.validator_flags: list[str] = parse_setting(yamldata, "validator_flags", [])
         self.keywords: str = parse_setting(yamldata, "keywords", "")
-        # extension:
+        # BAPCtools extensions:
         self.verified: Optional[str] = parse_optional_setting(yamldata, "verified", str)
         self.comment: Optional[str] = parse_optional_setting(yamldata, "comment", str)
 
@@ -236,9 +236,8 @@ class Problem:
             yaml_path.write_text(raw)
             log("Added new UUID to problem.yaml")
 
-        limits: dict[str, Any] = parse_setting(settings, "limits", {})
-        self.limits = ProblemLimits(limits, timelimit)
-        self.settings = ProblemSettings(settings, self.limits)
+        self.settings = ProblemSettings(settings, timelimit)
+        self.limits = self.settings.limits
 
         mode = parse_validation(self.settings.validation)
         self.interactive = "interactive" in mode
