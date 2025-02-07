@@ -23,16 +23,52 @@ from colorama import Fore, Style
 
 
 class ProblemLimits:
-    def __init__(self, yamldata: dict[str, Any], legacy_time_limit: Optional[float] = None):
+    def __init__(
+        self,
+        yamldata: dict[str, Any],
+        problem_settings: "ProblemSettings",
+        legacy_time_limit: Optional[float] = None,
+    ):
         assert isinstance(yamldata, dict)
 
-        # known keys
-        # defaults from https://github.com/Kattis/problem-package-format/blob/master/spec/legacy-icpc.md#limits
-        self.time_multiplier: float = parse_setting(yamldata, "time_multiplier", 2.0)
-        self.time_safety_margin: float = parse_setting(yamldata, "time_safety_margin", 1.5)
-        self.time_resolution: float = parse_setting(yamldata, "time_resolution", 1.0)
+        # Known keys:
+        # (defaults from https://icpc.io/problem-package-format/spec/2023-07-draft.html#limits)
+        time_multipliers = parse_setting(yamldata, "time_multipliers", dict[str, Any]())
+
+        # If problem.yaml uses the legacy version, do not support the new keys.
+        # If problem.yaml uses 2023-07-draft, prefer the new keys, but also support and warn for the old keys.
+        legacy_ac_to_time_limit = parse_optional_setting(yamldata, "time_multiplier", float)
+        if problem_settings.is_legacy():
+            self.ac_to_time_limit = legacy_ac_to_time_limit or 5.0
+        else:
+            if legacy_ac_to_time_limit is not None:
+                warn(
+                    "problem.yaml: limits.time_multiplier is removed in 2023-07-draft, please use limits.time_multipliers.ac_to_time_limit"
+                )
+            self.ac_to_time_limit = parse_setting(
+                time_multipliers, "ac_to_time_limit", legacy_ac_to_time_limit or 2.0
+            )
+
+        legacy_time_limit_to_tle = parse_optional_setting(yamldata, "time_safety_margin", float)
+        if problem_settings.is_legacy():
+            self.time_limit_to_tle = legacy_time_limit_to_tle or 2.0
+        else:
+            if legacy_time_limit_to_tle is not None:
+                warn(
+                    "problem.yaml: limits.time_safety_margin is removed in 2023-07-draft, please use limits.time_multipliers.time_limit_to_tle"
+                )
+            self.time_limit_to_tle = parse_setting(
+                time_multipliers, "time_limit_to_tle", legacy_time_limit_to_tle or 1.5
+            )
+
+        # Check for unknown keys in time_multipliers
+        for key in time_multipliers:
+            assert isinstance(key, str)
+            warn(f"found unknown problem.yaml key: {key} in limits.time_multipliers")
+
         # time_limit is required, but parse as optional to more easily handle the legacy_time_limit.
         time_limit = parse_optional_setting(yamldata, "time_limit", float)  # in seconds
+        self.time_resolution: float = parse_setting(yamldata, "time_resolution", 1.0)
         self.memory: int = parse_setting(yamldata, "memory", 2048)  # in MiB
         self.output: int = parse_setting(yamldata, "output", 8)  # in MiB
         self.code: int = parse_setting(yamldata, "code", 128)  # in KiB
@@ -60,7 +96,7 @@ class ProblemLimits:
 
         # Override limmits by command line arguments.
         self.time_limit = config.args.time_limit or self.time_limit
-        self.timeout = int(config.args.timeout or self.time_safety_margin * self.time_limit + 1)
+        self.timeout = int(config.args.timeout or self.time_limit_to_tle * self.time_limit + 1)
         if config.args.timeout:
             self.validation_time = self.generator_time = self.visualizer_time = config.args.timeout
         if config.args.memory:
@@ -77,10 +113,14 @@ class ProblemSettings:
         if "validator_flags" in yamldata and isinstance(yamldata["validator_flags"], str):
             yamldata["validator_flags"] = shlex.split(yamldata["validator_flags"])
 
-        # known keys
+        # Known keys:
+        # (defaults from https://icpc.io/problem-package-format/spec/2023-07-draft.html#problem-metadata)
         self.problem_format_version: str = parse_setting(
             yamldata, "problem_format_version", "legacy-icpc"
         )
+        if not self.is_legacy() and self.problem_format_version != "2023-07-draft":
+            fatal(f"problem_format_version {self.problem_format_version} not supported")
+        # TODO: also support 'type'. For now, we only support legacy 'validation'.
         self.name: dict[str, str] = parse_setting(yamldata, "name", {"en": ""})
         self.uuid: str = parse_setting(yamldata, "uuid", "")
         self.author: str = parse_setting(yamldata, "author", "")
@@ -88,7 +128,7 @@ class ProblemSettings:
         self.source_url: str = parse_setting(yamldata, "source_url", "")
         self.license: str = parse_setting(yamldata, "license", "unknown")
         self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
-        self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), legacy_time_limit)
+        self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), self, legacy_time_limit)
         self.validation: str = parse_setting(yamldata, "validation", "default")
         self.validator_flags: list[str] = parse_setting(yamldata, "validator_flags", [])
         self.keywords: str = parse_setting(yamldata, "keywords", "")
@@ -108,6 +148,9 @@ class ProblemSettings:
         if self.license not in config.KNOWN_LICENSES:
             warn(f"invalid license: {self.license}")
             self.license = "unknown"
+
+    def is_legacy(self):
+        return self.problem_format_version.startswith("legacy")
 
 
 # A problem.
@@ -1005,10 +1048,10 @@ class Problem:
             return False
 
         problem.limits.time_limit = problem.limits.time_resolution * math.ceil(
-            duration * problem.limits.time_multiplier / problem.limits.time_resolution
+            duration * problem.limits.ac_to_time_limit / problem.limits.time_resolution
         )
-        safety_time_limit = problem.limits.time_limit * problem.limits.time_safety_margin
-        problem.limits.timeout = int(safety_time_limit * problem.limits.time_safety_margin + 1)
+        safety_time_limit = problem.limits.time_limit * problem.limits.time_limit_to_tle
+        problem.limits.timeout = int(safety_time_limit * problem.limits.time_limit_to_tle + 1)
 
         if config.args.write:
             (problem.path / ".timelimit").write_text(f"{problem.limits.time_limit:.3f}")
@@ -1016,8 +1059,16 @@ class Problem:
         print()
         message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
         message(
-            f"{problem.limits.time_limit:.3f}s >= {duration:.3f}s * {problem.limits.time_multiplier}",
+            f"{problem.limits.time_limit}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
             "time limit",
+        )
+        message(
+            f"{safety_time_limit}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}",
+            "safety limit",
+        )
+        message(
+            f"{problem.limits.timeout}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}²",
+            "timeout",
         )
         print()
 
@@ -1032,9 +1083,7 @@ class Problem:
             elif duration <= safety_time_limit:
                 warn("TLE submission runs within safety margin")
             elif duration >= problem.limits.timeout:
-                log(
-                    f"No TLE submission finished within {problem.limits.timeout}s >= {problem.limits.time_limit:.3f}s * {problem.limits.time_safety_margin}^2"
-                )
+                log(f"No TLE submission finished within {problem.limits.timeout}s")
             print()
         else:
             log("No TLE submissions found")

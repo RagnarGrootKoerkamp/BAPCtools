@@ -148,7 +148,7 @@ This is useful for running submissions without having to compile them manually. 
 
 ## `time_limit`
 
-The `time_limit` command is used determine a time limit based on `time_multiplier` (factor on top of the slowest AC submission) and `time_safety_margin` (range in which a warning for an TLE submission is raised).
+The `time_limit` command is used determine a time limit based on the `time_multipliers`: `ac_to_time_limit` and `time_limit_to_tle`.
 The syntax is:
 
 ```
