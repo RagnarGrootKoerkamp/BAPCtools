@@ -1988,16 +1988,9 @@ data/*
         if data is None:
             data = ruamel.yaml.comments.CommentedMap()
 
-        def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
-            assert isinstance(data, ruamel.yaml.comments.CommentedMap)
-            if key not in yaml or yaml[key] is None:
-                yaml[key] = t()
-            assert isinstance(yaml[key], t)
-            return yaml[key]
-
-        parent = get_or_add(data, "data")
-        parent = get_or_add(parent, "secret")
-        entry = get_or_add(parent, "data", ruamel.yaml.comments.CommentedSeq)
+        parent = ryaml_get_or_add(data, "data")
+        parent = ryaml_get_or_add(parent, "secret")
+        entry = ryaml_get_or_add(parent, "data", ruamel.yaml.comments.CommentedSeq)
 
         bar = ProgressBar("Adding", items=in_files)
         for in_file in sorted(in_files, key=lambda x: x.name):
