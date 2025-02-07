@@ -667,7 +667,11 @@ class Problem:
         return problem._submissions.copy()
 
     def validators(
-        problem, cls: type[validate.AnyValidator], check_constraints=False, strict=False
+        problem,
+        cls: type[validate.AnyValidator],
+        check_constraints=False,
+        strict=False,
+        print_warn=True,
     ) -> list[validate.AnyValidator]:
         """
         Gets the validators of the given class.
@@ -690,16 +694,17 @@ class Problem:
 
         # Check that the proper number of validators is present
         # do this after handling the strict flag but dont warn every time
-        key = (cls, check_constraints)
-        if key not in problem._validators_warn_cache:
-            problem._validators_warn_cache.add(key)
-            match cls, len(validators):
-                case validate.InputValidator, 0:
-                    warn("No input validators found.")
-                case validate.AnswerValidator, 0:
-                    warn("No answer validators found")
-                case validate.OutputValidator, l if l != 1:
-                    error(f"Found {len(validators)} output validators, expected exactly one.")
+        if print_warn:
+            key = (cls, check_constraints)
+            if key not in problem._validators_warn_cache:
+                problem._validators_warn_cache.add(key)
+                match cls, len(validators):
+                    case validate.InputValidator, 0:
+                        warn("No input validators found.")
+                    case validate.AnswerValidator, 0:
+                        warn("No answer validators found")
+                    case validate.OutputValidator, l if l != 1:
+                        error(f"Found {len(validators)} output validators, expected exactly one.")
 
         build_ok = all(v.ok for v in validators)
 
@@ -943,19 +948,15 @@ class Problem:
         """Validate aspects of the test data files.
 
         Arguments:
-            mode: validate.Mode.INPUT | validate.Mode.ANSWER | Validate.Mode.INVALID
+            mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID
             constraints: True | dict | None. True means "do check constraints but discard the result."
                 False: TODO is this ever used?
         Return:
             True if all validation was successful. Successful validation includes, e.g.,
             correctly rejecting invalid inputs.
         """
-        if constraints is True:
-            constraints = {}
-        assert constraints is None or isinstance(constraints, dict)
-
         if (problem.interactive or problem.multi_pass) and mode == validate.Mode.ANSWER:
-            if (problem.path / "answer_validators").exists():
+            if problem.validators(validate.AnswerValidator, strict=True, print_warn=False):
                 msg = ""
                 if problem.interactive:
                     msg += " interactive"
@@ -964,37 +965,116 @@ class Problem:
                 log(f"Not running answer_validators for{msg} problems.")
             return True
 
+        action = (
+            "Invalidation"
+            if mode == validate.Mode.INVALID
+            else (
+                f"Collecting {mode} constraints" if constraints else f"{mode} validation"
+            ).capitalize()
+        )
+
+        testcases = problem.testcases(mode=mode)
+        return problem._validate_data(mode, constraints, action, testcases)
+
+    def validate_invalid_extra_data(p) -> bool:
+        # find at least one (valid?) testcase to modify
+        test_paths = list(glob(p.path, "data/sample/**/*.in"))
+        test_paths += list(glob(p.path, "data/secret/**/*.in"))
+        test_paths = [path for path in test_paths if path.with_suffix(".ans").exists()]
+        test_paths.sort()
+        test_path = test_paths[0] if test_paths else None
+        if test_path:
+            test_case = test_path.relative_to(p.path / "data").with_suffix("")
+            log(f"Generating invalid testcases based on: {test_case}")
+
+        invalid: list[tuple[str, str | Callable[[str], Optional[str]], bool]] = [
+            ("latin-1", "Naïve", False),
+            ("empty", "", False),
+            ("newline", "\n", False),
+            ("random", "YVRtr&*teTsRjs8ZC2%kN*T63V@jJq!d", False),
+            ("not_printable_1", "\x7f", False),
+            ("not_printable_2", "\xe2\x82\xac", False),
+            ("unicode", "¯\\_(ツ)_/¯", False),
+            ("bismillah", "﷽", False),
+            ("leading_zero", lambda x: f"0{x}", False),
+            ("trailing_token_1", lambda x: f"{x}42\n", False),
+            ("trailing_token_2", lambda x: f"{x}hello\n", False),
+            ("leading_whitespace", lambda x: f" {x}", True),
+            ("trailing_newline", lambda x: f"{x}\n", True),
+        ]
+
+        validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str], bool]] = [
+            (validate.InputValidator, "invalid_inputs", ".in", ".in", [], False),
+            (validate.AnswerValidator, "invalid_answers", ".ans", ".ans", [".in"], False),
+            (validate.OutputValidator, "invalid_outputs", ".ans", ".out", [".in", ".ans"], True),
+        ]
+
+        testcases = []
+        for cls, directory, read, write, copy, allow_whitespace in validators:
+            if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
+                continue
+            if not p.validators(cls, strict=True, print_warn=False):
+                continue
+            if test_path is None and copy:
+                continue
+
+            for name, data, whitespace_only in invalid:
+                if allow_whitespace and whitespace_only:
+                    continue
+
+                if isinstance(data, str):
+                    content = data
+                elif test_path:
+                    valid = test_path.with_suffix(read).read_text()
+                    generated = data(valid)
+                    if generated is None:
+                        continue
+                    content = generated
+
+                short_path = Path(directory) / name
+                full_path = p.tmpdir / "invalid_data" / short_path / "testcase.in"
+                full_path.parent.mkdir(parents=True, exist_ok=True)
+
+                for ext in copy:
+                    assert test_path is not None
+                    shutil.copy(test_path.with_suffix(ext), full_path.with_suffix(ext))
+                full_path.with_suffix(write).write_text(content)
+
+                testcases.append(testcase.Testcase(p, full_path, short_path=short_path))
+
+        return p._validate_data(validate.Mode.INVALID, None, "Generic Invalidation", testcases)
+
+    def _validate_data(
+        problem,
+        mode: validate.Mode,
+        constraints: dict | bool | None,
+        action: str,
+        testcases: list[testcase.Testcase],
+    ) -> bool:
+        # If there are no testcases, validation succeeds
+        if not testcases:
+            return True
+
+        if constraints is True:
+            constraints = {}
+        assert constraints is None or isinstance(constraints, dict)
+
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
         # Also, pick the relevant testcases
         check_constraints = constraints is not None
         match mode:
             case validate.Mode.INPUT:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
-                testcases = problem.testcases(mode=mode)
             case validate.Mode.ANSWER:
                 assert not problem.interactive
                 assert not problem.multi_pass
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
-                testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
                 if not problem.interactive and not problem.multi_pass:
                     problem.validators(validate.AnswerValidator)
-                testcases = problem.testcases(mode=mode)
             case _:
                 raise ValueError(mode)
-
-        # If there are no testcases, validation succeeds
-        if not testcases:
-            return True
-
-        action = (
-            "Invalidation"
-            if mode == validate.Mode.INVALID
-            else (
-                f"{mode} validation" if not check_constraints else f"Collecting {mode} constraints"
-            ).capitalize()
-        )
 
         success = True
 

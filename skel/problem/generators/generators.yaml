@@ -66,19 +66,9 @@ data:
 
   invalid_inputs:
     # Add invalid testcase to ensure that input_validators correctly rejects them.
-    data:
-      empty:
-          in: ""
-      newline:
-          in: "\n"
-      random:
-          in: YVRtr&*teTsRjs8ZC2%kN*T63V@jJq!d
-      not_printable_1:
-          in: "\x7f"
-      not_printable_2:
-          in: "\xe2\x82\xac"
-      unicode:
-          in: "¯\\_(ツ)_/¯"
+    data: []
+      #dont_start_with_whitespace:
+      #    in: "<valid testcase>"
 
   invalid_answers:
     # Add valid testcase with invalid answers to ensure that the answer_validators correctly rejects them.

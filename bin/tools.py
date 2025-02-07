@@ -1069,6 +1069,7 @@ def run_parsed_arguments(args):
         if action in ["validate", "all"]:
             if not (action == "validate" and (config.args.input or config.args.answer)):
                 success &= problem.validate_data(validate.Mode.INVALID)
+                success &= problem.validate_invalid_extra_data()
             if not (action == "validate" and (config.args.answer or config.args.invalid)):
                 success &= problem.validate_data(validate.Mode.INPUT)
             if not (action == "validate" and (config.args.input or config.args.invalid)):
