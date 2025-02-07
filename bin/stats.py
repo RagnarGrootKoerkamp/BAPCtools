@@ -46,7 +46,7 @@ def problem_stats(problems):
         tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, int, int]
     ] = [
         # Roughly in order of importance
-        ("  time", lambda p: p.limits.timelimit, 0),
+        ("  time", lambda p: p.limits.time_limit, 0),
         ("yaml", "problem.yaml"),
         ("tex", "problem_statement/problem*.tex", 1),
         ("sol", "problem_statement/solution*.tex", 1),

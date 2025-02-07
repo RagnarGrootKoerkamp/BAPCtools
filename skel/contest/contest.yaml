@@ -16,7 +16,7 @@ subtitle: {%subtitle%}
 year: {%year%}
 author: {%author%}
 testsession: {%testsession%}
-print_timelimit: true
+print_time_limit: true
 
 # problem.yaml defaults
 source_url: {%source_url%}

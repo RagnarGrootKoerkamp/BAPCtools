@@ -411,7 +411,7 @@ Run this from one of:
         action="store_true",
         help="Create problem statements for individual problems as well.",
     )
-    pdfparser.add_argument("--no-timelimit", action="store_true", help="Do not print timelimits.")
+    pdfparser.add_argument("--no-time-limit", action="store_true", help="Do not print timelimits.")
     pdfparser.add_argument(
         "--watch",
         "-w",
@@ -433,7 +433,7 @@ Run this from one of:
     pdfparser = subparsers.add_parser(
         "problem_slides", parents=[global_parser], help="Build the problem slides pdf."
     )
-    pdfparser.add_argument("--no-timelimit", action="store_true", help="Do not print timelimits.")
+    pdfparser.add_argument("--no-time-limit", action="store_true", help="Do not print timelimits.")
     pdfparser.add_argument(
         "--watch",
         "-w",
@@ -609,7 +609,7 @@ Run this from one of:
         help="Generate random testcases and search for inconsistencies in AC submissions.",
     )
     fuzzparser.add_argument("--time", type=int, help="Number of seconds to run for. Default: 600")
-    fuzzparser.add_argument("--timelimit", "-t", type=int, help="Time limit for submissions.")
+    fuzzparser.add_argument("--time-limit", "-t", type=int, help="Time limit for submissions.")
     fuzzparser.add_argument(
         "submissions",
         nargs="*",
@@ -669,9 +669,9 @@ Run this from one of:
     runparser.add_argument(
         "--timeout",
         type=int,
-        help="Override the default timeout. Default: 1.5 * timelimit + 1.",
+        help="Override the default timeout. Default: 1.5 * time_limit + 1.",
     )
-    runparser.add_argument("--timelimit", "-t", type=int, help="Override the default timelimit.")
+    runparser.add_argument("--time-limit", "-t", type=int, help="Override the default time-limit.")
     runparser.add_argument(
         "--no-testcase-sanity-checks",
         action="store_true",
@@ -684,15 +684,15 @@ Run this from one of:
     )
 
     timelimitparser = subparsers.add_parser(
-        "timelimit",
+        "time_limit",
         parents=[global_parser],
-        help="Determine the timelimit for a problem.",
+        help="Determine the time limit for a problem.",
     )
     timelimitparser.add_argument(
         "submissions",
         nargs="*",
         type=Path,
-        help="optionally supply a list of programs and testcases on which the timelimit should be based.",
+        help="optionally supply a list of programs and testcases on which the time limit should be based.",
     )
     timelimitparser.add_argument(
         "--all",
@@ -735,7 +735,7 @@ Run this from one of:
     testparser.add_argument(
         "--timeout",
         type=int,
-        help="Override the default timeout. Default: 1.5 * timelimit + 1.",
+        help="Override the default timeout. Default: 1.5 * time_limit + 1.",
     )
 
     # Sort
@@ -749,7 +749,7 @@ Run this from one of:
         parents=[global_parser],
         help="validate input, validate answers, and run programs",
     )
-    allparser.add_argument("--no-timelimit", action="store_true", help="Do not print timelimits.")
+    allparser.add_argument("--no-time-limit", action="store_true", help="Do not print time limits.")
     allparser.add_argument(
         "--no-testcase-sanity-checks",
         action="store_true",
@@ -815,7 +815,7 @@ Run this from one of:
     updateproblemsyamlparser = subparsers.add_parser(
         "update_problems_yaml",
         parents=[global_parser],
-        help="Update the problems.yaml with current names and timelimits.",
+        help="Update the problems.yaml with current names and time limits.",
     )
     updateproblemsyamlparser.add_argument(
         "--colors",
@@ -896,7 +896,7 @@ def run_parsed_arguments(args):
     action = config.args.action
 
     # Split submissions and testcases when needed.
-    if action in ["run", "fuzz", "timelimit"]:
+    if action in ["run", "fuzz", "time_limit"]:
         if config.args.submissions:
             config.args.submissions, config.args.testcases = split_submissions_and_testcases(
                 config.args.submissions
@@ -1077,8 +1077,8 @@ def run_parsed_arguments(args):
             success &= problem.test_submissions()
         if action in ["constraints"]:
             success &= constraints.check_constraints(problem)
-        if action in ["timelimit"]:
-            success &= problem.determine_timelimit()
+        if action in ["time_limit"]:
+            success &= problem.determine_time_limit()
         if action in ["zip"]:
             output = problem.path / f"{problem.name}.zip"
 

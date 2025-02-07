@@ -39,7 +39,7 @@ def run_interactive_testcase(
     validation_time = run.problem.limits.validation_time
     validation_memory = run.problem.limits.validation_memory
 
-    timelimit = run.problem.limits.timelimit
+    time_limit = run.problem.limits.time_limit
     timeout = run.problem.limits.timeout
     memory = run.problem.limits.memory
 
@@ -120,7 +120,7 @@ def run_interactive_testcase(
             elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
                 error("got WRONG_ANSWER but found nextpass.in")
                 verdict = Verdict.VALIDATOR_CRASH
-            elif tend - tstart > timelimit:
+            elif tend - tstart > time_limit:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
                 if tle_result is None:
                     # Set result.err to validator error and result.out to team error.
@@ -178,8 +178,8 @@ def run_interactive_testcase(
 
     # On Linux:
     # - Start validator
-    # - Start submission, limiting CPU time to timelimit+1s
-    # - Set alarm for timelimit+1s, and kill submission on SIGALRM if needed.
+    # - Start submission, limiting CPU time to time_limit+1s
+    # - Set alarm for time_limit+1s, and kill submission on SIGALRM if needed.
     # - Wait for either validator or submission to finish
     # - Close first program + write end of pipe + read end of team output if validator exited first with non-AC.
     # - Close remaining program + write end of pipe
@@ -340,7 +340,7 @@ while True:
         stop_kill_handler.set()
 
         assert submission_time is not None
-        did_timeout = submission_time > timelimit
+        did_timeout = submission_time > time_limit
         aborted = submission_time >= timeout
         max_duration = max(max_duration, submission_time)
 

@@ -69,7 +69,7 @@ Lorem ipsum…
 ### Add translation files
 
 BAPCtools needs a translation file to translate common term such as `Input`,
-`Output`, and `timelimit` to your language of choice. These are available in
+`Output`, and `time limit` to your language of choice. These are available in
 [`/latex/lang/`](../latex/lang). If a translation is not available for your
 language, you can either make a PR to add e.g. `/latex/lang/de.tex` to
 BAPCtools, or you can provide `<contestdirectory>/de.tex`.

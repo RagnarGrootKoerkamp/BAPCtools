@@ -337,10 +337,10 @@ def export_contest(cid: Optional[str]):
 
 
 def update_problems_yaml(problems, colors=None):
-    # Update name and timelimit values.
+    # Update name and time limit values.
     if not has_ryaml:
         log(
-            "ruamel.yaml library not found. Make sure to update the name and timelimit fields manually."
+            "ruamel.yaml library not found. Make sure to update the name and time limit fields manually."
         )
         return
 
@@ -370,11 +370,11 @@ def update_problems_yaml(problems, colors=None):
                     change = True
                     d["rgb"] = "#000000"
 
-                if not problem.limits.timelimit_is_default and problem.limits.timelimit != d.get(
+                if not problem.limits.time_limit_is_default and problem.limits.time_limit != d.get(
                     "time_limit"
                 ):
                     change = True
-                    d["time_limit"] = problem.limits.timelimit
+                    d["time_limit"] = problem.limits.time_limit
                 break
         if not found:
             change = True
@@ -385,7 +385,7 @@ def update_problems_yaml(problems, colors=None):
                     "label": problem.label,
                     "name": problem_name,
                     "rgb": "#000000",
-                    "time_limit": problem.limits.timelimit,
+                    "time_limit": problem.limits.time_limit,
                 }
             )
 
