@@ -199,21 +199,19 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
-    def _read_settings(self):
-        legacy_time_limit: Optional[float] = None
+    # Try to read deprecated ways of setting the time limit.
+    def _get_legacy_time_limit(self, yaml_data):
+        timelimit_path = self.path / ".timelimit"
+        if timelimit_path.is_file():
+            log("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
+            return float(timelimit_path.read_text())
 
-        # parse problem.yaml
-        yaml_path = self.path / "problem.yaml"
-        if has_ryaml:
-            try:
-                settings = read_yaml_settings(yaml_path)
-            except ruamel.yaml.scanner.ScannerError:
-                fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
-        else:
-            settings = read_yaml_settings(yaml_path)
-        settings = settings or {}
+        if "timelimit" in yaml_data:
+            log(
+                "A top-level 'timelimit' in problem.yaml is DEPRECATED. Use limits.time_limit instead."
+            )
+            return yaml_data["timelimit"]
 
-        # DEPRECATED: parse domjudge-problem.ini for the time limit.
         domjudge_path = self.path / "domjudge-problem.ini"
         if domjudge_path.is_file():
             log("domjudge-problem.ini is DEPRECATED. Use limits.time_limit instead.")
@@ -222,31 +220,29 @@ class Problem:
                 if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
                     var = var[1:-1]
                 if key == "timelimit":
-                    legacy_time_limit = float(var)
+                    return float(var)
 
-        # DEPRECATED: parse domjudge-problem.ini for the time limit.
-        if "timelimit" in settings:
-            log(
-                "A top-level 'timelimit' in problem.yaml is DEPRECATED. Use a limits.time_limit instead."
-            )
-            legacy_time_limit = settings["timelimit"]
+    def _read_settings(self):
+        # parse problem.yaml
+        yaml_path = self.path / "problem.yaml"
+        if has_ryaml:
+            try:
+                yaml_data = read_yaml_settings(yaml_path)
+            except ruamel.yaml.scanner.ScannerError:
+                fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
+        else:
+            yaml_data = read_yaml_settings(yaml_path)
+        yaml_data = yaml_data or {}
 
-        # TODO make this deprecated as well?
-        # Read the .timitlimit file if present.
-        timelimit_path = self.path / ".timelimit"
-        if timelimit_path.is_file():
-            log("A .timelimit file is DEPRECATED. Use a limits.time_limit instead.")
-            legacy_time_limit = float(timelimit_path.read_text())
-
-        if "uuid" not in settings:
+        if "uuid" not in yaml_data:
             uuid = generate_problem_uuid()
-            settings["uuid"] = uuid
+            yaml_data["uuid"] = uuid
             raw = yaml_path.read_text().rstrip()
             raw += f"\n# uuid added by BAPCtools\nuuid: '{uuid}'\n"
             yaml_path.write_text(raw)
             log("Added new UUID to problem.yaml")
 
-        self.settings = ProblemSettings(settings, legacy_time_limit)
+        self.settings = ProblemSettings(yaml_data, self._get_legacy_time_limit(yaml_data))
         self.limits = self.settings.limits
 
         mode = parse_validation(self.settings.validation)
