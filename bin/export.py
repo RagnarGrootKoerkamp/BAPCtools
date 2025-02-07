@@ -143,7 +143,6 @@ def build_problem_zip(problem, output):
 
     if not config.args.kattis:
         files += [
-            (".timelimit", True),
             (f"problem.{statement_language}.pdf", True),
             ("data/sample/**/*.in.statement", False),
             ("data/sample/**/*.ans.statement", False),
@@ -217,6 +216,11 @@ def build_problem_zip(problem, output):
 
         for source, target in sorted(copyfiles):
             zf.write(source, target, compress_type=zipfile.ZIP_DEFLATED)
+
+        if not config.args.kattis:
+            # DOMjudge does not support limits.time_limit in problem.yaml yet.
+            # TODO: Remove this once it does.
+            zf.writestr(".timelimit", str(problem.limits.time_limit))
 
         # Done.
         zf.close()
