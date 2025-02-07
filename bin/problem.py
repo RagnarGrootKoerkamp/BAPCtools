@@ -23,19 +23,16 @@ from colorama import Fore, Style
 
 
 class ProblemLimits:
-    def __init__(self, yamldata: dict[str, Any], time_limit: Optional[float] = None):
+    def __init__(self, yamldata: dict[str, Any], legacy_time_limit: Optional[float] = None):
         assert isinstance(yamldata, dict)
-
-        self.time_limit_is_default: bool = time_limit is not None or "timelimit" in yamldata
 
         # known keys
         # defaults from https://github.com/Kattis/problem-package-format/blob/master/spec/legacy-icpc.md#limits
         self.time_multiplier: float = parse_setting(yamldata, "time_multiplier", 2.0)
         self.time_safety_margin: float = parse_setting(yamldata, "time_safety_margin", 1.5)
         self.time_resolution: float = parse_setting(yamldata, "time_resolution", 1.0)
-        self.time_limit: float = parse_setting(
-            yamldata, "time_limit", time_limit or 1.0
-        )  # in seconds
+        # time_limit is required, but parse as optional to more easily handle the legacy_time_limit.
+        time_limit = parse_optional_setting(yamldata, "time_limit", float)  # in seconds
         self.memory: int = parse_setting(yamldata, "memory", 2048)  # in MiB
         self.output: int = parse_setting(yamldata, "output", 8)  # in MiB
         self.code: int = parse_setting(yamldata, "code", 128)  # in KiB
@@ -44,15 +41,19 @@ class ProblemLimits:
         self.validation_time: int = parse_setting(yamldata, "validation_time", 60)  # in seconds
         self.validation_memory: int = parse_setting(yamldata, "validation_memory", 2048)  # in MiB
         self.validation_output: int = parse_setting(yamldata, "validation_output", 8)  # in MiB
-        # BAPCtools extensions:
-        self.generator_time: int = parse_setting(yamldata, "generator_time", 60)  # in seconds
-        self.visualizer_time: int = parse_setting(yamldata, "visualizer_time", 60)  # in seconds
-
         self.validation_passes: Optional[int] = parse_optional_setting(
             yamldata, "validation_passes", int
         )
 
-        # check for unknown keys
+        # BAPCtools extensions:
+        self.generator_time: int = parse_setting(yamldata, "generator_time", 60)  # in seconds
+        self.visualizer_time: int = parse_setting(yamldata, "visualizer_time", 60)  # in seconds
+
+        # If limits.time_limit does not exist, attempt to use legacy_time_limit instead.
+        self.time_limit: float = time_limit or legacy_time_limit or 1.0
+        self.time_limit_is_default: bool = time_limit is None and legacy_time_limit is None
+
+        # Check for unknown keys
         for key in yamldata:
             assert isinstance(key, str)
             warn(f"found unknown problem.yaml key: {key} in limits")
@@ -67,7 +68,7 @@ class ProblemLimits:
 
 
 class ProblemSettings:
-    def __init__(self, yamldata: dict[str, Any], time_limit: Optional[float] = None):
+    def __init__(self, yamldata: dict[str, Any], legacy_time_limit: Optional[float] = None):
         assert isinstance(yamldata, dict)
 
         if "name" in yamldata and isinstance(yamldata["name"], str):
@@ -87,10 +88,11 @@ class ProblemSettings:
         self.source_url: str = parse_setting(yamldata, "source_url", "")
         self.license: str = parse_setting(yamldata, "license", "unknown")
         self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
-        self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), time_limit)
+        self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), legacy_time_limit)
         self.validation: str = parse_setting(yamldata, "validation", "default")
         self.validator_flags: list[str] = parse_setting(yamldata, "validator_flags", [])
         self.keywords: str = parse_setting(yamldata, "keywords", "")
+
         # BAPCtools extensions:
         self.verified: Optional[str] = parse_optional_setting(yamldata, "verified", str)
         self.comment: Optional[str] = parse_optional_setting(yamldata, "comment", str)
@@ -198,24 +200,7 @@ class Problem:
         return sorted(texlangs & yamllangs)
 
     def _read_settings(self):
-        time_limit: Optional[float] = None
-
-        # DEPRECATED: parse domjudge-problem.ini for the time limit.
-        domjudge_path = self.path / "domjudge-problem.ini"
-        if domjudge_path.is_file():
-            verbose("domjudge-problem.ini is DEPRECATED. Use a .timelimit file instead.")
-            for line in domjudge_path.read_text().splitlines():
-                key, var = map(str.strip, line.strip().split("="))
-                if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
-                    var = var[1:-1]
-                if key == "timelimit":
-                    time_limit = float(var)
-
-        # TODO make this deprecated as well?
-        # Read the .timitlimit file if present.
-        timelimit_path = self.path / ".timelimit"
-        if timelimit_path.is_file():
-            time_limit = float(timelimit_path.read_text())
+        legacy_time_limit: Optional[float] = None
 
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
@@ -228,6 +213,31 @@ class Problem:
             settings = read_yaml_settings(yaml_path)
         settings = settings or {}
 
+        # DEPRECATED: parse domjudge-problem.ini for the time limit.
+        domjudge_path = self.path / "domjudge-problem.ini"
+        if domjudge_path.is_file():
+            log("domjudge-problem.ini is DEPRECATED. Use limits.time_limit instead.")
+            for line in domjudge_path.read_text().splitlines():
+                key, var = map(str.strip, line.strip().split("="))
+                if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
+                    var = var[1:-1]
+                if key == "timelimit":
+                    legacy_time_limit = float(var)
+
+        # DEPRECATED: parse domjudge-problem.ini for the time limit.
+        if "timelimit" in settings:
+            log(
+                "A top-level 'timelimit' in problem.yaml is DEPRECATED. Use a limits.time_limit instead."
+            )
+            legacy_time_limit = settings["timelimit"]
+
+        # TODO make this deprecated as well?
+        # Read the .timitlimit file if present.
+        timelimit_path = self.path / ".timelimit"
+        if timelimit_path.is_file():
+            log("A .timelimit file is DEPRECATED. Use a limits.time_limit instead.")
+            legacy_time_limit = float(timelimit_path.read_text())
+
         if "uuid" not in settings:
             uuid = generate_problem_uuid()
             settings["uuid"] = uuid
@@ -236,7 +246,7 @@ class Problem:
             yaml_path.write_text(raw)
             log("Added new UUID to problem.yaml")
 
-        self.settings = ProblemSettings(settings, time_limit)
+        self.settings = ProblemSettings(settings, legacy_time_limit)
         self.limits = self.settings.limits
 
         mode = parse_validation(self.settings.validation)
