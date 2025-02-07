@@ -277,16 +277,9 @@ class Fuzz:
             if data is None:
                 data = ruamel.yaml.comments.CommentedMap()
 
-            def get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
-                assert isinstance(data, ruamel.yaml.comments.CommentedMap)
-                if key not in yaml or yaml[key] is None:
-                    yaml[key] = t()
-                assert isinstance(yaml[key], t)
-                return yaml[key]
-
-            parent = get_or_add(data, "data")
-            parent = get_or_add(parent, "fuzz")
-            entry = get_or_add(parent, "data", ruamel.yaml.comments.CommentedSeq)
+            parent = ryaml_get_or_add(data, "data")
+            parent = ryaml_get_or_add(parent, "fuzz")
+            entry = ryaml_get_or_add(parent, "data", ruamel.yaml.comments.CommentedSeq)
 
             entry.append(ruamel.yaml.comments.CommentedMap())
             entry[-1][""] = command

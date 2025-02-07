@@ -597,6 +597,16 @@ def read_yaml_settings(path):
     return settings
 
 
+if has_ryaml:
+
+    def ryaml_get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
+        assert isinstance(yaml, ruamel.yaml.comments.CommentedMap)
+        if key not in yaml or yaml[key] is None:
+            yaml[key] = t()
+        assert isinstance(yaml[key], t)
+        return yaml[key]
+
+
 # Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
 write_yaml_lock = threading.Lock()
 

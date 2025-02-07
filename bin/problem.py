@@ -1054,7 +1054,16 @@ class Problem:
         problem.limits.timeout = int(safety_time_limit * problem.limits.time_limit_to_tle + 1)
 
         if config.args.write:
-            (problem.path / ".timelimit").write_text(f"{problem.limits.time_limit:.3f}")
+            if not has_ryaml:
+                warn("ruamel.yaml library not found. Please update the time limit fields manually.")
+            else:
+                yaml_path = problem.path / "problem.yaml"
+                problem_yaml = read_yaml(yaml_path)
+                if problem_yaml is None:
+                    problem_yaml = ruamel.yaml.comments.CommentedMap()
+                limits = ryaml_get_or_add(problem_yaml, "limits")
+                limits["time_limit"] = problem.limits.time_limit
+                write_yaml(problem_yaml, problem.path / "problem.yaml")
 
         print()
         message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
