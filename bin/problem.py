@@ -576,7 +576,7 @@ class Problem:
         """
         validators = problem._validators(cls, check_constraints)
         if not strict and cls == validate.AnswerValidator:
-            validators += problem._validators(validate.OutputValidator, check_constraints)
+            validators = validators + problem._validators(validate.OutputValidator, check_constraints)
 
         # Check that the proper number of validators is present
         # do this after handling the strict flag but dont warn every time
