@@ -249,12 +249,6 @@ class Problem:
             log("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
             return float(timelimit_path.read_text())
 
-        if "timelimit" in yaml_data:
-            log(
-                "A top-level 'timelimit' in problem.yaml is DEPRECATED. Use limits.time_limit instead."
-            )
-            return yaml_data["timelimit"]
-
         domjudge_path = self.path / "domjudge-problem.ini"
         if domjudge_path.is_file():
             log("domjudge-problem.ini is DEPRECATED. Use limits.time_limit instead.")
