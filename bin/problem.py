@@ -23,18 +23,18 @@ from colorama import Fore, Style
 
 
 class ProblemLimits:
-    def __init__(self, yamldata: dict[str, Any], timelimit: Optional[float] = None):
+    def __init__(self, yamldata: dict[str, Any], time_limit: Optional[float] = None):
         assert isinstance(yamldata, dict)
 
-        self.timelimit_is_default: bool = timelimit is not None or "timelimit" in yamldata
+        self.time_limit_is_default: bool = time_limit is not None or "timelimit" in yamldata
 
         # known keys
         # defaults from https://github.com/Kattis/problem-package-format/blob/master/spec/legacy-icpc.md#limits
         self.time_multiplier: float = parse_setting(yamldata, "time_multiplier", 2.0)
         self.time_safety_margin: float = parse_setting(yamldata, "time_safety_margin", 1.5)
         self.time_resolution: float = parse_setting(yamldata, "time_resolution", 1.0)
-        self.timelimit: float = parse_setting(
-            yamldata, "time_limit", timelimit or 1.0
+        self.time_limit: float = parse_setting(
+            yamldata, "time_limit", time_limit or 1.0
         )  # in seconds
         self.memory: int = parse_setting(yamldata, "memory", 2048)  # in MiB
         self.output: int = parse_setting(yamldata, "output", 8)  # in MiB
@@ -58,8 +58,8 @@ class ProblemLimits:
             warn(f"found unknown problem.yaml key: {key} in limits")
 
         # Override limmits by command line arguments.
-        self.timelimit = config.args.timelimit or self.timelimit
-        self.timeout = int(config.args.timeout or self.time_safety_margin * self.timelimit + 1)
+        self.time_limit = config.args.time_limit or self.time_limit
+        self.timeout = int(config.args.timeout or self.time_safety_margin * self.time_limit + 1)
         if config.args.timeout:
             self.validation_time = self.generator_time = self.visualizer_time = config.args.timeout
         if config.args.memory:
@@ -67,7 +67,7 @@ class ProblemLimits:
 
 
 class ProblemSettings:
-    def __init__(self, yamldata: dict[str, Any], timelimit: Optional[float] = None):
+    def __init__(self, yamldata: dict[str, Any], time_limit: Optional[float] = None):
         assert isinstance(yamldata, dict)
 
         if "name" in yamldata and isinstance(yamldata["name"], str):
@@ -87,7 +87,7 @@ class ProblemSettings:
         self.source_url: str = parse_setting(yamldata, "source_url", "")
         self.license: str = parse_setting(yamldata, "license", "unknown")
         self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
-        self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), timelimit)
+        self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), time_limit)
         self.validation: str = parse_setting(yamldata, "validation", "default")
         self.validator_flags: list[str] = parse_setting(yamldata, "validator_flags", [])
         self.keywords: str = parse_setting(yamldata, "keywords", "")
@@ -198,9 +198,9 @@ class Problem:
         return sorted(texlangs & yamllangs)
 
     def _read_settings(self):
-        timelimit: Optional[float] = None
+        time_limit: Optional[float] = None
 
-        # DEPRECATED: parse domjudge-problem.ini for the timelimit.
+        # DEPRECATED: parse domjudge-problem.ini for the time limit.
         domjudge_path = self.path / "domjudge-problem.ini"
         if domjudge_path.is_file():
             verbose("domjudge-problem.ini is DEPRECATED. Use a .timelimit file instead.")
@@ -209,13 +209,13 @@ class Problem:
                 if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
                     var = var[1:-1]
                 if key == "timelimit":
-                    timelimit = float(var)
+                    time_limit = float(var)
 
         # TODO make this deprecated as well?
         # Read the .timitlimit file if present.
         timelimit_path = self.path / ".timelimit"
         if timelimit_path.is_file():
-            timelimit = float(timelimit_path.read_text())
+            time_limit = float(timelimit_path.read_text())
 
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
@@ -236,7 +236,7 @@ class Problem:
             yaml_path.write_text(raw)
             log("Added new UUID to problem.yaml")
 
-        self.settings = ProblemSettings(settings, timelimit)
+        self.settings = ProblemSettings(settings, time_limit)
         self.limits = self.settings.limits
 
         mode = parse_validation(self.settings.validation)
@@ -955,15 +955,15 @@ class Problem:
 
         return success
 
-    def determine_timelimit(problem):
+    def determine_time_limit(problem):
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
         testcases, submissions = ts_pair
 
-        problem.limits.timelimit = config.args.timeout or 60
-        problem.limits.timelimit_is_default = False
-        problem.limits.timeout = problem.limits.timelimit
+        problem.limits.time_limit = config.args.timeout or 60
+        problem.limits.time_limit_is_default = False
+        problem.limits.timeout = problem.limits.time_limit
 
         ok = True
 
@@ -996,20 +996,20 @@ class Problem:
             error("No AC submissions found")
             return False
 
-        problem.limits.timelimit = problem.limits.time_resolution * math.ceil(
+        problem.limits.time_limit = problem.limits.time_resolution * math.ceil(
             duration * problem.limits.time_multiplier / problem.limits.time_resolution
         )
-        safety_timelimit = problem.limits.timelimit * problem.limits.time_safety_margin
-        problem.limits.timeout = int(safety_timelimit * problem.limits.time_safety_margin + 1)
+        safety_time_limit = problem.limits.time_limit * problem.limits.time_safety_margin
+        problem.limits.timeout = int(safety_time_limit * problem.limits.time_safety_margin + 1)
 
         if config.args.write:
-            (problem.path / ".timelimit").write_text(f"{problem.limits.timelimit:.3f}")
+            (problem.path / ".timelimit").write_text(f"{problem.limits.time_limit:.3f}")
 
         print()
         message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
         message(
-            f"{problem.limits.timelimit:.3f}s >= {duration:.3f}s * {problem.limits.time_multiplier}",
-            "timelimit",
+            f"{problem.limits.time_limit:.3f}s >= {duration:.3f}s * {problem.limits.time_multiplier}",
+            "time limit",
         )
         print()
 
@@ -1019,13 +1019,13 @@ class Problem:
         if submission is not None:
             print()
             message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
-            if duration <= problem.limits.timelimit:
-                error("TLE submission runs within timelimit")
-            elif duration <= safety_timelimit:
+            if duration <= problem.limits.time_limit:
+                error("TLE submission runs within time limit")
+            elif duration <= safety_time_limit:
                 warn("TLE submission runs within safety margin")
             elif duration >= problem.limits.timeout:
                 log(
-                    f"No TLE submission finished within {problem.limits.timeout}s >= {problem.limits.timelimit:.3f}s * {problem.limits.time_safety_margin}^2"
+                    f"No TLE submission finished within {problem.limits.timeout}s >= {problem.limits.time_limit:.3f}s * {problem.limits.time_safety_margin}^2"
                 )
             print()
         else:
@@ -1038,8 +1038,8 @@ class Problem:
                 max,
             )
             if submission is not None:
-                if duration > problem.limits.timelimit:
+                if duration > problem.limits.time_limit:
                     warn("Non TLE submission timed out")
                 else:
-                    log("All non TLE submission finished within timelimit")
+                    log("All non TLE submission finished within time limit")
         return ok

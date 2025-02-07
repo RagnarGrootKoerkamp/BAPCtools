@@ -12,11 +12,11 @@ Unless otherwise specified, commands work both on the problem and contest level.
 This lists all subcommands and their most important options.
 
 - Problem development:
-  - [`bt run [-v] [-t TIMELIMIT] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
+  - [`bt run [-v] [-t TIME_LIMIT] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
   - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt timelimit [-a] [-w] [submissions [submissions ...]] [testcases [testcases ...]]`](#timelimit)
+  - [`bt time_limit [-a] [-w] [submissions [submissions ...]] [testcases [testcases ...]]`](#time_limit)
   - [`bt generate [-v] [-t TIMEOUT] [--add] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [--reorder] [testcases [testcases ...]]`](#generate)
-  - [`bt pdf [-v] [--all] [--web] [--cp] [-w] [-o PROGRAM] [--no-timelimit]`](#pdf)
+  - [`bt pdf [-v] [--all] [--web] [--cp] [-w] [-o PROGRAM] [--no-time-limit]`](#pdf)
   - [`bt solutions [-v] [--web] [--cp] [-w] [-o PROGRAM] [--order ORDER]`](#solutions)
   - [`bt problem_slides [-v] [--cp] [-w] [-o PROGRAM]`](#problem_slides)
   - [`bt stats`](#stats)
@@ -37,7 +37,7 @@ This lists all subcommands and their most important options.
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
   - [`bt export`](#export)
 - Misc
-  - [`bt all [-v] [--cp] [--no-timelimit] [--check-deterministic]`](#all)
+  - [`bt all [-v] [--cp] [--no-time-limit] [--check-deterministic]`](#all)
   - [`bt solve_stats [--contest-id CONTESTID] [--post-freeze]`](#solve_stats)
   - [`bt sort`](#sort)
   - [`bt update_problems_yaml [--colors COLORS] [--sort]`](#update_problems_yaml)
@@ -104,7 +104,7 @@ Use `bt run -v` to show results for all testcases.
 
 - `--samples`: Run the given submissions against the sample data only. Not allowed in combination with passing in testcases directly.
 - `--no-generate`/`-G`: Do not generate testcases before running the submissions. This usually won't be needed since checking that generated testcases are up to date is fast.
-- `--timelimit <second>`/`-t <second>`: The timelimit to use for the submission.
+- `--time-limit <second>`/`-t <second>`: The time limit to use for the submission.
 - `--timeout <second>`: The timeout to use for the submission.
 - `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same submissions.
 - `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and testcases. If combined with `--no-bar` only the final table is printed.
@@ -146,20 +146,20 @@ This is useful for running submissions without having to compile them manually. 
 - `--samples`: Run the submission on the samples only. Can not be used together with explicitly listed testcases.
 - `--timeout <second>`/`-t <second>`: The timeout to use for the submission.
 
-## `timelimit`
+## `time_limit`
 
-The `timelimit` command is used determine a timelimit based on `time_multiplier` (factor on top of the slowest AC submission) and `time_safety_margin` (range in which a warning for an TLE submission is raised).
+The `time_limit` command is used determine a time limit based on `time_multiplier` (factor on top of the slowest AC submission) and `time_safety_margin` (range in which a warning for an TLE submission is raised).
 The syntax is:
 
 ```
-bt timelimit [<submissions and/or testcases>]
+bt time_limit [<submissions and/or testcases>]
 ```
 
 **Flags**
-- `--write`/`-w`: write the determined timelimit to `.timelimit`
+- `--write`/`-w`: write the determined time limit to `.timelimit`
 - `--all`/`-a`: run all submissions not only AC and TLE submissions.
-- `<submissions>`: The path to the submission to use to determine the timelimit. See `run <submissions>` for more.
-- `<testcases>`: The path to the testcases to use determine the timelimit. See `run <testcases>` for more.
+- `<submissions>`: The path to the submission to use to determine the time limit. See `run <submissions>` for more.
+- `<testcases>`: The path to the testcases to use determine the time limit. See `run <testcases>` for more.
 
 ## `generate`
 
@@ -178,7 +178,7 @@ Pass a list of testcases or directories to only generate a subset of data. See [
 - `--clean`: Delete all cached files.
 - `--reorder`: Runs all submissions that should fail and reorders the testcases in the given directories by difficulty.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
-- `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
+- `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*time_limit+1`).
 - `--no-validators`: Ignore the results of input and output validators.
   (They are still run.)
 - `--no-solution`: Skip generating .ans or .interaction files with the solution.
@@ -196,7 +196,7 @@ If there are problem statements (and problem names in `problem.yaml`) present fo
 
 - `--all`/`-a`: When run from the contest level, this enables building pdfs for all problems in the contest as well.
 - `--cp`: Instead of symlinking the final pdf, copy it into the problem/contest directory.
-- `--no-timelimit`: When passed, time limits will not be shown in the problem/contest pdfs.
+- `--no-time-limit`: When passed, time limits will not be shown in the problem/contest pdfs.
 - `--watch`/`-w`: Continuously compile the pdf whenever a `problem.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Note that this implies `--cp`.
 - `--open <program>`/`-o <program>`: Open the continuously compiled pdf (with a specified program).
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.tex) and [problem-web.tex](../latex/problem-web.tex) instead of [problem.tex](../latex/problem.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
@@ -546,7 +546,7 @@ This is a convenience command (mostly for use in CI) that runs the following sub
 - Validate output
 - Run all submissions
 
-This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand and the `--no-testcase-sanity-checks` flag from `validate`.
+This supports the `--cp` and `--no-time-limit` flags which are described under the `pdf` subcommand and the `--no-testcase-sanity-checks` flag from `validate`.
 
 ## `solve_stats`
 
