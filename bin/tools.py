@@ -430,17 +430,19 @@ Run this from one of:
     pdfparser.add_argument("-1", action="store_true", help="Only run the LaTeX compiler once.")
 
     # Problem slides
-    pdfparser = subparsers.add_parser(
+    slidesparser = subparsers.add_parser(
         "problem_slides", parents=[global_parser], help="Build the problem slides pdf."
     )
-    pdfparser.add_argument("--no-time-limit", action="store_true", help="Do not print timelimits.")
-    pdfparser.add_argument(
+    slidesparser.add_argument(
+        "--no-time-limit", action="store_true", help="Do not print timelimits."
+    )
+    slidesparser.add_argument(
         "--watch",
         "-w",
         action="store_true",
         help="Continuously compile the pdf whenever a `problem-slide.*.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.",
     )
-    pdfparser.add_argument(
+    slidesparser.add_argument(
         "--open",
         "-o",
         nargs="?",
@@ -448,7 +450,7 @@ Run this from one of:
         type=Path,
         help="Open the continuously compiled pdf (with a specified program).",
     )
-    pdfparser.add_argument("-1", action="store_true", help="Only run the LaTeX compiler once.")
+    slidesparser.add_argument("-1", action="store_true", help="Only run the LaTeX compiler once.")
 
     # Solution slides
     solparser = subparsers.add_parser(
