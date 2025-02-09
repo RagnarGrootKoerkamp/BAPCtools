@@ -120,7 +120,16 @@ class ProblemSettings:
         )
         if not self.is_legacy() and self.problem_format_version != "2023-07-draft":
             fatal(f"problem_format_version {self.problem_format_version} not supported")
-        # TODO: also support 'type'. For now, we only support legacy 'validation'.
+
+        if self.is_legacy():
+            self.validation: str = parse_setting(yamldata, "validation", "default")
+        else:
+            self.type = parse_setting(yamldata, "type", "pass-fail")
+            if "validation" in yamldata:
+                warn(
+                    "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead"
+                )
+
         self.name: dict[str, str] = parse_setting(yamldata, "name", {"en": ""})
         self.uuid: str = parse_setting(yamldata, "uuid", "")
         self.author: str = parse_setting(yamldata, "author", "")
@@ -129,7 +138,6 @@ class ProblemSettings:
         self.license: str = parse_setting(yamldata, "license", "unknown")
         self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
         self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), self, legacy_time_limit)
-        self.validation: str = parse_setting(yamldata, "validation", "default")
         self.validator_flags: list[str] = parse_setting(yamldata, "validator_flags", [])
         self.keywords: str = parse_setting(yamldata, "keywords", "")
 
@@ -282,9 +290,24 @@ class Problem:
         self.settings = ProblemSettings(yaml_data, self._get_legacy_time_limit(yaml_data))
         self.limits = self.settings.limits
 
-        mode = parse_validation(self.settings.validation)
+        # TODO: Move these checks to ProblemSettings, but do keep the alias-fields in Problem.
+        mode = (
+            parse_validation(self.settings.validation)
+            if self.settings.is_legacy()
+            else set(self.settings.type.split(" "))
+        )
         self.interactive = "interactive" in mode
         self.multipass = "multi-pass" in mode
+        self.custom_output = (
+            self.interactive
+            or self.multipass
+            or (
+                "custom" in mode
+                if self.settings.is_legacy()
+                # TODO: output_validator should be singular, but DOMjudge does not support this yet, so this should be fixed during export.
+                else (self.path / "output_validators").exists()
+            )
+        )
 
         # Handle dependencies...
         has_validation_passes = self.limits.validation_passes is not None
@@ -675,10 +698,12 @@ class Problem:
         paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, "*")]
 
         # Handle default output validation
-        if cls == validate.OutputValidator and problem.settings.validation == "default":
-            if paths:
+        if cls == validate.OutputValidator:
+            if problem.settings.is_legacy() and not problem.custom_output and paths:
                 error("Validation is default but custom output validator exists (ignoring it)")
-            paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
+                paths = []
+            if not paths:
+                paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):

@@ -148,7 +148,7 @@ def build_problem_zip(problem, output):
             ("data/sample/**/*.ans.statement", False),
         ]
 
-    if "custom" in problem.settings.validation:
+    if problem.custom_output:
         files.append(("output_validators/**/*", True))
 
     if config.args.kattis:

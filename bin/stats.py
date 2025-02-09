@@ -175,7 +175,7 @@ def problem_stats(problems):
                 return x[1](problem)
             if x[0] == "A" and (problem.interactive or problem.multipass):
                 return None  # Do not show an entry for the answer validator if it is not required
-            if x[0] == "O" and problem.settings.validation == "default":
+            if x[0] == "O" and not problem.custom_output:
                 return None  # Do not show an entry for the output validator if it is not required
             return len(count(x[1]))
 
