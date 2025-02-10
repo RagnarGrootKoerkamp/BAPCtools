@@ -1,12 +1,8 @@
 from collections.abc import Callable
 from typing import Optional, TypeVar
 
-_known_names: set[str] = set()
-known: list[tuple[str, str | Callable[[str], Optional[str]], bool]] = []
-
-
-def generators():
-    return known
+_GENERATOR_NAMES: set[str] = set()
+GENERATORS: list[tuple[str, str | Callable[[str], Optional[str]], bool]] = []
 
 
 T = TypeVar("T", bound=str | Callable[[str], Optional[str]])
@@ -19,8 +15,8 @@ def register(name: Optional[str] = None, only_whitespace_change: bool = False) -
             assert hasattr(func, "__name__")
             name = func.__name__
         assert name
-        _known_names.add(name)
-        known.append((name, func, only_whitespace_change))
+        _GENERATOR_NAMES.add(name)
+        GENERATORS.append((name, func, only_whitespace_change))
         return func
 
     return decorator

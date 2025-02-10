@@ -1004,7 +1004,7 @@ class Problem:
             if test_path is None and copy:
                 continue
 
-            for name, data, only_whitespace_change in validator_tests.generators():
+            for name, data, only_whitespace_change in validator_tests.GENERATORS:
                 if allow_whitespace_changes and only_whitespace_change:
                     continue
 
