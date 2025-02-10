@@ -978,6 +978,7 @@ class Problem:
         return problem._validate_data(mode, constraints, action, testcases)
 
     def validate_invalid_extra_data(p) -> bool:
+        base_path = p.tmpdir / "invalid_data"
         # find at least one (valid?) testcase to modify
         test_paths = list(glob(p.path, "data/sample/**/*.in"))
         test_paths += list(glob(p.path, "data/secret/**/*.in"))
@@ -987,6 +988,7 @@ class Problem:
         if test_path:
             test_case = test_path.relative_to(p.path / "data").with_suffix("")
             log(f"Generating invalid testcases based on: {test_case}")
+        debug(f"writing generated invalid testcases to: {base_path}")
 
         # validator, dir, read, write,  copy, allow_whitespace_changes
         validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str], bool]] = [
@@ -1018,7 +1020,7 @@ class Problem:
                     content = generated
 
                 short_path = Path(directory) / name
-                full_path = p.tmpdir / "invalid_data" / short_path / "testcase.in"
+                full_path = base_path / short_path / "testcase.in"
                 full_path.parent.mkdir(parents=True, exist_ok=True)
 
                 for ext in copy:
