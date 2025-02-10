@@ -17,6 +17,7 @@ import parallel
 import run
 import testcase
 import validate
+import validator_tests
 import verdicts
 from util import *
 from colorama import Fore, Style
@@ -987,22 +988,7 @@ class Problem:
             test_case = test_path.relative_to(p.path / "data").with_suffix("")
             log(f"Generating invalid testcases based on: {test_case}")
 
-        invalid: list[tuple[str, str | Callable[[str], Optional[str]], bool]] = [
-            ("latin-1", "Naïve", False),
-            ("empty", "", False),
-            ("newline", "\n", False),
-            ("random", "YVRtr&*teTsRjs8ZC2%kN*T63V@jJq!d", False),
-            ("not_printable_1", "\x7f", False),
-            ("not_printable_2", "\xe2\x82\xac", False),
-            ("unicode", "¯\\_(ツ)_/¯", False),
-            ("bismillah", "﷽", False),
-            ("leading_zero", lambda x: f"0{x}", False),
-            ("trailing_token_1", lambda x: f"{x}42\n", False),
-            ("trailing_token_2", lambda x: f"{x}hello\n", False),
-            ("leading_whitespace", lambda x: f" {x}", True),
-            ("trailing_newline", lambda x: f"{x}\n", True),
-        ]
-
+        # validator, dir, read, write,  copy, allow_whitespace_changes
         validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str], bool]] = [
             (validate.InputValidator, "invalid_inputs", ".in", ".in", [], False),
             (validate.AnswerValidator, "invalid_answers", ".ans", ".ans", [".in"], False),
@@ -1010,7 +996,7 @@ class Problem:
         ]
 
         testcases = []
-        for cls, directory, read, write, copy, allow_whitespace in validators:
+        for cls, directory, read, write, copy, allow_whitespace_changes in validators:
             if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
                 continue
             if not p.validators(cls, strict=True, print_warn=False):
@@ -1018,8 +1004,8 @@ class Problem:
             if test_path is None and copy:
                 continue
 
-            for name, data, whitespace_only in invalid:
-                if allow_whitespace and whitespace_only:
+            for name, data, only_whitespace_change in validator_tests.generators():
+                if allow_whitespace_changes and only_whitespace_change:
                     continue
 
                 if isinstance(data, str):
