@@ -53,7 +53,7 @@ def languages():
         if Path("languages.yaml").is_file():
             _languages = read_yaml(Path("languages.yaml"))
         else:
-            _languages = read_yaml(config.tools_root / "config/languages.yaml")
+            _languages = read_yaml(config.TOOLS_ROOT / "config/languages.yaml")
 
         # Add custom languages.
         extra_langs = parse_yaml(EXTRA_LANGUAGES)
@@ -289,7 +289,7 @@ class Program:
                     self.tmpdir / "build" if (self.tmpdir / "build") in self.input_files else ""
                 ),
                 "run": self.tmpdir / "run",
-                "viva_jar": config.tools_root / "third_party/viva/viva.jar",
+                "viva_jar": config.TOOLS_ROOT / "third_party/viva/viva.jar",
             }
 
             return True

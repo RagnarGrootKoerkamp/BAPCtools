@@ -678,7 +678,7 @@ class Problem:
         if cls == validate.OutputValidator and problem.settings.validation == "default":
             if paths:
                 error("Validation is default but custom output validator exists (ignoring it)")
-            paths = [config.tools_root / "support" / "default_output_validator.cpp"]
+            paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
