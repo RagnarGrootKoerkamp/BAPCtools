@@ -221,7 +221,7 @@ def make_environment() -> dict[str, str]:
         Path.cwd(),
         Path.cwd() / "solve_stats",
         Path.cwd() / "solve_stats" / "activity",
-        config.tools_root / "latex",
+        config.TOOLS_ROOT / "latex",
     ]
     texinputs = ""
     for p in latex_paths:
@@ -371,7 +371,7 @@ def build_problem_pdf(
 
     local_data = Path(main_file)
     copy_and_substitute(
-        local_data if local_data.is_file() else config.tools_root / "latex" / main_file,
+        local_data if local_data.is_file() else config.TOOLS_ROOT / "latex" / main_file,
         builddir / main_file,
         problem_data(problem, language),
     )
@@ -419,7 +419,7 @@ def find_logo() -> Path:
             logo = Path(directory + "logo." + extension)
             if logo.exists():
                 return logo
-    return config.tools_root / "latex" / "images" / "logo-not-found.pdf"
+    return config.TOOLS_ROOT / "latex" / "images" / "logo-not-found.pdf"
 
 
 def build_contest_pdf(
@@ -461,7 +461,7 @@ def build_contest_pdf(
         (
             local_contest_data
             if local_contest_data.is_file()
-            else config.tools_root / "latex" / "contest_data.tex"
+            else config.TOOLS_ROOT / "latex" / "contest_data.tex"
         ),
         builddir / "contest_data.tex",
         config_data,
@@ -482,7 +482,7 @@ def build_contest_pdf(
     per_problem_data_tex = (
         local_per_problem_data
         if local_per_problem_data.is_file()
-        else config.tools_root / "latex" / f"contest-{build_type.value}.tex"
+        else config.TOOLS_ROOT / "latex" / f"contest-{build_type.value}.tex"
     ).read_text()
 
     for prob in problems:

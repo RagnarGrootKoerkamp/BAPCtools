@@ -7,7 +7,7 @@ import secrets
 from collections.abc import Callable
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import overload
+from typing import Final, overload
 
 import config
 import parallel
@@ -40,7 +40,7 @@ def assert_type(name, obj, types, path=None):
     )
 
 
-UNIQUE_TESTCASE_KEYS = [
+UNIQUE_TESTCASE_KEYS: Final = [
     "copy",
     "generate",
     "retries",
@@ -88,8 +88,8 @@ def resolve_path(path, *, allow_absolute, allow_relative):
 # - SolutionInvocation
 # - VisualizerInvocation
 class Invocation:
-    SEED_REGEX = re.compile(r"\{seed(:[0-9]+)?\}")
-    NAME_REGEX = re.compile(r"\{name\}")
+    SEED_REGEX: Final = re.compile(r"\{seed(:[0-9]+)?\}")
+    NAME_REGEX: Final = re.compile(r"\{name\}")
 
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
@@ -318,7 +318,7 @@ class DefaultSolutionInvocation(SolutionInvocation):
         super().__init__(generator_config.problem, default_solution_path(generator_config))
 
 
-KNOWN_TESTCASE_KEYS = [
+KNOWN_TESTCASE_KEYS: Final = [
     "type",
     "generate",
     "copy",
@@ -328,8 +328,8 @@ KNOWN_TESTCASE_KEYS = [
     "retries",
     "count",
 ] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
-RESERVED_TESTCASE_KEYS = ["data", "testdata.yaml", "include"]
-KNOWN_DIRECTORY_KEYS = [
+RESERVED_TESTCASE_KEYS: Final = ["data", "testdata.yaml", "include"]
+KNOWN_DIRECTORY_KEYS: Final = [
     "type",
     "data",
     "testdata.yaml",
@@ -339,9 +339,9 @@ KNOWN_DIRECTORY_KEYS = [
     "random_salt",
     "retries",
 ]
-RESERVED_DIRECTORY_KEYS = ["command"]
-KNOWN_ROOT_KEYS = ["generators", "parallel"]
-DEPRECATED_ROOT_KEYS = ["gitignore_generated"]
+RESERVED_DIRECTORY_KEYS: Final = ["command"]
+KNOWN_ROOT_KEYS: Final = ["generators", "parallel"]
+DEPRECATED_ROOT_KEYS: Final = ["gitignore_generated"]
 
 
 # Holds all inheritable configuration options. Currently:
@@ -372,7 +372,7 @@ class Config:
             return ""
         return x
 
-    INHERITABLE_KEYS = [
+    INHERITABLE_KEYS: Final = [
         # True: use an AC submission by default when the solution: key is not present.
         ("solution", True, parse_solution),
         ("visualizer", None, parse_visualizer),
@@ -1413,7 +1413,7 @@ class GeneratorConfig:
         return generators
 
     # Only used at the root directory level.
-    ROOT_KEYS = [
+    ROOT_KEYS: Final = [
         ("generators", dict[Path, list[Path]](), parse_generators),
     ]
 

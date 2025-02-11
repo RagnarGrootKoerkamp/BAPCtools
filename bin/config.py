@@ -5,20 +5,20 @@ import argparse
 import os
 import re
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Final, Literal, Optional
 
 # return values
-RTV_AC = 42
-RTV_WA = 43
+RTV_AC: Final = 42
+RTV_WA: Final = 43
 
-SUBMISSION_DIRS = [
+SUBMISSION_DIRS: Final = [
     "accepted",
     "wrong_answer",
     "time_limit_exceeded",
     "run_time_error",
 ]
 
-KNOWN_LICENSES = [
+KNOWN_LICENSES: Final = [
     "cc by-sa",
     "cc by",
     "cc0",
@@ -29,25 +29,25 @@ KNOWN_LICENSES = [
 ]
 
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
-TABLE_THRESHOLD = 4
+TABLE_THRESHOLD: Final = 4
 
-FILE_NAME_REGEX = "[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]"
-COMPILED_FILE_NAME_REGEX = re.compile(FILE_NAME_REGEX)
+FILE_NAME_REGEX: Final = "[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]"
+COMPILED_FILE_NAME_REGEX: Final = re.compile(FILE_NAME_REGEX)
 
-KNOWN_TESTCASE_EXTENSIONS = [
+KNOWN_TESTCASE_EXTENSIONS: Final = [
     ".in",
     ".ans",
     ".out",
 ]
 
-KNOWN_VISUALIZER_EXTENSIONS = [
+KNOWN_VISUALIZER_EXTENSIONS: Final = [
     ".png",
     ".jpg",
     ".svg",
     ".pdf",
 ]
 
-KNOWN_TEXT_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
+KNOWN_TEXT_DATA_EXTENSIONS: Final = KNOWN_TESTCASE_EXTENSIONS + [
     ".interaction",
     ".hint",
     ".desc",
@@ -56,9 +56,9 @@ KNOWN_TEXT_DATA_EXTENSIONS = KNOWN_TESTCASE_EXTENSIONS + [
     #'.args',
 ]
 
-KNOWN_DATA_EXTENSIONS = KNOWN_TEXT_DATA_EXTENSIONS + KNOWN_VISUALIZER_EXTENSIONS
+KNOWN_DATA_EXTENSIONS: Final = KNOWN_TEXT_DATA_EXTENSIONS + KNOWN_VISUALIZER_EXTENSIONS
 
-INVALID_CASE_DIRECTORIES = [
+INVALID_CASE_DIRECTORIES: Final = [
     "invalid_inputs",
     "invalid_answers",
     "invalid_outputs",
@@ -66,22 +66,22 @@ INVALID_CASE_DIRECTORIES = [
 ]
 
 
-SEED_DEPENDENCY_RETRIES = 10
+SEED_DEPENDENCY_RETRIES: Final = 10
 
 # The root directory of the BAPCtools repository.
-tools_root = Path(__file__).resolve().parent.parent
+TOOLS_ROOT: Final = Path(__file__).resolve().parent.parent
 
 # The directory from which BAPCtools is invoked.
-current_working_directory = Path.cwd().resolve()
+current_working_directory: Final = Path.cwd().resolve()
 
 # Add third_party/ to the $PATH for checktestdata.
-os.environ["PATH"] += os.pathsep + str(tools_root / "third_party")
+os.environ["PATH"] += os.pathsep + str(TOOLS_ROOT / "third_party")
 
 # Below here is some global state that will be filled in main().
 
 args = argparse.Namespace()
 
-default_args = {
+DEFAULT_ARGS: Final = {
     "jobs": (os.cpu_count() or 1) // 2,
     "time": 600,  # Used for `bt fuzz`
     "verbose": 0,
@@ -93,19 +93,19 @@ default_args = {
 """
 for cmd in $(bapctools --help | grep '^  {' | sed 's/  {//;s/}//;s/,/ /g') ; do bapctools $cmd --help ; done |& \
 grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_/g' | sort -u | \
-grep -Ev '^(h|jobs|time|verbose)$' | sed "s/^/'/;s/$/',/" | tr '\n' ' ' | sed 's/^/args_list = [/;s/, $/]\n/'
+grep -Ev '^(h|jobs|time|verbose)$' | sed "s/^/'/;s/$/',/" | tr '\n' ' ' | sed 's/^/ARGS_LIST: Final = [/;s/, $/]\n/'
 """
 # fmt: off
-args_list = ['1', 'add', 'all', 'answer', 'api', 'author', 'check_deterministic', 'clean', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'default_solution', 'depth', 'directory', 'error', 'force', 'force_build', 'input', 'interaction', 'interactive', 'invalid', 'kattis', 'language', 'memory', 'more', 'move_to', 'no_bar', 'no_generate', 'no_solution', 'no_solutions', 'no_testcase_sanity_checks', 'no_time_limit', 'no_validators', 'no_visualizer', 'open', 'order', 'order_from_ccs', 'overview', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'reorder', 'samples', 'sanitizer', 'skel', 'skip', 'sort', 'submissions', 'table', 'testcases', 'time_limit', 'timeout', 'token', 'tree', 'username', 'validation', 'watch', 'web', 'write']
+ARGS_LIST: Final = ['1', 'add', 'all', 'answer', 'api', 'author', 'check_deterministic', 'clean', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'default_solution', 'depth', 'directory', 'error', 'force', 'force_build', 'input', 'interaction', 'interactive', 'invalid', 'kattis', 'language', 'memory', 'more', 'move_to', 'no_bar', 'no_generate', 'no_solution', 'no_solutions', 'no_testcase_sanity_checks', 'no_time_limit', 'no_validators', 'no_visualizer', 'open', 'order', 'order_from_ccs', 'overview', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'reorder', 'samples', 'sanitizer', 'skel', 'skip', 'sort', 'submissions', 'table', 'testcases', 'time_limit', 'timeout', 'token', 'tree', 'username', 'validation', 'watch', 'web', 'write']
 # fmt: on
 
 
 def set_default_args():
     # Set default argument values.
-    for arg in args_list:
+    for arg in ARGS_LIST:
         if not hasattr(args, arg):
             setattr(args, arg, None)
-    for arg, value in default_args.items():
+    for arg, value in DEFAULT_ARGS.items():
         if not hasattr(args, arg):
             setattr(args, arg, value)
 
@@ -124,5 +124,5 @@ TEST_TLE_SUBMISSIONS = False
 
 
 # Randomly generated uuid4 for BAPCtools
-BAPC_UUID = "8ee7605a-d1ce-47b3-be37-15de5acd757e"
-BAPC_UUID_PREFIX = 8
+BAPC_UUID: Final = "8ee7605a-d1ce-47b3-be37-15de5acd757e"
+BAPC_UUID_PREFIX: Final = 8

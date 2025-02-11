@@ -106,7 +106,7 @@ def new_contest():
     rights_owner = _ask_variable_string("rights owner", "author")
     title = title.replace("_", "-")
 
-    skeldir = config.tools_root / "skel/contest"
+    skeldir = config.TOOLS_ROOT / "skel/contest"
     log(f"Copying {skeldir} to {dirname}.")
     copytree_and_substitute(
         skeldir, Path(dirname), locals(), exist_ok=False, preserve_symlinks=False
@@ -114,7 +114,7 @@ def new_contest():
 
 
 def get_skel_dir(target_dir):
-    skeldir = config.tools_root / "skel/problem"
+    skeldir = config.TOOLS_ROOT / "skel/problem"
     preserve_symlinks = False
     if (target_dir / "skel/problem").is_dir():
         skeldir = target_dir / "skel/problem"
@@ -316,16 +316,16 @@ def create_gitlab_jobs(contest, problems):
     def problem_source_dir(problem):
         return problem.path.resolve().relative_to(Path("..").resolve())
 
-    header_yml = (config.tools_root / "skel/gitlab_ci/header.yaml").read_text()
+    header_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/header.yaml").read_text()
     print(substitute(header_yml, locals()))
 
-    contest_yml = (config.tools_root / "skel/gitlab_ci/contest.yaml").read_text()
+    contest_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/contest.yaml").read_text()
     changes = ""
     for problem in problems:
         changes += "      - " + str(problem_source_dir(problem)) + "/problem_statement/**/*\n"
     print(substitute(contest_yml, locals()))
 
-    problem_yml = (config.tools_root / "skel/gitlab_ci/problem.yaml").read_text()
+    problem_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/problem.yaml").read_text()
     for problem_obj in problems:
         changesdir = problem_source_dir(problem_obj)
         problem = problem_obj.name
