@@ -96,7 +96,7 @@ grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_
 grep -Ev '^(h|jobs|time|verbose)$' | sed "s/^/'/;s/$/',/" | tr '\n' ' ' | sed 's/^/ARGS_LIST: Final = [/;s/, $/]\n/'
 """
 # fmt: off
-ARGS_LIST: Final = ['1', 'add', 'all', 'answer', 'api', 'author', 'check_deterministic', 'clean', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'default_solution', 'depth', 'directory', 'error', 'force', 'force_build', 'input', 'interaction', 'interactive', 'invalid', 'kattis', 'language', 'memory', 'more', 'move_to', 'no_bar', 'no_generate', 'no_solution', 'no_solutions', 'no_testcase_sanity_checks', 'no_time_limit', 'no_validators', 'no_visualizer', 'open', 'order', 'order_from_ccs', 'overview', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'reorder', 'samples', 'sanitizer', 'skel', 'skip', 'sort', 'submissions', 'table', 'testcases', 'time_limit', 'timeout', 'token', 'tree', 'username', 'validation', 'watch', 'web', 'write']
+ARGS_LIST: Final = ['1', 'add', 'all', 'answer', 'api', 'author', 'check_deterministic', 'clean', 'colors', 'contest', 'contest_id', 'contestname', 'cp', 'default_solution', 'depth', 'directory', 'error', 'force', 'force_build', 'input', 'interaction', 'interactive', 'invalid', 'kattis', 'language', 'memory', 'more', 'move_to', 'no_bar', 'no_generate', 'no_solution', 'no_solutions', 'no_testcase_sanity_checks', 'no_time_limit', 'no_validators', 'no_visualizer', 'open', 'order', 'order_from_ccs', 'overview', 'password', 'post_freeze', 'problem', 'problemname', 'remove', 'reorder', 'samples', 'sanitizer', 'skel', 'skip', 'sort', 'submissions', 'table', 'testcases', 'time_limit', 'timeout', 'token', 'tree', 'type', 'username', 'watch', 'web', 'write']
 # fmt: on
 
 

@@ -153,20 +153,29 @@ def new_problem():
     author = config.args.author if config.args.author else _ask_variable_string("author")
 
     validator_flags = ""
-    if config.args.validation:
-        parse_validation(config.args.validation)
-        validation = config.args.validation
+    custom_output = False
+    if config.args.type:
+        problem_type = config.args.type
     else:
-        validation = _ask_variable_choice("validation", ["default", "float", "custom"])
-        if validation == "float":
-            validation = "default"
-            validator_flags = "validator_flags:\n  float_tolerance 1e-6\n"
-            log("Using default float tolerance of 1e-6")
-        if validation == "custom":
-            if _ask_variable_bool("interactive", False):
-                validation += " interactive"
-            if _ask_variable_bool("multi-pass", False):
-                validation += " multi-pass"
+        problem_type = _ask_variable_choice("type", ["default", "float", "custom"])
+    # TODO Maybe remove command-line option "default" and replace it with "pass-fail"?
+    if problem_type == "default":
+        problem_type = "pass-fail"
+    if problem_type == "float":
+        problem_type = "pass-fail"
+        validator_flags = "validator_flags:\n  float_tolerance 1e-6\n"
+        log("Using default float tolerance of 1e-6")
+    if problem_type == "custom":
+        custom_output = True
+        problem_type = "pass-fail"
+    # If we're interactively determining the problem type, and the user selected "custom":
+    if not config.args.type and problem_type == "custom":
+        custom_types = []
+        if _ask_variable_bool("interactive", False):
+            custom_types.append("interactive")
+        if _ask_variable_bool("multi-pass", False):
+            custom_types.append("multi-pass")
+        problem_type = " ".join(custom_types) if custom_types else "pass-fail"
 
     # Read settings from the contest-level yaml file.
     variables = contest.contest_yaml()
@@ -175,7 +184,7 @@ def new_problem():
         "problemname": "\n".join(f"  {lang}: {name}" for lang, name in problemname.items()),
         "dirname": dirname,
         "author": author,
-        "validation": validation,
+        "type": problem_type,
         "validator_flags": validator_flags,
     }.items():
         variables[k] = v
@@ -229,7 +238,7 @@ def new_problem():
         variables,
         exist_ok=True,
         preserve_symlinks=preserve_symlinks,
-        skip=[skeldir / "output_validators"] if validation == "default" else None,
+        skip=[skeldir / "output_validators"] if not custom_output else None,
     )
 
     # Warn about missing problem statement skeletons for non-en languages

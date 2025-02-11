@@ -3,6 +3,8 @@ problem_format_version: 2023-07-draft
 name:
   #lang: name
 {%problemname%}
+# 'pass-fail', 'interactive', 'multi-pass', or 'interactive multi-pass'
+type: {%type%}
 author: {%author%}
 # Contest name and year
 source: {%source%}
@@ -11,8 +13,6 @@ source_url: {%source_url%}
 uuid: {%uuid%}
 license: {%license%}
 rights_owner: {%rights_owner%}
-# 'default', 'custom', or 'custom interactive'
-validation: {%validation%}
 
 # One or more of:
 # case_sensitive

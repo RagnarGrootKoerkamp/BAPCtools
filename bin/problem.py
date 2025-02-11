@@ -22,6 +22,23 @@ from util import *
 from colorama import Fore, Style
 
 
+# Parse validation mode (only for legacy problem format version)
+def parse_legacy_validation(mode: str) -> set[str]:
+    if mode == "default":
+        return {mode}
+    else:
+        ok = True
+        parsed = set()
+        for part in mode.split():
+            if part in ["custom", "interactive", "multi-pass"] and part not in parsed:
+                parsed.add(part)
+            else:
+                ok = False
+        if "custom" not in parsed or not ok:
+            fatal(f"Unrecognised validation mode {mode}.")
+        return parsed
+
+
 class ProblemLimits:
     def __init__(
         self,
@@ -127,7 +144,7 @@ class ProblemSettings:
             fatal(f"problem_format_version {self.problem_format_version} not supported")
 
         if self.is_legacy():
-            mode = parse_validation(parse_setting(yamldata, "validation", "default"))
+            mode = parse_legacy_validation(parse_setting(yamldata, "validation", "default"))
         else:
             if "validation" in yamldata:
                 warn(

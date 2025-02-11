@@ -192,8 +192,8 @@ class TestNewContestProblem:
                 "Problem One",
                 "--author",
                 "Ragnar Groot Koerkamp",
-                "--validation",
-                "default",
+                "--type",
+                "pass-fail",
             ]
         )
         os.chdir("contest_name")

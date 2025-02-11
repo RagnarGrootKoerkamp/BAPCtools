@@ -777,23 +777,6 @@ def parse_setting(yamldata: dict[str, Any], key: str, default: T) -> T:
     return default if value is None else value
 
 
-# Parse validation mode
-def parse_validation(mode: str) -> set[str]:
-    if mode == "default":
-        return {mode}
-    else:
-        ok = True
-        parsed = set()
-        for part in mode.split():
-            if part in ["custom", "interactive", "multi-pass"] and part not in parsed:
-                parsed.add(part)
-            else:
-                ok = False
-        if "custom" not in parsed or not ok:
-            fatal(f"Unrecognised validation mode {mode}.")
-        return parsed
-
-
 # glob, but without hidden files
 def glob(path: Path, expression: str, include_hidden: bool = False) -> list[Path]:
     def keep(p: Path) -> bool:
