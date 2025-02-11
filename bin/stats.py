@@ -173,7 +173,7 @@ def problem_stats(problems):
         def value(x):
             if x[0] == "  time" or x[0] == "subs":
                 return x[1](problem)
-            if x[0] == "A" and (problem.interactive or problem.multipass):
+            if x[0] == "A" and (problem.interactive or problem.multi_pass):
                 return None  # Do not show an entry for the answer validator if it is not required
             if x[0] == "O" and not problem.custom_output:
                 return None  # Do not show an entry for the output validator if it is not required

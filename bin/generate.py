@@ -706,11 +706,11 @@ class TestcaseRule(Rule):
         ansfile = problem.tmpdir / "data" / t.hash / "testcase.ans"
         assert ansfile.is_file()
 
-        if problem.interactive or problem.multipass:
+        if problem.interactive or problem.multi_pass:
             if ansfile.stat().st_size != 0:
                 interactive = "interaction " if problem.interactive else ""
-                multipass = "multipass " if problem.multipass else ""
-                bar.warn(f".ans file for {interactive}{multipass}problem is expected to be empty.")
+                multi_pass = "multi-pass " if problem.multi_pass else ""
+                bar.warn(f".ans file for {interactive}{multi_pass}problem is expected to be empty.")
         else:
             size = ansfile.stat().st_size
             if (
@@ -958,8 +958,8 @@ class TestcaseRule(Rule):
 
             used_solution = False
             changed_ans = False
-            if problem.interactive or problem.multipass:
-                # Generate empty ans file for interactive/multipass problems
+            if problem.interactive or problem.multi_pass:
+                # Generate empty ans file for interactive/multi-pass problems
                 if ".ans" not in meta_yaml["generated_extensions"]:
                     if not ansfile.is_file() or ansfile.stat().st_size != 0:
                         ansfile.write_text("")
@@ -1829,7 +1829,7 @@ class GeneratorConfig:
         build_programs(program.Visualizer, visualizers_used)
 
         self.problem.validators(validate.InputValidator)
-        if not self.problem.interactive and not self.problem.multipass:
+        if not self.problem.interactive and not self.problem.multi_pass:
             self.problem.validators(validate.AnswerValidator)
         self.problem.validators(validate.OutputValidator)
 

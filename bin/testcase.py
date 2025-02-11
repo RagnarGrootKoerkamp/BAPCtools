@@ -218,7 +218,7 @@ class Testcase:
                     return ok
 
                 assert not self.problem.interactive
-                assert not self.problem.multipass
+                assert not self.problem.multi_pass
 
                 ok = self.validate_format(
                     validate.Mode.ANSWER,

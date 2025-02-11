@@ -64,7 +64,7 @@ def run_interactive_testcase(
     validator_dir = output_validator.tmpdir
     submission_dir = run.submission.tmpdir
 
-    nextpass = run.feedbackdir / "nextpass.in" if run.problem.multipass else False
+    nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else False
 
     if config.args.verbose >= 2:
         print("Validator:  ", *get_validator_command(), file=sys.stderr)
@@ -132,7 +132,7 @@ def run_interactive_testcase(
                         _feedback(run, validator_err),
                         exec_res.err,
                         verdict,
-                        pass_id if run.problem.multipass else None,
+                        pass_id if run.problem.multi_pass else None,
                     )
                 else:
                     tle_result.timeout_expired |= max_duration >= timeout
@@ -170,7 +170,7 @@ def run_interactive_testcase(
                 _feedback(run, validator_err),
                 exec_res.err,
                 verdict,
-                pass_id if run.problem.multipass else None,
+                pass_id if run.problem.multi_pass else None,
             )
         else:
             tle_result.duration = max_duration
@@ -401,7 +401,7 @@ while True:
                     val_err,
                     team_err,
                     verdict,
-                    pass_id if run.problem.multipass else None,
+                    pass_id if run.problem.multi_pass else None,
                 )
             else:
                 tle_result.timeout_expired |= aborted
@@ -433,7 +433,7 @@ while True:
             val_err,
             team_err,
             verdict,
-            pass_id if run.problem.multipass else None,
+            pass_id if run.problem.multi_pass else None,
         )
     else:
         tle_result.duration = max_duration

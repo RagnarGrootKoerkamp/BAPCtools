@@ -72,7 +72,7 @@ class GeneratorTask:
         localbar.done()
 
         # Generate .ans.
-        if not self.fuzz.problem.interactive and not self.fuzz.problem.multipass:
+        if not self.fuzz.problem.interactive and not self.fuzz.problem.multi_pass:
             if self.solution and not testcase.ans_path.is_file():
                 if testcase.ans_path.is_file():
                     testcase.ans_path.unlink()

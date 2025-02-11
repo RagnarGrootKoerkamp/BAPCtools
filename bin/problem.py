@@ -309,15 +309,15 @@ class Problem:
         # Aliasing fields makes life easier for us 😛
         self.limits: ProblemLimits = self.settings.limits
         self.interactive: bool = self.settings.interactive
-        self.multipass: bool = self.settings.multi_pass
+        self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
 
         # Handle dependencies...
         has_validation_passes = self.limits.validation_passes is not None
-        if self.multipass and not has_validation_passes:
+        if self.multi_pass and not has_validation_passes:
             self.limits.validation_passes = 2
-        if not self.multipass and has_validation_passes:
-            warn("limit: validation_passes is only used for multipass problems. SKIPPED.")
+        if not self.multi_pass and has_validation_passes:
+            warn("limit: validation_passes is only used for multi_pass problems. SKIPPED.")
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / "data")
@@ -470,14 +470,14 @@ class Problem:
         for f in in_paths:
             t = testcase.Testcase(p, f, print_warn=True)
             if (
-                (p.interactive or p.multipass)
+                (p.interactive or p.multi_pass)
                 and mode == validate.Mode.INVALID
                 and t.root in ["invalid_answers", "invalid_outputs"]
             ):
                 msg = ""
                 if p.interactive:
                     msg += " interactive"
-                if p.multipass:
+                if p.multi_pass:
                     msg += " multi-pass"
                 warn(f"Found file {f} for {mode} validation in{msg} problem. Skipping.")
                 continue
@@ -530,7 +530,7 @@ class Problem:
         # Non-interactive and Non-multi-pass problems should not have .interaction files.
         # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
         # so that they can emulate a non-interactive problem with on-the-fly generated input.
-        if not p.interactive and not p.multipass:
+        if not p.interactive and not p.multi_pass:
             if len(interaction_paths) != 0:
                 warn(
                     f"Non-interactive/Non-multi-pass problem {p.name} should not have data/sample/*.interaction files."
@@ -934,12 +934,12 @@ class Problem:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
 
-        if (problem.interactive or problem.multipass) and mode == validate.Mode.ANSWER:
+        if (problem.interactive or problem.multi_pass) and mode == validate.Mode.ANSWER:
             if (problem.path / "answer_validators").exists():
                 msg = ""
                 if problem.interactive:
                     msg += " interactive"
-                if problem.multipass:
+                if problem.multi_pass:
                     msg += " multi-pass"
                 log(f"Not running answer_validators for{msg} problems.")
             return True
@@ -953,12 +953,12 @@ class Problem:
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.ANSWER:
                 assert not problem.interactive
-                assert not problem.multipass
+                assert not problem.multi_pass
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
-                if not problem.interactive and not problem.multipass:
+                if not problem.interactive and not problem.multi_pass:
                     problem.validators(validate.AnswerValidator)
                 testcases = problem.testcases(mode=mode)
             case _:
