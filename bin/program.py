@@ -3,7 +3,7 @@ import shutil
 import stat
 import subprocess
 import threading
-from typing import TYPE_CHECKING
+from typing import Final, TYPE_CHECKING
 
 from colorama import Fore
 
@@ -12,7 +12,7 @@ from util import *
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
 
-EXTRA_LANGUAGES = """
+EXTRA_LANGUAGES: Final = """
 checktestdata:
     name: 'Checktestdata'
     priority: 1
@@ -33,7 +33,7 @@ manual:
     run: '{run}'
 """
 
-SANITIZER_FLAGS = """
+SANITIZER_FLAGS: Final = """
 cpp:
     compile: -fsanitize=undefined,address
 """

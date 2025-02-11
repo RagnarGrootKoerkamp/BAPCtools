@@ -5,7 +5,7 @@ import threading
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Literal, Optional, TYPE_CHECKING
+from typing import Any, Final, Literal, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
@@ -155,8 +155,8 @@ class ProblemSettings:
 
 # A problem.
 class Problem:
-    _SHORTNAME_REGEX_STRING = "^[a-z0-9]+$"
-    _SHORTNAME_REGEX = re.compile(_SHORTNAME_REGEX_STRING)
+    _SHORTNAME_REGEX_STRING: Final = "^[a-z0-9]+$"
+    _SHORTNAME_REGEX: Final = re.compile(_SHORTNAME_REGEX_STRING)
 
     def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):
         # The problem name/shortname, which is the name of the directory and used as a display name.

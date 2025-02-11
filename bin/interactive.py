@@ -3,7 +3,7 @@ import time
 import subprocess
 import sys
 import threading
-from typing import Literal, Optional, TYPE_CHECKING
+from typing import Final, Literal, Optional, TYPE_CHECKING
 
 import config
 from util import *
@@ -13,7 +13,7 @@ from verdicts import Verdict
 if TYPE_CHECKING:
     from run import Run
 
-BUFFER_SIZE = 2**20
+BUFFER_SIZE: Final = 2**20
 
 
 # Return a ExecResult object amended with verdict.
