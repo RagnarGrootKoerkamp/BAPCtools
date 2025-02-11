@@ -104,7 +104,12 @@ class ProblemLimits:
 
 
 class ProblemSettings:
-    def __init__(self, yamldata: dict[str, Any], legacy_time_limit: Optional[float] = None):
+    def __init__(
+        self,
+        yamldata: dict[str, Any],
+        problem: "Problem",
+        legacy_time_limit: Optional[float] = None,
+    ):
         assert isinstance(yamldata, dict)
 
         if "name" in yamldata and isinstance(yamldata["name"], str):
@@ -122,13 +127,25 @@ class ProblemSettings:
             fatal(f"problem_format_version {self.problem_format_version} not supported")
 
         if self.is_legacy():
-            self.validation: str = parse_setting(yamldata, "validation", "default")
+            mode = parse_validation(parse_setting(yamldata, "validation", "default"))
         else:
-            self.type = parse_setting(yamldata, "type", "pass-fail")
             if "validation" in yamldata:
                 warn(
                     "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead"
                 )
+            mode = set(parse_setting(yamldata, "type", "pass-fail").split(" "))
+        self.interactive: bool = "interactive" in mode
+        self.multi_pass: bool = "multi-pass" in mode
+        self.custom_output: bool = (
+            self.interactive
+            or self.multi_pass
+            or (
+                "custom" in mode
+                if self.is_legacy()
+                # TODO: output_validator should be singular, but DOMjudge does not support this yet, so this should be fixed during export.
+                else (problem.path / "output_validators").exists()
+            )
+        )
 
         self.name: dict[str, str] = parse_setting(yamldata, "name", {"en": ""})
         self.uuid: str = parse_setting(yamldata, "uuid", "")
@@ -287,27 +304,13 @@ class Problem:
             yaml_path.write_text(raw)
             log("Added new UUID to problem.yaml")
 
-        self.settings = ProblemSettings(yaml_data, self._get_legacy_time_limit(yaml_data))
-        self.limits = self.settings.limits
+        self.settings = ProblemSettings(yaml_data, self, self._get_legacy_time_limit(yaml_data))
 
-        # TODO: Move these checks to ProblemSettings, but do keep the alias-fields in Problem.
-        mode = (
-            parse_validation(self.settings.validation)
-            if self.settings.is_legacy()
-            else set(self.settings.type.split(" "))
-        )
-        self.interactive = "interactive" in mode
-        self.multipass = "multi-pass" in mode
-        self.custom_output = (
-            self.interactive
-            or self.multipass
-            or (
-                "custom" in mode
-                if self.settings.is_legacy()
-                # TODO: output_validator should be singular, but DOMjudge does not support this yet, so this should be fixed during export.
-                else (self.path / "output_validators").exists()
-            )
-        )
+        # Aliasing fields makes life easier for us 😛
+        self.limits: ProblemLimits = self.settings.limits
+        self.interactive: bool = self.settings.interactive
+        self.multipass: bool = self.settings.multi_pass
+        self.custom_output: bool = self.settings.custom_output
 
         # Handle dependencies...
         has_validation_passes = self.limits.validation_passes is not None
