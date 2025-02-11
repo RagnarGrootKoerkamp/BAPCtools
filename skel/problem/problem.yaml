@@ -1,3 +1,4 @@
+# Specification: https://icpc.io/problem-package-format/spec/2023-07-draft.html
 problem_format_version: 2023-07-draft
 name:
   #lang: name
