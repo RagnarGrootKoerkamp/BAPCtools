@@ -41,7 +41,7 @@ register("trailing_newline", True)(lambda x: f"{x}\n")
 
 
 # helper function
-def end_newline(x: str):
+def end_newline(x: str) -> bool:
     return len(x) > 0 and x[-1] == "\n"
 
 
