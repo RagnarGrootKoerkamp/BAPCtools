@@ -242,9 +242,16 @@ class ProblemSettings:
         self.source_url: str = parse_setting(yaml_data, "source_url", "")
         self.license: str = parse_setting(yaml_data, "license", "unknown")
         self.rights_owner: str = parse_setting(yaml_data, "rights_owner", "")
+        # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
+        self.embargo_until: str = parse_setting(yaml_data, "embargo-until", "")
         self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
+        # TODO: move to testdata.yaml
         self.validator_flags: list[str] = parse_setting(yaml_data, "validator_flags", [])
         self.keywords: str = parse_setting(yaml_data, "keywords", "")
+        # Not implemented in BAPCtools. We always test all languges in langauges.yaml.
+        self.languages: list[str] = parse_optional_list_setting(yaml_data, "languages", str)
+        # Not yet implemented, pending https://github.com/Kattis/problem-package-format/issues/344
+        self.constants: dict[str, Any] = parse_setting(yaml_data, "constants", {})
 
         # BAPCtools extensions:
         self.verified: Optional[str] = parse_optional_setting(yaml_data, "verified", str)

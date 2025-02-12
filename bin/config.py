@@ -20,12 +20,12 @@ SUBMISSION_DIRS: Final[Sequence[str]] = [
 ]
 
 KNOWN_LICENSES: Final[Sequence[str]] = [
-    "cc by-sa",
     "cc by",
+    "cc by-sa",
     "cc0",
-    "public domain",
     "educational",
     "permission",
+    "public domain",
     "unknown",
 ]
 
