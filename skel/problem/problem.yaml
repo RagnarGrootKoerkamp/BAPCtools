@@ -1,16 +1,15 @@
 # Specification: https://icpc.io/problem-package-format/spec/2023-07-draft.html
 problem_format_version: 2023-07-draft
+# 'pass-fail', 'interactive', 'multi-pass', or 'interactive multi-pass'
+type: {%type%}
 name:
   #lang: name
 {%problemname%}
-# 'pass-fail', 'interactive', 'multi-pass', or 'interactive multi-pass'
-type: {%type%}
-credits: {%author%}
-# Contest name and year
-source: {%source%}
-# contest.region.eu
-source_url: {%source_url%}
 uuid: {%uuid%}
+credits: {%author%}
+source:
+  name: {%source%}
+  url: {%source_url%}
 license: {%license%}
 rights_owner: {%rights_owner%}
 
