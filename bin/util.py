@@ -757,9 +757,9 @@ def write_yaml(
 T = TypeVar("T")
 
 
-def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
-    if key in yamldata:
-        value = yamldata.pop(key)
+def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
+    if key in yaml_data:
+        value = yaml_data.pop(key)
         if isinstance(value, int) and t is float:
             value = float(value)
         if isinstance(value, t):
@@ -772,8 +772,8 @@ def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Op
     return None
 
 
-def parse_setting(yamldata: dict[str, Any], key: str, default: T) -> T:
-    value = parse_optional_setting(yamldata, key, type(default))
+def parse_setting(yaml_data: dict[str, Any], key: str, default: T) -> T:
+    value = parse_optional_setting(yaml_data, key, type(default))
     return default if value is None else value
 
 
