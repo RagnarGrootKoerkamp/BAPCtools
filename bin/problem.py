@@ -187,6 +187,7 @@ class ProblemSettings:
 
         self.name: dict[str, str] = parse_setting(yaml_data, "name", {"en": ""})
         self.uuid: str = parse_setting(yaml_data, "uuid", "")
+        self.version: str = parse_setting(yaml_data, "version", "")
         self.author: str = parse_setting(yaml_data, "author", "")
         self.source: str = parse_setting(yaml_data, "source", "")
         self.source_url: str = parse_setting(yaml_data, "source_url", "")
