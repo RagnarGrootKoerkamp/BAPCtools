@@ -19,12 +19,12 @@ SUBMISSION_DIRS: Final = [
 ]
 
 KNOWN_LICENSES: Final = [
-    "cc by-sa",
     "cc by",
+    "cc by-sa",
     "cc0",
-    "public domain",
     "educational",
     "permission",
+    "public domain",
     "unknown",
 ]
 
