@@ -767,14 +767,29 @@ def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> O
         if value == "" and t is list or t is dict:
             # handle empty yaml keys
             return t()
-        else:
-            warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
     return None
 
 
 def parse_setting(yaml_data: dict[str, Any], key: str, default: T) -> T:
     value = parse_optional_setting(yaml_data, key, type(default))
     return default if value is None else value
+
+
+def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> list[T]:
+    if key in yaml_data:
+        value = yaml_data.pop(key)
+        if isinstance(value, t):
+            return [value]
+        if isinstance(value, list):
+            if not all(isinstance(v, t) for v in value):
+                warn(
+                    f"some values for key '{key}' in problem.yaml do not have type {t.__name__}. SKIPPED."
+                )
+                return []
+            return value
+        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+    return []
 
 
 # glob, but without hidden files

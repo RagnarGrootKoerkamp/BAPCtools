@@ -40,6 +40,55 @@ def parse_legacy_validation(mode: str) -> set[str]:
         return parsed
 
 
+class ProblemCredits:
+    def __init__(
+        self,
+        yaml_data: dict[str, Any],
+        problem_settings: "ProblemSettings",
+    ):
+        self.authors: list[str] = []
+        self.contributors: list[str] = []
+        self.testers: list[str] = []
+        self.translators: dict[str, list[str]] = {}
+        self.packagers: list[str] = []
+        self.acknowledgements: list[str] = []
+
+        # If problem.yaml uses the legacy version, do not support the new `credits` key.
+        # If problem.yaml uses 2023-07-draft, prefer `credit`, but also support `author` and warn for it.
+        legacy_author = parse_optional_setting(yaml_data, "author", str)
+        if problem_settings.is_legacy():
+            if legacy_author:
+                if "," in legacy_author:
+                    self.authors = [author.strip() for author in legacy_author.split(",")]
+                elif "and" in legacy_author:
+                    self.authors = [author.strip() for author in legacy_author.split("and")]
+                else:
+                    self.authors = [legacy_author]
+        else:
+            if legacy_author is not None:
+                warn("problem.yaml: author is removed in 2023-07-draft, please use credits.authors")
+            if "credits" not in yaml_data:
+                return
+            if isinstance(yaml_data["credits"], str):
+                self.authors = [parse_setting(yaml_data, "credits", "")]
+                return
+
+            credits = parse_setting(yaml_data, "credits", dict[str, Any]())
+            self.authors = parse_optional_list_setting(credits, "authors", str)
+            self.contributors = parse_optional_list_setting(credits, "contributors", str)
+            self.translators = parse_setting(credits, "translators", {})
+            for lang in self.translators:
+                self.translators[lang] = parse_optional_list_setting(self.translators, lang, str)
+            self.testers = parse_optional_list_setting(credits, "testers", str)
+            self.packagers = parse_optional_list_setting(credits, "packagers", str)
+            self.acknowledgements = parse_optional_list_setting(credits, "acknowledgements", str)
+
+            # Check for unknown keys
+            for key in credits:
+                assert isinstance(key, str)
+                warn(f"found unknown problem.yaml key: {key} in credits")
+
+
 class ProblemLimits:
     def __init__(
         self,
@@ -188,7 +237,7 @@ class ProblemSettings:
         self.name: dict[str, str] = parse_setting(yaml_data, "name", {"en": ""})
         self.uuid: str = parse_setting(yaml_data, "uuid", "")
         self.version: str = parse_setting(yaml_data, "version", "")
-        self.author: str = parse_setting(yaml_data, "author", "")
+        self.credits = ProblemCredits(yaml_data, self)
         self.source: str = parse_setting(yaml_data, "source", "")
         self.source_url: str = parse_setting(yaml_data, "source_url", "")
         self.license: str = parse_setting(yaml_data, "license", "unknown")

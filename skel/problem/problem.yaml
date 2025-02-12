@@ -5,7 +5,7 @@ name:
 {%problemname%}
 # 'pass-fail', 'interactive', 'multi-pass', or 'interactive multi-pass'
 type: {%type%}
-author: {%author%}
+credits: {%author%}
 # Contest name and year
 source: {%source%}
 # contest.region.eu
