@@ -89,6 +89,59 @@ class ProblemCredits:
                 warn(f"found unknown problem.yaml key: {key} in credits")
 
 
+class ProblemSource:
+    def __init__(self, name: str, url: Optional[str] = None):
+        self.name = name
+        self.url = url
+
+    def __repr__(self) -> str:
+        return self.name + (f" ({self.url})" if self.url else "")
+
+
+class ProblemSources(list[ProblemSource]):
+    def __init__(
+        self,
+        yaml_data: dict[str, Any],
+        problem_settings: "ProblemSettings",
+    ):
+        # If problem.yaml uses the legacy version, do not support the new type of the `source` key.
+        # If problem.yaml uses 2023-07-draft, prefer `source`, but also support `source_url` and warn for it.
+        legacy_source_url = parse_optional_setting(yaml_data, "source_url", str)
+        if problem_settings.is_legacy():
+            source_name = parse_setting(yaml_data, "source", "")
+            if legacy_source_url:
+                self.append(ProblemSource(source_name, legacy_source_url))
+        else:
+            if legacy_source_url is not None:
+                warn("problem.yaml: source_url is removed in 2023-07-draft, please use source.url")
+            if "source" not in yaml_data:
+                return
+            if isinstance(yaml_data["source"], str):
+                self.append(ProblemSource(parse_setting(yaml_data, "source", "")))
+                return
+            if isinstance(yaml_data["source"], dict):
+                source = parse_setting(yaml_data, "source", dict[str, str]())
+                self.append(
+                    ProblemSource(
+                        parse_setting(source, "name", ""),
+                        parse_optional_setting(source, "url", str),
+                    )
+                )
+                return
+            if isinstance(yaml_data["source"], list):
+                sources = parse_setting(yaml_data, "source", list[dict[str, str]]())
+                for raw_source in sources:
+                    source = parse_setting(raw_source, "source", dict[str, str]())
+                    self.append(
+                        ProblemSource(
+                            parse_setting(source, "name", ""),
+                            parse_optional_setting(source, "url", str),
+                        )
+                    )
+                return
+            warn("problem.yaml key 'source' does not have the correct type")
+
+
 class ProblemLimits:
     def __init__(
         self,
@@ -238,8 +291,7 @@ class ProblemSettings:
         self.uuid: str = parse_setting(yaml_data, "uuid", "")
         self.version: str = parse_setting(yaml_data, "version", "")
         self.credits = ProblemCredits(yaml_data, self)
-        self.source: str = parse_setting(yaml_data, "source", "")
-        self.source_url: str = parse_setting(yaml_data, "source_url", "")
+        self.source = ProblemSources(yaml_data, self)
         self.license: str = parse_setting(yaml_data, "license", "unknown")
         self.rights_owner: str = parse_setting(yaml_data, "rights_owner", "")
         # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
