@@ -44,8 +44,8 @@ class ProblemLimits:
     def __init__(
         self,
         yaml_data: dict[str, Any],
+        problem: "Problem",
         problem_settings: "ProblemSettings",
-        legacy_time_limit: Optional[float] = None,
     ):
         assert isinstance(yaml_data, dict)
 
@@ -105,7 +105,26 @@ class ProblemLimits:
         self.generator_time: int = parse_setting(yaml_data, "generator_time", 60)  # in seconds
         self.visualizer_time: int = parse_setting(yaml_data, "visualizer_time", 60)  # in seconds
 
+        # Try to read deprecated ways of setting the time limit.
+        def _get_legacy_time_limit():
+            timelimit_path = problem.path / ".timelimit"
+            if timelimit_path.is_file():
+                if not problem_settings.is_legacy():
+                    log("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
+                return float(timelimit_path.read_text())
+
+            domjudge_path = problem.path / "domjudge-problem.ini"
+            if domjudge_path.is_file():
+                log("domjudge-problem.ini is DEPRECATED. Use limits.time_limit instead.")
+                for line in domjudge_path.read_text().splitlines():
+                    key, var = map(str.strip, line.strip().split("="))
+                    if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
+                        var = var[1:-1]
+                    if key == "timelimit":
+                        return float(var)
+
         # If limits.time_limit does not exist, attempt to use legacy_time_limit instead.
+        legacy_time_limit = _get_legacy_time_limit()
         self.time_limit: float = time_limit or legacy_time_limit or 1.0
         self.time_limit_is_default: bool = time_limit is None and legacy_time_limit is None
 
@@ -128,7 +147,6 @@ class ProblemSettings:
         self,
         yaml_data: dict[str, Any],
         problem: "Problem",
-        legacy_time_limit: Optional[float] = None,
     ):
         assert isinstance(yaml_data, dict)
 
@@ -174,7 +192,7 @@ class ProblemSettings:
         self.source_url: str = parse_setting(yaml_data, "source_url", "")
         self.license: str = parse_setting(yaml_data, "license", "unknown")
         self.rights_owner: str = parse_setting(yaml_data, "rights_owner", "")
-        self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), self, legacy_time_limit)
+        self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
         self.validator_flags: list[str] = parse_setting(yaml_data, "validator_flags", [])
         self.keywords: str = parse_setting(yaml_data, "keywords", "")
 
@@ -287,23 +305,6 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
-    # Try to read deprecated ways of setting the time limit.
-    def _get_legacy_time_limit(self, yaml_data):
-        timelimit_path = self.path / ".timelimit"
-        if timelimit_path.is_file():
-            log("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
-            return float(timelimit_path.read_text())
-
-        domjudge_path = self.path / "domjudge-problem.ini"
-        if domjudge_path.is_file():
-            log("domjudge-problem.ini is DEPRECATED. Use limits.time_limit instead.")
-            for line in domjudge_path.read_text().splitlines():
-                key, var = map(str.strip, line.strip().split("="))
-                if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
-                    var = var[1:-1]
-                if key == "timelimit":
-                    return float(var)
-
     def _read_settings(self):
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
@@ -324,7 +325,7 @@ class Problem:
             yaml_path.write_text(raw)
             log("Added new UUID to problem.yaml")
 
-        self.settings = ProblemSettings(yaml_data, self, self._get_legacy_time_limit(yaml_data))
+        self.settings = ProblemSettings(yaml_data, self)
 
         # Aliasing fields makes life easier for us 😛
         self.limits: ProblemLimits = self.settings.limits
