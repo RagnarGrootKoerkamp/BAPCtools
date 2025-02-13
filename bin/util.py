@@ -1258,7 +1258,6 @@ def inc_label(label: str) -> str:
 
 
 def combine_hashes(values: Sequence[str]) -> str:
-    # values.sort()
     hasher = hashlib.sha512(usedforsecurity=False)
     for item in sorted(values):
         hasher.update(item.encode())
