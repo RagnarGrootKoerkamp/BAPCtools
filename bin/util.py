@@ -1079,7 +1079,7 @@ def limit_setter(
 
 
 # Subclass Popen to get rusage information.
-class ResourcePopen(subprocess.Popen[Any]):
+class ResourcePopen(subprocess.Popen[bytes]):
     rusage: Any  # TODO #102: use stricter type than `Any`
 
     # If wait4 is available, store resource usage information.
