@@ -283,7 +283,7 @@ class ProgressBar:
             cols -= 1
         return cols
 
-    def bar_width(self) -> int | None:
+    def bar_width(self) -> Optional[int]:
         if self.item_width is None:
             return None
         return self.total_width() - len(self.prefix) - 2 - self.item_width
