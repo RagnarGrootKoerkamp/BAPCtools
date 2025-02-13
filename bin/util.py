@@ -603,7 +603,7 @@ def is_relative_to(parent: Path, child: Path) -> bool:
 
 def resolve_path_argument(
     problem: "Problem", path: Path, type: str | Path, suffixes: list[str] = []
-) -> Path | None:
+) -> Optional[Path]:
     if path.is_absolute():
         return path
     for suffix in suffixes + [None]:
@@ -712,7 +712,9 @@ write_yaml_lock = threading.Lock()
 
 
 # Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
-def write_yaml(data: Any, path: Optional[Path] = None, allow_yamllib: bool = False) -> Optional[str]:
+def write_yaml(
+    data: Any, path: Optional[Path] = None, allow_yamllib: bool = False
+) -> Optional[str]:
     if not has_ryaml:
         if not allow_yamllib:
             error(
