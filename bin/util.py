@@ -14,8 +14,21 @@ import threading
 import time
 from enum import Enum
 from collections.abc import Sequence
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, NoReturn, Optional, TypeVar
+from typing import (
+    Any,
+    Iterable,
+    Literal,
+    NoReturn,
+    Optional,
+    overload,
+    TextIO,
+    TypeAlias,
+    TypeVar,
+    TYPE_CHECKING,
+    Union,
+)
 from uuid import UUID
 
 import yaml as yamllib
@@ -34,6 +47,12 @@ try:
     ryaml.width = sys.maxsize
 except Exception:
     has_ryaml = False
+
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    from problem import Problem
+    from program import Program
+    from run import Run
+    from verdicts import Verdict
 
 
 # For some reason ryaml.load doesn't work well in parallel.
@@ -64,7 +83,7 @@ if not is_windows():
     import resource
 
 
-def exit1(force=False) -> NoReturn:
+def exit1(force: bool = False) -> NoReturn:
     if force:
         sys.stdout.close()
         sys.stderr.close()
@@ -101,7 +120,7 @@ def error(msg: Any) -> None:
     config.n_error += 1
 
 
-def fatal(msg: Any, *, force=threading.active_count() > 1) -> NoReturn:
+def fatal(msg: Any, *, force: bool = threading.active_count() > 1) -> NoReturn:
     print(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
     exit1(force)
 
@@ -112,7 +131,7 @@ class MessageType(Enum):
     ERROR = 3
     FATAL = 4
 
-    def __str__(self):
+    def __str__(self) -> str:
         return {
             MessageType.LOG: str(Fore.GREEN),
             MessageType.WARN: str(Fore.YELLOW),
@@ -121,7 +140,16 @@ class MessageType(Enum):
         }[self]
 
 
-def message(msg, task=None, item=None, *, color_type=""):
+ITEM_TYPE: TypeAlias = Union[str, Path, "Program", "Run"]
+
+
+def message(
+    msg: Any,
+    task: Optional[str | Path] = None,
+    item: Optional[ITEM_TYPE] = None,
+    *,
+    color_type: Any = "",
+) -> None:
     if task is not None:
         print(f"{Fore.CYAN}{task}{Style.RESET_ALL}: ", end="", file=sys.stderr)
     if item is not None:
@@ -137,19 +165,19 @@ def message(msg, task=None, item=None, *, color_type=""):
 
 # A simple bar that only holds a task prefix
 class PrintBar:
-    def __init__(self, task):
+    def __init__(self, task: str | Path):
         self.task = task
 
-    def log(self, msg, item=None):
+    def log(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
         message(msg, self.task, item, color_type=MessageType.LOG)
 
-    def warn(self, msg, item=None):
+    def warn(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
         message(msg, self.task, item, color_type=MessageType.WARN)
 
-    def error(self, msg, item=None):
+    def error(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
         message(msg, self.task, item, color_type=MessageType.ERROR)
 
-    def fatal(self, msg, item=None):
+    def fatal(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
         message(msg, self.task, item, color_type=MessageType.FATAL)
 
 
@@ -171,34 +199,34 @@ class ProgressBar:
 
     if not is_windows():
 
-        def update_columns(_: Any, __: Any):
+        def update_columns(_: Any, __: Any) -> None:
             cols, rows = shutil.get_terminal_size()
             ProgressBar.columns = cols
 
         signal.signal(signal.SIGWINCH, update_columns)
 
     @staticmethod
-    def item_len(item):
+    def item_len(item: ITEM_TYPE) -> int:
         if isinstance(item, str):
             return len(item)
         if isinstance(item, Path):
             return len(str(item))
         return len(item.name)
 
-    def _is_locked(self):
+    def _is_locked(self) -> bool:
         return ProgressBar.lock_depth > 0
 
     # When needs_leading_newline is True, this will print an additional empty line before the first log message.
     def __init__(
         self,
-        prefix,
-        max_len=None,
-        count=None,
+        prefix: str,
+        max_len: Optional[int] = None,
+        count: Optional[int] = None,
         *,
-        items=None,
-        needs_leading_newline=False,
+        items: Optional[Sequence[ITEM_TYPE]] = None,
+        needs_leading_newline: bool = False,
     ):
-        assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix  # type: ignore[has-type]
+        assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix
         ProgressBar.current_bar = self
 
         assert not (items and (max_len or count))
@@ -209,14 +237,15 @@ class ProgressBar:
                 max_len = 0
             else:
                 max_len = max(ProgressBar.item_len(x) for x in items)
-        self.prefix = prefix  # The prefix to always print
-        self.item_width = max_len + 1  # The max length of the items we're processing
-        self.count = count  # The number of items we're processing
-        self.i = 0
+        assert max_len is not None
+        self.prefix: str = prefix  # The prefix to always print
+        self.item_width: int = max_len + 1  # The max length of the items we're processing
+        self.count: Optional[int] = count  # The number of items we're processing
+        self.i: int = 0
         emptyline = " " * self.total_width() + "\r"
-        self.carriage_return = emptyline if is_windows() else "\033[K"
-        self.logged = False
-        self.global_logged = False
+        self.carriage_return: str = emptyline if is_windows() else "\033[K"
+        self.logged: bool = False
+        self.global_logged: bool = False
 
         # For parallel contexts, start() will return a copy to preserve the item name.
         # The parent still holds some global state:
@@ -224,50 +253,65 @@ class ProgressBar:
         # - IO lock
         # - the counter
         # - items in progress
-        self.parent = None
-        self.in_progress = set()
-        self.item = None
+        self.parent: Optional["ProgressBar"] = None
+        self.in_progress: set[ITEM_TYPE] = set()
+        self.item: Optional[ITEM_TYPE] = None
 
-        self.needs_leading_newline = needs_leading_newline
+        self.needs_leading_newline: bool = needs_leading_newline
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         ProgressBar.lock.__enter__()
         ProgressBar.lock_depth += 1
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         ProgressBar.lock_depth -= 1
         ProgressBar.lock.__exit__(*args)
 
-    def _print(self, *objects, sep="", end="\n", file=sys.stderr, flush=True):
+    def _print(
+        self,
+        *objects: Any,
+        sep: str = "",
+        end: str = "\n",
+        file: TextIO = sys.stderr,
+        flush: bool = True,
+    ) -> None:
         print(*objects, sep=sep, end=end, file=file, flush=flush)
 
-    def total_width(self):
+    def total_width(self) -> int:
         cols = ProgressBar.columns
         if is_windows():
             cols -= 1
         return cols
 
-    def bar_width(self):
+    def bar_width(self) -> int | None:
         if self.item_width is None:
             return None
         return self.total_width() - len(self.prefix) - 2 - self.item_width
 
-    def update(self, count, max_len):
+    def update(self, count: int, max_len: int) -> None:
+        assert self.count is not None
         self.count += count
         self.item_width = max(self.item_width, max_len + 1) if self.item_width else max_len + 1
 
-    def add_item(self, item):
+    def add_item(self, item: ITEM_TYPE) -> None:
+        assert self.count is not None
         self.count += 1
         self.item_width = max(self.item_width, ProgressBar.item_len(item))
 
-    def clearline(self):
+    def clearline(self) -> None:
         if config.args.no_bar:
             return
         assert self._is_locked()
         self._print(self.carriage_return, end="", flush=False)
 
     @staticmethod
-    def action(prefix, item, width=None, total_width=None, print_item=True):
+    def action(
+        prefix: str,
+        item: Optional[ITEM_TYPE],
+        width: Optional[int] = None,
+        total_width: Optional[int] = None,
+        print_item: bool = True,
+    ) -> str:
         if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
             width = total_width - len(prefix) - 2
         item = "" if item is None else (item if isinstance(item, str) else item.name)
@@ -280,14 +324,14 @@ class ProgressBar:
         else:
             return f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: {' ' * width}"
 
-    def get_prefix(self, print_item=True):
+    def get_prefix(self, print_item: bool = True) -> str:
         return ProgressBar.action(
             self.prefix, self.item, self.item_width, self.total_width(), print_item
         )
 
-    def get_bar(self):
+    def get_bar(self) -> str:
         bar_width = self.bar_width()
-        if self.count is None or bar_width < 4:
+        if self.count is None or bar_width is None or bar_width < 4:
             return ""
         done = (self.i - 1) * (bar_width - 2) // self.count
         text = f" {self.i}/{self.count}"
@@ -296,7 +340,7 @@ class ProgressBar:
             fill = fill[: -len(text)] + text
         return "[" + fill + "]"
 
-    def draw_bar(self):
+    def draw_bar(self) -> None:
         assert self._is_locked()
         if config.args.no_bar:
             return
@@ -308,7 +352,8 @@ class ProgressBar:
             self._print(prefix, bar, end="\r")
 
     # Remove the current item from in_progress.
-    def _release_item(self):
+    def _release_item(self) -> None:
+        assert self.item is not None
         if self.parent:
             self.parent.in_progress.remove(self.item)
             if self.parent.item is self.item:
@@ -319,7 +364,7 @@ class ProgressBar:
 
     # Resume the ongoing progress bar after a log/done.
     # Should only be called for the root.
-    def _resume(self):
+    def _resume(self) -> None:
         assert self._is_locked()
         assert self.parent is None
 
@@ -327,11 +372,11 @@ class ProgressBar:
             return
 
         if len(self.in_progress) > 0:
-            if self.item not in self.in_progress:
+            if self.item is None or self.item not in self.in_progress:
                 self.item = next(iter(self.in_progress))
             self.draw_bar()
 
-    def start(self, item=""):
+    def start(self, item: ITEM_TYPE = "") -> "ProgressBar":
         with self:
             # start may only be called on the root bar.
             assert self.parent is None
@@ -351,7 +396,7 @@ class ProgressBar:
             return bar_copy
 
     @staticmethod
-    def _format_data(data):
+    def _format_data(data: Optional[str]) -> str:
         if not data:
             return ""
         prefix = "  " if data.count("\n") <= 1 else "\n"
@@ -359,7 +404,15 @@ class ProgressBar:
 
     # Log can be called multiple times to make multiple persistent lines.
     # Make sure that the message does not end in a newline.
-    def log(self, message="", data="", color=Fore.GREEN, *, resume=True, print_item=True):
+    def log(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        color: str = Fore.GREEN,
+        *,
+        resume: bool = True,
+        print_item: bool = True,
+    ) -> None:
         with self:
             if message is None:
                 message = ""
@@ -392,18 +445,33 @@ class ProgressBar:
                     self._resume()
 
     # Same as log, but only in verbose mode.
-    def debug(self, message, data="", color=Fore.GREEN, *, resume=True, print_item=True):
+    def debug(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        color: str = Fore.GREEN,
+        *,
+        resume: bool = True,
+        print_item: bool = True,
+    ) -> None:
         if config.args.verbose:
             self.log(message, data, color=color, resume=resume, print_item=print_item)
 
-    def warn(self, message="", data="", *, print_item=True):
+    def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         with self.lock:
             config.n_warn += 1
             self.log(message, data, Fore.YELLOW, print_item=print_item)
 
     # Error by default removes the current item from the in_progress set.
     # Set `resume` to `True` to continue processing the item.
-    def error(self, message="", data="", resume=False, print_item=True):
+    def error(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        *,
+        resume: bool = False,
+        print_item: bool = True,
+    ) -> None:
         with self:
             config.n_error += 1
             self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
@@ -411,12 +479,18 @@ class ProgressBar:
                 self._release_item()
 
     # Skip an item.
-    def skip(self):
+    def skip(self) -> None:
         with self:
             self.i += 1
 
     # Log a final line if it's an error or if nothing was printed yet and we're in verbose mode.
-    def done(self, success=True, message="", data="", print_item=True):
+    def done(
+        self,
+        success: bool = True,
+        message: str = "",
+        data: Optional[str] = None,
+        print_item: bool = True,
+    ) -> None:
         with self:
             self.clearline()
 
@@ -440,7 +514,13 @@ class ProgressBar:
 
     # Log an intermediate line if it's an error or we're in verbose mode.
     # Return True when something was printed
-    def part_done(self, success=True, message="", data="", warn_instead_of_error=False):
+    def part_done(
+        self,
+        success: bool = True,
+        message: str = "",
+        data: Optional[str] = None,
+        warn_instead_of_error: bool = False,
+    ) -> bool:
         if not success:
             if warn_instead_of_error:
                 config.n_warn += 1
@@ -462,7 +542,13 @@ class ProgressBar:
 
     # Print a final 'Done' message in case nothing was printed yet.
     # When 'message' is set, always print it.
-    def finalize(self, *, print_done=True, message=None, suppress_newline=False):
+    def finalize(
+        self,
+        *,
+        print_done: bool = True,
+        message: Optional[str] = None,
+        suppress_newline: bool = False,
+    ) -> bool:
         with self:
             self.clearline()
             assert self.parent is None
@@ -503,7 +589,7 @@ class ProgressBar:
 # - relative to the current working directory
 #
 # Pass suffixes = ['.in'] to also try to find the file with the given suffix appended.
-def get_basedirs(problem, type):
+def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
     p = problem.path
     return [p / type, p, p.parent, config.current_working_directory]
 
@@ -511,11 +597,13 @@ def get_basedirs(problem, type):
 # Python 3.9
 # True when child is a Path inside parent Path.
 # Both must be absolute.
-def is_relative_to(parent, child):
+def is_relative_to(parent: Path, child: Path) -> bool:
     return child == parent or parent in child.parents
 
 
-def resolve_path_argument(problem, path, type, suffixes=[]):
+def resolve_path_argument(
+    problem: "Problem", path: Path, type: str | Path, suffixes: list[str] = []
+) -> Path | None:
     if path.is_absolute():
         return path
     for suffix in suffixes + [None]:
@@ -531,7 +619,7 @@ def resolve_path_argument(problem, path, type, suffixes=[]):
 # creates a shortened path to some file/dir in the tmpdir.
 # If the provided path does not point to the tmpdir it is returned as is.
 # The path is of the form "tmp/<contest_tmpdir>/<problem_tmpdir>/links/<hash>"
-def shorten_path(problem, path):
+def shorten_path(problem: "Problem", path: Path) -> Path:
     if not path.resolve().is_relative_to(problem.tmpdir):
         return path
     short_hash = hashlib.sha256(bytes(path)).hexdigest()[-6:]
@@ -542,7 +630,7 @@ def shorten_path(problem, path):
     return short_path
 
 
-def path_size(path):
+def path_size(path: Path) -> int:
     if path.is_file():
         return path.stat().st_size
     else:
@@ -550,11 +638,11 @@ def path_size(path):
 
 
 # Drops the first two path components <problem>/<type>/
-def print_name(path: Path, keep_type=False) -> str:
+def print_name(path: Path, keep_type: bool = False) -> str:
     return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
-def parse_yaml(data, path=None, plain=False):
+def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> Any:
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
     if has_ryaml and not plain:
@@ -578,13 +666,13 @@ def parse_yaml(data, path=None, plain=False):
             fatal(f"Failed to parse {path}.")
 
 
-def read_yaml(path, plain=False):
+def read_yaml(path: Path, plain: bool = False) -> Any:
     assert path.is_file(), f"File {path} does not exist"
     return parse_yaml(path.read_text(), path=path, plain=plain)
 
 
 # Wrapper around read_yaml that returns an empty dictionary by default.
-def read_yaml_settings(path):
+def read_yaml_settings(path: Path) -> Any:
     settings = {}
     if path.is_file():
         config = read_yaml(path)
@@ -598,13 +686,25 @@ def read_yaml_settings(path):
 
 
 if has_ryaml:
+    U = TypeVar("U")
 
-    def ryaml_get_or_add(yaml, key, t=ruamel.yaml.comments.CommentedMap):
+    @overload
+    def ryaml_get_or_add(
+        yaml: ruamel.yaml.comments.CommentedMap, key: str
+    ) -> ruamel.yaml.comments.CommentedMap: ...
+    @overload
+    def ryaml_get_or_add(yaml: ruamel.yaml.comments.CommentedMap, key: str, t: type[U]) -> U: ...
+    def ryaml_get_or_add(
+        yaml: ruamel.yaml.comments.CommentedMap,
+        key: str,
+        t: type[ruamel.yaml.comments.CommentedMap] | type[U] = ruamel.yaml.comments.CommentedMap,
+    ) -> ruamel.yaml.comments.CommentedMap | U:
         assert isinstance(yaml, ruamel.yaml.comments.CommentedMap)
         if key not in yaml or yaml[key] is None:
             yaml[key] = t()
-        assert isinstance(yaml[key], t)
-        return yaml[key]
+        value = yaml[key]
+        assert isinstance(value, t)
+        return value  # type: ignore
 
 
 # Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
@@ -612,7 +712,7 @@ write_yaml_lock = threading.Lock()
 
 
 # Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
-def write_yaml(data, path=None, allow_yamllib=False):
+def write_yaml(data: Any, path: Optional[Path] = None, allow_yamllib: bool = False) -> str | None:
     if not has_ryaml:
         if not allow_yamllib:
             error(
@@ -623,15 +723,12 @@ def write_yaml(data, path=None, allow_yamllib=False):
             return yamllib.dump(data)
         with open(path, "w") as stream:
             yamllib.dump(data, stream)
-        return
+        return None
     with write_yaml_lock:
-        return_string = False
-        if path is None:
-            path = StringIO()
-            return_string = True
+        _path = StringIO() if path is None else path
         ryaml.dump(
             data,
-            path,
+            _path,
             # Remove spaces at the start of each (non-commented) line, caused by the indent configuration.
             # This is only needed when the YAML data is a list of items, like in the problems.yaml file.
             # See also: https://stackoverflow.com/a/58773229
@@ -646,10 +743,11 @@ def write_yaml(data, path=None, allow_yamllib=False):
                 else None
             ),
         )
-        if return_string:
-            string = path.getvalue()
-            path.close()
+        if isinstance(_path, StringIO):
+            string = _path.getvalue()
+            _path.close()
             return string
+    return None
 
 
 T = TypeVar("T")
@@ -662,7 +760,7 @@ def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Op
             value = float(value)
         if isinstance(value, t):
             return value
-        if value == "" and t in [list, dict]:
+        if value == "" and t is list or t is dict:
             # handle empty yaml keys
             return t()
         else:
@@ -693,8 +791,8 @@ def parse_validation(mode: str) -> set[str]:
 
 
 # glob, but without hidden files
-def glob(path: Path, expression: str, include_hidden=False) -> list[Path]:
-    def keep(p: Path):
+def glob(path: Path, expression: str, include_hidden: bool = False) -> list[Path]:
+    def keep(p: Path) -> bool:
         if not include_hidden:
             for d in p.parts:
                 if d[0] == ".":
@@ -746,7 +844,7 @@ if is_windows():
 
 
 # When output is True, copy the file when args.cp is true.
-def ensure_symlink(link, target, output=False, relative=False):
+def ensure_symlink(link: Path, target: Path, output: bool = False, relative: bool = False) -> None:
     # on windows copy if necessary
     if is_windows() and not windows_can_symlink:
         if link.exists() or link.is_symlink():
@@ -783,18 +881,17 @@ def ensure_symlink(link, target, output=False, relative=False):
         link.symlink_to(target.resolve(), target.is_dir())
 
 
-def substitute(data, variables):
+def substitute(data: str, variables: Optional[dict[str, Optional[str]]]) -> str:
     if variables is None:
         return data
-    for key in variables:
-        r = ""
-        if variables[key] is not None:
-            r = variables[key]
-        data = data.replace("{%" + key + "%}", str(r))
+    for key, value in variables.items():
+        data = data.replace("{%" + key + "%}", str(value or ""))
     return data
 
 
-def copy_and_substitute(inpath, outpath, variables):
+def copy_and_substitute(
+    inpath: Path, outpath: Path, variables: Optional[dict[str, Optional[str]]]
+) -> None:
     try:
         data = inpath.read_text()
     except UnicodeDecodeError:
@@ -807,11 +904,11 @@ def copy_and_substitute(inpath, outpath, variables):
     outpath.write_text(data)
 
 
-def substitute_file_variables(path, variables):
+def substitute_file_variables(path: Path, variables: Optional[dict[str, Optional[str]]]) -> None:
     copy_and_substitute(path, path, variables)
 
 
-def substitute_dir_variables(dirname, variables):
+def substitute_dir_variables(dirname: Path, variables: Optional[dict[str, Optional[str]]]) -> None:
     for path in dirname.rglob("*"):
         if path.is_file():
             substitute_file_variables(path, variables)
@@ -820,8 +917,15 @@ def substitute_dir_variables(dirname, variables):
 # copies a directory recursively and substitutes {%key%} by their value in text files
 # reference: https://docs.python.org/3/library/shutil.html#copytree-example
 def copytree_and_substitute(
-    src, dst, variables, exist_ok=True, *, preserve_symlinks=True, base=None, skip=None
-):
+    src: Path,
+    dst: Path,
+    variables: Optional[dict[str, Optional[str]]],
+    exist_ok: bool = True,
+    *,
+    preserve_symlinks: bool = True,
+    base: Optional[Path] = None,
+    skip: Optional[Iterable[Path]] = None,
+) -> None:
     if base is None:
         base = src
 
@@ -870,7 +974,7 @@ def copytree_and_substitute(
             dst.write_bytes(src.read_bytes())
 
 
-def crop_output(output):
+def crop_output(output: str) -> str:
     if config.args.error:
         return output
 
@@ -894,7 +998,7 @@ def crop_output(output):
     return output
 
 
-def tail(string, limit):
+def tail(string: str, limit: int) -> str:
     lines = string.split("\n")
     if len(lines) > limit:
         lines = lines[-limit:]
@@ -908,24 +1012,23 @@ class ExecStatus(Enum):
     ERROR = 3
     TIMEOUT = 4
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self == ExecStatus.ACCEPTED
 
 
 class ExecResult:
     def __init__(
         self,
-        returncode,
-        status,
-        duration,
-        timeout_expired,
-        err,
-        out,
-        verdict=None,
-        pass_id=None,
+        returncode: Optional[int],
+        status: ExecStatus,
+        duration: int | float,
+        timeout_expired: bool,
+        err: Optional[str],
+        out: Optional[str],
+        verdict: Optional["Verdict"] = None,
+        pass_id: Optional[int] = None,
     ):
         self.returncode = returncode
-        assert type(status) is ExecStatus
         self.status = status
         self.duration = duration
         self.timeout_expired = timeout_expired
@@ -935,8 +1038,14 @@ class ExecResult:
         self.pass_id = pass_id
 
 
-def limit_setter(command, timeout, memory_limit, group=None, cores=False):
-    def setlimits():
+def limit_setter(
+    command: Optional[Sequence[str | Path]],
+    timeout: Optional[int],
+    memory_limit: Optional[int],
+    group: Optional[int] = None,
+    cores: Literal[False] | list[int] = False,
+) -> Callable[[], None]:
+    def setlimits() -> None:
         if timeout:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
 
@@ -946,15 +1055,13 @@ def limit_setter(command, timeout, memory_limit, group=None, cores=False):
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
 
-        if (
-            memory_limit
-            and Path(command[0]).name not in ["java", "javac", "kotlin", "kotlinc"]
-            and not is_bsd()
-        ):
-            resource.setrlimit(
-                resource.RLIMIT_AS,
-                (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
-            )
+        if memory_limit:
+            assert command is not None
+            if Path(command[0]).name not in ["java", "javac", "kotlin", "kotlinc"] and not is_bsd():
+                resource.setrlimit(
+                    resource.RLIMIT_AS,
+                    (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
+                )
 
         # TODO: with python 3.11 it is better to use Popen(process_group=group)
         if group is not None:
@@ -972,13 +1079,13 @@ def limit_setter(command, timeout, memory_limit, group=None, cores=False):
 
 
 # Subclass Popen to get rusage information.
-class ResourcePopen(subprocess.Popen):
+class ResourcePopen(subprocess.Popen[Any]):
     rusage: Any  # TODO #102: use stricter type than `Any`
 
     # If wait4 is available, store resource usage information.
     if "wait4" in dir(os):
 
-        def _try_wait(self, wait_flags):
+        def _try_wait(self, wait_flags: int) -> tuple[int, int]:
             """All callers to this function MUST hold self._waitpid_lock."""
             try:
                 (pid, sts, res) = os.wait4(self.pid, wait_flags)
@@ -994,7 +1101,7 @@ class ResourcePopen(subprocess.Popen):
 
     else:
 
-        def _try_wait(self, wait_flags):
+        def _try_wait(self, wait_flags: int) -> tuple[int, int]:
             """All callers to this function MUST hold self._waitpid_lock."""
             try:
                 (pid, sts) = os.waitpid(self.pid, wait_flags)
@@ -1009,7 +1116,7 @@ class ResourcePopen(subprocess.Popen):
             return (pid, sts)
 
 
-def default_exec_code_map(returncode):
+def default_exec_code_map(returncode: int) -> ExecStatus:
     if returncode == 0:
         return ExecStatus.ACCEPTED
     if returncode == -9:
@@ -1017,7 +1124,7 @@ def default_exec_code_map(returncode):
     return ExecStatus.ERROR
 
 
-def validator_exec_code_map(returncode):
+def validator_exec_code_map(returncode: int) -> ExecStatus:
     if returncode == config.RTV_AC:
         return ExecStatus.ACCEPTED
     if returncode == config.RTV_WA:
@@ -1030,11 +1137,11 @@ def validator_exec_code_map(returncode):
 # Run `command`, returning stderr if the return code is unexpected.
 def exec_command(
     command: Sequence[str | Path],
-    exec_code_map=default_exec_code_map,
-    crop=True,
-    preexec_fn=True,
-    **kwargs,
-):
+    exec_code_map: Callable[[int], ExecStatus] = default_exec_code_map,
+    crop: bool = True,
+    preexec_fn: bool | Callable[[], None] = True,
+    **kwargs: Any,
+) -> ExecResult:
     # By default: discard stdout, return stderr
     if "stdout" not in kwargs or kwargs["stdout"] is True:
         kwargs["stdout"] = subprocess.PIPE
@@ -1074,7 +1181,7 @@ def exec_command(
 
     process: Optional[ResourcePopen] = None
 
-    def interrupt_handler(sig, frame):
+    def interrupt_handler(sig: Any, frame: Any) -> None:
         nonlocal process
         if process is not None:
             process.kill()
@@ -1087,7 +1194,7 @@ def exec_command(
     tstart = time.monotonic()
 
     try:
-        if not is_windows() and preexec_fn:
+        if not is_windows() and preexec_fn not in [False, None]:
             process = ResourcePopen(
                 command,
                 preexec_fn=limit_setter(command, timeout, memory),
@@ -1122,7 +1229,7 @@ def exec_command(
         else:
             raise ChildProcessError()
 
-    def maybe_crop(s):
+    def maybe_crop(s: str) -> str:
         return crop_output(s) if crop else s
 
     ok = exec_code_map(process.returncode)
@@ -1141,7 +1248,7 @@ def exec_command(
     return ExecResult(process.returncode, ok, duration, timeout_expired, err, out)
 
 
-def inc_label(label):
+def inc_label(label: str) -> str:
     for x in range(len(label) - 1, -1, -1):
         if label[x] != "Z":
             label = label[:x] + chr(ord(label[x]) + 1) + label[x + 1 :]
@@ -1150,30 +1257,30 @@ def inc_label(label):
     return "A" + label
 
 
-def combine_hashes(values):
-    values.sort()
+def combine_hashes(values: Sequence[str]) -> str:
+    # values.sort()
     hasher = hashlib.sha512(usedforsecurity=False)
-    for item in values:
+    for item in sorted(values):
         hasher.update(item.encode())
     return hasher.hexdigest()
 
 
-def combine_hashes_dict(d):
+def combine_hashes_dict(d: dict[str, Optional[str]]) -> str:
     hasher = hashlib.sha512(usedforsecurity=False)
-    for key in d:
+    for key, value in d.items():
         hasher.update(key.encode())
-        if d[key] is not None:
-            hasher.update(d[key].encode())
+        if value is not None:
+            hasher.update(value.encode())
     return hasher.hexdigest()
 
 
-def hash_string(string):
+def hash_string(string: str) -> str:
     sha = hashlib.sha512(usedforsecurity=False)
     sha.update(string.encode())
     return sha.hexdigest()
 
 
-def hash_file_content(file, buffer_size=65536):
+def hash_file_content(file: Path, buffer_size: int = 65536) -> str:
     if not file.is_file():
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
     sha = hashlib.sha512(usedforsecurity=False)
@@ -1188,7 +1295,7 @@ def hash_file_content(file, buffer_size=65536):
     return sha.hexdigest()
 
 
-def hash_file(file, buffer_size=65536):
+def hash_file(file: Path, buffer_size: int = 65536) -> str:
     if not file.is_file():
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
     sha = hashlib.sha512(usedforsecurity=False)
@@ -1206,7 +1313,7 @@ def hash_file(file, buffer_size=65536):
     return sha.hexdigest()
 
 
-def hash_file_or_dir(file_or_dir, buffer_size=65536):
+def hash_file_or_dir(file_or_dir: Path, buffer_size: int = 65536) -> str:
     if file_or_dir.is_dir():
         return combine_hashes(
             [hash_string(file_or_dir.name)] + [hash_file_or_dir(f) for f in file_or_dir.iterdir()]
@@ -1215,7 +1322,7 @@ def hash_file_or_dir(file_or_dir, buffer_size=65536):
         return hash_file(file_or_dir)
 
 
-def generate_problem_uuid():
+def generate_problem_uuid() -> str:
     uuid_bytes = bytearray(secrets.token_bytes(16))
     # mark this as v8 uuid (custom uuid) variant 0
     uuid_bytes[6] &= 0b0000_1111
@@ -1229,7 +1336,7 @@ def generate_problem_uuid():
     return uuid
 
 
-def is_uuid(uuid: str):
+def is_uuid(uuid: str) -> bool:
     try:
         return uuid.casefold() == str(UUID(uuid)).casefold()
     except ValueError:

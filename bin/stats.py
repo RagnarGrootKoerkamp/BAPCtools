@@ -379,10 +379,6 @@ def more_stats(problems):
         error("git not found!")
         return
 
-    if not exec_command(["git", "rev-parse", "--is-inside-work-tree"]).out.startswith("true"):
-        error("not inside git")
-        return
-
     def git(*args):
         res = exec_command(
             ["git", *args],
@@ -391,6 +387,10 @@ def more_stats(problems):
             timeout=None,
         )
         return res.out if res else ""
+
+    if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
+        error("not inside git")
+        return
 
     print("-" * len(header), file=sys.stderr)
     testcases = [len(generate.testcases(p)) for p in problems]
