@@ -23,11 +23,11 @@ from typing import (
     NoReturn,
     Optional,
     overload,
+    Protocol,
     TextIO,
     TypeAlias,
     TypeVar,
     TYPE_CHECKING,
-    Union,
 )
 from uuid import UUID
 
@@ -50,8 +50,6 @@ except Exception:
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
-    from program import Program
-    from run import Run
     from verdicts import Verdict
 
 
@@ -140,7 +138,11 @@ class MessageType(Enum):
         }[self]
 
 
-ITEM_TYPE: TypeAlias = Union[str, Path, "Program", "Run"]
+class Named(Protocol):
+    name: str
+
+
+ITEM_TYPE: TypeAlias = str | Path | Named
 
 
 def message(
