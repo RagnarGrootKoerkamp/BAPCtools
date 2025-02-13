@@ -712,7 +712,7 @@ write_yaml_lock = threading.Lock()
 
 
 # Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
-def write_yaml(data: Any, path: Optional[Path] = None, allow_yamllib: bool = False) -> str | None:
+def write_yaml(data: Any, path: Optional[Path] = None, allow_yamllib: bool = False) -> Optional[str]:
     if not has_ryaml:
         if not allow_yamllib:
             error(
