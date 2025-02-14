@@ -1,0 +1,26 @@
+---
+yaml:
+  name: Minimal
+eq:
+  name:
+    en: Minimal
+---
+yaml:
+  name:
+    en: Minimal
+---
+yaml:
+  name:
+    en: Minimal
+    nl: Minimaal
+---
+yaml:
+  name:
+    en: custom validation
+  validation: custom
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name:
+    en: pass-fail type
+  type: pass-fail

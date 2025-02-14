@@ -66,7 +66,9 @@ class ProblemCredits:
                     self.authors = [legacy_author]
         else:
             if legacy_author is not None:
-                warn("problem.yaml: author is removed in 2023-07-draft, please use credits.authors")
+                warn(
+                    "problem.yaml: author is removed in 2023-07-draft, please use credits.authors. SKIPPED."
+                )
             if "credits" not in yaml_data:
                 return
             if isinstance(yaml_data["credits"], str):
@@ -113,7 +115,9 @@ class ProblemSources(list[ProblemSource]):
                 self.append(ProblemSource(source_name, legacy_source_url))
         else:
             if legacy_source_url is not None:
-                warn("problem.yaml: source_url is removed in 2023-07-draft, please use source.url")
+                warn(
+                    "problem.yaml: source_url is removed in 2023-07-draft, please use source.url. SKIPPED."
+                )
             if "source" not in yaml_data:
                 return
             if isinstance(yaml_data["source"], str):
@@ -271,8 +275,9 @@ class ProblemSettings:
         else:
             if "validation" in yaml_data:
                 warn(
-                    "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead"
+                    "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead. SKIPPED."
                 )
+                yaml_data.pop("validation")
             mode = set(parse_setting(yaml_data, "type", "pass-fail").split(" "))
         self.interactive: bool = "interactive" in mode
         self.multi_pass: bool = "multi-pass" in mode
@@ -288,6 +293,8 @@ class ProblemSettings:
         )
 
         self.name: dict[str, str] = parse_setting(yaml_data, "name", {"en": ""})
+        for lang in list(self.name.keys()):
+            self.name[lang] = parse_setting(self.name, lang, "")
         self.uuid: str = parse_setting(yaml_data, "uuid", "")
         self.version: str = parse_setting(yaml_data, "version", "")
         self.credits = ProblemCredits(yaml_data, self)
@@ -320,6 +327,13 @@ class ProblemSettings:
         if self.license not in config.KNOWN_LICENSES:
             warn(f"invalid license: {self.license}")
             self.license = "unknown"
+
+        # Check that limits.validation_passes exists if and only if the problem is multi-pass
+        has_validation_passes = self.limits.validation_passes is not None
+        if self.multi_pass and not has_validation_passes:
+            self.limits.validation_passes = 2
+        if not self.multi_pass and has_validation_passes:
+            warn("limit: validation_passes is only used for multi_pass problems. SKIPPED.")
 
     def is_legacy(self):
         return self.problem_format_version.startswith("legacy")
@@ -441,13 +455,6 @@ class Problem:
         self.interactive: bool = self.settings.interactive
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
-
-        # Handle dependencies...
-        has_validation_passes = self.limits.validation_passes is not None
-        if self.multi_pass and not has_validation_passes:
-            self.limits.validation_passes = 2
-        if not self.multi_pass and has_validation_passes:
-            warn("limit: validation_passes is only used for multi_pass problems. SKIPPED.")
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / "data")

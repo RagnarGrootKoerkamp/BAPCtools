@@ -1,0 +1,30 @@
+---
+yaml:
+  name: 42
+warn: incompatible value for key 'en' in problem.yaml. SKIPPED.
+---
+yaml:
+  name:
+    en: 42
+warn: incompatible value for key 'en' in problem.yaml. SKIPPED.
+---
+yaml:
+  name:
+    en: "Incorrect validation"
+  validation: mumbo-jumbo
+fatal: Wrong validation
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name:
+    en: "Incorrect type"
+  type: mumbo-jumbo
+fatal: Wrong type
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name:
+    en: "Deprecated validation"
+  validation: interactive
+warn:
+  - "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead. SKIPPED."
