@@ -1,3 +1,5 @@
+import config
+
 from pathlib import Path
 
 from util import *

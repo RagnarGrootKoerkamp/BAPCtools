@@ -145,7 +145,7 @@ class Program:
                 problem.path.resolve() / self.subdir
             )
             self.short_path = relpath
-            self.name = str(relpath)
+            self.name: str = str(relpath)
             self.tmpdir = problem.tmpdir / self.subdir / relpath
         except ValueError:
             self.short_path = Path(path.name)

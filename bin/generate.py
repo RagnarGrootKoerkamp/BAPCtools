@@ -128,7 +128,7 @@ class Invocation:
 
     # Return the form of the command used for caching.
     # This is independent of {name} and the actual run_command.
-    def cache_command(self, seed=None):
+    def cache_command(self, seed=None) -> str:
         command_string = self.command_string
         if seed:
             command_string = self.SEED_REGEX.sub(str(seed), command_string)
@@ -137,6 +137,7 @@ class Invocation:
     def hash(self, seed=None):
         list = []
         if self.program is not None:
+            assert self.program.hash is not None
             list.append(self.program.hash)
         list.append(self.cache_command(seed))
         return combine_hashes(list)
@@ -605,13 +606,13 @@ class TestcaseRule(Rule):
                 return
 
             # build ordered list of hashes we want to consider
-            self.hash = [hashes[ext] for ext in config.KNOWN_TESTCASE_EXTENSIONS if ext in hashes]
+            hs = [hashes[ext] for ext in config.KNOWN_TESTCASE_EXTENSIONS if ext in hashes]
 
             # combine hashes
-            if len(self.hash) == 1:
-                self.hash = self.hash[0]
+            if len(hs) == 1:
+                self.hash = hs[0]
             else:
-                self.hash = combine_hashes(self.hash)
+                self.hash = combine_hashes(hs)
 
             if self.hash in generator_config.rules_cache:
                 self.copy_of = generator_config.rules_cache[self.hash]
@@ -1081,13 +1082,13 @@ class TestcaseRule(Rule):
                     hashes[ext] = hash_file(target_infile.with_suffix(ext))
 
             # build ordered list of hashes we want to consider
-            test_hash = [hashes[ext] for ext in extensions if ext in hashes]
+            hs = [hashes[ext] for ext in extensions if ext in hashes]
 
             # combine hashes
-            if len(test_hash) == 1:
-                test_hash = test_hash[0]
+            if len(hs) == 1:
+                test_hash = hs[0]
             else:
-                test_hash = combine_hashes(test_hash)
+                test_hash = combine_hashes(hs)
 
             # check for duplicates
             if test_hash not in generator_config.generated_testdata:

@@ -100,7 +100,7 @@ ARGS_LIST: Final = ['1', 'add', 'all', 'answer', 'api', 'author', 'check_determi
 # fmt: on
 
 
-def set_default_args():
+def set_default_args() -> None:
     # Set default argument values.
     for arg in ARGS_LIST:
         if not hasattr(args, arg):

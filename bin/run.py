@@ -30,7 +30,7 @@ class Run:
         self.problem = problem
         self.submission = submission
         self.testcase = testcase
-        self.name = self.testcase.name
+        self.name: str = self.testcase.name
         self.result = None
 
         self.tmpdir = (
@@ -228,6 +228,7 @@ class Run:
             ret.err = ""
         if judgeerror.is_file():
             ret.err = judgeerror.read_text(errors="replace")
+        assert ret.err is not None
         if len(ret.err) == 0 and judgemessage.is_file():
             ret.err = judgemessage.read_text(errors="replace")
         if ret.err:
