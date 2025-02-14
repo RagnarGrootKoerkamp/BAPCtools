@@ -18,6 +18,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import (
     Any,
+    cast,
     Iterable,
     Literal,
     NoReturn,
@@ -763,8 +764,8 @@ def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> O
         if isinstance(value, int) and t is float:
             value = float(value)
         if isinstance(value, t):
-            return value
-        if value == "" and t is list or t is dict:
+            return cast(T, value)
+        if value == "" and (t is list or t is dict):
             # handle empty yaml keys
             return t()
         warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
