@@ -131,7 +131,7 @@ def get_skel_dir(target_dir):
 def new_problem():
     target_dir = Path(".")
     if config.args.contest:
-        target_dir = Path(config.args.contest)
+        os.chdir(Path(config.args.contest))
     if config.args.problem:
         fatal("--problem does not work for new_problem.")
 
@@ -186,12 +186,14 @@ def new_problem():
     }.items():
         variables[k] = v
 
-    variables["source"] = _ask_variable_string(
+    source_name = _ask_variable_string(
         "source", variables.get("source", variables.get("name", "")), True
     )
-    variables["source_url"] = _ask_variable_string(
-        "source url", variables.get("source_url", ""), True
+    source_url = _ask_variable_string("source url", variables.get("source_url", ""), True)
+    variables["source"] = (
+        f"source:\n  name: {source_name}\n{'  url: {source_url}' if source_url else '  #url:'}"
     )
+
     variables["license"] = _ask_variable_choice(
         "license", config.KNOWN_LICENSES, variables.get("license", None)
     )
