@@ -371,7 +371,6 @@ Run this from one of:
         "--type",
         help="The type of the problem.",
         choices=[
-            "default",
             "pass-fail",
             "float",
             "custom",

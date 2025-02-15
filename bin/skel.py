@@ -157,25 +157,22 @@ def new_problem():
     if config.args.type:
         problem_type = config.args.type
     else:
-        problem_type = _ask_variable_choice("type", ["default", "float", "custom"])
-    # TODO Maybe remove command-line option "default" and replace it with "pass-fail"?
-    if problem_type == "default":
-        problem_type = "pass-fail"
+        problem_type = _ask_variable_choice(
+            "type",
+            ["pass-fail", "float", "custom", "interactive", "multi-pass", "interactive multi-pass"],
+        )
+    # The validation type `float` is not official, it only helps setting the `validator_flags`.
     if problem_type == "float":
         problem_type = "pass-fail"
         validator_flags = "validator_flags:\n  float_tolerance 1e-6\n"
         log("Using default float tolerance of 1e-6")
+    # Since version 2023-07-draft of the spec, the `custom` validation type is no longer explicit.
+    # The mere existence of the output_validator(s)/ folder signals non-default output validation.
     if problem_type == "custom":
         custom_output = True
         problem_type = "pass-fail"
-    # If we're interactively determining the problem type, and the user selected "custom":
-    if not config.args.type and problem_type == "custom":
-        custom_types = []
-        if _ask_variable_bool("interactive", False):
-            custom_types.append("interactive")
-        if _ask_variable_bool("multi-pass", False):
-            custom_types.append("multi-pass")
-        problem_type = " ".join(custom_types) if custom_types else "pass-fail"
+    if "interactive" in problem_type or "multi-pass" in problem_type:
+        custom_output = True
 
     # Read settings from the contest-level yaml file.
     variables = contest.contest_yaml()
