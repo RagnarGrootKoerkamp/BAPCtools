@@ -988,7 +988,7 @@ class Problem:
         if test_path:
             test_case = test_path.relative_to(p.path / "data").with_suffix("")
             log(f"Generating invalid testcases based on: {test_case}")
-        debug(f"writing generated invalid testcases to: {base_path}")
+        verbose(f"writing generated invalid testcases to: {base_path}")
 
         # validator, dir, read, write,  copy, allow_whitespace_changes
         validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str], bool]] = [

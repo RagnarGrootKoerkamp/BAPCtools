@@ -1,13 +1,15 @@
 from collections.abc import Callable
-from typing import Optional, TypeVar
+from typing import Final, Optional, TypeVar
 
-_GENERATOR_NAMES: set[str] = set()
-GENERATORS: list[tuple[str, str | Callable[[str], Optional[str]], bool]] = []
+_GENERATOR_NAMES: Final[set[str]] = set()
+GENERATORS: Final[list[tuple[str, str | Callable[[str], Optional[str]], bool]]] = []
 
 
 T = TypeVar("T", bound=str | Callable[[str], Optional[str]])
 
 
+# returns a function that can be called to register a new generator for invalid tests
+# can be used on its own or as decorator for a function
 def register(name: Optional[str] = None, only_whitespace_change: bool = False) -> Callable[[T], T]:
     def decorator(func: T) -> T:
         nonlocal name
