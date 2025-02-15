@@ -159,7 +159,7 @@ class ProblemSettings:
             or (
                 "custom" in mode
                 if self.is_legacy()
-                # TODO: output_validator should be singular, but DOMjudge does not support this yet, so this should be fixed during export.
+                # TODO #424: output_validator should be singular, but DOMjudge does not support this yet, so this should be fixed during export.
                 else (problem.path / "output_validators").exists()
             )
         )
@@ -715,6 +715,7 @@ class Problem:
             return problem._validators_cache[key]
 
         assert hasattr(cls, "source_dirs")
+        # TODO #424: We should not support multiple output validators inside output_validator/.
         paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, "*")]
 
         # Handle default output validation
