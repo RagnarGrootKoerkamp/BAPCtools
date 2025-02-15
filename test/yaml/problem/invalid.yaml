@@ -1,0 +1,37 @@
+---
+yaml:
+  name: 42
+warn: incompatible value for key 'name' in problem.yaml. SKIPPED.
+---
+yaml:
+  name:
+    en: 42
+warn: incompatible value for key 'en' in problem.yaml. SKIPPED.
+---
+yaml:
+  name:
+    en: "Incorrect validation"
+  validation: mumbo-jumbo
+fatal: "problem.yaml: unrecognized validation mode mumbo-jumbo."
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name:
+    en: "Incorrect type"
+  type: mumbo-jumbo
+fatal: "problem.yaml: unrecognized value for 'type': mumbo-jumbo"
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name:
+    en: "Incorrect type"
+  type: mumbo jumbo
+fatal: "problem.yaml: unrecognized values for 'type': jumbo mumbo"
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name:
+    en: "Deprecated validation"
+  validation: interactive
+warn:
+  - "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead. SKIPPED."

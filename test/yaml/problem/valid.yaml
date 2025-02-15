@@ -1,0 +1,71 @@
+---
+# Problem name tests
+yaml:
+  name: Minimal
+eq:
+  name:
+    en: Minimal
+---
+yaml:
+  name:
+    en: Minimal
+---
+yaml:
+  name:
+    en: Minimal
+    nl: Minimaal
+
+---
+# Problem validation/type tests
+yaml:
+  name: custom validation
+  validation: custom
+eq:
+  custom_output: True
+  interactive: False
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: pass-fail type
+  type: pass-fail
+eq:
+  custom_output: False
+  interactive: False
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: interactive type
+  type: interactive
+eq:
+  custom_output: True
+  interactive: True
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: multi-pass type
+  type: multi-pass
+eq:
+  custom_output: True
+  interactive: False
+  multi_pass: True
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: interactive multi-pass type
+  type: interactive multi-pass
+eq:
+  custom_output: True
+  interactive: True
+  multi_pass: True
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: multi-pass interactive type
+  type: multi-pass interactive
+eq:
+  custom_output: True
+  interactive: True
+  multi_pass: True

@@ -203,7 +203,7 @@ def problem_data(problem: "problem.Problem", language: str):
     return {
         "problemlabel": problem.label,
         "problemyamlname": problem.settings.name[language].replace("_", " "),
-        "problemauthor": problem.settings.author,
+        "problemauthor": ", ".join(problem.settings.credits.authors),
         "problembackground": background,
         "problemforeground": foreground,
         "problemborder": border,
