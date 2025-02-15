@@ -153,20 +153,26 @@ def new_problem():
     author = config.args.author if config.args.author else _ask_variable_string("author")
 
     validator_flags = ""
-    if config.args.validation:
-        parse_validation(config.args.validation)
-        validation = config.args.validation
+    custom_output = False
+    if config.args.type:
+        problem_type = config.args.type
     else:
-        validation = _ask_variable_choice("validation", ["default", "float", "custom"])
-        if validation == "float":
-            validation = "default"
-            validator_flags = "validator_flags:\n  float_tolerance 1e-6\n"
-            log("Using default float tolerance of 1e-6")
-        if validation == "custom":
-            if _ask_variable_bool("interactive", False):
-                validation += " interactive"
-            if _ask_variable_bool("multi-pass", False):
-                validation += " multi-pass"
+        problem_type = _ask_variable_choice(
+            "type",
+            ["pass-fail", "float", "custom", "interactive", "multi-pass", "interactive multi-pass"],
+        )
+    # The validation type `float` is not official, it only helps setting the `validator_flags`.
+    if problem_type == "float":
+        problem_type = "pass-fail"
+        validator_flags = "validator_flags:\n  float_tolerance 1e-6\n"
+        log("Using default float tolerance of 1e-6")
+    # Since version 2023-07-draft of the spec, the `custom` validation type is no longer explicit.
+    # The mere existence of the output_validator(s)/ folder signals non-default output validation.
+    if problem_type == "custom":
+        custom_output = True
+        problem_type = "pass-fail"
+    if "interactive" in problem_type or "multi-pass" in problem_type:
+        custom_output = True
 
     # Read settings from the contest-level yaml file.
     variables = contest.contest_yaml()
@@ -175,7 +181,7 @@ def new_problem():
         "problemname": "\n".join(f"  {lang}: {name}" for lang, name in problemname.items()),
         "dirname": dirname,
         "author": author,
-        "validation": validation,
+        "type": problem_type,
         "validator_flags": validator_flags,
     }.items():
         variables[k] = v
@@ -229,7 +235,7 @@ def new_problem():
         variables,
         exist_ok=True,
         preserve_symlinks=preserve_symlinks,
-        skip=[skeldir / "output_validators"] if validation == "default" else None,
+        skip=[skeldir / "output_validators"] if not custom_output else None,
     )
 
     # Warn about missing problem statement skeletons for non-en languages

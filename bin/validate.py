@@ -312,6 +312,7 @@ class OutputValidator(Validator):
 
     validator_type = "output"
 
+    # TODO #424: We should not support multiple output validators inside output_validator/.
     source_dirs = ["output_validator", "output_validators"]
 
     def run(

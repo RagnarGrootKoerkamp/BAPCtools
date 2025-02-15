@@ -104,10 +104,10 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
                         last = line[0]
                 flush()
             else:
-                assert problem.multipass
+                assert problem.multi_pass
 
-                multipass_dir = builddir / "multipass"
-                multipass_dir.mkdir(exist_ok=True)
+                multi_pass_dir = builddir / "multi_pass"
+                multi_pass_dir.mkdir(exist_ok=True)
 
                 lines = sample.read_text()
                 last = "<"
@@ -121,8 +121,8 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
                 def flush():
                     nonlocal current_sample
 
-                    in_path = multipass_dir / f"{sample_name}-{pass_id:02}.in"
-                    out_path = multipass_dir / f"{sample_name}-{pass_id:02}.out"
+                    in_path = multi_pass_dir / f"{sample_name}-{pass_id:02}.in"
+                    out_path = multi_pass_dir / f"{sample_name}-{pass_id:02}.out"
                     in_path.write_text(cur_in)
                     out_path.write_text(cur_out)
 

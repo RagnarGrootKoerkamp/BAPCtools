@@ -74,11 +74,11 @@ def build_samples_zip(problems, output, statement_language):
         outputdir = Path(problem.label)
 
         attachments_dir = problem.path / "attachments"
-        if (problem.interactive or problem.multipass) and not attachments_dir.is_dir():
+        if (problem.interactive or problem.multi_pass) and not attachments_dir.is_dir():
             interactive = "interactive " if problem.interactive else ""
-            multipass = "multi-pass " if problem.multipass else ""
+            multi_pass = "multi-pass " if problem.multi_pass else ""
             util.error(
-                f"{interactive}{multipass}problem {problem.name} does not have an attachments/ directory."
+                f"{interactive}{multi_pass}problem {problem.name} does not have an attachments/ directory."
             )
             continue
 
@@ -96,7 +96,7 @@ def build_samples_zip(problems, output, statement_language):
                     util.error(f"Cannot include broken file {f}.")
 
         # Add samples for non-interactive and non-multi-pass problems.
-        if not problem.interactive and not problem.multipass:
+        if not problem.interactive and not problem.multi_pass:
             samples = problem.testcases(only_samples=True)
             if samples:
                 for i in range(0, len(samples)):
@@ -128,15 +128,15 @@ def build_problem_zip(problem, output):
         ("problem_statement/*", True),
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
-        ("attachments/**/*", problem.interactive or problem.multipass),
+        ("attachments/**/*", problem.interactive or problem.multi_pass),
     ]
 
     testcases = [
         ("data/secret/**/*.in", True),
-        ("data/sample/**/*.in", not problem.interactive and not problem.multipass),
+        ("data/sample/**/*.in", not problem.interactive and not problem.multi_pass),
     ]
 
-    if problem.interactive or problem.multipass:
+    if problem.interactive or problem.multi_pass:
         # .interaction files don't need a corresponding .in
         # therefore we can handle them like all other files
         files += [("data/sample/**/*.interaction", False)]
@@ -148,7 +148,7 @@ def build_problem_zip(problem, output):
             ("data/sample/**/*.ans.statement", False),
         ]
 
-    if "custom" in problem.settings.validation:
+    if problem.custom_output:
         files.append(("output_validators/**/*", True))
 
     if config.args.kattis:

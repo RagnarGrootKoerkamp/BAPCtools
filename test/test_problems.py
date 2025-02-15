@@ -192,8 +192,8 @@ class TestNewContestProblem:
                 "Problem One",
                 "--author",
                 "Ragnar Groot Koerkamp",
-                "--validation",
-                "default",
+                "--type",
+                "pass-fail",
             ]
         )
         os.chdir("contest_name")
@@ -217,5 +217,5 @@ class TestReadProblemConfig:
     def test_read_problem_config(self):
         p = problem.Problem(RUN_DIR / "test/problems/test_problem_config", Path("/tmp/xyz"))
         assert p.settings.name["en"] == "ABC XYZ"
-        assert p.settings.validation == "custom"
+        assert p.custom_output and not p.interactive and not p.multi_pass
         assert p.limits.time_limit == 3.0

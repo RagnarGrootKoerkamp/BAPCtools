@@ -368,14 +368,15 @@ Run this from one of:
     problemparser.add_argument("problemname", nargs="?", help="The name of the problem,")
     problemparser.add_argument("--author", help="The author of the problem,")
     problemparser.add_argument(
-        "--validation",
-        help="Use validation to use for this problem.",
+        "--type",
+        help="The type of the problem.",
         choices=[
-            "default",
+            "pass-fail",
+            "float",
             "custom",
-            "custom interactive",
-            "custom multi-pass",
-            "custom interactive multi-pass",
+            "interactive",
+            "multi-pass",
+            "interactive multi-pass",
         ],
     )
     problemparser.add_argument("--skel", help="Skeleton problem directory to copy from.")

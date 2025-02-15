@@ -76,7 +76,7 @@ class Run:
             if interaction:
                 assert not interaction.is_relative_to(self.tmpdir)
                 interaction = interaction.open("a")
-            nextpass = self.feedbackdir / "nextpass.in" if self.problem.multipass else False
+            nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else False
             pass_id = 0
             max_duration = 0
             tle_result = None
@@ -103,7 +103,7 @@ class Run:
                     result.verdict = Verdict.TIME_LIMIT_EXCEEDED
                     if tle_result is None:
                         tle_result = result
-                        tle_result.pass_id = pass_id if self.problem.multipass else None
+                        tle_result.pass_id = pass_id if self.problem.multi_pass else None
                     else:
                         tle_result.timeout_expired |= result.timeout_expired
                     if not self._continue_with_tle(result.verdict, result.timeout_expired):
@@ -163,7 +163,7 @@ class Run:
             if interaction:
                 interaction.close()
 
-            if self.problem.multipass:
+            if self.problem.multi_pass:
                 result.pass_id = pass_id
 
             if tle_result is not None:
@@ -180,7 +180,7 @@ class Run:
                 self.out_path.unlink()
 
         if result.verdict and (self.feedbackdir / "nextpass.in").is_file():
-            assert not self.problem.multipass
+            assert not self.problem.multi_pass
             bar.warn("Validator created nextpass.in for non multi-pass problem. Ignored.")
 
         self.result = result
@@ -188,7 +188,7 @@ class Run:
 
     # check if we should continue after tle
     def _continue_with_tle(self, verdict, timeout_expired):
-        if not self.problem.multipass:
+        if not self.problem.multi_pass:
             return False
         if verdict != Verdict.TIME_LIMIT_EXCEEDED:
             return False
@@ -374,7 +374,7 @@ class Submission(program.Program):
     ):
         runs = [Run(self.problem, self, testcase) for testcase in testcases]
         max_testcase_len = max(len(run.name) for run in runs)
-        if self.problem.multipass:
+        if self.problem.multi_pass:
             max_testcase_len += 2
         max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
         padding_len = max_submission_name_len - len(self.name)
@@ -463,7 +463,7 @@ class Submission(program.Program):
             timeout = result.duration >= self.limits["timeout"]
             duration_style = Style.BRIGHT if timeout else ""
             passmsg = (
-                f":{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}" if self.problem.multipass else ""
+                f":{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}" if self.problem.multi_pass else ""
             )
             testcase = f"{run.name}{Style.RESET_ALL}{passmsg}"
             style_len = len(f"{Style.RESET_ALL}")

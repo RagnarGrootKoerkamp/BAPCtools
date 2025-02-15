@@ -22,6 +22,23 @@ from util import *
 from colorama import Fore, Style
 
 
+# Parse validation mode (only for legacy problem format version)
+def parse_legacy_validation(mode: str) -> set[str]:
+    if mode == "default":
+        return {mode}
+    else:
+        ok = True
+        parsed = set()
+        for part in mode.split():
+            if part in ["custom", "interactive", "multi-pass"] and part not in parsed:
+                parsed.add(part)
+            else:
+                ok = False
+        if "custom" not in parsed or not ok:
+            fatal(f"Unrecognised validation mode {mode}.")
+        return parsed
+
+
 class ProblemLimits:
     def __init__(
         self,
@@ -104,7 +121,12 @@ class ProblemLimits:
 
 
 class ProblemSettings:
-    def __init__(self, yamldata: dict[str, Any], legacy_time_limit: Optional[float] = None):
+    def __init__(
+        self,
+        yamldata: dict[str, Any],
+        problem: "Problem",
+        legacy_time_limit: Optional[float] = None,
+    ):
         assert isinstance(yamldata, dict)
 
         if "name" in yamldata and isinstance(yamldata["name"], str):
@@ -120,7 +142,28 @@ class ProblemSettings:
         )
         if not self.is_legacy() and self.problem_format_version != "2023-07-draft":
             fatal(f"problem_format_version {self.problem_format_version} not supported")
-        # TODO: also support 'type'. For now, we only support legacy 'validation'.
+
+        if self.is_legacy():
+            mode = parse_legacy_validation(parse_setting(yamldata, "validation", "default"))
+        else:
+            if "validation" in yamldata:
+                warn(
+                    "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead"
+                )
+            mode = set(parse_setting(yamldata, "type", "pass-fail").split(" "))
+        self.interactive: bool = "interactive" in mode
+        self.multi_pass: bool = "multi-pass" in mode
+        self.custom_output: bool = (
+            self.interactive
+            or self.multi_pass
+            or (
+                "custom" in mode
+                if self.is_legacy()
+                # TODO #424: output_validator should be singular, but DOMjudge does not support this yet, so this should be fixed during export.
+                else (problem.path / "output_validators").exists()
+            )
+        )
+
         self.name: dict[str, str] = parse_setting(yamldata, "name", {"en": ""})
         self.uuid: str = parse_setting(yamldata, "uuid", "")
         self.author: str = parse_setting(yamldata, "author", "")
@@ -129,7 +172,6 @@ class ProblemSettings:
         self.license: str = parse_setting(yamldata, "license", "unknown")
         self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
         self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), self, legacy_time_limit)
-        self.validation: str = parse_setting(yamldata, "validation", "default")
         self.validator_flags: list[str] = parse_setting(yamldata, "validator_flags", [])
         self.keywords: str = parse_setting(yamldata, "keywords", "")
 
@@ -279,19 +321,20 @@ class Problem:
             yaml_path.write_text(raw)
             log("Added new UUID to problem.yaml")
 
-        self.settings = ProblemSettings(yaml_data, self._get_legacy_time_limit(yaml_data))
-        self.limits = self.settings.limits
+        self.settings = ProblemSettings(yaml_data, self, self._get_legacy_time_limit(yaml_data))
 
-        mode = parse_validation(self.settings.validation)
-        self.interactive = "interactive" in mode
-        self.multipass = "multi-pass" in mode
+        # Aliasing fields makes life easier for us 😛
+        self.limits: ProblemLimits = self.settings.limits
+        self.interactive: bool = self.settings.interactive
+        self.multi_pass: bool = self.settings.multi_pass
+        self.custom_output: bool = self.settings.custom_output
 
         # Handle dependencies...
         has_validation_passes = self.limits.validation_passes is not None
-        if self.multipass and not has_validation_passes:
+        if self.multi_pass and not has_validation_passes:
             self.limits.validation_passes = 2
-        if not self.multipass and has_validation_passes:
-            warn("limit: validation_passes is only used for multipass problems. SKIPPED.")
+        if not self.multi_pass and has_validation_passes:
+            warn("limit: validation_passes is only used for multi_pass problems. SKIPPED.")
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / "data")
@@ -444,14 +487,14 @@ class Problem:
         for f in in_paths:
             t = testcase.Testcase(p, f, print_warn=True)
             if (
-                (p.interactive or p.multipass)
+                (p.interactive or p.multi_pass)
                 and mode == validate.Mode.INVALID
                 and t.root in ["invalid_answers", "invalid_outputs"]
             ):
                 msg = ""
                 if p.interactive:
                     msg += " interactive"
-                if p.multipass:
+                if p.multi_pass:
                     msg += " multi-pass"
                 warn(f"Found file {f} for {mode} validation in{msg} problem. Skipping.")
                 continue
@@ -504,7 +547,7 @@ class Problem:
         # Non-interactive and Non-multi-pass problems should not have .interaction files.
         # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
         # so that they can emulate a non-interactive problem with on-the-fly generated input.
-        if not p.interactive and not p.multipass:
+        if not p.interactive and not p.multi_pass:
             if len(interaction_paths) != 0:
                 warn(
                     f"Non-interactive/Non-multi-pass problem {p.name} should not have data/sample/*.interaction files."
@@ -672,13 +715,18 @@ class Problem:
             return problem._validators_cache[key]
 
         assert hasattr(cls, "source_dirs")
+        # TODO #424: We should not support multiple output validators inside output_validator/.
         paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, "*")]
 
         # Handle default output validation
-        if cls == validate.OutputValidator and problem.settings.validation == "default":
-            if paths:
+        if cls == validate.OutputValidator:
+            if problem.settings.is_legacy() and not problem.custom_output and paths:
                 error("Validation is default but custom output validator exists (ignoring it)")
-            paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
+                paths = []
+            if not paths:
+                if problem.custom_output:
+                    fatal("Problem validation type requires output_validators/")
+                paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
@@ -906,12 +954,12 @@ class Problem:
             constraints = {}
         assert constraints is None or isinstance(constraints, dict)
 
-        if (problem.interactive or problem.multipass) and mode == validate.Mode.ANSWER:
+        if (problem.interactive or problem.multi_pass) and mode == validate.Mode.ANSWER:
             if (problem.path / "answer_validators").exists():
                 msg = ""
                 if problem.interactive:
                     msg += " interactive"
-                if problem.multipass:
+                if problem.multi_pass:
                     msg += " multi-pass"
                 log(f"Not running answer_validators for{msg} problems.")
             return True
@@ -925,12 +973,12 @@ class Problem:
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.ANSWER:
                 assert not problem.interactive
-                assert not problem.multipass
+                assert not problem.multi_pass
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
                 testcases = problem.testcases(mode=mode)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
-                if not problem.interactive and not problem.multipass:
+                if not problem.interactive and not problem.multi_pass:
                     problem.validators(validate.AnswerValidator)
                 testcases = problem.testcases(mode=mode)
             case _:
