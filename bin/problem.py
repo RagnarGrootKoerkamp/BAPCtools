@@ -198,8 +198,8 @@ class ProblemSettings:
 
 # A problem.
 class Problem:
-    _SHORTNAME_REGEX_STRING: Final = "^[a-z0-9]+$"
-    _SHORTNAME_REGEX: Final = re.compile(_SHORTNAME_REGEX_STRING)
+    _SHORTNAME_REGEX_STRING: Final[str] = "^[a-z0-9]+$"
+    _SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile(_SHORTNAME_REGEX_STRING)
 
     def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):
         # The problem name/shortname, which is the name of the directory and used as a display name.

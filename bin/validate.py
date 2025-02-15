@@ -2,7 +2,7 @@ import program
 import testcase
 from util import *
 from enum import Enum
-from typing import Final
+from typing import Final, Sequence
 import re
 
 
@@ -79,7 +79,7 @@ class Validator(program.Program):
         ExecResult.status == ExecStatus.REJECTED if the validator rejected.
     """
 
-    FORMAT_VALIDATOR_LANGUAGES: Final = ["checktestdata", "viva"]
+    FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[str]] = ["checktestdata", "viva"]
 
     def __repr__(self):
         return type(self).__name__ + ": " + str(self.path)
@@ -396,8 +396,8 @@ AnyValidator = InputValidator | AnswerValidator | OutputValidator
 
 
 # Checks if byte is printable or whitespace
-INVALID_BYTES_WITH_OTHER: Final = re.compile(b"[^\t\r\v\f\n\x20-\x7e]")
-INVALID_BYTES: Final = re.compile(b"[^\n\x20-\x7e]")
+INVALID_BYTES_WITH_OTHER: Final[re.Pattern[bytes]] = re.compile(b"[^\t\r\v\f\n\x20-\x7e]")
+INVALID_BYTES: Final[re.Pattern[bytes]] = re.compile(b"[^\n\x20-\x7e]")
 
 
 def _has_invalid_byte(bytes, *, other_whitespaces=False):
