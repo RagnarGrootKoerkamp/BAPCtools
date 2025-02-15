@@ -724,6 +724,8 @@ class Problem:
                 error("Validation is default but custom output validator exists (ignoring it)")
                 paths = []
             if not paths:
+                if problem.custom_output:
+                    fatal("Problem validation type requires output_validators/")
                 paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
