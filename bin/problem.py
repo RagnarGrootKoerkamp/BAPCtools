@@ -36,7 +36,7 @@ def parse_legacy_validation(mode: str) -> set[str]:
             else:
                 ok = False
         if "custom" not in parsed or not ok:
-            fatal(f"Unrecognised validation mode {mode}.")
+            fatal(f"problem.yaml: unrecognized validation mode {mode}.")
         return parsed
 
 
@@ -279,6 +279,13 @@ class ProblemSettings:
                 )
                 yaml_data.pop("validation")
             mode = set(parse_setting(yaml_data, "type", "pass-fail").split(" "))
+            unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
+            if unrecognized_type:
+                fatal(
+                    f"""problem.yaml: unrecognized value{
+                        "" if len(unrecognized_type) == 1 else "s"
+                    } for 'type': {" ".join(sorted(unrecognized_type))}"""
+                )
         self.interactive: bool = "interactive" in mode
         self.multi_pass: bool = "multi-pass" in mode
         self.custom_output: bool = (

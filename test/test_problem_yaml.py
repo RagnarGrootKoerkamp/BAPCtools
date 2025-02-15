@@ -1,10 +1,11 @@
 import pytest
 import yaml
 from pathlib import Path
+from typing import cast, Any
 from unittest.mock import call, MagicMock
 
-import problem
 import config
+import problem
 
 RUN_DIR = Path.cwd().resolve()
 
@@ -28,7 +29,11 @@ def read_tests(yaml_name) -> list[dict]:
     return docs
 
 
-def assert_equal(obj, expected):
+def assert_equal(obj: Any, expected: Any):
+    if not isinstance(expected, dict):
+        assert obj == expected
+        return
+
     for key, value in expected.items():
         if hasattr(obj, key):
             assert_equal(getattr(obj, key), value)
@@ -48,7 +53,7 @@ class TestProblemYaml:
         config.n_error = 0
         config.n_warn = 0
 
-        p = problem.ProblemSettings(testdata["yaml"], MockProblem())
+        p = problem.ProblemSettings(testdata["yaml"], cast(problem.Problem, MockProblem()))
         assert config.n_error == 0 and config.n_warn == 0, (
             f"Expected zero errors and warnings, got {config.n_error} and {config.n_warn}"
         )
@@ -60,22 +65,25 @@ class TestProblemYaml:
         config.n_error = 0
         config.n_warn = 0
 
-        fatal = MagicMock(name="fatal")
+        fatal = MagicMock(name="fatal", side_effect=SystemExit(-42))
         error = MagicMock(name="error")
         warn = MagicMock(name="warn")
-        monkeypatch.setattr("problem.fatal", fatal)
-        monkeypatch.setattr("problem.error", error)
-        monkeypatch.setattr("problem.warn", warn)
+        for module in ["problem", "util"]:
+            monkeypatch.setattr(f"{module}.fatal", fatal)
+            monkeypatch.setattr(f"{module}.error", error)
+            monkeypatch.setattr(f"{module}.warn", warn)
 
-        caught_fatal = False
+        # Still expecting no change, because we're mocking the functions that increment these values
+        assert config.n_error == 0 and config.n_warn == 0, (
+            f"Expected zero errors and warnings, got {config.n_error} and {config.n_warn}"
+        )
+
         try:
-            problem.ProblemSettings(testdata["yaml"], MockProblem())
-        except SystemExit:
-            caught_fatal = True
-            assert call(testdata["fatal"]) == fatal.mock_calls
-        assert caught_fatal == ("fatal" in testdata)
+            problem.ProblemSettings(testdata["yaml"], cast(problem.Problem, MockProblem()))
+        except SystemExit as e:
+            assert e.code == -42
 
-        assert config.n_error or config.n_warn
+        assert ([call(testdata["fatal"])] if "fatal" in testdata else []) == fatal.mock_calls
 
         if isinstance(testdata.get("error", None), str):
             testdata["error"] = [testdata["error"]]
