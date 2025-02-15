@@ -4,7 +4,7 @@ import os
 import signal
 import threading
 from collections.abc import Callable
-from typing import Any, Generic, Literal, Optional, TypeVar
+from typing import Any, Generic, Literal, Optional, Sequence, TypeVar
 
 import config
 import util
@@ -71,7 +71,7 @@ class SequentialQueue(AbstractQueue[T]):
         super().__init__(f, pin)
 
     # Add one task. Higher priority => done first
-    def put(self, task: T, priority=0):
+    def put(self, task: T, priority: int = 0):
         # no task will be handled after self.abort() so skip adding
         if self.aborted:
             return
@@ -177,7 +177,7 @@ class ParallelQueue(AbstractQueue[T]):
             raise first_error
 
     # Add one task. Higher priority => done first
-    def put(self, task: T, priority=0):
+    def put(self, task: T, priority: int = 0):
         with self.mutex:
             # no task should be added after .done() was called
             assert not self.finish
@@ -227,7 +227,7 @@ class ParallelQueue(AbstractQueue[T]):
                 self.all_done.notify_all()
 
 
-def new_queue(f: Callable[[T], Any], pin=False):
+def new_queue(f: Callable[[T], Any], pin: bool = False):
     """
     f(task): the function to run on each queue item.
 
@@ -242,7 +242,7 @@ def new_queue(f: Callable[[T], Any], pin=False):
         return SequentialQueue(f, pin)
 
 
-def run_tasks(f: Callable[[T], Any], tasks: list[T], pin=False):
+def run_tasks(f: Callable[[T], Any], tasks: Sequence[T], pin: bool = False):
     queue = new_queue(f, pin)
     for task in tasks:
         queue.put(task)

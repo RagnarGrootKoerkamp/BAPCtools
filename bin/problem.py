@@ -5,7 +5,7 @@ import threading
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, TYPE_CHECKING
+from typing import Any, Final, Literal, Optional, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
@@ -447,7 +447,7 @@ class Problem:
         mode: Optional[validate.Mode] = None,
         needans=True,
         only_samples=False,
-    ) -> list[testcase.Testcase]:
+    ) -> Sequence[testcase.Testcase]:
         only_samples = config.args.samples or only_samples
 
         key = (mode, needans, only_samples)
@@ -673,7 +673,7 @@ class Problem:
         check_constraints=False,
         strict=False,
         print_warn=True,
-    ) -> list[validate.AnyValidator]:
+    ) -> Sequence[validate.AnyValidator]:
         """
         Gets the validators of the given class.
         If strict is true we only return the validators as the icpc specification indicates.
@@ -1037,7 +1037,7 @@ class Problem:
         mode: validate.Mode,
         constraints: dict | bool | None,
         action: str,
-        testcases: list[testcase.Testcase],
+        testcases: Sequence[testcase.Testcase],
     ) -> bool:
         # If there are no testcases, validation succeeds
         if not testcases:
