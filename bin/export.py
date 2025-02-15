@@ -123,8 +123,9 @@ def build_problem_zip(problem, output):
         "domjudge-problem.ini",
     ]
 
+    write_file_strs: list[tuple[str, str]] = []
+
     files = [
-        ("problem.yaml", True),
         ("problem_statement/*", True),
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
@@ -155,6 +156,32 @@ def build_problem_zip(problem, output):
         files.append(("input_validators/**/*", True))
 
     print("Preparing to make ZIP file for problem dir %s" % problem.path, file=sys.stderr)
+
+    # DOMjudge does not support 'type' in problem.yaml yet.
+    # TODO: Remove this once it does.
+    problem_yaml_str = (problem.path / "problem.yaml").read_text()
+    if not config.args.kattis and not problem.settings.is_legacy():
+        write_file_strs.append(
+            (
+                "problem.yaml",
+                f"""{problem_yaml_str}\nvalidation: {
+                    "custom interactive"
+                    if problem.interactive
+                    else "custom multi-pass"
+                    if problem.multi_pass
+                    else "custom"
+                    if problem.custom_output
+                    else "default"
+                }\n""",
+            )
+        )
+    else:
+        write_file_strs.append(("problem.yaml", problem_yaml_str))
+
+    # DOMjudge does not support 'limits.time_limit' in problem.yaml yet.
+    # TODO: Remove this once it does.
+    if not config.args.kattis:
+        write_file_strs.append((".timelimit", str(problem.limits.time_limit)))
 
     # Warn for all deprecated files but still add them to the files list
     for pattern in deprecated:
@@ -216,11 +243,8 @@ def build_problem_zip(problem, output):
 
         for source, target in sorted(copyfiles):
             zf.write(source, target, compress_type=zipfile.ZIP_DEFLATED)
-
-        if not config.args.kattis:
-            # DOMjudge does not support limits.time_limit in problem.yaml yet.
-            # TODO: Remove this once it does.
-            zf.writestr(".timelimit", str(problem.limits.time_limit))
+        for target_file, content in sorted(write_file_strs):
+            zf.writestr(target_file, content, compress_type=zipfile.ZIP_DEFLATED)
 
         # Done.
         zf.close()
