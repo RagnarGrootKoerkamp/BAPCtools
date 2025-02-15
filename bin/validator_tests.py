@@ -1,8 +1,9 @@
 from collections.abc import Callable
-from typing import Final, Optional, TypeVar
+from typing import Final, Iterable, Optional, Sequence, TypeVar
 
-_GENERATOR_NAMES: Final[set[str]] = set()
-GENERATORS: Final[list[tuple[str, str | Callable[[str], Optional[str]], bool]]] = []
+# we use an underspecified type so mypy warns if you add something manually
+_GENERATOR_NAMES: Final[Iterable[str]] = set()
+GENERATORS: Final[Sequence[tuple[str, str | Callable[[str], Optional[str]], bool]]] = []
 
 
 T = TypeVar("T", bound=str | Callable[[str], Optional[str]])
@@ -17,6 +18,8 @@ def register(name: Optional[str] = None, only_whitespace_change: bool = False) -
             assert hasattr(func, "__name__")
             name = func.__name__
         assert name
+        assert isinstance(_GENERATOR_NAMES, set)
+        assert isinstance(GENERATORS, list)
         _GENERATOR_NAMES.add(name)
         GENERATORS.append((name, func, only_whitespace_change))
         return func
