@@ -10,9 +10,7 @@ def _list_generators() -> list[tuple[str, str | Callable[[str], Optional[str]], 
 
     # returns a function that can be called to register a new generator for invalid tests
     # can be used on its own or as decorator for a function
-    def register(
-        name: Optional[str] = None, only_whitespace_change: bool = False
-    ) -> Callable[[T], T]:
+    def register(name: Optional[str] = None, only_strict: bool = False) -> Callable[[T], T]:
         def decorator(func: T) -> T:
             nonlocal name
             if not isinstance(func, str) and not name:
@@ -20,7 +18,7 @@ def _list_generators() -> list[tuple[str, str | Callable[[str], Optional[str]], 
                 name = func.__name__
             assert name
             generator_names.add(name)
-            generators.append((name, func, only_whitespace_change))
+            generators.append((name, func, only_strict))
             return func
 
         return decorator
@@ -58,7 +56,7 @@ def _list_generators() -> list[tuple[str, str | Callable[[str], Optional[str]], 
             return None
         return f"{x[:-1]} 42\n"
 
-    @register(only_whitespace_change=True)
+    @register(only_strict=True)
     def append_space(x: str) -> Optional[str]:
         if end_newline(x):
             return None

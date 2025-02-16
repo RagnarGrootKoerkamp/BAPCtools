@@ -992,15 +992,15 @@ class Problem:
             log(f"Generating invalid testcases based on: {test_case}")
         verbose(f"writing generated invalid testcases to: {base_path}")
 
-        # validator, dir, read, write,  copy, allow_whitespace_changes
+        # validator, dir, read, write,  copy, strict
         validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str], bool]] = [
-            (validate.InputValidator, "invalid_inputs", ".in", ".in", [], False),
-            (validate.AnswerValidator, "invalid_answers", ".ans", ".ans", [".in"], False),
-            (validate.OutputValidator, "invalid_outputs", ".ans", ".out", [".in", ".ans"], True),
+            (validate.InputValidator, "invalid_inputs", ".in", ".in", [], True),
+            (validate.AnswerValidator, "invalid_answers", ".ans", ".ans", [".in"], True),
+            (validate.OutputValidator, "invalid_outputs", ".ans", ".out", [".in", ".ans"], False),
         ]
 
         testcases = []
-        for cls, directory, read, write, copy, allow_whitespace_changes in validators:
+        for cls, directory, read, write, copy, strict in validators:
             if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
                 continue
             if not p.validators(cls, strict=True, print_warn=False):
@@ -1008,8 +1008,8 @@ class Problem:
             if test_path is None and copy:
                 continue
 
-            for name, data, only_whitespace_change in validator_tests.GENERATORS:
-                if allow_whitespace_changes and only_whitespace_change:
+            for name, data, only_strict in validator_tests.GENERATORS:
+                if not strict and only_strict:
                     continue
 
                 if isinstance(data, str):
