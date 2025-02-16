@@ -970,8 +970,10 @@ class Problem:
             "Invalidation"
             if mode == validate.Mode.INVALID
             else (
-                f"Collecting {mode} constraints" if constraints else f"{mode} validation"
-            ).capitalize()
+                f"Collecting {mode} constraints"
+                if constraints
+                else f"{str(mode).capitalize()} validation"
+            )
         )
 
         testcases = problem.testcases(mode=mode)
