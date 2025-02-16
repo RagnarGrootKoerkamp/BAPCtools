@@ -4,10 +4,10 @@ import shutil
 import collections
 import secrets
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Final, overload, Sequence
+from typing import Final, overload
 
 import config
 import parallel

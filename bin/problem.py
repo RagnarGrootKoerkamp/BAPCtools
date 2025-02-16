@@ -3,9 +3,9 @@ import shlex
 import sys
 import threading
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, Sequence, TYPE_CHECKING
+from typing import Any, Final, Literal, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program

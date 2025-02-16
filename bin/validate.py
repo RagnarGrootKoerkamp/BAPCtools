@@ -2,7 +2,8 @@ import program
 import testcase
 from util import *
 from enum import Enum
-from typing import Final, Sequence
+from collections.abc import Sequence
+from typing import Final
 import re
 
 
