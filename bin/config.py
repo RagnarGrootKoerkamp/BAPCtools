@@ -5,7 +5,8 @@ import argparse
 import os
 import re
 from pathlib import Path
-from typing import Final, Literal, Mapping, Optional, Sequence
+from collections.abc import Mapping, Sequence
+from typing import Final, Literal, Optional
 
 # return values
 RTV_AC: Final[int] = 42

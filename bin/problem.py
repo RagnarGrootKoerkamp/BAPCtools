@@ -1032,7 +1032,9 @@ class Problem:
 
                 testcases.append(testcase.Testcase(p, full_path, short_path=short_path))
 
-        return p._validate_data(validate.Mode.INVALID, None, "Generic Invalidation", testcases)
+        return p._validate_data(
+            validate.Mode.INVALID, None, "Generic Invalidation", testcases, True
+        )
 
     def _validate_data(
         problem,
@@ -1040,6 +1042,7 @@ class Problem:
         constraints: dict | bool | None,
         action: str,
         testcases: Sequence[testcase.Testcase],
+        extra: bool = False,
     ) -> bool:
         # If there are no testcases, validation succeeds
         if not testcases:
@@ -1083,6 +1086,7 @@ class Problem:
                 and not testcase.in_path.is_symlink()
                 and not testcase.root == "invalid_answers"
                 and not testcase.root == "invalid_outputs"
+                and not extra
             ):
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
@@ -1092,7 +1096,9 @@ class Problem:
                     localbar.done()
                     return
 
-            ok = testcase.validate_format(mode, bar=localbar, constraints=constraints)
+            ok = testcase.validate_format(
+                mode, bar=localbar, constraints=constraints, warn_instead_of_error=extra
+            )
             success &= ok
             localbar.done(ok)
 
