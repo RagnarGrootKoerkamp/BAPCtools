@@ -2,7 +2,7 @@ from collections.abc import Callable, Sequence
 from typing import Final, Optional, TypeVar
 
 
-def list_generators() -> list[tuple[str, str | Callable[[str], Optional[str]], bool]]:
+def _list_generators() -> list[tuple[str, str | Callable[[str], Optional[str]], bool]]:
     generator_names: set[str] = set()
     generators: list[tuple[str, str | Callable[[str], Optional[str]], bool]] = []
 
@@ -68,5 +68,5 @@ def list_generators() -> list[tuple[str, str | Callable[[str], Optional[str]], b
 
 
 GENERATORS: Final[Sequence[tuple[str, str | Callable[[str], Optional[str]], bool]]] = (
-    list_generators()
+    _list_generators()
 )
