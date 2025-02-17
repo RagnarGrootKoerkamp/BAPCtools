@@ -981,61 +981,67 @@ class Problem:
 
     def validate_invalid_extra_data(p) -> bool:
         base_path = p.tmpdir / "invalid_data"
-        # find at least one (valid?) small testcase to modify
-        test_paths = list(glob(p.path, "data/sample/**/*.in"))
-        test_paths += list(glob(p.path, "data/secret/**/*.in"))
-        test_paths = [
-            path
-            for path in test_paths
-            if path.with_suffix(".ans").exists()
-            and path.stat().st_size + path.with_suffix(".ans").stat().st_size < 200_000
-        ]
-        test_paths.sort()
-        test_path = test_paths[0] if test_paths else None
-        if test_path:
-            test_case = test_path.relative_to(p.path / "data").with_suffix("")
-            log(f"Generating invalid testcases based on: {test_case}")
-        verbose(f"writing generated invalid testcases to: {base_path}")
+        # pick at most first 3 samples (assuming they are valid and have .ans)
+        samples: list[Path | Literal[None]] = list(glob(p.path, "data/sample/**/*.in"))
+        samples.sort()
+        samples = [path for path, _ in zip(samples, range(3))]
+        if not samples:
+            samples = [None]
 
-        # validator, dir, read, write,  copy
+        # validator, dir, read, write, copy
         validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str]]] = [
             (validate.InputValidator, "invalid_inputs", ".in", ".in", []),
             (validate.AnswerValidator, "invalid_answers", ".ans", ".ans", [".in"]),
             (validate.OutputValidator, "invalid_outputs", ".ans", ".out", [".in", ".ans"]),
         ]
 
-        testcases = []
-        for cls, directory, read, write, copy in validators:
-            if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
-                continue
-            if not p.validators(cls, strict=True, print_warn=False):
-                continue
-            if test_path is None and copy:
-                continue
-
-            for name, data, supported_cls in validator_tests.GENERATORS:
-                if cls not in supported_cls:
+        testcases: list[testcase.Testcase] = []
+        for i, sample in enumerate(samples):
+            used_sample = False
+            for cls, directory, read, write, copy in validators:
+                if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
+                    continue
+                if not p.validators(cls, strict=True, print_warn=False):
+                    continue
+                if any(sample is None or not sample.with_suffix(ext).exists() for ext in copy):
                     continue
 
-                if isinstance(data, str):
-                    content = data
-                elif test_path:
-                    valid = test_path.with_suffix(read).read_text()
-                    generated = data(valid)
-                    if generated is None:
+                for name, data, supported_cls in validator_tests.GENERATORS:
+                    if cls not in supported_cls:
                         continue
-                    content = generated
 
-                short_path = Path(directory) / name
-                full_path = base_path / short_path / "testcase.in"
-                full_path.parent.mkdir(parents=True, exist_ok=True)
+                    if isinstance(data, str):
+                        if i > 0 and not copy:
+                            continue
+                        content = data
+                    elif sample is None or not sample.with_suffix(read).exists():
+                        continue
+                    else:
+                        valid = sample.with_suffix(read).read_text()
+                        generated = data(valid)
+                        if generated is None:
+                            continue
+                        used_sample = True
+                        content = generated
 
-                for ext in copy:
-                    assert test_path is not None
-                    shutil.copy(test_path.with_suffix(ext), full_path.with_suffix(ext))
-                full_path.with_suffix(write).write_text(content)
+                    short_path = Path(directory) / str(i) / name
+                    full_path = base_path / short_path / "testcase.in"
+                    full_path.parent.mkdir(parents=True, exist_ok=True)
 
-                testcases.append(testcase.Testcase(p, full_path, short_path=short_path))
+                    for ext in copy:
+                        assert sample is not None
+                        assert sample.with_suffix(ext).exists()
+                        shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
+                        used_sample = True
+                    full_path.with_suffix(write).write_text(content)
+
+                    verbose(f"Generating {short_path}")
+                    testcases.append(testcase.Testcase(p, full_path, short_path=short_path))
+            if used_sample:
+                assert sample is not None
+                sample_name = sample.relative_to(p.path / "data").with_suffix("")
+                log(f"Generated invalid testcases based on: {sample_name}")
+        verbose(f"writing generated invalid testcases to: {base_path}")
 
         return p._validate_data(
             validate.Mode.INVALID, None, "Generic Invalidation", testcases, True
