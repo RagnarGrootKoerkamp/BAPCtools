@@ -1014,7 +1014,9 @@ class Problem:
                         if i > 0 and not copy:
                             continue
                         content = data
-                    elif sample is None or not sample.with_suffix(read).exists():
+                    elif sample is None:
+                        continue
+                    elif not sample.with_suffix(read).exists():
                         continue
                     else:
                         valid = sample.with_suffix(read).read_text()
