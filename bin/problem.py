@@ -981,10 +981,15 @@ class Problem:
 
     def validate_invalid_extra_data(p) -> bool:
         base_path = p.tmpdir / "invalid_data"
-        # find at least one (valid?) testcase to modify
+        # find at least one (valid?) small testcase to modify
         test_paths = list(glob(p.path, "data/sample/**/*.in"))
         test_paths += list(glob(p.path, "data/secret/**/*.in"))
-        test_paths = [path for path in test_paths if path.with_suffix(".ans").exists()]
+        test_paths = [
+            path
+            for path in test_paths
+            if path.with_suffix(".ans").exists()
+            and path.stat().st_size + path.with_suffix(".ans").stat().st_size < 200_000
+        ]
         test_paths.sort()
         test_path = test_paths[0] if test_paths else None
         if test_path:
@@ -992,15 +997,15 @@ class Problem:
             log(f"Generating invalid testcases based on: {test_case}")
         verbose(f"writing generated invalid testcases to: {base_path}")
 
-        # validator, dir, read, write,  copy, strict
-        validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str], bool]] = [
-            (validate.InputValidator, "invalid_inputs", ".in", ".in", [], True),
-            (validate.AnswerValidator, "invalid_answers", ".ans", ".ans", [".in"], True),
-            (validate.OutputValidator, "invalid_outputs", ".ans", ".out", [".in", ".ans"], False),
+        # validator, dir, read, write,  copy
+        validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str]]] = [
+            (validate.InputValidator, "invalid_inputs", ".in", ".in", []),
+            (validate.AnswerValidator, "invalid_answers", ".ans", ".ans", [".in"]),
+            (validate.OutputValidator, "invalid_outputs", ".ans", ".out", [".in", ".ans"]),
         ]
 
         testcases = []
-        for cls, directory, read, write, copy, strict in validators:
+        for cls, directory, read, write, copy in validators:
             if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
                 continue
             if not p.validators(cls, strict=True, print_warn=False):
@@ -1008,8 +1013,8 @@ class Problem:
             if test_path is None and copy:
                 continue
 
-            for name, data, only_strict in validator_tests.GENERATORS:
-                if not strict and only_strict:
+            for name, data, supported_cls in validator_tests.GENERATORS:
+                if cls not in supported_cls:
                     continue
 
                 if isinstance(data, str):
