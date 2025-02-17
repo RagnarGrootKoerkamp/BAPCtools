@@ -55,7 +55,7 @@ def _list_generators() -> list[
     register("bismillah")("﷽")
 
     # simple generators
-    register("leading_zero")(lambda x: f"0{x}")
+    register("leading_zero", IN_ANS_VALIDATORS)(lambda x: f"0{x}")
     register("leading_space", IN_ANS_VALIDATORS)(lambda x: f" {x}")
     register("trailing_token_int")(lambda x: f"{x}42\n")
     register("trailing_token_str")(lambda x: f"{x}hello\n")
