@@ -89,6 +89,12 @@ def _list_generators() -> list[
             return x.swapcase()
         return None
 
+    @register(supported_cls=IN_ANS_VALIDATORS)
+    def windows_newline(x: str) -> Optional[str]:
+        if "\n" not in x or "\r" in x:
+            return None
+        return x.replace("\n", "\r\n")
+
     return generators
 
 
