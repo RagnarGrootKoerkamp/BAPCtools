@@ -984,9 +984,7 @@ class Problem:
         # pick at most first 3 samples (assuming they are valid and have .ans)
         samples: list[Path | Literal[None]] = list(glob(p.path, "data/sample/**/*.in"))
         samples.sort()
-        samples = [path for path, _ in zip(samples, range(3))]
-        if not samples:
-            samples = [None]
+        samples = [path for path, _ in zip(samples, range(3))] + [None]
 
         # validator, dir, read, write, copy
         validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str]]] = [
