@@ -65,34 +65,24 @@ data:
       #    count: 10
 
   invalid_inputs:
-    # Add invalid testcase to ensure that input_validators correctly rejects them.
-    data:
-      empty:
-          in: ""
-      newline:
-          in: "\n"
-      random:
-          in: YVRtr&*teTsRjs8ZC2%kN*T63V@jJq!d
-      not_printable_1:
-          in: "\x7f"
-      not_printable_2:
-          in: "\xe2\x82\xac"
-      unicode:
-          in: "¯\\_(ツ)_/¯"
+    # Add invalid test cases to ensure that input_validators correctly rejects them.
+    data: []
+      #invalid_test_case_input:
+      #  in: "<invalid input>"
 
   invalid_answers:
-    # Add valid testcase with invalid answers to ensure that the answer_validators correctly rejects them.
+    # Add valid test cases with invalid answers to ensure that the answer_validators correctly rejects them.
     # (The output validator is also called with these)
     data: []
-      #dont_start_with_whitespace:
-      #    in: "<valid testcase>"
-      #    ans: " <valid answer>"
+      #invalid_test_case_answer:
+      #  in: "<valid input>"
+      #  ans: "<invalid answer>"
 
   invalid_outputs:
-    # Add valid testcase with answer and invalid team output to ensure that the out_validator correctly rejects them.
+    # Add valid test cases with answer and invalid team output to ensure that the output_validator correctly rejects them.
     # (The output validator is also called with these)
     data: []
-      #dont_start_with_whitespace:
-      #    in: "<valid testcase>"
+      #invalid_test_case_output:
+      #    in: "<valid input>"
       #    ans: "<valid answer>"
-      #    out: "<invalid answer>"
+      #    out: "<invalid output>"

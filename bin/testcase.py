@@ -362,7 +362,11 @@ class Testcase:
         if expect_rejection:
             success = ExecStatus.REJECTED in results
             if not success:
-                bar.error(f"was not rejected by {mode} validation", resume=True)
+                msg = f"was not rejected by {mode} validation"
+                if warn_instead_of_error:
+                    bar.warn(msg)
+                else:
+                    bar.error(msg, resume=True)
         else:
             success = all(results)
             if success:

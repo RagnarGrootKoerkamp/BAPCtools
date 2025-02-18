@@ -279,7 +279,9 @@ See `run <testcases>` for a description of how to pass testcases.
 
 `bt validate --invalid <invalid_testcases>` checks invalid test cases in `data/invalid_*`.
 
-`bt validate` validates both input and answer files, and the invalid test cases.
+`bt validate --generic-invalid` automatically generates generic invalid test cases (like those in `data/invalid_*`) in checks them.
+
+`bt validate` runs all of the above.
 
 It supports the following flags when run for a single problem:
 

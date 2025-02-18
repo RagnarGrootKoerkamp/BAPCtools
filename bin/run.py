@@ -220,22 +220,7 @@ class Run:
 
         flags = self.testcase.testdata_yaml_validator_flags(validator, bar)
 
-        ret = validator.run(self.testcase, self, args=flags)
-
-        judgemessage = self.feedbackdir / "judgemessage.txt"
-        judgeerror = self.feedbackdir / "judgeerror.txt"
-        if ret.err is None:
-            ret.err = ""
-        if judgeerror.is_file():
-            ret.err = judgeerror.read_text(errors="replace")
-        assert ret.err is not None
-        if len(ret.err) == 0 and judgemessage.is_file():
-            ret.err = judgemessage.read_text(errors="replace")
-        if ret.err:
-            header = validator.name + ": " if len(output_validators) > 1 else ""
-            ret.err = header + ret.err
-
-        return ret
+        return validator.run(self.testcase, self, args=flags)
 
 
 class Submission(program.Program):
