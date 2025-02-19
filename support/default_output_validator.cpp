@@ -4,14 +4,11 @@
 #include <cmath>
 #include <filesystem>
 #include <fstream>
-#include <iomanip>
-#include <ios>
 #include <iostream>
-#include <limits>
 #include <optional>
 #include <sstream>
+#include <regex>
 #include <string>
-#include <vector>
 
 //============================================================================//
 // Constants                                                                  //
@@ -26,6 +23,11 @@ constexpr std::string_view FLOAT_RELATIVE_TOLERANCE = "float_relative_tolerance"
 constexpr std::string_view FLOAT_TOLERANCE          = "float_tolerance";
 constexpr std::string_view TEXT_ELLIPSIS            = "[...]";
 constexpr std::string_view WHITESPACE               = " \f\n\r\t\v";
+
+// Only use non-capturing groups, and optimize the RegEx during initialization (improves run time at the cost of build time)
+constexpr auto REGEX_OPTIONS = std::regex::nosubs | std::regex::optimize;
+// Source: https://icpc.io/problem-package-format/spec/2023-07-draft.html
+std::regex FLOAT_REGEX("[+-]?([0-9]*\\.[0-9]+|[0-9]+\\.|[0-9]+)([Ee][+-]?[0-9]+)?", REGEX_OPTIONS);
 
 //============================================================================//
 // parameters                                                                 //
@@ -45,40 +47,8 @@ namespace util {
 		return WHITESPACE.find(c) != std::string_view::npos;
 	}
 
-	constexpr bool is_digits(std::string_view token) {
-		for (char c : token) {
-			if (c < '0' or c > '9') return false;
-		}
-		return true;
-	}
-
-	constexpr bool is_integer(std::string_view token) {
-		if (token.find_first_of("+-") == 0) token.remove_prefix(1); // ignore optional +- sign
-		if (token.empty()) return false;                            // integers need at least one digit
-		if (token.size() > 1 and token[0] == '0') return false;     // integers do not start with 0 (unless they are exactly "0")
-		if (not is_digits(token)) return false;                     // integers are just digits
-		return true;
-	}
-
-	constexpr bool is_decimal(std::string_view token) {
-		if (token.find_first_of("+-") == 0) token.remove_prefix(1);        // ignore optional +- sign
-		std::size_t dot = token.find('.');                                 // dot is optional separator
-		bool hasDot = dot < token.size();                                  //
-		if (dot > 0 and not is_digits(token.substr(0, dot))) return false; // decimals only have digits before the dot
-		if (hasDot and not is_digits(token.substr(dot + 1))) return false; // decimals only have digits after the dot
-		if (token.size() <= hasDot) return false;                          // decimals have at least one digit
-		return true;
-	}
-
-	constexpr bool is_float(std::string_view token) {
-		std::size_t e = token.find_first_of("eE");                      // exp indicator
-		if (not is_decimal(token.substr(0, e))) return false;           // floats starts with a decimal
-		if (e < token.size()) {                                         // optional exponent
-			token.remove_prefix(e + 1);                                 // ignore decimal part
-			if (token.find_first_of("+-") == 0) token.remove_prefix(1); // ignore optional +- sign of exponent
-			if (token.empty() or not is_digits(token)) return false;    // exponent must be non empty digits
-		}
-		return true;
+	bool is_float(std::string_view token) {
+		return std::regex_match(std::string(token), FLOAT_REGEX);
 	}
 }
 
