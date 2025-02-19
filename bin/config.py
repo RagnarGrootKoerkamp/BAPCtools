@@ -1,5 +1,4 @@
-# Global variables that are constant after the programs arguments have been
-# parsed.
+# Global variables that are constant after the programs arguments have been parsed.
 
 import argparse
 import os
@@ -19,13 +18,14 @@ SUBMISSION_DIRS: Final[Sequence[str]] = [
     "run_time_error",
 ]
 
+# This ordering is shown in bt new_problem with questionary installed (intentionally non-alphabetical).
 KNOWN_LICENSES: Final[Sequence[str]] = [
-    "cc by",
     "cc by-sa",
+    "cc by",
     "cc0",
+    "public domain",
     "educational",
     "permission",
-    "public domain",
     "unknown",
 ]
 
