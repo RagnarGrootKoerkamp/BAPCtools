@@ -1,23 +1,21 @@
-import validate
-
 from collections.abc import Callable, Sequence
 from typing import Final, Optional, TypeVar
-from validate import AnswerValidator, InputValidator, OutputValidator
+from validate import AnswerValidator, AnyValidator, InputValidator, OutputValidator
 
-ALL_VALIDATORS: Final[Sequence[type[validate.AnyValidator]]] = [
+ALL_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [
     AnswerValidator,
     InputValidator,
     OutputValidator,
 ]
-IN_ANS_VALIDATORS: Final[Sequence[type[validate.AnyValidator]]] = [InputValidator, AnswerValidator]
+IN_ANS_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [InputValidator, AnswerValidator]
 
 
 def _list_generators() -> list[
-    tuple[str, str | Callable[[str], Optional[str]], Sequence[type[validate.AnyValidator]]]
+    tuple[str, str | Callable[[str], Optional[str]], Sequence[type[AnyValidator]]]
 ]:
     generator_names: set[str] = set()
     generators: list[
-        tuple[str, str | Callable[[str], Optional[str]], Sequence[type[validate.AnyValidator]]]
+        tuple[str, str | Callable[[str], Optional[str]], Sequence[type[AnyValidator]]]
     ] = []
 
     T = TypeVar("T", bound=str | Callable[[str], Optional[str]])
@@ -26,8 +24,7 @@ def _list_generators() -> list[
     # can be used on its own or as decorator for a function
     def register(
         name: Optional[str] = None,
-        supported_cls: type[validate.AnyValidator]
-        | Sequence[type[validate.AnyValidator]] = ALL_VALIDATORS,
+        supported_cls: type[AnyValidator] | Sequence[type[AnyValidator]] = ALL_VALIDATORS,
     ) -> Callable[[T], T]:
         def decorator(func: T) -> T:
             nonlocal name
@@ -99,7 +96,5 @@ def _list_generators() -> list[
 
 
 GENERATORS: Final[
-    Sequence[
-        tuple[str, str | Callable[[str], Optional[str]], Sequence[type[validate.AnyValidator]]]
-    ]
+    Sequence[tuple[str, str | Callable[[str], Optional[str]], Sequence[type[AnyValidator]]]]
 ] = _list_generators()
