@@ -1,15 +1,17 @@
 #pragma once
 // A header library to safely parse team input.
-// It does not support floating points or big integers.
+// It does not support big integers.
 // Author: Ragnar Groot Koerkamp
 
 // The easiest way to use this is to symlink it from a validator directory,
 // so that it will be picked up when creating a contest zip.
 
-// The default checking behaviour is lenient for both white space and case.
-// When validating .in and .ans files, the case_sensitive and
-// space_change_sensitive flags should be passed. When validating team output,
-// the flags in problem.yaml should be used.
+// The default checking behaviour is strict for case, whitespace, and floats.
+// This strict checking mode is used for *.in and *.ans files.
+// When validating submission outputs, the checking is more lenient,
+// but the case_sensitive and space_change_sensitive flags can be passed
+// via the output_validator_args in testdata.yaml to enable strict checking behaviour
+// for submission outputs regarding case and whitespace, respectively.
 
 #include <algorithm>
 #include <array>
@@ -25,6 +27,7 @@
 #include <map>
 #include <optional>
 #include <random>
+#include <regex>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -40,6 +43,16 @@ const std::string_view ws_sensitive_flag         = "space_change_sensitive";
 const std::string_view constraints_file_flag     = "--constraints_file";
 const std::string_view generate_flag             = "--generate";
 const std::string_view generate_binary_substring = "generat";
+
+// Only use non-capturing groups, and optimize the RegEx during initialization (improves run time at the cost of build time)
+constexpr auto regex_options = std::regex::nosubs | std::regex::optimize;
+// Source: https://icpc.io/problem-package-format/spec/2023-07-draft.html
+// Made stricter by:
+// - Disallowing '+' as sign (both at the start and in the exponent)
+// - Disallowing 'E' as exponent
+// - Disallowing superfluous leading zeroes before the decimal dot and in the exponent (the former can be 0, the latter cannot)
+// - Disallowing decimal dot without following digits
+std::regex float_regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?(e-?[1-9][0-9]*)?", regex_options);
 
 inline struct ArbitraryTag {
 	static constexpr bool unique     = false;
@@ -549,10 +562,10 @@ T& select(std::pair<T, T>& in, std::mt19937_64& rng) {
 
 class Validator {
   protected:
-	Validator(bool ws_, bool case_, std::istream& in_, std::string constraints_file_path_ = "",
+	Validator(bool ws_, bool case_, bool sf_, std::istream& in_, std::string constraints_file_path_ = "",
 	          std::optional<unsigned int> seed                        = std::nullopt,
 	          std::unordered_map<std::string, ParamGenerator> params_ = {})
-	    : in(in_), ws(ws_), case_sensitive(case_),
+	    : in(in_), ws(ws_), case_sensitive(case_), strict_float(sf_),
 	      constraints_file_path(std::move(constraints_file_path_)), gen(seed.has_value()),
 	      rng(seed.value_or(Random::default_seed)), params(std::move(params_)) {
 
@@ -1249,6 +1262,8 @@ class Validator {
 			if(chars_processed != s.size())
 				WA(name, ": Parsing ", s,
 				   " as long double failed! Did not process all characters.");
+			if(strict_float && !std::regex_match(s, float_regex))
+				WA(name, ": Parsing ", s, " failed, because it does not match the strict float_regex!");
 		} catch(const std::out_of_range& e) {
 			WA(name, ": Number " + s + " does not fit in a long double!");
 		} catch(const std::invalid_argument& e) {
@@ -1376,6 +1391,7 @@ class Validator {
   public:
 	const bool ws             = true;
 	const bool case_sensitive = true;
+	const bool strict_float   = true;
 	const std::string constraints_file_path;
 	const bool gen = false;
 
@@ -1407,14 +1423,14 @@ class Validator {
 class Generator : public Validator {
   public:
 	explicit Generator(unsigned int seed)
-	    : Validator(true, true, std::cin, /*constraints_file_path_=*/"", seed) {}
+	    : Validator(true, true, true, std::cin, /*constraints_file_path_=*/"", seed) {}
 };
 
 class InputValidator : public Validator {
   public:
-	// An InputValidator is always both whitespace and case sensitive.
+	// An InputValidator is always both whitespace and case sensitive and uses strict floats.
 	explicit InputValidator(int argc = 0, char** argv = nullptr)
-	    : Validator(true, true, std::cin, get_constraints_file(argc, argv), get_seed(argc, argv),
+	    : Validator(true, true, true, std::cin, get_constraints_file(argc, argv), get_seed(argc, argv),
 	                get_params(argc, argv)) {}
 
   private:
@@ -1447,11 +1463,19 @@ class InputValidator : public Validator {
 	}
 };
 
+class AnswerValidator : public Validator {
+  public:
+	// An AnswerValidator is always both whitespace and case sensitive and uses strict floats.
+	explicit AnswerValidator(int argc, char** argv, std::istream& in_ = std::cin)
+	    : Validator(/*ws=*/true, /*case_sensitive=*/true, /*strict_float=*/true, in_,
+	                get_constraints_file(argc, argv)) {}
+};
+
 class OutputValidator : public Validator {
   public:
-	// An OutputValidator can be run in different modes.
+	// An OutputValidator can be run in different modes, but floats are not strict.
 	explicit OutputValidator(int argc, char** argv, std::istream& in_ = std::cin)
-	    : Validator(is_ws_sensitive(argc, argv), is_case_sensitive(argc, argv), in_,
+	    : Validator(is_ws_sensitive(argc, argv), is_case_sensitive(argc, argv), false, in_,
 	                get_constraints_file(argc, argv)) {}
 
   private:
@@ -1468,12 +1492,4 @@ class OutputValidator : public Validator {
 		}
 		return false;
 	}
-};
-
-class AnswerValidator : public Validator {
-  public:
-	// An OutputValidator can be run in different modes.
-	explicit AnswerValidator(int argc, char** argv, std::istream& in_ = std::cin)
-	    : Validator(/*ws_sensitive=*/true, /*space sensitive*/ true, in_,
-	                get_constraints_file(argc, argv)) {}
 };
