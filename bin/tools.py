@@ -493,13 +493,16 @@ Run this from one of:
         "validate", parents=[global_parser], help="validate all grammar"
     )
     validate_parser.add_argument("testcases", nargs="*", type=Path, help="The testcases to run on.")
-    input_answer_group = validate_parser.add_mutually_exclusive_group()
-    input_answer_group.add_argument(
-        "--input", "-i", action="store_true", help="Only validate input."
-    )
-    input_answer_group.add_argument("--answer", action="store_true", help="Only validate answer.")
-    input_answer_group.add_argument(
+    validation_group = validate_parser.add_mutually_exclusive_group()
+    validation_group.add_argument("--input", "-i", action="store_true", help="Only validate input.")
+    validation_group.add_argument("--answer", action="store_true", help="Only validate answer.")
+    validation_group.add_argument(
         "--invalid", action="store_true", help="Only check invalid files for validity."
+    )
+    validation_group.add_argument(
+        "--generic-invalid",
+        action="store_true",
+        help="Generate generic invalid files based on the first three samples and validate them.",
     )
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
@@ -1067,11 +1070,22 @@ def run_parsed_arguments(args):
                     problem, build_type=latex.PdfType.PROBLEM_SLIDE, web=config.args.web
                 )
         if action in ["validate", "all"]:
-            if not (action == "validate" and (config.args.input or config.args.answer)):
+            # if nothing is specified run all
+            specified = any(
+                [
+                    config.args.invalid,
+                    config.args.generic_invalid,
+                    config.args.input,
+                    config.args.answer,
+                ]
+            )
+            if action == "all" or not specified or config.args.invalid:
                 success &= problem.validate_data(validate.Mode.INVALID)
-            if not (action == "validate" and (config.args.answer or config.args.invalid)):
+            if action == "all" or not specified or config.args.generic_invalid:
+                success &= problem.validate_invalid_extra_data()
+            if action == "all" or not specified or config.args.input:
                 success &= problem.validate_data(validate.Mode.INPUT)
-            if not (action == "validate" and (config.args.input or config.args.invalid)):
+            if action == "all" or not specified or config.args.answer:
                 success &= problem.validate_data(validate.Mode.ANSWER)
         if action in ["run", "all"]:
             success &= problem.run_submissions()

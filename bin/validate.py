@@ -2,6 +2,7 @@ import program
 import testcase
 from util import *
 from enum import Enum
+from collections.abc import Sequence
 from typing import Final
 import re
 
@@ -79,7 +80,7 @@ class Validator(program.Program):
         ExecResult.status == ExecStatus.REJECTED if the validator rejected.
     """
 
-    FORMAT_VALIDATOR_LANGUAGES: Final = ["checktestdata", "viva"]
+    FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[str]] = ["checktestdata", "viva"]
 
     def __repr__(self):
         return type(self).__name__ + ": " + str(self.path)
@@ -181,6 +182,22 @@ class Validator(program.Program):
             )
             return result
 
+    def _exec_helper(self, *args, cwd, **kwargs):
+        ret = self._exec_command(*args, **kwargs)
+        judgemessage = cwd / "judgemessage.txt"
+        judgeerror = cwd / "judgeerror.txt"
+        if ret.err is None:
+            ret.err = ""
+        if judgeerror.is_file():
+            ret.err = judgeerror.read_text(errors="replace")
+        assert ret.err is not None
+        if len(ret.err) == 0 and judgemessage.is_file():
+            ret.err = judgemessage.read_text(errors="replace")
+        if ret.err:
+            ret.err = f"{self.name}: {ret.err}"
+
+        return ret
+
     def run(
         self,
         testcase: testcase.Testcase,
@@ -236,7 +253,7 @@ class InputValidator(Validator):
         invocation = self.run_command.copy()
 
         with testcase.in_path.open() as in_file:
-            ret = self._exec_command(
+            ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
                 stdin=in_file,
@@ -287,7 +304,7 @@ class AnswerValidator(Validator):
         invocation = self.run_command + [testcase.in_path.resolve()]
 
         with testcase.ans_path.open() as ans_file:
-            ret = self._exec_command(
+            ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
                 stdin=ans_file,
@@ -363,7 +380,7 @@ class OutputValidator(Validator):
         invocation = self.run_command + [in_path, ans_path, cwd] + flags
 
         with path.open() as file:
-            ret = self._exec_command(
+            ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
                 stdin=file,
@@ -380,8 +397,8 @@ AnyValidator = InputValidator | AnswerValidator | OutputValidator
 
 
 # Checks if byte is printable or whitespace
-INVALID_BYTES_WITH_OTHER: Final = re.compile(b"[^\t\r\v\f\n\x20-\x7e]")
-INVALID_BYTES: Final = re.compile(b"[^\n\x20-\x7e]")
+INVALID_BYTES_WITH_OTHER: Final[re.Pattern[bytes]] = re.compile(b"[^\t\r\v\f\n\x20-\x7e]")
+INVALID_BYTES: Final[re.Pattern[bytes]] = re.compile(b"[^\n\x20-\x7e]")
 
 
 def _has_invalid_byte(bytes, *, other_whitespaces=False):

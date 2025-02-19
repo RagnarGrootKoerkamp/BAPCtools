@@ -4,7 +4,7 @@ import shutil
 import collections
 import secrets
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
 from typing import Final, overload
@@ -40,7 +40,7 @@ def assert_type(name, obj, types, path=None):
     )
 
 
-UNIQUE_TESTCASE_KEYS: Final = [
+UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = [
     "copy",
     "generate",
     "retries",
@@ -88,8 +88,8 @@ def resolve_path(path, *, allow_absolute, allow_relative):
 # - SolutionInvocation
 # - VisualizerInvocation
 class Invocation:
-    SEED_REGEX: Final = re.compile(r"\{seed(:[0-9]+)?\}")
-    NAME_REGEX: Final = re.compile(r"\{name\}")
+    SEED_REGEX: Final[re.Pattern[str]] = re.compile(r"\{seed(:[0-9]+)?\}")
+    NAME_REGEX: Final[re.Pattern[str]] = re.compile(r"\{name\}")
 
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
@@ -319,7 +319,7 @@ class DefaultSolutionInvocation(SolutionInvocation):
         super().__init__(generator_config.problem, default_solution_path(generator_config))
 
 
-KNOWN_TESTCASE_KEYS: Final = [
+KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
     "type",
     "generate",
     "copy",
@@ -329,8 +329,8 @@ KNOWN_TESTCASE_KEYS: Final = [
     "retries",
     "count",
 ] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
-RESERVED_TESTCASE_KEYS: Final = ["data", "testdata.yaml", "include"]
-KNOWN_DIRECTORY_KEYS: Final = [
+RESERVED_TESTCASE_KEYS: Final[Sequence[str]] = ["data", "testdata.yaml", "include"]
+KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = [
     "type",
     "data",
     "testdata.yaml",
@@ -340,9 +340,9 @@ KNOWN_DIRECTORY_KEYS: Final = [
     "random_salt",
     "retries",
 ]
-RESERVED_DIRECTORY_KEYS: Final = ["command"]
-KNOWN_ROOT_KEYS: Final = ["generators", "parallel"]
-DEPRECATED_ROOT_KEYS: Final = ["gitignore_generated"]
+RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ["command"]
+KNOWN_ROOT_KEYS: Final[Sequence[str]] = ["generators", "parallel"]
+DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated"]
 
 
 # Holds all inheritable configuration options. Currently:
@@ -373,7 +373,7 @@ class Config:
             return ""
         return x
 
-    INHERITABLE_KEYS: Final = [
+    INHERITABLE_KEYS: Final[Sequence] = [
         # True: use an AC submission by default when the solution: key is not present.
         ("solution", True, parse_solution),
         ("visualizer", None, parse_visualizer),
@@ -1071,7 +1071,7 @@ class TestcaseRule(Rule):
             hashes = {}
 
             # remove files that should not be considered for this testcase
-            extensions = config.KNOWN_TESTCASE_EXTENSIONS.copy()
+            extensions = list(config.KNOWN_TESTCASE_EXTENSIONS)
             if t.root not in config.INVALID_CASE_DIRECTORIES[1:]:
                 extensions.remove(".ans")
             if t.root not in config.INVALID_CASE_DIRECTORIES[2:]:
@@ -1181,7 +1181,7 @@ class Directory(Rule):
                         self.path,
                         color_type=MessageType.WARN,
                     )
-                elif key not in KNOWN_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
+                elif key not in [*KNOWN_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
                     if config.args.action == "generate":
                         message(
                             f"Unknown root level key: {key}",
@@ -1191,7 +1191,7 @@ class Directory(Rule):
                         )
         else:
             for key in yaml:
-                if key in RESERVED_DIRECTORY_KEYS + KNOWN_ROOT_KEYS:
+                if key in [*RESERVED_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
                     raise ParseException(
                         f"Directory must not contain reserved key {key}.", self.path
                     )
@@ -1414,7 +1414,7 @@ class GeneratorConfig:
         return generators
 
     # Only used at the root directory level.
-    ROOT_KEYS: Final = [
+    ROOT_KEYS: Final[Sequence] = [
         ("generators", dict[Path, list[Path]](), parse_generators),
     ]
 

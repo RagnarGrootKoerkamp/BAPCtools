@@ -10,8 +10,8 @@ Input and answer validation run on the _files_ in `data/*`; their purpose is to 
 Output validation runs on the output of the author submissions in `submissions` (and eventually on solver submissions when the problem is hosted on a judge system);
 the purpose of output validation is to check correctness of _submissions_.
 
-The testcases in `/data/sample` and `/data/secret` must pass both input, answer, and output validation;
-whereas submission output most pass output validation.
+The testcases in `/data/sample` and `/data/secret` must pass each of input, answer, and output validation;
+whereas submission output must only pass output validation.
 
 
 ## Common parameters/settings
@@ -80,7 +80,7 @@ which allows an output validator to be more strict about the format of `.ans` fi
 
 `bt validate --invalid`
 
-BAPCtools expects deliberately invalid testcases in `data/invalid_{inputs, answers, outputs}`.
+BAPCtools expects deliberately invalid test cases in `data/invalid_{inputs,answers,outputs}`.
 These ensure that validators reject under the expected circumstances.
 
 ### Invalid inputs
@@ -136,6 +136,15 @@ Examples:
     ans: "0"
     out: "1"
 ```
+
+## Genereic invalid test cases
+
+`bt validate --generic-invalid`
+
+BAPCtools tries to create deliberately invalid test cases (like those in `data/invalid_{inputs,answers,outputs}`) based on the first three samples.
+These ensure that the validators reject test cases that are typically considered invalid, like whitespace errors or obscure characters.
+Note that some types of invalid _answers_ are considered valid _outputs_: these types of generic invalid cases are not tested against the output validator.
+One example is that superfluous leading zeroes are accepted for floating-point _outputs_, but considered invalid as _answer_.
 
 ## Output validation
 

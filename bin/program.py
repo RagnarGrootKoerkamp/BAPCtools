@@ -12,7 +12,7 @@ from util import *
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
 
-EXTRA_LANGUAGES: Final = """
+EXTRA_LANGUAGES: Final[str] = """
 checktestdata:
     name: 'Checktestdata'
     priority: 1
@@ -33,7 +33,7 @@ manual:
     run: '{run}'
 """
 
-SANITIZER_FLAGS: Final = """
+SANITIZER_FLAGS: Final[str] = """
 cpp:
     compile: -fsanitize=undefined,address
 """

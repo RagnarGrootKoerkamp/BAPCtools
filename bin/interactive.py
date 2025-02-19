@@ -13,7 +13,7 @@ from verdicts import Verdict
 if TYPE_CHECKING:
     from run import Run
 
-BUFFER_SIZE: Final = 2**20
+BUFFER_SIZE: Final[int] = 2**20
 
 
 # Return a ExecResult object amended with verdict.
