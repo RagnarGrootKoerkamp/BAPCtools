@@ -30,17 +30,23 @@ def read_tests(yaml_name) -> list[dict]:
 
 
 def assert_equal(obj: Any, expected: Any):
-    if not isinstance(expected, dict):
-        assert obj == expected
+    if isinstance(expected, list):
+        assert isinstance(obj, list), "Expected a list"
+        for a, b in zip(obj, expected):
+            assert_equal(a, b)
         return
 
-    for key, value in expected.items():
-        if hasattr(obj, key):
-            assert_equal(getattr(obj, key), value)
-        elif isinstance(obj, dict) and key in obj:
-            assert obj[key] == value
-        else:
-            assert False, f"Not supporting {obj}.{key} == {value}"
+    if isinstance(expected, dict):
+        for key, value in expected.items():
+            if hasattr(obj, key):
+                assert_equal(getattr(obj, key), value)
+            elif isinstance(obj, dict) and key in obj:
+                assert_equal(obj[key], value)
+            else:
+                assert False, f"Not supporting {obj}.{key} == {value}"
+
+    if not isinstance(expected, dict):
+        assert obj == expected
 
 
 class MockProblem:

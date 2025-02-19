@@ -69,3 +69,68 @@ eq:
   custom_output: True
   interactive: True
   multi_pass: True
+
+---
+# Credits tests
+yaml:
+  author: A. U. Thor
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: ~
+---
+yaml:
+  author: A. U. Thor <author@example.com>
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: author@example.com
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  credits: A. U. Thor
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: ~
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  credits: A. U. Thor <author@example.com>
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: author@example.com
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  credits: A. U. Thor <author@example.com>
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: author@example.com
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  credits:
+    authors: A. U. Thor <author@example.com>
+    translators:
+      nl: V. E. R. Taler
+      en: T. R. Anslator <translator@example.com>
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: author@example.com
+    translators:
+      nl:
+        - name: V. E. R. Taler
+          email: ~
+      en:
+        - name: T. R. Anslator
+          email: translator@example.com

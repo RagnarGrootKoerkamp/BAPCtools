@@ -40,30 +40,32 @@ def parse_legacy_validation(mode: str) -> set[str]:
         return parsed
 
 
+class Person:
+    def __init__(self, name: str):
+        match = re.match("(.*)<(.*)>", name)
+        self.name: str = (match[1] if match else name).strip()
+        self.email: Optional[str] = match[2].strip() if match else None
+
+
 class ProblemCredits:
     def __init__(
         self,
         yaml_data: dict[str, Any],
         problem_settings: "ProblemSettings",
     ):
-        self.authors: list[str] = []
-        self.contributors: list[str] = []
-        self.testers: list[str] = []
-        self.translators: dict[str, list[str]] = {}
-        self.packagers: list[str] = []
-        self.acknowledgements: list[str] = []
+        self.authors: list[Person] = []
+        self.contributors: list[Person] = []
+        self.testers: list[Person] = []
+        self.translators: dict[str, list[Person]] = {}
+        self.packagers: list[Person] = []
+        self.acknowledgements: list[Person] = []
 
         # If problem.yaml uses the legacy version, do not support the new `credits` key.
         # If problem.yaml uses 2023-07-draft, prefer `credit`, but also support `author` and warn for it.
         legacy_author = parse_optional_setting(yaml_data, "author", str)
         if problem_settings.is_legacy():
             if legacy_author:
-                if "," in legacy_author:
-                    self.authors = [author.strip() for author in legacy_author.split(",")]
-                elif "and" in legacy_author:
-                    self.authors = [author.strip() for author in legacy_author.split("and")]
-                else:
-                    self.authors = [legacy_author]
+                self.authors = [Person(a) for a in legacy_author.replace("and", ",").split(",")]
         else:
             if legacy_author is not None:
                 warn(
@@ -72,18 +74,26 @@ class ProblemCredits:
             if "credits" not in yaml_data:
                 return
             if isinstance(yaml_data["credits"], str):
-                self.authors = [parse_setting(yaml_data, "credits", "")]
+                self.authors = [Person(parse_setting(yaml_data, "credits", ""))]
                 return
 
             credits = parse_setting(yaml_data, "credits", dict[str, Any]())
-            self.authors = parse_optional_list_setting(credits, "authors", str)
-            self.contributors = parse_optional_list_setting(credits, "contributors", str)
+            self.authors = [Person(s) for s in parse_optional_list_setting(credits, "authors", str)]
+            self.contributors = [
+                Person(s) for s in parse_optional_list_setting(credits, "contributors", str)
+            ]
             self.translators = parse_setting(credits, "translators", {})
-            for lang in self.translators:
-                self.translators[lang] = parse_optional_list_setting(self.translators, lang, str)
-            self.testers = parse_optional_list_setting(credits, "testers", str)
-            self.packagers = parse_optional_list_setting(credits, "packagers", str)
-            self.acknowledgements = parse_optional_list_setting(credits, "acknowledgements", str)
+            for lang in list(self.translators.keys()):
+                self.translators[lang] = [
+                    Person(s) for s in parse_optional_list_setting(self.translators, lang, str)
+                ]
+            self.testers = [Person(s) for s in parse_optional_list_setting(credits, "testers", str)]
+            self.packagers = [
+                Person(s) for s in parse_optional_list_setting(credits, "packagers", str)
+            ]
+            self.acknowledgements = [
+                Person(s) for s in parse_optional_list_setting(credits, "acknowledgements", str)
+            ]
 
             # Check for unknown keys
             for key in credits:
