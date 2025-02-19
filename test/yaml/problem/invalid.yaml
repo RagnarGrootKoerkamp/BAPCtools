@@ -1,4 +1,5 @@
 ---
+# Unknown keys
 yaml:
   mumbo: jumbo
 warn: "found unknown problem.yaml key: mumbo in root"
@@ -19,7 +20,9 @@ yaml:
     time_multipliers:
       mumbo: jumbo
 warn: "found unknown problem.yaml key: mumbo in `limits.time_multipliers`"
+
 ---
+# Name
 yaml:
   name: 42
 warn: incompatible value for key 'name' in problem.yaml. SKIPPED.
@@ -28,31 +31,50 @@ yaml:
   name:
     en: 42
 warn: incompatible value for key 'en' in problem.yaml. SKIPPED.
+
 ---
+# Validation/type
 yaml:
-  name:
-    en: "Incorrect validation"
+  name: Incorrect validation
   validation: mumbo-jumbo
 fatal: "problem.yaml: unrecognized validation mode mumbo-jumbo."
 ---
 yaml:
   problem_format_version: 2023-07-draft
-  name:
-    en: "Incorrect type"
+  name: Incorrect type
   type: mumbo-jumbo
 fatal: "problem.yaml: unrecognized value for 'type': mumbo-jumbo"
 ---
 yaml:
   problem_format_version: 2023-07-draft
-  name:
-    en: "Incorrect type"
+  name: Deprecated validation
+  validation: interactive
+warn:
+  - "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead. SKIPPED."
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Incorrect type
   type: mumbo jumbo
 fatal: "problem.yaml: unrecognized values for 'type': jumbo mumbo"
 ---
 yaml:
   problem_format_version: 2023-07-draft
-  name:
-    en: "Deprecated validation"
-  validation: interactive
-warn:
-  - "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead. SKIPPED."
+  name: Incorrect type (list)
+  type:
+    - mumbo
+    - jumbo
+fatal: "problem.yaml: unrecognized values for 'type': jumbo mumbo"
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Incorrect type (int)
+  type:
+    mumbo: jumbo
+fatal: "problem.yaml: 'type' must be a string or a sequence"
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Incorrect type (dict)
+  type: 42
+fatal: "problem.yaml: 'type' must be a string or a sequence"

@@ -36,6 +36,23 @@ eq:
 ---
 yaml:
   problem_format_version: 2023-07-draft
+  name: pass-fail type by default
+eq:
+  custom_output: False
+  interactive: False
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: pass-fail type from empty type
+  type: []
+eq:
+  custom_output: False
+  interactive: False
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
   name: interactive type
   type: interactive
 eq:

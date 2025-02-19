@@ -287,7 +287,15 @@ class ProblemSettings:
                     "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead. SKIPPED."
                 )
                 yaml_data.pop("validation")
-            mode = set(parse_setting(yaml_data, "type", "pass-fail").split(" "))
+            mode = set(
+                ["pass-fail"]
+                if "type" not in yaml_data
+                else parse_setting(yaml_data, "type", "pass-fail").split()
+                if isinstance(yaml_data["type"], str)
+                else parse_optional_list_setting(yaml_data, "type", str)
+                if isinstance(yaml_data["type"], list)
+                else [fatal("problem.yaml: 'type' must be a string or a sequence")]
+            )
             unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
             if unrecognized_type:
                 fatal(
