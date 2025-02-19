@@ -80,7 +80,7 @@ which allows an output validator to be more strict about the format of `.ans` fi
 
 `bt validate --invalid`
 
-BAPCtools expects deliberately invalid testcases in `data/invalid_{inputs, answers, outputs}`.
+BAPCtools expects deliberately invalid test cases in `data/invalid_{inputs,answers,outputs}`.
 These ensure that validators reject under the expected circumstances.
 
 ### Invalid inputs
@@ -141,8 +141,10 @@ Examples:
 
 `bt validate --generic-invalid`
 
-BAPCtools tries to create deliberately invalid testcases (like those in `data/invalid_{inputs, answers, outputs}`) based on the first three samples.
-These ensure that validators reject testcases that are typically considered invalid like whitespace errors in inputs or answers.
+BAPCtools tries to create deliberately invalid test cases (like those in `data/invalid_{inputs,answers,outputs}`) based on the first three samples.
+These ensure that the validators reject test cases that are typically considered invalid, like whitespace errors or obscure characters.
+Note that some types of invalid _answers_ are considered valid _outputs_: these types of generic invalid cases are not tested against the output validator.
+One example is that superfluous leading zeroes are accepted for floating-point _outputs_, but considered invalid as _answer_.
 
 ## Output validation
 
