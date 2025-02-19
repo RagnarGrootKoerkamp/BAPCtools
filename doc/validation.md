@@ -137,6 +137,13 @@ Examples:
     out: "1"
 ```
 
+## Genereic invalid test cases
+
+`bt validate --generic-invalid`
+
+BAPCtools tries to create deliberately invalid testcases (like those in `data/invalid_{inputs, answers, outputs}`) based on the first three samples.
+These ensure that validators reject testcases that are typically considered invalid like whitespace errors in inputs or answers.
+
 ## Output validation
 
 The output validator checks whether the output of a submission is correct.

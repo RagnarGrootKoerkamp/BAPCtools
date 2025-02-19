@@ -502,7 +502,7 @@ Run this from one of:
     validation_group.add_argument(
         "--generic-invalid",
         action="store_true",
-        help="Generate generic invalid files and validate them.",
+        help="Generate generic invalid files based on the first three samples and validate them.",
     )
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
