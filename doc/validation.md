@@ -10,8 +10,8 @@ Input and answer validation run on the _files_ in `data/*`; their purpose is to 
 Output validation runs on the output of the author submissions in `submissions` (and eventually on solver submissions when the problem is hosted on a judge system);
 the purpose of output validation is to check correctness of _submissions_.
 
-The testcases in `/data/sample` and `/data/secret` must pass both input, answer, and output validation;
-whereas submission output most pass output validation.
+The testcases in `/data/sample` and `/data/secret` must pass each of input, answer, and output validation;
+whereas submission output must only pass output validation.
 
 
 ## Common parameters/settings
