@@ -982,6 +982,7 @@ class Problem:
     def validate_invalid_extra_data(p) -> bool:
         base_path = p.tmpdir / "invalid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
+        # also add a dummy entry to always run generators that don't read or copy anything from a valid testcase
         samples = sorted(glob(p.path, "data/sample/**/*.in"))[:3] + [None]
 
         # validator, dir, read, write, copy
@@ -1007,6 +1008,7 @@ class Problem:
                         continue
 
                     if isinstance(data, str):
+                        # generators that don't read or copy anything must only be run once
                         if i > 0 and not copy:
                             continue
                         content = data
