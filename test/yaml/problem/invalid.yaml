@@ -1,5 +1,26 @@
 ---
 yaml:
+  mumbo: jumbo
+warn: "found unknown problem.yaml key: mumbo in root"
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  credits:
+    mumbo: jumbo
+warn: "found unknown problem.yaml key: mumbo in `credits`"
+---
+yaml:
+  limits:
+    mumbo: jumbo
+warn: "found unknown problem.yaml key: mumbo in `limits`"
+---
+yaml:
+  limits:
+    time_multipliers:
+      mumbo: jumbo
+warn: "found unknown problem.yaml key: mumbo in `limits.time_multipliers`"
+---
+yaml:
   name: 42
 warn: incompatible value for key 'name' in problem.yaml. SKIPPED.
 ---

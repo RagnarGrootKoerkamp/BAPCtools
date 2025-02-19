@@ -40,6 +40,14 @@ def parse_legacy_validation(mode: str) -> set[str]:
         return parsed
 
 
+# The parse_* functions will remove (.pop()) keys from the yaml data during parsing.
+# We will warn for any unknown keys that remain after this process.
+def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None):
+    for key in yaml_data:
+        assert isinstance(key, str)
+        warn(f"found unknown problem.yaml key: {key} in {f'`{sub_key}`' if sub_key else 'root'}")
+
+
 class Person:
     def __init__(self, name: str):
         match = re.match("(.*)<(.*)>", name)
@@ -95,10 +103,7 @@ class ProblemCredits:
                 Person(s) for s in parse_optional_list_setting(credits, "acknowledgements", str)
             ]
 
-            # Check for unknown keys
-            for key in credits:
-                assert isinstance(key, str)
-                warn(f"found unknown problem.yaml key: {key} in credits")
+            check_unknown_keys(credits, "credits")
 
 
 class ProblemSource:
@@ -195,10 +200,7 @@ class ProblemLimits:
                 time_multipliers, "time_limit_to_tle", legacy_time_limit_to_tle or 1.5
             )
 
-        # Check for unknown keys in time_multipliers
-        for key in time_multipliers:
-            assert isinstance(key, str)
-            warn(f"found unknown problem.yaml key: {key} in limits.time_multipliers")
+        check_unknown_keys(time_multipliers, "limits.time_multipliers")
 
         # time_limit is required, but parse as optional to more easily handle the legacy_time_limit.
         time_limit = parse_optional_setting(yaml_data, "time_limit", float)  # in seconds
@@ -244,10 +246,7 @@ class ProblemLimits:
         self.time_limit: float = time_limit or legacy_time_limit or 1.0
         self.time_limit_is_default: bool = time_limit is None and legacy_time_limit is None
 
-        # Check for unknown keys
-        for key in yaml_data:
-            assert isinstance(key, str)
-            warn(f"found unknown problem.yaml key: {key} in limits")
+        check_unknown_keys(yaml_data, "limits")
 
         # Override limmits by command line arguments.
         self.time_limit = config.args.time_limit or self.time_limit
@@ -333,10 +332,7 @@ class ProblemSettings:
         self.verified: Optional[str] = parse_optional_setting(yaml_data, "verified", str)
         self.comment: Optional[str] = parse_optional_setting(yaml_data, "comment", str)
 
-        # check for unknown keys
-        for key in yaml_data:
-            assert isinstance(key, str)
-            warn(f"found unknown problem.yaml key: {key}")
+        check_unknown_keys(yaml_data)
 
         # checks
         if not is_uuid(self.uuid):
