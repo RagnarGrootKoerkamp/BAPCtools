@@ -1082,7 +1082,7 @@ def run_parsed_arguments(args):
                     "valid_outputs",
                 ]
             elif config.args.generic is None:
-                config.args.generic == []
+                config.args.generic = []
             # if nothing is specified run all
             specified = any(
                 [

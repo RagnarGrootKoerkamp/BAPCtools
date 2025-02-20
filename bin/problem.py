@@ -988,6 +988,8 @@ class Problem:
         return problem._validate_data(mode, constraints, action, testcases)
 
     def validate_invalid_extra_data(p) -> bool:
+        if all(x not in config.args.generic for x in config.INVALID_CASE_DIRECTORIES):
+            return True
         base_path = p.tmpdir / "invalid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
         # also add a dummy entry to always run generators that don't read or copy anything from a valid testcase
@@ -1004,6 +1006,8 @@ class Problem:
         for i, sample in enumerate(samples):
             used_sample = False
             for cls, directory, read, write, copy in validators:
+                if directory not in config.args.generic:
+                    continue
                 if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
                     continue
                 if not p.validators(cls, strict=True, print_warn=False):
@@ -1049,7 +1053,8 @@ class Problem:
                 assert sample is not None
                 sample_name = sample.relative_to(p.path / "data").with_suffix("")
                 log(f"Generated invalid testcases based on: {sample_name}")
-        verbose(f"writing generated invalid testcases to: {base_path}")
+        if testcases:
+            verbose(f"writing generated invalid testcases to: {base_path}")
 
         return p._validate_data(
             validate.Mode.INVALID, None, "Generic Invalidation", testcases, True
@@ -1059,6 +1064,8 @@ class Problem:
         if p.interactive or p.multi_pass:
             return True
         if not p.validators(validate.OutputValidator, strict=True, print_warn=False):
+            return True
+        if "valid_outputs" not in config.args.generic:
             return True
 
         base_path = p.tmpdir / "valid_data"
@@ -1094,7 +1101,8 @@ class Problem:
                 assert sample is not None
                 sample_name = sample.relative_to(p.path / "data").with_suffix("")
                 log(f"Generated valid testcases based on: {sample_name}")
-        verbose(f"writing generated valid testcases to: {base_path}")
+        if testcases:
+            verbose(f"writing generated valid testcases to: {base_path}")
 
         return p._validate_data(validate.Mode.VALID, None, "Generic Validation", testcases, True)
 

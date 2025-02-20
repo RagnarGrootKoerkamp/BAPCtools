@@ -141,6 +141,12 @@ def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[s
         return x.replace("\n", " ")
 
     @register()
+    def append_space(x: str) -> Optional[str]:
+        if end_newline(x):
+            return None
+        return f"{x[:-1]} \n"
+
+    @register()
     def windows_newline(x: str) -> Optional[str]:
         if "\n" not in x or "\r" in x:
             return None
