@@ -8,17 +8,19 @@ import re
 
 
 class Mode(Enum):
-    """There are three validation modes for file validation"""
+    """There are four validation modes for file validation"""
 
     INPUT = 1
     ANSWER = 2
     INVALID = 3
+    VALID = 4
 
     def __str__(self):
         return {
             Mode.INPUT: "input",
             Mode.ANSWER: "answer",
             Mode.INVALID: "invalid files",
+            Mode.VALID: "valid files",
         }[self]
 
 
@@ -244,6 +246,8 @@ class InputValidator(Validator):
             raise ValueError("InputValidators do not support Mode.ANSWER")
         if mode == Mode.INVALID:
             raise ValueError("InputValidators do no support Mode.INVALID")
+        if mode == Mode.VALID:
+            raise ValueError("InputValidators do no support Mode.VALID")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -295,6 +299,8 @@ class AnswerValidator(Validator):
             raise ValueError("AnswerValidators do no support Mode.INPUT")
         if mode == Mode.INVALID:
             raise ValueError("AnswerValidators do no support Mode.INVALID")
+        if mode == Mode.VALID:
+            raise ValueError("AnswerValidators do no support Mode.VALID")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -362,6 +368,12 @@ class OutputValidator(Validator):
             if testcase.root != "invalid_outputs":
                 raise ValueError(
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_outputs"
+                )
+            path = testcase.out_path.resolve()
+        elif mode == Mode.VALID:
+            if testcase.root != "valid_outputs":
+                raise ValueError(
+                    "OutputValidator in Mode.VALID should only be run for data/valid_outputs"
                 )
             path = testcase.out_path.resolve()
         else:

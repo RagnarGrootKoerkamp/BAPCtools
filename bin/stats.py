@@ -76,6 +76,11 @@ def problem_stats(problems):
             ],
             0,
         ),
+        (
+            "good",
+            [lambda s: {x.stem for x in s if x.parts[2] in ["valid_outputs"]}],
+            0,
+        ),
         ("   AC", "submissions/accepted/*", 3),
         (" WA", "submissions/wrong_answer/*", 2),
         ("TLE", "submissions/time_limit_exceeded/*", 1),

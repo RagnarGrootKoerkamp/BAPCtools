@@ -22,12 +22,12 @@ class Testcase:
     * an input file, sometimes called "the input", with extension `.in`, such as `petersen.in`
     * a default answer file, sometimes called "the answer", with extension `.ans`, such as `petersen.ans`
 
-    Test cases in `data/invalid_inputs` consist only of an input file. [Not implemnted:] Test cases
-    in `data/invalid_outputs` additionally consist of an output file, with extension `.out`.
+    Test cases in `data/invalid_inputs` consist only of an input file. Test cases in `data/valid_outputs`
+    or `data/invalid_outputs` additionally consist of an output file, with extension `.out`.
 
     As a rule of thumb, test cases have different inputs. To be precise, test cases in
-    the same directory must have different inputs, except for test cases below `invalid_answers`
-    and [not implemented] `invalid_outputs`. Moreover, test cases in different directories with
+    the same directory must have different inputs, except for test cases below `invalid_answers`,
+    `invalid_outputs`, and `valid_outputs`. Moreover, test cases in different directories with
     the same base name, such as `sample/petersen` and `secret/cubic/petersen`, may have identical inputs;
     this commonly happens when the first test case was included from `sample` into `secret/cubic`.
 
@@ -90,7 +90,11 @@ class Testcase:
             if path.suffix == ".in"
             else self.in_path.with_name(self.in_path.with_suffix("").stem + ".ans.statement")
         )
-        self.out_path = None if self.root != "invalid_outputs" else self.in_path.with_suffix(".out")
+        self.out_path = (
+            None
+            if self.root not in ["valid_outputs", "invalid_outputs"]
+            else self.in_path.with_suffix(".out")
+        )
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(""))
 
@@ -239,6 +243,40 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                     args=args,
                 )
+            case validate.Mode.VALID:
+                assert self.root == "valid_outputs"
+                assert not self.problem.interactive
+                assert not self.problem.multi_pass
+
+                ok = self.validate_format(
+                    validate.Mode.INPUT,
+                    bar=bar,
+                    constraints=constraints,
+                    warn_instead_of_error=warn_instead_of_error,
+                    args=args,
+                )
+                if not ok:
+                    return ok
+
+                ok = self.validate_format(
+                    validate.Mode.ANSWER,
+                    bar=bar,
+                    constraints=constraints,
+                    warn_instead_of_error=warn_instead_of_error,
+                    args=args,
+                )
+                if not ok:
+                    return ok
+
+                return self._run_validators(
+                    validate.Mode.VALID,
+                    self.problem.validators(validate.OutputValidator),
+                    False,
+                    bar=bar,
+                    constraints=constraints,
+                    warn_instead_of_error=warn_instead_of_error,
+                    args=args,
+                )
             case _:
                 raise ValueError
 
@@ -301,7 +339,7 @@ class Testcase:
                     file = self.in_path
                 elif mode == validate.Mode.ANSWER:
                     file = self.ans_path
-                elif mode == validate.Mode.INVALID:
+                elif mode in [validate.Mode.INVALID, validate.Mode.VALID]:
                     assert self.out_path is not None
                     file = self.out_path
 
@@ -369,7 +407,7 @@ class Testcase:
                     bar.error(msg, resume=True)
         else:
             success = all(results)
-            if success:
+            if success and mode in [validate.Mode.INPUT, validate.Mode.ANSWER]:
                 validate.sanity_check(
                     self.problem,
                     self.in_path if mode == validate.Mode.INPUT else self.ans_path,

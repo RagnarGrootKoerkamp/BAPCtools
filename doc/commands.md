@@ -24,7 +24,7 @@ This lists all subcommands and their most important options.
 - Problem validation
   - [`bt input [-v] [testcases [testcases ...]]`](#input)
   - [`bt output [-v] [testcases [testcases ...]]`](#output)
-  - [`bt validate [-v] [--input | --answer | --invalid] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+  - [`bt validate [-v] [--input | --answer | --invalid | --valid] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
   - [`bt constraints [-v]`](#constraints)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
@@ -279,7 +279,9 @@ See `run <testcases>` for a description of how to pass testcases.
 
 `bt validate --invalid <invalid_testcases>` checks invalid test cases in `data/invalid_*`.
 
-`bt validate --generic-invalid` automatically generates generic invalid test cases (like those in `data/invalid_*`) in checks them.
+`bt validate --valid <valid_testcases>` checks valid test cases in `data/valid_outputs`.
+
+`bt validate --generic <type>` automatically generates generic (in)valid test cases (like those in `data/valid_outputs` or `data/invalid_*`) and checks them. `dir` must be one of `valid_inputs`, `valid_answers`, `valid_outputs`, or `valid_outputs`
 
 `bt validate` runs all of the above.
 

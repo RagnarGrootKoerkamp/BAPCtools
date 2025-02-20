@@ -80,9 +80,16 @@ data:
 
   invalid_outputs:
     # Add valid test cases with answer and invalid team output to ensure that the output_validator correctly rejects them.
-    # (The output validator is also called with these)
     data: []
       #invalid_test_case_output:
       #    in: "<valid input>"
       #    ans: "<valid answer>"
       #    out: "<invalid output>"
+
+  valid_outputs:
+    # Add valid test cases with answer and team output to ensure that the output_validator correctly accepts them.
+    data: []
+      #invalid_test_case_output:
+      #    in: "<valid input>"
+      #    ans: "<valid answer>"
+      #    out: "<valid output>"

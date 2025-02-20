@@ -2,6 +2,12 @@ from collections.abc import Callable, Sequence
 from typing import Final, Optional, TypeVar
 from validate import AnswerValidator, AnyValidator, InputValidator, OutputValidator
 
+
+# helper function
+def end_newline(x: str) -> bool:
+    return len(x) > 0 and x[-1] == "\n"
+
+
 ALL_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [
     AnswerValidator,
     InputValidator,
@@ -10,7 +16,7 @@ ALL_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [
 IN_ANS_VALIDATORS: Final[Sequence[type[AnyValidator]]] = [InputValidator, AnswerValidator]
 
 
-def _list_generators() -> list[
+def _list_invalid_generators() -> list[
     tuple[str, str | Callable[[str], Optional[str]], Sequence[type[AnyValidator]]]
 ]:
     generator_names: set[str] = set()
@@ -59,10 +65,6 @@ def _list_generators() -> list[
     register("trailing_token_str")(lambda x: f"{x}hello\n")
     register("trailing_newline", IN_ANS_VALIDATORS)(lambda x: f"{x}\n")
 
-    # helper function
-    def end_newline(x: str) -> bool:
-        return len(x) > 0 and x[-1] == "\n"
-
     @register()
     def append_token_str(x: str) -> Optional[str]:
         if end_newline(x):
@@ -96,6 +98,62 @@ def _list_generators() -> list[
     return generators
 
 
-GENERATORS: Final[
+INVALID_GENERATORS: Final[
     Sequence[tuple[str, str | Callable[[str], Optional[str]], Sequence[type[AnyValidator]]]]
-] = _list_generators()
+] = _list_invalid_generators()
+
+
+def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[str]]]]:
+    generator_names: set[str] = set()
+    generators: list[tuple[str, str | Callable[[str], Optional[str]]]] = []
+
+    T = TypeVar("T", bound=str | Callable[[str], Optional[str]])
+
+    # returns a function that can be called to register a new generator for valid tests
+    # can be used on its own or as decorator for a function
+    def register(name: Optional[str] = None) -> Callable[[T], T]:
+        def decorator(func: T) -> T:
+            nonlocal name
+            if not isinstance(func, str) and not name:
+                assert hasattr(func, "__name__")
+                name = func.__name__
+            assert name
+            generator_names.add(name)
+            generators.append((name, func))
+            return func
+
+        return decorator
+
+    # simple generators
+    register("leading_space")(lambda x: f" {x}")
+    register("trailing_newline")(lambda x: f"{x}\n")
+
+    @register()
+    def all_newline(x: str) -> Optional[str]:
+        if " " not in x:
+            return None
+        return x.replace(" ", "\n")
+
+    @register()
+    def all_space(x: str) -> Optional[str]:
+        if "\n" not in x:
+            return None
+        return x.replace("\n", " ")
+
+    @register()
+    def windows_newline(x: str) -> Optional[str]:
+        if "\n" not in x or "\r" in x:
+            return None
+        return x.replace("\n", "\r\n")
+
+    @register()
+    def swap_case(x: str) -> Optional[str]:
+        y = x.swapcase()
+        return None if x == y else y
+
+    return generators
+
+
+VALID_GENERATORS: Final[Sequence[tuple[str, str | Callable[[str], Optional[str]]]]] = (
+    _list_valid_generators()
+)
