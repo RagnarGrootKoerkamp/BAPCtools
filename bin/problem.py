@@ -988,8 +988,6 @@ class Problem:
         return problem._validate_data(mode, constraints, action, testcases)
 
     def validate_invalid_extra_data(p) -> bool:
-        if all(x not in config.args.generic for x in config.INVALID_CASE_DIRECTORIES):
-            return True
         base_path = p.tmpdir / "invalid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
         # also add a dummy entry to always run generators that don't read or copy anything from a valid testcase
@@ -1061,11 +1059,11 @@ class Problem:
         )
 
     def validate_valid_extra_data(p) -> bool:
+        if "valid_outputs" not in config.args.generic:
+            return True
         if p.interactive or p.multi_pass:
             return True
         if not p.validators(validate.OutputValidator, strict=True, print_warn=False):
-            return True
-        if "valid_outputs" not in config.args.generic:
             return True
 
         base_path = p.tmpdir / "valid_data"
