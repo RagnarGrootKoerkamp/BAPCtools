@@ -289,6 +289,11 @@
           "title": "Invalid outputs",
           "description": "Valid test cases for which the `.out` string is rejected by output validation."
         },
+        "valid_outputs": {
+          "$ref": "#/$defs/testgroup",
+          "title": "Valid outputs",
+          "description": "Valid test cases for which the `.out` must pass output validation."
+        },
         "testdata.yaml": {
           "$ref": "#/$defs/testdata_settings"
         }
