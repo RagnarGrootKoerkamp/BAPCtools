@@ -156,7 +156,7 @@ Additionally, the input file must pass input validation, the answer file must pa
 
 Examples:
 ```yaml
-"wrong_answer":
+"extra_space":
     in: "0"
     ans: "0"
     out: " 0"
