@@ -246,6 +246,7 @@ class SolutionInvocation(Invocation):
             return True
 
         testcase = Testcase(self.problem, in_path, short_path=(t.path.parent / (t.name + ".in")))
+        assert isinstance(self.program, run.Submission)
         r = run.Run(self.problem, self.program, testcase)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
