@@ -341,7 +341,7 @@ KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = [
     "retries",
 ]
 RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ["command"]
-KNOWN_ROOT_KEYS: Final[Sequence[str]] = ["generators", "parallel"]
+KNOWN_ROOT_KEYS: Final[Sequence[str]] = ["generators", "parallel", "version"]
 DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated"]
 
 
@@ -1176,7 +1176,7 @@ class Directory(Rule):
                     )
                 if key in DEPRECATED_ROOT_KEYS:
                     message(
-                        f"Dreprecated root level key: {key}, ignored",
+                        f"Deprecated root level key: {key}, ignored",
                         "generators.yaml",
                         self.path,
                         color_type=MessageType.WARN,
