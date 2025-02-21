@@ -93,3 +93,9 @@ data:
         in: 10.0 3.0 ab cd
         ans: 3.333333333 abcd
         out: 3.33 abcd
+  valid_outputs:
+    data:
+      valid:
+        in: 10.0 3.0 ab cd
+        ans: 3.333333333 abcd
+        out: "  +3.3333333333333   aBCd    "
