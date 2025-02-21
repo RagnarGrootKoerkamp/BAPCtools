@@ -617,6 +617,7 @@ class Problem:
                 validate.Mode.INPUT: ["secret", "sample"],
                 validate.Mode.ANSWER: ["secret", "sample"],
                 validate.Mode.INVALID: config.INVALID_CASE_DIRECTORIES,
+                validate.Mode.VALID_OUTPUTS: ["valid_outputs"],
             }[mode]:
                 in_paths += glob(p.path, f"data/{prefix}/**/*.in")
         else:
@@ -629,8 +630,8 @@ class Problem:
             t = testcase.Testcase(p, f, print_warn=True)
             if (
                 (p.interactive or p.multi_pass)
-                and mode == validate.Mode.INVALID
-                and t.root in ["invalid_answers", "invalid_outputs"]
+                and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS]
+                and t.root in ["invalid_answers", "invalid_outputs", "valid_outputs"]
             ):
                 msg = ""
                 if p.interactive:
@@ -643,14 +644,21 @@ class Problem:
                 if t.root != "invalid_inputs":
                     warn(f"Found input file {f} without a .ans file. Skipping.")
                     continue
+            if t.out_path is not None and not t.out_path.is_file():
+                warn(f"Found input file {f} without a .out file. Skipping.")
+                continue
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
         if len(testcases) == 0:
-            ans = " with answer" if needans and mode != validate.Mode.INVALID else ""
+            ans = (
+                " with answer"
+                if needans and mode not in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS]
+                else ""
+            )
             val = f" for {mode} validation" if mode is not None else ""
             # TODO perhaps move this log to the use site?
-            (log if mode == validate.Mode.INVALID else warn)(
+            (log if mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS] else warn)(
                 f"Didn't find any testcases{ans}{val} in problem {p.name}. Skipping."
             )
 
@@ -924,7 +932,7 @@ class Problem:
         if not testcases:
             return False
 
-        if problem.interactive:
+        if problem.interactive or problem.multi_pass:
             validators = problem.validators(validate.OutputValidator)
             if not validators:
                 return False
@@ -1089,7 +1097,7 @@ class Problem:
         """Validate aspects of the test data files.
 
         Arguments:
-            mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID
+            mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID | validate.Mode.VALID_OUTPUTS
             constraints: True | dict | None. True means "do check constraints but discard the result."
                 False: TODO is this ever used?
         Return:
@@ -1106,15 +1114,15 @@ class Problem:
                 log(f"Not running answer_validators for{msg} problems.")
             return True
 
-        action = (
-            "Invalidation"
-            if mode == validate.Mode.INVALID
-            else (
-                f"Collecting {mode} constraints"
-                if constraints
-                else f"{str(mode).capitalize()} validation"
-            )
-        )
+        action: str = ""
+        if mode == validate.Mode.INVALID:
+            action = "Invalidation"
+        elif mode == validate.Mode.VALID_OUTPUTS:
+            action = "Output validation"
+        elif constraints:
+            action = f"Collecting {str(mode).capitalize()} constraints"
+        else:
+            action = f"{str(mode).capitalize()} validation"
 
         testcases = problem.testcases(mode=mode)
         return problem._validate_data(mode, constraints, action, testcases)
@@ -1136,6 +1144,8 @@ class Problem:
         for i, sample in enumerate(samples):
             used_sample = False
             for cls, directory, read, write, copy in validators:
+                if directory not in config.args.generic:
+                    continue
                 if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
                     continue
                 if not p.validators(cls, strict=True, print_warn=False):
@@ -1143,7 +1153,7 @@ class Problem:
                 if any(sample is None or not sample.with_suffix(ext).exists() for ext in copy):
                     continue
 
-                for name, data, supported_cls in validator_tests.GENERATORS:
+                for name, data, supported_cls in validator_tests.INVALID_GENERATORS:
                     if cls not in supported_cls:
                         continue
 
@@ -1181,10 +1191,75 @@ class Problem:
                 assert sample is not None
                 sample_name = sample.relative_to(p.path / "data").with_suffix("")
                 log(f"Generated invalid testcases based on: {sample_name}")
-        verbose(f"writing generated invalid testcases to: {base_path}")
+        if testcases:
+            verbose(f"writing generated invalid testcases to: {base_path}")
 
         return p._validate_data(
             validate.Mode.INVALID, None, "Generic Invalidation", testcases, True
+        )
+
+    def validate_valid_extra_data(p) -> bool:
+        if "valid_outputs" not in config.args.generic:
+            return True
+        if p.interactive or p.multi_pass:
+            return True
+        if not p.validators(validate.OutputValidator, strict=True, print_warn=False):
+            return True
+
+        args = (
+            p.get_testdata_yaml(
+                p.path / "data" / "valid_outputs",
+                "output_validator_flags",
+                PrintBar("Generic Output Validation"),
+            )
+            or ""
+        ).split()
+        is_space_sensitive = "space_change_sensitive" in args
+        is_case_sensitive = "case_sensitive" in args
+
+        base_path = p.tmpdir / "valid_data"
+        # pick at most first 3 samples (assuming they are valid and have .ans)
+        samples = sorted(glob(p.path, "data/sample/**/*.in"))[:3]
+        samples = [p for p in samples if p.with_suffix(".ans").exists()]
+
+        testcases: list[testcase.Testcase] = []
+        for i, sample in enumerate(samples):
+            used_sample = False
+            for name, data, space_change, case_change in validator_tests.VALID_GENERATORS:
+                if space_change and is_space_sensitive:
+                    continue
+                elif case_change and is_case_sensitive:
+                    continue
+
+                if isinstance(data, str):
+                    content = data
+                else:
+                    valid = sample.with_suffix(".ans").read_text()
+                    generated = data(valid)
+                    if generated is None:
+                        continue
+                    content = generated
+
+                used_sample = True
+                short_path = Path("valid_outputs") / str(i) / name
+                full_path = base_path / short_path / "testcase.in"
+                full_path.parent.mkdir(parents=True, exist_ok=True)
+
+                for ext in [".in", ".ans"]:
+                    shutil.copy(sample.with_suffix(ext), full_path.with_suffix(ext))
+                full_path.with_suffix(".out").write_text(content)
+
+                verbose(f"Generating {short_path}")
+                testcases.append(testcase.Testcase(p, full_path, short_path=short_path))
+            if used_sample:
+                assert sample is not None
+                sample_name = sample.relative_to(p.path / "data").with_suffix("")
+                log(f"Generated valid testcases based on: {sample_name}")
+        if testcases:
+            verbose(f"writing generated valid testcases to: {base_path}")
+
+        return p._validate_data(
+            validate.Mode.VALID_OUTPUTS, None, "Generic Output Validation", testcases, True
         )
 
     def _validate_data(
@@ -1217,6 +1292,13 @@ class Problem:
                 problem.validators(validate.InputValidator)
                 if not problem.interactive and not problem.multi_pass:
                     problem.validators(validate.AnswerValidator)
+                problem.validators(validate.OutputValidator)
+            case validate.Mode.VALID_OUTPUTS:
+                assert not problem.interactive
+                assert not problem.multi_pass
+                problem.validators(validate.InputValidator)
+                problem.validators(validate.AnswerValidator)
+                problem.validators(validate.OutputValidator)
             case _:
                 raise ValueError(mode)
 
@@ -1237,6 +1319,7 @@ class Problem:
                 and not testcase.in_path.is_symlink()
                 and not testcase.root == "invalid_answers"
                 and not testcase.root == "invalid_outputs"
+                and not testcase.root == "valid_outputs"
                 and not extra
             ):
                 t2 = problem.matches_existing_testcase(testcase)

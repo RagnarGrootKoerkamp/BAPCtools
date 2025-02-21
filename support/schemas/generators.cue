@@ -67,6 +67,7 @@ import "strings"
 		invalid_inputs?:  #testgroup
 		invalid_answers?: #testgroup
 		invalid_outputs?: #testgroup
+		valid_outputs?: #testgroup
 	})
 	#testgroup_config
 	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2024-12"

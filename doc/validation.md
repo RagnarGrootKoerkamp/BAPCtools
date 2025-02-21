@@ -127,7 +127,7 @@ Examples:
 
 Invalid outputs are valid test cases in `data/invalid_output` with an additional `.out`-file that must fail output validation.
 In particular, the input file must pass input validation, the answer file must pass answer validation.
-However,  the `.out`-file must fail output validation for the test case.
+However, the `.out`-file must fail output validation for the test case.
 
 Examples:
 ```yaml
@@ -137,14 +137,32 @@ Examples:
     out: "1"
 ```
 
-## Genereic invalid test cases
+## Generic (in)valid test cases
 
-`bt validate --generic-invalid`
+`bt validate --generic`
 
 BAPCtools tries to create deliberately invalid test cases (like those in `data/invalid_{inputs,answers,outputs}`) based on the first three samples.
 These ensure that the validators reject test cases that are typically considered invalid, like whitespace errors or obscure characters.
 Note that some types of invalid _answers_ are considered valid _outputs_: these types of generic invalid cases are not tested against the output validator.
 One example is that superfluous leading zeroes are accepted for floating-point _outputs_, but considered invalid as _answer_.
+
+Additionally, it tries to create valid test cases with outputs (like those in `data/valid_outputs`) based on the first three samples.
+These ensure that the output validators accept test cases that are typically considered valid, like whitespace or case changes.
+
+## Valid outputs
+
+`bt validate --valid-outputs`
+
+Valid outputs are valid test cases in `data/valid_output` with an additional `.out`-file that must pass output validation.
+Additionally, the input file must pass input validation, the answer file must pass answer validation.
+
+Examples:
+```yaml
+"extra_space":
+    in: "0"
+    ans: "0"
+    out: " 0"
+```
 
 ## Output validation
 

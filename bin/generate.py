@@ -1637,6 +1637,7 @@ class GeneratorConfig:
                         "invalid_outputs",
                         "invalid_answers",
                         "invalid_inputs",
+                        "valid_outputs",
                     ]
                     keys = dictionary.keys()
                     if isinstance(parent, RootDirectory):
@@ -2038,6 +2039,8 @@ data/*
                 warn("Cannot reorder Root directory. Skipping.")
             elif parts[0] in config.INVALID_CASE_DIRECTORIES:
                 warn(f"{d} is used for invalid test data. Skipping.")
+            elif parts[0] == "valid_outputs":
+                warn(f"{d} is used for valid test data. Skipping.")
             elif path not in self.known_directories:
                 warn(f"{d} is not a generated directory. Skipping.")
             elif not self.known_directories[path].numbered:

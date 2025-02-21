@@ -43,6 +43,12 @@ data:
         in: "0"
         ans: "0"
         out: "1"
+  valid_outputs:
+    data:
+      "extra_space":
+        in: "0"
+        ans: "0"
+        out: " 0"
   sample:
     #solution:
     data:
