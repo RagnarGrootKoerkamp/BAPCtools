@@ -18,6 +18,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import (
     Any,
+    cast,
     Iterable,
     Literal,
     NoReturn,
@@ -757,24 +758,39 @@ def write_yaml(
 T = TypeVar("T")
 
 
-def parse_optional_setting(yamldata: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
-    if key in yamldata:
-        value = yamldata.pop(key)
+def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
+    if key in yaml_data:
+        value = yaml_data.pop(key)
         if isinstance(value, int) and t is float:
             value = float(value)
         if isinstance(value, t):
-            return value
-        if value == "" and t is list or t is dict:
+            return cast(T, value)
+        if value == "" and (t is list or t is dict):
             # handle empty yaml keys
             return t()
-        else:
-            warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
     return None
 
 
-def parse_setting(yamldata: dict[str, Any], key: str, default: T) -> T:
-    value = parse_optional_setting(yamldata, key, type(default))
+def parse_setting(yaml_data: dict[str, Any], key: str, default: T) -> T:
+    value = parse_optional_setting(yaml_data, key, type(default))
     return default if value is None else value
+
+
+def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> list[T]:
+    if key in yaml_data:
+        value = yaml_data.pop(key)
+        if isinstance(value, t):
+            return [value]
+        if isinstance(value, list):
+            if not all(isinstance(v, t) for v in value):
+                warn(
+                    f"some values for key '{key}' in problem.yaml do not have type {t.__name__}. SKIPPED."
+                )
+                return []
+            return value
+        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+    return []
 
 
 # glob, but without hidden files

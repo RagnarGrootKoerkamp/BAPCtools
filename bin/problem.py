@@ -36,26 +36,147 @@ def parse_legacy_validation(mode: str) -> set[str]:
             else:
                 ok = False
         if "custom" not in parsed or not ok:
-            fatal(f"Unrecognised validation mode {mode}.")
+            fatal(f"problem.yaml: unrecognized validation mode {mode}.")
         return parsed
+
+
+# The parse_* functions will remove (.pop()) keys from the yaml data during parsing.
+# We will warn for any unknown keys that remain after this process.
+def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None):
+    for key in yaml_data:
+        assert isinstance(key, str)
+        warn(f"found unknown problem.yaml key: {key} in {f'`{sub_key}`' if sub_key else 'root'}")
+
+
+class Person:
+    def __init__(self, name: str):
+        match = re.match("(.*)<(.*)>", name)
+        self.name: str = (match[1] if match else name).strip()
+        self.email: Optional[str] = match[2].strip() if match else None
+
+
+class ProblemCredits:
+    def __init__(
+        self,
+        yaml_data: dict[str, Any],
+        problem_settings: "ProblemSettings",
+    ):
+        self.authors: list[Person] = []
+        self.contributors: list[Person] = []
+        self.testers: list[Person] = []
+        self.translators: dict[str, list[Person]] = {}
+        self.packagers: list[Person] = []
+        self.acknowledgements: list[Person] = []
+
+        # If problem.yaml uses the legacy version, do not support the new `credits` key.
+        # If problem.yaml uses 2023-07-draft, prefer `credit`, but also support `author` and warn for it.
+        legacy_author = parse_optional_setting(yaml_data, "author", str)
+        if problem_settings.is_legacy():
+            if legacy_author:
+                self.authors = [Person(a) for a in legacy_author.replace("and", ",").split(",")]
+        else:
+            if legacy_author is not None:
+                warn(
+                    "problem.yaml: author is removed in 2023-07-draft, please use credits.authors. SKIPPED."
+                )
+            if "credits" not in yaml_data:
+                return
+            if isinstance(yaml_data["credits"], str):
+                self.authors = [Person(parse_setting(yaml_data, "credits", ""))]
+                return
+
+            credits = parse_setting(yaml_data, "credits", dict[str, Any]())
+            self.authors = [Person(s) for s in parse_optional_list_setting(credits, "authors", str)]
+            self.contributors = [
+                Person(s) for s in parse_optional_list_setting(credits, "contributors", str)
+            ]
+            self.translators = parse_setting(credits, "translators", {})
+            for lang in list(self.translators.keys()):
+                self.translators[lang] = [
+                    Person(s) for s in parse_optional_list_setting(self.translators, lang, str)
+                ]
+            self.testers = [Person(s) for s in parse_optional_list_setting(credits, "testers", str)]
+            self.packagers = [
+                Person(s) for s in parse_optional_list_setting(credits, "packagers", str)
+            ]
+            self.acknowledgements = [
+                Person(s) for s in parse_optional_list_setting(credits, "acknowledgements", str)
+            ]
+
+            check_unknown_keys(credits, "credits")
+
+
+class ProblemSource:
+    def __init__(self, name: str, url: Optional[str] = None):
+        self.name = name
+        self.url = url
+
+    def __repr__(self) -> str:
+        return self.name + (f" ({self.url})" if self.url else "")
+
+
+class ProblemSources(list[ProblemSource]):
+    def __init__(
+        self,
+        yaml_data: dict[str, Any],
+        problem_settings: "ProblemSettings",
+    ):
+        # If problem.yaml uses the legacy version, do not support the new type of the `source` key.
+        # If problem.yaml uses 2023-07-draft, prefer `source`, but also support `source_url` and warn for it.
+        legacy_source_url = parse_optional_setting(yaml_data, "source_url", str)
+        if problem_settings.is_legacy():
+            source_name = parse_setting(yaml_data, "source", "")
+            if legacy_source_url:
+                self.append(ProblemSource(source_name, legacy_source_url))
+        else:
+            if legacy_source_url is not None:
+                warn(
+                    "problem.yaml: source_url is removed in 2023-07-draft, please use source.url. SKIPPED."
+                )
+            if "source" not in yaml_data:
+                return
+            if isinstance(yaml_data["source"], str):
+                self.append(ProblemSource(parse_setting(yaml_data, "source", "")))
+                return
+            if isinstance(yaml_data["source"], dict):
+                source = parse_setting(yaml_data, "source", dict[str, str]())
+                self.append(
+                    ProblemSource(
+                        parse_setting(source, "name", ""),
+                        parse_optional_setting(source, "url", str),
+                    )
+                )
+                return
+            if isinstance(yaml_data["source"], list):
+                sources = parse_setting(yaml_data, "source", list[dict[str, str]]())
+                for raw_source in sources:
+                    source = parse_setting(raw_source, "source", dict[str, str]())
+                    self.append(
+                        ProblemSource(
+                            parse_setting(source, "name", ""),
+                            parse_optional_setting(source, "url", str),
+                        )
+                    )
+                return
+            warn("problem.yaml key 'source' does not have the correct type")
 
 
 class ProblemLimits:
     def __init__(
         self,
-        yamldata: dict[str, Any],
+        yaml_data: dict[str, Any],
+        problem: "Problem",
         problem_settings: "ProblemSettings",
-        legacy_time_limit: Optional[float] = None,
     ):
-        assert isinstance(yamldata, dict)
+        assert isinstance(yaml_data, dict)
 
         # Known keys:
         # (defaults from https://icpc.io/problem-package-format/spec/2023-07-draft.html#limits)
-        time_multipliers = parse_setting(yamldata, "time_multipliers", dict[str, Any]())
+        time_multipliers = parse_setting(yaml_data, "time_multipliers", dict[str, Any]())
 
         # If problem.yaml uses the legacy version, do not support the new keys.
         # If problem.yaml uses 2023-07-draft, prefer the new keys, but also support and warn for the old keys.
-        legacy_ac_to_time_limit = parse_optional_setting(yamldata, "time_multiplier", float)
+        legacy_ac_to_time_limit = parse_optional_setting(yaml_data, "time_multiplier", float)
         if problem_settings.is_legacy():
             self.ac_to_time_limit = legacy_ac_to_time_limit or 5.0
         else:
@@ -67,7 +188,7 @@ class ProblemLimits:
                 time_multipliers, "ac_to_time_limit", legacy_ac_to_time_limit or 2.0
             )
 
-        legacy_time_limit_to_tle = parse_optional_setting(yamldata, "time_safety_margin", float)
+        legacy_time_limit_to_tle = parse_optional_setting(yaml_data, "time_safety_margin", float)
         if problem_settings.is_legacy():
             self.time_limit_to_tle = legacy_time_limit_to_tle or 2.0
         else:
@@ -79,38 +200,53 @@ class ProblemLimits:
                 time_multipliers, "time_limit_to_tle", legacy_time_limit_to_tle or 1.5
             )
 
-        # Check for unknown keys in time_multipliers
-        for key in time_multipliers:
-            assert isinstance(key, str)
-            warn(f"found unknown problem.yaml key: {key} in limits.time_multipliers")
+        check_unknown_keys(time_multipliers, "limits.time_multipliers")
 
         # time_limit is required, but parse as optional to more easily handle the legacy_time_limit.
-        time_limit = parse_optional_setting(yamldata, "time_limit", float)  # in seconds
-        self.time_resolution: float = parse_setting(yamldata, "time_resolution", 1.0)
-        self.memory: int = parse_setting(yamldata, "memory", 2048)  # in MiB
-        self.output: int = parse_setting(yamldata, "output", 8)  # in MiB
-        self.code: int = parse_setting(yamldata, "code", 128)  # in KiB
-        self.compilation_time: int = parse_setting(yamldata, "compilation_time", 60)  # in seconds
-        self.compilation_memory: int = parse_setting(yamldata, "compilation_memory", 2048)  # in MiB
-        self.validation_time: int = parse_setting(yamldata, "validation_time", 60)  # in seconds
-        self.validation_memory: int = parse_setting(yamldata, "validation_memory", 2048)  # in MiB
-        self.validation_output: int = parse_setting(yamldata, "validation_output", 8)  # in MiB
+        time_limit = parse_optional_setting(yaml_data, "time_limit", float)  # in seconds
+        self.time_resolution: float = parse_setting(yaml_data, "time_resolution", 1.0)
+        self.memory: int = parse_setting(yaml_data, "memory", 2048)  # in MiB
+        self.output: int = parse_setting(yaml_data, "output", 8)  # in MiB
+        self.code: int = parse_setting(yaml_data, "code", 128)  # in KiB
+        self.compilation_time: int = parse_setting(yaml_data, "compilation_time", 60)  # in seconds
+        self.compilation_memory: int = parse_setting(
+            yaml_data, "compilation_memory", 2048
+        )  # in MiB
+        self.validation_time: int = parse_setting(yaml_data, "validation_time", 60)  # in seconds
+        self.validation_memory: int = parse_setting(yaml_data, "validation_memory", 2048)  # in MiB
+        self.validation_output: int = parse_setting(yaml_data, "validation_output", 8)  # in MiB
         self.validation_passes: Optional[int] = parse_optional_setting(
-            yamldata, "validation_passes", int
+            yaml_data, "validation_passes", int
         )
 
         # BAPCtools extensions:
-        self.generator_time: int = parse_setting(yamldata, "generator_time", 60)  # in seconds
-        self.visualizer_time: int = parse_setting(yamldata, "visualizer_time", 60)  # in seconds
+        self.generator_time: int = parse_setting(yaml_data, "generator_time", 60)  # in seconds
+        self.visualizer_time: int = parse_setting(yaml_data, "visualizer_time", 60)  # in seconds
+
+        # Try to read deprecated ways of setting the time limit.
+        def _get_legacy_time_limit():
+            timelimit_path = problem.path / ".timelimit"
+            if timelimit_path.is_file():
+                if not problem_settings.is_legacy():
+                    log("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
+                return float(timelimit_path.read_text())
+
+            domjudge_path = problem.path / "domjudge-problem.ini"
+            if domjudge_path.is_file():
+                log("domjudge-problem.ini is DEPRECATED. Use limits.time_limit instead.")
+                for line in domjudge_path.read_text().splitlines():
+                    key, var = map(str.strip, line.strip().split("="))
+                    if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
+                        var = var[1:-1]
+                    if key == "timelimit":
+                        return float(var)
 
         # If limits.time_limit does not exist, attempt to use legacy_time_limit instead.
+        legacy_time_limit = _get_legacy_time_limit()
         self.time_limit: float = time_limit or legacy_time_limit or 1.0
         self.time_limit_is_default: bool = time_limit is None and legacy_time_limit is None
 
-        # Check for unknown keys
-        for key in yamldata:
-            assert isinstance(key, str)
-            warn(f"found unknown problem.yaml key: {key} in limits")
+        check_unknown_keys(yaml_data, "limits")
 
         # Override limmits by command line arguments.
         self.time_limit = config.args.time_limit or self.time_limit
@@ -124,34 +260,49 @@ class ProblemLimits:
 class ProblemSettings:
     def __init__(
         self,
-        yamldata: dict[str, Any],
+        yaml_data: dict[str, Any],
         problem: "Problem",
-        legacy_time_limit: Optional[float] = None,
     ):
-        assert isinstance(yamldata, dict)
+        assert isinstance(yaml_data, dict)
 
-        if "name" in yamldata and isinstance(yamldata["name"], str):
-            yamldata["name"] = {"en": yamldata["name"]}
+        if "name" in yaml_data and isinstance(yaml_data["name"], str):
+            yaml_data["name"] = {"en": yaml_data["name"]}
 
-        if "validator_flags" in yamldata and isinstance(yamldata["validator_flags"], str):
-            yamldata["validator_flags"] = shlex.split(yamldata["validator_flags"])
+        if "validator_flags" in yaml_data and isinstance(yaml_data["validator_flags"], str):
+            yaml_data["validator_flags"] = shlex.split(yaml_data["validator_flags"])
 
         # Known keys:
         # (defaults from https://icpc.io/problem-package-format/spec/2023-07-draft.html#problem-metadata)
         self.problem_format_version: str = parse_setting(
-            yamldata, "problem_format_version", "legacy-icpc"
+            yaml_data, "problem_format_version", "legacy-icpc"
         )
         if not self.is_legacy() and self.problem_format_version != "2023-07-draft":
             fatal(f"problem_format_version {self.problem_format_version} not supported")
 
         if self.is_legacy():
-            mode = parse_legacy_validation(parse_setting(yamldata, "validation", "default"))
+            mode = parse_legacy_validation(parse_setting(yaml_data, "validation", "default"))
         else:
-            if "validation" in yamldata:
+            if "validation" in yaml_data:
                 warn(
-                    "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead"
+                    "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead. SKIPPED."
                 )
-            mode = set(parse_setting(yamldata, "type", "pass-fail").split(" "))
+                yaml_data.pop("validation")
+            mode = set(
+                ["pass-fail"]
+                if "type" not in yaml_data
+                else parse_setting(yaml_data, "type", "pass-fail").split()
+                if isinstance(yaml_data["type"], str)
+                else parse_optional_list_setting(yaml_data, "type", str)
+                if isinstance(yaml_data["type"], list)
+                else [fatal("problem.yaml: 'type' must be a string or a sequence")]
+            )
+            unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
+            if unrecognized_type:
+                fatal(
+                    f"""problem.yaml: unrecognized value{
+                        "" if len(unrecognized_type) == 1 else "s"
+                    } for 'type': {" ".join(sorted(unrecognized_type))}"""
+                )
         self.interactive: bool = "interactive" in mode
         self.multi_pass: bool = "multi-pass" in mode
         self.custom_output: bool = (
@@ -165,25 +316,31 @@ class ProblemSettings:
             )
         )
 
-        self.name: dict[str, str] = parse_setting(yamldata, "name", {"en": ""})
-        self.uuid: str = parse_setting(yamldata, "uuid", "")
-        self.author: str = parse_setting(yamldata, "author", "")
-        self.source: str = parse_setting(yamldata, "source", "")
-        self.source_url: str = parse_setting(yamldata, "source_url", "")
-        self.license: str = parse_setting(yamldata, "license", "unknown")
-        self.rights_owner: str = parse_setting(yamldata, "rights_owner", "")
-        self.limits = ProblemLimits(parse_setting(yamldata, "limits", {}), self, legacy_time_limit)
-        self.validator_flags: list[str] = parse_setting(yamldata, "validator_flags", [])
-        self.keywords: str = parse_setting(yamldata, "keywords", "")
+        self.name: dict[str, str] = parse_setting(yaml_data, "name", {"en": ""})
+        for lang in list(self.name.keys()):
+            self.name[lang] = parse_setting(self.name, lang, "")
+        self.uuid: str = parse_setting(yaml_data, "uuid", "")
+        self.version: str = parse_setting(yaml_data, "version", "")
+        self.credits = ProblemCredits(yaml_data, self)
+        self.source = ProblemSources(yaml_data, self)
+        self.license: str = parse_setting(yaml_data, "license", "unknown")
+        self.rights_owner: str = parse_setting(yaml_data, "rights_owner", "")
+        # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
+        self.embargo_until: str = parse_setting(yaml_data, "embargo-until", "")
+        self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
+        # TODO: move to testdata.yaml
+        self.validator_flags: list[str] = parse_setting(yaml_data, "validator_flags", [])
+        self.keywords: str = parse_setting(yaml_data, "keywords", "")
+        # Not implemented in BAPCtools. We always test all languges in langauges.yaml.
+        self.languages: list[str] = parse_optional_list_setting(yaml_data, "languages", str)
+        # Not yet implemented, pending https://github.com/Kattis/problem-package-format/issues/344
+        self.constants: dict[str, Any] = parse_setting(yaml_data, "constants", {})
 
         # BAPCtools extensions:
-        self.verified: Optional[str] = parse_optional_setting(yamldata, "verified", str)
-        self.comment: Optional[str] = parse_optional_setting(yamldata, "comment", str)
+        self.verified: Optional[str] = parse_optional_setting(yaml_data, "verified", str)
+        self.comment: Optional[str] = parse_optional_setting(yaml_data, "comment", str)
 
-        # check for unknown keys
-        for key in yamldata:
-            assert isinstance(key, str)
-            warn(f"found unknown problem.yaml key: {key}")
+        check_unknown_keys(yaml_data)
 
         # checks
         if not is_uuid(self.uuid):
@@ -191,6 +348,13 @@ class ProblemSettings:
         if self.license not in config.KNOWN_LICENSES:
             warn(f"invalid license: {self.license}")
             self.license = "unknown"
+
+        # Check that limits.validation_passes exists if and only if the problem is multi-pass
+        has_validation_passes = self.limits.validation_passes is not None
+        if self.multi_pass and not has_validation_passes:
+            self.limits.validation_passes = 2
+        if not self.multi_pass and has_validation_passes:
+            warn("limit: validation_passes is only used for multi_pass problems. SKIPPED.")
 
     def is_legacy(self):
         return self.problem_format_version.startswith("legacy")
@@ -285,23 +449,6 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
-    # Try to read deprecated ways of setting the time limit.
-    def _get_legacy_time_limit(self, yaml_data):
-        timelimit_path = self.path / ".timelimit"
-        if timelimit_path.is_file():
-            log("A .timelimit file is DEPRECATED. Use limits.time_limit instead.")
-            return float(timelimit_path.read_text())
-
-        domjudge_path = self.path / "domjudge-problem.ini"
-        if domjudge_path.is_file():
-            log("domjudge-problem.ini is DEPRECATED. Use limits.time_limit instead.")
-            for line in domjudge_path.read_text().splitlines():
-                key, var = map(str.strip, line.strip().split("="))
-                if (var[0] == '"' or var[0] == "'") and (var[-1] == '"' or var[-1] == "'"):
-                    var = var[1:-1]
-                if key == "timelimit":
-                    return float(var)
-
     def _read_settings(self):
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
@@ -322,20 +469,13 @@ class Problem:
             yaml_path.write_text(raw)
             log("Added new UUID to problem.yaml")
 
-        self.settings = ProblemSettings(yaml_data, self, self._get_legacy_time_limit(yaml_data))
+        self.settings = ProblemSettings(yaml_data, self)
 
         # Aliasing fields makes life easier for us 😛
         self.limits: ProblemLimits = self.settings.limits
         self.interactive: bool = self.settings.interactive
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
-
-        # Handle dependencies...
-        has_validation_passes = self.limits.validation_passes is not None
-        if self.multi_pass and not has_validation_passes:
-            self.limits.validation_passes = 2
-        if not self.multi_pass and has_validation_passes:
-            warn("limit: validation_passes is only used for multi_pass problems. SKIPPED.")
 
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / "data")

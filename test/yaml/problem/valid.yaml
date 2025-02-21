@@ -1,0 +1,153 @@
+---
+# Problem name tests
+yaml:
+  name: Minimal
+eq:
+  name:
+    en: Minimal
+---
+yaml:
+  name:
+    en: Minimal
+---
+yaml:
+  name:
+    en: Minimal
+    nl: Minimaal
+
+---
+# Problem validation/type tests
+yaml:
+  name: custom validation
+  validation: custom
+eq:
+  custom_output: True
+  interactive: False
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: pass-fail type
+  type: pass-fail
+eq:
+  custom_output: False
+  interactive: False
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: pass-fail type by default
+eq:
+  custom_output: False
+  interactive: False
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: pass-fail type from empty type
+  type: []
+eq:
+  custom_output: False
+  interactive: False
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: interactive type
+  type: interactive
+eq:
+  custom_output: True
+  interactive: True
+  multi_pass: False
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: multi-pass type
+  type: multi-pass
+eq:
+  custom_output: True
+  interactive: False
+  multi_pass: True
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: interactive multi-pass type
+  type: interactive multi-pass
+eq:
+  custom_output: True
+  interactive: True
+  multi_pass: True
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: multi-pass interactive type
+  type: multi-pass interactive
+eq:
+  custom_output: True
+  interactive: True
+  multi_pass: True
+
+---
+# Credits tests
+yaml:
+  author: A. U. Thor
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: ~
+---
+yaml:
+  author: A. U. Thor <author@example.com>
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: author@example.com
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  credits: A. U. Thor
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: ~
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  credits: A. U. Thor <author@example.com>
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: author@example.com
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  credits: A. U. Thor <author@example.com>
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: author@example.com
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  credits:
+    authors: A. U. Thor <author@example.com>
+    translators:
+      nl: V. E. R. Taler
+      en: T. R. Anslator <translator@example.com>
+eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: author@example.com
+    translators:
+      nl:
+        - name: V. E. R. Taler
+          email: ~
+      en:
+        - name: T. R. Anslator
+          email: translator@example.com
