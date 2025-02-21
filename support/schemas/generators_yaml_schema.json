@@ -8,7 +8,7 @@
       "description": "A test group",
       "properties": {
         "data": {
-          "description": "Commands or dictionaries defining the testdata in this testgroup",
+          "description": "Commands or dictionaries defining the test data in this test group",
           "oneOf": [
             {
               "type": "array",
@@ -32,7 +32,7 @@
         "include": {
           "title": "Inclusion",
           "type": "array",
-          "description": "Test cases and test groups to be included in this testgroup from elsewhere.",
+          "description": "Test cases and test groups to be included in this test group from elsewhere.",
           "items": {
             "type": "string"
           }
@@ -51,8 +51,8 @@
     },
     "testdata_settings": {
       "type": "object",
-      "title": "Testdata settings",
-      "description": "The settings that apply to the testdata for this test group. Will be copied to this testgroup's `testdata.yaml`.",
+      "title": "Test data settings",
+      "description": "The settings that apply to the test data for this test group. Will be copied to this test group's `testdata.yaml`.",
       "properties": {
         "on_reject": {
           "enum": ["break", "continue"],
@@ -159,7 +159,7 @@
             "copy": {
               "type": "string",
               "title": "Copy",
-              "description": "Copy this testcase from the given path relative to `/generators/`.",
+              "description": "Copy this test case from the given path relative to `/generators/`.",
               "examples": ["manual_cases/sample/3"]
             },
             "count": {
@@ -242,12 +242,12 @@
     "solution": {
       "$ref": "#/$defs/slashedfilepath",
       "title": "Default Solution",
-      "description": "Absolute path to a solution for this problem or testcase.",
+      "description": "Absolute path to a solution for this problem or test case.",
       "examples": ["/submissions/accepted/sol.py"]
     },
     "command": {
       "title": "Generator Invocation",
-      "description": "Invocation of a generator to create this testcase",
+      "description": "Invocation of a generator to create this test case",
       "examples": ["forest --n 40 --connected", "path.cpp 20", "random {seed}"],
       "type": "string",
       "pattern": "^([^{}]|\\{name\\}|\\{count\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\}|\\{count\\})*$"
@@ -304,8 +304,8 @@
       "additionalProperties": false
     },
     "data": {
-      "title": "testdata root",
-      "description": "the root test group. must contain the testgroups 'sample' and 'secret'.",
+      "title": "Test data root",
+      "description": "The root test group. Must contain the test groups 'sample' and 'secret'.",
       "type": "object",
       "properties": {
         "sample": {
