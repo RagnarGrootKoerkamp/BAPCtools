@@ -358,7 +358,7 @@ class OutputValidator(Validator):
         assert self.run_command is not None, "Validator should be built before running it"
 
         if mode == Mode.INPUT:
-            raise ValueError("OutputValidator do no support Mode.INPUT")
+            raise ValueError("OutputValidator do not support Mode.INPUT")
 
         in_path = testcase.in_path.resolve()
         ans_path = testcase.ans_path.resolve()
