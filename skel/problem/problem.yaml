@@ -11,13 +11,5 @@ credits: {%author%}
 license: {%license%}
 rights_owner: {%rights_owner%}
 
-# One or more of:
-# case_sensitive
-# space_change_sensitive
-# float_absolute_tolerance eps
-# float_relative_tolerance eps
-# float_tolerance eps
-#validator_flags:
-{%validator_flags%}
 # limits:
 #   time_limit: 1.0

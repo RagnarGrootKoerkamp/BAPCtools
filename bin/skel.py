@@ -152,7 +152,7 @@ def new_problem():
     )
     author = config.args.author if config.args.author else _ask_variable_string("author")
 
-    validator_flags = ""
+    output_validator_args = "#output_validator_args:"
     custom_output = False
     if config.args.type:
         problem_type = config.args.type
@@ -161,11 +161,10 @@ def new_problem():
             "type",
             ["pass-fail", "float", "custom", "interactive", "multi-pass", "interactive multi-pass"],
         )
-    # The validation type `float` is not official, it only helps setting the `validator_flags`.
+    # The validation type `float` is not official, it only helps setting the `output_validator_args`.
     if problem_type == "float":
         problem_type = "pass-fail"
-        # TODO: Move this to testdata.yaml (maybe generators.yaml should set this?)
-        validator_flags = "validator_flags:\n  float_tolerance 1e-6\n"
+        output_validator_args = "output_validator_args: float_tolerance 1e-6"
         log("Using default float tolerance of 1e-6")
     # Since version 2023-07-draft of the spec, the `custom` validation type is no longer explicit.
     # The mere existence of the output_validator(s)/ folder signals non-default output validation.
@@ -176,16 +175,14 @@ def new_problem():
         custom_output = True
 
     # Read settings from the contest-level yaml file.
-    variables = contest.contest_yaml()
-
-    for k, v in {
+    variables = contest.contest_yaml() | {
         "problemname": "\n".join(f"  {lang}: {name}" for lang, name in problemname.items()),
         "dirname": dirname,
         "author": author,
         "type": problem_type,
-        "validator_flags": validator_flags,
-    }.items():
-        variables[k] = v
+        "output_validator_args": output_validator_args,
+        "testdata_yaml_comment": "#" if output_validator_args[0] == "#" else "",
+    }
 
     source_name = _ask_variable_string(
         "source", variables.get("source", variables.get("name", "")), True
@@ -206,6 +203,11 @@ def new_problem():
     # Copy tree from the skel directory, next to the contest, if it is found.
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
     log(f"Copying {skeldir} to {target_dir / dirname}.")
+
+    if "2023-07-draft" not in (skeldir / "problem.yaml").read_text():
+        fatal(
+            "new_problem only supports `skel` directories where `problem.yaml` has `version: 2023-07-draft."
+        )
 
     problems_yaml = target_dir / "problems.yaml"
 
