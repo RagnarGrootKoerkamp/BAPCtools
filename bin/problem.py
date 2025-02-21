@@ -477,7 +477,7 @@ class Problem:
                 validate.Mode.INPUT: ["secret", "sample"],
                 validate.Mode.ANSWER: ["secret", "sample"],
                 validate.Mode.INVALID: config.INVALID_CASE_DIRECTORIES,
-                validate.Mode.VALID: ["valid_outputs"],
+                validate.Mode.VALID_OUTPUTS: ["valid_outputs"],
             }[mode]:
                 in_paths += glob(p.path, f"data/{prefix}/**/*.in")
         else:
@@ -490,7 +490,7 @@ class Problem:
             t = testcase.Testcase(p, f, print_warn=True)
             if (
                 (p.interactive or p.multi_pass)
-                and mode in [validate.Mode.INVALID, validate.Mode.VALID]
+                and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS]
                 and t.root in ["invalid_answers", "invalid_outputs", "valid_outputs"]
             ):
                 msg = ""
@@ -513,12 +513,12 @@ class Problem:
         if len(testcases) == 0:
             ans = (
                 " with answer"
-                if needans and mode not in [validate.Mode.INVALID, validate.Mode.VALID]
+                if needans and mode not in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS]
                 else ""
             )
             val = f" for {mode} validation" if mode is not None else ""
             # TODO perhaps move this log to the use site?
-            (log if mode in [validate.Mode.INVALID, validate.Mode.VALID] else warn)(
+            (log if mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS] else warn)(
                 f"Didn't find any testcases{ans}{val} in problem {p.name}. Skipping."
             )
 
@@ -957,7 +957,7 @@ class Problem:
         """Validate aspects of the test data files.
 
         Arguments:
-            mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID | validate.Mode.VALID
+            mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID | validate.Mode.VALID_OUTPUTS
             constraints: True | dict | None. True means "do check constraints but discard the result."
                 False: TODO is this ever used?
         Return:
@@ -977,8 +977,8 @@ class Problem:
         action: str = ""
         if mode == validate.Mode.INVALID:
             action = "Invalidation"
-        elif mode == validate.Mode.VALID:
-            action = "Validation"
+        elif mode == validate.Mode.VALID_OUTPUTS:
+            action = "Output validation"
         elif constraints:
             action = f"Collecting {str(mode).capitalize()} constraints"
         else:
@@ -1102,7 +1102,9 @@ class Problem:
         if testcases:
             verbose(f"writing generated valid testcases to: {base_path}")
 
-        return p._validate_data(validate.Mode.VALID, None, "Generic Validation", testcases, True)
+        return p._validate_data(
+            validate.Mode.VALID_OUTPUTS, None, "Generic Validation", testcases, True
+        )
 
     def _validate_data(
         problem,
@@ -1135,7 +1137,7 @@ class Problem:
                 if not problem.interactive and not problem.multi_pass:
                     problem.validators(validate.AnswerValidator)
                 problem.validators(validate.OutputValidator)
-            case validate.Mode.VALID:
+            case validate.Mode.VALID_OUTPUTS:
                 assert not problem.interactive
                 assert not problem.multi_pass
                 problem.validators(validate.InputValidator)

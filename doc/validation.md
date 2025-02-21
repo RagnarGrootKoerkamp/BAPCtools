@@ -151,6 +151,8 @@ These ensure that the output validators accept test cases that are typically con
 
 ## Valid outputs
 
+`bt validate --valid-outputs`
+
 Valid outputs are valid test cases in `data/valid_output` with an additional `.out`-file that must pass output validation.
 Additionally, the input file must pass input validation, the answer file must pass answer validation.
 

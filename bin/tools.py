@@ -506,7 +506,9 @@ Run this from one of:
         help="Generate generic (in)valid files based on the first three samples and validate them.",
     )
     validation_group.add_argument(
-        "--valid", action="store_true", help="Only check files in data/valid_outputs for validity."
+        "--valid-outputs",
+        action="store_true",
+        help="Only check files in 'data/valid_outputs' for validity.",
     )
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
@@ -1090,7 +1092,7 @@ def run_parsed_arguments(args):
                     config.args.generic,
                     config.args.input,
                     config.args.answer,
-                    config.args.valid,
+                    config.args.valid_outputs,
                 ]
             )
             if action == "all" or not specified or config.args.invalid:
@@ -1102,8 +1104,8 @@ def run_parsed_arguments(args):
                 success &= problem.validate_data(validate.Mode.INPUT)
             if action == "all" or not specified or config.args.answer:
                 success &= problem.validate_data(validate.Mode.ANSWER)
-            if action == "all" or not specified or config.args.valid:
-                success &= problem.validate_data(validate.Mode.VALID)
+            if action == "all" or not specified or config.args.valid_outputs:
+                success &= problem.validate_data(validate.Mode.VALID_OUTPUTS)
         if action in ["run", "all"]:
             success &= problem.run_submissions()
         if action in ["test"]:

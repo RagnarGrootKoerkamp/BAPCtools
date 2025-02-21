@@ -13,14 +13,14 @@ class Mode(Enum):
     INPUT = 1
     ANSWER = 2
     INVALID = 3
-    VALID = 4
+    VALID_OUTPUTS = 4
 
     def __str__(self):
         return {
             Mode.INPUT: "input",
             Mode.ANSWER: "answer",
             Mode.INVALID: "invalid files",
-            Mode.VALID: "valid files",
+            Mode.VALID_OUTPUTS: "valid outputs",
         }[self]
 
 
@@ -246,8 +246,8 @@ class InputValidator(Validator):
             raise ValueError("InputValidators do not support Mode.ANSWER")
         if mode == Mode.INVALID:
             raise ValueError("InputValidators do no support Mode.INVALID")
-        if mode == Mode.VALID:
-            raise ValueError("InputValidators do no support Mode.VALID")
+        if mode == Mode.VALID_OUTPUTS:
+            raise ValueError("InputValidators do no support Mode.VALID_OUTPUTS")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -299,8 +299,8 @@ class AnswerValidator(Validator):
             raise ValueError("AnswerValidators do no support Mode.INPUT")
         if mode == Mode.INVALID:
             raise ValueError("AnswerValidators do no support Mode.INVALID")
-        if mode == Mode.VALID:
-            raise ValueError("AnswerValidators do no support Mode.VALID")
+        if mode == Mode.VALID_OUTPUTS:
+            raise ValueError("AnswerValidators do no support Mode.VALID_OUTPUTS")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -370,10 +370,10 @@ class OutputValidator(Validator):
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_outputs"
                 )
             path = testcase.out_path.resolve()
-        elif mode == Mode.VALID:
+        elif mode == Mode.VALID_OUTPUTS:
             if testcase.root != "valid_outputs":
                 raise ValueError(
-                    "OutputValidator in Mode.VALID should only be run for data/valid_outputs"
+                    "OutputValidator in Mode.VALID_OUTPUTS should only be run for data/valid_outputs"
                 )
             path = testcase.out_path.resolve()
         else:

@@ -243,7 +243,7 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                     args=args,
                 )
-            case validate.Mode.VALID:
+            case validate.Mode.VALID_OUTPUTS:
                 assert self.root == "valid_outputs"
                 assert not self.problem.interactive
                 assert not self.problem.multi_pass
@@ -269,7 +269,7 @@ class Testcase:
                     return ok
 
                 return self._run_validators(
-                    validate.Mode.VALID,
+                    validate.Mode.VALID_OUTPUTS,
                     self.problem.validators(validate.OutputValidator),
                     False,
                     bar=bar,
@@ -339,7 +339,7 @@ class Testcase:
                     file = self.in_path
                 elif mode == validate.Mode.ANSWER:
                     file = self.ans_path
-                elif mode in [validate.Mode.INVALID, validate.Mode.VALID]:
+                elif mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS]:
                     assert self.out_path is not None
                     file = self.out_path
 
