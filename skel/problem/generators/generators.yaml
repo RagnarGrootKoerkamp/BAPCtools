@@ -1,15 +1,15 @@
 #solution: /submissions/accepted/submission.py
 #visualizer: /visualizers/asy.sh
-version: 2024-11 # use this version of the generators framework
+version: 2024-11  # use this version of the generators framework
 
-testdata.yaml:
+{%testdata_yaml_comment%}testdata.yaml:
   # One or more of:
   # case_sensitive
   # space_change_sensitive
   # float_absolute_tolerance eps
   # float_relative_tolerance eps
   # float_tolerance eps
-  output_validator_args:
+  {%output_validator_args%}
 
 data:
   sample:
