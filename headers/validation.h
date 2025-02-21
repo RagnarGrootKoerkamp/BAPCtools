@@ -38,11 +38,11 @@
 #include <variant>
 #include <vector>
 
-const std::string_view case_sensitive_flag       = "case_sensitive";
-const std::string_view ws_sensitive_flag         = "space_change_sensitive";
-const std::string_view constraints_file_flag     = "--constraints_file";
-const std::string_view generate_flag             = "--generate";
-const std::string_view generate_binary_substring = "generat";
+constexpr std::string_view case_sensitive_flag       = "case_sensitive";
+constexpr std::string_view ws_sensitive_flag         = "space_change_sensitive";
+constexpr std::string_view constraints_file_flag     = "--constraints_file";
+constexpr std::string_view generate_flag             = "--generate";
+constexpr std::string_view generate_binary_substring = "generat";
 
 // Only use non-capturing groups, and optimize the RegEx during initialization (improves run time at the cost of build time)
 constexpr auto regex_options = std::regex::nosubs | std::regex::optimize;
@@ -52,7 +52,7 @@ constexpr auto regex_options = std::regex::nosubs | std::regex::optimize;
 // - Disallowing 'E' as exponent
 // - Disallowing superfluous leading zeroes before the decimal dot and in the exponent (the former can be 0, the latter cannot)
 // - Disallowing decimal dot without following digits
-std::regex float_regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?(e-?[1-9][0-9]*)?", regex_options);
+const std::regex float_regex("-?(0|[1-9][0-9]*)(\\.[0-9]+)?(e-?[1-9][0-9]*)?", regex_options);
 
 inline struct ArbitraryTag {
 	static constexpr bool unique     = false;
