@@ -268,9 +268,6 @@ class ProblemSettings:
         if "name" in yaml_data and isinstance(yaml_data["name"], str):
             yaml_data["name"] = {"en": yaml_data["name"]}
 
-        if "validator_flags" in yaml_data and isinstance(yaml_data["validator_flags"], str):
-            yaml_data["validator_flags"] = shlex.split(yaml_data["validator_flags"])
-
         # Known keys:
         # (defaults from https://icpc.io/problem-package-format/spec/2023-07-draft.html#problem-metadata)
         self.problem_format_version: str = parse_setting(
@@ -328,8 +325,20 @@ class ProblemSettings:
         # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
         self.embargo_until: str = parse_setting(yaml_data, "embargo-until", "")
         self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
-        # TODO: move to testdata.yaml
-        self.validator_flags: list[str] = parse_setting(yaml_data, "validator_flags", [])
+
+        # If problem.yaml uses 2023-07-draft, disallow `validator_flags`.
+        if self.is_legacy():
+            if "validator_flags" in yaml_data and isinstance(yaml_data["validator_flags"], str):
+                yaml_data["validator_flags"] = shlex.split(yaml_data["validator_flags"])
+            self.validator_flags: list[str] = parse_setting(yaml_data, "validator_flags", [])
+        else:
+            self.validator_flags = []
+            if "validator_flags" in yaml_data:
+                warn(
+                    "problem.yaml: 'validator_flags' is removed in 2023-07-draft, please use 'output_validator_args' in 'testdata.yaml' instead. SKIPPED."
+                )
+                yaml_data.pop("validator_flags")
+
         self.keywords: str = parse_setting(yaml_data, "keywords", "")
         # Not implemented in BAPCtools. We always test all languges in langauges.yaml.
         self.languages: list[str] = parse_optional_list_setting(yaml_data, "languages", str)
@@ -481,6 +490,7 @@ class Problem:
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
 
+    # TODO #102 move to TestData class
     def _parse_testdata_yaml(p, path, bar):
         assert path.is_relative_to(p.path / "data")
         for dir in [path] + list(path.parents):
@@ -496,19 +506,31 @@ class Problem:
                     p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
 
                     # verify testdata.yaml
+                    if p.settings.is_legacy():
+                        # For legacy problems, support both _flags and _args, but default to _args.
+                        if "output_validator_flags" in flags and not "output_validator_args":
+                            flags["output_validator_args"] = flags["output_validator_flags"]
+                        if "input_validator_flags" in flags and not "input_validator_args":
+                            flags["input_validator_args"] = flags["input_validator_flags"]
+                    else:
+                        # For 2023-07-draft problems, skip the old name and warn to use the new one.
+                        if "input_validator_flags" in flags:
+                            bar.warn(
+                                "input_validator_flags is removed in 2023-07-draft, use ..._args instead. SKIPPED."
+                            )
+                        if "output_validator_flags" in flags:
+                            bar.warn(
+                                "output_validator_flags is removed in 2023-07-draft, use ..._args instead. SKIPPED."
+                            )
                     for k in flags:
                         match k:
-                            case "output_validator_flags":
+                            case "output_validator_args":
                                 if not isinstance(flags[k], str):
-                                    bar.error(
-                                        "ouput_validator_flags must be string",
-                                        resume=True,
-                                        print_item=False,
-                                    )
-                            case "input_validator_flags":
+                                    bar.error(f"{k} must be string", resume=True, print_item=False)
+                            case "input_validator_args":
                                 if not isinstance(flags[k], (str, dict)):
                                     bar.error(
-                                        "input_validator_flags must be string or map",
+                                        f"{k} must be string or map",
                                         resume=True,
                                         print_item=False,
                                     )
@@ -540,18 +562,18 @@ class Problem:
         Arguments
         ---------
         path: absolute path (a file or a directory)
-        key: The testdata.yaml key to look for, either of 'input_validator_flags', 'output_validator_flags', or 'grading'.
+        key: The testdata.yaml key to look for, either of 'input_validator_args', 'output_validator_args', or 'grading'.
             'grading' is not implemented
-        name: If key == 'input_validator_flags', optionally the name of the input validator
+        name: If key == 'input_validator_args', optionally the name of the input validator
 
         Returns:
         --------
         string or None if no testdata.yaml is found.
         TODO: when 'grading' is supported, it also can return dict
         """
-        if key not in ["input_validator_flags", "output_validator_flags"]:
+        if key not in ["input_validator_args", "output_validator_args"]:
             raise NotImplementedError(key)
-        if key != "input_validator_flags" and name is not None:
+        if key != "input_validator_args" and name is not None:
             raise ValueError(
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
@@ -570,14 +592,14 @@ class Problem:
                 continue
             flags = p._testdata_yamls[f]
             if key in flags:
-                if key == "output_validator_flags":
+                if key == "output_validator_args":
                     if not isinstance(flags[key], str):
-                        bar.error("ouput_validator_flags must be string")
+                        bar.error("ouput_validator_args must be string")
                     return flags[key]
 
-                if key == "input_validator_flags":
+                if key == "input_validator_args":
                     if not isinstance(flags[key], (str, dict)):
-                        bar.error("input_validator_flags must be string or map")
+                        bar.error("input_validator_args must be string or map")
                     if isinstance(flags[key], str):
                         return flags[key]
                     elif name in flags[key]:
@@ -1213,7 +1235,7 @@ class Problem:
         args = (
             p.get_testdata_yaml(
                 p.path / "data" / "valid_output",
-                "output_validator_flags",
+                "output_validator_args",
                 PrintBar("Generic Output Validation"),
             )
             or ""

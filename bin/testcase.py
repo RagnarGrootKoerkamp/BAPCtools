@@ -110,7 +110,7 @@ class Testcase:
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_validator_flags(self, validator, bar) -> list[str] | None:
+    def testdata_yaml_validator_args(self, validator, bar) -> list[str] | None:
         """
         The flags specified in testdata.yaml for the given validator applying to this testcase.
 
@@ -125,9 +125,9 @@ class Testcase:
             raise ValueError(f"Validator expected, got {validator}")
 
         key, name = (
-            ("input_validator_flags", validator.name)
+            ("input_validator_args", validator.name)
             if isinstance(validator, validate.InputValidator)
-            else ("output_validator_flags", None)
+            else ("output_validator_args", None)
         )
 
         path = self.problem.path / "data" / self.short_path
@@ -156,7 +156,7 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator, bar)
+            flags = self.testdata_yaml_validator_args(validator, bar)
             if flags is False:
                 continue
             flags_string = " ".join(flags) if flags is not None else None
@@ -299,7 +299,7 @@ class Testcase:
             if type(validator) is validate.OutputValidator and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
-            flags = self.testdata_yaml_validator_flags(validator, bar)
+            flags = self.testdata_yaml_validator_args(validator, bar)
             if flags is False:
                 continue
             flags = args if flags is None else flags + args
