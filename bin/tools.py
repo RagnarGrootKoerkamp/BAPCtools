@@ -1076,20 +1076,11 @@ def run_parsed_arguments(args):
                     problem, build_type=latex.PdfType.PROBLEM_SLIDE, web=config.args.web
                 )
         if action in ["validate", "all"]:
-            if config.args.generic == []:
-                config.args.generic = [
-                    "invalid_inputs",
-                    "invalid_answers",
-                    "invalid_outputs",
-                    "valid_outputs",
-                ]
-            elif config.args.generic is None:
-                config.args.generic = []
             # if nothing is specified run all
             specified = any(
                 [
                     config.args.invalid,
-                    config.args.generic,
+                    config.args.generic is not None,
                     config.args.input,
                     config.args.answer,
                     config.args.valid_outputs,
@@ -1097,7 +1088,14 @@ def run_parsed_arguments(args):
             )
             if action == "all" or not specified or config.args.invalid:
                 success &= problem.validate_data(validate.Mode.INVALID)
-            if action == "all" or not specified or config.args.generic:
+            if action == "all" or not specified or config.args.generic is not None:
+                if not config.args.generic:
+                    config.args.generic = [
+                        "invalid_inputs",
+                        "invalid_answers",
+                        "invalid_outputs",
+                        "valid_outputs",
+                    ]
                 success &= problem.validate_invalid_extra_data()
                 success &= problem.validate_valid_extra_data()
             if action == "all" or not specified or config.args.input:

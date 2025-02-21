@@ -1066,6 +1066,17 @@ class Problem:
         if not p.validators(validate.OutputValidator, strict=True, print_warn=False):
             return True
 
+        args = (
+            p.get_testdata_yaml(
+                p.path / "data" / "valid_outputs",
+                "output_validator_flags",
+                PrintBar("Generic Output Validation"),
+            )
+            or ""
+        ).split()
+        is_space_sensitive = "space_change_sensitive" in args
+        is_case_sensitive = "case_sensitive" in args
+
         base_path = p.tmpdir / "valid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
         samples = sorted(glob(p.path, "data/sample/**/*.in"))[:3]
@@ -1074,7 +1085,12 @@ class Problem:
         testcases: list[testcase.Testcase] = []
         for i, sample in enumerate(samples):
             used_sample = False
-            for name, data in validator_tests.VALID_GENERATORS:
+            for name, data, space_change, case_change in validator_tests.VALID_GENERATORS:
+                if space_change and is_space_sensitive:
+                    continue
+                elif case_change and is_case_sensitive:
+                    continue
+
                 if isinstance(data, str):
                     content = data
                 else:
@@ -1103,7 +1119,7 @@ class Problem:
             verbose(f"writing generated valid testcases to: {base_path}")
 
         return p._validate_data(
-            validate.Mode.VALID_OUTPUTS, None, "Generic Validation", testcases, True
+            validate.Mode.VALID_OUTPUTS, None, "Generic Output Validation", testcases, True
         )
 
     def _validate_data(

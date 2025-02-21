@@ -103,15 +103,17 @@ INVALID_GENERATORS: Final[
 ] = _list_invalid_generators()
 
 
-def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[str]]]]:
+def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[str]], bool, bool]]:
     generator_names: set[str] = set()
-    generators: list[tuple[str, str | Callable[[str], Optional[str]]]] = []
+    generators: list[tuple[str, str | Callable[[str], Optional[str]], bool, bool]] = []
 
     T = TypeVar("T", bound=str | Callable[[str], Optional[str]])
 
     # returns a function that can be called to register a new generator for valid tests
     # can be used on its own or as decorator for a function
-    def register(name: Optional[str] = None) -> Callable[[T], T]:
+    def register(
+        name: Optional[str] = None, space_change: bool = False, case_change: bool = False
+    ) -> Callable[[T], T]:
         def decorator(func: T) -> T:
             nonlocal name
             if not isinstance(func, str) and not name:
@@ -119,40 +121,40 @@ def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[s
                 name = func.__name__
             assert name
             generator_names.add(name)
-            generators.append((name, func))
+            generators.append((name, func, space_change, case_change))
             return func
 
         return decorator
 
     # simple generators
-    register("leading_space")(lambda x: f" {x}")
-    register("trailing_newline")(lambda x: f"{x}\n")
+    register("leading_space", space_change=True)(lambda x: f" {x}")
+    register("trailing_newline", space_change=True)(lambda x: f"{x}\n")
 
-    @register()
+    @register(space_change=True)
     def all_newline(x: str) -> Optional[str]:
         if " " not in x:
             return None
         return x.replace(" ", "\n")
 
-    @register()
+    @register(space_change=True)
     def all_space(x: str) -> Optional[str]:
         if "\n" not in x:
             return None
         return x.replace("\n", " ")
 
-    @register()
+    @register(space_change=True)
     def append_space(x: str) -> Optional[str]:
         if end_newline(x):
             return None
         return f"{x[:-1]} \n"
 
-    @register()
+    @register(space_change=True)
     def windows_newline(x: str) -> Optional[str]:
         if "\n" not in x or "\r" in x:
             return None
         return x.replace("\n", "\r\n")
 
-    @register()
+    @register(case_change=True)
     def swap_case(x: str) -> Optional[str]:
         y = x.swapcase()
         return None if x == y else y
@@ -160,6 +162,6 @@ def _list_valid_generators() -> list[tuple[str, str | Callable[[str], Optional[s
     return generators
 
 
-VALID_GENERATORS: Final[Sequence[tuple[str, str | Callable[[str], Optional[str]]]]] = (
+VALID_GENERATORS: Final[Sequence[tuple[str, str | Callable[[str], Optional[str]], bool, bool]]] = (
     _list_valid_generators()
 )
