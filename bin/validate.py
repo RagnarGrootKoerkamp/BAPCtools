@@ -1,10 +1,11 @@
-import program
-import testcase
+import re
 from util import *
 from enum import Enum
 from collections.abc import Sequence
 from typing import Final
-import re
+
+import program
+import testcase
 
 
 class Mode(Enum):
@@ -339,7 +340,11 @@ class OutputValidator(Validator):
     source_dirs = ["output_validator", "output_validators"]
 
     def run(
-        self, testcase, mode, constraints: Optional[ConstraintsDict] = None, args=None
+        self,
+        testcase,  # TODO #102: fix type errors after setting type to Testcase
+        mode,  # TODO #102: fix type errors after setting type to Mode | run.Run
+        constraints: Optional[ConstraintsDict] = None,
+        args=None,
     ) -> ExecResult:
         """
         Run this validator on the given testcase.
@@ -378,7 +383,7 @@ class OutputValidator(Validator):
             path = testcase.out_path.resolve()
         else:
             assert mode != Mode.INPUT
-            # mode is actually a run
+            # mode is actually a Run
             path = mode.out_path
             in_path = mode.in_path
 
@@ -388,8 +393,7 @@ class OutputValidator(Validator):
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
         if not isinstance(mode, Mode):
             cwd = mode.feedbackdir
-        flags = self.problem.settings.validator_flags
-        invocation = self.run_command + [in_path, ans_path, cwd] + flags
+        invocation = self.run_command + [in_path, ans_path, cwd]
 
         with path.open() as file:
             ret = self._exec_helper(

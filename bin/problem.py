@@ -330,9 +330,10 @@ class ProblemSettings:
         if self.is_legacy():
             if "validator_flags" in yaml_data and isinstance(yaml_data["validator_flags"], str):
                 yaml_data["validator_flags"] = shlex.split(yaml_data["validator_flags"])
-            self.validator_flags: list[str] = parse_setting(yaml_data, "validator_flags", [])
+            # This flag should not be used anywhere except Problem._parse_testdata_yaml().
+            self._validator_flags: list[str] = parse_setting(yaml_data, "validator_flags", [])
         else:
-            self.validator_flags = []
+            self._validator_flags = []
             if "validator_flags" in yaml_data:
                 warn(
                     "problem.yaml: 'validator_flags' is removed in 2023-07-draft, please use 'output_validator_args' in 'testdata.yaml' instead. SKIPPED."
@@ -501,12 +502,14 @@ class Problem:
                 if f not in p._testdata_yamls:
                     p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
 
-                    # verify testdata.yaml
                     if p.settings.is_legacy():
                         # For legacy problems, support both _flags and _args, but default to _args.
-                        if "output_validator_flags" in flags and not "output_validator_args":
+                        if (
+                            "output_validator_flags" in flags
+                            and "output_validator_args" not in flags
+                        ):
                             flags["output_validator_args"] = flags["output_validator_flags"]
-                        if "input_validator_flags" in flags and not "input_validator_args":
+                        if "input_validator_flags" in flags and "input_validator_args" not in flags:
                             flags["input_validator_args"] = flags["input_validator_flags"]
                     else:
                         # For 2023-07-draft problems, skip the old name and warn to use the new one.
@@ -518,6 +521,16 @@ class Problem:
                             bar.warn(
                                 "output_validator_flags is removed in 2023-07-draft, use ..._args instead. SKIPPED."
                             )
+
+                    # For legacy problems, move validator_flags from problem.yaml to the root testdata.yaml
+                    if (
+                        dir == p.path / "data"
+                        and p.settings._validator_flags
+                        and "output_validator_args" not in flags
+                    ):
+                        flags["output_validator_args"] = p.settings._validator_flags
+
+                    # Verify testdata.yaml
                     for k in flags:
                         match k:
                             case "output_validator_args":
@@ -539,8 +552,18 @@ class Problem:
                                             f"Unknown input validator {name}; expected {input_validator_names}",
                                             print_item=False,
                                         )
-                            case "grading" | "run_samples":
-                                bar.warn(f"{k} not implemented in BAPCtools", print_item=False)
+                            case (
+                                "args"
+                                | "description"
+                                | "full_feedback"
+                                | "hint"
+                                | "scoring"
+                                | "static_validation"
+                            ):
+                                bar.warn(
+                                    f"{k} in testdata.yaml not implemented in BAPCtools",
+                                    print_item=False,
+                                )
                             case _:
                                 path = f.relative_to(p.path / "data")
                                 bar.warn(f'Unknown key "{k}" in {path}', print_item=False)
@@ -548,7 +571,13 @@ class Problem:
             if dir == p.path / "data":
                 break
 
-    def get_testdata_yaml(p, path, key, bar, name=None) -> str | None:
+    def get_testdata_yaml(
+        p,
+        path: Path,
+        key: Literal["input_validator_args"] | Literal["output_validator_args"],
+        bar: ProgressBar | PrintBar,
+        name: Optional[str] = None,
+    ) -> list[str]:
         """
         Find the testdata flags applying at the given path for the given key.
         If necessary, walk up from `path` looking for the first testdata.yaml file that applies,
@@ -564,7 +593,7 @@ class Problem:
 
         Returns:
         --------
-        string or None if no testdata.yaml is found.
+        A list of string arguments, which is empty if no testdata.yaml is found.
         TODO: when 'grading' is supported, it also can return dict
         """
         if key not in ["input_validator_args", "output_validator_args"]:
@@ -581,7 +610,7 @@ class Problem:
         for dir in [path] + list(path.parents):
             # Do not go above the data directory.
             if dir == p.path:
-                return None
+                return []
 
             f = dir / "testdata.yaml"
             if f not in p._testdata_yamls:
@@ -591,17 +620,17 @@ class Problem:
                 if key == "output_validator_args":
                     if not isinstance(flags[key], str):
                         bar.error("ouput_validator_args must be string")
-                    return flags[key]
+                    return flags[key].split()
 
                 if key == "input_validator_args":
                     if not isinstance(flags[key], (str, dict)):
                         bar.error("input_validator_args must be string or map")
                     if isinstance(flags[key], str):
-                        return flags[key]
+                        return flags[key].split()
                     elif name in flags[key]:
-                        return flags[key][name]
+                        return flags[key][name].split()
 
-        return None
+        return []
 
     def testcases(
         p,
@@ -1228,14 +1257,11 @@ class Problem:
         if not p.validators(validate.OutputValidator, strict=True, print_warn=False):
             return True
 
-        args = (
-            p.get_testdata_yaml(
-                p.path / "data" / "valid_outputs",
-                "output_validator_args",
-                PrintBar("Generic Output Validation"),
-            )
-            or ""
-        ).split()
+        args = p.get_testdata_yaml(
+            p.path / "data" / "valid_outputs",
+            "output_validator_args",
+            PrintBar("Generic Output Validation"),
+        )
         is_space_sensitive = "space_change_sensitive" in args
         is_case_sensitive = "case_sensitive" in args
 
