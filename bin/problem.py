@@ -1335,7 +1335,7 @@ class Problem:
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
 
-        def process_testcase(testcase):
+        def process_testcase(testcase: testcase.Testcase):
             nonlocal success
 
             localbar = bar.start(testcase.name)

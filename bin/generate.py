@@ -445,7 +445,7 @@ class TestcaseRule(Rule):
         self.hardcoded = {}
 
         # Hash of testcase for caching.
-        self.hash = None
+        self.hash: str
 
         # Yaml of rule
         self.rule = dict[str, str | int]()
@@ -654,12 +654,12 @@ class TestcaseRule(Rule):
                 # both source and target do not exist
                 pass
 
-    def validate_in(t, problem, testcase, meta_yaml, bar):
+    def validate_in(t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
         input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
-        if all(h in meta_yaml.get("input_validator_hashes") for h in input_validator_hashes):
+        if all(h in meta_yaml["input_validator_hashes"] for h in input_validator_hashes):
             return True
 
         if not testcase.validate_format(
@@ -696,7 +696,7 @@ class TestcaseRule(Rule):
             )
         return True
 
-    def validate_ans(t, problem, testcase, meta_yaml, bar):
+    def validate_ans(t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
@@ -725,7 +725,7 @@ class TestcaseRule(Rule):
                 **testcase.validator_hashes(validate.AnswerValidator, bar),
                 **testcase.validator_hashes(validate.OutputValidator, bar),
             }
-            if all(h in meta_yaml.get("answer_validator_hashes") for h in answer_validator_hashes):
+            if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
                 return True
 
             if not testcase.validate_format(

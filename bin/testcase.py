@@ -179,7 +179,6 @@ class Testcase:
         bar,
         constraints=None,
         warn_instead_of_error=False,
-        args=None,
     ) -> bool:
         check_constraints = constraints is not None
 
@@ -194,7 +193,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
             case validate.Mode.ANSWER:
                 return self._run_validators(
@@ -206,7 +204,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
             case validate.Mode.INVALID:
                 assert self.root in config.INVALID_CASE_DIRECTORIES[:-1]
@@ -216,7 +213,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
                 if not ok or self.root == "invalid_input":
                     return ok
@@ -229,7 +225,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
                 if not ok or self.root == "invalid_answer":
                     return ok
@@ -241,7 +236,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
             case validate.Mode.VALID_OUTPUT:
                 assert self.root == "valid_output"
@@ -253,7 +247,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
                 if not ok:
                     return ok
@@ -263,7 +256,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
                 if not ok:
                     return ok
@@ -275,7 +267,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
             case _:
                 raise ValueError
@@ -289,10 +280,8 @@ class Testcase:
         bar,
         constraints=None,
         warn_instead_of_error=False,
-        args=None,
     ) -> bool:
-        if args is None:
-            args = []
+        args = []
         results = []
         for validator in validators:
             name = validator.name
