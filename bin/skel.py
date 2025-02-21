@@ -164,6 +164,7 @@ def new_problem():
     # The validation type `float` is not official, it only helps setting the `validator_flags`.
     if problem_type == "float":
         problem_type = "pass-fail"
+        # TODO: Move this to testdata.yaml (maybe generators.yaml should set this?)
         validator_flags = "validator_flags:\n  float_tolerance 1e-6\n"
         log("Using default float tolerance of 1e-6")
     # Since version 2023-07-draft of the spec, the `custom` validation type is no longer explicit.

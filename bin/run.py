@@ -218,7 +218,7 @@ class Run:
             return None
         validator = output_validators[0]
 
-        flags = self.testcase.testdata_yaml_validator_flags(validator, bar)
+        flags = self.testcase.testdata_yaml_validator_args(validator, bar)
 
         return validator.run(self.testcase, self, args=flags)
 

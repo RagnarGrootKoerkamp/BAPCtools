@@ -26,6 +26,10 @@ visualizer: /visualizers/vis.py
 # the command being run.
 random_salt: abcd
 
+# The top level may contain a testdata.yaml that will be written to data/ as specified.
+testdata.yaml:
+  output_validator_args: ""
+
 # We support three types of generators:
 # - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
 #   be compiled if required and run the same way as submissions.
@@ -185,7 +189,7 @@ data:
       hard_cases_group:
         # Directories may contain a testdata.yaml that will be written as specified.
         testdata.yaml:
-          output_validator_flags: space_change_sensitive
+          output_validator_args: space_change_sensitive
 
         # To enable automatic numbering of testcases, data: may also contain a list of
         # single-element dictionaries instead of a single dictionary. In this case,

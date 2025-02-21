@@ -35,8 +35,8 @@ These are some things that hold for all types of validation mentioned below.
 <path>` flag is set when running `bt constraints`. The validator can write some
   statistics on the testcase to this file. See the [implementation
   notes](implementation_notes.md#constraints-checking).
-- `<{input,output}_validator_flags>` are either empty, or the value of the
-  `{input,output}_validator_flags` key in the first `testdata.yaml` file that is found
+- `<{input,output}_validator_args>` are either empty, or the value of the
+  `{input,output}_validator_args` key in the first `testdata.yaml` file that is found
   in the directory (testgroup) of the current testcase or its parents.
 
 ## Input validation
@@ -48,7 +48,7 @@ directory in `/input_validators/` is an input validator.
 Input validators receive the testcase on standard input, as
 
 ```
-input_validator [input_validator_flags] < testcase.in
+input_validator [input_validator_args] < testcase.in
 ```
 
 ## Answer validation
@@ -59,7 +59,7 @@ BAPCtools allows (in fact, encourages) the validation of the `.ans`-file of each
 As for input validation, every program in `answer_validators` is a validator, and all validators must pass.
 Answer validators receive the testcase answer file on standard input, as
 ```
-answer_validator /path/to/testcase.in [output_validator_flags] < testcase.ans
+answer_validator /path/to/testcase.in [output_validator_args] < testcase.ans
 ```
 
 Answer validation can be as simple as checking that standard input contains a single integer (and nothing else).
@@ -70,7 +70,7 @@ All answer files are also checked with the output validator invoked as
 
 ```
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
-    case_sensitive space_change_sensitive [output_validator_flags] < testcase.ans
+    case_sensitive space_change_sensitive [output_validator_args] < testcase.ans
 ```
 
 In particular, note the flags `case_sensitive` and `space_change_sensitive`,
@@ -173,11 +173,11 @@ the output validator is called as follows:
 
 ```
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
-  [problem_yaml_flags] [output_validator_flags] \
+  [problem_yaml_flags] [output_validator_args] \
   < testcase.out
 ```
 
-- `[problem_yaml_flags]` is the value of `validator_flags` in `problem.yaml`.
+- `[problem_yaml_flags]` is the value of `validator_args` in `problem.yaml`.
 
 When `output_validators` is empty (and `validation: default` in `problem.yaml`), the default output validator is used.
 
