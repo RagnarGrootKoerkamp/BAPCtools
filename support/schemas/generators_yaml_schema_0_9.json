@@ -114,6 +114,13 @@
               "description": "Copy this testcase from the given path relative to `/generators/`.",
               "examples": ["manual_cases/sample/3"]
             },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "title": "Count",
+              "description": "Generate this number of test cases, substituting `{count}` in the `generate:` command with values between 1 and `count`, inclusive."
+            },
             "in": {
               "type": "string",
               "title": "Input",
@@ -202,13 +209,13 @@
     },
     "casepath": {
       "type": "string",
-      "pattern": "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]/)*([A-Za-z0-9]|A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]$"
+      "pattern": "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]/)*([A-Za-z0-9]|A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9])$"
     }
   },
   "$id": "https://json.schemastore.org/problem_package_generators.json",
   "$schema": "http://json-schema.org/draft-07/schema#",
   "additionalProperties": true,
-  "description": "Generate test data for this prolem. Version 0.9.",
+  "description": "Generate test data for this problem. Version 0.9.",
   "properties": {
     "solution": {
       "$ref": "#/$defs/solution"
