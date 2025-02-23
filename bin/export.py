@@ -169,6 +169,8 @@ def build_problem_zip(problem: Problem, output: Path):
                 PrintBar("Getting validator_flags for legacy DOMjudge export"),
             )
         )
+        if validator_flags:
+            validator_flags = "validator_flags: " + validator_flags + "\n"
         write_file_strs.append(
             (
                 "problem.yaml",
@@ -180,7 +182,7 @@ def build_problem_zip(problem: Problem, output: Path):
                     else "custom"
                     if problem.custom_output
                     else "default"
-                }\n{f"validator_flags: {validator_flags}\n" if validator_flags else ""}""",
+                }\n{validator_flags}""",
             )
         )
     else:
