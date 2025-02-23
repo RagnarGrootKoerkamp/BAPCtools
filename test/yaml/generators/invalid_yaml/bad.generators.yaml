@@ -3,7 +3,7 @@ data:
     data:
       boing:
         in: boing
-  invalid_inputs:
+  invalid_input:
     data:
       boing:
         in: boing

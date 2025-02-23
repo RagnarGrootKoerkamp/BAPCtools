@@ -22,12 +22,12 @@ class Testcase:
     * an input file, sometimes called "the input", with extension `.in`, such as `petersen.in`
     * a default answer file, sometimes called "the answer", with extension `.ans`, such as `petersen.ans`
 
-    Test cases in `data/invalid_inputs` consist only of an input file. Test cases in `data/valid_outputs`
-    or `data/invalid_outputs` additionally consist of an output file, with extension `.out`.
+    Test cases in `data/invalid_input` consist only of an input file. Test cases in `data/valid_output`
+    or `data/invalid_output` additionally consist of an output file, with extension `.out`.
 
     As a rule of thumb, test cases have different inputs. To be precise, test cases in
-    the same directory must have different inputs, except for test cases below `invalid_answers`,
-    `invalid_outputs`, and `valid_outputs`. Moreover, test cases in different directories with
+    the same directory must have different inputs, except for test cases below `invalid_answer`,
+    `invalid_output`, and `valid_output`. Moreover, test cases in different directories with
     the same base name, such as `sample/petersen` and `secret/cubic/petersen`, may have identical inputs;
     this commonly happens when the first test case was included from `sample` into `secret/cubic`.
 
@@ -41,7 +41,7 @@ class Testcase:
         The name of this test case, relative to `data`, like `secret/cubic/petersen`.
 
     root: str
-        The name of the topmost directory below `data` containing this test case, like `secret` or `invalid_inputs`.
+        The name of the topmost directory below `data` containing this test case, like `secret` or `invalid_input`.
 
     short_path: Path
         The path to the input of this test case, relative to `data`, like `secret/cubic/petersen.in`.
@@ -92,7 +92,7 @@ class Testcase:
         )
         self.out_path = (
             None
-            if self.root not in ["valid_outputs", "invalid_outputs"]
+            if self.root not in ["valid_output", "invalid_output"]
             else self.in_path.with_suffix(".out")
         )
         # Display name: everything after data/.
@@ -101,8 +101,8 @@ class Testcase:
         # Backwards compatibility support for `data/bad`.
         if self.root == "bad":
             if print_warn:
-                warn("data/bad is deprecated. Use data/{invalid_inputs,invalid_answers} instead.")
-            self.root = "invalid_answers" if self.ans_path.is_file() else "invalid_inputs"
+                warn("data/bad is deprecated. Use data/{invalid_input,invalid_answer} instead.")
+            self.root = "invalid_answer" if self.ans_path.is_file() else "invalid_input"
 
     def __repr__(self):
         return self.name
@@ -190,7 +190,7 @@ class Testcase:
                     self.problem.validators(
                         validate.InputValidator, check_constraints=check_constraints
                     ),
-                    self.root == "invalid_inputs",
+                    self.root == "invalid_input",
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -202,7 +202,7 @@ class Testcase:
                     self.problem.validators(
                         validate.AnswerValidator, check_constraints=check_constraints
                     ),
-                    self.root == "invalid_answers",
+                    self.root == "invalid_answer",
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
@@ -218,7 +218,7 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                     args=args,
                 )
-                if not ok or self.root == "invalid_inputs":
+                if not ok or self.root == "invalid_input":
                     return ok
 
                 assert not self.problem.interactive
@@ -231,7 +231,7 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                     args=args,
                 )
-                if not ok or self.root == "invalid_answers":
+                if not ok or self.root == "invalid_answer":
                     return ok
 
                 return self._run_validators(
@@ -243,8 +243,8 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                     args=args,
                 )
-            case validate.Mode.VALID_OUTPUTS:
-                assert self.root == "valid_outputs"
+            case validate.Mode.VALID_OUTPUT:
+                assert self.root == "valid_output"
                 assert not self.problem.interactive
                 assert not self.problem.multi_pass
 
@@ -269,7 +269,7 @@ class Testcase:
                     return ok
 
                 return self._run_validators(
-                    validate.Mode.VALID_OUTPUTS,
+                    validate.Mode.VALID_OUTPUT,
                     self.problem.validators(validate.OutputValidator),
                     False,
                     bar=bar,
@@ -339,7 +339,7 @@ class Testcase:
                     file = self.in_path
                 elif mode == validate.Mode.ANSWER:
                     file = self.ans_path
-                elif mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS]:
+                elif mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]:
                     assert self.out_path is not None
                     file = self.out_path
 

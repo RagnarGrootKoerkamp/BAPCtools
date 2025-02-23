@@ -501,14 +501,14 @@ Run this from one of:
     )
     validation_group.add_argument(
         "--generic",
-        choices=["invalid_inputs", "invalid_answers", "invalid_outputs", "valid_outputs"],
+        choices=["invalid_input", "invalid_answer", "invalid_output", "valid_output"],
         nargs="*",
         help="Generate generic (in)valid files based on the first three samples and validate them.",
     )
     validation_group.add_argument(
-        "--valid-outputs",
+        "--valid-output",
         action="store_true",
-        help="Only check files in 'data/valid_outputs' for validity.",
+        help="Only check files in 'data/valid_output' for validity.",
     )
 
     move_or_remove_group = validate_parser.add_mutually_exclusive_group()
@@ -1083,7 +1083,7 @@ def run_parsed_arguments(args):
                     config.args.generic is not None,
                     config.args.input,
                     config.args.answer,
-                    config.args.valid_outputs,
+                    config.args.valid_output,
                 ]
             )
             if action == "all" or not specified or config.args.invalid:
@@ -1091,10 +1091,10 @@ def run_parsed_arguments(args):
             if action == "all" or not specified or config.args.generic is not None:
                 if not config.args.generic:
                     config.args.generic = [
-                        "invalid_inputs",
-                        "invalid_answers",
-                        "invalid_outputs",
-                        "valid_outputs",
+                        "invalid_input",
+                        "invalid_answer",
+                        "invalid_output",
+                        "valid_output",
                     ]
                 success &= problem.validate_invalid_extra_data()
                 success &= problem.validate_valid_extra_data()
@@ -1102,8 +1102,8 @@ def run_parsed_arguments(args):
                 success &= problem.validate_data(validate.Mode.INPUT)
             if action == "all" or not specified or config.args.answer:
                 success &= problem.validate_data(validate.Mode.ANSWER)
-            if action == "all" or not specified or config.args.valid_outputs:
-                success &= problem.validate_data(validate.Mode.VALID_OUTPUTS)
+            if action == "all" or not specified or config.args.valid_output:
+                success &= problem.validate_data(validate.Mode.VALID_OUTPUT)
         if action in ["run", "all"]:
             success &= problem.run_submissions()
         if action in ["test"]:

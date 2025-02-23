@@ -64,13 +64,13 @@ data:
       #    generate: generator {seed:1} -n 1000
       #    count: 10
 
-  invalid_inputs:
+  invalid_input:
     # Add invalid test cases to ensure that input_validators correctly rejects them.
     data: []
       #invalid_test_case_input:
       #  in: "<invalid input>"
 
-  invalid_answers:
+  invalid_answer:
     # Add valid test cases with invalid answers to ensure that the answer_validators correctly rejects them.
     # (The output validator is also called with these)
     data: []
@@ -78,7 +78,7 @@ data:
       #  in: "<valid input>"
       #  ans: "<invalid answer>"
 
-  invalid_outputs:
+  invalid_output:
     # Add valid test cases with answer and invalid team output to ensure that the output_validator correctly rejects them.
     data: []
       #invalid_test_case_output:
@@ -86,7 +86,7 @@ data:
       #    ans: "<valid answer>"
       #    out: "<invalid output>"
 
-  valid_outputs:
+  valid_output:
     # Add valid test cases with answer and team output to ensure that the output_validator correctly accepts them.
     data: []
       #valid_test_case_output:

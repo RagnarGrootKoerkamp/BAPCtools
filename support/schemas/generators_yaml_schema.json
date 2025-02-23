@@ -138,7 +138,7 @@
             "out": {
               "type": "string",
               "title": "Invalid output",
-              "description": "Explicit invalid output given as a string; can only be given in invalid_outputs"
+              "description": "Explicit (in)valid output given as a string; can only be given in (in)valid_output"
             },
             "desc": {
               "type": "string",
@@ -274,22 +274,22 @@
           "title": "Secret inputs",
           "description": "The test cases against which submissions are validated"
         },
-        "invalid_inputs": {
+        "invalid_input": {
           "$ref": "#/$defs/testgroup",
           "title": "Invalid inputs",
           "description": "Test cases whose input files are invalid"
         },
-        "invalid_answers": {
+        "invalid_answer": {
           "$ref": "#/$defs/testgroup",
           "title": "Invalid answers",
           "description": "Test cases whose answer files are invalid. Inputs must be valid."
         },
-        "invalid_outputs": {
+        "invalid_output": {
           "$ref": "#/$defs/testgroup",
           "title": "Invalid outputs",
           "description": "Valid test cases for which the `.out` string is rejected by output validation."
         },
-        "valid_outputs": {
+        "valid_output": {
           "$ref": "#/$defs/testgroup",
           "title": "Valid outputs",
           "description": "Valid test cases for which the `.out` must pass output validation."

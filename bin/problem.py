@@ -321,8 +321,8 @@ class ProblemSettings:
             self.name[lang] = parse_setting(self.name, lang, "")
         self.uuid: str = parse_setting(yaml_data, "uuid", "")
         self.version: str = parse_setting(yaml_data, "version", "")
-        self.credits = ProblemCredits(yaml_data, self)
-        self.source = ProblemSources(yaml_data, self)
+        self.credits: ProblemCredits = ProblemCredits(yaml_data, self)
+        self.source: ProblemSources = ProblemSources(yaml_data, self)
         self.license: str = parse_setting(yaml_data, "license", "unknown")
         self.rights_owner: str = parse_setting(yaml_data, "rights_owner", "")
         # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
@@ -617,7 +617,7 @@ class Problem:
                 validate.Mode.INPUT: ["secret", "sample"],
                 validate.Mode.ANSWER: ["secret", "sample"],
                 validate.Mode.INVALID: config.INVALID_CASE_DIRECTORIES,
-                validate.Mode.VALID_OUTPUTS: ["valid_outputs"],
+                validate.Mode.VALID_OUTPUT: ["valid_output"],
             }[mode]:
                 in_paths += glob(p.path, f"data/{prefix}/**/*.in")
         else:
@@ -630,8 +630,8 @@ class Problem:
             t = testcase.Testcase(p, f, print_warn=True)
             if (
                 (p.interactive or p.multi_pass)
-                and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS]
-                and t.root in ["invalid_answers", "invalid_outputs", "valid_outputs"]
+                and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
+                and t.root in ["invalid_answer", "invalid_output", "valid_output"]
             ):
                 msg = ""
                 if p.interactive:
@@ -641,7 +641,7 @@ class Problem:
                 warn(f"Found file {f} for {mode} validation in{msg} problem. Skipping.")
                 continue
             if needans and not t.ans_path.is_file():
-                if t.root != "invalid_inputs":
+                if t.root != "invalid_input":
                     warn(f"Found input file {f} without a .ans file. Skipping.")
                     continue
             if t.out_path is not None and not t.out_path.is_file():
@@ -653,12 +653,12 @@ class Problem:
         if len(testcases) == 0:
             ans = (
                 " with answer"
-                if needans and mode not in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS]
+                if needans and mode not in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
                 else ""
             )
             val = f" for {mode} validation" if mode is not None else ""
             # TODO perhaps move this log to the use site?
-            (log if mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUTS] else warn)(
+            (log if mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT] else warn)(
                 f"Didn't find any testcases{ans}{val} in problem {p.name}. Skipping."
             )
 
@@ -1097,7 +1097,7 @@ class Problem:
         """Validate aspects of the test data files.
 
         Arguments:
-            mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID | validate.Mode.VALID_OUTPUTS
+            mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID | validate.Mode.VALID_OUTPUT
             constraints: True | dict | None. True means "do check constraints but discard the result."
                 False: TODO is this ever used?
         Return:
@@ -1117,7 +1117,7 @@ class Problem:
         action: str = ""
         if mode == validate.Mode.INVALID:
             action = "Invalidation"
-        elif mode == validate.Mode.VALID_OUTPUTS:
+        elif mode == validate.Mode.VALID_OUTPUT:
             action = "Output validation"
         elif constraints:
             action = f"Collecting {str(mode).capitalize()} constraints"
@@ -1135,9 +1135,9 @@ class Problem:
 
         # validator, dir, read, write, copy
         validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str]]] = [
-            (validate.InputValidator, "invalid_inputs", ".in", ".in", []),
-            (validate.AnswerValidator, "invalid_answers", ".ans", ".ans", [".in"]),
-            (validate.OutputValidator, "invalid_outputs", ".ans", ".out", [".in", ".ans"]),
+            (validate.InputValidator, "invalid_input", ".in", ".in", []),
+            (validate.AnswerValidator, "invalid_answer", ".ans", ".ans", [".in"]),
+            (validate.OutputValidator, "invalid_output", ".ans", ".out", [".in", ".ans"]),
         ]
 
         testcases: list[testcase.Testcase] = []
@@ -1199,7 +1199,7 @@ class Problem:
         )
 
     def validate_valid_extra_data(p) -> bool:
-        if "valid_outputs" not in config.args.generic:
+        if "valid_output" not in config.args.generic:
             return True
         if p.interactive or p.multi_pass:
             return True
@@ -1208,7 +1208,7 @@ class Problem:
 
         args = (
             p.get_testdata_yaml(
-                p.path / "data" / "valid_outputs",
+                p.path / "data" / "valid_output",
                 "output_validator_flags",
                 PrintBar("Generic Output Validation"),
             )
@@ -1241,7 +1241,7 @@ class Problem:
                     content = generated
 
                 used_sample = True
-                short_path = Path("valid_outputs") / str(i) / name
+                short_path = Path("valid_output") / str(i) / name
                 full_path = base_path / short_path / "testcase.in"
                 full_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1259,7 +1259,7 @@ class Problem:
             verbose(f"writing generated valid testcases to: {base_path}")
 
         return p._validate_data(
-            validate.Mode.VALID_OUTPUTS, None, "Generic Output Validation", testcases, True
+            validate.Mode.VALID_OUTPUT, None, "Generic Output Validation", testcases, True
         )
 
     def _validate_data(
@@ -1293,7 +1293,7 @@ class Problem:
                 if not problem.interactive and not problem.multi_pass:
                     problem.validators(validate.AnswerValidator)
                 problem.validators(validate.OutputValidator)
-            case validate.Mode.VALID_OUTPUTS:
+            case validate.Mode.VALID_OUTPUT:
                 assert not problem.interactive
                 assert not problem.multi_pass
                 problem.validators(validate.InputValidator)
@@ -1317,9 +1317,9 @@ class Problem:
             if (
                 mode == validate.Mode.INPUT
                 and not testcase.in_path.is_symlink()
-                and not testcase.root == "invalid_answers"
-                and not testcase.root == "invalid_outputs"
-                and not testcase.root == "valid_outputs"
+                and not testcase.root == "invalid_answer"
+                and not testcase.root == "invalid_output"
+                and not testcase.root == "valid_output"
                 and not extra
             ):
                 t2 = problem.matches_existing_testcase(testcase)

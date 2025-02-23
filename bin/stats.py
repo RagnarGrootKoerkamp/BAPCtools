@@ -67,18 +67,12 @@ def problem_stats(problems):
         ),
         (
             "bad",
-            [
-                lambda s: {
-                    x.stem
-                    for x in s
-                    if x.parts[2] in ["invalid_inputs", "invalid_answers", "invalid_outputs", "bad"]
-                }
-            ],
+            [lambda s: {x.stem for x in s if x.parts[2] in config.INVALID_CASE_DIRECTORIES}],
             0,
         ),
         (
             "good",
-            [lambda s: {x.stem for x in s if x.parts[2] in ["valid_outputs"]}],
+            [lambda s: {x.stem for x in s if x.parts[2] in ["valid_output"]}],
             0,
         ),
         ("   AC", "submissions/accepted/*", 3),

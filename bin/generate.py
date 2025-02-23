@@ -475,7 +475,7 @@ class TestcaseRule(Rule):
         self.root = self.path.parts[0]
         if self.root == "bad":
             message(
-                "bad is deprecated. Use {invalid_inputs,invalid_answers} instead.",
+                "bad is deprecated. Use {invalid_input,invalid_answer} instead.",
                 self.path,
                 color_type=MessageType.WARN,
             )
@@ -902,7 +902,7 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == "" and t.root not in ["bad", "invalid_inputs"]:
+                    if contents == "" and t.root not in ["bad", "invalid_input"]:
                         bar.error(f"Hardcoded {ext} data must not be empty!")
                         return False
                     else:
@@ -1634,10 +1634,10 @@ class GeneratorConfig:
                     order = [
                         "sample",
                         "secret",
-                        "invalid_outputs",
-                        "invalid_answers",
-                        "invalid_inputs",
-                        "valid_outputs",
+                        "invalid_output",
+                        "invalid_answer",
+                        "invalid_input",
+                        "valid_output",
                     ]
                     keys = dictionary.keys()
                     if isinstance(parent, RootDirectory):
@@ -2039,7 +2039,7 @@ data/*
                 warn("Cannot reorder Root directory. Skipping.")
             elif parts[0] in config.INVALID_CASE_DIRECTORIES:
                 warn(f"{d} is used for invalid test data. Skipping.")
-            elif parts[0] == "valid_outputs":
+            elif parts[0] == "valid_output":
                 warn(f"{d} is used for valid test data. Skipping.")
             elif path not in self.known_directories:
                 warn(f"{d} is not a generated directory. Skipping.")

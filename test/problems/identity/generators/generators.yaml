@@ -15,7 +15,7 @@ generators:
     - lib.h
 
 data:
-  invalid_inputs:
+  invalid_input:
     data:
       "lo":
         in: "-1"
@@ -29,7 +29,7 @@ data:
         in: "0 "
       "leading_newline":
         in: "\n0"
-  invalid_answers:
+  invalid_answer:
     data:
       "leading_space":
         in: "0"
@@ -37,13 +37,13 @@ data:
       "trailing_space":
         in: "0"
         ans: "0 "
-  invalid_outputs:
+  invalid_output:
     data:
       "wrong_answer":
         in: "0"
         ans: "0"
         out: "1"
-  valid_outputs:
+  valid_output:
     data:
       "extra_space":
         in: "0"

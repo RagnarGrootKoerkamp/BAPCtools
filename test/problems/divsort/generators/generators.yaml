@@ -52,10 +52,10 @@ data:
               in: 10.0 3.0 ab dc
               ans: 3.33 abcd
               desc: |
-                Must be AC. Compare invalid_outputs/imprecise, which is (there)
+                Must be AC. Compare invalid_output/imprecise, which is (there)
                 invalid because of float_tolerance
 
-  invalid_inputs:
+  invalid_input:
     data:
       always_invalid:
         data:
@@ -71,8 +71,8 @@ data:
         testdata.yaml:
           input_validator_flags: --sorted
         include:
-          - unsorted # invalid here because of --sorted flag (valid input in invalid_answers/no_flags)
-  invalid_answers:
+          - unsorted # invalid here because of --sorted flag (valid input in invalid_answer/no_flags)
+  invalid_answer:
     data:
       no_flags:
         data:
@@ -87,13 +87,13 @@ data:
           output_validator_flags: --forbid_abcd
         include:
         - imprecise # must reject because its ans includes abcd
-  invalid_outputs:
+  invalid_output:
     data:
       imprecise:
         in: 10.0 3.0 ab cd
         ans: 3.333333333 abcd
         out: 3.33 abcd
-  valid_outputs:
+  valid_output:
     data:
       valid:
         in: 10.0 3.0 ab cd
