@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from contest import *
+from problem import Problem
 
 
 # Replace \problemname{...} by the value of `name:` in problems.yaml in all .tex files.
@@ -113,7 +114,7 @@ def build_samples_zip(problems, output, statement_language):
     print("Wrote zip to samples.zip", file=sys.stderr)
 
 
-def build_problem_zip(problem, output):
+def build_problem_zip(problem: Problem, output: Path):
     """Make DOMjudge ZIP file for specified problem."""
 
     # Add problem PDF for only one language to the zip file (note that Kattis export does not include PDF)
@@ -157,10 +158,17 @@ def build_problem_zip(problem, output):
 
     print("Preparing to make ZIP file for problem dir %s" % problem.path, file=sys.stderr)
 
-    # DOMjudge does not support 'type' in problem.yaml yet.
+    # DOMjudge does not support 'type' in problem.yaml nor 'output_validator_args' in testdata.yaml yet.
     # TODO: Remove this once it does.
     problem_yaml_str = (problem.path / "problem.yaml").read_text()
     if not config.args.kattis and not problem.settings.is_legacy():
+        validator_flags = " ".join(
+            problem.get_testdata_yaml(
+                problem.path / "data",
+                "output_validator_args",
+                PrintBar("Getting validator_flags for legacy DOMjudge export"),
+            )
+        )
         write_file_strs.append(
             (
                 "problem.yaml",
@@ -172,7 +180,7 @@ def build_problem_zip(problem, output):
                     else "custom"
                     if problem.custom_output
                     else "default"
-                }\n""",
+                }\n{f"validator_flags: {validator_flags}\n" if validator_flags else ""}""",
             )
         )
     else:
