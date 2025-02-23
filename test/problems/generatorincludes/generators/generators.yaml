@@ -11,9 +11,8 @@ data:
     data:
       - small:
           testdata.yaml:
-            # TODO rename _flags to _args
-            output_validator_flags: space_change_sensitive
-            input_validator_flags:
+            output_validator_args: space_change_sensitive
+            input_validator_args:
               connected: --small
               strongly-connected: --small
           data:

@@ -7,13 +7,13 @@ data:
           ans: 3.0 abcd
   secret:
     testdata.yaml:
-      input_validator_flags: # TODO rename _flags to _args
+      input_validator_args:
         integers: small
     data:
       integers:
         testdata.yaml:
-          input_validator_flags:
-            --integer # TODO rename _flags to _args
+          input_validator_args:
+            --integer
             #grading: foo
         data:
           - "unsorted-integer":
@@ -21,7 +21,7 @@ data:
               ans: 5.0 abcd
       sorted:
         testdata.yaml:
-          input_validator_flags: # TODO rename _flags to _args
+          input_validator_args:
             strings: --sorted
         data:
           - "sorted-integer":
@@ -31,14 +31,14 @@ data:
         data:
           "nested_1":
             testdata.yaml:
-              input_validator_flags: "--small" # TODO rename _flags to _args
+              input_validator_args: "--small"
             data:
               "small_floats":
                 in: 10 3.5 ab cd
           "nested_2":
             testdata.yaml:
-              input_validator_flags: # TODO rename _flags to _args
-                integers: "" # hides the input validator flags in secret/testdata.yaml
+              input_validator_args:
+                integers: "" # hides the input_validator_args in secret/testdata.yaml
             data:
               - "tiny_floats":
                   in: 10.0 3.5 ab dc
@@ -47,7 +47,7 @@ data:
                   desc: Must validate, because `secret/testdata.yaml` hidden by `secret/general/nested_2/testdata.yaml`
       tolerant:
         testdata.yaml:
-          output_validator_flags: float_tolerance 1e-2 # TODO rename _flags to _args
+          output_validator_args: float_tolerance 1e-2
         data:
           - "tiny_floats":
               in: 10.0 3.0 ab dc
@@ -63,19 +63,19 @@ data:
           too_many_tokens: { in: 10.0 2.5 ab cd ef }
       integers:
         testdata.yaml:
-          input_validator_flags: --integer # TODO rename _flags to _args
+          input_validator_args: --integer
         data:
           ints_expected: { in: 10.0 2.5 ab cd }
         include:
           - small_floats
       sorted:
         testdata.yaml:
-          input_validator_flags: --sorted # TODO rename _flags to _args
+          input_validator_args: --sorted
         include:
-          - unsorted # invalid here because of --sorted flag (valid input in invalid_answer/no_flags)
+          - unsorted # invalid here because of --sorted flag (valid input in invalid_answers/no_output_validator_args)
   invalid_answer:
     data:
-      no_flags:
+      no_output_validator_args:
         data:
           capitals:
             in: 9.0 3.0 ab cd
@@ -83,9 +83,9 @@ data:
           unsorted:
             in: 10.0 2.0 cba cd
             ans: 5.0 Abccd
-      with_flags:
+      with_output_validator_args:
         testdata.yaml:
-          output_validator_flags: --forbid_abcd # TODO rename _flags to _args
+          output_validator_args: --forbid_abcd
         include:
           - imprecise # must reject because its ans includes abcd
   invalid_output:
