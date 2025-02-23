@@ -18,20 +18,20 @@ data:
           data:
             - positive:
                 data:
-                  - "sm-all-pos": stdout.py 4 6
-                  - "sm-zero": stdout.py 4 1
+                  - sm-all-pos: stdout.py 4 6
+                  - sm-zero: stdout.py 4 1
                 include:
                   - "1"
             - general:
                 data:
-                  - "sm-mixed": stdout.py 4 -6
-                  - "sm-all-neg": stdout.py -4 -6
+                  - sm-mixed: stdout.py 4 -6
+                  - sm-all-neg: stdout.py -4 -6
                 include:
                   - "1"
                   - "2"
       - general:
           data:
-            - "lg": stdout.py 83413870413975664 -11
+            - lg: stdout.py 83413870413975664 -11
           include:
-            - "small"
-            - "sample"
+            - small
+            - sample
