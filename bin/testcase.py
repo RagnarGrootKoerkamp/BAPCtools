@@ -370,7 +370,7 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                 )
 
-            if ret.status or self.root in config.INVALID_CASE_DIRECTORIES:
+            if ret.status or self.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
                 continue
 
             # Move testcase to destination directory if specified.

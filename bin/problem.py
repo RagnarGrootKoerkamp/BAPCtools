@@ -405,7 +405,7 @@ class Problem:
 
         for d in ["invalid_inputs", "invalid_answers", "invalid_outputs", "valid_outputs"]:
             if (self.path / "data" / d).is_dir():
-                warn(f"Found: data/{d}, should be: data/{d[:-1]} (singular form).")
+                warn(f"Found directory: data/{d}, should be: data/{d[:-1]} (singular form).")
 
     def _determine_statement_languages(self):
         """Determine the languages that are both mentioned in the problem.yaml under name
