@@ -330,7 +330,7 @@ class ProblemSettings:
         if self.is_legacy():
             if "validator_flags" in yaml_data and isinstance(yaml_data["validator_flags"], str):
                 yaml_data["validator_flags"] = shlex.split(yaml_data["validator_flags"])
-            # This flag should not be used anywhere except Problem.get_testdata_yaml().
+            # This field should not be used anywhere except the default result of Problem.get_testdata_yaml().
             self._validator_flags: list[str] = parse_setting(yaml_data, "validator_flags", [])
         else:
             self._validator_flags = []
@@ -584,8 +584,8 @@ class Problem:
         ---------
         path: absolute path (a file or a directory)
         key: The testdata.yaml key to look for, either of 'input_validator_args', 'output_validator_args', or 'grading'.
-            'grading' is not implemented
-        name: If key == 'input_validator_args', optionally the name of the input validator
+            TODO: 'grading' is not yet implemented.
+        name: If key == 'input_validator_args', optionally the name of the input validator.
 
         Returns:
         --------

@@ -56,7 +56,7 @@ def run_interactive_testcase(
             ]
             + run.testcase.testdata_yaml_validator_args(
                 output_validator,
-                bar or PrintBar("Run innteractive test case"),
+                bar or PrintBar("Run interactive test case"),
             )
         )
 
