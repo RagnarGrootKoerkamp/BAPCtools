@@ -19,6 +19,8 @@
 \providecommand{\lang}{en}% fallback definition, should be defined as -usepretex to latexmk
 \input{lang/\lang.tex}
 
+\RequirePackage{constants}
+
 %\RequirePackage{frcursive}
 
 %-------------------------------------------------------------------------------

@@ -116,8 +116,9 @@ class Program:
         subdir: str,
         deps: Optional[list[Path]] = None,
         *,
-        skip_double_build_warning=False,
+        skip_double_build_warning: bool = False,
         limits: dict[str, int] = {},
+        constants: bool = False,
     ):
         if deps is not None:
             assert isinstance(self, Generator)
@@ -157,6 +158,7 @@ class Program:
         self.hash: Optional[str] = None
         self.env: dict[str, int | str | Path] = {}
         self.limits: dict[str, int] = limits
+        self.constants: bool = constants
 
         self.ok = True
         self.built = False
@@ -504,7 +506,9 @@ class Program:
             kwargs["timeout"] = self.limits["timeout"]
         if "memory" not in kwargs and "memory" in self.limits:
             kwargs["memory"] = self.limits["memory"]
-        return exec_command(*args, **kwargs)
+        return exec_command(
+            *args, **kwargs, env=self.problem.settings.constants if self.constants else {}
+        )
 
     @staticmethod
     def add_callback(problem, path, c):
@@ -520,6 +524,7 @@ class Generator(Program):
             path,
             "generators",
             limits={"timeout": problem.limits.generator_time},
+            constants=True,
             **kwargs,
         )
 
@@ -583,6 +588,7 @@ class Visualizer(Program):
             path,
             "visualizers",
             limits={"timeout": problem.limits.visualizer_time},
+            constants=True,
             **kwargs,
         )
 

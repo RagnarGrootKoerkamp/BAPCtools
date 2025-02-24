@@ -104,6 +104,7 @@ class Validator(program.Program):
                 "memory": problem.limits.validation_memory,
             },
             skip_double_build_warning=skip_double_build_warning,
+            constants=True,
         )
         assert self.__class__ is not Validator  # Validator is abstract and may not be instantiated
 
