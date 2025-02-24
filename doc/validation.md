@@ -80,12 +80,12 @@ which allows an output validator to be more strict about the format of `.ans` fi
 
 `bt validate --invalid`
 
-BAPCtools expects deliberately invalid test cases in `data/invalid_{inputs,answers,outputs}`.
+BAPCtools expects deliberately invalid test cases in `data/invalid_{input,answer,output}`.
 These ensure that validators reject under the expected circumstances.
 
 ### Invalid inputs
 
-Invalid inputs are placed in `data/invalid_inputs` and consist only of an `.in`-file.
+Invalid inputs are placed in `data/invalid_input` and consist only of an `.in`-file.
 An invalid input must be rejected by at least one input validator.
 
 Examples:
@@ -105,7 +105,7 @@ Examples:
 
 ### Invalid answers
 
-Invalid answers are test cases in `data/invalid_answers`.
+Invalid answers are test cases in `data/invalid_answer`.
 Such a test case consist of input and answer files (`.in` and `.ans`), just like a normal test case.
 The input file must pass input validation (i.e., all input validators must accept).
 The testcase must fail answer validation, i.e., at least one answer validator or the output validator must reject it.
@@ -141,17 +141,17 @@ Examples:
 
 `bt validate --generic`
 
-BAPCtools tries to create deliberately invalid test cases (like those in `data/invalid_{inputs,answers,outputs}`) based on the first three samples.
+BAPCtools tries to create deliberately invalid test cases (like those in `data/invalid_{input,answer,output}`) based on the first three samples.
 These ensure that the validators reject test cases that are typically considered invalid, like whitespace errors or obscure characters.
 Note that some types of invalid _answers_ are considered valid _outputs_: these types of generic invalid cases are not tested against the output validator.
 One example is that superfluous leading zeroes are accepted for floating-point _outputs_, but considered invalid as _answer_.
 
-Additionally, it tries to create valid test cases with outputs (like those in `data/valid_outputs`) based on the first three samples.
+Additionally, it tries to create valid test cases with outputs (like those in `data/valid_output`) based on the first three samples.
 These ensure that the output validators accept test cases that are typically considered valid, like whitespace or case changes.
 
-## Valid outputs
+## Valid output
 
-`bt validate --valid-outputs`
+`bt validate --valid-output`
 
 Valid outputs are valid test cases in `data/valid_output` with an additional `.out`-file that must pass output validation.
 Additionally, the input file must pass input validation, the answer file must pass answer validation.

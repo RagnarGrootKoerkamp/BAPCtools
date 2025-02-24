@@ -475,7 +475,7 @@ class TestcaseRule(Rule):
         self.root = self.path.parts[0]
         if self.root == "bad":
             message(
-                "bad is deprecated. Use {invalid_inputs,invalid_answers} instead.",
+                "bad is deprecated. Use {invalid_input,invalid_answer} instead.",
                 self.path,
                 color_type=MessageType.WARN,
             )
@@ -700,7 +700,7 @@ class TestcaseRule(Rule):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
-        if testcase.root in config.INVALID_CASE_DIRECTORIES:
+        if testcase.root == "invalid_input":
             return True
 
         ansfile = problem.tmpdir / "data" / t.hash / "testcase.ans"
@@ -902,7 +902,7 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == "" and t.root not in ["bad", "invalid_inputs"]:
+                    if contents == "" and t.root not in ["bad", "invalid_input"]:
                         bar.error(f"Hardcoded {ext} data must not be empty!")
                         return False
                     else:
@@ -933,7 +933,7 @@ class TestcaseRule(Rule):
         def generate_from_solution():
             nonlocal meta_yaml
 
-            if testcase.root in config.INVALID_CASE_DIRECTORIES:
+            if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
                 return True
             if config.args.no_solution:
                 return True
@@ -1072,9 +1072,9 @@ class TestcaseRule(Rule):
 
             # remove files that should not be considered for this testcase
             extensions = list(config.KNOWN_TESTCASE_EXTENSIONS)
-            if t.root not in config.INVALID_CASE_DIRECTORIES[1:]:
+            if t.root not in [*config.INVALID_CASE_DIRECTORIES[1:], "valid_output"]:
                 extensions.remove(".ans")
-            if t.root not in config.INVALID_CASE_DIRECTORIES[2:]:
+            if t.root not in [*config.INVALID_CASE_DIRECTORIES[2:], "valid_output"]:
                 extensions.remove(".out")
 
             for ext in extensions:
@@ -1634,10 +1634,10 @@ class GeneratorConfig:
                     order = [
                         "sample",
                         "secret",
-                        "invalid_outputs",
-                        "invalid_answers",
-                        "invalid_inputs",
-                        "valid_outputs",
+                        "invalid_output",
+                        "invalid_answer",
+                        "invalid_input",
+                        "valid_output",
                     ]
                     keys = dictionary.keys()
                     if isinstance(parent, RootDirectory):
@@ -1645,6 +1645,17 @@ class GeneratorConfig:
                             keys,
                             key=lambda k: (order.index(k), k) if k in order else (999, k),
                         )
+                        deprecated = [
+                            "invalid_outputs",
+                            "invalid_answers",
+                            "invalid_inputs",
+                            "valid_outputs",
+                        ]
+                        for key in deprecated:
+                            if key in keys:
+                                warn(
+                                    f"Found key data.{key} in generators.yaml, should be: data.{key[:-1]} (singular form)."
+                                )
                     else:
                         keys = sorted(keys)
 
@@ -2039,7 +2050,7 @@ data/*
                 warn("Cannot reorder Root directory. Skipping.")
             elif parts[0] in config.INVALID_CASE_DIRECTORIES:
                 warn(f"{d} is used for invalid test data. Skipping.")
-            elif parts[0] == "valid_outputs":
+            elif parts[0] == "valid_output":
                 warn(f"{d} is used for valid test data. Skipping.")
             elif path not in self.known_directories:
                 warn(f"{d} is not a generated directory. Skipping.")

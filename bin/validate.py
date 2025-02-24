@@ -13,14 +13,14 @@ class Mode(Enum):
     INPUT = 1
     ANSWER = 2
     INVALID = 3
-    VALID_OUTPUTS = 4
+    VALID_OUTPUT = 4
 
     def __str__(self):
         return {
             Mode.INPUT: "input",
             Mode.ANSWER: "answer",
             Mode.INVALID: "invalid files",
-            Mode.VALID_OUTPUTS: "valid outputs",
+            Mode.VALID_OUTPUT: "valid output",
         }[self]
 
 
@@ -246,8 +246,8 @@ class InputValidator(Validator):
             raise ValueError("InputValidators do not support Mode.ANSWER")
         if mode == Mode.INVALID:
             raise ValueError("InputValidators do no support Mode.INVALID")
-        if mode == Mode.VALID_OUTPUTS:
-            raise ValueError("InputValidators do no support Mode.VALID_OUTPUTS")
+        if mode == Mode.VALID_OUTPUT:
+            raise ValueError("InputValidators do no support Mode.VALID_OUTPUT")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -299,8 +299,8 @@ class AnswerValidator(Validator):
             raise ValueError("AnswerValidators do no support Mode.INPUT")
         if mode == Mode.INVALID:
             raise ValueError("AnswerValidators do no support Mode.INVALID")
-        if mode == Mode.VALID_OUTPUTS:
-            raise ValueError("AnswerValidators do no support Mode.VALID_OUTPUTS")
+        if mode == Mode.VALID_OUTPUT:
+            raise ValueError("AnswerValidators do no support Mode.VALID_OUTPUT")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -365,15 +365,15 @@ class OutputValidator(Validator):
         if mode == Mode.ANSWER:
             path = ans_path
         elif mode == Mode.INVALID:
-            if testcase.root != "invalid_outputs":
+            if testcase.root != "invalid_output":
                 raise ValueError(
-                    "OutputValidator in Mode.INVALID should only be run for data/invalid_outputs"
+                    "OutputValidator in Mode.INVALID should only be run for data/invalid_output"
                 )
             path = testcase.out_path.resolve()
-        elif mode == Mode.VALID_OUTPUTS:
-            if testcase.root != "valid_outputs":
+        elif mode == Mode.VALID_OUTPUT:
+            if testcase.root != "valid_output":
                 raise ValueError(
-                    "OutputValidator in Mode.VALID_OUTPUTS should only be run for data/valid_outputs"
+                    "OutputValidator in Mode.VALID_OUTPUT should only be run for data/valid_output"
                 )
             path = testcase.out_path.resolve()
         else:

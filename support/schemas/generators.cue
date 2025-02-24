@@ -64,10 +64,10 @@ import "strings"
 	data: close({
 		sample!:          #testgroup
 		secret!:          #testgroup
-		invalid_inputs?:  #testgroup
-		invalid_answers?: #testgroup
-		invalid_outputs?: #testgroup
-		valid_outputs?: #testgroup
+		invalid_input?:  #testgroup
+		invalid_answer?: #testgroup
+		invalid_output?: #testgroup
+		valid_output?: #testgroup
 	})
 	#testgroup_config
 	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2024-12"

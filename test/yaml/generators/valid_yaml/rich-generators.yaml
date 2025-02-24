@@ -33,16 +33,16 @@ data:
         visualizer: "/foo/bar/baz"
         data:
           'a': my_generator
-  invalid_inputs:
+  invalid_input:
     data:
     - '':
         in: "1 2 3"
-  invalid_answers:
+  invalid_answer:
     data:
     - '':
         in: "1 2 3"
         ans: "foo"
-  invalid_outputs:
+  invalid_output:
     data:
     - '':
         in: "1 2 3"

@@ -80,7 +80,7 @@ Use `bt run -v` to show results for all testcases.
 
   Testcases and submissions should be passed as a relative or absolute path to the testcase/submission.
 
-  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret,invalid_inputs,invalid_outputs}` respectively.
+  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret}` respectively.
 
   **Submission** paths can take a few forms:
 
@@ -279,9 +279,9 @@ See `run <testcases>` for a description of how to pass testcases.
 
 `bt validate --invalid <invalid_testcases>` checks invalid test cases in `data/invalid_*`.
 
-`bt validate --valid-outputs <valid_testcases>` checks valid test cases in `data/valid_outputs`.
+`bt validate --valid-output <valid_testcases>` checks valid test cases in `data/valid_output`.
 
-`bt validate --generic <type>` automatically generates generic (in)valid test cases (like those in `data/valid_outputs` or `data/invalid_*`) and checks them. `dir` must be one of `valid_inputs`, `valid_answers`, `valid_outputs`, or `valid_outputs`
+`bt validate --generic <type>` automatically generates generic (in)valid test cases (like those in `data/valid_output` or `data/invalid_*`) and checks them. `dir` must be one of `valid_input`, `valid_answer`, `valid_output`, or `valid_output`
 
 `bt validate` runs all of the above.
 
