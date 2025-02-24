@@ -506,8 +506,10 @@ class Program:
             kwargs["timeout"] = self.limits["timeout"]
         if "memory" not in kwargs and "memory" in self.limits:
             kwargs["memory"] = self.limits["memory"]
+        if "env" not in kwargs:
+            kwargs["env"] = {}
         if self.constants:
-            kwargs["env"] = {**kwargs.get("env", {}), **self.problem.settings.constants}
+            kwargs["env"] = {**kwargs["env"], **self.problem.settings.constants}
         return exec_command(*args, **kwargs)
 
     @staticmethod

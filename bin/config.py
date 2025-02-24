@@ -82,9 +82,6 @@ TOOLS_ROOT: Final[Path] = Path(__file__).resolve().parent.parent
 # The directory from which BAPCtools is invoked.
 current_working_directory: Final[Path] = Path.cwd().resolve()
 
-# Add third_party/ to the $PATH for checktestdata.
-os.environ["PATH"] += os.pathsep + str(TOOLS_ROOT / "third_party")
-
 # Below here is some global state that will be filled in main().
 
 args = argparse.Namespace()
