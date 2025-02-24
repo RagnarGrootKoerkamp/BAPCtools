@@ -342,6 +342,7 @@ class Submission(program.Program):
                     if generator_timeout
                     else self.limits["timeout"]
                 ),
+                env={},
             )
             if out_file:
                 out_file.close()
