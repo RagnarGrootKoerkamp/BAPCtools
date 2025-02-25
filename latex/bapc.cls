@@ -19,8 +19,6 @@
 \providecommand{\lang}{en}% fallback definition, should be defined as -usepretex to latexmk
 \input{lang/\lang.tex}
 
-\RequirePackage{constants}
-
 %\RequirePackage{frcursive}
 
 %-------------------------------------------------------------------------------
@@ -426,6 +424,18 @@
 	\ifcsname Sample\theNextSample\endcsname%
 		\nextsample%
 		\remainingsamples%
+	\fi%
+}
+
+%-------------------------------------------------------------------------------
+% Command to include consatnts.
+% The tooling has to define the commands \constants_<key>{}
+%-------------------------------------------------------------------------------
+\newcommand{\constant}[1]{%
+	\ifcsname constants_#1\endcsname%
+		\csname constants_#1\endcsname%
+	\else%
+		\PackageError{constants}{constant{#1} is not defined}{}%
 	\fi%
 }
 

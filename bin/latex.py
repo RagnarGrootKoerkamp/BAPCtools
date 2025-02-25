@@ -167,20 +167,10 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
 def create_constants_file(problem: "problem.Problem", language: str) -> None:
     constant_data: list[str] = []
     for key, item in problem.settings.constants.items():
-        constant_data.append(f"\\expandafter\\def\\csname constants@{key}\\endcsname{{{item}}}\n")
-
-    constant_data += [
-        "\\newcommand{\\constant}[1]{%\n",
-        "    \\ifcsname constants@#1\\endcsname%\n",
-        "        \\csname constants@#1\\endcsname%\n",
-        "    \\else%\n",
-        "        \\PackageError{constants}{constant{#1} is not defined}{}%\n",
-        "    \\fi%\n",
-        "}\n",
-    ]
+        constant_data.append(f"\\expandafter\\def\\csname constants_{key}\\endcsname{{{item}}}\n")
 
     builddir = latex_builddir(problem, language)
-    constants_file_path = builddir / "constants.sty"
+    constants_file_path = builddir / "constants.tex"
     constants_file_path.write_text("".join(constant_data))
 
 
