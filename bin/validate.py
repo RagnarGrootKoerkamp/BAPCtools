@@ -174,7 +174,6 @@ class Validator(program.Program):
                     exec_code_map=format_exec_code_map,
                     stdin=main_file,
                     cwd=cwd,
-                    env={"PATH": str(config.TOOLS_ROOT / "third_party")},
                 )
 
         if self.language == "viva":
@@ -183,7 +182,6 @@ class Validator(program.Program):
                 self.run_command + [main_path.resolve()],
                 exec_code_map=format_exec_code_map,
                 cwd=cwd,
-                env={"PATH": str(config.TOOLS_ROOT / "third_party")},
             )
             return result
 

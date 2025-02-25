@@ -1343,3 +1343,7 @@ def is_uuid(uuid: str) -> bool:
         return uuid.casefold() == str(UUID(uuid)).casefold()
     except ValueError:
         return False
+
+
+def get_env(additions: dict[str, str]) -> dict[str, str]:
+    return {**os.environ, **additions}

@@ -91,7 +91,7 @@ def run_interactive_testcase(
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE if validator_error is False else None,
                 cwd=validator_dir,
-                env=run.problem.settings.constants,
+                env=get_env(run.problem.settings.constants),
             )
 
             # Start and time the submission.
@@ -105,7 +105,6 @@ def run_interactive_testcase(
                 cwd=submission_dir,
                 timeout=timeout,
                 memory=memory,
-                env={},
             )
 
             # Wait
@@ -225,7 +224,7 @@ while True:
             cwd=validator_dir,
             pipesize=BUFFER_SIZE,
             preexec_fn=limit_setter(validator_command, validation_time, validation_memory, 0),
-            env=run.problem.settings.constants,
+            env=get_env(run.problem.settings.constants),
         )
         validator_pid = validator.pid
         # add all programs to the same group (for simplicity we take the pid of the validator)
@@ -262,7 +261,6 @@ while True:
             cwd=submission_dir,
             pipesize=BUFFER_SIZE,
             preexec_fn=limit_setter(submission_command, timeout, memory, gid),
-            env={},
         )
         submission_pid = submission.pid
 
