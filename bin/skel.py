@@ -137,6 +137,7 @@ def new_problem():
         fatal("--problem does not work for new_problem.")
 
     statement_languages = config.args.languages if config.args.languages else ["en"]
+    main_language = "en" if "en" in statement_languages else statement_languages[0]
 
     problemname = {
         lang: (
@@ -149,7 +150,7 @@ def new_problem():
     dirname = (
         _alpha_num(config.args.problemname)
         if config.args.problemname
-        else _ask_variable_string("dirname", _alpha_num(problemname[statement_languages[0]]))
+        else _ask_variable_string("dirname", _alpha_num(problemname[main_language]))
     )
     author = config.args.author if config.args.author else _ask_variable_string("author")
 
@@ -190,7 +191,7 @@ def new_problem():
     )
     source_url = _ask_variable_string("source url", variables.get("source_url", ""), True)
     variables["source"] = (
-        f"source:\n  name: {source_name}\n{'  url: {source_url}' if source_url else '  #url:'}"
+        f"source:\n  name: {source_name}\n{f'  url: {source_url}' if source_url else '  #url:'}"
     )
 
     variables["license"] = _ask_variable_choice(
@@ -226,7 +227,7 @@ def new_problem():
                 {
                     "id": dirname,
                     "label": next_label,
-                    "name": problemname,
+                    "name": problemname[main_language],
                     "rgb": "#000000",
                     "time_limit": 1.0,
                 }
