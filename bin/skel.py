@@ -5,6 +5,7 @@ import re
 # Local imports
 import config
 from export import force_single_language
+from problem import Problem
 from util import *
 import contest
 
@@ -323,22 +324,33 @@ def copy_skel_dir(problems):
 
 
 # NOTE: This is one of few places that prints to stdout instead of stderr.
-def create_gitlab_jobs(contest, problems):
-    def problem_source_dir(problem):
-        return problem.path.resolve().relative_to(Path("..").resolve())
+def create_gitlab_jobs(contest: str, problems: list[Problem]):
+    git_root_path = Path(os.popen("git rev-parse --show-toplevel").read().strip()).resolve()
+
+    def problem_source_dir(problem: Problem):
+        return problem.path.resolve().relative_to(git_root_path)
 
     header_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/header.yaml").read_text()
-    print(substitute(header_yml, locals()))
+    print(header_yml)
 
     contest_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/contest.yaml").read_text()
-    changes = ""
-    for problem in problems:
-        changes += "      - " + str(problem_source_dir(problem)) + "/problem_statement/**/*\n"
-    print(substitute(contest_yml, locals()))
+    contest_path = Path(".").resolve().relative_to(git_root_path)
+    changes = "".join(
+        "      - " + str(problem_source_dir(problem)) + "/problem_statement/**/*\n"
+        for problem in problems
+    )
+    print(
+        substitute(
+            contest_yml, {"contest": contest, "contest_path": str(contest_path), "changes": changes}
+        )
+    )
 
     problem_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/problem.yaml").read_text()
     for problem_obj in problems:
-        changesdir = problem_source_dir(problem_obj)
+        problem_path = problem_source_dir(problem_obj)
         problem = problem_obj.name
         print("\n")
-        print(substitute(problem_yml, locals()), end="")
+        print(
+            substitute(problem_yml, {"problem": problem, "problem_path": str(problem_path)}),
+            end="",
+        )
