@@ -343,8 +343,16 @@ class ProblemSettings:
         self.keywords: str = parse_setting(yaml_data, "keywords", "")
         # Not implemented in BAPCtools. We always test all languges in langauges.yaml.
         self.languages: list[str] = parse_optional_list_setting(yaml_data, "languages", str)
-        # Not yet implemented, pending https://github.com/Kattis/problem-package-format/issues/344
-        self.constants: dict[str, Any] = parse_setting(yaml_data, "constants", {})
+
+        constants: dict[str, Any] = parse_setting(yaml_data, "constants", {})
+        self.constants: dict[str, str] = {}
+        for key, value in constants.items():
+            if not isinstance(key, str) or not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(key):
+                warn(f"invalid constant name: {key}. SKIPPED.")
+            elif not isinstance(value, (str, int, float)):
+                warn(f"invalid constant type for: {key}. SKIPPED.")
+            else:
+                self.constants[key] = str(value)
 
         # BAPCtools extensions:
         self.verified: Optional[str] = parse_optional_setting(yaml_data, "verified", str)
