@@ -29,6 +29,7 @@ def run_interactive_testcase(
     # else: path
     interaction: Optional[bool | Path] = False,
     submission_args: Optional[list[str]] = None,
+    bar: Optional[ProgressBar] = None,
 ):
     output_validators = run.problem.validators(validate.OutputValidator)
     if len(output_validators) != 1:
@@ -53,9 +54,13 @@ def run_interactive_testcase(
                 run.testcase.ans_path.resolve(),
                 run.feedbackdir.resolve(),
             ]
-            + run.problem.settings.validator_flags
+            + run.testcase.testdata_yaml_validator_args(
+                output_validator,
+                bar or PrintBar("Run interactive test case"),
+            )
         )
 
+    assert run.submission.run_command, "Submission must be built"
     submission_command = run.submission.run_command
     if submission_args:
         submission_command += submission_args
@@ -64,7 +69,7 @@ def run_interactive_testcase(
     validator_dir = output_validator.tmpdir
     submission_dir = run.submission.tmpdir
 
-    nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else False
+    nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else None
 
     if config.args.verbose >= 2:
         print("Validator:  ", *get_validator_command(), file=sys.stderr)

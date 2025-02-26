@@ -4,6 +4,8 @@ import subprocess
 import sys
 
 from colorama import Fore, Style
+from pathlib import Path
+from typing import cast
 
 import config
 import interactive
@@ -11,6 +13,7 @@ import parallel
 import problem
 import program
 import validate
+from testcase import Testcase
 from util import (
     crop_output,
     ensure_symlink,
@@ -26,23 +29,23 @@ from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdi
 
 
 class Run:
-    def __init__(self, problem: "problem.Problem", submission, testcase):
+    def __init__(self, problem: "problem.Problem", submission: "Submission", testcase: Testcase):
         self.problem = problem
         self.submission = submission
         self.testcase = testcase
         self.name: str = self.testcase.name
         self.result = None
 
-        self.tmpdir = (
+        self.tmpdir: Path = (
             self.problem.tmpdir
             / "runs"
             / self.submission.short_path
-            / self.testcase.short_path.with_suffix("")
+            / cast(Path, self.testcase.short_path).with_suffix("")
         )
 
-        self.in_path = self.tmpdir / "testcase.in"
-        self.out_path = self.tmpdir / "testcase.out"
-        self.feedbackdir = self.in_path.with_suffix(".feedbackdir")
+        self.in_path: Path = self.tmpdir / "testcase.in"
+        self.out_path: Path = self.tmpdir / "testcase.out"
+        self.feedbackdir: Path = self.in_path.with_suffix(".feedbackdir")
 
         if self.tmpdir.is_file():
             self.tmpdir.unlink()
@@ -56,7 +59,7 @@ class Run:
     def run(self, bar, *, interaction=None, submission_args=None):
         if self.problem.interactive:
             result = interactive.run_interactive_testcase(
-                self, interaction=interaction, submission_args=submission_args
+                self, interaction=interaction, submission_args=submission_args, bar=bar
             )
             if result is None:
                 bar.error(
@@ -76,7 +79,7 @@ class Run:
             if interaction:
                 assert not interaction.is_relative_to(self.tmpdir)
                 interaction = interaction.open("a")
-            nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else False
+            nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else None
             pass_id = 0
             max_duration = 0
             tle_result = None
@@ -218,9 +221,9 @@ class Run:
             return None
         validator = output_validators[0]
 
-        flags = self.testcase.testdata_yaml_validator_flags(validator, bar)
-
-        return validator.run(self.testcase, self, args=flags)
+        return validator.run(
+            self.testcase, self, args=self.testcase.testdata_yaml_validator_args(validator, bar)
+        )
 
 
 class Submission(program.Program):

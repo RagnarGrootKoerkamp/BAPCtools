@@ -407,4 +407,4 @@ data:
         in: '1 2'
         visualizer: "/ab/c" # this is fine
         testdata.yaml:      # this is not
-          input_validator_flags: "connected"
+          input_validator_args: "connected"

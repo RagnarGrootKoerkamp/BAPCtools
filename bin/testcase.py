@@ -1,14 +1,14 @@
 """Test case"""
 
-from pathlib import Path
+from typing import cast, Literal
 
 from util import (
-    fatal,
-    combine_hashes_dict,
-    shorten_path,
-    print_name,
-    warn,
     ExecStatus,
+    combine_hashes_dict,
+    fatal,
+    print_name,
+    shorten_path,
+    warn,
 )
 from colorama import Fore, Style
 import config
@@ -57,7 +57,7 @@ class Testcase:
 
     """
 
-    def __init__(self, base_problem, path: Path, *, short_path=None, print_warn=False):
+    def __init__(self, base_problem, path, *, short_path=None, print_warn=False):
         """
         Arguments
         ---------
@@ -110,36 +110,35 @@ class Testcase:
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_validator_flags(self, validator, bar) -> list[str] | None:
+    def testdata_yaml_validator_args(
+        self,
+        validator,  # TODO #102: Fix circular import when setting type to validate.AnyValidator
+        bar,  # TODO #102: Type should probably be ProgressBar | PrintBar or something
+    ) -> list[str]:
         """
         The flags specified in testdata.yaml for the given validator applying to this testcase.
 
         Returns
         -------
 
-        A nonempty list of strings, such as ['space_change_sensitive', 'case_sensitive']
+        A nonempty list of strings, such as ["space_change_sensitive", "case_sensitive"]
         or ["--max_N", "50"] or even [""].
-        None if no flags were found
         """
-        if not isinstance(validator, validate.Validator):
-            raise ValueError(f"Validator expected, got {validator}")
-
         key, name = (
-            ("input_validator_flags", validator.name)
+            ("input_validator_args", validator.name)
             if isinstance(validator, validate.InputValidator)
-            else ("output_validator_flags", None)
+            else ("output_validator_args", None)
         )
 
         path = self.problem.path / "data" / self.short_path
-        flags = self.problem.get_testdata_yaml(path, key, bar, name=name)
+        return self.problem.get_testdata_yaml(
+            path,
+            cast(Literal["input_validator_args", "output_validator_args"], key),
+            bar,
+            name=name,
+        )
 
-        if flags is None:
-            return None
-        if not isinstance(flags, str):
-            fatal(f"{key} must be a string in testdata.yaml, got {flags}")
-        return flags.split()
-
-    def validator_hashes(self, cls: type["validate.Validator"], bar):
+    def validator_hashes(self, cls: type["validate.AnyValidator"], bar):
         """
         Returns
         -------
@@ -156,8 +155,8 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator, bar)
-            if flags is False:
+            flags = self.testdata_yaml_validator_args(validator, bar)
+            if not flags:
                 continue
             flags_string = " ".join(flags) if flags is not None else None
             o = {
@@ -179,7 +178,6 @@ class Testcase:
         bar,
         constraints=None,
         warn_instead_of_error=False,
-        args=None,
     ) -> bool:
         check_constraints = constraints is not None
 
@@ -194,7 +192,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
             case validate.Mode.ANSWER:
                 return self._run_validators(
@@ -206,7 +203,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
             case validate.Mode.INVALID:
                 assert self.root in config.INVALID_CASE_DIRECTORIES[:-1]
@@ -216,7 +212,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
                 if not ok or self.root == "invalid_input":
                     return ok
@@ -229,7 +224,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
                 if not ok or self.root == "invalid_answer":
                     return ok
@@ -241,7 +235,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
             case validate.Mode.VALID_OUTPUT:
                 assert self.root == "valid_output"
@@ -253,7 +246,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
                 if not ok:
                     return ok
@@ -263,7 +255,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
                 if not ok:
                     return ok
@@ -275,7 +266,6 @@ class Testcase:
                     bar=bar,
                     constraints=constraints,
                     warn_instead_of_error=warn_instead_of_error,
-                    args=args,
                 )
             case _:
                 raise ValueError
@@ -289,17 +279,15 @@ class Testcase:
         bar,
         constraints=None,
         warn_instead_of_error=False,
-        args=None,
     ) -> bool:
-        if args is None:
-            args = []
+        args = []
         results = []
         for validator in validators:
             name = validator.name
             if type(validator) is validate.OutputValidator and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
-            flags = self.testdata_yaml_validator_flags(validator, bar)
+            flags = self.testdata_yaml_validator_args(validator, bar)
             if flags is False:
                 continue
             flags = args if flags is None else flags + args

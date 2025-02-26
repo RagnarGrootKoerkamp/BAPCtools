@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://json.schemastore.org/problem_package_generators.json",
   "$defs": {
     "testgroup": {
@@ -8,7 +8,7 @@
       "description": "A test group",
       "properties": {
         "data": {
-          "description": "Commands or dictionaries defining the testdata in this testgroup",
+          "description": "Commands or dictionaries defining the test data in this test group",
           "oneOf": [
             {
               "type": "array",
@@ -32,7 +32,7 @@
         "include": {
           "title": "Inclusion",
           "type": "array",
-          "description": "Test cases and test groups to be included in this testgroup from elsewhere.",
+          "description": "Test cases and test groups to be included in this test group from elsewhere.",
           "items": {
             "type": "string"
           }
@@ -51,8 +51,8 @@
     },
     "testdata_settings": {
       "type": "object",
-      "title": "Testdata settings",
-      "description": "The settings that apply to the testdata for this test group. Will be copied to this testgroup's `testdata.yaml`.",
+      "title": "Test data settings",
+      "description": "The settings that apply to the test data for this test group. Will be copied to this test group's `testdata.yaml`.",
       "properties": {
         "on_reject": {
           "enum": ["break", "continue"],
@@ -65,8 +65,51 @@
           "type": "string",
           "examples": ["min", "sum"]
         },
+        "input_validator_args": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])$":{
+                  "type": "string"
+                }
+              }
+            }
+          ],
+          "description": "Defines arguments passed to each input validator for the test case/group. If a sequence of strings, then those are the arguments that will be passed to each input validator for this the case/group. If a map, then each key is the name of the input validator and the value is the arguments to pass to that input validator for the test case/group. Validators not present in the map are run without any arguments."
+        },
+        "output_validator_args": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ],
+          "description": "Defines arguments passed to the output validator for the test case/group."
+        },
         "input_validator_flags": {
-          "type": "string"
+          "type": "string",
+          "deprecated": true,
+          "description": "With 'problem_format_version: 2023-07-draft' in problem.yaml, use input_validator_args instead."
+        },
+        "output_validator_flags": {
+          "type": "string",
+          "deprecated": true,
+          "description": "With 'problem_format_version: 2023-07-draft' in problem.yaml, use input_validator_args instead."
         },
         "accept_score": {
           "type": "string"
@@ -113,17 +156,18 @@
             "generate": {
               "$ref": "#/$defs/command"
             },
+            "copy": {
+              "type": "string",
+              "title": "Copy",
+              "description": "Copy this test case from the given path relative to `/generators/`.",
+              "examples": ["manual_cases/sample/3"]
+            },
             "count": {
               "type": "integer",
               "minimum": 1,
               "maximum": 100,
-              "description": "How often the generator should run."
-            },
-            "copy": {
-              "type": "string",
-              "title": "Copy",
-              "description": "Copy this testcase from the given path relative to `/generators/`.",
-              "examples": ["manual_cases/sample/3"]
+              "title": "Count",
+              "description": "Generate this number of test cases, substituting `{count}` in the `generate:` command with values between 1 and `count`, inclusive."
             },
             "in": {
               "type": "string",
@@ -198,12 +242,12 @@
     "solution": {
       "$ref": "#/$defs/slashedfilepath",
       "title": "Default Solution",
-      "description": "Absolute path to a solution for this problem or testcase.",
+      "description": "Absolute path to a solution for this problem or test case.",
       "examples": ["/submissions/accepted/sol.py"]
     },
     "command": {
       "title": "Generator Invocation",
-      "description": "Invocation of a generator to create this testcase",
+      "description": "Invocation of a generator to create this test case",
       "examples": ["forest --n 40 --connected", "path.cpp 20", "random {seed}"],
       "type": "string",
       "pattern": "^([^{}]|\\{name\\}|\\{count\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\}|\\{count\\})*$"
@@ -260,8 +304,8 @@
       "additionalProperties": false
     },
     "data": {
-      "title": "testdata root",
-      "description": "the root test group. must contain the testgroups 'sample' and 'secret'.",
+      "title": "Test data root",
+      "description": "The root test group. Must contain the test groups 'sample' and 'secret'.",
       "type": "object",
       "properties": {
         "sample": {

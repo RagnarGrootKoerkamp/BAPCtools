@@ -87,9 +87,9 @@ class TestDefaultOutputValidators:
         r.out_path = out_path
         r.feedbackdir = problem.tmpdir / "data"
 
-        problem.settings.validator_flags = flags
+        # TODO: the validators should probably be able to figure the flags out from the Problem config
+        result = validator.run(t, r, args=flags)
 
-        result = validator.run(t, r)
         if result.status != exp:
             print(testdata)
             for k in vars(result):
