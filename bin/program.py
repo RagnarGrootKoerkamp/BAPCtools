@@ -91,7 +91,7 @@ def sanitizer():
 # Member variables are:
 # - short_path:     the path relative to problem/subdir/, or None
 # - tmpdir:         the build directory in tmpfs. This is only created when build() is called.
-# - input_files:    list of source files linked into tmpdir
+# - input_files:    list of source files linked/copied into tmpdir
 # - language:       the detected language
 # - env:            the environment variables used for compile/run command substitution
 # - hash:           a hash of all of the program including all source files
@@ -116,8 +116,9 @@ class Program:
         subdir: str,
         deps: Optional[list[Path]] = None,
         *,
-        skip_double_build_warning=False,
+        skip_double_build_warning: bool = False,
         limits: dict[str, int] = {},
+        substitute_constants: bool = False,
     ):
         if deps is not None:
             assert isinstance(self, Generator)
@@ -157,6 +158,7 @@ class Program:
         self.hash: Optional[str] = None
         self.env: dict[str, int | str | Path] = {}
         self.limits: dict[str, int] = limits
+        self.substitute_constants: bool = substitute_constants
 
         self.ok = True
         self.built = False
@@ -438,13 +440,27 @@ class Program:
         self.input_files = []
         hashes = []
         for f in self.source_files:
-            ensure_symlink(self.tmpdir / f.name, f)
-            self.input_files.append(self.tmpdir / f.name)
             if not f.is_file():
                 self.ok = False
                 bar.error(f"{str(f)} is not a file")
                 return False
-            hashes.append(hash_file(f))
+            tmpf = self.tmpdir / f.name
+            if (
+                not self.substitute_constants
+                or not self.problem.settings.constants
+                or not has_substitute(f, config.CONSTANT_SUBSTITUTE_REGEX)
+            ):
+                ensure_symlink(tmpf, f)
+            else:
+                copy_and_substitute(
+                    f,
+                    tmpf,
+                    self.problem.settings.constants,
+                    pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+                    bar=bar,
+                )
+            self.input_files.append(tmpf)
+            hashes.append(hash_file(tmpf))
         self.hash = combine_hashes(hashes)
 
         if not self._get_language(bar):
@@ -520,6 +536,7 @@ class Generator(Program):
             path,
             "generators",
             limits={"timeout": problem.limits.generator_time},
+            substitute_constants=True,
             **kwargs,
         )
 
@@ -583,6 +600,7 @@ class Visualizer(Program):
             path,
             "visualizers",
             limits={"timeout": problem.limits.visualizer_time},
+            substitute_constants=True,
             **kwargs,
         )
 
