@@ -19,6 +19,7 @@ PROBLEMS = [
     "divsort",
     "interactivemultipass",
     "multipass",
+    "constants",
 ] + ["hellounix" if not util.is_mac() and not util.is_windows() else []]
 
 # Run various specific commands on this problem.
