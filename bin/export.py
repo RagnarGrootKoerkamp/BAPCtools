@@ -137,7 +137,7 @@ def build_problem_zip(problem: Problem, output: Path):
         export_dir /= problem.name
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    def add(path, source):
+    def add_file(path, source):
         path = export_dir / path
         path.parent.mkdir(parents=True, exist_ok=True)
         ensure_symlink(path, source)
@@ -149,11 +149,10 @@ def build_problem_zip(problem: Problem, output: Path):
         if required and len(paths) == 0:
             util.error(f"No matches for required path {pattern}.")
         for f in paths:
-            # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
                 out = f.relative_to(problem.path)
                 out = remove_language_suffix(out, statement_language)
-                add(out, f)
+                add_file(out, f)
 
     # Include all testcases (specified by a .in file) and copy all related files
     for pattern, required in testcases:
@@ -161,7 +160,6 @@ def build_problem_zip(problem: Problem, output: Path):
         if required and len(paths) == 0:
             util.error(f"No matches for required path {pattern}.")
         for f in paths:
-            # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
                 if not f.with_suffix(".ans").is_file():
                     util.warn(f"No answer file found for {f}, skipping.")
@@ -170,14 +168,14 @@ def build_problem_zip(problem: Problem, output: Path):
                         f2 = f.with_suffix(ext)
                         if f2.is_file():
                             out = f2.relative_to(problem.path)
-                            add(out, f)
+                            add_file(out, f2)
 
     # DOMjudge does not support 'type' in problem.yaml nor 'output_validator_args' in testdata.yaml yet.
     # TODO: Remove this once it does.
     if not config.args.kattis and not problem.settings.is_legacy():
         yaml_path = export_dir / "problem.yaml"
         yaml_data = [yaml_path.read_text(), "\nvalidation:"]
-        if problem.custom_output:  # custom_output is also True for interactive and multi-pass
+        if problem.custom_output:
             yaml_data.append(" custom")
             if problem.interactive:
                 yaml_data.append(" interactive")
@@ -195,7 +193,7 @@ def build_problem_zip(problem: Problem, output: Path):
             )
         )
         if validator_flags:
-            yaml_data.append("validator_flags: " + validator_flags + "\n")
+            yaml_data.append(f"validator_flags: {validator_flags}\n")
 
         yaml_path.unlink()
         yaml_path.write_text("".join(yaml_data))
@@ -252,6 +250,7 @@ def build_problem_zip(problem: Problem, output: Path):
 
         export_dir = problem.tmpdir / "export"
         for f in sorted(export_dir.rglob("*")):
+            # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
                 name = f.relative_to(export_dir)
                 zf.write(f, name, compress_type=zipfile.ZIP_DEFLATED)
