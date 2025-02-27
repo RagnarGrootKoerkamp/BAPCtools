@@ -22,9 +22,6 @@ PROBLEMS = [
     "constants",
 ] + ["hellounix" if not util.is_mac() and not util.is_windows() else []]
 
-# Run various specific commands on this problem.
-IDENTITY_PROBLEMS = ["identity"]
-
 RUN_DIR = Path.cwd().resolve()
 
 
@@ -42,6 +39,37 @@ def setup_problem(request):
 class TestProblem:
     def test_problem(self):
         tools.test(["run"])
+
+
+@pytest.fixture(scope="class")
+def setup_constants_problem(request):
+    problem_dir = RUN_DIR / "test/problems/constants"
+    os.chdir(problem_dir)
+    try:
+        tools.test(["tmp", "--clean"])
+        yield
+    finally:
+        tools.test(["tmp", "--clean"])
+        os.chdir(RUN_DIR)
+
+
+@pytest.mark.usefixtures("setup_constants_problem")
+class TestConstantsProblem:
+    def test_pdf(self):
+        tools.test(["pdf"])
+
+    def test_solutions(self):
+        tools.test(["solutions"])
+
+    def test_problem_slides(self):
+        tools.test(["problem_slides"])
+
+    def test_validate(self):
+        tools.test(["validate"])
+
+    def test_zip(self):
+        tools.test(["zip", "--force"])
+        Path("constants.zip").unlink()
 
 
 @pytest.fixture(scope="class")
