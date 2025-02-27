@@ -55,6 +55,9 @@ def setup_constants_problem(request):
 
 @pytest.mark.usefixtures("setup_constants_problem")
 class TestConstantsProblem:
+    def test_generate(self):
+        tools.test(["generate"])
+
     def test_pdf(self):
         tools.test(["pdf"])
 
