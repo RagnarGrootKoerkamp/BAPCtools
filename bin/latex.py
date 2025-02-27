@@ -164,9 +164,20 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
     samples_file_path.write_text("".join(samples_data))
 
 
+def create_constants_file(problem: "problem.Problem", language: str) -> None:
+    constant_data: list[str] = []
+    for key, item in problem.settings.constants.items():
+        constant_data.append(f"\\expandafter\\def\\csname constants_{key}\\endcsname{{{item}}}\n")
+
+    builddir = latex_builddir(problem, language)
+    constants_file_path = builddir / "constants.tex"
+    constants_file_path.write_text("".join(constant_data))
+
+
 # Steps needed for both problem and contest compilation.
 def prepare_problem(problem: "problem.Problem", language: str):
     create_samples_file(problem, language)
+    create_constants_file(problem, language)
 
 
 def get_tl(problem: "problem.Problem"):
@@ -374,6 +385,7 @@ def build_problem_pdf(
         local_data if local_data.is_file() else config.TOOLS_ROOT / "latex" / main_file,
         builddir / main_file,
         problem_data(problem, language),
+        bar=bar,
     )
 
     return build_latex_pdf(builddir, builddir / main_file, language, bar, problem.path)
@@ -465,6 +477,7 @@ def build_contest_pdf(
         ),
         builddir / "contest_data.tex",
         config_data,
+        bar=bar,
     )
 
     problems_data = ""
@@ -507,6 +520,7 @@ def build_contest_pdf(
         problems_data += substitute(
             per_problem_data_tex,
             problem_data(prob, language),
+            bar=bar,
         )
 
     if solutions:

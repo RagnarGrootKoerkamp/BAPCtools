@@ -268,7 +268,7 @@ def default_solution_path(generator_config):
     if config.args.default_solution:
         if generator_config.has_yaml:
             message(
-                f"""--default-solution Ignored. Set the default solution in the generator.yaml!
+                f"""--default-solution Ignored. Set the default solution in the generators.yaml!
 solution: /{config.args.default_solution}""",
                 "generators.yaml",
                 color_type=MessageType.WARN,
@@ -297,7 +297,7 @@ solution: /{config.args.default_solution}""",
             raw = f"solution: /{solution.relative_to(problem.path)}\n" + raw
             yaml_path.write_text(raw)
             message(
-                f"No solution specified. {solution_short_path} added as default solution in the generator.yaml",
+                f"No solution specified. {solution_short_path} added as default solution in the generators.yaml",
                 "generators.yaml",
                 color_type=MessageType.LOG,
             )
