@@ -1,0 +1,32 @@
+solution: /submissions/accepted/submission.py
+version: 2024-11  # use this version of the generators framework
+
+data:
+  sample:
+    data:
+      - '': example.py
+
+  invalid_input:
+    data:
+      not_five:
+        in: "6"
+
+  invalid_answer:
+    data:
+      not_five:
+        in: "5"
+        ans: "6"
+
+  invalid_output:
+    data:
+      not_five:
+        in: "5"
+        ans: "5"
+        out: "6"
+
+  valid_output:
+    data:
+      five:
+        in: "5"
+        ans: "5"
+        out: "5"
