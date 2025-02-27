@@ -231,7 +231,6 @@ def build_problem_zip(problem: Problem, output: Path):
         ]
         for pattern in constants_supported:
             for f in export_dir.glob(pattern):
-                print(f)
                 if f.is_file() and util.has_substitute(f, config.CONSTANT_SUBSTITUTE_REGEX):
                     text = f.read_text()
                     text = util.substitute(
