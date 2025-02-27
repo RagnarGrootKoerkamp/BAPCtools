@@ -5,6 +5,9 @@ data:
   sample:
     data:
       - '': example.py {{INT_FIVE}}
+  secret:
+    include:
+      - sample
 
   invalid_input:
     data:
