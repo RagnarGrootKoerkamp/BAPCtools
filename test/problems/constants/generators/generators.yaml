@@ -4,29 +4,29 @@ version: 2024-11  # use this version of the generators framework
 data:
   sample:
     data:
-      - '': example.py
+      - '': example.py {{INT_FIVE}}
 
   invalid_input:
     data:
-      not_five:
-        in: "6"
+      dont_substitute:
+        in: "{{INT_FIVE}}"
 
   invalid_answer:
     data:
-      not_five:
+      dont_substitute:
         in: "5"
-        ans: "6"
+        ans: "{{INT_FIVE}}"
 
   invalid_output:
     data:
-      not_five:
+      dont_substitute:
         in: "5"
         ans: "5"
-        out: "6"
+        out: "{{INT_FIVE}}"
 
   valid_output:
     data:
-      five:
+      dont_substitute:
         in: "5"
         ans: "5"
         out: "5"
