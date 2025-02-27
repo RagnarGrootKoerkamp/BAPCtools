@@ -512,7 +512,12 @@ class Problem:
                 continue
             with p._testdata_lock:
                 if f not in p._testdata_yamls:
-                    p._testdata_yamls[f] = flags = read_yaml(f, plain=True)
+                    raw = substitute(
+                        f.read_text(),
+                        p.settings.constants,
+                        pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+                    )
+                    p._testdata_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
 
                     if p.settings.is_legacy():
                         # For legacy problems, support both _flags and _args, but move to _args.
