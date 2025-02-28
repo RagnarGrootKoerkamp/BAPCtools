@@ -380,7 +380,7 @@ class ProblemSettings:
 
 # A problem.
 class Problem:
-    _SHORTNAME_REGEX_STRING: Final[str] = "^[a-z0-9]+$"
+    _SHORTNAME_REGEX_STRING: Final[str] = "[a-z0-9]{2,255}"
     _SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile(_SHORTNAME_REGEX_STRING)
 
     def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):
@@ -414,7 +414,7 @@ class Problem:
 
         # TODO: transform this into nice warnings
         assert path.is_dir()
-        if not Problem._SHORTNAME_REGEX.match(self.name):
+        if not Problem._SHORTNAME_REGEX.fullmatch(self.name):
             warn(
                 f"Problem has a bad shortname: {self.name} does not match {self._SHORTNAME_REGEX_STRING}"
             )
