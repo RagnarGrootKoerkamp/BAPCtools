@@ -522,8 +522,15 @@ class TestcaseRule(Rule):
                     if len(yaml["generate"]) == 0:
                         raise ParseException("`generate` must not be empty.")
 
-                    # replace count
+                    # first replace {{constants}}
                     command_string = yaml["generate"]
+                    command_string = substitute(
+                        command_string,
+                        problem.settings.constants,
+                        pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+                    )
+
+                    # then replace {count} and {seed}
                     if "{count}" in command_string:
                         if "count" in yaml:
                             command_string = command_string.replace(
@@ -907,6 +914,7 @@ class TestcaseRule(Rule):
                         bar.error(f"Hardcoded {ext} data must not be empty!")
                         return False
                     else:
+                        # substitute in contents? -> No!
                         infile.with_suffix(ext).write_text(contents)
 
                 # Step 4: Error if infile was not generated.

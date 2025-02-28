@@ -1,10 +1,9 @@
 solution: /submissions/accepted/submission.py
-version: 2024-11  # use this version of the generators framework
 
 data:
   sample:
     data:
-      - '': example.py {{INT_FIVE}}
+      - '': example.py {{INT_FIVE}} {{STRING_FIVE}} 5  # substituted
   secret:
     include:
       - sample
@@ -12,24 +11,17 @@ data:
   invalid_input:
     data:
       dont_substitute:
-        in: "{{INT_FIVE}}"
+        in: "{{INT_FIVE}}"  # not substituted
 
   invalid_answer:
     data:
       dont_substitute:
         in: "5"
-        ans: "{{INT_FIVE}}"
+        ans: "{{INT_FIVE}}"  # not substituted
 
   invalid_output:
     data:
       dont_substitute:
         in: "5"
         ans: "5"
-        out: "{{INT_FIVE}}"
-
-  valid_output:
-    data:
-      dont_substitute:
-        in: "5"
-        ans: "5"
-        out: "5"
+        out: "{{INT_FIVE}}"  # not substituted

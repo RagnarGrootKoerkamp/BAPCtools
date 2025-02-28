@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 import sys
 
-if len(sys.argv) > 1:
-    sys.argv[1].startswith("{{")
-    sys.argv[1].endswith("}}")
-print("{{INT_FIVE}}")
+values = sys.argv[1:] + ["{{INT_FIVE}}", "{{STRING_FIVE}}", "5"]
+assert len(set(values)) == 1
+print(values[0])
