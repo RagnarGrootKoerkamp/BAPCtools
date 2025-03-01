@@ -361,7 +361,7 @@ def build_latex_pdf(
 
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/latex/<language>/problem.tex,
 #    substituting variables.
-# 2. Create tmpdir/<problem>/latex/<language>/samples.tex.
+# 2. Create tmpdir/<problem>/latex/<language>/{samples,constants}.tex.
 # 3. Run latexmk and link the resulting <build_type>.<language>.pdf into the problem directory.
 def build_problem_pdf(
     problem: "problem.Problem", language: str, build_type=PdfType.PROBLEM, web=False
@@ -499,9 +499,8 @@ def build_contest_pdf(
     ).read_text()
 
     for prob in problems:
-        if build_type == PdfType.PROBLEM:
-            prepare_problem(prob, language)
-        else:  # i.e. for SOLUTION and PROBLEM_SLIDE
+        prepare_problem(prob, language)
+        if build_type != PdfType.PROBLEM:  # i.e. for SOLUTION and PROBLEM_SLIDE
             tex_no_lang = prob.path / "problem_statement" / f"{build_type.value}.tex"
             tex_with_lang = prob.path / "problem_statement" / f"{build_type.value}.{language}.tex"
             if tex_with_lang.is_file():
