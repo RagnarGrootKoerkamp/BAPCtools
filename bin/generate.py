@@ -268,7 +268,7 @@ def default_solution_path(generator_config):
     if config.args.default_solution:
         if generator_config.has_yaml:
             message(
-                f"""--default-solution Ignored. Set the default solution in the generator.yaml!
+                f"""--default-solution Ignored. Set the default solution in the generators.yaml!
 solution: /{config.args.default_solution}""",
                 "generators.yaml",
                 color_type=MessageType.WARN,
@@ -297,7 +297,7 @@ solution: /{config.args.default_solution}""",
             raw = f"solution: /{solution.relative_to(problem.path)}\n" + raw
             yaml_path.write_text(raw)
             message(
-                f"No solution specified. {solution_short_path} added as default solution in the generator.yaml",
+                f"No solution specified. {solution_short_path} added as default solution in the generators.yaml",
                 "generators.yaml",
                 color_type=MessageType.LOG,
             )
@@ -522,8 +522,15 @@ class TestcaseRule(Rule):
                     if len(yaml["generate"]) == 0:
                         raise ParseException("`generate` must not be empty.")
 
-                    # replace count
+                    # first replace {{constants}}
                     command_string = yaml["generate"]
+                    command_string = substitute(
+                        command_string,
+                        problem.settings.constants,
+                        pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+                    )
+
+                    # then replace {count} and {seed}
                     if "{count}" in command_string:
                         if "count" in yaml:
                             command_string = command_string.replace(
@@ -907,6 +914,7 @@ class TestcaseRule(Rule):
                         bar.error(f"Hardcoded {ext} data must not be empty!")
                         return False
                     else:
+                        # substitute in contents? -> No!
                         infile.with_suffix(ext).write_text(contents)
 
                 # Step 4: Error if infile was not generated.
