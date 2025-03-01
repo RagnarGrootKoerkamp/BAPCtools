@@ -499,8 +499,10 @@ def build_contest_pdf(
     ).read_text()
 
     for prob in problems:
-        prepare_problem(prob, language)
-        if build_type != PdfType.PROBLEM:  # i.e. for SOLUTION and PROBLEM_SLIDE
+        if build_type == PdfType.PROBLEM:
+            prepare_problem(prob, language)
+        else:  # i.e. for SOLUTION and PROBLEM_SLIDE
+            create_constants_file(prob, language)
             tex_no_lang = prob.path / "problem_statement" / f"{build_type.value}.tex"
             tex_with_lang = prob.path / "problem_statement" / f"{build_type.value}.{language}.tex"
             if tex_with_lang.is_file():
