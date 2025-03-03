@@ -43,7 +43,8 @@ yaml:
   problem_format_version: 2023-07-draft
   name: Incorrect validation
   validation: mumbo-jumbo
-fatal: "problem.yaml: unrecognized validation mode mumbo-jumbo."
+warn:
+  - "key 'validation' is deprecated, use 'type' instead. SKIPPED."
 ---
 yaml:
   problem_format_version: 2023-07-draft
@@ -56,7 +57,7 @@ yaml:
   name: Deprecated validation
   validation: interactive
 warn:
-  - "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead. SKIPPED."
+  - "key 'validation' is deprecated, use 'type' instead. SKIPPED."
 ---
 yaml:
   problem_format_version: 2023-07-draft
