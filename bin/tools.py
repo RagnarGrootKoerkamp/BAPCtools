@@ -39,6 +39,7 @@ import slack
 import solve_stats
 import download_submissions
 import stats
+import upgrade
 import validate
 import signal
 
@@ -350,6 +351,13 @@ Run this from one of:
         title="actions", dest="action", parser_class=SuppressingParser
     )
     subparsers.required = True
+
+    # upgrade
+    subparsers.add_parser(
+        "upgrade",
+        parents=[global_parser],
+        help="Upgrade a problem or contest.",
+    )
 
     # New contest
     contestparser = subparsers.add_parser(
@@ -927,6 +935,11 @@ def run_parsed_arguments(args):
 
     # Get problem_paths and cd to contest
     problems, level, contest, tmpdir = get_problems()
+
+    # upgrade commands.
+    if action == "upgrade":
+        upgrade.upgrade(problems)
+        return
 
     # Check for incompatible actions at the problem/problemset level.
     if level != "problem":
