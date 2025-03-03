@@ -793,6 +793,15 @@ def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T])
     return []
 
 
+def parse_deprecated_setting(
+    yaml_data: dict[str, Any], key: str, new: Optional[str] = None
+) -> None:
+    if key in yaml_data:
+        use = f", use '{new}' instead" if new else ""
+        warn(f"key '{key}' is deprecated{use}. SKIPPED.")
+        yaml_data.pop(key)
+
+
 # glob, but without hidden files
 def glob(path: Path, expression: str, include_hidden: bool = False) -> list[Path]:
     def keep(p: Path) -> bool:
