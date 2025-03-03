@@ -1,3 +1,4 @@
+import config
 import generate
 import problem
 from util import *
@@ -147,9 +148,12 @@ def upgrade_problem_yaml(p: problem.Problem, bar: ProgressBar) -> None:
     assert data is not None
     assert isinstance(data, dict)
 
-    if "problem_format_version" not in data or data["problem_format_version"] != "2023-07-draft":
+    if (
+        "problem_format_version" not in data
+        or data["problem_format_version"] != config.SPEC_VERSION
+    ):
         bar.log("set 'problem_format_version' in problem.yaml")
-        data["problem_format_version"] = "2023-07-draft"
+        data["problem_format_version"] = config.SPEC_VERSION
 
     if "validation" in data:
         if "type" in data:

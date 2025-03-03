@@ -7,6 +7,8 @@ from pathlib import Path
 from collections.abc import Mapping, Sequence
 from typing import Final, Literal, Optional
 
+SPEC_VERSION: Final[str] = "2023-07-draft"
+
 # return values
 RTV_AC: Final[int] = 42
 RTV_WA: Final[int] = 43
