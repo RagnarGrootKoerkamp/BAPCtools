@@ -2,7 +2,7 @@ solution: /submissions/accepted/th.py
 data:
   sample:
     data:
-      - "":
+      - '':
           in: 9.0 3.0 ab cd
           ans: 3.0 abcd
   secret:
@@ -12,8 +12,7 @@ data:
     data:
       integers:
         testdata.yaml:
-          input_validator_args:
-            --integer
+          input_validator_args: --integer
             #grading: foo
         data:
           - unsorted-integer:
@@ -38,7 +37,7 @@ data:
           nested_2:
             testdata.yaml:
               input_validator_args:
-                integers: "" # hides the input_validator_args in secret/testdata.yaml
+                integers: '' # hides the input_validator_args in secret/testdata.yaml
             data:
               - tiny_floats:
                   in: 10.0 3.5 ab dc
@@ -60,12 +59,12 @@ data:
     data:
       always_invalid:
         data:
-          too_many_tokens: { in: 10.0 2.5 ab cd ef }
+          too_many_tokens: {in: 10.0 2.5 ab cd ef}
       integers:
         testdata.yaml:
           input_validator_args: --integer
         data:
-          ints_expected: { in: 10.0 2.5 ab cd }
+          ints_expected: {in: 10.0 2.5 ab cd}
         include:
           - small_floats
       sorted:
@@ -99,4 +98,4 @@ data:
       valid:
         in: 10.0 3.0 ab cd
         ans: 3.333333333 abcd
-        out: "  +3.3333333333333   aBCd    "
+        out: '  +3.3333333333333   aBCd    '
