@@ -1,3 +1,7 @@
-name: 'ABC XYZ'
-validation: 'custom'
+name: ABC XYZ
 uuid: 58c89b2d-616c-4291-ab8a-710b4e6cb978
+problem_format_version: 2023-07-draft
+type:
+  - pass-fail
+limits:
+  time_limit: 3.0
