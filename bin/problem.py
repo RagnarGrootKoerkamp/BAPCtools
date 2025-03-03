@@ -77,7 +77,7 @@ class ProblemCredits:
         else:
             if legacy_author is not None:
                 warn(
-                    "problem.yaml: author is removed in 2023-07-draft, please use credits.authors. SKIPPED."
+                    f"problem.yaml: author is removed in {config.SPEC_VERSION}, please use credits.authors. SKIPPED."
                 )
             if "credits" not in yaml_data:
                 return
@@ -131,7 +131,7 @@ class ProblemSources(list[ProblemSource]):
         else:
             if legacy_source_url is not None:
                 warn(
-                    "problem.yaml: source_url is removed in 2023-07-draft, please use source.url. SKIPPED."
+                    f"problem.yaml: source_url is removed in {config.SPEC_VERSION}, please use source.url. SKIPPED."
                 )
             if "source" not in yaml_data:
                 return
@@ -182,7 +182,7 @@ class ProblemLimits:
         else:
             if legacy_ac_to_time_limit is not None:
                 warn(
-                    "problem.yaml: limits.time_multiplier is removed in 2023-07-draft, please use limits.time_multipliers.ac_to_time_limit"
+                    f"problem.yaml: limits.time_multiplier is removed in {config.SPEC_VERSION}, please use limits.time_multipliers.ac_to_time_limit"
                 )
             self.ac_to_time_limit = parse_setting(
                 time_multipliers, "ac_to_time_limit", legacy_ac_to_time_limit or 2.0
@@ -194,7 +194,7 @@ class ProblemLimits:
         else:
             if legacy_time_limit_to_tle is not None:
                 warn(
-                    "problem.yaml: limits.time_safety_margin is removed in 2023-07-draft, please use limits.time_multipliers.time_limit_to_tle"
+                    f"problem.yaml: limits.time_safety_margin is removed in {config.SPEC_VERSION}, please use limits.time_multipliers.time_limit_to_tle"
                 )
             self.time_limit_to_tle = parse_setting(
                 time_multipliers, "time_limit_to_tle", legacy_time_limit_to_tle or 1.5
@@ -273,7 +273,7 @@ class ProblemSettings:
         self.problem_format_version: str = parse_setting(
             yaml_data, "problem_format_version", "legacy-icpc"
         )
-        if not self.is_legacy() and self.problem_format_version != "2023-07-draft":
+        if not self.is_legacy() and self.problem_format_version != config.SPEC_VERSION:
             fatal(f"problem_format_version {self.problem_format_version} not supported")
 
         if self.is_legacy():
@@ -281,7 +281,7 @@ class ProblemSettings:
         else:
             if "validation" in yaml_data:
                 warn(
-                    "problem.yaml: 'validation' is removed in 2023-07-draft, please use 'type' instead. SKIPPED."
+                    f"problem.yaml: 'validation' is removed in {config.SPEC_VERSION}, please use 'type' instead. SKIPPED."
                 )
                 yaml_data.pop("validation")
             mode = set(
@@ -336,7 +336,7 @@ class ProblemSettings:
             self._validator_flags = []
             if "validator_flags" in yaml_data:
                 warn(
-                    "problem.yaml: 'validator_flags' is removed in 2023-07-draft, please use 'output_validator_args' in 'testdata.yaml' instead. SKIPPED."
+                    f"problem.yaml: 'validator_flags' is removed in {config.SPEC_VERSION}, please use 'output_validator_args' in 'testdata.yaml' instead. SKIPPED."
                 )
                 yaml_data.pop("validator_flags")
 
@@ -519,11 +519,11 @@ class Problem:
                         # For 2023-07-draft problems, skip the old name and warn to use the new one.
                         if "input_validator_flags" in flags:
                             bar.warn(
-                                "input_validator_flags is removed in 2023-07-draft, use ..._args instead. SKIPPED."
+                                f"input_validator_flags is removed in {config.SPEC_VERSION}, use ..._args instead. SKIPPED."
                             )
                         if "output_validator_flags" in flags:
                             bar.warn(
-                                "output_validator_flags is removed in 2023-07-draft, use ..._args instead. SKIPPED."
+                                f"output_validator_flags is removed in {config.SPEC_VERSION}, use ..._args instead. SKIPPED."
                             )
 
                     # Verify testdata.yaml
