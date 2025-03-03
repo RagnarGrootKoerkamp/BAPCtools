@@ -1,6 +1,7 @@
 ---
 # Unknown keys
 yaml:
+  problem_format_version: 2023-07-draft
   mumbo: jumbo
 warn: "found unknown problem.yaml key: mumbo in root"
 ---
@@ -11,11 +12,13 @@ yaml:
 warn: "found unknown problem.yaml key: mumbo in `credits`"
 ---
 yaml:
+  problem_format_version: 2023-07-draft
   limits:
     mumbo: jumbo
 warn: "found unknown problem.yaml key: mumbo in `limits`"
 ---
 yaml:
+  problem_format_version: 2023-07-draft
   limits:
     time_multipliers:
       mumbo: jumbo
@@ -24,10 +27,12 @@ warn: "found unknown problem.yaml key: mumbo in `limits.time_multipliers`"
 ---
 # Name
 yaml:
+  problem_format_version: 2023-07-draft
   name: 42
 warn: incompatible value for key 'name' in problem.yaml. SKIPPED.
 ---
 yaml:
+  problem_format_version: 2023-07-draft
   name:
     en: 42
 warn: incompatible value for key 'en' in problem.yaml. SKIPPED.
@@ -35,6 +40,7 @@ warn: incompatible value for key 'en' in problem.yaml. SKIPPED.
 ---
 # Validation/type
 yaml:
+  problem_format_version: 2023-07-draft
   name: Incorrect validation
   validation: mumbo-jumbo
 fatal: "problem.yaml: unrecognized validation mode mumbo-jumbo."
