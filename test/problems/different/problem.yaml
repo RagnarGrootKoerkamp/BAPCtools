@@ -10,7 +10,6 @@ name:
 
 ## Where the problem was first used (default: null)
 source: Kattis
-# source_url:
 
 # Unique problem uuid
 uuid: FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF
