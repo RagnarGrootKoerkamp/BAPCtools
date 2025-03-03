@@ -1,12 +1,10 @@
 name: generatorincludes
 source:
-# contest.region.eu
   name: Problems
-  url:
+  url: contest.region.eu
 uuid: 745cc994-4c3d-40cf-97c2-cc2a72af1884
 license: cc by-sa
 rights_owner: author
-# 'default', 'custom', or 'custom interactive'
 problem_format_version: 2023-07-draft
 type:
   - pass-fail
