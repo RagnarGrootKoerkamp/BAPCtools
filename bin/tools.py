@@ -924,6 +924,11 @@ def run_parsed_arguments(args):
         else:
             config.args.testcases = []
 
+    # upgrade commands.
+    if action == "upgrade":
+        upgrade.upgrade()
+        return
+
     # Skel commands.
     if action == "new_contest":
         skel.new_contest()
@@ -935,11 +940,6 @@ def run_parsed_arguments(args):
 
     # Get problem_paths and cd to contest
     problems, level, contest, tmpdir = get_problems()
-
-    # upgrade commands.
-    if action == "upgrade":
-        upgrade.upgrade(problems)
-        return
 
     # Check for incompatible actions at the problem/problemset level.
     if level != "problem":
