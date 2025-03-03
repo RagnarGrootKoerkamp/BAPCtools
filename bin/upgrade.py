@@ -1,13 +1,18 @@
 import config
 import generate
-import problem
 from util import *
 
 import shutil
 from typing import Any
 
 
-def upgrade_data(p: problem.Problem, bar: ProgressBar) -> None:
+class ProblemItem:
+    def __init__(self, path: Path):
+        self.name = path.resolve().name
+        self.path = path
+
+
+def upgrade_data(p: ProblemItem, bar: ProgressBar) -> None:
     rename = [
         ("data/invalid_inputs", "data/invalid_input"),
         ("data/invalid_answers", "data/invalid_answer"),
@@ -25,7 +30,7 @@ def upgrade_data(p: problem.Problem, bar: ProgressBar) -> None:
             old_path.rename(new_path)
 
 
-def upgrade_testdata_yaml(p: problem.Problem, bar: ProgressBar) -> None:
+def upgrade_testdata_yaml(p: ProblemItem, bar: ProgressBar) -> None:
     rename = [
         ("output_validator_flags", "output_validator_args"),
         ("inut_validator_flags", "inut_validator_args"),
@@ -49,7 +54,7 @@ def upgrade_testdata_yaml(p: problem.Problem, bar: ProgressBar) -> None:
         write_yaml(data, f)
 
 
-def upgrade_generators_yaml(p: problem.Problem, bar: ProgressBar) -> None:
+def upgrade_generators_yaml(p: ProblemItem, bar: ProgressBar) -> None:
     generators_yaml = p.path / "generators" / "generators.yaml"
     if not generators_yaml.is_file():
         return
@@ -111,7 +116,7 @@ def upgrade_generators_yaml(p: problem.Problem, bar: ProgressBar) -> None:
     write_yaml(data, generators_yaml)
 
 
-def upgrade_statement(p: problem.Problem, bar: ProgressBar) -> None:
+def upgrade_statement(p: ProblemItem, bar: ProgressBar) -> None:
     if (p.path / "problem_statement").is_dir():
         if (p.path / "statement").exists():
             bar.error("can't rename 'problem_statement/', 'statement/' already exists", resume=True)
@@ -143,7 +148,8 @@ def upgrade_statement(p: problem.Problem, bar: ProgressBar) -> None:
             shutil.move(f, dest)
 
 
-def upgrade_problem_yaml(p: problem.Problem, bar: ProgressBar) -> None:
+def upgrade_problem_yaml(p: ProblemItem, bar: ProgressBar) -> None:
+    assert (p.path / "problem.yaml").exists()
     data = read_yaml(p.path / "problem.yaml")
     assert data is not None
     assert isinstance(data, dict)
@@ -292,7 +298,7 @@ def upgrade_problem_yaml(p: problem.Problem, bar: ProgressBar) -> None:
     write_yaml(data, p.path / "problem.yaml")
 
 
-def _upgrade(p: problem.Problem, bar: ProgressBar) -> None:
+def _upgrade(p: ProblemItem, bar: ProgressBar) -> None:
     bar.start(p)
 
     upgrade_data(p, bar)
@@ -305,10 +311,18 @@ def _upgrade(p: problem.Problem, bar: ProgressBar) -> None:
     bar.done()
 
 
-def upgrade(problems: list[problem.Problem]) -> None:
+def upgrade() -> None:
     if not has_ryaml:
         error("upgrade needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
         return
+
+    def is_problem_directory(path):
+        return (path / "problem.yaml").is_file()
+
+    if is_problem_directory(Path().cwd()):
+        problems = [ProblemItem(Path().cwd())]
+    else:
+        problems = [ProblemItem(p) for p in Path().cwd().iterdir() if is_problem_directory(p)]
 
     bar = ProgressBar("upgrade", items=problems)
     for p in problems:
