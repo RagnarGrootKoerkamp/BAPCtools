@@ -1,8 +1,8 @@
+problem_format_version: 2023-07-draft
+type: multi-pass
 name: multi-pass
-author: Michael Zündorf
-source:
-source_url:
+credits:
+  authors: Michael Zündorf
 uuid: 71076b69-e9c2-4227-ba54-ec3d4e277c78
 license: unknown
 rights_owner:
-validation: custom multi-pass
