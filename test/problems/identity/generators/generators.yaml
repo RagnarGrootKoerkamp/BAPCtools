@@ -199,10 +199,10 @@ data:
       count_group:
         data:
           generate:
-              generate: stdout.py 704
-              count: 3
+            generate: stdout.py 704
+            count: 3
           seed:
-              generate: random_gen.py {seed:10}
-              count: 3
+            generate: random_gen.py {seed:10}
+            count: 3
 
 unknown_key:

@@ -247,7 +247,7 @@ class TestNewContestProblem:
 
 class TestReadProblemConfig:
     def test_read_problem_config(self):
-        p = problem.Problem(RUN_DIR / "test/problems/test_problem_config", Path("/tmp/xyz"))
+        p = problem.Problem(RUN_DIR / "test/problems/testproblemconfig", Path("/tmp/xyz"))
         assert p.settings.name["en"] == "ABC XYZ"
         assert p.custom_output and not p.interactive and not p.multi_pass
         assert p.limits.time_limit == 3.0
