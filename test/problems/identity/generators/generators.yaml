@@ -1,7 +1,7 @@
 solution: /submissions/accepted/author.py
 # The visualizer is disabled to speed up testing.
 #visualizer: /visualizers
-random_salt: "abc"
+random_salt: abc
 
 generators:
   main_py:
@@ -17,55 +17,55 @@ generators:
 data:
   invalid_input:
     data:
-      "lo":
-        in: "-1"
-      "hi":
-        in: "1001"
-      "extra_line":
+      lo:
+        in: '-1'
+      hi:
+        in: '1001'
+      extra_line:
         in: "0\n\n"
-      "leading_space":
-        in: " 0"
-      "trailing_space":
-        in: "0 "
-      "leading_newline":
+      leading_space:
+        in: ' 0'
+      trailing_space:
+        in: '0 '
+      leading_newline:
         in: "\n0"
   invalid_answer:
     data:
-      "leading_space":
-        in: "0"
-        ans: " 0"
-      "trailing_space":
-        in: "0"
-        ans: "0 "
+      leading_space:
+        in: '0'
+        ans: ' 0'
+      trailing_space:
+        in: '0'
+        ans: '0 '
   invalid_output:
     data:
-      "wrong_answer":
-        in: "0"
-        ans: "0"
-        out: "1"
+      wrong_answer:
+        in: '0'
+        ans: '0'
+        out: '1'
   valid_output:
     data:
-      "extra_space":
-        in: "0"
-        ans: "0"
-        out: " 0"
+      extra_space:
+        in: '0'
+        ans: '0'
+        out: ' 0'
   sample:
     #solution:
     data:
       # Both the empty value and ~ parse as None.
-      "1":
-        in: "0"
+      '1':
+        in: '0'
         # 0 is quoted since only strings are allowed to prevent conversion issues.
-        ans: "0"
-      "2":
+        ans: '0'
+      '2':
         # Use | for multi-line input
         in: |
           999
         ans: |
           999
-      "3":
+      '3':
         copy: manual/sample
-      "4":
+      '4':
         copy: manual/inans
 
   secret:
@@ -89,36 +89,36 @@ data:
       zero_prefix_group:
         data:
           # Both ~ (None) and the empty string can be used to have only numbers as testcase names.
-          - ~: stdout.py 123 # 01.in
-          - "": stdout.py 124
-          - "": stdout.py 125
-          - "": stdout.py 126
-          - "": stdout.py 127
-          - "": stdout.py 128
-          - "": stdout.py 129
-          - "": stdout.py 130
-          - "": stdout.py 131
-          - "": stdout.py 132 # 10.in
+          - null: stdout.py 123 # 01.in
+          - '': stdout.py 124
+          - '': stdout.py 125
+          - '': stdout.py 126
+          - '': stdout.py 127
+          - '': stdout.py 128
+          - '': stdout.py 129
+          - '': stdout.py 130
+          - '': stdout.py 131
+          - '': stdout.py 132 # 10.in
       seeding:
         solution: /submissions/accepted/author.cpp
-        random_salt: "def"
+        random_salt: def
         data:
-          - "": random_gen.py {seed}
-          - "": random_gen.py  {seed} # the entire argument is hashed, so the double space matters.
-          - "": random_gen.py {seed:1}
-          - "": random_gen.py {seed:01} # :01 is part of the command string, so the hash is different.
+          - '': random_gen.py {seed}
+          - '': random_gen.py  {seed} # the entire argument is hashed, so the double space matters.
+          - '': random_gen.py {seed:1}
+          - '': random_gen.py {seed:01} # :01 is part of the command string, so the hash is different.
           # Random_salt must be a string.
-          - "":
-              random_salt: "1.0"
+          - '':
+              random_salt: '1.0'
               generate: random_gen.py {seed}
-          - "":
-              random_salt: "1.00"
+          - '':
+              random_salt: '1.00'
               generate: random_gen.py {seed}
-          - "":
-              random_salt: "yes"
+          - '':
+              random_salt: yes
               generate: random_gen.py {seed}
-          - "":
-              random_salt: "true"
+          - '':
+              random_salt: 'true'
               generate: random_gen.py {seed}
       testcase_dict_1:
         generate: random_gen.py {seed:6}
@@ -169,16 +169,8 @@ data:
           - b: stdout.py 502 # 2-b
       non_empty_group_6:
         data:
-          - "": stdout.py 503
-      json:
-        {
-          data:
-            [
-              { "": stdout.py 600 },
-              { "1": stdout.py 601 },
-              { "": stdout.py 602 },
-            ],
-        }
+          - '': stdout.py 503
+      json: {data: ['': stdout.py 600, '1': stdout.py 601, '': stdout.py 602]}
       numbered_count_group:
         data:
           - count1:
@@ -191,7 +183,7 @@ data:
               generate: random_gen.py {seed:9}
               count: 3
           - in:
-              in: "702"
+              in: '702'
               count: 3
           - copy:
               copy: manual/copy
@@ -199,10 +191,10 @@ data:
       count_group:
         data:
           generate:
-              generate: stdout.py 704
-              count: 3
+            generate: stdout.py 704
+            count: 3
           seed:
-              generate: random_gen.py {seed:10}
-              count: 3
+            generate: random_gen.py {seed:10}
+            count: 3
 
 unknown_key:
