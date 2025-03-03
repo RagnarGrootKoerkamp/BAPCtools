@@ -6,13 +6,7 @@ import shutil
 from typing import Any
 
 
-class ProblemItem:
-    def __init__(self, path: Path):
-        self.name = path.resolve().name
-        self.path = path
-
-
-def upgrade_data(p: ProblemItem, bar: ProgressBar) -> None:
+def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
         ("data/invalid_inputs", "data/invalid_input"),
         ("data/invalid_answers", "data/invalid_answer"),
@@ -20,8 +14,8 @@ def upgrade_data(p: ProblemItem, bar: ProgressBar) -> None:
         ("data/valid_outputs", "data/valid_output"),
     ]
     for old_name, new_name in rename:
-        old_path = p.path / old_name
-        new_path = p.path / new_name
+        old_path = problem_path / old_name
+        new_path = problem_path / new_name
         if old_path.is_dir():
             if new_path.exists():
                 bar.error(f"can't rename '{old_name}', '{new_name}' already exists", resume=True)
@@ -30,13 +24,13 @@ def upgrade_data(p: ProblemItem, bar: ProgressBar) -> None:
             old_path.rename(new_path)
 
 
-def upgrade_testdata_yaml(p: ProblemItem, bar: ProgressBar) -> None:
+def upgrade_testdata_yaml(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
         ("output_validator_flags", "output_validator_args"),
         ("inut_validator_flags", "inut_validator_args"),
     ]
 
-    for f in (p.path / "data").rglob("testdata.yaml"):
+    for f in (problem_path / "data").rglob("testdata.yaml"):
         data = read_yaml(f)
         assert data is not None
 
@@ -44,7 +38,7 @@ def upgrade_testdata_yaml(p: ProblemItem, bar: ProgressBar) -> None:
             if old in data:
                 if new in data:
                     bar.error(
-                        f"can't change '{old}', '{new}' already exists in {f.relative_to(p.path)}",
+                        f"can't change '{old}', '{new}' already exists in {f.relative_to(problem_path)}",
                         resume=True,
                     )
                     continue
@@ -54,8 +48,8 @@ def upgrade_testdata_yaml(p: ProblemItem, bar: ProgressBar) -> None:
         write_yaml(data, f)
 
 
-def upgrade_generators_yaml(p: ProblemItem, bar: ProgressBar) -> None:
-    generators_yaml = p.path / "generators" / "generators.yaml"
+def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
+    generators_yaml = problem_path / "generators" / "generators.yaml"
     if not generators_yaml.is_file():
         return
     data = read_yaml(generators_yaml)
@@ -116,21 +110,21 @@ def upgrade_generators_yaml(p: ProblemItem, bar: ProgressBar) -> None:
     write_yaml(data, generators_yaml)
 
 
-def upgrade_statement(p: ProblemItem, bar: ProgressBar) -> None:
-    if (p.path / "problem_statement").is_dir():
-        if (p.path / "statement").exists():
+def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
+    if (problem_path / "problem_statement").is_dir():
+        if (problem_path / "statement").exists():
             bar.error("can't rename 'problem_statement/', 'statement/' already exists", resume=True)
             return
         bar.log("renaming 'problem_statement/' to 'statement/' in generators.yaml")
-        (p.path / "problem_statement").rename(p.path / "statement")
+        (problem_path / "problem_statement").rename(problem_path / "statement")
 
-    origin = p.path / "statement"
+    origin = problem_path / "statement"
     move = [
         ("solution*", "solution"),
         ("problem-slide*", "problem_slid"),
     ]
     for glob, dest_name in move:
-        dest_path = p.path / dest_name
+        dest_path = problem_path / dest_name
         if dest_path.exists() and not dest_path.is_dir():
             bar.error("'dest_name/' is not an directory", resume=True)
             continue
@@ -139,18 +133,18 @@ def upgrade_statement(p: ProblemItem, bar: ProgressBar) -> None:
             dest = dest_path / f.relative_to(origin)
             if dest.exists():
                 bar.error(
-                    f"can't move '{f.relative_to(p.path)}', '{dest.relative_to(p.path)}' already exists",
+                    f"can't move '{f.relative_to(problem_path)}', '{dest.relative_to(problem_path)}' already exists",
                     resume=True,
                 )
                 continue
-            bar.log(f"moving '{f.relative_to(p.path)}' to '{dest.relative_to(p.path)}'")
+            bar.log(f"moving '{f.relative_to(problem_path)}' to '{dest.relative_to(problem_path)}'")
             dest_path.mkdir(parents=True, exist_ok=True)
             shutil.move(f, dest)
 
 
-def upgrade_problem_yaml(p: ProblemItem, bar: ProgressBar) -> None:
-    assert (p.path / "problem.yaml").exists()
-    data = read_yaml(p.path / "problem.yaml")
+def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
+    assert (problem_path / "problem.yaml").exists()
+    data = read_yaml(problem_path / "problem.yaml")
     assert data is not None
     assert isinstance(data, dict)
 
@@ -236,7 +230,7 @@ def upgrade_problem_yaml(p: ProblemItem, bar: ProgressBar) -> None:
         return True
 
     if "validator_flags" in data:
-        generators_path = p.path / "generators" / "generators.yaml"
+        generators_path = problem_path / "generators" / "generators.yaml"
         if generators_path.exists():
             generators_data = read_yaml(generators_path)
             assert generators_data is not None
@@ -247,7 +241,7 @@ def upgrade_problem_yaml(p: ProblemItem, bar: ProgressBar) -> None:
             if add_args(generators_data["testdata.yaml"]):
                 write_yaml(generators_data, generators_path)
         else:
-            testdata_path = p.path / "data" / "testdata.yaml"
+            testdata_path = problem_path / "data" / "testdata.yaml"
             testdata_data = (
                 read_yaml(testdata_path)
                 if testdata_path.exists()
@@ -259,7 +253,7 @@ def upgrade_problem_yaml(p: ProblemItem, bar: ProgressBar) -> None:
             if add_args(testdata_data):
                 write_yaml(testdata_data, testdata_path)
 
-    timelimit_path = p.path / ".timelimit"
+    timelimit_path = problem_path / ".timelimit"
     if timelimit_path.is_file():
         if "limits" not in data:
             data["limits"] = ruamel.yaml.comments.CommentedMap()
@@ -273,7 +267,7 @@ def upgrade_problem_yaml(p: ProblemItem, bar: ProgressBar) -> None:
             data["limits"]["time_limit"] = float(timelimit_path.read_text())
             timelimit_path.unlink()
 
-    domjudge_path = p.path / "domjudge-problem.ini"
+    domjudge_path = problem_path / "domjudge-problem.ini"
     if domjudge_path.is_file():
         time_limit = None
         for line in domjudge_path.read_text().splitlines():
@@ -295,18 +289,18 @@ def upgrade_problem_yaml(p: ProblemItem, bar: ProgressBar) -> None:
                 data["limits"]["time_limit"] = time_limit
                 domjudge_path.unlink()
 
-    write_yaml(data, p.path / "problem.yaml")
+    write_yaml(data, problem_path / "problem.yaml")
 
 
-def _upgrade(p: ProblemItem, bar: ProgressBar) -> None:
-    bar.start(p)
+def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
+    bar.start(problem_path)
 
-    upgrade_data(p, bar)
-    upgrade_testdata_yaml(p, bar)
-    upgrade_generators_yaml(p, bar)
-    # upgrade_statement(p, bar) TODO: activate this when we support the new statement dirs
+    upgrade_data(problem_path, bar)
+    upgrade_testdata_yaml(problem_path, bar)
+    upgrade_generators_yaml(problem_path, bar)
+    # upgrade_statement(problem_path, bar) TODO: activate this when we support the new statement dirs
     # TODO: output_validators -> output_validator
-    upgrade_problem_yaml(p, bar)
+    upgrade_problem_yaml(problem_path, bar)
 
     bar.done()
 
@@ -315,16 +309,17 @@ def upgrade() -> None:
     if not has_ryaml:
         error("upgrade needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
         return
+    cwd = Path().cwd()
 
     def is_problem_directory(path):
         return (path / "problem.yaml").is_file()
 
-    if is_problem_directory(Path().cwd()):
-        problems = [ProblemItem(Path().cwd())]
+    if is_problem_directory(cwd):
+        paths = [cwd]
     else:
-        problems = [ProblemItem(p) for p in Path().cwd().iterdir() if is_problem_directory(p)]
+        paths = [p for p in cwd.iterdir() if is_problem_directory(p)]
 
-    bar = ProgressBar("upgrade", items=problems)
-    for p in problems:
-        _upgrade(p, bar)
+    bar = ProgressBar("upgrade", items=paths)
+    for path in paths:
+        _upgrade(path, bar)
     bar.finalize()
