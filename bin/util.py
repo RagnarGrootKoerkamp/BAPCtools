@@ -46,6 +46,7 @@ try:
     ryaml.default_flow_style = False
     ryaml.indent(mapping=2, sequence=4, offset=2)
     ryaml.width = sys.maxsize
+    ryaml.preserve_quotes = True
 except Exception:
     has_ryaml = False
 
@@ -794,6 +795,15 @@ def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T])
             return value
         warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
     return []
+
+
+def parse_deprecated_setting(
+    yaml_data: dict[str, Any], key: str, new: Optional[str] = None
+) -> None:
+    if key in yaml_data:
+        use = f", use '{new}' instead" if new else ""
+        warn(f"key '{key}' is deprecated{use}. SKIPPED.")
+        yaml_data.pop(key)
 
 
 # glob, but without hidden files
