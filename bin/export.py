@@ -161,7 +161,7 @@ def build_problem_zip(problem: Problem, output: Path):
     # DOMjudge does not support 'type' in problem.yaml nor 'output_validator_args' in testdata.yaml yet.
     # TODO: Remove this once it does.
     problem_yaml_str = (problem.path / "problem.yaml").read_text()
-    if not config.args.kattis and not problem.settings.is_legacy():
+    if not config.args.kattis:
         validator_flags = " ".join(
             problem.get_testdata_yaml(
                 problem.path / "data",
