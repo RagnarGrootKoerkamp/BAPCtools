@@ -12,8 +12,7 @@ data:
     data:
       integers:
         testdata.yaml:
-          input_validator_args:
-            --integer
+          input_validator_args: --integer
             #grading: foo
         data:
           - unsorted-integer:
@@ -60,12 +59,12 @@ data:
     data:
       always_invalid:
         data:
-          too_many_tokens: { in: 10.0 2.5 ab cd ef }
+          too_many_tokens: {in: 10.0 2.5 ab cd ef}
       integers:
         testdata.yaml:
           input_validator_args: --integer
         data:
-          ints_expected: { in: 10.0 2.5 ab cd }
+          ints_expected: {in: 10.0 2.5 ab cd}
         include:
           - small_floats
       sorted:

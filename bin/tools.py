@@ -39,6 +39,7 @@ import slack
 import solve_stats
 import download_submissions
 import stats
+import upgrade
 import validate
 import signal
 
@@ -350,6 +351,13 @@ Run this from one of:
         title="actions", dest="action", parser_class=SuppressingParser
     )
     subparsers.required = True
+
+    # upgrade
+    subparsers.add_parser(
+        "upgrade",
+        parents=[global_parser],
+        help="Upgrade a problem or contest.",
+    )
 
     # New contest
     contestparser = subparsers.add_parser(
@@ -915,6 +923,11 @@ def run_parsed_arguments(args):
             )
         else:
             config.args.testcases = []
+
+    # upgrade commands.
+    if action == "upgrade":
+        upgrade.upgrade()
+        return
 
     # Skel commands.
     if action == "new_contest":
