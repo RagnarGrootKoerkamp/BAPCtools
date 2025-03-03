@@ -1,7 +1,9 @@
+import generate
 import problem
 from util import *
 
 import shutil
+from typing import Any
 
 
 def upgrade_data(p: problem.Problem, bar: ProgressBar) -> None:
@@ -22,15 +24,37 @@ def upgrade_data(p: problem.Problem, bar: ProgressBar) -> None:
             old_path.rename(new_path)
 
 
+def upgrade_testdata_yaml(p: problem.Problem, bar: ProgressBar) -> None:
+    rename = [
+        ("output_validator_flags", "output_validator_args"),
+        ("inut_validator_flags", "inut_validator_args"),
+    ]
+
+    for f in (p.path / "data").rglob("testdata.yaml"):
+        data = read_yaml(f)
+        assert data is not None
+
+        for old, new in rename:
+            if old in data:
+                if new in data:
+                    bar.error(
+                        f"can't change '{old}', '{new}' already exists in {f.relative_to(p.path)}",
+                        resume=True,
+                    )
+                    continue
+                data[new] = data[old]
+                data.pop(old)
+
+        write_yaml(data, f)
+
+
 def upgrade_generators_yaml(p: problem.Problem, bar: ProgressBar) -> None:
     generators_yaml = p.path / "generators" / "generators.yaml"
     if not generators_yaml.is_file():
         return
-
     data = read_yaml(generators_yaml)
-    if data is None or "data" not in data:
+    if data is None or not isinstance(data, dict):
         return
-    data = data["data"]
 
     rename = [
         ("invalid_inputs", "invalid_input"),
@@ -50,7 +74,39 @@ def upgrade_generators_yaml(p: problem.Problem, bar: ProgressBar) -> None:
             data[new_name] = data[old_name]
             data.pop(old_name)
 
-    # TODO fix testdata.yaml here too?
+    def upgrade_generated_testdata_yaml(data: dict[str, Any], path: str) -> None:
+        if "testdata.yaml" in data:
+            testdata = data["testdata.yaml"]
+            assert isinstance(testdata, dict)
+            print_path = f" ({path[1:]})" if len(path) > 1 else ""
+
+            rename = [
+                ("output_validator_flags", "output_validator_args"),
+                ("inut_validator_flags", "inut_validator_args"),
+            ]
+            for old, new in rename:
+                if old in testdata:
+                    if new in testdata:
+                        bar.error(
+                            f"can't change '{old}', '{new}' already exists in generators.yaml{print_path}",
+                            resume=True,
+                        )
+                        continue
+                    bar.log(
+                        f"change '{old}' to '{new}' in generators.yaml{print_path}",
+                        resume=True,
+                    )
+                    testdata[new] = testdata[old]
+                    testdata.pop(old)
+        if "data" in data and data["data"]:
+            children = data["data"] if isinstance(data["data"], list) else [data["data"]]
+            for dictionary in children:
+                for child_name, child_data in sorted(dictionary.items()):
+                    if generate.is_directory(child_data):
+                        upgrade_generated_testdata_yaml(child_data, path + "." + child_name)
+
+    upgrade_generated_testdata_yaml(data, "")
+
     write_yaml(data, generators_yaml)
 
 
@@ -89,6 +145,7 @@ def upgrade_statement(p: problem.Problem, bar: ProgressBar) -> None:
 def upgrade_problem_yaml(p: problem.Problem, bar: ProgressBar) -> None:
     data = read_yaml(p.path / "problem.yaml")
     assert data is not None
+    assert isinstance(data, dict)
 
     if "problem_format_version" not in data or data["problem_format_version"] != "2023-07-draft":
         bar.log("set 'problem_format_version' in problem.yaml")
@@ -156,10 +213,41 @@ def upgrade_problem_yaml(p: problem.Problem, bar: ProgressBar) -> None:
                     limits["time_multipliers"]["time_limit_to_tle"] = limits["time_safety_margin"]
                     limits.pop("time_safety_margin")
 
+    def add_args(new_data: dict[str, Any]) -> bool:
+        if "output_validator_args" in new_data:
+            bar.error(
+                "can't change 'validator_flags', 'output_validator_args' already exists in testdata.yaml",
+                resume=True,
+            )
+            return False
+        bar.log("change 'validator_flags' to 'output_validator_args' in testdata.yaml")
+        new_data["output_validator_args"] = data["validator_flags"]
+        data.pop("validator_flags")
+        return True
+
     if "validator_flags" in data:
-        ...
-        # TODO fix this...
-        # either write a top level testdata.yaml or add it to generators.yaml ?
+        generators_path = p.path / "generators" / "generators.yaml"
+        if generators_path.exists():
+            generators_data = read_yaml(generators_path)
+            assert generators_data is not None
+            assert isinstance(generators_data, dict)
+
+            if "testdata.yaml" not in generators_data:
+                generators_data["testdata.yaml"] = ruamel.yaml.comments.CommentedMap()
+            if add_args(generators_data["testdata.yaml"]):
+                write_yaml(generators_data, generators_path)
+        else:
+            testdata_path = p.path / "data" / "testdata.yaml"
+            testdata_data = (
+                read_yaml(testdata_path)
+                if testdata_path.exists()
+                else ruamel.yaml.comments.CommentedMap()
+            )
+            assert testdata_data is not None
+            assert isinstance(testdata_data, dict)
+
+            if add_args(testdata_data):
+                write_yaml(testdata_data, testdata_path)
 
     timelimit_path = p.path / ".timelimit"
     if timelimit_path.is_file():
@@ -200,39 +288,15 @@ def upgrade_problem_yaml(p: problem.Problem, bar: ProgressBar) -> None:
     write_yaml(data, p.path / "problem.yaml")
 
 
-def upgrade_testdata_yaml(p: problem.Problem, bar: ProgressBar) -> None:
-    rename = [
-        ("output_validator_flags", "output_validator_args"),
-        ("inut_validator_flags", "inut_validator_args"),
-    ]
-
-    for f in (p.path / "data").rglob("testdata.yaml"):
-        data = read_yaml(f)
-        assert data is not None
-
-        for old, new in rename:
-            if old in data:
-                if new in data:
-                    bar.error(
-                        f"can't change '{old}', '{new}' already exists in {f.relative_to(p.path)}",
-                        resume=True,
-                    )
-                    continue
-                data[new] = data[old]
-                data.pop(old)
-
-        write_yaml(data, f)
-
-
 def _upgrade(p: problem.Problem, bar: ProgressBar) -> None:
     bar.start(p)
 
     upgrade_data(p, bar)
-    upgrade_generators_yaml(p, bar)
-    upgrade_statement(p, bar)
-    upgrade_problem_yaml(p, bar)
     upgrade_testdata_yaml(p, bar)
+    upgrade_generators_yaml(p, bar)
+    # upgrade_statement(p, bar) TODO: activate this when we support the new statement dirs
     # TODO: output_validators -> output_validator
+    upgrade_problem_yaml(p, bar)
 
     bar.done()
 
