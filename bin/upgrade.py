@@ -144,7 +144,7 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
 
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     assert (problem_path / "problem.yaml").exists()
-    data = read_yaml(problem_path / "problem.yaml")
+    data = cast(ruamel.yaml.comment.CommentedMap, read_yaml(problem_path / "problem.yaml"))
     assert data is not None
     assert isinstance(data, dict)
 
@@ -212,15 +212,26 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 bar.log(
                     "change 'limits.time_multiplier/limits.time_safety_margin' to 'limits.time_multipliers'"
                 )
-                limits["time_multipliers"] = ruamel.yaml.comments.CommentedMap()
+                time_multipliers = ruamel.yaml.comments.CommentedMap()
 
                 if "time_multiplier" in limits:
-                    limits["time_multipliers"]["ac_to_time_limit"] = limits["time_multiplier"]
+                    if limits["time_multiplier"] != 2:  # Skip if it's equal to the new default
+                        time_multipliers["ac_to_time_limit"] = limits["time_multiplier"]
                     limits.pop("time_multiplier")
 
                 if "time_safety_margin" in limits:
-                    limits["time_multipliers"]["time_limit_to_tle"] = limits["time_safety_margin"]
+                    if limits["time_safety_margin"] != 1.5:  # Skip if it's equal to the new default
+                        time_multipliers["time_limit_to_tle"] = limits["time_safety_margin"]
                     limits.pop("time_safety_margin")
+
+                if time_multipliers:
+                    limits["time_multipliers"] = time_multipliers
+                # If both time multipliers are default, remove the comments (this only works if
+                # there are no other limits configured, but that's the most common case anyway)
+                if not limits:
+                    if "limits" in data.ca.items:
+                        data.ca.items.pop("limits")
+                    data.pop("limits")
 
     def add_args(new_data: dict[str, Any]) -> bool:
         if "output_validator_args" in new_data:
