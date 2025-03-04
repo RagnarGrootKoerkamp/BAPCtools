@@ -10,6 +10,7 @@ name:
 
 ## Where the problem was first used (default: null)
 source: Kattis
+# source_url:
 
 # Unique problem uuid
 uuid: FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF
@@ -31,5 +32,4 @@ limits:
   time_multipliers:
     time_limit_to_tle: 4
 problem_format_version: 2023-07-draft
-type:
-  - pass-fail
+type: pass-fail

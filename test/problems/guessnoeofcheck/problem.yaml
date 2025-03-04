@@ -5,6 +5,4 @@ limits:
   time_multipliers:
     time_limit_to_tle: 4
 problem_format_version: 2023-07-draft
-type:
-  - pass-fail
-  - interactive
+type: interactive
