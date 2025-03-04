@@ -46,6 +46,7 @@ try:
     ryaml.default_flow_style = False
     ryaml.indent(mapping=2, sequence=4, offset=2)
     ryaml.width = sys.maxsize
+    ryaml.preserve_quotes = True
 except Exception:
     has_ryaml = False
 
