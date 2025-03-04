@@ -253,10 +253,16 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
         if generators_path.exists():
             generators_data = read_yaml(generators_path)
             assert generators_data is not None
-            assert isinstance(generators_data, dict)
+            assert isinstance(generators_data, CommentedMap)
 
             if "testdata.yaml" not in generators_data:
-                generators_data["testdata.yaml"] = CommentedMap()
+                if "data" in generators_data:
+                    # insert before data
+                    pos = [*generators_data.keys()].index("data")
+                    generators_data.insert(pos, "testdata.yaml", CommentedMap())
+                else:
+                    # insert at end
+                    generators_data["testdata.yaml"] = CommentedMap()
             if add_args(generators_data["testdata.yaml"]):
                 write_yaml(generators_data, generators_path)
         else:
