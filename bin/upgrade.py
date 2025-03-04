@@ -162,12 +162,14 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             )
         else:
             bar.log("change 'validation' to 'type' in problem.yaml")
-            data["type"] = ruamel.yaml.comments.CommentedSeq()
-            data["type"].append("pass-fail")
+            type = ruamel.yaml.comments.CommentedSeq()
             if "interactive" in data["validation"]:
-                data["type"].append("interactive")
+                type.append("interactive")
             if "multi-pass" in data["validation"]:
-                data["type"].append("multi-pass")
+                type.append("multi-pass")
+            if not type:
+                type.append("pass-fail")
+            data["type"] = type if len(type) > 1 else type[0]
             data.pop("validation")
 
     if "author" in data:
@@ -177,22 +179,25 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             )
         else:
             bar.log("change 'author' to 'credits.authors' in problem.yaml")
-            authors = data["author"].replace("and", ",").split(",")
-            data["credits"] = ruamel.yaml.comments.CommentedMap()
-            data["credits"]["authors"] = ruamel.yaml.comments.CommentedSeq(
-                name.strip() for name in authors
+            authors = ruamel.yaml.comments.CommentedSeq(
+                name.strip() for name in data["author"].replace("and", ",").split(",")
             )
+            data["credits"] = ruamel.yaml.comments.CommentedMap()
+            data["credits"]["authors"] = authors if len(authors) > 1 else authors[0]
             data.pop("author")
 
     if "source_url" in data:
         if "source" not in data:
-            data["source"] = ""
-
-        bar.log("change 'source_url' to 'source.url' in problem.yaml")
-        source = ruamel.yaml.comments.CommentedMap()
-        source["name"] = data["source"]
-        source["url"] = data["source_url"]
-        data["source"] = source
+            data["source"] = data["source_url"]
+        if data["source"]:
+            bar.log("change 'source_url' to 'source.url' in problem.yaml")
+            source = ruamel.yaml.comments.CommentedMap()
+            source["name"] = data["source"]
+            source["url"] = data["source_url"]
+            data["source"] = source
+        else:
+            bar.log("remove empty 'source(_url)' in problem.yaml")
+            data.pop("source")
         data.pop("source_url")
 
     if "limits" in data:
