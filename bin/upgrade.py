@@ -11,7 +11,8 @@ if has_ryaml:
 
 
 # this is slow but tries to preserve the correct comments
-def _filter(data: CommentedMap, remove: str) -> None:
+def _filter(data: Any, remove: str) -> None:
+    assert isinstance(data, CommentedMap)
     prev = None
     for key in data:
         if key == remove:
