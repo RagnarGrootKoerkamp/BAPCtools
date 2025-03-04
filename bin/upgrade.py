@@ -5,6 +5,26 @@ from util import *
 import shutil
 from typing import Any
 
+if has_ryaml:
+    # TODO #102 The conditional import in util.py isn't picked up properly
+    from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
+
+# this is slow but tries to preserve the correct comments
+def _filter(data: CommentedMap, remove: str) -> None:
+    prev = None
+    for key in data:
+        if key == remove:
+            break
+    while prev and isinstance(prev, (list, dict)):
+        if isinstance(prev, list):
+            prev = prev[-1]
+        else:
+            prev = prev[prev.keys()[-1]]
+    if prev is not None:
+        data.ca.items[prev] = data.ca.items.pop(key)
+    data.pop(key)
+
 
 def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
@@ -143,9 +163,6 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
 
 
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
-    # TODO #102 The conditional import in util.py isn't picked up properly
-    from ruamel.yaml.comments import CommentedMap, CommentedSeq
-
     assert (problem_path / "problem.yaml").exists()
     data = cast(CommentedMap, read_yaml(problem_path / "problem.yaml"))
     assert data is not None
@@ -173,7 +190,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if not type:
                 type.append("pass-fail")
             data["type"] = type if len(type) > 1 else type[0]
-            data.pop("validation")
+            _filter(data, "validation")
 
     if "author" in data:
         if "credits" in data:
@@ -187,7 +204,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             )
             data["credits"] = CommentedMap()
             data["credits"]["authors"] = authors if len(authors) > 1 else authors[0]
-            data.pop("author")
+            _filter(data, "author")
 
     if "source_url" in data:
         if "source" not in data:
@@ -200,8 +217,8 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             data["source"] = source
         else:
             bar.log("remove empty 'source(_url)' in problem.yaml")
-            data.pop("source")
-        data.pop("source_url")
+            _filter(data, "source")
+        _filter(data, "source_url")
 
     if "limits" in data:
         limits = data["limits"]
@@ -220,21 +237,19 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 if "time_multiplier" in limits:
                     if limits["time_multiplier"] != 2:  # Skip if it's equal to the new default
                         time_multipliers["ac_to_time_limit"] = limits["time_multiplier"]
-                    limits.pop("time_multiplier")
+                    _filter(limits, "time_multiplier")
 
                 if "time_safety_margin" in limits:
                     if limits["time_safety_margin"] != 1.5:  # Skip if it's equal to the new default
                         time_multipliers["time_limit_to_tle"] = limits["time_safety_margin"]
-                    limits.pop("time_safety_margin")
+                    _filter(limits, "time_safety_margin")
 
                 if time_multipliers:
                     limits["time_multipliers"] = time_multipliers
                 # If both time multipliers are default, remove the comments (this only works if
                 # there are no other limits configured, but that's the most common case anyway)
                 if not limits:
-                    if "limits" in data.ca.items:
-                        data.ca.items.pop("limits")
-                    data.pop("limits")
+                    _filter(data, "limits")
 
     def add_args(new_data: dict[str, Any]) -> bool:
         if "output_validator_args" in new_data:
@@ -245,7 +260,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             return False
         bar.log("change 'validator_flags' to 'output_validator_args' in testdata.yaml")
         new_data["output_validator_args"] = data["validator_flags"]
-        data.pop("validator_flags")
+        _filter(data, "validator_flags")
         return True
 
     if "validator_flags" in data:
