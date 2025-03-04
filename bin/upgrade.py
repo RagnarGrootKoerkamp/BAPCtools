@@ -143,8 +143,11 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
 
 
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
+    # TODO #102 The conditional import in util.py isn't picked up properly
+    from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
     assert (problem_path / "problem.yaml").exists()
-    data = cast(ruamel.yaml.comment.CommentedMap, read_yaml(problem_path / "problem.yaml"))
+    data = cast(CommentedMap, read_yaml(problem_path / "problem.yaml"))
     assert data is not None
     assert isinstance(data, dict)
 
@@ -162,7 +165,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             )
         else:
             bar.log("change 'validation' to 'type' in problem.yaml")
-            type = ruamel.yaml.comments.CommentedSeq()
+            type = CommentedSeq()
             if "interactive" in data["validation"]:
                 type.append("interactive")
             if "multi-pass" in data["validation"]:
@@ -179,10 +182,10 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             )
         else:
             bar.log("change 'author' to 'credits.authors' in problem.yaml")
-            authors = ruamel.yaml.comments.CommentedSeq(
+            authors = CommentedSeq(
                 name.strip() for name in data["author"].replace("and", ",").split(",")
             )
-            data["credits"] = ruamel.yaml.comments.CommentedMap()
+            data["credits"] = CommentedMap()
             data["credits"]["authors"] = authors if len(authors) > 1 else authors[0]
             data.pop("author")
 
@@ -191,7 +194,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             data["source"] = data["source_url"]
         if data["source"]:
             bar.log("change 'source_url' to 'source.url' in problem.yaml")
-            source = ruamel.yaml.comments.CommentedMap()
+            source = CommentedMap()
             source["name"] = data["source"]
             source["url"] = data["source_url"]
             data["source"] = source
@@ -212,7 +215,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 bar.log(
                     "change 'limits.time_multiplier/limits.time_safety_margin' to 'limits.time_multipliers'"
                 )
-                time_multipliers = ruamel.yaml.comments.CommentedMap()
+                time_multipliers = CommentedMap()
 
                 if "time_multiplier" in limits:
                     if limits["time_multiplier"] != 2:  # Skip if it's equal to the new default
@@ -253,16 +256,12 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             assert isinstance(generators_data, dict)
 
             if "testdata.yaml" not in generators_data:
-                generators_data["testdata.yaml"] = ruamel.yaml.comments.CommentedMap()
+                generators_data["testdata.yaml"] = CommentedMap()
             if add_args(generators_data["testdata.yaml"]):
                 write_yaml(generators_data, generators_path)
         else:
             testdata_path = problem_path / "data" / "testdata.yaml"
-            testdata_data = (
-                read_yaml(testdata_path)
-                if testdata_path.exists()
-                else ruamel.yaml.comments.CommentedMap()
-            )
+            testdata_data = read_yaml(testdata_path) if testdata_path.exists() else CommentedMap()
             assert testdata_data is not None
             assert isinstance(testdata_data, dict)
 
@@ -272,7 +271,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     timelimit_path = problem_path / ".timelimit"
     if timelimit_path.is_file():
         if "limits" not in data:
-            data["limits"] = ruamel.yaml.comments.CommentedMap()
+            data["limits"] = CommentedMap()
         if "time_limit" in data["limits"]:
             bar.error(
                 "can't change '.timelimit' file, 'limits.time_limit' already exists in problem.yaml",
@@ -294,7 +293,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 time_limit = float(var)
         if time_limit is not None:
             if "limits" not in data:
-                data["limits"] = ruamel.yaml.comments.CommentedMap()
+                data["limits"] = CommentedMap()
             if "time_limit" in data["limits"]:
                 bar.error(
                     "can't change '.timelimit' file, 'limits.time_limit' already exists in problem.yaml",
