@@ -3,10 +3,8 @@ uuid: 407efad0-da0d-49a4-b925-329e929bc990
 license: unknown
 rights_owner:
 problem_format_version: 2023-07-draft
-type:
-  - pass-fail
+type: pass-fail
 credits:
-  authors:
-    - DOMjudge
+  authors: DOMjudge
 limits:
   time_limit: 1.0

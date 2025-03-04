@@ -6,8 +6,6 @@ limits:
   memory: 512
   time_limit: 3.0
 problem_format_version: 2023-07-draft
-type:
-  - pass-fail
+type: pass-fail
 credits:
-  authors:
-    - various
+  authors: various

@@ -2,7 +2,7 @@ solution: /submissions/accepted/th.py
 data:
   sample:
     data:
-      - '':
+      - "":
           in: 9.0 3.0 ab cd
           ans: 3.0 abcd
   secret:
@@ -37,7 +37,7 @@ data:
           nested_2:
             testdata.yaml:
               input_validator_args:
-                integers: '' # hides the input_validator_args in secret/testdata.yaml
+                integers: "" # hides the input_validator_args in secret/testdata.yaml
             data:
               - tiny_floats:
                   in: 10.0 3.5 ab dc
@@ -98,4 +98,4 @@ data:
       valid:
         in: 10.0 3.0 ab cd
         ans: 3.333333333 abcd
-        out: '  +3.3333333333333   aBCd    '
+        out: "  +3.3333333333333   aBCd    "
