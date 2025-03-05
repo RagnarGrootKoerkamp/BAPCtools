@@ -1,3 +1,4 @@
+problem_format_version: 2023-07-draft
 name:
   en: Hello World!
   sv: Hej Världen!
@@ -12,4 +13,3 @@ license: public domain
 limits:
   memory: 512
   time_limit: 2.0
-problem_format_version: 2023-07-draft
