@@ -1,10 +1,10 @@
-name: interactive multi-pass
-uuid: 42c9ed2e-f579-46ac-ae2c-191069f3df70
-license: unknown
-rights_owner:
 problem_format_version: 2023-07-draft
 type:
   - interactive
   - multi-pass
+name: interactive multi-pass
 credits:
   authors: Michael Zündorf
+uuid: 42c9ed2e-f579-46ac-ae2c-191069f3df70
+license: unknown
+rights_owner:

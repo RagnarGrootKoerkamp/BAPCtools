@@ -1,16 +1,14 @@
 # problem.yaml
 
 
+problem_format_version: 2023-07-draft
+type: pass-fail
 name:
   en: A Different Problem
 ## At least one of author, source, or rights_owner must be provided.
-##
-## Author of the problem (default: null)
-# author:
 
 ## Where the problem was first used (default: null)
 source: Kattis
-# source_url:
 
 # Unique problem uuid
 uuid: FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF
@@ -19,17 +17,11 @@ uuid: FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF
 ## value of source if no author given).
 # rights_owner:
 
-## License (see below for list of possible values)
 license: cc by-sa
 
-## Some keywords describing the problem (default: empty)
-# keywords:
-
-# Indicate that we use a custom output validator instead of the
-# default token-based diff.
+# Override standard limits: say that the TLE solutions provided should
+# be at least 4 times above the time limit in order for us to be
+# happy.
 limits:
-#  time_multiplier: 5
   time_multipliers:
     time_limit_to_tle: 4
-problem_format_version: 2023-07-draft
-type: pass-fail

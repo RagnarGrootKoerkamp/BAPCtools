@@ -1,9 +1,9 @@
+problem_format_version: 2023-07-draft
+type: pass-fail
 name:
   en: Hello, Whole World!
   de: Hallo, ganze Welt!
   da: Hej, hele verden!
-uuid: c7c28c31-809a-400c-84ae-f6a3b29a217a
-problem_format_version: 2023-07-draft
-type: pass-fail
 credits:
   authors: Thore Husfeldt
+uuid: c7c28c31-809a-400c-84ae-f6a3b29a217a
