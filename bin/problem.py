@@ -224,7 +224,7 @@ class ProblemSettings:
         self.interactive: bool = "interactive" in mode
         self.multi_pass: bool = "multi-pass" in mode
         self.custom_output: bool = (
-            self.interactive or self.multi_pass or (problem.path / "output_validators").exists()
+            self.interactive or self.multi_pass or (problem.path / "output_validator").is_dir()
         )
 
         self.name: dict[str, str] = parse_setting(yaml_data, "name", {"en": ""})
@@ -798,8 +798,6 @@ class Problem:
                         warn("No input validators found.")
                     case validate.AnswerValidator, 0:
                         warn("No answer validators found")
-                    case validate.OutputValidator, l if l != 1:
-                        error(f"Found {len(validators)} output validators, expected exactly one.")
 
         build_ok = all(v.ok for v in validators)
 
@@ -815,15 +813,16 @@ class Problem:
             return problem._validators_cache[key]
 
         assert hasattr(cls, "source_dirs")
-        # TODO #424: We should not support multiple output validators inside output_validator/.
-        paths = [p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, "*")]
-
-        # Handle default output validation
         if cls == validate.OutputValidator:
-            if not paths:
-                if problem.custom_output:
-                    fatal("Problem validation type requires output_validators/")
+            assert len(cls.source_dirs) == 1
+            if problem.custom_output:
+                paths = [problem.path / cls.source_dirs[0]]
+            else:
                 paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
+        else:
+            paths = [
+                p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, "*")
+            ]
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
         def has_constraints_checking(f):
@@ -875,13 +874,8 @@ class Problem:
         if not testcases:
             return False
 
-        if problem.interactive or problem.multi_pass:
-            validators = problem.validators(validate.OutputValidator)
-            if not validators:
-                return False
-
         # Pre build the output validator to prevent nested ProgressBars.
-        if problem.validators(validate.OutputValidator) is False:
+        if not problem.validators(validate.OutputValidator):
             return False
 
         submissions = problem.submissions()

@@ -52,7 +52,7 @@ def problem_stats(problems):
         ("sol", "problem_statement/solution*.tex", 1),
         ("  val: I", ["input_validators/*", "input_format_validators/*"]),
         ("A", ["answer_validators/*"]),
-        ("O", ["output_validators/*"]),
+        ("O", ["output_validator/"]),
         (
             "  sample",
             [lambda s: {x.stem for x in s if x.parts[2] == "sample"}],

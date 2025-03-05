@@ -188,6 +188,23 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
             shutil.move(f, dest)
 
 
+def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
+    if (problem_path / "output_validators").is_dir():
+        if (problem_path / "output_validator").exists():
+            bar.error(
+                "can't rename 'output_validators/', 'output_validator/' already exists", resume=True
+            )
+            return
+        content = [*(problem_path / "output_validators").iterdir()]
+        if len(content) == 1 and content[0].is_dir():
+            bar.log(f"renaming 'output_validators/{content[0].name}' to 'output_validator/'")
+            content[0].rename(problem_path / "output_validator")
+            (problem_path / "output_validators").rmdir()
+        else:
+            bar.log("renaming 'output_validators/' to 'output_validator/'")
+            (problem_path / "output_validators").rename(problem_path / "output_validator")
+
+
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     assert (problem_path / "problem.yaml").exists()
     data = cast(CommentedMap, read_yaml(problem_path / "problem.yaml"))
@@ -364,7 +381,7 @@ def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
     upgrade_testdata_yaml(problem_path, bar)
     upgrade_generators_yaml(problem_path, bar)
     # upgrade_statement(problem_path, bar) TODO: activate this when we support the new statement dirs
-    # TODO: output_validators -> output_validator
+    upgrade_output_validators(problem_path, bar)
     upgrade_problem_yaml(problem_path, bar)
 
     bar.done()

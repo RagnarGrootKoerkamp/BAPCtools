@@ -121,7 +121,7 @@ def build_problem_zip(problem: Problem, output: Path):
         ]
 
     if problem.custom_output:
-        files.append(("output_validators/**/*", True))
+        files.append(("output_validator/**/*", True))
 
     if config.args.kattis:
         files.append(("input_validators/**/*", True))
@@ -224,7 +224,7 @@ def build_problem_zip(problem: Problem, output: Path):
     if problem.settings.constants:
         constants_supported = [
             "data/**/testdata.yaml",
-            "output_validators/**/*",
+            "output_validator/**/*",
             "input_validators/**/*",
             # "problem_statement/*", uses \constants
             # "submissions/*/**/*", removed support?
@@ -241,6 +241,12 @@ def build_problem_zip(problem: Problem, output: Path):
                     )
                     f.unlink()
                     f.write_text(text)
+
+    # TODO: Remove this if we know others use the output_validator dir
+    if (export_dir / "output_validator").exists():
+        (export_dir / "output_validator").rename(
+            export_dir / "output_validators" / "output_validator"
+        )
 
     # Build .ZIP file.
     message("writing zip file", "Zip", output, color_type=MessageType.LOG)
