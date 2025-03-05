@@ -32,7 +32,7 @@ def _filter(data: Any, remove: str) -> Any:
         # Move the comment that belongs to the removed key (which comes _after_ the removed key)
         # to the preceding key
         curr.ca.items[prev_key] = data.ca.items.pop(remove)
-    else:
+    elif prev_key in data.ca.items:
         # If the removed key does not have a comment,
         # the comment after the previous key should be removed
         curr.ca.items.pop(prev_key)
@@ -210,7 +210,8 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if not type:
                 type.append("pass-fail")
             # "type" comes before "name" in the spec
-            data.insert(list(data.keys()).index("name"), "type", type if len(type) > 1 else type[0])
+            pos = list(data.keys()).index("name") if "name" in data else 0
+            data.insert(pos, "type", type if len(type) > 1 else type[0])
             _filter(data, "validation")
 
     if "author" in data:
