@@ -82,9 +82,9 @@ def _ask_variable_choice(name, choices, default=None):
 # [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
 def _alpha_num(string):
     s = re.sub(r"[^a-zA-Z0-9_.-]", "", string.lower().replace(" ", "").replace("-", ""))
-    while s.startswith("_.-"):
+    while len(s) and s[0] in "_.-":
         s = s[1:]
-    while s.endswith("_.-"):
+    while len(s) and s[-1] in "_.-":
         s = s[:-1]
     return s
 

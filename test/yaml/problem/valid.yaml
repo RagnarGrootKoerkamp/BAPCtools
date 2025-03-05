@@ -1,30 +1,26 @@
 ---
 # Problem name tests
 yaml:
+  problem_format_version: 2023-07-draft
   name: Minimal
 eq:
+  problem_format_version: 2023-07-draft
   name:
     en: Minimal
 ---
 yaml:
+  problem_format_version: 2023-07-draft
   name:
     en: Minimal
 ---
 yaml:
+  problem_format_version: 2023-07-draft
   name:
     en: Minimal
     nl: Minimaal
 
 ---
-# Problem validation/type tests
-yaml:
-  name: custom validation
-  validation: custom
-eq:
-  custom_output: True
-  interactive: False
-  multi_pass: False
----
+# Problem type tests
 yaml:
   problem_format_version: 2023-07-draft
   name: pass-fail type
@@ -89,22 +85,6 @@ eq:
 
 ---
 # Credits tests
-yaml:
-  author: A. U. Thor
-eq:
-  credits:
-    authors:
-      - name: A. U. Thor
-        email: ~
----
-yaml:
-  author: A. U. Thor <author@example.com>
-eq:
-  credits:
-    authors:
-      - name: A. U. Thor
-        email: author@example.com
----
 yaml:
   problem_format_version: 2023-07-draft
   credits: A. U. Thor
