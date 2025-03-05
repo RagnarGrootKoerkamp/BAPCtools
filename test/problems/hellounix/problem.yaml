@@ -1,27 +1,14 @@
+problem_format_version: 2023-07-draft
+type: pass-fail
 name: hellounix
-author: various
+credits:
+  authors: various
 # Various tests whose behaviour is only consistent on
 # unix-y operating systems
-source:
-source_url:
 uuid: 20798d22-3227-4e48-9877-7f73d3d3236e
 license: unknown
 rights_owner:
-validation: default
 
-# One or more of:
-# case_sensitive
-# space_change_sensitive
-# float_absolute_tolerance eps
-# float_relative_tolerance eps
-# float_tolerance eps
-#validator_flags:
-
-# To change the time limit factors for Kattis, use:
-# limits:
-# Time limit is 2*slowest accepted submission:
-#     time_multiplier: 2
-# Warning for submissions within 1 second of limit:
-#     time_safety_margin: 1
 limits:
   memory: 512
+  time_limit: 3.0
