@@ -40,6 +40,15 @@ def _filter(data: Any, remove: str) -> Any:
     return data.pop(remove)
 
 
+# Insert a new key before an old key, then remove the old key.
+# If new_value is not given, the default is to simply rename the old key to the new key.
+def _replace(data: Any, old_key: str, new_key: str, new_value: Any = None) -> None:
+    if new_value is None:
+        new_value = data[old_key]
+    data.insert(list(data.keys()).index(old_key), new_key, new_value)
+    _filter(data, old_key)
+
+
 def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
         ("data/invalid_inputs", "data/invalid_input"),
@@ -61,7 +70,7 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
 def upgrade_testdata_yaml(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
         ("output_validator_flags", "output_validator_args"),
-        ("inut_validator_flags", "inut_validator_args"),
+        ("input_validator_flags", "input_validator_args"),
     ]
 
     for f in (problem_path / "data").rglob("testdata.yaml"):
@@ -76,8 +85,7 @@ def upgrade_testdata_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         resume=True,
                     )
                     continue
-                data[new] = data[old]
-                data.pop(old)
+                _replace(data, old, new)
 
         write_yaml(data, f)
 
@@ -105,8 +113,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 )
                 continue
             bar.log(f"renaming 'data.{old_name}' to 'data.{new_name}' in generators.yaml")
-            data[new_name] = data[old_name]
-            data.pop(old_name)
+            _replace(data, old_name, new_name)
 
     def upgrade_generated_testdata_yaml(data: dict[str, Any], path: str) -> None:
         if "testdata.yaml" in data:
@@ -130,8 +137,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         f"change '{old}' to '{new}' in generators.yaml{print_path}",
                         resume=True,
                     )
-                    testdata[new] = testdata[old]
-                    testdata.pop(old)
+                    _replace(testdata, old, new)
         if "data" in data and data["data"]:
             children = data["data"] if isinstance(data["data"], list) else [data["data"]]
             for dictionary in children:
@@ -149,18 +155,18 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
         if (problem_path / "statement").exists():
             bar.error("can't rename 'problem_statement/', 'statement/' already exists", resume=True)
             return
-        bar.log("renaming 'problem_statement/' to 'statement/' in generators.yaml")
+        bar.log("renaming 'problem_statement/' to 'statement/'")
         (problem_path / "problem_statement").rename(problem_path / "statement")
 
     origin = problem_path / "statement"
     move = [
         ("solution*", "solution"),
-        ("problem-slide*", "problem_slid"),
+        ("problem-slide*", "problem_slide"),
     ]
     for glob, dest_name in move:
         dest_path = problem_path / dest_name
         if dest_path.exists() and not dest_path.is_dir():
-            bar.error("'dest_name/' is not an directory", resume=True)
+            bar.error(f"'{dest_name}' is not a directory", resume=True)
             continue
 
         for f in origin.glob(glob):
@@ -187,7 +193,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
         or data["problem_format_version"] != config.SPEC_VERSION
     ):
         bar.log("set 'problem_format_version' in problem.yaml")
-        data["problem_format_version"] = config.SPEC_VERSION
+        data.insert(0, "problem_format_version", config.SPEC_VERSION)
 
     if "validation" in data:
         if "type" in data:
@@ -203,7 +209,8 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 type.append("multi-pass")
             if not type:
                 type.append("pass-fail")
-            data["type"] = type if len(type) > 1 else type[0]
+            # "type" comes before "name" in the spec
+            data.insert(list(data.keys()).index("name"), "type", type if len(type) > 1 else type[0])
             _filter(data, "validation")
 
     if "author" in data:
@@ -216,18 +223,20 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             authors = CommentedSeq(
                 name.strip() for name in data["author"].replace("and", ",").split(",")
             )
-            data["credits"] = CommentedMap()
-            data["credits"]["authors"] = authors if len(authors) > 1 else authors[0]
-            _filter(data, "author")
+            credits = CommentedMap({"authors": authors if len(authors) > 1 else authors[0]})
+            _replace(data, "author", "credits", credits)
 
     if "source_url" in data:
         if "source" not in data:
-            data["source"] = data["source_url"]
+            _replace(data, "source_url", "source")
         elif data["source"]:
             bar.log("change 'source_url' to 'source.url' in problem.yaml")
+            old_pos = list(data.keys()).index("source")
             old_source = _filter(data, "source")
             old_source_url = _filter(data, "source_url")
-            data["source"] = CommentedMap({"name": old_source, "url": old_source_url})
+            data.insert(
+                old_pos, "source", CommentedMap({"name": old_source, "url": old_source_url})
+            )
         else:
             bar.log("remove empty 'source(_url)' in problem.yaml")
             _filter(data, "source")
@@ -286,7 +295,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if "testdata.yaml" not in generators_data:
                 if "data" in generators_data:
                     # insert before data
-                    pos = [*generators_data.keys()].index("data")
+                    pos = list(generators_data.keys()).index("data")
                     generators_data.insert(pos, "testdata.yaml", CommentedMap())
                 else:
                     # insert at end
