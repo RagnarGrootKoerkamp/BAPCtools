@@ -1217,7 +1217,7 @@ def run_parsed_arguments(args):
                     )
                 # Only build the problem slides if at least one problem has the TeX for it
                 if any(
-                    glob(problem.path / "problem_statement", "problem-slide.*.tex")
+                    glob(problem.path / "problem_slide", "problem-slide.*.tex")
                     for problem in problems
                 ):
                     success &= latex.build_contest_pdf(

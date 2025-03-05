@@ -333,9 +333,7 @@ class Problem:
         If problem.yaml's name key is a string, convert into dict; assume `en` as default language.
         """
         yamllangs = set(self.settings.name)
-        texlangs = set(
-            path.suffixes[0][1:] for path in glob(self.path, "problem_statement/problem.*.tex")
-        )
+        texlangs = set(path.suffixes[0][1:] for path in glob(self.path, "statement/problem.*.tex"))
         for lang in texlangs - yamllangs:
             error(
                 f"{self.name}: Found problem.{lang}.tex, but no corresponding name in problem.yaml."
@@ -348,7 +346,7 @@ class Problem:
         for lang in texlangs & yamllangs:
             unnormalised_yamlname = self.settings.name[lang]
             yamlname = " ".join(unnormalised_yamlname.split())
-            with open(self.path / "problem_statement" / f"problem.{lang}.tex") as texfile:
+            with open(self.path / "statement" / f"problem.{lang}.tex") as texfile:
                 match texname := latex.get_argument_for_command(texfile, "problemname"):
                     case None:
                         error(rf"No \problemname found in problem.{lang}.tex")
