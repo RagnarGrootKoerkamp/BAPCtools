@@ -376,7 +376,7 @@ def build_problem_pdf(
     """
     main_file = build_type.path(ext="-web.tex" if web else ".tex").name
 
-    bar = PrintBar(f"{main_file.stem}.{language}.pdf")
+    bar = PrintBar(f"{main_file[:4]}.{language}.pdf")
     bar.log(f"Building PDF for language {language}")
 
     prepare_problem(problem, language)
