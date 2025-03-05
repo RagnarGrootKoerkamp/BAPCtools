@@ -339,10 +339,9 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]):
     contest_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/contest.yaml").read_text()
     contest_path = Path(".").resolve().relative_to(git_root_path)
     changes = "".join(
-        f"      - {problem_source_dir(problem)}/{latex.PdfType.PROBLEM.path().parent}/**/*\n"
-        f"      - {problem_source_dir(problem)}/{latex.PdfType.PROBLEM_SLIDE.path().parent}/**/*\n"
-        f"      - {problem_source_dir(problem)}/{latex.PdfType.SOLUTION.path().parent}/**/*\n"
+        f"      - {problem_source_dir(problem)}/{pdf_type.path().parent}/**/*\n"
         for problem in problems
+        for pdf_type in latex.PdfType
     )
     print(
         substitute(
