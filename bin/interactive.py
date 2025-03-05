@@ -32,7 +32,7 @@ def run_interactive_testcase(
     bar: Optional[ProgressBar] = None,
 ):
     output_validators = run.problem.validators(validate.OutputValidator)
-    if len(output_validators) != 1:
+    if not output_validators:
         return None
     output_validator = output_validators[0]
 

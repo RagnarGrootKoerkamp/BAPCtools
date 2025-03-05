@@ -333,12 +333,11 @@ class OutputValidator(Validator):
     """
 
     def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, "output_validators", **kwargs)
+        super().__init__(problem, path, "output_validator", **kwargs)
 
     validator_type = "output"
 
-    # TODO #424: We should not support multiple output validators inside output_validator/.
-    source_dirs = ["output_validator", "output_validators"]
+    source_dirs = ["output_validator"]
 
     def run(
         self,
