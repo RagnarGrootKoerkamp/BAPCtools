@@ -244,6 +244,7 @@ def build_problem_zip(problem: Problem, output: Path):
 
     # TODO: Remove this if we know others use the output_validator dir
     if (export_dir / "output_validator").exists():
+        (export_dir / "output_validators").mkdir(parents=True)
         (export_dir / "output_validator").rename(
             export_dir / "output_validators" / "output_validator"
         )
