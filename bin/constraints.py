@@ -1,6 +1,7 @@
 import re
 from collections import defaultdict
 
+import latex
 import validate
 from colorama import Fore, Style
 
@@ -45,7 +46,7 @@ def check_validators(problem):
 
 
 def check_statement(problem, language):
-    statement_file = problem.path / f"problem_statement/problem.{language}.tex"
+    statement_file = problem.path / latex.PdfType.PROBLEM.path(language)
     statement = statement_file.read_text()
 
     statement_values = set()

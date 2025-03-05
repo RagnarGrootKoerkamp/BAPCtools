@@ -27,10 +27,14 @@ from util import (
 )
 
 
-class PdfType(str, Enum):
-    PROBLEM = "problem"
-    PROBLEM_SLIDE = "problem-slide"
-    SOLUTION = "solution"
+class PdfType(Enum):
+    PROBLEM = Path("statement") / "problem"
+    PROBLEM_SLIDE = Path("problem_slide") / "problem-slide"
+    SOLUTION = Path("solution") / "solution"
+
+    def path(self, lang: Optional[str] = None, ext: str = ".tex") -> Path:
+        lang = f".{lang}" if lang is not None else ""
+        return self.value.with_name(f"{self.value.name}{lang}{ext}")
 
 
 def latex_builddir(problem: "problem.Problem", language: str) -> Path:
@@ -370,10 +374,9 @@ def build_problem_pdf(
     Arguments:
     -- language: str, the two-letter language code appearing the file name, such as problem.en.tex
     """
-    main_file = build_type.value
-    main_file += "-web.tex" if web else ".tex"
+    main_file = build_type.path(ext="-web.tex" if web else ".tex").name
 
-    bar = PrintBar(f"{main_file[:-3]}{language}.pdf")
+    bar = PrintBar(f"{main_file.stem}.{language}.pdf")
     bar.log(f"Building PDF for language {language}")
 
     prepare_problem(problem, language)
@@ -411,11 +414,11 @@ def build_problem_pdfs(problem: "problem.Problem", build_type=PdfType.PROBLEM, w
         if build_type != PdfType.PROBLEM:
             filtered_languages = []
             for lang in languages:
-                if (problem.path / "problem_statement" / f"{build_type.value}.{lang}.tex").exists():
+                if (problem.path / build_type.path(lang)).exists():
                     filtered_languages.append(lang)
                 else:
                     message(
-                        f"{build_type.value}.{lang}.tex not found",
+                        f"{build_type.path(lang)} not found",
                         problem.name,
                         color_type=MessageType.WARN,
                     )
@@ -491,11 +494,11 @@ def build_contest_pdf(
         elif headertex.exists():
             problems_data += f"\\input{{{headertex}}}\n"
 
-    local_per_problem_data = Path(f"contest-{build_type.value}.tex")
+    local_per_problem_data = Path(f"contest-{build_type.path().name}")
     per_problem_data_tex = (
         local_per_problem_data
         if local_per_problem_data.is_file()
-        else config.TOOLS_ROOT / "latex" / f"contest-{build_type.value}.tex"
+        else config.TOOLS_ROOT / "latex" / local_per_problem_data.name
     ).read_text()
 
     for prob in problems:
@@ -503,19 +506,19 @@ def build_contest_pdf(
             prepare_problem(prob, language)
         else:  # i.e. for SOLUTION and PROBLEM_SLIDE
             create_constants_file(prob, language)
-            tex_no_lang = prob.path / "problem_statement" / f"{build_type.value}.tex"
-            tex_with_lang = prob.path / "problem_statement" / f"{build_type.value}.{language}.tex"
+            tex_no_lang = prob.path / build_type.path()
+            tex_with_lang = prob.path / build_type.path(language)
             if tex_with_lang.is_file():
                 # All is good
                 pass
             elif tex_no_lang.is_file():
                 bar.warn(
-                    f"Rename {build_type.value}.tex to {build_type.value}.{language}.tex",
+                    f"Rename {tex_no_lang.name} to {tex_with_lang.name}",
                     prob.name,
                 )
                 continue
             else:
-                bar.warn(f"{build_type.value}.{language}.tex not found", prob.name)
+                bar.warn(f"{tex_with_lang.name} not found", prob.name)
                 continue
 
         problems_data += substitute(
@@ -533,7 +536,7 @@ def build_contest_pdf(
         elif footertex.exists():
             problems_data += f"\\input{{{footertex}}}\n"
 
-    (builddir / f"contest-{build_type.value}s.tex").write_text(problems_data)
+    (builddir / f"contest-{build_type.path(ext='s.tex').name}").write_text(problems_data)
 
     return build_latex_pdf(builddir, Path(main_file), language, bar)
 

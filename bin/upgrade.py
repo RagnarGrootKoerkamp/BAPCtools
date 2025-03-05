@@ -160,9 +160,9 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
     if (problem_path / "problem_statement").is_dir():
         if (problem_path / "statement").exists():
             bar.error("can't rename 'problem_statement/', 'statement/' already exists", resume=True)
-            return
-        bar.log("renaming 'problem_statement/' to 'statement/'")
-        (problem_path / "problem_statement").rename(problem_path / "statement")
+        else:
+            bar.log("renaming 'problem_statement/' to 'statement/'")
+            (problem_path / "problem_statement").rename(problem_path / "statement")
 
     origin = problem_path / "statement"
     move = [
@@ -363,7 +363,7 @@ def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
     upgrade_data(problem_path, bar)
     upgrade_testdata_yaml(problem_path, bar)
     upgrade_generators_yaml(problem_path, bar)
-    # upgrade_statement(problem_path, bar) TODO: activate this when we support the new statement dirs
+    upgrade_statement(problem_path, bar)
     # TODO: output_validators -> output_validator
     upgrade_problem_yaml(problem_path, bar)
 
