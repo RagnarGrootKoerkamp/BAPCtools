@@ -245,6 +245,19 @@ def build_problem_zip(problem: Problem, output: Path):
     # TODO: Remove this if we know others import the statement folder
     if (export_dir / "statement").exists():
         (export_dir / "statement").rename(export_dir / "problem_statement")
+    for d in ["solution", "problem_slide"]:
+        for f in list(util.glob(problem.path, f"{d}/*")):
+            if f.is_file():
+                out = Path("statement") / f.relative_to(problem.path / d)
+                if out.exists():
+                    message(
+                        f"Can not export {f.relative_to(problem.path)} as {out}",
+                        "Zip",
+                        output,
+                        color_type=MessageType.WARN,
+                    )
+                else:
+                    add_file(out, f)
 
     # Build .ZIP file.
     message("writing zip file", "Zip", output, color_type=MessageType.LOG)
