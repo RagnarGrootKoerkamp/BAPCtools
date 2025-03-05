@@ -10,21 +10,34 @@ if has_ryaml:
     from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 
-# this is slow but tries to preserve the correct comments
-def _filter(data: Any, remove: str) -> None:
+# This tries to preserve the correct comments.
+def _filter(data: Any, remove: str) -> Any:
     assert isinstance(data, CommentedMap)
-    prev = None
-    for key in data:
-        if key == remove:
-            break
-    while prev and isinstance(prev, (list, dict)):
-        if isinstance(prev, list):
-            prev = prev[-1]
+
+    remove_index = list(data.keys()).index(remove)
+    if remove_index == 0:
+        return data.pop(remove)
+
+    curr = data
+    prev_key = list(data.keys())[remove_index - 1]
+    while isinstance(curr[prev_key], list | dict):
+        # Try to remove the comment from the last element in the preceding list/dict
+        curr = curr[prev_key]
+        if isinstance(curr, list):
+            prev_key = len(curr) - 1
         else:
-            prev = prev[prev.keys()[-1]]
-    if prev is not None:
-        data.ca.items[prev] = data.ca.items.pop(key)
-    data.pop(key)
+            prev_key = list(curr.keys())[-1]
+
+    if remove in data.ca.items:
+        # Move the comment that belongs to the removed key (which comes _after_ the removed key)
+        # to the preceding key
+        curr.ca.items[prev_key] = data.ca.items.pop(remove)
+    else:
+        # If the removed key does not have a comment,
+        # the comment after the previous key should be removed
+        curr.ca.items.pop(prev_key)
+
+    return data.pop(remove)
 
 
 def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
@@ -210,16 +223,15 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     if "source_url" in data:
         if "source" not in data:
             data["source"] = data["source_url"]
-        if data["source"]:
+        elif data["source"]:
             bar.log("change 'source_url' to 'source.url' in problem.yaml")
-            source = CommentedMap()
-            source["name"] = data["source"]
-            source["url"] = data["source_url"]
-            data["source"] = source
+            old_source = _filter(data, "source")
+            old_source_url = _filter(data, "source_url")
+            data["source"] = CommentedMap({"name": old_source, "url": old_source_url})
         else:
             bar.log("remove empty 'source(_url)' in problem.yaml")
             _filter(data, "source")
-        _filter(data, "source_url")
+            _filter(data, "source_url")
 
     if "limits" in data:
         limits = data["limits"]
