@@ -98,6 +98,8 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
     if data is None or not isinstance(data, dict):
         return
 
+    changed = False
+
     rename = [
         ("invalid_inputs", "invalid_input"),
         ("invalid_answers", "invalid_answer"),
@@ -114,8 +116,10 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 continue
             bar.log(f"renaming 'data.{old_name}' to 'data.{new_name}' in generators.yaml")
             _replace(data, old_name, new_name)
+            changed = True
 
-    def upgrade_generated_testdata_yaml(data: dict[str, Any], path: str) -> None:
+    def upgrade_generated_testdata_yaml(data: dict[str, Any], path: str) -> bool:
+        changed = False
         if "testdata.yaml" in data:
             testdata = data["testdata.yaml"]
             assert isinstance(testdata, dict)
@@ -123,7 +127,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
             rename = [
                 ("output_validator_flags", "output_validator_args"),
-                ("inut_validator_flags", "inut_validator_args"),
+                ("input_validator_flags", "input_validator_args"),
             ]
             for old, new in rename:
                 if old in testdata:
@@ -133,21 +137,23 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                             resume=True,
                         )
                         continue
-                    bar.log(
-                        f"change '{old}' to '{new}' in generators.yaml{print_path}",
-                        resume=True,
-                    )
+                    bar.log(f"change '{old}' to '{new}' in generators.yaml{print_path}")
                     _replace(testdata, old, new)
+                    changed = True
         if "data" in data and data["data"]:
             children = data["data"] if isinstance(data["data"], list) else [data["data"]]
             for dictionary in children:
                 for child_name, child_data in sorted(dictionary.items()):
                     if generate.is_directory(child_data):
-                        upgrade_generated_testdata_yaml(child_data, path + "." + child_name)
+                        changed |= upgrade_generated_testdata_yaml(
+                            child_data, path + "." + child_name
+                        )
+        return changed
 
-    upgrade_generated_testdata_yaml(data, "")
+    changed |= upgrade_generated_testdata_yaml(data, "")
 
-    write_yaml(data, generators_yaml)
+    if changed:
+        write_yaml(data, generators_yaml)
 
 
 def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
