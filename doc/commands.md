@@ -239,7 +239,7 @@ This table contains:
 
 - The problem label and shortname.
 - Whether `problem.yaml` and `domjudge.ini` are found.
-- Whether `problem_statement/problem.en.tex` and `problem_statement/solution.tex` are found.
+- Whether `statement/problem.en.tex` and `solution/solution.en.tex` are found.
 - Whether the problem has any `input_validators` and `output_validators`.
 - The number of `sample` and `secret` testcases.
 - The number of `accepted`, `wrong_answer`, and `time_limit_exceeded` solutions.
@@ -427,7 +427,7 @@ contest_pdf_nwerc2020:
       - ./bt solutions --cp --no-bar --contest nwerc2020
   only:
     changes:
-      - nwerc2020/testproblem/problem_statement/**/*
+      - nwerc2020/testproblem/statement/**/*
 
   artifacts:
     expire_in: 1 week
@@ -570,7 +570,7 @@ When run for a contest:
   - Kattis needs the `input_validators` directory, while DOMjudge doesn't use this.
   - Kattis problem zips get an additional top level directory named after the problem shortname.
   - _Statements_: Kattis’s problemtools builds statement HTML (and PDF) using `problem2html` (and `problem2pdf`) rather than `bt pdf`. Problem authors should check the resulting statements after exporting to Kattis; pay attention to:
-    - The command `bt zip --kattis` exports `problem_statement/*` but not its subdirectories, so make sure illustrations and `\input`-ed tex sources are included.
+    - The command `bt zip --kattis` exports `{statement,solution}/*` but not its subdirectories, so make sure illustrations and `\input`-ed tex sources are included.
     - Proper images scaling in the HTML output requires explict widths, such as `\includegraphics[width=.5\textwidth]{foo.png}`.
 
 ## `export`
