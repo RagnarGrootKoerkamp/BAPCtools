@@ -11,6 +11,7 @@ from colorama import ansi, Fore, Style
 
 import config
 import generate
+import latex
 import program
 from util import error, exec_command, glob, warn
 
@@ -48,8 +49,8 @@ def problem_stats(problems):
         # Roughly in order of importance
         ("  time", lambda p: p.limits.time_limit, 0),
         ("yaml", "problem.yaml"),
-        ("tex", "problem_statement/problem*.tex", 1),
-        ("sol", "problem_statement/solution*.tex", 1),
+        ("tex", str(latex.PdfType.PROBLEM.path("*")), 1),
+        ("sol", str(latex.PdfType.SOLUTION.path("*")), 1),
         ("  val: I", ["input_validators/*", "input_format_validators/*"]),
         ("A", ["answer_validators/*"]),
         ("O", ["output_validator/"]),
