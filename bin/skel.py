@@ -4,6 +4,7 @@ import re
 
 # Local imports
 import config
+import latex
 from export import force_single_language
 from problem import Problem
 from util import *
@@ -259,10 +260,11 @@ def new_problem():
 
     # Warn about missing problem statement skeletons for non-en languages
     for lang in statement_languages:
-        filename = f"problem.{lang}.tex"
-        statement_path = target_dir / dirname / "problem_statement" / filename
+        statement_path = target_dir / dirname / latex.PdfType.PROBLEM.path(lang)
         if not statement_path.is_file():
-            warn(f"No skeleton for {filename} found. Create it manually or update skel/problem.")
+            warn(
+                f"No skeleton for {statement_path.name} found. Create it manually or update skel/problem."
+            )
 
 
 def rename_problem(problem):
@@ -352,8 +354,9 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]):
     contest_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/contest.yaml").read_text()
     contest_path = Path(".").resolve().relative_to(git_root_path)
     changes = "".join(
-        "      - " + str(problem_source_dir(problem)) + "/problem_statement/**/*\n"
+        f"      - {problem_source_dir(problem)}/{pdf_type.path().parent}/**/*\n"
         for problem in problems
+        for pdf_type in latex.PdfType
     )
     print(
         substitute(

@@ -163,15 +163,15 @@ The following placeholders are automatically substituted in the `contest_data.te
 ## Solution slides
 
 Solutions are rendered in a similar way to the contest pdf. It uses the
-`problem_statement/solution.tex` files as inputs. The main difference is that
+`solution/solution.<lang>.tex` files as inputs. The main difference is that
 you can provide additional files in `<contestdirectory>/`:
 
-- `solutions_header.xy.tex`: slides prepended to the first problem, for the
+- `solutions_header.<lang>.tex`: slides prepended to the first problem, for the
   current language.
-- `solutions_footer.xy.tex`: slides appended after the last problem, for the
+- `solutions_footer.<lang>.tex`: slides appended after the last problem, for the
   current language.
 
-The following placeholders are automatically substituted in the `solution.tex`:
+The following placeholders are automatically substituted in the `solution.<lang>.tex`:
 ```
 {%problemlabel%}
 {%problemyamlname%}
@@ -190,7 +190,7 @@ There is some special support for handling _solve stats_: post-contest data on h
   ```
   \newcommand{\solvestatsA}{\printsolvestats{<number submissions>}{<number accepted>}{<number unknown>}}
   ```
-  When this file is present, each `problem_statement/solution.tex` may use `\solvestats` to print a line like:
+  When this file is present, each `solution/solution.<lang>.tex` may use `\solvestats` to print a line like:
   ```
   Statistics: 15 submissions, 3 accepted, 8 unknown
   ```
