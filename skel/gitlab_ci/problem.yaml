@@ -6,7 +6,9 @@ verify_{%problem%}:
       - master
       - merge_requests
     changes:
-      #- {%problem_path%}/problem_statement/**/*
+      #- {%problem_path%}/statement/**/*
+      #- {%problem_path%}/solution/**/*
+      #- {%problem_path%}/problem_slide/**/*
       - {%problem_path%}/problem.yaml
       - {%problem_path%}/.timelimit
       - {%problem_path%}/data/**/*

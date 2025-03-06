@@ -22,7 +22,7 @@ The default language for BAPCtools is English, but multiple languages can be spe
 In short,
 
 1. configure `languages` in `.bapctools.yaml`.
-2. add a skeleton for `problem.LANG.tex` in `skel/problem/problem_statement`.
+2. add a skeleton for `problem.LANG.tex` in `skel/problem/statement`.
 
 ### Configure `language`
 
@@ -44,9 +44,9 @@ languages:
 
 ### Add skeleton statements
 
-The skeleton directory for a new problem statement (see `bt skel` and `bt new_problem`) by default only supports English and will populate `<problem_name>/problem_statement/problem.en.tex` with a default statement.
+The skeleton directory for a new problem statement (see `bt skel` and `bt new_problem`) by default only supports English and will populate `<problem_name>/statement/problem.en.tex` with a default statement.
 To support, _e.g._, German, you need to add `problem.de.tex`.
-To do this automatically for each `bt new_problem`, create a problem skeleton in `<contestdirectory>/skel/problem`, and add `problem_statement/problem.de.tex`, for instance like this:
+To do this automatically for each `bt new_problem`, create a problem skeleton in `<contestdirectory>/skel/problem`, and add `statement/problem.de.tex`, for instance like this:
 
 ```tex
 \problemname{\problemyamlname} % replaced by name['de'] from problem.yaml
@@ -129,6 +129,6 @@ a warning that they should be renamed to include the language suffix in their fi
 At the contest level things work similarly, and `contest.xy.pdf` and
 `solutions.xy.pdf` are created using `bt pdf` and `bt solutions` respectively.
 By default, only those languages `xy` are used for which
-`<problemdirectory>/problem_statement/problem.xy.tex` is available for all problems in the
+`<problemdirectory>/statement/problem.xy.tex` is available for all problems in the
 contest. Solution slides are skipped for problems without a corresponding
 `<probblemdirectory>/problemstatement/solution.xy.tex` file.
