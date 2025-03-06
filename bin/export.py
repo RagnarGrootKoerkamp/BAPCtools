@@ -248,7 +248,7 @@ def build_problem_zip(problem: Problem, output: Path):
     for d in ["solution", "problem_slide"]:
         for f in list(util.glob(problem.path, f"{d}/*")):
             if f.is_file():
-                out = Path("statement") / f.relative_to(problem.path / d)
+                out = Path("problem_statement") / f.relative_to(problem.path / d)
                 if out.exists():
                     message(
                         f"Can not export {f.relative_to(problem.path)} as {out}",
