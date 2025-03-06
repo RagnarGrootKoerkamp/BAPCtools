@@ -516,11 +516,13 @@ class Problem:
                 if key == "output_validator_args":
                     if not isinstance(flags[key], str):
                         bar.error("output_validator_args must be string")
+                        return []
                     return flags[key].split()
 
                 if key == "input_validator_args":
                     if not isinstance(flags[key], (str, dict)):
                         bar.error("input_validator_args must be string or map")
+                        return []
                     if isinstance(flags[key], str):
                         return flags[key].split()
                     elif name in flags[key]:
