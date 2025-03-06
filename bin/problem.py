@@ -515,7 +515,7 @@ class Problem:
             if key in flags:
                 if key == "output_validator_args":
                     if not isinstance(flags[key], str):
-                        bar.error("ouput_validator_args must be string")
+                        bar.error("output_validator_args must be string")
                     return flags[key].split()
 
                 if key == "input_validator_args":

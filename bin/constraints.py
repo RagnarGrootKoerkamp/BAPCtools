@@ -171,7 +171,7 @@ def check_statement(problem, language):
     # 3) if a section starts parse that (and ensure that no environment is active)
     # 4) if an environment begins parse that (and ensure that no other environment is active)
     # 5) if a new define starts parse that
-    # 6) if inline math starts in an input/ouput part parse it as constraint
+    # 6) if inline math starts in an input/output part parse it as constraint
     while pos < len(statement):
         if statement[pos] == "%":
             next = statement.find("\n", pos)
