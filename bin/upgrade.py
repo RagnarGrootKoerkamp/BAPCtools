@@ -160,9 +160,9 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
     if (problem_path / "problem_statement").is_dir():
         if (problem_path / "statement").exists():
             bar.error("can't rename 'problem_statement/', 'statement/' already exists", resume=True)
-            return
-        bar.log("renaming 'problem_statement/' to 'statement/'")
-        (problem_path / "problem_statement").rename(problem_path / "statement")
+        else:
+            bar.log("renaming 'problem_statement/' to 'statement/'")
+            (problem_path / "problem_statement").rename(problem_path / "statement")
 
     origin = problem_path / "statement"
     move = [
@@ -293,30 +293,35 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
         return True
 
     if "validator_flags" in data:
-        generators_path = problem_path / "generators" / "generators.yaml"
-        if generators_path.exists():
-            generators_data = read_yaml(generators_path)
-            assert generators_data is not None
-            assert isinstance(generators_data, CommentedMap)
+        if data["validator_flags"]:
+            generators_path = problem_path / "generators" / "generators.yaml"
+            if generators_path.exists():
+                generators_data = read_yaml(generators_path)
+                assert generators_data is not None
+                assert isinstance(generators_data, CommentedMap)
 
-            if "testdata.yaml" not in generators_data:
-                if "data" in generators_data:
-                    # insert before data
-                    pos = list(generators_data.keys()).index("data")
-                    generators_data.insert(pos, "testdata.yaml", CommentedMap())
-                else:
-                    # insert at end
-                    generators_data["testdata.yaml"] = CommentedMap()
-            if add_args(generators_data["testdata.yaml"]):
-                write_yaml(generators_data, generators_path)
+                if "testdata.yaml" not in generators_data:
+                    if "data" in generators_data:
+                        # insert before data
+                        pos = list(generators_data.keys()).index("data")
+                        generators_data.insert(pos, "testdata.yaml", CommentedMap())
+                    else:
+                        # insert at end
+                        generators_data["testdata.yaml"] = CommentedMap()
+                if add_args(generators_data["testdata.yaml"]):
+                    write_yaml(generators_data, generators_path)
+            else:
+                testdata_path = problem_path / "data" / "testdata.yaml"
+                testdata_data = (
+                    read_yaml(testdata_path) if testdata_path.exists() else CommentedMap()
+                )
+                assert testdata_data is not None
+                assert isinstance(testdata_data, dict)
+
+                if add_args(testdata_data):
+                    write_yaml(testdata_data, testdata_path)
         else:
-            testdata_path = problem_path / "data" / "testdata.yaml"
-            testdata_data = read_yaml(testdata_path) if testdata_path.exists() else CommentedMap()
-            assert testdata_data is not None
-            assert isinstance(testdata_data, dict)
-
-            if add_args(testdata_data):
-                write_yaml(testdata_data, testdata_path)
+            _filter(data, "validator_flags")
 
     timelimit_path = problem_path / ".timelimit"
     if timelimit_path.is_file():
@@ -363,7 +368,7 @@ def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
     upgrade_data(problem_path, bar)
     upgrade_testdata_yaml(problem_path, bar)
     upgrade_generators_yaml(problem_path, bar)
-    # upgrade_statement(problem_path, bar) TODO: activate this when we support the new statement dirs
+    upgrade_statement(problem_path, bar)
     # TODO: output_validators -> output_validator
     upgrade_problem_yaml(problem_path, bar)
 
