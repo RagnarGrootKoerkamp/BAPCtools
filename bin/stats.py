@@ -49,8 +49,8 @@ def problem_stats(problems):
         # Roughly in order of importance
         ("  time", lambda p: p.limits.time_limit, 0),
         ("yaml", "problem.yaml"),
-        ("tex", str(latex.PdfType.PROBLEM.path(ext="*.tex")), 1),
-        ("sol", str(latex.PdfType.SOLUTION.path(ext="*.tex")), 1),
+        ("tex", str(latex.PdfType.PROBLEM.path("*")), 1),
+        ("sol", str(latex.PdfType.SOLUTION.path("*")), 1),
         ("  val: I", ["input_validators/*", "input_format_validators/*"]),
         ("A", ["answer_validators/*"]),
         ("O", ["output_validators/*"]),

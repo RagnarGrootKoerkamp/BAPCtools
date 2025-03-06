@@ -1217,7 +1217,7 @@ def run_parsed_arguments(args):
                     )
                 # Only build the problem slides if at least one problem has the TeX for it
                 slideglob = latex.PdfType.PROBLEM_SLIDE.path("*")
-                if any(problem.path.glob(slideglob) for problem in problems):
+                if any(problem.path.glob(str(slideglob)) for problem in problems):
                     success &= latex.build_contest_pdf(
                         contest,
                         problems,
