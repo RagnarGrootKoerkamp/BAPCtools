@@ -333,29 +333,32 @@ class Problem:
         If problem.yaml's name key is a string, convert into dict; assume `en` as default language.
         """
         yamllangs = set(self.settings.name)
-        texlangs = set(path.suffixes[0][1:] for path in glob(self.path, "statement/problem.*.tex"))
+        texlangs = set(
+            path.suffixes[0][1:] for path in glob(self.path, str(latex.PdfType.PROBLEM.path("*")))
+        )
         for lang in texlangs - yamllangs:
             error(
-                f"{self.name}: Found problem.{lang}.tex, but no corresponding name in problem.yaml."
+                f"{self.name}: Found {latex.PdfType.PROBLEM.path(lang).name}, but no corresponding name in problem.yaml."
             )
         for lang in yamllangs - texlangs:
             error(
-                f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
+                f"{self.name}: Found name for language {lang} in problem.yaml, but not {latex.PdfType.PROBLEM.path(lang).name}."
             )
         # Check that names in problem.yaml and \problemname{} in problem.*.tex agree:
         for lang in texlangs & yamllangs:
             unnormalised_yamlname = self.settings.name[lang]
             yamlname = " ".join(unnormalised_yamlname.split())
-            with open(self.path / "statement" / f"problem.{lang}.tex") as texfile:
+            texpath = self.path / latex.PdfType.PROBLEM.path(lang)
+            with open(texpath) as texfile:
                 match texname := latex.get_argument_for_command(texfile, "problemname"):
                     case None:
-                        error(rf"No \problemname found in problem.{lang}.tex")
+                        error(rf"No \problemname found in {texpath.name}")
                         continue
                     case "":
                         continue
                     case r"\problemyamlname":
                         warn(
-                            rf"Prefer using \problemname{{}} instead of \problemname{{\problemyamlname}} in problem.{lang}.tex"
+                            rf"Prefer using \problemname{{}} instead of \problemname{{\problemyamlname}} in {texpath.name}"
                         )
                         continue
                     case s if "\\" in s or "_" in s or "^" in s:
@@ -364,7 +367,7 @@ class Problem:
                         continue
                     case s if s != yamlname:
                         warn(
-                            f"Problem titles in problem.{lang}.tex ({texname})"
+                            f"Problem titles in {texpath.name} ({texname})"
                             + f" and problem.yaml ({yamlname}) differ;"
                             + r" consider using \problemname{}."
                         )

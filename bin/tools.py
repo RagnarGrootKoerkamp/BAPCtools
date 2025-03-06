@@ -1216,10 +1216,8 @@ def run_parsed_arguments(args):
                         web=True,
                     )
                 # Only build the problem slides if at least one problem has the TeX for it
-                if any(
-                    glob(problem.path / "problem_slide", "problem-slide.*.tex")
-                    for problem in problems
-                ):
+                slideglob = latex.PdfType.PROBLEM_SLIDE.path("*")
+                if any(problem.path.glob(slideglob) for problem in problems):
                     success &= latex.build_contest_pdf(
                         contest,
                         problems,
@@ -1228,7 +1226,7 @@ def run_parsed_arguments(args):
                         build_type=latex.PdfType.PROBLEM_SLIDE,
                     )
                 else:
-                    log("No problem has problem-slide.*.tex, skipping problem slides")
+                    log(f"No problem has {slideglob.name}, skipping problem slides")
 
             outfile = contest + ".zip"
             if config.args.kattis:

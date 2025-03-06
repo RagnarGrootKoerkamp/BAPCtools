@@ -6,13 +6,12 @@ import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
 import config
 from contest import contest_yaml, problems_yaml
-import problem
 from util import (
     copy_and_substitute,
     ensure_symlink,
@@ -26,6 +25,9 @@ from util import (
     warn,
 )
 
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    from problem import Problem
+
 
 class PdfType(Enum):
     PROBLEM = Path("statement") / "problem"
@@ -37,13 +39,13 @@ class PdfType(Enum):
         return self.value.with_name(f"{self.value.name}{lang}{ext}")
 
 
-def latex_builddir(problem: "problem.Problem", language: str) -> Path:
+def latex_builddir(problem: "Problem", language: str) -> Path:
     builddir = problem.tmpdir / "latex" / language
     builddir.mkdir(parents=True, exist_ok=True)
     return builddir
 
 
-def create_samples_file(problem: "problem.Problem", language: str) -> None:
+def create_samples_file(problem: "Problem", language: str) -> None:
     builddir = latex_builddir(problem, language)
 
     # create the samples.tex file
@@ -168,7 +170,7 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
     samples_file_path.write_text("".join(samples_data))
 
 
-def create_constants_file(problem: "problem.Problem", language: str) -> None:
+def create_constants_file(problem: "Problem", language: str) -> None:
     constant_data: list[str] = []
     for key, item in problem.settings.constants.items():
         constant_data.append(f"\\expandafter\\def\\csname constants_{key}\\endcsname{{{item}}}\n")
@@ -179,12 +181,12 @@ def create_constants_file(problem: "problem.Problem", language: str) -> None:
 
 
 # Steps needed for both problem and contest compilation.
-def prepare_problem(problem: "problem.Problem", language: str):
+def prepare_problem(problem: "Problem", language: str):
     create_samples_file(problem, language)
     create_constants_file(problem, language)
 
 
-def get_tl(problem: "problem.Problem"):
+def get_tl(problem: "Problem"):
     tl = problem.limits.time_limit
     tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
 
@@ -198,7 +200,7 @@ def get_tl(problem: "problem.Problem"):
     return tl if print_tl else ""
 
 
-def problem_data(problem: "problem.Problem", language: str):
+def problem_data(problem: "Problem", language: str):
     background = next(
         (
             p["rgb"][1:]
@@ -367,9 +369,7 @@ def build_latex_pdf(
 #    substituting variables.
 # 2. Create tmpdir/<problem>/latex/<language>/{samples,constants}.tex.
 # 3. Run latexmk and link the resulting <build_type>.<language>.pdf into the problem directory.
-def build_problem_pdf(
-    problem: "problem.Problem", language: str, build_type=PdfType.PROBLEM, web=False
-):
+def build_problem_pdf(problem: "Problem", language: str, build_type=PdfType.PROBLEM, web=False):
     """
     Arguments:
     -- language: str, the two-letter language code appearing the file name, such as problem.en.tex
@@ -394,7 +394,7 @@ def build_problem_pdf(
     return build_latex_pdf(builddir, builddir / main_file, language, bar, problem.path)
 
 
-def build_problem_pdfs(problem: "problem.Problem", build_type=PdfType.PROBLEM, web=False):
+def build_problem_pdfs(problem: "Problem", build_type=PdfType.PROBLEM, web=False):
     """Build PDFs for various languages. If list of languages is specified,
     (either via config files or --language arguments), build those. Otherwise
     build all languages for which there is a statement latex source.
@@ -439,7 +439,7 @@ def find_logo() -> Path:
 
 def build_contest_pdf(
     contest: str,
-    problems: list["problem.Problem"],
+    problems: list["Problem"],
     tmpdir: Path,
     language: str,
     build_type=PdfType.PROBLEM,
