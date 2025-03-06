@@ -97,7 +97,7 @@ def build_problem_zip(problem: Problem, output: Path):
 
     files = [
         ("problem.yaml", True),
-        ("problem_statement/*", True),
+        ("statement/*", True),
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
         ("attachments/**/*", problem.interactive or problem.multi_pass),
@@ -206,7 +206,7 @@ def build_problem_zip(problem: Problem, output: Path):
     # Replace \problemname{...} by the value of `name:` in problems.yaml in all .tex files.
     # This is needed because Kattis is currently still running the legacy version of the problem spec,
     # rather than 2023-07-draft.
-    for f in (export_dir / "problem_statement").iterdir():
+    for f in (export_dir / "statement").iterdir():
         if f.is_file() and f.suffix == ".tex" and len(f.suffixes) >= 2:
             lang = f.suffixes[-2][1:]
             t = f.read_text()
@@ -226,7 +226,7 @@ def build_problem_zip(problem: Problem, output: Path):
             "data/**/testdata.yaml",
             "output_validators/**/*",
             "input_validators/**/*",
-            # "problem_statement/*", uses \constants
+            # "statement/*", uses \constants
             # "submissions/*/**/*", removed support?
         ]
         for pattern in constants_supported:
@@ -241,6 +241,23 @@ def build_problem_zip(problem: Problem, output: Path):
                     )
                     f.unlink()
                     f.write_text(text)
+
+    # TODO: Remove this if we know others import the statement folder
+    if (export_dir / "statement").exists():
+        (export_dir / "statement").rename(export_dir / "problem_statement")
+    for d in ["solution", "problem_slide"]:
+        for f in list(util.glob(problem.path, f"{d}/*")):
+            if f.is_file():
+                out = Path("problem_statement") / f.relative_to(problem.path / d)
+                if out.exists():
+                    message(
+                        f"Can not export {f.relative_to(problem.path)} as {out}",
+                        "Zip",
+                        output,
+                        color_type=MessageType.WARN,
+                    )
+                else:
+                    add_file(out, f)
 
     # Build .ZIP file.
     message("writing zip file", "Zip", output, color_type=MessageType.LOG)
