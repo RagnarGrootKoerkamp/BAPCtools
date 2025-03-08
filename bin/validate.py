@@ -226,7 +226,7 @@ class InputValidator(Validator):
 
     validator_type: Final[str] = "input"
 
-    source_dir: Final[list[str]] = ["input_validators", "input_format_validators"]
+    source_dirs: Final[list[str]] = ["input_validators", "input_format_validators"]
 
     def run(
         self,
@@ -337,7 +337,7 @@ class OutputValidator(Validator):
 
     validator_type: Final[str] = "output"
 
-    source_dirs: Final[str] = "output_validator"
+    source_dir: Final[str] = "output_validator"
 
     def run(
         self,

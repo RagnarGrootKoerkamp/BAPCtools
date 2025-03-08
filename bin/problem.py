@@ -817,7 +817,7 @@ class Problem:
 
         if cls == validate.OutputValidator:
             if problem.custom_output:
-                paths = [problem.path / validate.OutputValidator.source_dirs]
+                paths = [problem.path / validate.OutputValidator.source_dir]
             else:
                 paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
         else:
