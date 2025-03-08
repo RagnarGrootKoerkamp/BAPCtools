@@ -10,45 +10,6 @@ if has_ryaml:
     from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 
-# This tries to preserve the correct comments.
-def _filter(data: Any, remove: str) -> Any:
-    assert isinstance(data, CommentedMap)
-
-    remove_index = list(data.keys()).index(remove)
-    if remove_index == 0:
-        return data.pop(remove)
-
-    curr = data
-    prev_key = list(data.keys())[remove_index - 1]
-    while isinstance(curr[prev_key], list | dict):
-        # Try to remove the comment from the last element in the preceding list/dict
-        curr = curr[prev_key]
-        if isinstance(curr, list):
-            prev_key = len(curr) - 1
-        else:
-            prev_key = list(curr.keys())[-1]
-
-    if remove in data.ca.items:
-        # Move the comment that belongs to the removed key (which comes _after_ the removed key)
-        # to the preceding key
-        curr.ca.items[prev_key] = data.ca.items.pop(remove)
-    elif prev_key in data.ca.items:
-        # If the removed key does not have a comment,
-        # the comment after the previous key should be removed
-        curr.ca.items.pop(prev_key)
-
-    return data.pop(remove)
-
-
-# Insert a new key before an old key, then remove the old key.
-# If new_value is not given, the default is to simply rename the old key to the new key.
-def _replace(data: Any, old_key: str, new_key: str, new_value: Any = None) -> None:
-    if new_value is None:
-        new_value = data[old_key]
-    data.insert(list(data.keys()).index(old_key), new_key, new_value)
-    _filter(data, old_key)
-
-
 def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
         ("data/invalid_inputs", "data/invalid_input"),
@@ -85,7 +46,7 @@ def upgrade_testdata_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         resume=True,
                     )
                     continue
-                _replace(data, old, new)
+                ryaml_replace(data, old, new)
 
         write_yaml(data, f)
 
@@ -115,7 +76,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 )
                 continue
             bar.log(f"renaming 'data.{old_name}' to 'data.{new_name}' in generators.yaml")
-            _replace(data, old_name, new_name)
+            ryaml_replace(data, old_name, new_name)
             changed = True
 
     def upgrade_generated_testdata_yaml(data: dict[str, Any], path: str) -> bool:
@@ -138,7 +99,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         )
                         continue
                     bar.log(f"change '{old}' to '{new}' in generators.yaml{print_path}")
-                    _replace(testdata, old, new)
+                    ryaml_replace(testdata, old, new)
                     changed = True
         if "data" in data and data["data"]:
             children = data["data"] if isinstance(data["data"], list) else [data["data"]]
@@ -256,7 +217,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             # "type" comes before "name" in the spec
             pos = list(data.keys()).index("name") if "name" in data else 0
             data.insert(pos, "type", type if len(type) > 1 else type[0])
-            _filter(data, "validation")
+            ryaml_filter(data, "validation")
 
     if "author" in data:
         if "credits" in data:
@@ -269,23 +230,23 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 name.strip() for name in data["author"].replace("and", ",").split(",")
             )
             credits = CommentedMap({"authors": authors if len(authors) > 1 else authors[0]})
-            _replace(data, "author", "credits", credits)
+            ryaml_replace(data, "author", "credits", credits)
 
     if "source_url" in data:
         if "source" not in data:
-            _replace(data, "source_url", "source")
+            ryaml_replace(data, "source_url", "source")
         elif data["source"]:
             bar.log("change 'source_url' to 'source.url' in problem.yaml")
             old_pos = list(data.keys()).index("source")
-            old_source = _filter(data, "source")
-            old_source_url = _filter(data, "source_url")
+            old_source = ryaml_filter(data, "source")
+            old_source_url = ryaml_filter(data, "source_url")
             data.insert(
                 old_pos, "source", CommentedMap({"name": old_source, "url": old_source_url})
             )
         else:
             bar.log("remove empty 'source(_url)' in problem.yaml")
-            _filter(data, "source")
-            _filter(data, "source_url")
+            ryaml_filter(data, "source")
+            ryaml_filter(data, "source_url")
 
     if "limits" in data:
         limits = data["limits"]
@@ -304,19 +265,19 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 if "time_multiplier" in limits:
                     if limits["time_multiplier"] != 2:  # Skip if it's equal to the new default
                         time_multipliers["ac_to_time_limit"] = limits["time_multiplier"]
-                    _filter(limits, "time_multiplier")
+                    ryaml_filter(limits, "time_multiplier")
 
                 if "time_safety_margin" in limits:
                     if limits["time_safety_margin"] != 1.5:  # Skip if it's equal to the new default
                         time_multipliers["time_limit_to_tle"] = limits["time_safety_margin"]
-                    _filter(limits, "time_safety_margin")
+                    ryaml_filter(limits, "time_safety_margin")
 
                 if time_multipliers:
                     limits["time_multipliers"] = time_multipliers
                 # If both time multipliers are default, remove the comments (this only works if
                 # there are no other limits configured, but that's the most common case anyway)
                 if not limits:
-                    _filter(data, "limits")
+                    ryaml_filter(data, "limits")
 
     def add_args(new_data: dict[str, Any]) -> bool:
         if "output_validator_args" in new_data:
@@ -327,7 +288,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             return False
         bar.log("change 'validator_flags' to 'output_validator_args' in testdata.yaml")
         new_data["output_validator_args"] = data["validator_flags"]
-        _filter(data, "validator_flags")
+        ryaml_filter(data, "validator_flags")
         return True
 
     if "validator_flags" in data:
@@ -359,7 +320,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 if add_args(testdata_data):
                     write_yaml(testdata_data, testdata_path)
         else:
-            _filter(data, "validator_flags")
+            ryaml_filter(data, "validator_flags")
 
     timelimit_path = problem_path / ".timelimit"
     if timelimit_path.is_file():
