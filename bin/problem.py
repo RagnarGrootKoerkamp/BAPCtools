@@ -815,14 +815,13 @@ class Problem:
         if key in problem._validators_cache:
             return problem._validators_cache[key]
 
-        assert hasattr(cls, "source_dirs")
         if cls == validate.OutputValidator:
-            assert len(cls.source_dirs) == 1
             if problem.custom_output:
-                paths = [problem.path / cls.source_dirs[0]]
+                paths = [problem.path / validate.OutputValidator.source_dirs]
             else:
                 paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
         else:
+            assert hasattr(cls, "source_dirs")
             paths = [
                 p for source_dir in cls.source_dirs for p in glob(problem.path / source_dir, "*")
             ]

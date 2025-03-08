@@ -224,9 +224,9 @@ class InputValidator(Validator):
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, "input_validators", **kwargs)
 
-    validator_type = "input"
+    validator_type: Final[str] = "input"
 
-    source_dirs = ["input_validators", "input_format_validators"]
+    source_dir: Final[list[str]] = ["input_validators", "input_format_validators"]
 
     def run(
         self,
@@ -284,9 +284,9 @@ class AnswerValidator(Validator):
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, "answer_validators", **kwargs)
 
-    validator_type = "answer"
+    validator_type: Final[str] = "answer"
 
-    source_dirs = ["answer_validators", "answer_format_validators"]
+    source_dirs: Final[list[str]] = ["answer_validators", "answer_format_validators"]
 
     def run(
         self,
@@ -335,9 +335,9 @@ class OutputValidator(Validator):
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, "output_validator", **kwargs)
 
-    validator_type = "output"
+    validator_type: Final[str] = "output"
 
-    source_dirs = ["output_validator"]
+    source_dirs: Final[str] = "output_validator"
 
     def run(
         self,
