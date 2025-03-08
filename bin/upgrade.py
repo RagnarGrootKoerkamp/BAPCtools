@@ -198,8 +198,29 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
         content = [*(problem_path / "output_validators").iterdir()]
         if len(content) == 1 and content[0].is_dir():
             bar.log(f"renaming 'output_validators/{content[0].name}' to 'output_validator/'")
-            content[0].rename(problem_path / "output_validator")
-            (problem_path / "output_validators").rmdir()
+
+            def move(src: str, dst: str) -> None:
+                if Path(src).is_symlink():
+                    src_dst = Path(src).resolve()
+                    if src_dst.is_relative_to(content[0]):  # local symlink
+                        Path(src).rename(dst)
+                    else:  # link outside output_validators/
+                        dst_pos = Path(dst).resolve()
+                        common = [
+                            a
+                            for a, b in zip(reversed(src_dst.parents), reversed(dst_pos.parents))
+                            if a == b
+                        ][-1]
+                        link = Path(
+                            "../" * (len(dst_pos.parents) - len(common.parts))
+                        ) / src_dst.relative_to(common)
+                        Path(dst).symlink_to(link)
+                        Path(src).unlink()
+                else:
+                    Path(src).rename(dst)
+
+            shutil.copytree(content[0], problem_path / "output_validator", copy_function=move)
+            shutil.rmtree(problem_path / "output_validators")
         else:
             bar.log("renaming 'output_validators/' to 'output_validator/'")
             (problem_path / "output_validators").rename(problem_path / "output_validator")
