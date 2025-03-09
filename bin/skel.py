@@ -255,7 +255,7 @@ def new_problem():
         variables,
         exist_ok=True,
         preserve_symlinks=preserve_symlinks,
-        skip=[skeldir / "output_validators"] if not custom_output else None,
+        skip=[skeldir / "output_validator"] if not custom_output else None,
     )
 
     # Warn about missing problem statement skeletons for non-en languages
