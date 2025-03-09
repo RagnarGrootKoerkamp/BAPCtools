@@ -4,6 +4,7 @@ import copy
 import errno
 import hashlib
 import os
+import re
 import secrets
 import shutil
 import signal
@@ -13,8 +14,7 @@ import tempfile
 import threading
 import time
 from enum import Enum
-from collections.abc import Sequence
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import (
     Any,
@@ -46,6 +46,7 @@ try:
     ryaml.default_flow_style = False
     ryaml.indent(mapping=2, sequence=4, offset=2)
     ryaml.width = sys.maxsize
+    ryaml.preserve_quotes = True
 except Exception:
     has_ryaml = False
 
@@ -168,7 +169,7 @@ def message(
 
 # A simple bar that only holds a task prefix
 class PrintBar:
-    def __init__(self, task: str | Path):
+    def __init__(self, task: Optional[str | Path] = None):
         self.task = task
 
     def log(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
@@ -584,6 +585,9 @@ class ProgressBar:
         return self.global_logged and not suppress_newline
 
 
+BAR_TYPE = PrintBar | ProgressBar
+
+
 # Given a command line argument, return the first match:
 # - absolute
 # - relative to the 'type' directory for the current problem
@@ -709,6 +713,43 @@ if has_ryaml:
         assert isinstance(value, t)
         return value  # type: ignore
 
+    # This tries to preserve the correct comments.
+    def ryaml_filter(data: Any, remove: str) -> Any:
+        assert isinstance(data, ruamel.yaml.comments.CommentedMap)
+        remove_index = list(data.keys()).index(remove)
+        if remove_index == 0:
+            return data.pop(remove)
+
+        curr = data
+        prev_key = list(data.keys())[remove_index - 1]
+        while isinstance(curr[prev_key], list | dict):
+            # Try to remove the comment from the last element in the preceding list/dict
+            curr = curr[prev_key]
+            if isinstance(curr, list):
+                prev_key = len(curr) - 1
+            else:
+                prev_key = list(curr.keys())[-1]
+
+        if remove in data.ca.items:
+            # Move the comment that belongs to the removed key (which comes _after_ the removed key)
+            # to the preceding key
+            curr.ca.items[prev_key] = data.ca.items.pop(remove)
+        elif prev_key in data.ca.items:
+            # If the removed key does not have a comment,
+            # the comment after the previous key should be removed
+            curr.ca.items.pop(prev_key)
+
+        return data.pop(remove)
+
+    # Insert a new key before an old key, then remove the old key.
+    # If new_value is not given, the default is to simply rename the old key to the new key.
+    def ryaml_replace(data: Any, old_key: str, new_key: str, new_value: Any = None) -> None:
+        assert isinstance(data, ruamel.yaml.comments.CommentedMap)
+        if new_value is None:
+            new_value = data[old_key]
+        data.insert(list(data.keys()).index(old_key), new_key, new_value)
+        ryaml_filter(data, old_key)
+
 
 # Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
 write_yaml_lock = threading.Lock()
@@ -791,6 +832,15 @@ def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T])
             return value
         warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
     return []
+
+
+def parse_deprecated_setting(
+    yaml_data: dict[str, Any], key: str, new: Optional[str] = None
+) -> None:
+    if key in yaml_data:
+        use = f", use '{new}' instead" if new else ""
+        warn(f"key '{key}' is deprecated{use}. SKIPPED.")
+        yaml_data.pop(key)
 
 
 # glob, but without hidden files
@@ -884,37 +934,78 @@ def ensure_symlink(link: Path, target: Path, output: bool = False, relative: boo
         link.symlink_to(target.resolve(), target.is_dir())
 
 
-def substitute(data: str, variables: Optional[dict[str, Optional[str]]]) -> str:
+def has_substitute(
+    inpath: Path, pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX
+) -> bool:
+    try:
+        data = inpath.read_text()
+    except UnicodeDecodeError:
+        return False
+    return pattern.search(data) is not None
+
+
+def substitute(
+    data: str,
+    variables: Optional[Mapping[str, Optional[str]]],
+    *,
+    pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
+    bar: BAR_TYPE = PrintBar(),
+) -> str:
     if variables is None:
-        return data
-    for key, value in variables.items():
-        data = data.replace("{%" + key + "%}", str(value or ""))
-    return data
+        variables = {}
+
+    def substitute_function(match):
+        name = match.group(1)
+        if name in variables:
+            return str(variables[name]) if variables[name] is not None else ""
+        else:
+            variable = match.group()
+            bar.warn(f"Found pattern '{variable}' but no substitution was provided. Skipped.")
+            return variable
+
+    return pattern.sub(substitute_function, data)
 
 
 def copy_and_substitute(
-    inpath: Path, outpath: Path, variables: Optional[dict[str, Optional[str]]]
+    inpath: Path,
+    outpath: Path,
+    variables: Optional[Mapping[str, Optional[str]]],
+    *,
+    pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
+    bar: BAR_TYPE = PrintBar(),
 ) -> None:
     try:
         data = inpath.read_text()
     except UnicodeDecodeError:
         # skip this file
-        log(f'File "{inpath}" is not a text file.')
+        bar.log(f'File "{inpath}" is not a text file.')
         return
-    data = substitute(data, variables)
+    data = substitute(data, variables, pattern=pattern, bar=bar)
     if outpath.is_symlink():
         outpath.unlink()
     outpath.write_text(data)
 
 
-def substitute_file_variables(path: Path, variables: Optional[dict[str, Optional[str]]]) -> None:
-    copy_and_substitute(path, path, variables)
+def substitute_file_variables(
+    path: Path,
+    variables: Optional[Mapping[str, Optional[str]]],
+    *,
+    pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
+    bar: BAR_TYPE = PrintBar(),
+) -> None:
+    copy_and_substitute(path, path, variables, pattern=pattern, bar=bar)
 
 
-def substitute_dir_variables(dirname: Path, variables: Optional[dict[str, Optional[str]]]) -> None:
+def substitute_dir_variables(
+    dirname: Path,
+    variables: Optional[Mapping[str, Optional[str]]],
+    *,
+    pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
+    bar: BAR_TYPE = PrintBar(),
+) -> None:
     for path in dirname.rglob("*"):
         if path.is_file():
-            substitute_file_variables(path, variables)
+            substitute_file_variables(path, variables, pattern=pattern, bar=bar)
 
 
 # copies a directory recursively and substitutes {%key%} by their value in text files
@@ -922,12 +1013,14 @@ def substitute_dir_variables(dirname: Path, variables: Optional[dict[str, Option
 def copytree_and_substitute(
     src: Path,
     dst: Path,
-    variables: Optional[dict[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[str]]],
     exist_ok: bool = True,
     *,
     preserve_symlinks: bool = True,
     base: Optional[Path] = None,
     skip: Optional[Iterable[Path]] = None,
+    pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
+    bar: BAR_TYPE = PrintBar(),
 ) -> None:
     if base is None:
         base = src
@@ -955,6 +1048,8 @@ def copytree_and_substitute(
                     preserve_symlinks=preserve_symlinks,
                     base=base,
                     skip=skip,
+                    pattern=pattern,
+                    bar=bar,
                 )
             except OSError as why:
                 errors.append((srcFile, dstFile, str(why)))
@@ -966,11 +1061,11 @@ def copytree_and_substitute(
             raise Exception(errors)
 
     elif dst.exists():
-        warn(f'File "{dst}" already exists, skipping...')
+        bar.warn(f'File "{dst}" already exists, skipping...')
     else:
         try:
             data = src.read_text()
-            data = substitute(data, variables)
+            data = substitute(data, variables, pattern=pattern, bar=bar)
             dst.write_text(data)
         except UnicodeDecodeError:
             # Do not substitute for binary files.

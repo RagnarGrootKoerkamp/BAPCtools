@@ -39,6 +39,7 @@ import slack
 import solve_stats
 import download_submissions
 import stats
+import upgrade
 import validate
 import signal
 
@@ -350,6 +351,13 @@ Run this from one of:
         title="actions", dest="action", parser_class=SuppressingParser
     )
     subparsers.required = True
+
+    # upgrade
+    subparsers.add_parser(
+        "upgrade",
+        parents=[global_parser],
+        help="Upgrade a problem or contest.",
+    )
 
     # New contest
     contestparser = subparsers.add_parser(
@@ -916,6 +924,11 @@ def run_parsed_arguments(args):
         else:
             config.args.testcases = []
 
+    # upgrade commands.
+    if action == "upgrade":
+        upgrade.upgrade()
+        return
+
     # Skel commands.
     if action == "new_contest":
         skel.new_contest()
@@ -1203,10 +1216,8 @@ def run_parsed_arguments(args):
                         web=True,
                     )
                 # Only build the problem slides if at least one problem has the TeX for it
-                if any(
-                    glob(problem.path / "problem_statement", "problem-slide.*.tex")
-                    for problem in problems
-                ):
+                slideglob = latex.PdfType.PROBLEM_SLIDE.path("*")
+                if any(problem.path.glob(str(slideglob)) for problem in problems):
                     success &= latex.build_contest_pdf(
                         contest,
                         problems,
@@ -1215,7 +1226,7 @@ def run_parsed_arguments(args):
                         build_type=latex.PdfType.PROBLEM_SLIDE,
                     )
                 else:
-                    log("No problem has problem-slide.*.tex, skipping problem slides")
+                    log(f"No problem has {slideglob.name}, skipping problem slides")
 
             outfile = contest + ".zip"
             if config.args.kattis:

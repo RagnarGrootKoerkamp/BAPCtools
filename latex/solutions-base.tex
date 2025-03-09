@@ -55,6 +55,14 @@
 \newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 \newcommand{\problemtitle}{\problemlabel: \problemyamlname}
 
+\newcommand{\constant}[1]{%
+	\ifcsname constants_#1\endcsname%
+		\csname constants_#1\endcsname%
+	\else%
+		\PackageError{constants}{constant{#1} is not defined}{}%
+	\fi%
+}
+
 % If solve_stats/activity/A.pdf exists, define the \activitychart command
 \IfFileExists{solve_stats/activity/A.pdf}{
 	\newcommand{\activitychart}{
