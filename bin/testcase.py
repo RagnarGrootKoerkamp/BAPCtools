@@ -150,7 +150,7 @@ class Testcase:
         indicating which validators will be run for this testcase.
         """
         assert cls in [validate.InputValidator, validate.AnswerValidator, validate.OutputValidator]
-        validators = self.problem.validators(cls) or []
+        validators = self.problem.validators(cls)
 
         d = dict()
 

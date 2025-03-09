@@ -713,6 +713,43 @@ if has_ryaml:
         assert isinstance(value, t)
         return value  # type: ignore
 
+    # This tries to preserve the correct comments.
+    def ryaml_filter(data: Any, remove: str) -> Any:
+        assert isinstance(data, ruamel.yaml.comments.CommentedMap)
+        remove_index = list(data.keys()).index(remove)
+        if remove_index == 0:
+            return data.pop(remove)
+
+        curr = data
+        prev_key = list(data.keys())[remove_index - 1]
+        while isinstance(curr[prev_key], list | dict):
+            # Try to remove the comment from the last element in the preceding list/dict
+            curr = curr[prev_key]
+            if isinstance(curr, list):
+                prev_key = len(curr) - 1
+            else:
+                prev_key = list(curr.keys())[-1]
+
+        if remove in data.ca.items:
+            # Move the comment that belongs to the removed key (which comes _after_ the removed key)
+            # to the preceding key
+            curr.ca.items[prev_key] = data.ca.items.pop(remove)
+        elif prev_key in data.ca.items:
+            # If the removed key does not have a comment,
+            # the comment after the previous key should be removed
+            curr.ca.items.pop(prev_key)
+
+        return data.pop(remove)
+
+    # Insert a new key before an old key, then remove the old key.
+    # If new_value is not given, the default is to simply rename the old key to the new key.
+    def ryaml_replace(data: Any, old_key: str, new_key: str, new_value: Any = None) -> None:
+        assert isinstance(data, ruamel.yaml.comments.CommentedMap)
+        if new_value is None:
+            new_value = data[old_key]
+        data.insert(list(data.keys()).index(old_key), new_key, new_value)
+        ryaml_filter(data, old_key)
+
 
 # Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
 write_yaml_lock = threading.Lock()
