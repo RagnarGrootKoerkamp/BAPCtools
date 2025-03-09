@@ -13,7 +13,7 @@ import config
 
 RUN_DIR = Path.cwd().resolve()
 # Note: the python version isn't tested by default, because it's quite slow.
-DEFAULT_OUTPUT_VALIDATORS = ["default_output_validator.cpp"]
+DEFAULT_OUTPUT_VALIDATOR = ["default_output_validator.cpp"]
 
 config.args.verbose = 2
 config.args.error = True
@@ -42,7 +42,7 @@ def read_tests():
     return tests
 
 
-@pytest.fixture(scope="class", params=DEFAULT_OUTPUT_VALIDATORS)
+@pytest.fixture(scope="class", params=DEFAULT_OUTPUT_VALIDATOR)
 def validator(request):
     problem_dir = RUN_DIR / "test/problems/identity"
     os.chdir(problem_dir)
@@ -65,9 +65,9 @@ class MockRun:
 
 
 @pytest.mark.usefixtures("validator")
-class TestDefaultOutputValidators:
+class TestDefaultOutputValidator:
     @pytest.mark.parametrize("testdata", read_tests())
-    def test_default_output_validators(self, validator, testdata):
+    def test_default_output_validator(self, validator, testdata):
         problem, validator = validator
         flags, ans, out, exp = testdata
         flags = flags.split()
@@ -87,7 +87,7 @@ class TestDefaultOutputValidators:
         r.out_path = out_path
         r.feedbackdir = problem.tmpdir / "data"
 
-        # TODO: the validators should probably be able to figure the flags out from the Problem config
+        # TODO: the validator should probably be able to figure the flags out from the Problem config
         result = validator.run(t, r, args=flags)
 
         if result.status != exp:
