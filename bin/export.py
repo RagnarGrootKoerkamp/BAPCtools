@@ -92,6 +92,10 @@ def build_samples_zip(problems, output, statement_language):
 def build_problem_zip(problem: Problem, output: Path):
     """Make DOMjudge/Kattis ZIP file for specified problem."""
 
+    if not has_ryaml:
+        error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
+        return
+
     # Add problem PDF for only one language to the zip file (note that Kattis export does not include PDF)
     statement_language = None if config.args.kattis else force_single_language([problem])
 
@@ -121,7 +125,7 @@ def build_problem_zip(problem: Problem, output: Path):
         ]
 
     if problem.custom_output:
-        files.append(("output_validators/**/*", True))
+        files.append(("output_validator/**/*", True))
 
     if config.args.kattis:
         files.append(("input_validators/**/*", True))
@@ -170,33 +174,64 @@ def build_problem_zip(problem: Problem, output: Path):
                             out = f2.relative_to(problem.path)
                             add_file(out, f2)
 
-    # DOMjudge does not support 'type' in problem.yaml nor 'output_validator_args' in testdata.yaml yet.
-    # TODO: Remove this once it does.
-    if not config.args.kattis:
-        yaml_path = export_dir / "problem.yaml"
-        yaml_data = [yaml_path.read_text(), "\nvalidation:"]
-        if problem.custom_output:
-            yaml_data.append(" custom")
-            if problem.interactive:
-                yaml_data.append(" interactive")
-            if problem.multi_pass:
-                yaml_data.append(" multi-pass")
-        else:
-            yaml_data.append(" default")
-        yaml_data.append("\n")
+    # DOMjudge and Kattis do not support 2023-07-draft yet.
+    # TODO: Remove once they do.
+    from ruamel.yaml.comments import CommentedMap
 
-        validator_flags = " ".join(
-            problem.get_testdata_yaml(
-                problem.path / "data",
-                "output_validator_args",
-                PrintBar("Getting validator_flags for legacy DOMjudge export"),
-            )
+    yaml_path = export_dir / "problem.yaml"
+    yaml_data = read_yaml(yaml_path)
+    # drop format version -> legacy
+    if "problem_format_version" in yaml_data:
+        ryaml_filter(yaml_data, "problem_format_version")
+    # type -> validation
+    if "type" in yaml_data:
+        ryaml_filter(yaml_data, "type")
+    validation = []
+    if problem.custom_output:
+        validation.append("custom")
+        if problem.interactive:
+            validation.append("interactive")
+        if problem.multi_pass:
+            validation.append("multi-pass")
+    else:
+        validation.append("default")
+    yaml_data["validation"] = " ".join(validation)
+    # credits -> author
+    if "credits" in yaml_data:
+        ryaml_filter(yaml_data, "credits")
+        if problem.settings.credits.authors:
+            yaml_data["author"] = ", ".join(p.name for p in problem.settings.credits.authors)
+    # change source:
+    if problem.settings.source:
+        if len(problem.settings.source) > 1:
+            util.warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
+        yaml_data["source"] = problem.settings.source[0].name
+        yaml_data["source_url"] = problem.settings.source[0].url
+    # limits.time_multipliers -> time_multiplier / time_safety_margin
+    if "limits" not in yaml_data or not yaml_data["limits"]:
+        yaml_data["limits"] = CommentedMap()
+    limits = yaml_data["limits"]
+    if "time_multipliers" in limits:
+        ryaml_filter(limits, "time_multipliers")
+    limits["time_multiplier"] = problem.limits.ac_to_time_limit
+    limits["time_safety_margin"] = problem.limits.time_limit_to_tle
+    # drop explicit timelimit for kattis:
+    if "time_limit" in limits:
+        # keep this for kattis even when "time_limit" is supported
+        ryaml_filter(limits, "time_limit")
+    # validator_flags
+    validator_flags = " ".join(
+        problem.get_testdata_yaml(
+            problem.path / "data",
+            "output_validator_args",
+            PrintBar("Getting validator_flags for legacy export"),
         )
-        if validator_flags:
-            yaml_data.append(f"validator_flags: {validator_flags}\n")
-
-        yaml_path.unlink()
-        yaml_path.write_text("".join(yaml_data))
+    )
+    if validator_flags:
+        yaml_data["validator_flags"] = validator_flags
+    # write legacy style yaml
+    yaml_path.unlink()
+    write_yaml(yaml_data, yaml_path)
 
     # DOMjudge does not support 'limits.time_limit' in problem.yaml yet.
     # TODO: Remove this once it does.
@@ -224,7 +259,7 @@ def build_problem_zip(problem: Problem, output: Path):
     if problem.settings.constants:
         constants_supported = [
             "data/**/testdata.yaml",
-            "output_validators/**/*",
+            "output_validator/**/*",
             "input_validators/**/*",
             # "statement/*", uses \constants
             # "submissions/*/**/*", removed support?
@@ -241,6 +276,13 @@ def build_problem_zip(problem: Problem, output: Path):
                     )
                     f.unlink()
                     f.write_text(text)
+
+    # TODO: Remove this if we know others use the output_validator dir
+    if (export_dir / "output_validator").exists():
+        (export_dir / "output_validators").mkdir(parents=True)
+        (export_dir / "output_validator").rename(
+            export_dir / "output_validators" / "output_validator"
+        )
 
     # TODO: Remove this if we know others import the statement folder
     if (export_dir / "statement").exists():
@@ -286,6 +328,10 @@ def build_problem_zip(problem: Problem, output: Path):
 # solutions*.{lang}.pdf
 # Output is <outfile>
 def build_contest_zip(problems, zipfiles, outfile, statement_language):
+    if not has_ryaml:
+        error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
+        return
+
     print(f"writing ZIP file {outfile}", file=sys.stderr)
 
     if not config.args.kattis:  # Kattis does not use problems.yaml.
