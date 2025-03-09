@@ -277,7 +277,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "Generate test data for this problem. Version 2024-11.",
+  "description": "Generate test data for this problem. Version 2025-02.",
   "properties": {
     "solution": {
       "$ref": "#/$defs/solution"

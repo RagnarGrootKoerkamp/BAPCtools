@@ -70,7 +70,7 @@ import "strings"
 		valid_output?: #testgroup
 	})
 	#testgroup_config
-	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2024-12"
+	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2025-02"
 
 	... // Do allow unknown_key at top level for tooling
 }
