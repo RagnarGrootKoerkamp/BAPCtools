@@ -433,7 +433,7 @@ class Problem:
             )
         for lang in yamllangs - texlangs:
             error(
-                f"{self.name}: Found name for language {lang} in problem.yaml, but not problem.{lang}.tex."
+                f"{self.name}: Found name for language {lang} in problem.yaml, but not problem_statement/problem.{lang}.tex."
             )
         # Check that names in problem.yaml and \problemname{} in problem.*.tex agree:
         for lang in texlangs & yamllangs:
