@@ -174,8 +174,8 @@ def build_problem_zip(problem: Problem, output: Path):
                             out = f2.relative_to(problem.path)
                             add_file(out, f2)
 
-    # DOMjudge and Kattis do not support draft yet.
-    # TODO: Remove they do.
+    # DOMjudge and Kattis do not support 2023-07-draft yet.
+    # TODO: Remove once they do.
     from ruamel.yaml.comments import CommentedMap
 
     yaml_path = export_dir / "problem.yaml"
