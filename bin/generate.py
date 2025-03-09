@@ -729,10 +729,7 @@ class TestcaseRule(Rule):
                     f".ans file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2 * size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
                 )
 
-            answer_validator_hashes = {
-                **testcase.validator_hashes(validate.AnswerValidator, bar),
-                **testcase.validator_hashes(validate.OutputValidator, bar),
-            }
+            answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
             if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
                 return True
 
