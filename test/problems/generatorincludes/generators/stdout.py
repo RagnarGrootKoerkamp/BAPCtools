@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 # Echoes all arguments to stdout. Additionally, unescaped backslash escape
 # character, e.g. \n will produce a newline.
 import sys
