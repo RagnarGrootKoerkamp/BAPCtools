@@ -86,7 +86,12 @@ class Testcase:
 
         self.in_path = path
         self.ans_path = self.in_path.with_suffix(".ans")
-        self.out_path = self.in_path.with_suffix(".out")
+        self.out_path = (
+            self.in_path.with_suffix(".out")
+            if self.root in ["valid_output", "invalid_output"]
+            or self.in_path.with_suffix(".out").is_file()
+            else None
+        )
 
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(""))
