@@ -608,9 +608,10 @@ class Problem:
                 if t.root != "invalid_input":
                     warn(f"Found input file {f} without a .ans file. Skipping.")
                     continue
-            if t.out_path is not None and not t.out_path.is_file():
-                warn(f"Found input file {f} without a .out file. Skipping.")
-                continue
+            if needans and (t.out_path is None or not t.out_path.is_file()):
+                if t.root in ["invalid_output", "valid_output"]:
+                    warn(f"Found input file {f} without a .out file. Skipping.")
+                    continue
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
