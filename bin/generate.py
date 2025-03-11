@@ -741,7 +741,7 @@ class TestcaseRule(Rule):
                 )
 
             answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
-            if all(h in meta_yaml["ans_or_out_validator_hashes"] for h in answer_validator_hashes):
+            if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
                 return True
 
             mode = validate.Mode.ANSWER
@@ -761,7 +761,7 @@ class TestcaseRule(Rule):
                     return False
             else:
                 for h in answer_validator_hashes:
-                    meta_yaml["ans_or_out_validator_hashes"][h] = answer_validator_hashes[h]
+                    meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
                 write_yaml(
                     meta_yaml,
                     problem.tmpdir / "data" / t.hash / "meta_.yaml",
