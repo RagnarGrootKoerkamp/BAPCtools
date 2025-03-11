@@ -68,6 +68,8 @@ KNOWN_TEXT_DATA_EXTENSIONS: Final[Sequence[str]] = [
     ".desc",
     ".in.statement",
     ".ans.statement",
+    ".in.download",
+    ".ans.download",
     #'.args',
 ]
 

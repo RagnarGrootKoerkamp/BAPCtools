@@ -436,6 +436,7 @@ class TestcaseRule(Rule):
 
         # Whether this testcase is a sample.
         self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
+        self.required_in = [".in", ".in.statement"] if self.sample else [".in"]
 
         # 1. Generator
         self.generator = None
@@ -591,9 +592,8 @@ class TestcaseRule(Rule):
                 if ".in" in self.hardcoded:
                     self.in_is_generated = False
                     self.rule["in"] = self.hardcoded[".in"]
-                for ext in config.KNOWN_TESTCASE_EXTENSIONS:
-                    if ext in self.hardcoded:
-                        hashes[ext] = hash_string(self.hardcoded[ext])
+                for ext, value in self.hardcoded.items():
+                    hashes[ext] = hash_string(value)
 
             # Warn/Error for unknown keys.
             for key in yaml:
@@ -614,7 +614,7 @@ class TestcaseRule(Rule):
                 return
 
             # build ordered list of hashes we want to consider
-            hs = [hashes[ext] for ext in config.KNOWN_TESTCASE_EXTENSIONS if ext in hashes]
+            hs = list(hashes.values())
 
             # combine hashes
             if len(hs) == 1:
@@ -704,15 +704,25 @@ class TestcaseRule(Rule):
             )
         return True
 
-    def validate_ans(t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar):
+    # TODO: we assume .ans is a valid output (also in testcase.validate_format)
+    def validate_remaining(
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
+    ):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
         if testcase.root == "invalid_input":
             return True
 
-        ansfile = problem.tmpdir / "data" / t.hash / "testcase.ans"
-        assert ansfile.is_file()
+        ansfile = infile.with_suffix(".ans")
+        if not ansfile.is_file():
+            bar.error("No .ans file was generated!")
+            return False
+
+        outfile = infile.with_suffix(".out")
+        if not outfile.is_file() and testcase.root in ["invalid_output", "valid_output"]:
+            bar.error("No .out file was generated!")
+            return False
 
         if problem.interactive or problem.multi_pass:
             if ansfile.stat().st_size != 0:
@@ -720,21 +730,28 @@ class TestcaseRule(Rule):
                 multi_pass = "multi-pass " if problem.multi_pass else ""
                 bar.warn(f".ans file for {interactive}{multi_pass}problem is expected to be empty.")
         else:
-            size = ansfile.stat().st_size
+            checkfile = outfile if outfile.is_file() else ansfile
+            size = checkfile.stat().st_size
             if (
                 size <= problem.limits.output * 1024 * 1024
                 and problem.limits.output * 1024 * 1024 < 2 * size
             ):  # we already warn if the limit is exceeded
                 bar.warn(
-                    f".ans file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2 * size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
+                    f".{checkfile.suffix} file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2 * size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
                 )
 
             answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
-            if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
+            if all(h in meta_yaml["ans_or_out_validator_hashes"] for h in answer_validator_hashes):
                 return True
 
+            mode = validate.Mode.ANSWER
+            if testcase.root in config.INVALID_CASE_DIRECTORIES:
+                mode = validate.Mode.INVALID
+            elif outfile.is_file():
+                mode = validate.Mode.VALID_OUTPUT
+
             if not testcase.validate_format(
-                validate.Mode.ANSWER,
+                mode,
                 bar=bar,
                 warn_instead_of_error=config.args.no_validators,
             ):
@@ -744,7 +761,7 @@ class TestcaseRule(Rule):
                     return False
             else:
                 for h in answer_validator_hashes:
-                    meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
+                    meta_yaml["ans_or_out_validator_hashes"][h] = answer_validator_hashes[h]
                 write_yaml(
                     meta_yaml,
                     problem.tmpdir / "data" / t.hash / "meta_.yaml",
@@ -907,7 +924,7 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == "" and t.root not in ["bad", "invalid_input"]:
+                    if contents == "" and t.root not in config.INVALID_CASE_DIRECTORIES:
                         bar.error(f"Hardcoded {ext} data must not be empty!")
                         return False
                     else:
@@ -915,8 +932,9 @@ class TestcaseRule(Rule):
                         infile.with_suffix(ext).write_text(contents)
 
                 # Step 4: Error if infile was not generated.
-                if not infile.is_file():
-                    bar.error("No .in file was generated!")
+                if not any(infile.with_suffix(ext).is_file() for ext in t.required_in):
+                    required = " or ".join(t.required_in)
+                    bar.error(f"No {required} file was generated!")
                     return False
 
                 # Step 5: save which files where generated
@@ -933,7 +951,9 @@ class TestcaseRule(Rule):
             else:
                 check_deterministic(False)
 
-            assert infile.is_file(), f"Failed to generate in file: {infile}"
+            assert any(infile.with_suffix(ext).is_file() for ext in t.required_in), (
+                f"Failed to generate in file: {infile.name}"
+            )
             return True
 
         def generate_from_solution():
@@ -970,11 +990,15 @@ class TestcaseRule(Rule):
                     if not ansfile.is_file() or ansfile.stat().st_size != 0:
                         ansfile.write_text("")
                         changed_ans = True
-                # For interactive/multi-pass problems, run the solution and generate a .interaction.
+                # For interactive/multi-pass problems, run the solution and generate a .interaction if necessary.
                 if (
                     t.config.solution
                     and (testcase.root == "sample" or config.args.interaction)
                     and needed(".interaction")
+                    and not any(
+                        infile.with_suffix(ext).is_file()
+                        for ext in [".out", ".in.statement", ".ans.statement"]
+                    )
                 ):
                     if not t.config.solution.run_interaction(bar, cwd, t):
                         return False
@@ -1007,6 +1031,8 @@ class TestcaseRule(Rule):
         def generate_visualization():
             nonlocal meta_yaml
 
+            if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
+                return True
             if not t.config.visualizer:
                 return True
             if config.args.no_visualizer:
@@ -1076,19 +1102,21 @@ class TestcaseRule(Rule):
             # Store the generated testdata for deduplication test cases.
             hashes = {}
 
-            # remove files that should not be considered for this testcase
-            extensions = list(config.KNOWN_TESTCASE_EXTENSIONS)
-            if t.root not in [*config.INVALID_CASE_DIRECTORIES[1:], "valid_output"]:
-                extensions.remove(".ans")
-            if t.root not in [*config.INVALID_CASE_DIRECTORIES[2:], "valid_output"]:
-                extensions.remove(".out")
+            # consider specific files for the uniqueness of this testcase
+            relevant_files = {
+                "bad": [".in", ".ans"],
+                "invalid_answer": [".in", ".ans"],
+                "invalid_output": [".in", ".ans", ".out"],
+                "valid_output": [".in", ".ans", ".out"],
+            }
+            extensions = relevant_files.get(t.root, [".in"])
 
             for ext in extensions:
                 if target_infile.with_suffix(ext).is_file():
                     hashes[ext] = hash_file(target_infile.with_suffix(ext))
 
             # build ordered list of hashes we want to consider
-            hs = [hashes[ext] for ext in extensions if ext in hashes]
+            hs = list(hashes.values())
 
             # combine hashes
             if len(hs) == 1:
@@ -1120,22 +1148,23 @@ class TestcaseRule(Rule):
         if not generate_from_rule():
             return
 
-        # Step 3: check .in if needed
-        testcase = Testcase(problem, infile, short_path=t.path / t.name)
-        if not t.validate_in(problem, testcase, meta_yaml, bar):
-            return
+        if infile.is_file():
+            # Step 3: check .in if needed
+            testcase = Testcase(problem, infile, short_path=t.path / t.name)
+            if not t.validate_in(problem, testcase, meta_yaml, bar):
+                return
 
-        # Step 4: generate .ans and .interaction if needed
-        if not generate_from_solution():
-            return
+            # Step 4: generate .ans and .interaction if needed
+            if not generate_from_solution():
+                return
 
-        # Step 5: validate .ans if needed
-        if not t.validate_ans(problem, testcase, meta_yaml, bar):
-            return
+            # Step 5: validate .ans and .out if needed
+            if not t.validate_remaining(problem, testcase, meta_yaml, bar):
+                return
 
-        # Step 6: generate visualization if needed
-        if not generate_visualization():
-            return
+            # Step 6: generate visualization if needed
+            if not generate_visualization():
+                return
 
         # Step 7: copy all generated files
         copy_generated()
@@ -1373,7 +1402,7 @@ class Directory(Rule):
                 continue
 
             # Step 2: validate answer
-            if not t.validate_ans(problem, testcase, meta_yaml, bar):
+            if not t.validate_remaining(problem, testcase, meta_yaml, bar):
                 continue
 
             t.link(problem, generator_config, bar, new_infile)

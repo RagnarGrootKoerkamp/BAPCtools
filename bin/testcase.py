@@ -69,7 +69,7 @@ class Testcase:
             is the (absolute) path to the input file, and `short_path` is used as the equivalent of the testcase's
             path relative to  `problem.path / 'data'`.
         """
-        assert path.suffix == ".in" or path.suffixes == [".in", ".statement"]
+        assert path.suffix == ".in"
 
         self.problem = base_problem
 
@@ -85,16 +85,9 @@ class Testcase:
         self.root = self.short_path.parts[0]
 
         self.in_path = path
-        self.ans_path = (
-            self.in_path.with_suffix(".ans")
-            if path.suffix == ".in"
-            else self.in_path.with_name(self.in_path.with_suffix("").stem + ".ans.statement")
-        )
-        self.out_path = (
-            None
-            if self.root not in ["valid_output", "invalid_output"]
-            else self.in_path.with_suffix(".out")
-        )
+        self.ans_path = self.in_path.with_suffix(".ans")
+        self.out_path = self.in_path.with_suffix(".out")
+
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(""))
 

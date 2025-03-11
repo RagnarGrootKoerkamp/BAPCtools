@@ -71,16 +71,14 @@ def build_samples_zip(problems, output, statement_language):
                 else:
                     util.error(f"Cannot include broken file {f}.")
 
-        # Add samples for non-interactive and non-multi-pass problems.
-        if not problem.interactive and not problem.multi_pass:
-            samples = problem.testcases(only_samples=True)
-            if samples:
-                for i in range(0, len(samples)):
-                    sample = samples[i]
-                    basename = outputdir / str(i + 1)
-                    zf.write(sample.in_path, basename.with_suffix(".in"))
-                    zf.write(sample.ans_path, basename.with_suffix(".ans"))
-                    empty = False
+        # Add samples
+        samples = problem.download_samples()
+        for i, files in enumerate(samples):
+            basename = outputdir / str(i + 1)
+            zf.write(files[0], basename.with_suffix(".in"))
+            if files[1].stat().st_size > 0:
+                zf.write(files[1], basename.with_suffix(".ans"))
+            empty = False
 
         if empty:
             util.error(f"No attachments or samples found for problem {problem.name}.")

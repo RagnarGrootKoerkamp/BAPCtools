@@ -629,66 +629,114 @@ class Problem:
         p._testcases[key] = testcases
         return testcases
 
-    # Returns a list of:
-    # - (Path, Path): (.in, .ans) pair
-    # - (Path, Path): (.in.statement, .ans.statement) pair
-    # -  Path       :  .interaction file
-    def statement_samples(p) -> list[Path | tuple[Path, Path]]:
-        statement_in_paths = list(glob(p.path, "data/sample/**/*.in.statement"))
-        interaction_paths = list(glob(p.path, "data/sample/**/*.interaction"))
+    def _samples(
+        p, in_extensions: list[str], ans_extensions: list[str], return_interaction_file: bool
+    ) -> list[Path | tuple[Path, Path]]:
+        # if one of these exists this is a test case
+        in_required = [
+            ".in",
+            ".in.statement",
+            ".interaction",
+        ]
 
-        # Make sure that .in.statement files are not mixed with .interaction files.
-        for in_path in interaction_paths:
-            if in_path.with_suffix(".in.statement").is_file():
-                warn(
-                    f"Do not mix .in.statement files and .interaction files with the same basename in {p}."
-                )
+        files = list(p.path.glob("data/sample/**/*"))
+        base_names = set(f.with_suffix("") for f in files if f.is_file())
+        testcases: list[Path | tuple[Path, Path]] = []
+        has_raw = False
+        for name in base_names:
+            in_found = [ext for ext in in_extensions if name.with_suffix(ext).is_file()]
+            ans_found = [ext for ext in ans_extensions if name.with_suffix(ext).is_file()]
+            has_statement = ".in.statement" in in_found or ".ans.statement" in ans_found
 
-        # A .in may be shadowed by either .in.statement or .interaction, in which case the .in itself is not shown in the PDF.
-        in_paths = []
-        for in_path in list(glob(p.path, "data/sample/**/*.in")):
-            if in_path.with_suffix(".in.statement").is_file():
+            # check if this is actually a testcase
+            if not any(ext in in_found for ext in in_required):
                 continue
-            if in_path.with_suffix(".interaction").is_file():
+
+            # check for inconsistencies
+            if ".in" in in_found and ".ans" not in ans_found:
+                warn(f"Found {name}.in but no {name}.ans. SKIPPING.")
                 continue
-            in_paths.append(in_path)
 
-        # .interaction files cannot be mixed with .in/.ans pairs.
-        if len(interaction_paths) != 0 and len(in_paths) + len(statement_in_paths) != 0:
-            warn(f"Do not mix .interaction files with .in/.ans files in {p}.")
+            # resolve some inconsistencies
+            if ".in" not in in_found:
+                if ".ans" in ans_found:
+                    warn(f"Found {name}.ans but no {name}.in. IGNORED.")
+                    ans_found.remove(".ans")
+                if ".out" in ans_found:
+                    warn(f"Found {name}.out but no {name}.in. IGNORED.")
+                    ans_found.remove(".out")
+            if has_statement and ".out" in ans_found:
+                # we prefer .statement files
+                warn(f"Found {name}.out (but also .statement). IGNORED.")
+                ans_found.remove(".out")
 
-        # Non-interactive and Non-multi-pass problems should not have .interaction files.
-        # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
-        # so that they can emulate a non-interactive problem with on-the-fly generated input.
-        if not p.interactive and not p.multi_pass:
-            if len(interaction_paths) != 0:
-                warn(
-                    f"Non-interactive/Non-multi-pass problem {p.name} should not have data/sample/*.interaction files."
-                )
-            interaction_paths = []
+            # .interaction files get highest priority
+            if return_interaction_file and name.with_suffix(".interaction").is_file():
+                if not p.interactive and not p.multi_pass:
+                    warn(f"Found {name}.interaction for  non-interactive/non-multi-pass. IGNORED.")
+                else:
+                    if has_statement:
+                        warn(
+                            f"Mixed .interaction and .statement file for {name}. (using .interaction)."
+                        )
+                    if ".out" in ans_found:
+                        warn(f"Mixed .interaction and .out file for {name}. (using .interaction).")
+                    testcases.append(name.with_suffix(".interaction"))
+                    continue
 
-        testcases = list[Path | tuple[Path, Path]]()
-        for in_path in in_paths:
-            ans_path = in_path.with_suffix(".ans")
-            if not ans_path.is_file():
-                warn(f"Found input file {in_path} without a .ans file. Skipping.")
+            if not in_found or not ans_found:
+                warn(f"Could not find valid .in/.ans combination for test case {name}. SKIPPED.")
+                warn("Numbering for statement and download could be inconsistent!")
                 continue
-            testcases.append((in_path, ans_path))
 
-        for in_path in statement_in_paths:
-            # first remove .statement, then replace .in with .ans.statement
-            ans_path = in_path.with_suffix("").with_suffix(".ans.statement")
-            if not ans_path.is_file():
-                warn(f"Found input file {in_path} without a .ans.statement file. Skipping.")
-                continue
-            testcases.append((in_path, ans_path))
+            if in_found[0] == ".in" and ans_found[0] == ".ans":
+                has_raw = True
 
-        for interaction_path in interaction_paths:
-            testcases.append(interaction_path)
+            # fall back is pair of files
+            testcases.append((name.with_suffix(in_found[0]), name.with_suffix(ans_found[0])))
+
+        if has_raw and (p.interactive or p.multi_pass):
+            msg = ""
+            if p.interactive:
+                msg += " interactive"
+            if p.multi_pass:
+                msg += " multi-pass"
+            warn(f"It is advised to overwrite .in and .ans for{msg} problem samples")
 
         testcases.sort()
-
         return testcases
+
+    # Returns a list of:
+    # - (Path, Path): with the first being one of [.in.statement, .in] and the second one of [.ans.statement, .out, .ans]
+    # -  Path       :  .interaction file
+    def statement_samples(p) -> list[Path | tuple[Path, Path]]:
+        in_extensions = [
+            ".in.statement",
+            ".in",
+        ]
+        ans_extensions = [
+            ".ans.statement",
+            ".out",
+            ".ans",
+        ]
+        return p._samples(in_extensions, ans_extensions, True)
+
+    # Returns a list of:
+    # - (Path, Path): with the first being one of [.in.download, .in.statement, .in] and the second one of [.in.download, .out, .ans.statement, .ans]
+    def download_samples(p) -> list[tuple[Path, Path]]:
+        in_extensions = [
+            ".in.download",
+            ".in.statement",
+            ".in",
+        ]
+        ans_extensions = [
+            ".ans.download",
+            ".ans.statement",
+            ".out",
+            ".ans",
+        ]
+        testcases = p._samples(in_extensions, ans_extensions, False)
+        return [t for t in testcases if isinstance(t, tuple)]
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
     def selected_or_accepted_submissions(problem) -> list["run.Submission"]:
