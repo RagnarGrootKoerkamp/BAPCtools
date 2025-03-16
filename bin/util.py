@@ -813,9 +813,15 @@ def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> O
     return None
 
 
-def parse_setting(yaml_data: dict[str, Any], key: str, default: T) -> T:
+def parse_setting(
+    yaml_data: dict[str, Any], key: str, default: T, constraint: Optional[str] = None
+) -> T:
     value = parse_optional_setting(yaml_data, key, type(default))
-    return default if value is None else value
+    result = default if value is None else value
+    if constraint and not eval(f"{result} {constraint}"):
+        warn(f"value for '{key}' in problem.yaml should be {constraint} but is {value}. SKIPPED.")
+        return default
+    return result
 
 
 def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> list[T]:
@@ -829,6 +835,8 @@ def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T])
                     f"some values for key '{key}' in problem.yaml do not have type {t.__name__}. SKIPPED."
                 )
                 return []
+            if not value:
+                warn(f"value for '{key}' in problem.yaml should not be an empty list.")
             return value
         warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
     return []
