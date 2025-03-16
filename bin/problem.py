@@ -1,3 +1,4 @@
+import datetime
 import re
 import sys
 import threading
@@ -89,8 +90,16 @@ class ProblemSources(list[ProblemSource]):
     def __init__(
         self,
         yaml_data: dict[str, Any],
-        problem_settings: "ProblemSettings",
     ):
+        def source_from_dict(source_dict: dict[str, str]) -> ProblemSource:
+            name = parse_setting(source_dict, "name", "")
+            if not name:
+                warn("problem.yaml: 'name' is required in source")
+            return ProblemSource(
+                name,
+                parse_optional_setting(source_dict, "url", str),
+            )
+
         parse_deprecated_setting(yaml_data, "source_url", "source.url")
         if "source" not in yaml_data:
             return
@@ -99,23 +108,17 @@ class ProblemSources(list[ProblemSource]):
             return
         if isinstance(yaml_data["source"], dict):
             source = parse_setting(yaml_data, "source", dict[str, str]())
-            self.append(
-                ProblemSource(
-                    parse_setting(source, "name", ""),
-                    parse_optional_setting(source, "url", str),
-                )
-            )
+            self.append(source_from_dict(source))
             return
         if isinstance(yaml_data["source"], list):
             sources = parse_setting(yaml_data, "source", list[dict[str, str]]())
-            for raw_source in sources:
-                source = parse_setting(raw_source, "source", dict[str, str]())
-                self.append(
-                    ProblemSource(
-                        parse_setting(source, "name", ""),
-                        parse_optional_setting(source, "url", str),
-                    )
-                )
+            for i, source in enumerate(sources):
+                if isinstance(source, str):
+                    self.append(ProblemSource(source))
+                elif isinstance(source, dict):
+                    self.append(source_from_dict(source))
+                else:
+                    warn(f"problem.yaml key 'source[{i}]' does not have the correct type")
             return
         warn("problem.yaml key 'source' does not have the correct type")
 
@@ -134,31 +137,48 @@ class ProblemLimits:
         time_multipliers = parse_setting(yaml_data, "time_multipliers", dict[str, Any]())
 
         parse_deprecated_setting(yaml_data, "time_multiplier", "ac_to_time_limit")
-        self.ac_to_time_limit = parse_setting(time_multipliers, "ac_to_time_limit", 2.0)
+        self.ac_to_time_limit = parse_setting(time_multipliers, "ac_to_time_limit", 2.0, ">= 1")
         parse_deprecated_setting(yaml_data, "time_safety_margin", "time_limit_to_tle")
-        self.time_limit_to_tle = parse_setting(time_multipliers, "time_limit_to_tle", 1.5)
+        self.time_limit_to_tle = parse_setting(time_multipliers, "time_limit_to_tle", 1.5, ">= 1")
 
         check_unknown_keys(time_multipliers, "limits.time_multipliers")
 
-        time_limit = parse_optional_setting(yaml_data, "time_limit", float)  # in seconds
-        self.time_resolution: float = parse_setting(yaml_data, "time_resolution", 1.0)
-        self.memory: int = parse_setting(yaml_data, "memory", 2048)  # in MiB
-        self.output: int = parse_setting(yaml_data, "output", 8)  # in MiB
-        self.code: int = parse_setting(yaml_data, "code", 128)  # in KiB
-        self.compilation_time: int = parse_setting(yaml_data, "compilation_time", 60)  # in seconds
+        self.time_limit_is_default: bool = "time_limit" not in yaml_data
+        self.time_limit: float = parse_setting(yaml_data, "time_limit", 1.0, "> 0")  # in seconds
+        self.time_resolution: float = parse_setting(yaml_data, "time_resolution", 1.0, "> 0")
+        self.memory: int = parse_setting(yaml_data, "memory", 2048, "> 0")  # in MiB
+        self.output: int = parse_setting(yaml_data, "output", 8, "> 0")  # in MiB
+        self.code: int = parse_setting(yaml_data, "code", 128, "> 0")  # in KiB
+        self.compilation_time: int = parse_setting(
+            yaml_data, "compilation_time", 60, "> 0"
+        )  # in seconds
         self.compilation_memory: int = parse_setting(
-            yaml_data, "compilation_memory", 2048
+            yaml_data, "compilation_memory", 2048, "> 0"
         )  # in MiB
-        self.validation_time: int = parse_setting(yaml_data, "validation_time", 60)  # in seconds
-        self.validation_memory: int = parse_setting(yaml_data, "validation_memory", 2048)  # in MiB
-        self.validation_output: int = parse_setting(yaml_data, "validation_output", 8)  # in MiB
-        self.validation_passes: Optional[int] = parse_optional_setting(
-            yaml_data, "validation_passes", int
-        )
+        self.validation_time: int = parse_setting(
+            yaml_data, "validation_time", 60, "> 0"
+        )  # in seconds
+        self.validation_memory: int = parse_setting(
+            yaml_data, "validation_memory", 2048, "> 0"
+        )  # in MiB
+        self.validation_output: int = parse_setting(
+            yaml_data, "validation_output", 8, "> 0"
+        )  # in MiB
+        if problem_settings.multi_pass:
+            self.validation_passes: Optional[int] = parse_setting(
+                yaml_data, "validation_passes", 2, ">= 2"
+            )
+        elif "validation_passes" in yaml_data:
+            yaml_data.pop("validation_passes")
+            warn("limit: validation_passes is only used for multi-pass problems. SKIPPED.")
 
         # BAPCtools extensions:
-        self.generator_time: int = parse_setting(yaml_data, "generator_time", 60)  # in seconds
-        self.visualizer_time: int = parse_setting(yaml_data, "visualizer_time", 60)  # in seconds
+        self.generator_time: int = parse_setting(
+            yaml_data, "generator_time", 60, "> 0"
+        )  # in seconds
+        self.visualizer_time: int = parse_setting(
+            yaml_data, "visualizer_time", 60, "> 0"
+        )  # in seconds
 
         # warn for deprecated timelimit files
         if (problem.path / ".timelimit").is_file():
@@ -167,9 +187,6 @@ class ProblemLimits:
             warn(
                 "domjudge-problem.ini is DEPRECATED. Use limits.time_limit if you want to set a timelimit."
             )
-
-        self.time_limit: float = time_limit or 1.0
-        self.time_limit_is_default: bool = time_limit is None
 
         check_unknown_keys(yaml_data, "limits")
 
@@ -233,18 +250,23 @@ class ProblemSettings:
         self.uuid: str = parse_setting(yaml_data, "uuid", "")
         self.version: str = parse_setting(yaml_data, "version", "")
         self.credits: ProblemCredits = ProblemCredits(yaml_data, self)
-        self.source: ProblemSources = ProblemSources(yaml_data, self)
+        self.source: ProblemSources = ProblemSources(yaml_data)
         self.license: str = parse_setting(yaml_data, "license", "unknown")
-        self.rights_owner: str = parse_setting(yaml_data, "rights_owner", "")
+        self.rights_owner: Optional[str] = parse_optional_setting(yaml_data, "rights_owner", str)
         # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
-        self.embargo_until: str = parse_setting(yaml_data, "embargo-until", "")
+        self.embargo_until: Optional[datetime.date] = parse_optional_setting(
+            yaml_data,
+            "embargo_until",
+            # Note that datetime.datetime is also valid, as subclass of datetime.date
+            datetime.date,
+        )
         self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
 
         parse_deprecated_setting(
             yaml_data, "validator_flags", "output_validator_args' in 'testdata.yaml"
         )
 
-        self.keywords: str = parse_setting(yaml_data, "keywords", "")
+        self.keywords: list[str] = parse_optional_list_setting(yaml_data, "keywords", str)
         # Not implemented in BAPCtools. We always test all languges in langauges.yaml.
         self.languages: list[str] = parse_optional_list_setting(yaml_data, "languages", str)
 
@@ -270,13 +292,6 @@ class ProblemSettings:
         if self.license not in config.KNOWN_LICENSES:
             warn(f"invalid license: {self.license}")
             self.license = "unknown"
-
-        # Check that limits.validation_passes exists if and only if the problem is multi-pass
-        has_validation_passes = self.limits.validation_passes is not None
-        if self.multi_pass and not has_validation_passes:
-            self.limits.validation_passes = 2
-        if not self.multi_pass and has_validation_passes:
-            warn("limit: validation_passes is only used for multi_pass problems. SKIPPED.")
 
 
 # A problem.
