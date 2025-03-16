@@ -282,7 +282,7 @@ class Testcase:
         results = []
         for validator in validators:
             name = validator.name
-            if type(validator) is validate.OutputValidator and mode == validate.Mode.ANSWER:
+            if isinstance(validator, validate.OutputValidator) and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
             flags = self.testdata_yaml_validator_args(validator, bar)
@@ -394,9 +394,15 @@ class Testcase:
         else:
             success = all(results)
             if success and mode in [validate.Mode.INPUT, validate.Mode.ANSWER]:
+                if mode == validate.Mode.INPUT:
+                    main_path = self.in_path
+                elif self.out_path is not None:
+                    main_path = self.out_path
+                else:
+                    main_path = self.ans_path
                 validate.sanity_check(
                     self.problem,
-                    self.in_path if mode == validate.Mode.INPUT else self.ans_path,
+                    main_path,
                     bar,
                 )
 

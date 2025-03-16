@@ -155,7 +155,7 @@ class Validator(program.Program):
         if isinstance(self, InputValidator):
             main_path = testcase.in_path
         elif isinstance(self, AnswerValidator):
-            main_path = testcase.ans_path
+            main_path = testcase.ans_path if testcase.out_path is None else testcase.out_path
         else:
             assert False  # now also catches OutputValidator
 
@@ -274,7 +274,7 @@ class InputValidator(Validator):
 
 class AnswerValidator(Validator):
     """
-    Validate the default answer file (such as "testcase.ans"), called as:
+    Validate the default answer file "testcase.ans" (or "testcase.out" if it exists), called as:
 
         ./validator input < answer.
 
@@ -311,7 +311,8 @@ class AnswerValidator(Validator):
 
         invocation = self.run_command + [testcase.in_path.resolve()]
 
-        with testcase.ans_path.open() as ans_file:
+        ans_path = testcase.ans_path if testcase.out_path is None else testcase.out_path
+        with ans_path.open() as ans_file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -368,7 +369,7 @@ class OutputValidator(Validator):
         in_path = testcase.in_path.resolve()
         ans_path = testcase.ans_path.resolve()
         if mode == Mode.ANSWER:
-            path = ans_path
+            path = ans_path if testcase.out_path is None else testcase.out_path.resolve()
         elif mode == Mode.INVALID:
             if testcase.root != "invalid_output":
                 raise ValueError(

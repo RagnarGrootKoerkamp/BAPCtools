@@ -747,7 +747,7 @@ class TestcaseRule(Rule):
             mode = validate.Mode.ANSWER
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
                 mode = validate.Mode.INVALID
-            elif outfile.is_file():
+            elif testcase.root == "valid_output":
                 mode = validate.Mode.VALID_OUTPUT
 
             if not testcase.validate_format(
