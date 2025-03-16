@@ -704,8 +704,10 @@ class TestcaseRule(Rule):
             )
         return True
 
-    # we assume .ans is a valid output and validate ir as such
-    def validate_ans(t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar):
+    # we assume .ans is a valid output and validate it as such
+    def validate_remaining(
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
+    ):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
@@ -717,20 +719,16 @@ class TestcaseRule(Rule):
             bar.error("No .ans file was generated!")
             return False
 
+        outfile = infile.with_suffix(".out")
+        if not outfile.is_file() and testcase.root in ["invalid_output", "valid_output"]:
+            bar.error("No .out file was generated!")
+            return False
+
         if problem.interactive or problem.multi_pass:
             if ansfile.stat().st_size != 0:
                 interactive = "interaction " if problem.interactive else ""
                 multi_pass = "multi-pass " if problem.multi_pass else ""
                 bar.warn(f".ans file for {interactive}{multi_pass}problem is expected to be empty.")
-        else:
-            size = ansfile.stat().st_size
-            if (
-                size <= problem.limits.output * 1024 * 1024
-                and problem.limits.output * 1024 * 1024 < 2 * size
-            ):  # we already warn if the limit is exceeded
-                bar.warn(
-                    f".ans file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2 * size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
-                )
 
             answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
             if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
@@ -740,6 +738,8 @@ class TestcaseRule(Rule):
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
                 mode = validate.Mode.INVALID
             elif testcase.root == "valid_output":
+                mode = validate.Mode.VALID_OUTPUT
+            elif outfile.is_file():
                 mode = validate.Mode.VALID_OUTPUT
 
             if not testcase.validate_format(
@@ -989,7 +989,7 @@ class TestcaseRule(Rule):
                     and needed(".interaction")
                     and not any(
                         infile.with_suffix(ext).is_file()
-                        for ext in [".in.statement", ".ans.statement"]
+                        for ext in [".out", ".in.statement", ".ans.statement"]
                     )
                 ):
                     if not t.config.solution.run_interaction(bar, cwd, t):
@@ -1150,8 +1150,8 @@ class TestcaseRule(Rule):
             if not generate_from_solution():
                 return
 
-            # Step 5: validate .ans if needed
-            if not t.validate_ans(problem, testcase, meta_yaml, bar):
+            # Step 5: validate .ans (and .out if it exists)
+            if not t.validate_remaining(problem, testcase, meta_yaml, bar):
                 return
 
             # Step 6: generate visualization if needed
@@ -1389,12 +1389,12 @@ class Directory(Rule):
             meta_yaml = read_yaml(meta_path)
             testcase = Testcase(problem, infile, short_path=new_case)
 
-            # Step 1: validate input
+            # Step 1: validate .in
             if not t.validate_in(problem, testcase, meta_yaml, bar):
                 continue
 
-            # Step 2: validate answer
-            if not t.validate_ans(problem, testcase, meta_yaml, bar):
+            # Step 2: validate .ans (and .out if it exists)
+            if not t.validate_remaining(problem, testcase, meta_yaml, bar):
                 continue
 
             t.link(problem, generator_config, bar, new_infile)

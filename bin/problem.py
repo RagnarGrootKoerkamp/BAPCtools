@@ -649,11 +649,6 @@ class Problem:
             ans_found = [ext for ext in ans_extensions if name.with_suffix(ext).is_file()]
             has_statement = ".in.statement" in in_found or ".ans.statement" in ans_found
 
-            # check .out
-            if ".out" in ans_found:
-                warn("BAPCtools does not support .out files, use .ans.statement instead. IGNORED.")
-                ans_found.remove(".out")
-
             # check if this is actually a testcase
             if not any(ext in in_found for ext in in_required):
                 continue
@@ -668,6 +663,13 @@ class Problem:
                 if ".ans" in ans_found:
                     warn(f"Found {name}.ans but no {name}.in. IGNORED.")
                     ans_found.remove(".ans")
+                if ".out" in ans_found:
+                    warn(f"Found {name}.out but no {name}.in. IGNORED.")
+                    ans_found.remove(".out")
+            if has_statement and ".out" in ans_found:
+                # we prefer .statement files
+                warn(f"Found {name}.out (but also .statement). IGNORED.")
+                ans_found.remove(".out")
 
             # .interaction files get highest priority
             if return_interaction_file and name.with_suffix(".interaction").is_file():
@@ -706,7 +708,7 @@ class Problem:
         return testcases
 
     # Returns a list of:
-    # - (Path, Path): with the first being one of [.in.statement, .in] and the second one of [.ans.statement, .ans]
+    # - (Path, Path): with the first being one of [.in.statement, .in] and the second one of [.ans.statement, .out, .ans]
     # -  Path       :  .interaction file
     def statement_samples(p) -> list[Path | tuple[Path, Path]]:
         in_extensions = [
@@ -721,7 +723,7 @@ class Problem:
         return p._samples(in_extensions, ans_extensions, True)
 
     # Returns a list of:
-    # - (Path, Path): with the first being one of [.in.download, .in.statement, .in] and the second one of [.ans.download, .ans.statement, .ans]
+    # - (Path, Path): with the first being one of [.in.download, .in.statement, .in] and the second one of [.ans.download, .ans.statement, .out, .ans]
     def download_samples(p) -> list[tuple[Path, Path]]:
         in_extensions = [
             ".in.download",

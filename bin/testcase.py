@@ -1,6 +1,8 @@
 """Test case"""
 
-from typing import cast, Literal
+from colorama import Fore, Style
+from pathlib import Path
+from typing import cast, Literal, Optional
 
 from util import (
     ExecStatus,
@@ -10,7 +12,6 @@ from util import (
     shorten_path,
     warn,
 )
-from colorama import Fore, Style
 import config
 import validate
 
@@ -89,6 +90,7 @@ class Testcase:
         self.out_path = (
             self.in_path.with_suffix(".out")
             if self.root in ["valid_output", "invalid_output"]
+            or self.in_path.with_suffix(".out").is_file()
             else None
         )
 
@@ -392,11 +394,23 @@ class Testcase:
                     bar.error(msg, resume=True)
         else:
             success = all(results)
-            if success and mode in [validate.Mode.INPUT, validate.Mode.ANSWER]:
-                validate.sanity_check(
-                    self.problem,
-                    self.in_path if mode == validate.Mode.INPUT else self.ans_path,
-                    bar,
-                )
+            if success:
+                main_path: Optional[Path] = None
+                if mode == validate.Mode.INPUT:
+                    main_path = self.in_path
+                elif mode == validate.Mode.ANSWER:
+                    main_path = self.ans_path
+                elif mode == validate.Mode.VALID_OUTPUT and self.root not in [
+                    "valid_output",
+                    "invalid_output",
+                ]:
+                    main_path = self.out_path
+
+                if main_path is not None:
+                    validate.sanity_check(
+                        self.problem,
+                        main_path,
+                        bar,
+                    )
 
         return success
