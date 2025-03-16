@@ -8,3 +8,11 @@ target-version = "py310"
 # Ignore star-imports
 # TODO #102: This is definitely fixable, but for now, postponing the clean-up of all imports
 ignore = ["F403", "F405"]
+
+
+[tool.pyright]
+include = ["bin"]
+exclude = ["bin/misc"]
+executionEnvironments = [
+  { root = "bin" },
+]
