@@ -2,7 +2,7 @@ import re
 from util import *
 from enum import Enum
 from collections.abc import Sequence
-from typing import Final, TYPE_CHECKING
+from typing import Final, Union, TYPE_CHECKING
 
 import program
 import testcase
@@ -208,7 +208,7 @@ class Validator(program.Program):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Mode | "run.Run",
+        mode: Union[Mode, "run.Run"],
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
@@ -234,7 +234,7 @@ class InputValidator(Validator):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Mode | "run.Run" = Mode.INPUT,
+        mode: Union[Mode, "run.Run"] = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
@@ -296,7 +296,7 @@ class AnswerValidator(Validator):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Mode | "run.Run" = Mode.ANSWER,
+        mode: Union[Mode, "run.Run"] = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
@@ -350,7 +350,7 @@ class OutputValidator(Validator):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Mode | "run.Run",
+        mode: Union[Mode, "run.Run"],
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
