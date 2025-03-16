@@ -25,6 +25,20 @@ yaml:
 warn: "found unknown problem.yaml key: mumbo in `limits.time_multipliers`"
 
 ---
+# UUID
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Invalid UUID, too short
+  uuid: 12345678-abcd
+warn: "invalid uuid: 12345678-abcd"
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Invalid UUID, not hexadecimal
+  uuid: 12345678-abcd-efgh-ijkl-12345678
+warn: "invalid uuid: 12345678-abcd-efgh-ijkl-12345678"
+
+---
 # Name
 yaml:
   problem_format_version: 2023-07-draft
@@ -139,3 +153,37 @@ yaml:
   name: Empty list
   keywords: []
 warn: "value for 'keywords' in problem.yaml should not be an empty list."
+
+---
+# Credits
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Cannot specify multiple authors in credits
+  credits:
+    - name: Alice
+    - name: Audrey Authorson
+      email: bob@foo.bar
+warn: "incompatible value for key 'credits' in problem.yaml. SKIPPED."
+
+---
+# Source
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Source must have a name
+  source:
+    - url: https://2024.nwerc.example/contest
+warn: "problem.yaml: 'name' is required in source"
+
+---
+# Embargo
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Embargo is not a date
+  embargo_until: not a date
+warn: "incompatible value for key 'embargo_until' in problem.yaml. SKIPPED."
+#---
+#yaml:
+#  problem_format_version: 2023-07-draft
+#  name: Embargo date does not exist
+#  embargo_until: 2025-02-29
+# Note that this cannot be tested in this way, because the YAML parser already throws an error.

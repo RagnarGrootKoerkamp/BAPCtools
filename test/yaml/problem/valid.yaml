@@ -18,6 +18,15 @@ yaml:
   name:
     en: Minimal
     nl: Minimaal
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name:
+    en: Hello World!
+    pt-BR: Olá mundo!
+    pt-PT: Oi mundo!
+    fil: Kumusta mundo!
+    gsw-u-sd-chzh: Sali Zämme, Wäut!
 
 ---
 # Problem type tests
@@ -122,3 +131,96 @@ eq:
       en:
         - name: T. R. Anslator
           email: translator@example.com
+
+---
+# Source tests
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Source can be just a string
+  source: NWERC 2024
+eq:
+  source:
+    - name: NWERC 2024
+      url: ~
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Source can be map
+  source:
+    name: NWERC 2024
+eq:
+  source:
+    - name: NWERC 2024
+      url: ~
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Source can be map with two keys (name, url)
+  source:
+    name: NWERC 2024
+    url: https://2024.nwerc.example/contest
+eq:
+  source:
+    - name: NWERC 2024
+      url: https://2024.nwerc.example/contest
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Many sources can be specified
+  source:
+    - name: NWERC 2024
+      url: https://2024.nwerc.example/contest
+    - SWERC 2024
+    - name: SEERC 2024
+eq:
+  source:
+    - name: NWERC 2024
+      url: https://2024.nwerc.example/contest
+    - name: SWERC 2024
+      url: ~
+    - name: SEERC 2024
+      url: ~
+
+---
+# License tests
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Rights-less license
+  license: public domain
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Specify license and rights owner
+  license: cc0
+  rights_owner: Bob
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Don't need license if credits are given
+  license: cc0
+  credits: Bob
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Don't need license if credits.authors are given
+  license: cc0
+  credits:
+    authors: "Bob"
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Don't need license if source is given
+  license: cc0
+  source: NWERC 2024
+
+---
+# Embargo tests
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Embargo date
+  embargo_until: 2025-12-31
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Embargo datetime
+  embargo_until: 2025-12-31T23:59:59

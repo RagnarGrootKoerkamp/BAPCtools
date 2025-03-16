@@ -1,3 +1,4 @@
+import datetime
 import re
 import sys
 import threading
@@ -89,8 +90,16 @@ class ProblemSources(list[ProblemSource]):
     def __init__(
         self,
         yaml_data: dict[str, Any],
-        problem_settings: "ProblemSettings",
     ):
+        def source_from_dict(source_dict: dict[str, str]) -> ProblemSource:
+            name = parse_setting(source_dict, "name", "")
+            if not name:
+                warn("problem.yaml: 'name' is required in source")
+            return ProblemSource(
+                name,
+                parse_optional_setting(source_dict, "url", str),
+            )
+
         parse_deprecated_setting(yaml_data, "source_url", "source.url")
         if "source" not in yaml_data:
             return
@@ -99,23 +108,17 @@ class ProblemSources(list[ProblemSource]):
             return
         if isinstance(yaml_data["source"], dict):
             source = parse_setting(yaml_data, "source", dict[str, str]())
-            self.append(
-                ProblemSource(
-                    parse_setting(source, "name", ""),
-                    parse_optional_setting(source, "url", str),
-                )
-            )
+            self.append(source_from_dict(source))
             return
         if isinstance(yaml_data["source"], list):
             sources = parse_setting(yaml_data, "source", list[dict[str, str]]())
-            for raw_source in sources:
-                source = parse_setting(raw_source, "source", dict[str, str]())
-                self.append(
-                    ProblemSource(
-                        parse_setting(source, "name", ""),
-                        parse_optional_setting(source, "url", str),
-                    )
-                )
+            for i, source in enumerate(sources):
+                if isinstance(source, str):
+                    self.append(ProblemSource(source))
+                elif isinstance(source, dict):
+                    self.append(source_from_dict(source))
+                else:
+                    warn(f"problem.yaml key 'source[{i}]' does not have the correct type")
             return
         warn("problem.yaml key 'source' does not have the correct type")
 
@@ -247,11 +250,16 @@ class ProblemSettings:
         self.uuid: str = parse_setting(yaml_data, "uuid", "")
         self.version: str = parse_setting(yaml_data, "version", "")
         self.credits: ProblemCredits = ProblemCredits(yaml_data, self)
-        self.source: ProblemSources = ProblemSources(yaml_data, self)
+        self.source: ProblemSources = ProblemSources(yaml_data)
         self.license: str = parse_setting(yaml_data, "license", "unknown")
         self.rights_owner: str = parse_setting(yaml_data, "rights_owner", "")
         # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
-        self.embargo_until: str = parse_setting(yaml_data, "embargo-until", "")
+        self.embargo_until: Optional[datetime.date] = parse_optional_setting(
+            yaml_data,
+            "embargo_until",
+            # Note that datetime.datetime is also valid, as subclass of datetime.date
+            datetime.date,
+        )
         self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
 
         parse_deprecated_setting(
