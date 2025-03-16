@@ -717,10 +717,6 @@ class TestcaseRule(Rule):
             bar.error("No .ans file was generated!")
             return False
 
-        outfile = infile.with_suffix(".out")
-        if outfile.is_file() and testcase.root not in ["invalid_output", "valid_output"]:
-            bar.warn("BAPCtools does not support .out files, use .ans.statement instead")
-
         if problem.interactive or problem.multi_pass:
             if ansfile.stat().st_size != 0:
                 interactive = "interaction " if problem.interactive else ""

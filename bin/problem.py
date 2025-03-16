@@ -651,7 +651,7 @@ class Problem:
 
             # check .out
             if ".out" in ans_found:
-                warn(".out files are not supported, use .ans.statement instead. IGNORED.")
+                warn("BAPCtools does not support .out files, use .ans.statement instead. IGNORED.")
                 ans_found.remove(".out")
 
             # check if this is actually a testcase
