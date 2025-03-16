@@ -704,10 +704,8 @@ class TestcaseRule(Rule):
             )
         return True
 
-    # TODO: we assume .ans is a valid output (also in testcase.validate_format)
-    def validate_remaining(
-        t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
-    ):
+    # we assume .ans is a valid output and validate ir as such
+    def validate_ans(t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
@@ -720,9 +718,8 @@ class TestcaseRule(Rule):
             return False
 
         outfile = infile.with_suffix(".out")
-        if not outfile.is_file() and testcase.root in ["invalid_output", "valid_output"]:
-            bar.error("No .out file was generated!")
-            return False
+        if outfile.is_file() and testcase.root not in ["invalid_output", "valid_output"]:
+            bar.warn("BAPCtools does not support .out files, use .ans.statement instead")
 
         if problem.interactive or problem.multi_pass:
             if ansfile.stat().st_size != 0:
@@ -730,14 +727,13 @@ class TestcaseRule(Rule):
                 multi_pass = "multi-pass " if problem.multi_pass else ""
                 bar.warn(f".ans file for {interactive}{multi_pass}problem is expected to be empty.")
         else:
-            checkfile = outfile if outfile.is_file() else ansfile
-            size = checkfile.stat().st_size
+            size = ansfile.stat().st_size
             if (
                 size <= problem.limits.output * 1024 * 1024
                 and problem.limits.output * 1024 * 1024 < 2 * size
             ):  # we already warn if the limit is exceeded
                 bar.warn(
-                    f".{checkfile.suffix} file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2 * size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
+                    f".ans file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2 * size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
                 )
 
             answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
@@ -997,7 +993,7 @@ class TestcaseRule(Rule):
                     and needed(".interaction")
                     and not any(
                         infile.with_suffix(ext).is_file()
-                        for ext in [".out", ".in.statement", ".ans.statement"]
+                        for ext in [".in.statement", ".ans.statement"]
                     )
                 ):
                     if not t.config.solution.run_interaction(bar, cwd, t):
@@ -1158,8 +1154,8 @@ class TestcaseRule(Rule):
             if not generate_from_solution():
                 return
 
-            # Step 5: validate .ans and .out if needed
-            if not t.validate_remaining(problem, testcase, meta_yaml, bar):
+            # Step 5: validate .ans if needed
+            if not t.validate_ans(problem, testcase, meta_yaml, bar):
                 return
 
             # Step 6: generate visualization if needed
@@ -1402,7 +1398,7 @@ class Directory(Rule):
                 continue
 
             # Step 2: validate answer
-            if not t.validate_remaining(problem, testcase, meta_yaml, bar):
+            if not t.validate_ans(problem, testcase, meta_yaml, bar):
                 continue
 
             t.link(problem, generator_config, bar, new_infile)

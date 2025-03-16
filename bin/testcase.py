@@ -89,7 +89,6 @@ class Testcase:
         self.out_path = (
             self.in_path.with_suffix(".out")
             if self.root in ["valid_output", "invalid_output"]
-            or self.in_path.with_suffix(".out").is_file()
             else None
         )
 
@@ -394,15 +393,9 @@ class Testcase:
         else:
             success = all(results)
             if success and mode in [validate.Mode.INPUT, validate.Mode.ANSWER]:
-                if mode == validate.Mode.INPUT:
-                    main_path = self.in_path
-                elif self.out_path is not None:
-                    main_path = self.out_path
-                else:
-                    main_path = self.ans_path
                 validate.sanity_check(
                     self.problem,
-                    main_path,
+                    self.in_path if mode == validate.Mode.INPUT else self.ans_path,
                     bar,
                 )
 
