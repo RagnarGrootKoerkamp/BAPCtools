@@ -8,7 +8,7 @@ import program
 import testcase
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from run import Run
+    import run
 
 
 class Mode(Enum):
@@ -208,7 +208,7 @@ class Validator(program.Program):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Mode | Run,
+        mode: Mode | "run.Run",
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
@@ -234,7 +234,7 @@ class InputValidator(Validator):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Mode | Run = Mode.INPUT,
+        mode: Mode | "run.Run" = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
@@ -296,7 +296,7 @@ class AnswerValidator(Validator):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Mode | Run = Mode.ANSWER,
+        mode: Mode | "run.Run" = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
@@ -350,7 +350,7 @@ class OutputValidator(Validator):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Mode | Run,
+        mode: Mode | "run.Run",
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
