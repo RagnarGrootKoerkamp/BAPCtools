@@ -208,7 +208,7 @@ class Validator(program.Program):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Union[Mode, "run.Run"],
+        mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
@@ -234,7 +234,7 @@ class InputValidator(Validator):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Union[Mode, "run.Run"] = Mode.INPUT,
+        mode: Mode = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
@@ -253,8 +253,6 @@ class InputValidator(Validator):
             raise ValueError("InputValidators do no support Mode.INVALID")
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("InputValidators do no support Mode.VALID_OUTPUT")
-        else:
-            raise ValueError("InputValidators do no support Run")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -296,7 +294,7 @@ class AnswerValidator(Validator):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Union[Mode, "run.Run"] = Mode.ANSWER,
+        mode: Mode = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
@@ -308,8 +306,6 @@ class AnswerValidator(Validator):
             raise ValueError("AnswerValidators do no support Mode.INVALID")
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("AnswerValidators do no support Mode.VALID_OUTPUT")
-        else:
-            raise ValueError("AnswerValidators do no support Run")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
