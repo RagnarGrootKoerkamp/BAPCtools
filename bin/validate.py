@@ -2,10 +2,13 @@ import re
 from util import *
 from enum import Enum
 from collections.abc import Sequence
-from typing import Final
+from typing import Final, TYPE_CHECKING
 
 import program
 import testcase
+
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    from run import Run
 
 
 class Mode(Enum):
@@ -205,9 +208,9 @@ class Validator(program.Program):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode,
+        mode: Mode | Run,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         raise Exception("Abstract method")
 
@@ -230,10 +233,10 @@ class InputValidator(Validator):
 
     def run(
         self,
-        testcase,
-        mode=Mode.INPUT,
+        testcase: testcase.Testcase,
+        mode: Mode | Run = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         """
         Arguments
@@ -250,6 +253,8 @@ class InputValidator(Validator):
             raise ValueError("InputValidators do no support Mode.INVALID")
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("InputValidators do no support Mode.VALID_OUTPUT")
+        else:
+            raise ValueError("InputValidators do no support Run")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -290,10 +295,10 @@ class AnswerValidator(Validator):
 
     def run(
         self,
-        testcase,
-        mode=Mode.ANSWER,
+        testcase: testcase.Testcase,
+        mode: Mode | Run = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         assert self.run_command is not None, "Validator should be built before running it"
 
@@ -303,6 +308,8 @@ class AnswerValidator(Validator):
             raise ValueError("AnswerValidators do no support Mode.INVALID")
         if mode == Mode.VALID_OUTPUT:
             raise ValueError("AnswerValidators do no support Mode.VALID_OUTPUT")
+        else:
+            raise ValueError("AnswerValidators do no support Run")
 
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
 
@@ -342,10 +349,10 @@ class OutputValidator(Validator):
 
     def run(
         self,
-        testcase,  # TODO #102: fix type errors after setting type to Testcase
-        mode,  # TODO #102: fix type errors after setting type to Mode | run.Run
+        testcase: testcase.Testcase,
+        mode: Mode | Run,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         """
         Run this validator on the given testcase.
@@ -375,12 +382,14 @@ class OutputValidator(Validator):
                 raise ValueError(
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_output"
                 )
+            assert testcase.out_path is not None
             path = testcase.out_path.resolve()
         elif mode == Mode.VALID_OUTPUT:
             if testcase.root != "valid_output":
                 raise ValueError(
                     "OutputValidator in Mode.VALID_OUTPUT should only be run for data/valid_output"
                 )
+            assert testcase.out_path is not None
             path = testcase.out_path.resolve()
         else:
             assert mode != Mode.INPUT
