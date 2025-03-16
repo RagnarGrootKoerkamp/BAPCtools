@@ -729,7 +729,7 @@ class TestcaseRule(Rule):
                 interactive = "interaction " if problem.interactive else ""
                 multi_pass = "multi-pass " if problem.multi_pass else ""
                 bar.warn(f".ans file for {interactive}{multi_pass}problem is expected to be empty.")
-
+        else:
             answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
             if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
                 return True
