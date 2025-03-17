@@ -96,7 +96,7 @@ def new_contest():
         fatal("--problem does not work for new_contest.")
 
     # Ask for all required infos.
-    title = _ask_variable_string("name", config.args.contestname).replace("_", "-")
+    title = _ask_variable_string("name", config.args.contestname)
     subtitle = _ask_variable_string("subtitle", "", True).replace("_", "-")
     dirname = _ask_variable_string("dirname", _alpha_num(title))
     author = _ask_variable_string("author", f"The {title} Jury").replace("_", "-")
@@ -108,6 +108,7 @@ def new_contest():
         "rights owner (if left empty, defaults to problem author)", "", allow_empty=True
     )
     rights_owner = f"rights_owner: {rights_owner}\n" if rights_owner else ""
+    title = title.replace("_", "-")
 
     skeldir = config.TOOLS_ROOT / "skel/contest"
     log(f"Copying {skeldir} to {dirname}.")
