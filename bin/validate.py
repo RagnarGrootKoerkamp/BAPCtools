@@ -224,7 +224,7 @@ class InputValidator(Validator):
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, "input_validators", **kwargs)
 
-    validator_type: Final[str] = "input"
+    validator_type: Final[str] = "input validator"
 
     source_dirs: Final[list[str]] = ["input_validators", "input_format_validators"]
 
@@ -284,7 +284,7 @@ class AnswerValidator(Validator):
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, "answer_validators", **kwargs)
 
-    validator_type: Final[str] = "answer"
+    validator_type: Final[str] = "answer validator"
 
     source_dirs: Final[list[str]] = ["answer_validators", "answer_format_validators"]
 
@@ -335,7 +335,7 @@ class OutputValidator(Validator):
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, "output_validator", **kwargs)
 
-    validator_type: Final[str] = "output"
+    validator_type: Final[str] = "output validator"
 
     source_dir: Final[str] = "output_validator"
 
@@ -353,7 +353,7 @@ class OutputValidator(Validator):
         ---------
 
         mode: either a run.Run (namely, when validating submission output) or a Mode
-            (namely, when validation a testcase)
+            (namely, when validating a testcase)
 
         Returns
         -------
@@ -363,7 +363,7 @@ class OutputValidator(Validator):
         assert self.run_command is not None, "Validator should be built before running it"
 
         if mode == Mode.INPUT:
-            raise ValueError("OutputValidator do not support Mode.INPUT")
+            raise ValueError("OutputValidator does not support Mode.INPUT")
 
         in_path = testcase.in_path.resolve()
         ans_path = testcase.ans_path.resolve()
@@ -409,7 +409,68 @@ class OutputValidator(Validator):
         return ret
 
 
-AnyValidator = InputValidator | AnswerValidator | OutputValidator
+class OutputVisualizer(Validator):
+    """
+    Visualize the output of a submission
+
+       ./visualizer input answer feedbackdir [arguments from problem.yaml] < output
+    """
+
+    def __init__(self, problem, path, **kwargs):
+        super().__init__(problem, path, "output_visualizer", **kwargs)
+
+    validator_type: Final[str] = "output visualizer"
+
+    source_dir: Final[str] = "output_visualizer"
+
+    def run(
+        self,
+        testcase,  # TODO #102: fix type errors after setting type to Testcase
+        mode,
+        constraints: Optional[ConstraintsDict] = None,
+        args=None,
+    ) -> ExecResult:
+        """
+        Run this validator on the given testcase.
+
+        Arguments
+        ---------
+
+        run: run.Run (namely, when visualizing submission output)
+
+        Returns
+        -------
+        The ExecResult
+        """
+
+        assert self.run_command is not None, "Validator should be built before running it"
+
+        in_path = testcase.in_path.resolve()
+        ans_path = testcase.ans_path.resolve()
+        run = mode  # mode is actually a run
+        path = run.out_path
+        in_path = run.in_path
+
+        if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
+            raise ValueError("Invalid output validator language")
+
+        # Only get the output_validator_args
+        _, _, arglist = self._run_helper(testcase, constraints, args)
+        cwd = run.feedbackdir
+        invocation = self.run_command + [in_path, ans_path, cwd]
+
+        with path.open() as file:
+            ret = self._exec_helper(
+                invocation + arglist,
+                exec_code_map=validator_exec_code_map,
+                stdin=file,
+                cwd=cwd,
+            )
+
+        return ret
+
+
+AnyValidator = InputValidator | AnswerValidator | OutputValidator | OutputVisualizer
 
 
 # Checks if byte is printable or whitespace
