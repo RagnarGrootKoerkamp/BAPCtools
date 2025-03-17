@@ -726,9 +726,9 @@ class TestcaseRule(Rule):
 
         if problem.interactive or problem.multi_pass:
             if ansfile.stat().st_size != 0:
-                interactive = "interaction " if problem.interactive else ""
-                multi_pass = "multi-pass " if problem.multi_pass else ""
-                bar.warn(f".ans file for {interactive}{multi_pass}problem is expected to be empty.")
+                bar.warn(
+                    f".ans file for {problem.settings.type_name()} problem is expected to be empty."
+                )
         else:
             answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
             if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
@@ -954,6 +954,8 @@ class TestcaseRule(Rule):
             if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
                 return True
             if config.args.no_solution:
+                return True
+            if not problem.ans_is_output:
                 return True
 
             if t.config.solution is not None:

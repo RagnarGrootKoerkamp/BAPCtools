@@ -283,6 +283,12 @@ class ProblemSettings:
         # BAPCtools extensions:
         self.verified: Optional[str] = parse_optional_setting(yaml_data, "verified", str)
         self.comment: Optional[str] = parse_optional_setting(yaml_data, "comment", str)
+        if (self.interactive or self.multi_pass) and "ans_is_output" in yaml_data:
+            warn(f"ans_is_output is not used for {self.type_name()} problem. IGNORED.")
+            yaml_data.pop("ans_is_output")
+        self.ans_is_output: bool = parse_setting(
+            yaml_data, "ans_is_output", not self.interactive and not self.multi_pass
+        )
 
         check_unknown_keys(yaml_data)
 
@@ -292,6 +298,16 @@ class ProblemSettings:
         if self.license not in config.KNOWN_LICENSES:
             warn(f"invalid license: {self.license}")
             self.license = "unknown"
+
+    def type_name(self) -> str:
+        parts: list[str] = []
+        if self.interactive:
+            parts.append("interactive")
+        if self.multi_pass:
+            parts.append("multi_pass")
+        if not parts:
+            parts.append("pass-fail")
+        return " ".join(parts)
 
 
 # A problem.
@@ -597,12 +613,9 @@ class Problem:
                 and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
                 and t.root in ["invalid_answer", "invalid_output", "valid_output"]
             ):
-                msg = ""
-                if p.interactive:
-                    msg += " interactive"
-                if p.multi_pass:
-                    msg += " multi-pass"
-                warn(f"Found file {f} for {mode} validation in{msg} problem. Skipping.")
+                warn(
+                    f"Found file {f} for {mode} validation in {p.settings.type_name()} problem. Skipping."
+                )
                 continue
             if needans and not t.ans_path.is_file():
                 if t.root != "invalid_input":
@@ -696,13 +709,10 @@ class Problem:
             # fall back is pair of files
             testcases.append((name.with_suffix(in_found[0]), name.with_suffix(ans_found[0])))
 
-        if has_raw and (p.interactive or p.multi_pass):
-            msg = ""
-            if p.interactive:
-                msg += " interactive"
-            if p.multi_pass:
-                msg += " multi-pass"
-            warn(f"It is advised to overwrite .in and .ans for{msg} problem samples")
+        if has_raw and not p.settings.ans_is_output:
+            warn(
+                "It is advised to overwrite .in and .ans for samples if .ans does not represent a valid output"
+            )
 
         testcases.sort()
         return testcases
@@ -849,13 +859,13 @@ class Problem:
             list(Validator) otherwise, maybe empty
         """
         validators = problem._validators(cls, check_constraints)
-        if not strict and cls == validate.AnswerValidator:
+        if not strict and cls == validate.AnswerValidator and problem.settings.ans_is_output:
             validators = validators + problem._validators(
                 validate.OutputValidator, check_constraints
             )
 
         # Check that the proper number of validators is present
-        # do this after handling the strict flag but dont warn every time
+        # do this after handling the strict flag but do not warn every time
         if print_warn:
             key = (cls, check_constraints)
             if key not in problem._validators_warn_cache:
@@ -1109,12 +1119,7 @@ class Problem:
         """
         if (problem.interactive or problem.multi_pass) and mode == validate.Mode.ANSWER:
             if problem.validators(validate.AnswerValidator, strict=True, print_warn=False):
-                msg = ""
-                if problem.interactive:
-                    msg += " interactive"
-                if problem.multi_pass:
-                    msg += " multi-pass"
-                log(f"Not running answer_validators for{msg} problems.")
+                log(f"Not running answer_validators for {problem.settings.type_name()} problems.")
             return True
 
         action: str = ""
@@ -1140,7 +1145,13 @@ class Problem:
         validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str]]] = [
             (validate.InputValidator, "invalid_input", ".in", ".in", []),
             (validate.AnswerValidator, "invalid_answer", ".ans", ".ans", [".in"]),
-            (validate.OutputValidator, "invalid_output", ".ans", ".out", [".in", ".ans"]),
+            (
+                validate.OutputValidator,
+                "invalid_output",
+                ".ans" if p.settings.ans_is_output else ".out",
+                ".out",
+                [".in", ".ans"],
+            ),
         ]
 
         testcases: list[testcase.Testcase] = []

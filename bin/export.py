@@ -51,10 +51,8 @@ def build_samples_zip(problems, output, statement_language):
 
         attachments_dir = problem.path / "attachments"
         if (problem.interactive or problem.multi_pass) and not attachments_dir.is_dir():
-            interactive = "interactive " if problem.interactive else ""
-            multi_pass = "multi-pass " if problem.multi_pass else ""
             util.error(
-                f"{interactive}{multi_pass}problem {problem.name} does not have an attachments/ directory."
+                f"{problem.settings.type_name()} problem {problem.name} does not have an attachments/ directory."
             )
             continue
 
