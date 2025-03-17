@@ -21,8 +21,7 @@ print_time_limit: true
 # problem.yaml defaults
 source_url: {%source_url%}
 license: {%license%}
-rights_owner: {%rights_owner%}
-
+{%rights_owner%}
 # CCS fields for integration
 # URL endpoint of the CCS, e.g. https://www.domjudge.org/demoweb.
 #api:

@@ -96,16 +96,18 @@ def new_contest():
         fatal("--problem does not work for new_contest.")
 
     # Ask for all required infos.
-    title = _ask_variable_string("name", config.args.contestname)
+    title = _ask_variable_string("name", config.args.contestname).replace("_", "-")
     subtitle = _ask_variable_string("subtitle", "", True).replace("_", "-")
     dirname = _ask_variable_string("dirname", _alpha_num(title))
-    author = _ask_variable_string("author", f"The {title} jury").replace("_", "-")
+    author = _ask_variable_string("author", f"The {title} Jury").replace("_", "-")
     testsession = _ask_variable_bool("testsession", False)
     year = _ask_variable_string("year", str(datetime.datetime.now().year))
     source_url = _ask_variable_string("source url", "", True)
     license = _ask_variable_choice("license", config.KNOWN_LICENSES)
-    rights_owner = _ask_variable_string("rights owner", "author")
-    title = title.replace("_", "-")
+    rights_owner = _ask_variable_string(
+        "rights owner (if left empty, defaults to problem author)", "", allow_empty=True
+    )
+    rights_owner = f"rights_owner: {rights_owner}\n" if rights_owner else ""
 
     skeldir = config.TOOLS_ROOT / "skel/contest"
     log(f"Copying {skeldir} to {dirname}.")
@@ -198,7 +200,12 @@ def new_problem():
         "license", config.KNOWN_LICENSES, variables.get("license", None)
     )
     variables["rights_owner"] = _ask_variable_string(
-        "rights owner", variables.get("rights_owner", "author")
+        f"rights owner{'' if variables.get('rights_owner', '') else ' (if left empty, defaults to problem author)'}",
+        variables.get("rights_owner", ""),
+        allow_empty=True,
+    )
+    variables["rights_owner"] = (
+        f"rights_owner: {variables['rights_owner']}\n" if variables["rights_owner"] else ""
     )
     variables["uuid"] = generate_problem_uuid()
 

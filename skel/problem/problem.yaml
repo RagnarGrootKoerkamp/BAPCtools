@@ -9,7 +9,6 @@ uuid: {%uuid%}
 credits: {%author%}
 {%source%}
 license: {%license%}
-rights_owner: {%rights_owner%}
-
+{%rights_owner%}
 # limits:
 #   time_limit: 1.0
