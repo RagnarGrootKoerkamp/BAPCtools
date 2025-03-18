@@ -592,12 +592,13 @@ class Problem:
 
             in_paths = list(set(in_paths))
         elif mode is not None:
+            assert needans
             in_paths = []
             for prefix in {
                 validate.Mode.INPUT: ["secret", "sample"],
                 validate.Mode.ANSWER: ["secret", "sample"],
                 validate.Mode.INVALID: config.INVALID_CASE_DIRECTORIES,
-                validate.Mode.VALID_OUTPUT: ["valid_output"],
+                validate.Mode.VALID_OUTPUT: ["secret", "sample", "valid_output"],
             }[mode]:
                 in_paths += glob(p.path, f"data/{prefix}/**/*.in")
         else:
@@ -621,8 +622,10 @@ class Problem:
                 if t.root != "invalid_input":
                     warn(f"Found input file {f} without a .ans file. Skipping.")
                     continue
-            if needans and (t.out_path is None or not t.out_path.is_file()):
-                if t.root in ["invalid_output", "valid_output"]:
+            if mode == validate.Mode.VALID_OUTPUT:
+                if t.out_path is None:
+                    continue
+                if not t.out_path.is_file():
                     warn(f"Found input file {f} without a .out file. Skipping.")
                     continue
             testcases.append(t)
