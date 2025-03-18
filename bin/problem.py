@@ -663,25 +663,16 @@ class Problem:
         A list of testcases represented either by there .interaction file or an in and ans file
         """
 
-        # if one of these exists this is a test case
-        in_required = [
-            ".in",
-            ".in.statement",
-            ".interaction",
-        ]
-
-        files = list(p.path.glob("data/sample/**/*"))
-        base_names = set(drop_suffix(f, config.KNOWN_DATA_EXTENSIONS) for f in files if f.is_file())
+        base_names: set[Path] = set()
+        for ext in [".in", ".in.statement", ".interaction"]:
+            files = list(p.path.glob(f"data/sample/**/*{ext}"))
+            base_names.update([drop_suffix(f, [ext]) for f in files if f.is_file()])
         testcases: list[Path | tuple[Path, Path]] = []
         has_raw = False
         for name in base_names:
             in_found = [ext for ext in in_extensions if name.with_suffix(ext).is_file()]
             ans_found = [ext for ext in ans_extensions if name.with_suffix(ext).is_file()]
             has_statement = ".in.statement" in in_found or ".ans.statement" in ans_found
-
-            # check if this is actually a testcase
-            if not any(ext in in_found for ext in in_required):
-                continue
 
             # check for inconsistencies
             if ".in" in in_found and ".ans" not in ans_found:

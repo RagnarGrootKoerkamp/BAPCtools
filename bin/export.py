@@ -148,10 +148,10 @@ def build_problem_zip(problem: Problem, output: Path):
                 out = remove_language_suffix(out, statement_language)
                 add_file(out, f)
 
-    def add_testcase(source: Path):
-        source = util.drop_suffix(source, config.KNOWN_DATA_EXTENSIONS)
+    def add_testcase(in_file: Path):
+        basename = util.drop_suffix(in_file, [".in", ".in.statement", ".interaction"])
         for ext in config.KNOWN_DATA_EXTENSIONS:
-            f = source.with_suffix(ext)
+            f = basename.with_suffix(ext)
             if f.is_file():
                 out = f.relative_to(problem.path)
                 add_file(out, f)
@@ -171,8 +171,8 @@ def build_problem_zip(problem: Problem, output: Path):
     samples = problem.download_samples()
     if len(samples) == 0:
         util.error("No samples found.")
-    for f, _ in samples:
-        add_testcase(f)
+    for in_file, _ in samples:
+        add_testcase(in_file)
 
     # DOMjudge and Kattis do not support 2023-07-draft yet.
     # TODO: Remove once they do.
