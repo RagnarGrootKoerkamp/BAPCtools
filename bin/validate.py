@@ -488,7 +488,7 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
             path.suffix in [".ans", ".out"]
             and 2 * len(file_bytes) > problem.limits.output * 1024 * 1024
         ):
-            bar.warn(f"{name} is close to  output limit")
+            bar.warn(f"{name} is close to output limit")
         elif strict_whitespace:
             if file_bytes[0] in [ord(" "), ord("\n")]:
                 bar.warn(f"{name} starts with whitespace but was accepted!")

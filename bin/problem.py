@@ -876,7 +876,7 @@ class Problem:
                 if cls == validate.InputValidator and not validators:
                     warn("No input validators found.")
                 if cls == validate.AnswerValidator and not validators and not problem.interactive:
-                    # for interactive problems the .ans file should be empty
+                    # for interactive problems, the .ans file should be empty
                     warn("No answer validators found.")
 
         build_ok = all(v.ok for v in validators)

@@ -67,8 +67,8 @@ A more advanced use case would be to read an integer `n` from the testcase input
 followed by verifying that the standard input contains `n` newline-separated integers.
 
 BAPCtools assumes that all answer files are also valid outputs and therefore also checks that the `.ans` files pass output validation.
-If this assumption is wrong you can specify `ans_is_output: False` in the `problem.yaml`.
-If enabled, the output validator is invoked as
+If this assumption is wrong, you can specify `ans_is_output: False` in `problem.yaml` (note that this option is always `False` for interactive or multi-pass problems, because these do not have a single output).
+If enabled, the output validator is invoked as:
 
 ```
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \
