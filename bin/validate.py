@@ -2,7 +2,7 @@ import re
 from util import *
 from enum import Enum
 from collections.abc import Sequence
-from typing import Final, Union, TYPE_CHECKING
+from typing import Final, TYPE_CHECKING
 
 import program
 import testcase
@@ -345,7 +345,7 @@ class OutputValidator(Validator):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode: Union[Mode, "run.Run"],
+        mode: "Mode | run.Run",
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
