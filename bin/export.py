@@ -149,7 +149,7 @@ def build_problem_zip(problem: Problem, output: Path):
                 add_file(out, f)
 
     def add_testcase(source: Path):
-        source = util.drop_suffixes(source)
+        source = util.drop_suffix(source, config.KNOWN_DATA_EXTENSIONS)
         for ext in config.KNOWN_DATA_EXTENSIONS:
             f = source.with_suffix(ext)
             if f.is_file():

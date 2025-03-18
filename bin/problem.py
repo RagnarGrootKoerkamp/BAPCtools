@@ -671,7 +671,7 @@ class Problem:
         ]
 
         files = list(p.path.glob("data/sample/**/*"))
-        base_names = set(drop_suffixes(f) for f in files if f.is_file())
+        base_names = set(drop_suffix(f, config.KNOWN_DATA_EXTENSIONS) for f in files if f.is_file())
         testcases: list[Path | tuple[Path, Path]] = []
         has_raw = False
         for name in base_names:
