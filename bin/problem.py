@@ -872,12 +872,9 @@ class Problem:
                 problem._validators_warn_cache.add(key)
                 if cls == validate.InputValidator and not validators:
                     warn("No input validators found.")
-                if cls == validate.AnswerValidator and not validators:
-                    if problem.interactive:
-                        # for interactive problems the ans file is most likely empty
-                        log("No answer validators found.")
-                    else:
-                        warn("No answer validators found.")
+                if cls == validate.AnswerValidator and not validators and not problem.interactive:
+                    # for interactive problems the .ans file should be empty
+                    warn("No answer validators found.")
 
         build_ok = all(v.ok for v in validators)
 
