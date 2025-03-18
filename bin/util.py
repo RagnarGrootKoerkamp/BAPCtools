@@ -644,6 +644,10 @@ def path_size(path: Path) -> int:
         return sum(f.stat().st_size for f in path.rglob("*") if f.exists())
 
 
+def drop_suffixes(path: Path) -> Path:
+    return path.with_name(path.name.partition(".")[0])
+
+
 # Drops the first two path components <problem>/<type>/
 def print_name(path: Path, keep_type: bool = False) -> str:
     return str(Path(*path.parts[1 if keep_type else 2 :]))
