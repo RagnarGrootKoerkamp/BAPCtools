@@ -649,6 +649,20 @@ class Problem:
     def _samples(
         p, in_extensions: list[str], ans_extensions: list[str], return_interaction_file: bool
     ) -> list[Path | tuple[Path, Path]]:
+        """
+        Find the samples of the problem
+
+        Arguments
+        ---------
+        in_extensions: possible extensions for an in file sorted by priority
+        ans_extensions: possible extensions for an ans file sorted by priority
+        return_interaction_file: If True allows to represent testcases by an .interaction file
+
+        Returns:
+        --------
+        A list of testcases represented either by there .interaction file or an in and ans file
+        """
+
         # if one of these exists this is a test case
         in_required = [
             ".in",
