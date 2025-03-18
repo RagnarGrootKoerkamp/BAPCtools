@@ -171,11 +171,7 @@ def build_problem_zip(problem: Problem, output: Path):
     if len(samples) == 0:
         util.error("No samples found.")
     for f, _ in samples:
-        if f.is_file():
-            if f.with_suffix(".in").is_file() and not f.with_suffix(".ans").is_file():
-                util.warn(f"No answer file found for {f.with_suffix('.in')}, skipping.")
-            else:
-                add_testcase(f)
+        add_testcase(f)
 
     # DOMjudge and Kattis do not support 2023-07-draft yet.
     # TODO: Remove once they do.
