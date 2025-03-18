@@ -288,7 +288,7 @@ class ProblemSettings:
         )
         if (self.interactive or self.multi_pass) and self.ans_is_output:
             warn(f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED.")
-            self.ans_is_output = True
+            self.ans_is_output = False
 
         check_unknown_keys(yaml_data)
 
@@ -611,7 +611,7 @@ class Problem:
             if (
                 (p.interactive or p.multi_pass)
                 and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
-                and t.root in ["invalid_answer", "invalid_output", "valid_output"]
+                and t.root in ["invalid_output", "valid_output"]
             ):
                 warn(
                     f"Found file {f} for {mode} validation in {p.settings.type_name()} problem. Skipping."
@@ -1155,7 +1155,9 @@ class Problem:
             for cls, directory, read, write, copy in validators:
                 if directory not in config.args.generic:
                     continue
-                if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
+                if p.interactive and cls != validate.InputValidator:
+                    continue
+                if p.multi_pass and cls == validate.OutputValidator:
                     continue
                 if not p.validators(cls, strict=True, print_warn=False):
                     continue
