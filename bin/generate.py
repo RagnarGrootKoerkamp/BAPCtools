@@ -955,7 +955,7 @@ class TestcaseRule(Rule):
                 return True
             if config.args.no_solution:
                 return True
-            if not problem.ans_is_output:
+            if not problem.settings.ans_is_output:
                 return True
 
             if t.config.solution is not None:
