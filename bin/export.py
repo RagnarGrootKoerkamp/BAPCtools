@@ -173,7 +173,7 @@ def build_problem_zip(problem: Problem, output: Path):
     for f, _ in samples:
         if f.is_file():
             if f.with_suffix(".in").is_file() and not f.with_suffix(".ans").is_file():
-                util.warn(f"No answer file found for {f}, skipping.")
+                util.warn(f"No answer file found for {f.with_suffix('.in')}, skipping.")
             else:
                 add_testcase(f)
 
