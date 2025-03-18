@@ -973,7 +973,7 @@ class TestcaseRule(Rule):
             if not problem.settings.ans_is_output:
                 # Generate empty ans file
                 if ".ans" not in meta_yaml["generated_extensions"]:
-                    if not ansfile.is_file():
+                    if not ansfile.is_file() and (problem.interactive or problem.multi_pass):
                         ansfile.write_text("")
                         changed_ans = True
                 # For interactive/multi-pass problems, run the solution and generate a .interaction if necessary.
