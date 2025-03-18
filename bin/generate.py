@@ -705,7 +705,7 @@ class TestcaseRule(Rule):
         return True
 
     # we assume .ans is a valid output and validate it as such
-    def validate_remaining(
+    def validate_ans_and_out(
         t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
     ):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
@@ -1146,7 +1146,7 @@ class TestcaseRule(Rule):
                 return
 
             # Step 5: validate .ans (and .out if it exists)
-            if not t.validate_remaining(problem, testcase, meta_yaml, bar):
+            if not t.validate_ans_and_out(problem, testcase, meta_yaml, bar):
                 return
 
             # Step 6: generate visualization if needed
@@ -1389,7 +1389,7 @@ class Directory(Rule):
                 continue
 
             # Step 2: validate .ans (and .out if it exists)
-            if not t.validate_remaining(problem, testcase, meta_yaml, bar):
+            if not t.validate_ans_and_out(problem, testcase, meta_yaml, bar):
                 continue
 
             t.link(problem, generator_config, bar, new_infile)
