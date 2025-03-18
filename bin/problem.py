@@ -283,12 +283,12 @@ class ProblemSettings:
         # BAPCtools extensions:
         self.verified: Optional[str] = parse_optional_setting(yaml_data, "verified", str)
         self.comment: Optional[str] = parse_optional_setting(yaml_data, "comment", str)
-        if (self.interactive or self.multi_pass) and "ans_is_output" in yaml_data:
-            warn(f"ans_is_output is not used for {self.type_name()} problem. IGNORED.")
-            yaml_data.pop("ans_is_output")
         self.ans_is_output: bool = parse_setting(
             yaml_data, "ans_is_output", not self.interactive and not self.multi_pass
         )
+        if (self.interactive or self.multi_pass) and self.ans_is_output:
+            warn(f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED.")
+            self.ans_is_output = True
 
         check_unknown_keys(yaml_data)
 
@@ -870,11 +870,14 @@ class Problem:
             key = (cls, check_constraints)
             if key not in problem._validators_warn_cache:
                 problem._validators_warn_cache.add(key)
-                match cls, len(validators):
-                    case validate.InputValidator, 0:
-                        warn("No input validators found.")
-                    case validate.AnswerValidator, 0:
-                        warn("No answer validators found")
+                if cls == validate.InputValidator and not validators:
+                    warn("No input validators found.")
+                if cls == validate.AnswerValidator and not validators:
+                    if problem.interactive:
+                        # for interactive problems the ans file is most likely empty
+                        log("No answer validators found.")
+                    else:
+                        warn("No answer validators found.")
 
         build_ok = all(v.ok for v in validators)
 
@@ -1117,11 +1120,6 @@ class Problem:
             True if all validation was successful. Successful validation includes, e.g.,
             correctly rejecting invalid inputs.
         """
-        if (problem.interactive or problem.multi_pass) and mode == validate.Mode.ANSWER:
-            if problem.validators(validate.AnswerValidator, strict=True, print_warn=False):
-                log(f"Not running answer_validators for {problem.settings.type_name()} problems.")
-            return True
-
         action: str = ""
         if mode == validate.Mode.INVALID:
             action = "Invalidation"
@@ -1296,17 +1294,12 @@ class Problem:
             case validate.Mode.INPUT:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
             case validate.Mode.ANSWER:
-                assert not problem.interactive
-                assert not problem.multi_pass
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
-                if not problem.interactive and not problem.multi_pass:
-                    problem.validators(validate.AnswerValidator)
+                problem.validators(validate.AnswerValidator)
                 problem.validators(validate.OutputValidator)
             case validate.Mode.VALID_OUTPUT:
-                assert not problem.interactive
-                assert not problem.multi_pass
                 problem.validators(validate.InputValidator)
                 problem.validators(validate.AnswerValidator)
                 problem.validators(validate.OutputValidator)

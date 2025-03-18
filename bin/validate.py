@@ -475,6 +475,8 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
             bar.warn(f"{name} is empty but was accepted!")
         elif len(file_bytes) > 20_000_000:
             bar.warn(f"{name} is larger than 20MB!")
+        elif problem.interactive and path.suffix == ".ans" and len(file_bytes) != 0:
+            bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
         elif (
             path.suffix in [".ans", ".out"]
             and len(file_bytes) > problem.limits.output * 1024 * 1024

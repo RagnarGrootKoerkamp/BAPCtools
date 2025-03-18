@@ -724,41 +724,35 @@ class TestcaseRule(Rule):
             bar.error("No .out file was generated!")
             return False
 
-        if problem.interactive or problem.multi_pass:
-            if ansfile.stat().st_size != 0:
-                bar.warn(
-                    f".ans file for {problem.settings.type_name()} problem is expected to be empty."
-                )
+        answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
+        if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
+            return True
+
+        mode = validate.Mode.ANSWER
+        if testcase.root in config.INVALID_CASE_DIRECTORIES:
+            mode = validate.Mode.INVALID
+        elif testcase.root == "valid_output":
+            mode = validate.Mode.VALID_OUTPUT
+        elif outfile.is_file():
+            mode = validate.Mode.VALID_OUTPUT
+
+        if not testcase.validate_format(
+            mode,
+            bar=bar,
+            warn_instead_of_error=config.args.no_validators,
+        ):
+            if not config.args.no_validators:
+                bar.debug("Use generate --no-validators to ignore validation results.")
+                bar.done(False)
+                return False
         else:
-            answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
-            if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
-                return True
-
-            mode = validate.Mode.ANSWER
-            if testcase.root in config.INVALID_CASE_DIRECTORIES:
-                mode = validate.Mode.INVALID
-            elif testcase.root == "valid_output":
-                mode = validate.Mode.VALID_OUTPUT
-            elif outfile.is_file():
-                mode = validate.Mode.VALID_OUTPUT
-
-            if not testcase.validate_format(
-                mode,
-                bar=bar,
-                warn_instead_of_error=config.args.no_validators,
-            ):
-                if not config.args.no_validators:
-                    bar.debug("Use generate --no-validators to ignore validation results.")
-                    bar.done(False)
-                    return False
-            else:
-                for h in answer_validator_hashes:
-                    meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
-                write_yaml(
-                    meta_yaml,
-                    problem.tmpdir / "data" / t.hash / "meta_.yaml",
-                    allow_yamllib=True,
-                )
+            for h in answer_validator_hashes:
+                meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
+            write_yaml(
+                meta_yaml,
+                problem.tmpdir / "data" / t.hash / "meta_.yaml",
+                allow_yamllib=True,
+            )
         return True
 
     def generate(t, problem, generator_config, parent_bar):
@@ -955,8 +949,6 @@ class TestcaseRule(Rule):
                 return True
             if config.args.no_solution:
                 return True
-            if not problem.settings.ans_is_output:
-                return True
 
             if t.config.solution is not None:
                 solution_hash = {
@@ -978,15 +970,16 @@ class TestcaseRule(Rule):
 
             used_solution = False
             changed_ans = False
-            if problem.interactive or problem.multi_pass:
-                # Generate empty ans file for interactive/multi-pass problems
+            if not problem.settings.ans_is_output:
+                # Generate empty ans file
                 if ".ans" not in meta_yaml["generated_extensions"]:
-                    if not ansfile.is_file() or ansfile.stat().st_size != 0:
+                    if not ansfile.is_file():
                         ansfile.write_text("")
                         changed_ans = True
                 # For interactive/multi-pass problems, run the solution and generate a .interaction if necessary.
                 if (
-                    t.config.solution
+                    (problem.interactive or problem.multi_pass)
+                    and t.config.solution
                     and (testcase.root == "sample" or config.args.interaction)
                     and needed(".interaction")
                     and not any(
@@ -1870,8 +1863,7 @@ class GeneratorConfig:
         build_programs(program.Visualizer, visualizers_used)
 
         self.problem.validators(validate.InputValidator)
-        if not self.problem.interactive and not self.problem.multi_pass:
-            self.problem.validators(validate.AnswerValidator)
+        self.problem.validators(validate.AnswerValidator)
         self.problem.validators(validate.OutputValidator)
 
         def cleanup_build_failures(t):
