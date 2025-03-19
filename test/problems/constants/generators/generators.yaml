@@ -1,0 +1,27 @@
+solution: /submissions/accepted/submission.py
+
+data:
+  sample:
+    data:
+      - '': example.py {{INT_FIVE}} {{STRING_FIVE}} 5  # substituted
+  secret:
+    include:
+      - sample
+
+  invalid_input:
+    data:
+      dont_substitute:
+        in: "{{INT_FIVE}}"  # not substituted
+
+  invalid_answer:
+    data:
+      dont_substitute:
+        in: "5"
+        ans: "{{INT_FIVE}}"  # not substituted
+
+  invalid_output:
+    data:
+      dont_substitute:
+        in: "5"
+        ans: "5"
+        out: "{{INT_FIVE}}"  # not substituted

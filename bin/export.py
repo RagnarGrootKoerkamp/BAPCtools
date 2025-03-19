@@ -12,31 +12,6 @@ from contest import *
 from problem import Problem
 
 
-# Replace \problemname{...} by the value of `name:` in problems.yaml in all .tex files.
-# This is needed because Kattis is currently still running the legacy version of the problem spec,
-# rather than 2023-07-draft.
-def fix_problem_name_cmd(problem):
-    reverts = []
-    for f in (problem.path / "problem_statement").iterdir():
-        if f.is_file() and f.suffix == ".tex" and len(f.suffixes) >= 2:
-            lang = f.suffixes[-2][1:]
-            t = f.read_text()
-            match = re.search(r"\\problemname\{\s*(\\problemyamlname)?\s*\}", t)
-            if match:
-                if lang in problem.settings.name:
-                    reverts.append((f, t))
-                    t = t.replace(match[0], r"\problemname{" + problem.settings.name[lang] + "}")
-                    f.write_text(t)
-                else:
-                    util.error(f"{f}: no name set for language {lang}.")
-
-    def revert():
-        for f, t in reverts:
-            f.write_text(t)
-
-    return revert
-
-
 def force_single_language(problems):
     if config.args.languages and len(config.args.languages) == 1:
         statement_language = config.args.languages[0]
@@ -115,19 +90,18 @@ def build_samples_zip(problems, output, statement_language):
 
 
 def build_problem_zip(problem: Problem, output: Path):
-    """Make DOMjudge ZIP file for specified problem."""
+    """Make DOMjudge/Kattis ZIP file for specified problem."""
+
+    if not has_ryaml:
+        error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
+        return
 
     # Add problem PDF for only one language to the zip file (note that Kattis export does not include PDF)
     statement_language = None if config.args.kattis else force_single_language([problem])
 
-    deprecated = [  # may be removed at some point.
-        "domjudge-problem.ini",
-    ]
-
-    write_file_strs: list[tuple[str, str]] = []
-
     files = [
-        ("problem_statement/*", True),
+        ("problem.yaml", True),
+        ("statement/*", True),
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
         ("attachments/**/*", problem.interactive or problem.multi_pass),
@@ -151,61 +125,26 @@ def build_problem_zip(problem: Problem, output: Path):
         ]
 
     if problem.custom_output:
-        files.append(("output_validators/**/*", True))
+        files.append(("output_validator/**/*", True))
 
     if config.args.kattis:
         files.append(("input_validators/**/*", True))
 
-    print("Preparing to make ZIP file for problem dir %s" % problem.path, file=sys.stderr)
+    message("preparing zip file content", "Zip", problem.path, color_type=MessageType.LOG)
 
-    # DOMjudge does not support 'type' in problem.yaml nor 'output_validator_args' in testdata.yaml yet.
-    # TODO: Remove this once it does.
-    problem_yaml_str = (problem.path / "problem.yaml").read_text()
-    if not config.args.kattis and not problem.settings.is_legacy():
-        validator_flags = " ".join(
-            problem.get_testdata_yaml(
-                problem.path / "data",
-                "output_validator_args",
-                PrintBar("Getting validator_flags for legacy DOMjudge export"),
-            )
-        )
-        if validator_flags:
-            validator_flags = "validator_flags: " + validator_flags + "\n"
-        write_file_strs.append(
-            (
-                "problem.yaml",
-                f"""{problem_yaml_str}\nvalidation: {
-                    "custom interactive"
-                    if problem.interactive
-                    else "custom multi-pass"
-                    if problem.multi_pass
-                    else "custom"
-                    if problem.custom_output
-                    else "default"
-                }\n{validator_flags}""",
-            )
-        )
-    else:
-        write_file_strs.append(("problem.yaml", problem_yaml_str))
+    # prepare files inside dir
+    export_dir = problem.tmpdir / "export"
+    if export_dir.exists():
+        shutil.rmtree(export_dir)
+    # For Kattis, prepend the problem shortname to all files.
+    if config.args.kattis:
+        export_dir /= problem.name
+    export_dir.mkdir(parents=True, exist_ok=True)
 
-    # DOMjudge does not support 'limits.time_limit' in problem.yaml yet.
-    # TODO: Remove this once it does.
-    if not config.args.kattis:
-        write_file_strs.append((".timelimit", str(problem.limits.time_limit)))
-
-    # Warn for all deprecated files but still add them to the files list
-    for pattern in deprecated:
-        files.append((pattern, False))
-        # Only include hidden files if the pattern starts with a '.'.
-        paths = list(util.glob(problem.path, pattern, include_hidden=pattern[0] == "."))
-        if len(paths) > 0:
-            addition = ""
-            if len(paths) > 1:
-                addition = f" and {len(paths) - 1} more"
-            util.warn(f'Found deprecated file "{paths[0]}"{addition}.')
-
-    # Build list of files to store in ZIP file.
-    copyfiles = set()
+    def add_file(path, source):
+        path = export_dir / path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        ensure_symlink(path, source)
 
     # Include all files beside testcases
     for pattern, required in files:
@@ -214,14 +153,10 @@ def build_problem_zip(problem: Problem, output: Path):
         if required and len(paths) == 0:
             util.error(f"No matches for required path {pattern}.")
         for f in paths:
-            # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
                 out = f.relative_to(problem.path)
                 out = remove_language_suffix(out, statement_language)
-                # For Kattis, prepend the problem shortname to all files.
-                if config.args.kattis:
-                    out = problem.name / out
-                copyfiles.add((f, out))
+                add_file(out, f)
 
     # Include all testcases (specified by a .in file) and copy all related files
     for pattern, required in testcases:
@@ -229,7 +164,6 @@ def build_problem_zip(problem: Problem, output: Path):
         if required and len(paths) == 0:
             util.error(f"No matches for required path {pattern}.")
         for f in paths:
-            # NOTE: Directories are skipped because ZIP only supports files.
             if f.is_file():
                 if not f.with_suffix(".ans").is_file():
                     util.warn(f"No answer file found for {f}, skipping.")
@@ -238,31 +172,153 @@ def build_problem_zip(problem: Problem, output: Path):
                         f2 = f.with_suffix(ext)
                         if f2.is_file():
                             out = f2.relative_to(problem.path)
-                            # For Kattis, prepend the problem shortname to all files.
-                            if config.args.kattis:
-                                out = problem.name / out
-                            copyfiles.add((f2, out))
+                            add_file(out, f2)
+
+    # DOMjudge and Kattis do not support 2023-07-draft yet.
+    # TODO: Remove once they do.
+    from ruamel.yaml.comments import CommentedMap
+
+    yaml_path = export_dir / "problem.yaml"
+    yaml_data = read_yaml(yaml_path)
+    # drop format version -> legacy
+    if "problem_format_version" in yaml_data:
+        ryaml_filter(yaml_data, "problem_format_version")
+    # type -> validation
+    if "type" in yaml_data:
+        ryaml_filter(yaml_data, "type")
+    validation = []
+    if problem.custom_output:
+        validation.append("custom")
+        if problem.interactive:
+            validation.append("interactive")
+        if problem.multi_pass:
+            validation.append("multi-pass")
+    else:
+        validation.append("default")
+    yaml_data["validation"] = " ".join(validation)
+    # credits -> author
+    if "credits" in yaml_data:
+        ryaml_filter(yaml_data, "credits")
+        if problem.settings.credits.authors:
+            yaml_data["author"] = ", ".join(p.name for p in problem.settings.credits.authors)
+    # change source:
+    if problem.settings.source:
+        if len(problem.settings.source) > 1:
+            util.warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
+        yaml_data["source"] = problem.settings.source[0].name
+        yaml_data["source_url"] = problem.settings.source[0].url
+    # limits.time_multipliers -> time_multiplier / time_safety_margin
+    if "limits" not in yaml_data or not yaml_data["limits"]:
+        yaml_data["limits"] = CommentedMap()
+    limits = yaml_data["limits"]
+    if "time_multipliers" in limits:
+        ryaml_filter(limits, "time_multipliers")
+    limits["time_multiplier"] = problem.limits.ac_to_time_limit
+    limits["time_safety_margin"] = problem.limits.time_limit_to_tle
+    # drop explicit timelimit for kattis:
+    if "time_limit" in limits:
+        # keep this for kattis even when "time_limit" is supported
+        ryaml_filter(limits, "time_limit")
+    # validator_flags
+    validator_flags = " ".join(
+        problem.get_testdata_yaml(
+            problem.path / "data",
+            "output_validator_args",
+            PrintBar("Getting validator_flags for legacy export"),
+        )
+    )
+    if validator_flags:
+        yaml_data["validator_flags"] = validator_flags
+    # write legacy style yaml
+    yaml_path.unlink()
+    write_yaml(yaml_data, yaml_path)
+
+    # DOMjudge does not support 'limits.time_limit' in problem.yaml yet.
+    # TODO: Remove this once it does.
+    if not config.args.kattis:
+        (export_dir / ".timelimit").write_text(str(problem.limits.time_limit))
+
+    # Replace \problemname{...} by the value of `name:` in problems.yaml in all .tex files.
+    # This is needed because Kattis is currently still running the legacy version of the problem spec,
+    # rather than 2023-07-draft.
+    for f in (export_dir / "statement").iterdir():
+        if f.is_file() and f.suffix == ".tex" and len(f.suffixes) >= 2:
+            lang = f.suffixes[-2][1:]
+            t = f.read_text()
+            match = re.search(r"\\problemname\{\s*(\\problemyamlname)?\s*\}", t)
+            if match:
+                if lang in problem.settings.name:
+                    t = t.replace(match[0], r"\problemname{" + problem.settings.name[lang] + "}")
+                    f.unlink()
+                    f.write_text(t)
+                else:
+                    util.error(f"{f}: no name set for language {lang}.")
+
+    # DOMjudge does not support constants.
+    # TODO: Remove this if it ever does.
+    if problem.settings.constants:
+        constants_supported = [
+            "data/**/testdata.yaml",
+            "output_validator/**/*",
+            "input_validators/**/*",
+            # "statement/*", uses \constants
+            # "submissions/*/**/*", removed support?
+        ]
+        for pattern in constants_supported:
+            for f in export_dir.glob(pattern):
+                if f.is_file() and util.has_substitute(f, config.CONSTANT_SUBSTITUTE_REGEX):
+                    text = f.read_text()
+                    text = util.substitute(
+                        text,
+                        problem.settings.constants,
+                        pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+                        bar=util.PrintBar("Zip"),
+                    )
+                    f.unlink()
+                    f.write_text(text)
+
+    # TODO: Remove this if we know others use the output_validator dir
+    if (export_dir / "output_validator").exists():
+        (export_dir / "output_validators").mkdir(parents=True)
+        (export_dir / "output_validator").rename(
+            export_dir / "output_validators" / "output_validator"
+        )
+
+    # TODO: Remove this if we know others import the statement folder
+    if (export_dir / "statement").exists():
+        (export_dir / "statement").rename(export_dir / "problem_statement")
+    for d in ["solution", "problem_slide"]:
+        for f in list(util.glob(problem.path, f"{d}/*")):
+            if f.is_file():
+                out = Path("problem_statement") / f.relative_to(problem.path / d)
+                if out.exists():
+                    message(
+                        f"Can not export {f.relative_to(problem.path)} as {out}",
+                        "Zip",
+                        output,
+                        color_type=MessageType.WARN,
+                    )
+                else:
+                    add_file(out, f)
 
     # Build .ZIP file.
-    print("writing ZIP file:", output, file=sys.stderr)
-
-    revert_problem_name_cmd = fix_problem_name_cmd(problem)
-
+    message("writing zip file", "Zip", output, color_type=MessageType.LOG)
     try:
         zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
-        for source, target in sorted(copyfiles):
-            zf.write(source, target, compress_type=zipfile.ZIP_DEFLATED)
-        for target_file, content in sorted(write_file_strs):
-            zf.writestr(target_file, content, compress_type=zipfile.ZIP_DEFLATED)
+        export_dir = problem.tmpdir / "export"
+        for f in sorted(export_dir.rglob("*")):
+            # NOTE: Directories are skipped because ZIP only supports files.
+            if f.is_file():
+                name = f.relative_to(export_dir)
+                zf.write(f, name, compress_type=zipfile.ZIP_DEFLATED)
 
         # Done.
         zf.close()
-        print("done", file=sys.stderr)
+        message("done", "Zip", color_type=MessageType.LOG)
         print(file=sys.stderr)
-
-    finally:
-        revert_problem_name_cmd()
+    except Exception:
+        return False
 
     return True
 
@@ -272,6 +328,10 @@ def build_problem_zip(problem: Problem, output: Path):
 # solutions*.{lang}.pdf
 # Output is <outfile>
 def build_contest_zip(problems, zipfiles, outfile, statement_language):
+    if not has_ryaml:
+        error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
+        return
+
     print(f"writing ZIP file {outfile}", file=sys.stderr)
 
     if not config.args.kattis:  # Kattis does not use problems.yaml.

@@ -1,0 +1,6 @@
+problem_format_version: 2023-07-draft
+type: pass-fail
+name: 'ABC XYZ'
+uuid: 58c89b2d-616c-4291-ab8a-710b4e6cb978
+limits:
+  time_limit: 3.0
