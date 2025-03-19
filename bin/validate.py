@@ -380,10 +380,6 @@ class OutputValidator(Validator):
             assert testcase.out_path is not None
             path = testcase.out_path.resolve()
         elif mode == Mode.VALID_OUTPUT:
-            if testcase.root != "valid_output":
-                raise ValueError(
-                    "OutputValidator in Mode.VALID_OUTPUT should only be run for data/valid_output"
-                )
             assert testcase.out_path is not None
             path = testcase.out_path.resolve()
         else:
