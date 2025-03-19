@@ -457,7 +457,7 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
 
     if not path.exists():
         fatal(f"{path} not found during sanity check")
-        return
+
     with open(path, "rb") as file:
         name = {
             ".in": "Input",
@@ -465,14 +465,18 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
             ".out": "Output",
         }[path.suffix]
         file_bytes = file.read()
+
+        if problem.interactive and path.suffix == ".ans":
+            if len(file_bytes) != 0:
+                bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
+            return  # Since the .ans file MUST be empty, the other sanity checks can be skipped.
+
         if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
             bar.warn(f"{name} contains unexpected characters but was accepted!")
         elif len(file_bytes) == 0:
             bar.warn(f"{name} is empty but was accepted!")
         elif len(file_bytes) > 20_000_000:
             bar.warn(f"{name} is larger than 20MB!")
-        elif problem.interactive and path.suffix == ".ans" and len(file_bytes) != 0:
-            bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
         elif (
             path.suffix in [".ans", ".out"]
             and len(file_bytes) > problem.limits.output * 1024 * 1024
