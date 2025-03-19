@@ -162,7 +162,9 @@ def build_problem_zip(problem: Problem, output: Path):
                 add_file(out, f)
 
     def add_testcase(in_file: Path):
-        basename = util.drop_suffix(in_file, [".in", ".in.statement", ".interaction"])
+        basename = util.drop_suffix(
+            in_file, [".in", ".in.statement", ".in.download", ".interaction"]
+        )
         for ext in config.KNOWN_DATA_EXTENSIONS:
             f = basename.with_suffix(ext)
             if f.is_file():
