@@ -711,7 +711,12 @@ class Problem:
                 warn("Numbering for statement and download could be inconsistent!")
                 continue
 
-            if in_found[0] == ".in" and ans_found[0] == ".ans":
+            if (
+                not name.with_suffix(".interaction").is_file()
+                and ans_found[0] == ".ans"
+                and name.with_suffix(in_found[0]).stat().st_size > 0
+                and name.with_suffix(ans_found[0]).stat().st_size > 0
+            ):
                 has_raw = True
 
             # fall back is pair of files
@@ -719,7 +724,7 @@ class Problem:
 
         if has_raw and not p.settings.ans_is_output:
             warn(
-                "It is advised to overwrite .in and .ans for samples if .ans does not represent a valid output"
+                "It is advised to overwrite .ans for samples if it does not represent a valid output.\nUse .ans.statement or .out for this."
             )
 
         testcases.sort()
