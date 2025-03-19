@@ -660,7 +660,7 @@ class Problem:
 
         Returns:
         --------
-        A list of testcases represented either by there .interaction file or an in and ans file
+        A list of testcases represented either by their .interaction file or an in and ans file
         """
 
         base_names: set[Path] = set()

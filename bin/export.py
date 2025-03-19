@@ -33,7 +33,7 @@ def remove_language_suffix(fname, statement_language):
     return out
 
 
-def build_samples_zip(problems, output, statement_language):
+def build_samples_zip(problems: list[Problem], output: Path, statement_language: str):
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
     # Do not include contest PDF for kattis.
@@ -47,6 +47,9 @@ def build_samples_zip(problems, output, statement_language):
                 )
 
     for problem in problems:
+        if not problem.label:
+            fatal(f"Cannot create samples zip: Problem {problem.name} does not have a label!")
+
         outputdir = Path(problem.label)
 
         attachments_dir = problem.path / "attachments"
@@ -56,7 +59,15 @@ def build_samples_zip(problems, output, statement_language):
             )
             continue
 
-        empty = True
+        contents: dict[Path, Path] = {}  # Maps desination to source, to allow checking duplicates.
+
+        # Add samples.
+        samples = problem.download_samples()
+        for i, (in_file, ans_file) in enumerate(samples):
+            basename = outputdir / str(i + 1)
+            contents[basename.with_suffix(".in")] = in_file
+            if ans_file.stat().st_size > 0:
+                contents[basename.with_suffix(".ans")] = ans_file
 
         # Add attachments if they exist.
         if attachments_dir.is_dir():
@@ -64,21 +75,23 @@ def build_samples_zip(problems, output, statement_language):
                 if f.is_dir():
                     util.error(f"{f} directory attachments are not yet supported.")
                 elif f.is_file() and f.exists():
-                    zf.write(f, outputdir / f.name)
-                    empty = False
+                    destination = outputdir / f.name
+                    if destination in contents:
+                        util.error(
+                            f"Cannot overwrite {destination} from attachments/"
+                            + f" (sourced from {contents[destination]})."
+                            + "\n\tDo not include samples in attachments/,"
+                            + " use .{in,ans}.statement or .{in,ans}.download instead."
+                        )
+                    else:
+                        contents[destination] = f
                 else:
                     util.error(f"Cannot include broken file {f}.")
 
-        # Add samples
-        samples = problem.download_samples()
-        for i, files in enumerate(samples):
-            basename = outputdir / str(i + 1)
-            zf.write(files[0], basename.with_suffix(".in"))
-            if files[1].stat().st_size > 0:
-                zf.write(files[1], basename.with_suffix(".ans"))
-            empty = False
-
-        if empty:
+        if contents:
+            for destination, source in contents.items():
+                zf.write(source, destination)
+        else:
             util.error(f"No attachments or samples found for problem {problem.name}.")
 
     zf.close()
