@@ -236,7 +236,6 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                 )
             case validate.Mode.VALID_OUTPUT:
-                assert self.root == "valid_output"
                 assert not self.problem.interactive
                 assert not self.problem.multi_pass
 
