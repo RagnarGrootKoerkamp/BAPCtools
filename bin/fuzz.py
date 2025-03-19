@@ -52,8 +52,8 @@ class GeneratorTask:
         infile = cwd / (name + ".in")
         ansfile = cwd / (name + ".ans")
 
-        localbar = bar.start(f"{self.i}: {self.command}")
-        localbar.log()
+        # The extra newline at the end is to ensure this line stays visible.
+        localbar = bar.start(f"{self.i}: {self.command}\n")
         localbar.done()
 
         localbar = bar.start(f"{self.i}: generate")
