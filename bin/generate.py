@@ -507,9 +507,11 @@ class TestcaseRule(Rule):
                         yaml = {"copy": yaml["generate"][:-3]}
 
                 # checks
-                if not any(x in yaml for x in ["generate", "copy", "in", "interaction"]):
+                if not any(
+                    x in yaml for x in ["generate", "copy", "in", "in.statement", "interaction"]
+                ):
                     raise ParseException(
-                        'Testcase requires at least one key in "generate", "copy", "in", "interaction".'
+                        'Testcase requires at least one key in "generate", "copy", "in", "in.statement", "interaction".'
                     )
                 if "submission" in yaml and "ans" in yaml:
                     raise ParseException('Testcase cannot specify both "submissions" and "ans".')
@@ -608,11 +610,6 @@ class TestcaseRule(Rule):
                             color_type=MessageType.LOG,
                         )
 
-            if ".in" not in hashes:
-                generator_config.n_parse_error += 1
-                # An error is shown during generate.
-                return
-
             # build ordered list of hashes we want to consider
             hs = list(hashes.values())
 
@@ -626,10 +623,15 @@ class TestcaseRule(Rule):
                 self.copy_of = generator_config.rules_cache[self.hash]
             else:
                 generator_config.rules_cache[self.hash] = self
+
         except ParseException as e:
             # For testcases we can handle the parse error locally since this does not influence much else
             self.parse_error = e.message
             generator_config.n_parse_error += 1
+
+        if ".in" not in hashes and ".in.statement" not in hashes:
+            generator_config.n_parse_error += 1
+            # An error is shown during generate.
 
     def link(t, problem, generator_config, bar, dst):
         src_dir = problem.path / "data" / t.path.parent
@@ -1158,7 +1160,8 @@ class TestcaseRule(Rule):
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
         t.generate_success = True
-        add_testdata_to_cache()
+        if infile.is_file():
+            add_testdata_to_cache()
         if config.args.action != "generate":
             bar.logged = True  # Disable redundant 'up to date' message in run mode.
         bar.done(message="SKIPPED: up to date")
