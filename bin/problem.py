@@ -724,7 +724,8 @@ class Problem:
 
         if has_raw and not p.settings.ans_is_output:
             warn(
-                "It is advised to overwrite .ans for samples if it does not represent a valid output.\nUse .ans.statement or .out for this."
+                "It is advised to overwrite .ans for samples if it does not represent a valid output."
+                + "\n\tUse .ans.statement or .out for this."
             )
 
         testcases.sort()
