@@ -180,88 +180,16 @@ def build_problem_zip(problem: Problem, output: Path):
             else:
                 util.warn(f"No answer file found for {f}, skipping.")
 
-    # DOMjudge and Kattis do not support 2023-07-draft yet.
-    # TODO: Remove once they do.
-    from ruamel.yaml.comments import CommentedMap
+    # drop explicit timelimit for kattis
+    if config.args.kattis:
+        yaml_path = export_dir / "problem.yaml"
+        yaml_data = read_yaml(yaml_path)
+        if "limits" in yaml_data and "time_limit" in yaml_data["limits"]:
+            ryaml_filter(yaml_data["limits"], "time_limit")
+            yaml_path.unlink()
+            write_yaml(yaml_data, yaml_path)
 
-    yaml_path = export_dir / "problem.yaml"
-    yaml_data = read_yaml(yaml_path)
-    # drop format version -> legacy
-    if "problem_format_version" in yaml_data:
-        ryaml_filter(yaml_data, "problem_format_version")
-    # type -> validation
-    if "type" in yaml_data:
-        ryaml_filter(yaml_data, "type")
-    validation = []
-    if problem.custom_output:
-        validation.append("custom")
-        if problem.interactive:
-            validation.append("interactive")
-        if problem.multi_pass:
-            validation.append("multi-pass")
-    else:
-        validation.append("default")
-    yaml_data["validation"] = " ".join(validation)
-    # credits -> author
-    if "credits" in yaml_data:
-        ryaml_filter(yaml_data, "credits")
-        if problem.settings.credits.authors:
-            yaml_data["author"] = ", ".join(p.name for p in problem.settings.credits.authors)
-    # change source:
-    if problem.settings.source:
-        if len(problem.settings.source) > 1:
-            util.warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
-        yaml_data["source"] = problem.settings.source[0].name
-        yaml_data["source_url"] = problem.settings.source[0].url
-    # limits.time_multipliers -> time_multiplier / time_safety_margin
-    if "limits" not in yaml_data or not yaml_data["limits"]:
-        yaml_data["limits"] = CommentedMap()
-    limits = yaml_data["limits"]
-    if "time_multipliers" in limits:
-        ryaml_filter(limits, "time_multipliers")
-    limits["time_multiplier"] = problem.limits.ac_to_time_limit
-    limits["time_safety_margin"] = problem.limits.time_limit_to_tle
-    # drop explicit timelimit for kattis:
-    if "time_limit" in limits:
-        # keep this for kattis even when "time_limit" is supported
-        ryaml_filter(limits, "time_limit")
-    # validator_flags
-    validator_flags = " ".join(
-        problem.get_testdata_yaml(
-            problem.path / "data",
-            "output_validator_args",
-            PrintBar("Getting validator_flags for legacy export"),
-        )
-    )
-    if validator_flags:
-        yaml_data["validator_flags"] = validator_flags
-    # write legacy style yaml
-    yaml_path.unlink()
-    write_yaml(yaml_data, yaml_path)
-
-    # DOMjudge does not support 'limits.time_limit' in problem.yaml yet.
-    # TODO: Remove this once it does.
-    if not config.args.kattis:
-        (export_dir / ".timelimit").write_text(str(problem.limits.time_limit))
-
-    # Replace \problemname{...} by the value of `name:` in problems.yaml in all .tex files.
-    # This is needed because Kattis is currently still running the legacy version of the problem spec,
-    # rather than 2023-07-draft.
-    for f in (export_dir / "statement").iterdir():
-        if f.is_file() and f.suffix == ".tex" and len(f.suffixes) >= 2:
-            lang = f.suffixes[-2][1:]
-            t = f.read_text()
-            match = re.search(r"\\problemname\{\s*(\\problemyamlname)?\s*\}", t)
-            if match:
-                if lang in problem.settings.name:
-                    t = t.replace(match[0], r"\problemname{" + problem.settings.name[lang] + "}")
-                    f.unlink()
-                    f.write_text(t)
-                else:
-                    util.error(f"{f}: no name set for language {lang}.")
-
-    # DOMjudge does not support constants.
-    # TODO: Remove this if it ever does.
+    # substitute constants.
     if problem.settings.constants:
         constants_supported = [
             "data/**/testdata.yaml",
@@ -283,29 +211,106 @@ def build_problem_zip(problem: Problem, output: Path):
                     f.unlink()
                     f.write_text(text)
 
-    # TODO: Remove this if we know others use the output_validator dir
-    if (export_dir / "output_validator").exists():
-        (export_dir / "output_validators").mkdir(parents=True)
-        (export_dir / "output_validator").rename(
-            export_dir / "output_validators" / "output_validator"
-        )
+    # downgrade some parts of the problem to be more legacy like
+    if config.args.legacy:
+        from ruamel.yaml.comments import CommentedMap
 
-    # TODO: Remove this if we know others import the statement folder
-    if (export_dir / "statement").exists():
-        (export_dir / "statement").rename(export_dir / "problem_statement")
-    for d in ["solution", "problem_slide"]:
-        for f in list(util.glob(problem.path, f"{d}/*")):
-            if f.is_file():
-                out = Path("problem_statement") / f.relative_to(problem.path / d)
-                if out.exists():
-                    message(
-                        f"Can not export {f.relative_to(problem.path)} as {out}",
-                        "Zip",
-                        output,
-                        color_type=MessageType.WARN,
-                    )
-                else:
-                    add_file(out, f)
+        # handle problem.yaml
+        yaml_path = export_dir / "problem.yaml"
+        yaml_data = read_yaml(yaml_path)
+        # drop format version -> legacy
+        if "problem_format_version" in yaml_data:
+            ryaml_filter(yaml_data, "problem_format_version")
+        # type -> validation
+        if "type" in yaml_data:
+            ryaml_filter(yaml_data, "type")
+        validation = []
+        if problem.custom_output:
+            validation.append("custom")
+            if problem.interactive:
+                validation.append("interactive")
+            if problem.multi_pass:
+                validation.append("multi-pass")
+        else:
+            validation.append("default")
+        yaml_data["validation"] = " ".join(validation)
+        # credits -> author
+        if "credits" in yaml_data:
+            ryaml_filter(yaml_data, "credits")
+            if problem.settings.credits.authors:
+                yaml_data["author"] = ", ".join(p.name for p in problem.settings.credits.authors)
+        # change source:
+        if problem.settings.source:
+            if len(problem.settings.source) > 1:
+                util.warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
+            yaml_data["source"] = problem.settings.source[0].name
+            yaml_data["source_url"] = problem.settings.source[0].url
+        # limits.time_multipliers -> time_multiplier / time_safety_margin
+        if "limits" not in yaml_data or not yaml_data["limits"]:
+            yaml_data["limits"] = CommentedMap()
+        limits = yaml_data["limits"]
+        if "time_multipliers" in limits:
+            ryaml_filter(limits, "time_multipliers")
+        limits["time_multiplier"] = problem.limits.ac_to_time_limit
+        limits["time_safety_margin"] = problem.limits.time_limit_to_tle
+        # drop explicit timelimit
+        if "time_limit" in limits:
+            ryaml_filter(limits, "time_limit")
+        # validator_flags
+        validator_flags = " ".join(
+            problem.get_testdata_yaml(
+                problem.path / "data",
+                "output_validator_args",
+                PrintBar("Getting validator_flags for legacy export"),
+            )
+        )
+        if validator_flags:
+            yaml_data["validator_flags"] = validator_flags
+        # write legacy style yaml
+        yaml_path.unlink()
+        write_yaml(yaml_data, yaml_path)
+
+        # handle time limit
+        if not config.args.kattis:
+            (export_dir / ".timelimit").write_text(str(problem.limits.time_limit))
+
+        # Replace \problemname{...} by the value of `name:` in problems.yaml in all .tex files.
+        for f in (export_dir / "statement").iterdir():
+            if f.is_file() and f.suffix == ".tex" and len(f.suffixes) >= 2:
+                lang = f.suffixes[-2][1:]
+                t = f.read_text()
+                match = re.search(r"\\problemname\{\s*(\\problemyamlname)?\s*\}", t)
+                if match:
+                    if lang in problem.settings.name:
+                        t = t.replace(match[0], rf"\problemname{{{problem.settings.name[lang]}}}")
+                        f.unlink()
+                        f.write_text(t)
+                    else:
+                        util.error(f"{f}: no name set for language {lang}.")
+
+        # rename output_validator dir
+        if (export_dir / "output_validator").exists():
+            (export_dir / "output_validators").mkdir(parents=True)
+            (export_dir / "output_validator").rename(
+                export_dir / "output_validators" / "output_validator"
+            )
+
+        # rename statement dirs
+        if (export_dir / "statement").exists():
+            (export_dir / "statement").rename(export_dir / "problem_statement")
+        for d in ["solution", "problem_slide"]:
+            for f in list(util.glob(problem.path, f"{d}/*")):
+                if f.is_file():
+                    out = Path("problem_statement") / f.relative_to(problem.path / d)
+                    if out.exists():
+                        message(
+                            f"Can not export {f.relative_to(problem.path)} as {out}",
+                            "Zip",
+                            output,
+                            color_type=MessageType.WARN,
+                        )
+                    else:
+                        add_file(out, f)
 
     # Build .ZIP file.
     message("writing zip file", "Zip", output, color_type=MessageType.LOG)
