@@ -33,7 +33,7 @@ def remove_language_suffix(fname, statement_language):
     return out
 
 
-def build_samples_zip(problems, output, statement_language):
+def build_samples_zip(problems: list[Problem], output: Path, statement_language: str):
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
     # Do not include contest PDF for kattis.
@@ -47,18 +47,27 @@ def build_samples_zip(problems, output, statement_language):
                 )
 
     for problem in problems:
+        if not problem.label:
+            fatal(f"Cannot create samples zip: Problem {problem.name} does not have a label!")
+
         outputdir = Path(problem.label)
 
         attachments_dir = problem.path / "attachments"
         if (problem.interactive or problem.multi_pass) and not attachments_dir.is_dir():
-            interactive = "interactive " if problem.interactive else ""
-            multi_pass = "multi-pass " if problem.multi_pass else ""
             util.error(
-                f"{interactive}{multi_pass}problem {problem.name} does not have an attachments/ directory."
+                f"{problem.settings.type_name()} problem {problem.name} does not have an attachments/ directory."
             )
             continue
 
-        empty = True
+        contents: dict[Path, Path] = {}  # Maps desination to source, to allow checking duplicates.
+
+        # Add samples.
+        samples = problem.download_samples()
+        for i, (in_file, ans_file) in enumerate(samples):
+            base_name = outputdir / str(i + 1)
+            contents[base_name.with_suffix(".in")] = in_file
+            if ans_file.stat().st_size > 0:
+                contents[base_name.with_suffix(".ans")] = ans_file
 
         # Add attachments if they exist.
         if attachments_dir.is_dir():
@@ -66,23 +75,23 @@ def build_samples_zip(problems, output, statement_language):
                 if f.is_dir():
                     util.error(f"{f} directory attachments are not yet supported.")
                 elif f.is_file() and f.exists():
-                    zf.write(f, outputdir / f.name)
-                    empty = False
+                    destination = outputdir / f.name
+                    if destination in contents:
+                        util.error(
+                            f"Cannot overwrite {destination} from attachments/"
+                            + f" (sourced from {contents[destination]})."
+                            + "\n\tDo not include samples in attachments/,"
+                            + " use .{in,ans}.statement or .{in,ans}.download instead."
+                        )
+                    else:
+                        contents[destination] = f
                 else:
                     util.error(f"Cannot include broken file {f}.")
 
-        # Add samples for non-interactive and non-multi-pass problems.
-        if not problem.interactive and not problem.multi_pass:
-            samples = problem.testcases(only_samples=True)
-            if samples:
-                for i in range(0, len(samples)):
-                    sample = samples[i]
-                    basename = outputdir / str(i + 1)
-                    zf.write(sample.in_path, basename.with_suffix(".in"))
-                    zf.write(sample.ans_path, basename.with_suffix(".ans"))
-                    empty = False
-
-        if empty:
+        if contents:
+            for destination, source in contents.items():
+                zf.write(source, destination)
+        else:
             util.error(f"No attachments or samples found for problem {problem.name}.")
 
     zf.close()
@@ -107,22 +116,8 @@ def build_problem_zip(problem: Problem, output: Path):
         ("attachments/**/*", problem.interactive or problem.multi_pass),
     ]
 
-    testcases = [
-        ("data/secret/**/*.in", True),
-        ("data/sample/**/*.in", not problem.interactive and not problem.multi_pass),
-    ]
-
-    if problem.interactive or problem.multi_pass:
-        # .interaction files don't need a corresponding .in
-        # therefore we can handle them like all other files
-        files += [("data/sample/**/*.interaction", False)]
-
     if not config.args.kattis:
-        files += [
-            (f"problem.{statement_language}.pdf", True),
-            ("data/sample/**/*.in.statement", False),
-            ("data/sample/**/*.ans.statement", False),
-        ]
+        files.append((f"problem.{statement_language}.pdf", True))
 
     if problem.custom_output:
         files.append(("output_validator/**/*", True))
@@ -141,7 +136,7 @@ def build_problem_zip(problem: Problem, output: Path):
         export_dir /= problem.name
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    def add_file(path, source):
+    def add_file(path: Path, source: Path):
         path = export_dir / path
         path.parent.mkdir(parents=True, exist_ok=True)
         ensure_symlink(path, source)
@@ -158,104 +153,43 @@ def build_problem_zip(problem: Problem, output: Path):
                 out = remove_language_suffix(out, statement_language)
                 add_file(out, f)
 
-    # Include all testcases (specified by a .in file) and copy all related files
-    for pattern, required in testcases:
-        paths = list(util.glob(problem.path, pattern))
-        if required and len(paths) == 0:
-            util.error(f"No matches for required path {pattern}.")
-        for f in paths:
+    def add_testcase(in_file: Path):
+        base_name = util.drop_suffix(in_file, [".in", ".in.statement", ".in.download"])
+        for ext in config.KNOWN_DATA_EXTENSIONS:
+            f = base_name.with_suffix(ext)
             if f.is_file():
-                if not f.with_suffix(".ans").is_file():
-                    util.warn(f"No answer file found for {f}, skipping.")
-                else:
-                    for ext in config.KNOWN_DATA_EXTENSIONS:
-                        f2 = f.with_suffix(ext)
-                        if f2.is_file():
-                            out = f2.relative_to(problem.path)
-                            add_file(out, f2)
+                out = f.relative_to(problem.path)
+                add_file(out, f)
 
-    # DOMjudge and Kattis do not support 2023-07-draft yet.
-    # TODO: Remove once they do.
-    from ruamel.yaml.comments import CommentedMap
+    # Include all sample test cases and copy all related files.
+    samples = problem.download_samples()
+    if len(samples) == 0:
+        util.error("No samples found.")
+    for in_file, _ in samples:
+        add_testcase(in_file)
 
-    yaml_path = export_dir / "problem.yaml"
-    yaml_data = read_yaml(yaml_path)
-    # drop format version -> legacy
-    if "problem_format_version" in yaml_data:
-        ryaml_filter(yaml_data, "problem_format_version")
-    # type -> validation
-    if "type" in yaml_data:
-        ryaml_filter(yaml_data, "type")
-    validation = []
-    if problem.custom_output:
-        validation.append("custom")
-        if problem.interactive:
-            validation.append("interactive")
-        if problem.multi_pass:
-            validation.append("multi-pass")
-    else:
-        validation.append("default")
-    yaml_data["validation"] = " ".join(validation)
-    # credits -> author
-    if "credits" in yaml_data:
-        ryaml_filter(yaml_data, "credits")
-        if problem.settings.credits.authors:
-            yaml_data["author"] = ", ".join(p.name for p in problem.settings.credits.authors)
-    # change source:
-    if problem.settings.source:
-        if len(problem.settings.source) > 1:
-            util.warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
-        yaml_data["source"] = problem.settings.source[0].name
-        yaml_data["source_url"] = problem.settings.source[0].url
-    # limits.time_multipliers -> time_multiplier / time_safety_margin
-    if "limits" not in yaml_data or not yaml_data["limits"]:
-        yaml_data["limits"] = CommentedMap()
-    limits = yaml_data["limits"]
-    if "time_multipliers" in limits:
-        ryaml_filter(limits, "time_multipliers")
-    limits["time_multiplier"] = problem.limits.ac_to_time_limit
-    limits["time_safety_margin"] = problem.limits.time_limit_to_tle
-    # drop explicit timelimit for kattis:
-    if "time_limit" in limits:
-        # keep this for kattis even when "time_limit" is supported
-        ryaml_filter(limits, "time_limit")
-    # validator_flags
-    validator_flags = " ".join(
-        problem.get_testdata_yaml(
-            problem.path / "data",
-            "output_validator_args",
-            PrintBar("Getting validator_flags for legacy export"),
-        )
-    )
-    if validator_flags:
-        yaml_data["validator_flags"] = validator_flags
-    # write legacy style yaml
-    yaml_path.unlink()
-    write_yaml(yaml_data, yaml_path)
+    # Include all secret test cases and copy all related files.
+    pattern = "data/secret/**/*.in"
+    paths = util.glob(problem.path, pattern)
+    if len(paths) == 0:
+        util.error(f"No secret test cases found in {pattern}.")
+    for f in paths:
+        if f.is_file():
+            if f.with_suffix(".ans").is_file():
+                add_testcase(f)
+            else:
+                util.warn(f"No answer file found for {f}, skipping.")
 
-    # DOMjudge does not support 'limits.time_limit' in problem.yaml yet.
-    # TODO: Remove this once it does.
-    if not config.args.kattis:
-        (export_dir / ".timelimit").write_text(str(problem.limits.time_limit))
+    # drop explicit timelimit for kattis
+    if config.args.kattis:
+        yaml_path = export_dir / "problem.yaml"
+        yaml_data = read_yaml(yaml_path)
+        if "limits" in yaml_data and "time_limit" in yaml_data["limits"]:
+            ryaml_filter(yaml_data["limits"], "time_limit")
+            yaml_path.unlink()
+            write_yaml(yaml_data, yaml_path)
 
-    # Replace \problemname{...} by the value of `name:` in problems.yaml in all .tex files.
-    # This is needed because Kattis is currently still running the legacy version of the problem spec,
-    # rather than 2023-07-draft.
-    for f in (export_dir / "statement").iterdir():
-        if f.is_file() and f.suffix == ".tex" and len(f.suffixes) >= 2:
-            lang = f.suffixes[-2][1:]
-            t = f.read_text()
-            match = re.search(r"\\problemname\{\s*(\\problemyamlname)?\s*\}", t)
-            if match:
-                if lang in problem.settings.name:
-                    t = t.replace(match[0], r"\problemname{" + problem.settings.name[lang] + "}")
-                    f.unlink()
-                    f.write_text(t)
-                else:
-                    util.error(f"{f}: no name set for language {lang}.")
-
-    # DOMjudge does not support constants.
-    # TODO: Remove this if it ever does.
+    # substitute constants.
     if problem.settings.constants:
         constants_supported = [
             "data/**/testdata.yaml",
@@ -277,29 +211,106 @@ def build_problem_zip(problem: Problem, output: Path):
                     f.unlink()
                     f.write_text(text)
 
-    # TODO: Remove this if we know others use the output_validator dir
-    if (export_dir / "output_validator").exists():
-        (export_dir / "output_validators").mkdir(parents=True)
-        (export_dir / "output_validator").rename(
-            export_dir / "output_validators" / "output_validator"
-        )
+    # downgrade some parts of the problem to be more legacy like
+    if config.args.legacy:
+        from ruamel.yaml.comments import CommentedMap
 
-    # TODO: Remove this if we know others import the statement folder
-    if (export_dir / "statement").exists():
-        (export_dir / "statement").rename(export_dir / "problem_statement")
-    for d in ["solution", "problem_slide"]:
-        for f in list(util.glob(problem.path, f"{d}/*")):
-            if f.is_file():
-                out = Path("problem_statement") / f.relative_to(problem.path / d)
-                if out.exists():
-                    message(
-                        f"Can not export {f.relative_to(problem.path)} as {out}",
-                        "Zip",
-                        output,
-                        color_type=MessageType.WARN,
-                    )
-                else:
-                    add_file(out, f)
+        # handle problem.yaml
+        yaml_path = export_dir / "problem.yaml"
+        yaml_data = read_yaml(yaml_path)
+        # drop format version -> legacy
+        if "problem_format_version" in yaml_data:
+            ryaml_filter(yaml_data, "problem_format_version")
+        # type -> validation
+        if "type" in yaml_data:
+            ryaml_filter(yaml_data, "type")
+        validation = []
+        if problem.custom_output:
+            validation.append("custom")
+            if problem.interactive:
+                validation.append("interactive")
+            if problem.multi_pass:
+                validation.append("multi-pass")
+        else:
+            validation.append("default")
+        yaml_data["validation"] = " ".join(validation)
+        # credits -> author
+        if "credits" in yaml_data:
+            ryaml_filter(yaml_data, "credits")
+            if problem.settings.credits.authors:
+                yaml_data["author"] = ", ".join(p.name for p in problem.settings.credits.authors)
+        # change source:
+        if problem.settings.source:
+            if len(problem.settings.source) > 1:
+                util.warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
+            yaml_data["source"] = problem.settings.source[0].name
+            yaml_data["source_url"] = problem.settings.source[0].url
+        # limits.time_multipliers -> time_multiplier / time_safety_margin
+        if "limits" not in yaml_data or not yaml_data["limits"]:
+            yaml_data["limits"] = CommentedMap()
+        limits = yaml_data["limits"]
+        if "time_multipliers" in limits:
+            ryaml_filter(limits, "time_multipliers")
+        limits["time_multiplier"] = problem.limits.ac_to_time_limit
+        limits["time_safety_margin"] = problem.limits.time_limit_to_tle
+        # drop explicit timelimit
+        if "time_limit" in limits:
+            ryaml_filter(limits, "time_limit")
+        # validator_flags
+        validator_flags = " ".join(
+            problem.get_testdata_yaml(
+                problem.path / "data",
+                "output_validator_args",
+                PrintBar("Getting validator_flags for legacy export"),
+            )
+        )
+        if validator_flags:
+            yaml_data["validator_flags"] = validator_flags
+        # write legacy style yaml
+        yaml_path.unlink()
+        write_yaml(yaml_data, yaml_path)
+
+        # handle time limit
+        if not config.args.kattis:
+            (export_dir / ".timelimit").write_text(str(problem.limits.time_limit))
+
+        # Replace \problemname{...} by the value of `name:` in problems.yaml in all .tex files.
+        for f in (export_dir / "statement").iterdir():
+            if f.is_file() and f.suffix == ".tex" and len(f.suffixes) >= 2:
+                lang = f.suffixes[-2][1:]
+                t = f.read_text()
+                match = re.search(r"\\problemname\{\s*(\\problemyamlname)?\s*\}", t)
+                if match:
+                    if lang in problem.settings.name:
+                        t = t.replace(match[0], rf"\problemname{{{problem.settings.name[lang]}}}")
+                        f.unlink()
+                        f.write_text(t)
+                    else:
+                        util.error(f"{f}: no name set for language {lang}.")
+
+        # rename output_validator dir
+        if (export_dir / "output_validator").exists():
+            (export_dir / "output_validators").mkdir(parents=True)
+            (export_dir / "output_validator").rename(
+                export_dir / "output_validators" / "output_validator"
+            )
+
+        # rename statement dirs
+        if (export_dir / "statement").exists():
+            (export_dir / "statement").rename(export_dir / "problem_statement")
+        for d in ["solution", "problem_slide"]:
+            for f in list(util.glob(problem.path, f"{d}/*")):
+                if f.is_file():
+                    out = Path("problem_statement") / f.relative_to(problem.path / d)
+                    if out.exists():
+                        message(
+                            f"Can not export {f.relative_to(problem.path)} as {out}",
+                            "Zip",
+                            output,
+                            color_type=MessageType.WARN,
+                        )
+                    else:
+                        add_file(out, f)
 
     # Build .ZIP file.
     message("writing zip file", "Zip", output, color_type=MessageType.LOG)

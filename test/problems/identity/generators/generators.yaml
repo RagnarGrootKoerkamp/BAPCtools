@@ -67,6 +67,13 @@ data:
         copy: manual/sample
       "4":
         copy: manual/inans
+      "5":
+        in: "5"
+        ans: "5"
+        out: "5"
+      "6":
+        in.statement: "6"
+        ans.statement: "6"
 
   secret:
     data:

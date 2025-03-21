@@ -2,10 +2,13 @@ import re
 from util import *
 from enum import Enum
 from collections.abc import Sequence
-from typing import Final
+from typing import Final, TYPE_CHECKING
 
 import program
 import testcase
+
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    import run
 
 
 class Mode(Enum):
@@ -205,9 +208,9 @@ class Validator(program.Program):
     def run(
         self,
         testcase: testcase.Testcase,
-        mode,
+        mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         raise Exception("Abstract method")
 
@@ -230,10 +233,10 @@ class InputValidator(Validator):
 
     def run(
         self,
-        testcase,
-        mode=Mode.INPUT,
+        testcase: testcase.Testcase,
+        mode: Mode = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         """
         Arguments
@@ -274,7 +277,7 @@ class InputValidator(Validator):
 
 class AnswerValidator(Validator):
     """
-    Validate the default answer file (such as "testcase.ans"), called as:
+    Validate the default answer file "testcase.ans" (or "testcase.out" if it exists), called as:
 
         ./validator input < answer.
 
@@ -290,10 +293,10 @@ class AnswerValidator(Validator):
 
     def run(
         self,
-        testcase,
-        mode=Mode.ANSWER,
+        testcase: testcase.Testcase,
+        mode: Mode = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         assert self.run_command is not None, "Validator should be built before running it"
 
@@ -341,10 +344,10 @@ class OutputValidator(Validator):
 
     def run(
         self,
-        testcase,  # TODO #102: fix type errors after setting type to Testcase
-        mode,  # TODO #102: fix type errors after setting type to Mode | run.Run
+        testcase: testcase.Testcase,
+        mode: "Mode | run.Run",
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         """
         Run this validator on the given testcase.
@@ -374,12 +377,10 @@ class OutputValidator(Validator):
                 raise ValueError(
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_output"
                 )
+            assert testcase.out_path is not None
             path = testcase.out_path.resolve()
         elif mode == Mode.VALID_OUTPUT:
-            if testcase.root != "valid_output":
-                raise ValueError(
-                    "OutputValidator in Mode.VALID_OUTPUT should only be run for data/valid_output"
-                )
+            assert testcase.out_path is not None
             path = testcase.out_path.resolve()
         else:
             assert mode != Mode.INPUT
@@ -456,7 +457,7 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
 
     if not path.exists():
         fatal(f"{path} not found during sanity check")
-        return
+
     with open(path, "rb") as file:
         name = {
             ".in": "Input",
@@ -464,6 +465,12 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
             ".out": "Output",
         }[path.suffix]
         file_bytes = file.read()
+
+        if problem.interactive and path.suffix == ".ans":
+            if len(file_bytes) != 0:
+                bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
+            return  # Since the .ans file MUST be empty, the other sanity checks can be skipped.
+
         if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
             bar.warn(f"{name} contains unexpected characters but was accepted!")
         elif len(file_bytes) == 0:
@@ -477,6 +484,11 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
             bar.warn(
                 f"{name} exceeds output limit (set limits->output to at least {(len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
             )
+        elif (
+            path.suffix in [".ans", ".out"]
+            and 2 * len(file_bytes) > problem.limits.output * 1024 * 1024
+        ):
+            bar.warn(f"{name} is close to output limit")
         elif strict_whitespace:
             if file_bytes[0] in [ord(" "), ord("\n")]:
                 bar.warn(f"{name} starts with whitespace but was accepted!")
