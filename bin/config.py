@@ -61,15 +61,19 @@ KNOWN_VISUALIZER_EXTENSIONS: Final[Sequence[str]] = [
     ".pdf",
 ]
 
-KNOWN_TEXT_DATA_EXTENSIONS: Final[Sequence[str]] = [
-    *KNOWN_TESTCASE_EXTENSIONS,
-    ".interaction",
-    ".hint",
-    ".desc",
+KNOWN_SAMPLE_TESTCASE_EXTENSIONS: Final[Sequence[str]] = [
     ".in.statement",
     ".ans.statement",
     ".in.download",
     ".ans.download",
+]
+
+KNOWN_TEXT_DATA_EXTENSIONS: Final[Sequence[str]] = [
+    *KNOWN_TESTCASE_EXTENSIONS,
+    *KNOWN_SAMPLE_TESTCASE_EXTENSIONS,
+    ".interaction",
+    ".hint",
+    ".desc",
     #'.args',
 ]
 

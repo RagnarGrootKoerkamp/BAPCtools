@@ -7,7 +7,7 @@ import secrets
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Final, overload
+from typing import Final, Optional, overload
 
 import config
 import parallel
@@ -434,23 +434,18 @@ class TestcaseRule(Rule):
         assert is_testcase(yaml)
 
         # if not None rule will be skipped during generation
-        self.parse_error = None
+        self.parse_error: Optional[str] = None
 
         # Whether this testcase is a sample.
-        self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
-        self.required_in = (
-            (
-                # Samples for interactive/multi-pass problems require either .in, or .in.statement,
-                # or both .in.download and .interaction
-                [".in", ".in.statement", [".in.download", ".interaction"]]
-                if problem.interactive or problem.multi_pass
-                # Samples for "normal" problems require either .in, or .in.statement
-                else [".in", ".in.statement"]
-            )
-            if self.sample
-            # Other test cases require only .in
-            else [".in"]
-        )
+        self.sample: bool = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
+        # each test case needs some kind of input
+        self.required_in: list[tuple[str, ...]] = [tuple(".in")]
+        if self.sample:
+            # for samples a statement in file is also sufficient
+            self.required_in.append(tuple(".in.statement"))
+            if problem.interactive or problem.multi_pass:
+                # if .interaction is supported that is also fine as long as input download is provided as well.
+                self.required_in.append((".interaction", ".in.download"))
 
         # 1. Generator
         self.generator = None
@@ -520,31 +515,32 @@ class TestcaseRule(Rule):
                         yaml = {"copy": yaml["generate"][:-3]}
 
                 # checks
-                if not any(x in yaml for x in ["generate", "copy", "in", "in.statement"]):
-                    if problem.interactive or problem.multi_pass:
-                        if not all(x in yaml for x in ["in.download", "interaction"]):
-                            raise ParseException(
-                                'Testcase requires at least one key in "generate", "copy", "in", "in.statement", or both of "in.download" and "interaction".'
-                            )
-                    else:
-                        raise ParseException(
-                            'Testcase requires at least one key in "generate", "copy", "in", "in.statement".'
-                        )
+                satisfied = False
+                msg = []
+                for required in [(".generate"), (".copy")] + self.required_in:
+                    satisfied = satisfied or all(x[1:] in yaml for x in required)
+                    msg.append(" and ".join([x[1:] for x in required]))
+                if not satisfied:
+                    raise ParseException(f"Testcase requires at least one of: {', '.join(msg)}.")
                 if not problem.interactive and not problem.multi_pass and "interaction" in yaml:
                     raise ParseException(
-                        'Testcase cannot have "interaction" key for non-interactive/non-multi-pass problem.'
+                        "Testcase cannot have 'interaction' key for non-interactive/non-multi-pass problem."
                     )
+                if not self.sample:
+                    for ext in config.KNOWN_SAMPLE_TESTCASE_EXTENSIONS:
+                        if ext[1:] in yaml:
+                            raise ParseException(f"Non sample testcase cannot use '{ext[1:]}")
                 if "submission" in yaml and "ans" in yaml:
-                    raise ParseException('Testcase cannot specify both "submissions" and "ans".')
+                    raise ParseException("Testcase cannot specify both 'submissions' and 'ans'.")
                 if "count" in yaml and not isinstance(yaml["count"], int):
                     value = yaml["count"]
-                    raise ParseException(f'Testcase expected int for "count" but found {value}.')
+                    raise ParseException(f"Testcase expected int for 'count' but found {value}.")
 
                 # 1. generate
                 if "generate" in yaml:
                     assert_type("generate", yaml["generate"], str)
                     if len(yaml["generate"]) == 0:
-                        raise ParseException("`generate` must not be empty.")
+                        raise ParseException("'generate' must not be empty.")
 
                     # first replace {{constants}}
                     command_string = yaml["generate"]
@@ -650,21 +646,13 @@ class TestcaseRule(Rule):
             self.parse_error = e.message
             generator_config.n_parse_error += 1
 
-        if ".in" not in hashes and ".in.statement" not in hashes:
-            if (
-                not problem.interactive
-                and not problem.multi_pass
-                or ".in.download" not in hashes
-                or ".interaction" not in hashes
-            ):
-                generator_config.n_parse_error += 1
-                # An error is shown during generate.
+        if not any(all(ext in hashes for ext in required) for required in self.required_in):
+            generator_config.n_parse_error += 1
+            # An error is shown during generate.
 
     def _has_required_in(t, infile: Path) -> bool:
-        for ext in t.required_in:
-            if isinstance(ext, str) and infile.with_suffix(ext).is_file():
-                return True
-            if isinstance(ext, list) and all(infile.with_suffix(e).is_file() for e in ext):
+        for required in t.required_in:
+            if all(infile.with_suffix(ext).is_file() for ext in required):
                 return True
         return False
 
@@ -956,10 +944,8 @@ class TestcaseRule(Rule):
 
                 # Step 4: Error if infile was not generated.
                 if not t._has_required_in(infile):
-                    required = " or ".join(
-                        ext if isinstance(ext, str) else " and ".join(ext) for ext in t.required_in
-                    )
-                    bar.error(f"No {required} file was generated!")
+                    msg = ", ".join(" and ".join(required) for required in t.required_in)
+                    bar.error(f"No {msg} file was generated!")
                     return False
 
                 # Step 5: save which files where generated
