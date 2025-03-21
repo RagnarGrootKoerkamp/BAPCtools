@@ -1171,8 +1171,6 @@ class TestcaseRule(Rule):
         # Step 2: generate .in if needed (and possible other files)
         if not generate_from_rule():
             return
-        if not generate_empty_interactive_sample_ans():
-            return
 
         if infile.is_file():
             # Step 3: check .in if needed
@@ -1192,7 +1190,11 @@ class TestcaseRule(Rule):
             if not generate_visualization():
                 return
 
-        # Step 7: copy all generated files
+        # Step 7: for interactive and/or multi-pass samples, generate empty .ans if it does not exist
+        if not generate_empty_interactive_sample_ans():
+            return
+
+        # Step 8: copy all generated files
         copy_generated()
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
