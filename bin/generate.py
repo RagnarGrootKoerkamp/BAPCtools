@@ -439,13 +439,13 @@ class TestcaseRule(Rule):
         # Whether this testcase is a sample.
         self.sample: bool = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
         # each test case needs some kind of input
-        self.required_in: list[tuple[str, ...]] = [tuple(".in")]
+        self.required_in: list[list[str]] = [[".in"]]
         if self.sample:
             # for samples a statement in file is also sufficient
-            self.required_in.append(tuple(".in.statement"))
+            self.required_in.append([".in.statement"])
             if problem.interactive or problem.multi_pass:
                 # if .interaction is supported that is also fine as long as input download is provided as well.
-                self.required_in.append((".interaction", ".in.download"))
+                self.required_in.append([".interaction", ".in.download"])
 
         # 1. Generator
         self.generator = None
@@ -517,7 +517,7 @@ class TestcaseRule(Rule):
                 # checks
                 satisfied = False
                 msg = []
-                for required in [(".generate"), (".copy")] + self.required_in:
+                for required in [[".generate"], [".copy"]] + self.required_in:
                     satisfied = satisfied or all(x[1:] in yaml for x in required)
                     msg.append(" and ".join([x[1:] for x in required]))
                 if not satisfied:
