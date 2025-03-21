@@ -695,7 +695,7 @@ class Problem:
             # .interaction files get highest priority
             if return_interaction_file and name.with_suffix(".interaction").is_file():
                 if not p.interactive and not p.multi_pass:
-                    warn(f"Found {name}.interaction for  non-interactive/non-multi-pass. IGNORED.")
+                    warn(f"Found {name}.interaction for non-interactive/non-multi-pass. IGNORED.")
                 else:
                     if has_statement:
                         warn(
@@ -707,8 +707,10 @@ class Problem:
                     continue
 
             if not in_found or not ans_found:
-                warn(f"Could not find valid .in/.ans combination for test case {name}. SKIPPED.")
-                warn("Numbering for statement and download could be inconsistent!")
+                warn(
+                    f"Could not find valid .in/.ans combination for test case {name}. SKIPPED."
+                    + "\n\tNumbering for statement and download could be inconsistent!"
+                )
                 continue
 
             if (
@@ -719,7 +721,7 @@ class Problem:
             ):
                 has_raw = True
 
-            # fall back is pair of files
+            # fallback is pair of files
             testcases.append((name.with_suffix(in_found[0]), name.with_suffix(ans_found[0])))
 
         if has_raw and not p.settings.ans_is_output:

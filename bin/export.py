@@ -64,10 +64,10 @@ def build_samples_zip(problems: list[Problem], output: Path, statement_language:
         # Add samples.
         samples = problem.download_samples()
         for i, (in_file, ans_file) in enumerate(samples):
-            basename = outputdir / str(i + 1)
-            contents[basename.with_suffix(".in")] = in_file
+            base_name = outputdir / str(i + 1)
+            contents[base_name.with_suffix(".in")] = in_file
             if ans_file.stat().st_size > 0:
-                contents[basename.with_suffix(".ans")] = ans_file
+                contents[base_name.with_suffix(".ans")] = ans_file
 
         # Add attachments if they exist.
         if attachments_dir.is_dir():
@@ -116,14 +116,6 @@ def build_problem_zip(problem: Problem, output: Path):
         ("attachments/**/*", problem.interactive or problem.multi_pass),
     ]
 
-    # samples are gathered via problem.download_samples()
-    testcases = [
-        ("data/secret/**/*.in", True),
-    ]
-
-    if problem.interactive or problem.multi_pass:
-        testcases.append(("data/sample/**/*.interaction", False))
-
     if not config.args.kattis:
         files.append((f"problem.{statement_language}.pdf", True))
 
@@ -162,32 +154,31 @@ def build_problem_zip(problem: Problem, output: Path):
                 add_file(out, f)
 
     def add_testcase(in_file: Path):
-        basename = util.drop_suffix(
-            in_file, [".in", ".in.statement", ".in.download", ".interaction"]
-        )
+        base_name = util.drop_suffix(in_file, [".in", ".in.statement", ".in.download"])
         for ext in config.KNOWN_DATA_EXTENSIONS:
-            f = basename.with_suffix(ext)
+            f = base_name.with_suffix(ext)
             if f.is_file():
                 out = f.relative_to(problem.path)
                 add_file(out, f)
 
-    # Include all testcases and copy all related files
-    for pattern, required in testcases:
-        paths = list(util.glob(problem.path, pattern))
-        if required and len(paths) == 0:
-            util.error(f"No matches for required path {pattern}.")
-        for f in paths:
-            if f.is_file():
-                if f.with_suffix(".in").is_file() and not f.with_suffix(".ans").is_file():
-                    util.warn(f"No answer file found for {f}, skipping.")
-                else:
-                    add_testcase(f)
-
+    # Include all sample test cases and copy all related files.
     samples = problem.download_samples()
     if len(samples) == 0:
         util.error("No samples found.")
     for in_file, _ in samples:
         add_testcase(in_file)
+
+    # Include all secret test cases and copy all related files.
+    pattern = "data/secret/**/*.in"
+    paths = util.glob(problem.path, pattern)
+    if len(paths) == 0:
+        util.error(f"No secret test cases found in {pattern}.")
+    for f in paths:
+        if f.is_file():
+            if f.with_suffix(".ans").is_file():
+                add_testcase(f)
+            else:
+                util.warn(f"No answer file found for {f}, skipping.")
 
     # DOMjudge and Kattis do not support 2023-07-draft yet.
     # TODO: Remove once they do.

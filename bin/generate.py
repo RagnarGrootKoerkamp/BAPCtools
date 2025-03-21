@@ -1400,13 +1400,13 @@ class Directory(Rule):
 
 
 # Returns the numbered name
-def numbered_testcase_name(basename, i, n):
+def numbered_testcase_name(base_name, i, n):
     width = len(str(n))
     number_prefix = f"{i:0{width}}"
-    if basename:
-        return number_prefix + "-" + basename
+    if base_name:
+        return number_prefix + "-" + base_name
     else:
-        assert basename is None or basename == ""
+        assert base_name is None or base_name == ""
         return number_prefix
 
 
