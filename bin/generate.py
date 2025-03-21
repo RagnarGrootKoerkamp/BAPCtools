@@ -428,7 +428,9 @@ class Rule:
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, generator_config, key, name: str, yaml, parent, count_index):
+    def __init__(
+        self, problem: Problem, generator_config, key, name: str, yaml, parent, count_index
+    ):
         assert is_testcase(yaml)
 
         # if not None rule will be skipped during generation
@@ -436,7 +438,19 @@ class TestcaseRule(Rule):
 
         # Whether this testcase is a sample.
         self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
-        self.required_in = [".in", ".in.statement"] if self.sample else [".in"]
+        self.required_in = (
+            (
+                # Samples for interactive/multi-pass problems require either .in, or .in.statement,
+                # or both .in.download and .interaction
+                [".in", ".in.statement", [".in.download", ".interaction"]]
+                if problem.interactive or problem.multi_pass
+                # Samples for "normal" problems require either .in, or .in.statement
+                else [".in", ".in.statement"]
+            )
+            if self.sample
+            # Other test cases require only .in
+            else [".in"]
+        )
 
         # 1. Generator
         self.generator = None
@@ -485,10 +499,9 @@ class TestcaseRule(Rule):
         if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
             raise ParseException("Testcase does not have a valid name.")
 
+        # files to consider for hashing
+        hashes = {}
         try:
-            # files to consider for hashing
-            hashes = {}
-
             if yaml is None:
                 raise ParseException(
                     "Empty yaml entry (Testcases must be generated not only mentioned)."
@@ -507,11 +520,19 @@ class TestcaseRule(Rule):
                         yaml = {"copy": yaml["generate"][:-3]}
 
                 # checks
-                if not any(
-                    x in yaml for x in ["generate", "copy", "in", "in.statement", "interaction"]
-                ):
+                if not any(x in yaml for x in ["generate", "copy", "in", "in.statement"]):
+                    if problem.interactive or problem.multi_pass:
+                        if not all(x in yaml for x in ["in.download", "interaction"]):
+                            raise ParseException(
+                                'Testcase requires at least one key in "generate", "copy", "in", "in.statement", or both of "in.download" and "interaction".'
+                            )
+                    else:
+                        raise ParseException(
+                            'Testcase requires at least one key in "generate", "copy", "in", "in.statement".'
+                        )
+                if not problem.interactive and not problem.multi_pass and "interaction" in yaml:
                     raise ParseException(
-                        'Testcase requires at least one key in "generate", "copy", "in", "in.statement", "interaction".'
+                        'Testcase cannot have "interaction" key for non-interactive/non-multi-pass problem.'
                     )
                 if "submission" in yaml and "ans" in yaml:
                     raise ParseException('Testcase cannot specify both "submissions" and "ans".')
@@ -630,8 +651,22 @@ class TestcaseRule(Rule):
             generator_config.n_parse_error += 1
 
         if ".in" not in hashes and ".in.statement" not in hashes:
-            generator_config.n_parse_error += 1
-            # An error is shown during generate.
+            if (
+                not problem.interactive
+                and not problem.multi_pass
+                or ".in.download" not in hashes
+                or ".interaction" not in hashes
+            ):
+                generator_config.n_parse_error += 1
+                # An error is shown during generate.
+
+    def _has_required_in(t, infile: Path) -> bool:
+        for ext in t.required_in:
+            if isinstance(ext, str) and infile.with_suffix(ext).is_file():
+                return True
+            if isinstance(ext, list) and all(infile.with_suffix(e).is_file() for e in ext):
+                return True
+        return False
 
     def link(t, problem, generator_config, bar, dst):
         src_dir = problem.path / "data" / t.path.parent
@@ -920,8 +955,10 @@ class TestcaseRule(Rule):
                         infile.with_suffix(ext).write_text(contents)
 
                 # Step 4: Error if infile was not generated.
-                if not any(infile.with_suffix(ext).is_file() for ext in t.required_in):
-                    required = " or ".join(t.required_in)
+                if not t._has_required_in(infile):
+                    required = " or ".join(
+                        ext if isinstance(ext, str) else " and ".join(ext) for ext in t.required_in
+                    )
                     bar.error(f"No {required} file was generated!")
                     return False
 
@@ -939,9 +976,7 @@ class TestcaseRule(Rule):
             else:
                 check_deterministic(False)
 
-            assert any(infile.with_suffix(ext).is_file() for ext in t.required_in), (
-                f"Failed to generate in file: {infile.name}"
-            )
+            assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
         def generate_from_solution():
@@ -1015,6 +1050,17 @@ class TestcaseRule(Rule):
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
+            return True
+
+        def generate_empty_interactive_sample_ans():
+            if not t.sample:
+                return True
+            if not problem.interactive and not problem.multi_pass:
+                return True
+            for ext in ["statement", "download"]:
+                ans_ext_file = infile.with_suffix(f".ans.{ext}")
+                if infile.with_suffix(f".in.{ext}").is_file() and not ans_ext_file.is_file():
+                    ans_ext_file.write_text("")
             return True
 
         def generate_visualization():
@@ -1135,6 +1181,8 @@ class TestcaseRule(Rule):
 
         # Step 2: generate .in if needed (and possible other files)
         if not generate_from_rule():
+            return
+        if not generate_empty_interactive_sample_ans():
             return
 
         if infile.is_file():
