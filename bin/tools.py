@@ -808,6 +808,11 @@ Run this from one of:
         action="store_true",
         help="Make a zip more following the kattis problemarchive.com format.",
     )
+    zipparser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Make a zip more following the legacy format.",
+    )
     zipparser.add_argument("--no-solutions", action="store_true", help="Do not compile solutions")
 
     # Build a zip with all samples.
