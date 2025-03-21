@@ -1043,10 +1043,13 @@ class TestcaseRule(Rule):
                 return True
             if not problem.interactive and not problem.multi_pass:
                 return True
-            for ext in ["statement", "download"]:
-                ans_ext_file = infile.with_suffix(f".ans.{ext}")
-                if infile.with_suffix(f".in.{ext}").is_file() and not ans_ext_file.is_file():
+            for ext in ["", ".statement", ".download"]:
+                ans_ext_file = infile.with_suffix(f".ans{ext}")
+                if ans_ext_file.exists():
+                    return True
+                if infile.with_suffix(f".in{ext}").exists():
                     ans_ext_file.write_text("")
+                    return True
             return True
 
         def generate_visualization():
