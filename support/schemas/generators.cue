@@ -41,9 +41,12 @@ import "strings"
 		count?:    int & >=1 & <=100
 		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
 		// such as "manual/samples/3".
-		copy?:                                    #dirpath
-		["in" | "ans" | "out" | "desc" | "hint"]: string
-		interaction?:                             =~"^([<>][^\\n]*\\n)+$"
+		copy?: #dirpath
+
+		["in" | "in.statement" | "in.download" |
+		 "ans" | "ans.statement" | "ans.download" |
+		 "out" | "desc" | "hint"]: string
+		interaction?: =~"^([<>][^\\n]*\\n)+$"
 		#config
 	}
 

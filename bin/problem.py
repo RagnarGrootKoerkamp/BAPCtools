@@ -283,6 +283,12 @@ class ProblemSettings:
         # BAPCtools extensions:
         self.verified: Optional[str] = parse_optional_setting(yaml_data, "verified", str)
         self.comment: Optional[str] = parse_optional_setting(yaml_data, "comment", str)
+        self.ans_is_output: bool = parse_setting(
+            yaml_data, "ans_is_output", not self.interactive and not self.multi_pass
+        )
+        if (self.interactive or self.multi_pass) and self.ans_is_output:
+            warn(f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED.")
+            self.ans_is_output = False
 
         check_unknown_keys(yaml_data)
 
@@ -292,6 +298,16 @@ class ProblemSettings:
         if self.license not in config.KNOWN_LICENSES:
             warn(f"invalid license: {self.license}")
             self.license = "unknown"
+
+    def type_name(self) -> str:
+        parts: list[str] = []
+        if self.interactive:
+            parts.append("interactive")
+        if self.multi_pass:
+            parts.append("multi_pass")
+        if not parts:
+            parts.append("pass-fail")
+        return " ".join(parts)
 
 
 # A problem.
@@ -576,12 +592,13 @@ class Problem:
 
             in_paths = list(set(in_paths))
         elif mode is not None:
+            assert needans
             in_paths = []
             for prefix in {
                 validate.Mode.INPUT: ["secret", "sample"],
                 validate.Mode.ANSWER: ["secret", "sample"],
                 validate.Mode.INVALID: config.INVALID_CASE_DIRECTORIES,
-                validate.Mode.VALID_OUTPUT: ["valid_output"],
+                validate.Mode.VALID_OUTPUT: ["secret", "sample", "valid_output"],
             }[mode]:
                 in_paths += glob(p.path, f"data/{prefix}/**/*.in")
         else:
@@ -595,22 +612,22 @@ class Problem:
             if (
                 (p.interactive or p.multi_pass)
                 and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
-                and t.root in ["invalid_answer", "invalid_output", "valid_output"]
+                and t.root in ["invalid_output", "valid_output"]
             ):
-                msg = ""
-                if p.interactive:
-                    msg += " interactive"
-                if p.multi_pass:
-                    msg += " multi-pass"
-                warn(f"Found file {f} for {mode} validation in{msg} problem. Skipping.")
+                warn(
+                    f"Found file {f} for {mode} validation in {p.settings.type_name()} problem. Skipping."
+                )
                 continue
             if needans and not t.ans_path.is_file():
                 if t.root != "invalid_input":
                     warn(f"Found input file {f} without a .ans file. Skipping.")
                     continue
-            if t.out_path is not None and not t.out_path.is_file():
-                warn(f"Found input file {f} without a .out file. Skipping.")
-                continue
+            if mode == validate.Mode.VALID_OUTPUT:
+                if t.out_path is None:
+                    continue
+                if not t.out_path.is_file():
+                    warn(f"Found input file {f} without a .out file. Skipping.")
+                    continue
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
@@ -629,66 +646,124 @@ class Problem:
         p._testcases[key] = testcases
         return testcases
 
-    # Returns a list of:
-    # - (Path, Path): (.in, .ans) pair
-    # - (Path, Path): (.in.statement, .ans.statement) pair
-    # -  Path       :  .interaction file
-    def statement_samples(p) -> list[Path | tuple[Path, Path]]:
-        statement_in_paths = list(glob(p.path, "data/sample/**/*.in.statement"))
-        interaction_paths = list(glob(p.path, "data/sample/**/*.interaction"))
+    def _samples(
+        p, in_extensions: list[str], ans_extensions: list[str], return_interaction_file: bool
+    ) -> list[Path | tuple[Path, Path]]:
+        """
+        Find the samples of the problem
 
-        # Make sure that .in.statement files are not mixed with .interaction files.
-        for in_path in interaction_paths:
-            if in_path.with_suffix(".in.statement").is_file():
+        Arguments
+        ---------
+        in_extensions: possible extensions for an in file sorted by priority
+        ans_extensions: possible extensions for an ans file sorted by priority
+        return_interaction_file: If True allows to represent testcases by an .interaction file
+
+        Returns:
+        --------
+        A list of testcases represented either by their .interaction file or an in and ans file
+        """
+
+        base_names: set[Path] = set()
+        for ext in [".in", ".in.statement", ".interaction"]:
+            files = list(p.path.glob(f"data/sample/**/*{ext}"))
+            base_names.update([drop_suffix(f, [ext]) for f in files if f.is_file()])
+        testcases: list[Path | tuple[Path, Path]] = []
+        has_raw = False
+        for name in base_names:
+            in_found = [ext for ext in in_extensions if name.with_suffix(ext).is_file()]
+            ans_found = [ext for ext in ans_extensions if name.with_suffix(ext).is_file()]
+            has_statement = ".in.statement" in in_found or ".ans.statement" in ans_found
+
+            # check for inconsistencies
+            if ".in" in in_found and ".ans" not in ans_found:
+                warn(f"Found {name}.in but no {name}.ans. SKIPPING.")
+                continue
+
+            # resolve some inconsistencies
+            if ".in" not in in_found:
+                if ".ans" in ans_found:
+                    warn(f"Found {name}.ans but no {name}.in. IGNORED.")
+                    ans_found.remove(".ans")
+                if ".out" in ans_found:
+                    warn(f"Found {name}.out but no {name}.in. IGNORED.")
+                    ans_found.remove(".out")
+            if has_statement and ".out" in ans_found:
+                # we prefer .statement files
+                warn(f"Found {name}.out (but also .statement). IGNORED.")
+                ans_found.remove(".out")
+
+            # .interaction files get highest priority
+            if return_interaction_file and name.with_suffix(".interaction").is_file():
+                if not p.interactive and not p.multi_pass:
+                    warn(f"Found {name}.interaction for non-interactive/non-multi-pass. IGNORED.")
+                else:
+                    if has_statement:
+                        warn(
+                            f"Mixed .interaction and .statement file for {name}. (using .interaction)."
+                        )
+                    if ".out" in ans_found:
+                        warn(f"Mixed .interaction and .out file for {name}. (using .interaction).")
+                    testcases.append(name.with_suffix(".interaction"))
+                    continue
+
+            if not in_found or not ans_found:
                 warn(
-                    f"Do not mix .in.statement files and .interaction files with the same basename in {p}."
+                    f"Could not find valid .in/.ans combination for test case {name}. SKIPPED."
+                    + "\n\tNumbering for statement and download could be inconsistent!"
                 )
-
-        # A .in may be shadowed by either .in.statement or .interaction, in which case the .in itself is not shown in the PDF.
-        in_paths = []
-        for in_path in list(glob(p.path, "data/sample/**/*.in")):
-            if in_path.with_suffix(".in.statement").is_file():
                 continue
-            if in_path.with_suffix(".interaction").is_file():
-                continue
-            in_paths.append(in_path)
 
-        # .interaction files cannot be mixed with .in/.ans pairs.
-        if len(interaction_paths) != 0 and len(in_paths) + len(statement_in_paths) != 0:
-            warn(f"Do not mix .interaction files with .in/.ans files in {p}.")
+            if (
+                not name.with_suffix(".interaction").is_file()
+                and ans_found[0] == ".ans"
+                and name.with_suffix(in_found[0]).stat().st_size > 0
+                and name.with_suffix(ans_found[0]).stat().st_size > 0
+            ):
+                has_raw = True
 
-        # Non-interactive and Non-multi-pass problems should not have .interaction files.
-        # On the other hand, interactive problems are allowed to have .{in,ans}.statement files,
-        # so that they can emulate a non-interactive problem with on-the-fly generated input.
-        if not p.interactive and not p.multi_pass:
-            if len(interaction_paths) != 0:
-                warn(
-                    f"Non-interactive/Non-multi-pass problem {p.name} should not have data/sample/*.interaction files."
-                )
-            interaction_paths = []
+            # fallback is pair of files
+            testcases.append((name.with_suffix(in_found[0]), name.with_suffix(ans_found[0])))
 
-        testcases = list[Path | tuple[Path, Path]]()
-        for in_path in in_paths:
-            ans_path = in_path.with_suffix(".ans")
-            if not ans_path.is_file():
-                warn(f"Found input file {in_path} without a .ans file. Skipping.")
-                continue
-            testcases.append((in_path, ans_path))
-
-        for in_path in statement_in_paths:
-            # first remove .statement, then replace .in with .ans.statement
-            ans_path = in_path.with_suffix("").with_suffix(".ans.statement")
-            if not ans_path.is_file():
-                warn(f"Found input file {in_path} without a .ans.statement file. Skipping.")
-                continue
-            testcases.append((in_path, ans_path))
-
-        for interaction_path in interaction_paths:
-            testcases.append(interaction_path)
+        if has_raw and not p.settings.ans_is_output:
+            warn(
+                "It is advised to overwrite .ans for samples if it does not represent a valid output."
+                + "\n\tUse .ans.statement or .out for this."
+            )
 
         testcases.sort()
-
         return testcases
+
+    # Returns a list of:
+    # - (Path, Path): with the first being one of [.in.statement, .in] and the second one of [.ans.statement, .out, .ans]
+    # -  Path       :  .interaction file
+    def statement_samples(p) -> list[Path | tuple[Path, Path]]:
+        in_extensions = [
+            ".in.statement",
+            ".in",
+        ]
+        ans_extensions = [
+            ".ans.statement",
+            ".out",
+            ".ans",
+        ]
+        return p._samples(in_extensions, ans_extensions, True)
+
+    # Returns a list of:
+    # - (Path, Path): with the first being one of [.in.download, .in.statement, .in] and the second one of [.ans.download, .ans.statement, .out, .ans]
+    def download_samples(p) -> list[tuple[Path, Path]]:
+        in_extensions = [
+            ".in.download",
+            ".in.statement",
+            ".in",
+        ]
+        ans_extensions = [
+            ".ans.download",
+            ".ans.statement",
+            ".out",
+            ".ans",
+        ]
+        testcases = p._samples(in_extensions, ans_extensions, False)
+        return [t for t in testcases if isinstance(t, tuple)]
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
     def selected_or_accepted_submissions(problem) -> list["run.Submission"]:
@@ -800,22 +875,22 @@ class Problem:
             list(Validator) otherwise, maybe empty
         """
         validators = problem._validators(cls, check_constraints)
-        if not strict and cls == validate.AnswerValidator:
+        if not strict and cls == validate.AnswerValidator and problem.settings.ans_is_output:
             validators = validators + problem._validators(
                 validate.OutputValidator, check_constraints
             )
 
         # Check that the proper number of validators is present
-        # do this after handling the strict flag but dont warn every time
+        # do this after handling the strict flag but do not warn every time
         if print_warn:
             key = (cls, check_constraints)
             if key not in problem._validators_warn_cache:
                 problem._validators_warn_cache.add(key)
-                match cls, len(validators):
-                    case validate.InputValidator, 0:
-                        warn("No input validators found.")
-                    case validate.AnswerValidator, 0:
-                        warn("No answer validators found")
+                if cls == validate.InputValidator and not validators:
+                    warn("No input validators found.")
+                if cls == validate.AnswerValidator and not validators and not problem.interactive:
+                    # for interactive problems, the .ans file should be empty
+                    warn("No answer validators found.")
 
         build_ok = all(v.ok for v in validators)
 
@@ -1058,16 +1133,6 @@ class Problem:
             True if all validation was successful. Successful validation includes, e.g.,
             correctly rejecting invalid inputs.
         """
-        if (problem.interactive or problem.multi_pass) and mode == validate.Mode.ANSWER:
-            if problem.validators(validate.AnswerValidator, strict=True, print_warn=False):
-                msg = ""
-                if problem.interactive:
-                    msg += " interactive"
-                if problem.multi_pass:
-                    msg += " multi-pass"
-                log(f"Not running answer_validators for{msg} problems.")
-            return True
-
         action: str = ""
         if mode == validate.Mode.INVALID:
             action = "Invalidation"
@@ -1091,7 +1156,13 @@ class Problem:
         validators: list[tuple[type[validate.AnyValidator], str, str, str, list[str]]] = [
             (validate.InputValidator, "invalid_input", ".in", ".in", []),
             (validate.AnswerValidator, "invalid_answer", ".ans", ".ans", [".in"]),
-            (validate.OutputValidator, "invalid_output", ".ans", ".out", [".in", ".ans"]),
+            (
+                validate.OutputValidator,
+                "invalid_output",
+                ".ans" if p.settings.ans_is_output else ".out",
+                ".out",
+                [".in", ".ans"],
+            ),
         ]
 
         testcases: list[testcase.Testcase] = []
@@ -1100,7 +1171,9 @@ class Problem:
             for cls, directory, read, write, copy in validators:
                 if directory not in config.args.generic:
                     continue
-                if (p.interactive or p.multi_pass) and cls != validate.InputValidator:
+                if p.interactive and cls != validate.InputValidator:
+                    continue
+                if p.multi_pass and cls == validate.OutputValidator:
                     continue
                 if not p.validators(cls, strict=True, print_warn=False):
                     continue
@@ -1236,17 +1309,12 @@ class Problem:
             case validate.Mode.INPUT:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
             case validate.Mode.ANSWER:
-                assert not problem.interactive
-                assert not problem.multi_pass
                 problem.validators(validate.AnswerValidator, check_constraints=check_constraints)
             case validate.Mode.INVALID:
                 problem.validators(validate.InputValidator)
-                if not problem.interactive and not problem.multi_pass:
-                    problem.validators(validate.AnswerValidator)
+                problem.validators(validate.AnswerValidator)
                 problem.validators(validate.OutputValidator)
             case validate.Mode.VALID_OUTPUT:
-                assert not problem.interactive
-                assert not problem.multi_pass
                 problem.validators(validate.InputValidator)
                 problem.validators(validate.AnswerValidator)
                 problem.validators(validate.OutputValidator)

@@ -219,10 +219,12 @@ class Run:
         output_validators = self.problem.validators(validate.OutputValidator)
         if not output_validators:
             return None
-        return output_validators[0].run(
+        output_validator = output_validators[0]
+        assert isinstance(output_validator, validate.OutputValidator)
+        return output_validator.run(
             self.testcase,
             self,
-            args=self.testcase.testdata_yaml_validator_args(output_validators[0], bar),
+            args=self.testcase.testdata_yaml_validator_args(output_validator, bar),
         )
 
 

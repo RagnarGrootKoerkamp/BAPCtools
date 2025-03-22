@@ -33,7 +33,7 @@ def remove_language_suffix(fname, statement_language):
     return out
 
 
-def build_samples_zip(problems, output, statement_language):
+def build_samples_zip(problems: list[Problem], output: Path, statement_language: str):
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
     # Do not include contest PDF for kattis.
@@ -47,18 +47,27 @@ def build_samples_zip(problems, output, statement_language):
                 )
 
     for problem in problems:
+        if not problem.label:
+            fatal(f"Cannot create samples zip: Problem {problem.name} does not have a label!")
+
         outputdir = Path(problem.label)
 
         attachments_dir = problem.path / "attachments"
         if (problem.interactive or problem.multi_pass) and not attachments_dir.is_dir():
-            interactive = "interactive " if problem.interactive else ""
-            multi_pass = "multi-pass " if problem.multi_pass else ""
             util.error(
-                f"{interactive}{multi_pass}problem {problem.name} does not have an attachments/ directory."
+                f"{problem.settings.type_name()} problem {problem.name} does not have an attachments/ directory."
             )
             continue
 
-        empty = True
+        contents: dict[Path, Path] = {}  # Maps desination to source, to allow checking duplicates.
+
+        # Add samples.
+        samples = problem.download_samples()
+        for i, (in_file, ans_file) in enumerate(samples):
+            base_name = outputdir / str(i + 1)
+            contents[base_name.with_suffix(".in")] = in_file
+            if ans_file.stat().st_size > 0:
+                contents[base_name.with_suffix(".ans")] = ans_file
 
         # Add attachments if they exist.
         if attachments_dir.is_dir():
@@ -66,23 +75,23 @@ def build_samples_zip(problems, output, statement_language):
                 if f.is_dir():
                     util.error(f"{f} directory attachments are not yet supported.")
                 elif f.is_file() and f.exists():
-                    zf.write(f, outputdir / f.name)
-                    empty = False
+                    destination = outputdir / f.name
+                    if destination in contents:
+                        util.error(
+                            f"Cannot overwrite {destination} from attachments/"
+                            + f" (sourced from {contents[destination]})."
+                            + "\n\tDo not include samples in attachments/,"
+                            + " use .{in,ans}.statement or .{in,ans}.download instead."
+                        )
+                    else:
+                        contents[destination] = f
                 else:
                     util.error(f"Cannot include broken file {f}.")
 
-        # Add samples for non-interactive and non-multi-pass problems.
-        if not problem.interactive and not problem.multi_pass:
-            samples = problem.testcases(only_samples=True)
-            if samples:
-                for i in range(0, len(samples)):
-                    sample = samples[i]
-                    basename = outputdir / str(i + 1)
-                    zf.write(sample.in_path, basename.with_suffix(".in"))
-                    zf.write(sample.ans_path, basename.with_suffix(".ans"))
-                    empty = False
-
-        if empty:
+        if contents:
+            for destination, source in contents.items():
+                zf.write(source, destination)
+        else:
             util.error(f"No attachments or samples found for problem {problem.name}.")
 
     zf.close()
@@ -107,22 +116,8 @@ def build_problem_zip(problem: Problem, output: Path):
         ("attachments/**/*", problem.interactive or problem.multi_pass),
     ]
 
-    testcases = [
-        ("data/secret/**/*.in", True),
-        ("data/sample/**/*.in", not problem.interactive and not problem.multi_pass),
-    ]
-
-    if problem.interactive or problem.multi_pass:
-        # .interaction files don't need a corresponding .in
-        # therefore we can handle them like all other files
-        files += [("data/sample/**/*.interaction", False)]
-
     if not config.args.kattis:
-        files += [
-            (f"problem.{statement_language}.pdf", True),
-            ("data/sample/**/*.in.statement", False),
-            ("data/sample/**/*.ans.statement", False),
-        ]
+        files.append((f"problem.{statement_language}.pdf", True))
 
     if problem.custom_output:
         files.append(("output_validator/**/*", True))
@@ -141,7 +136,7 @@ def build_problem_zip(problem: Problem, output: Path):
         export_dir /= problem.name
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    def add_file(path, source):
+    def add_file(path: Path, source: Path):
         path = export_dir / path
         path.parent.mkdir(parents=True, exist_ok=True)
         ensure_symlink(path, source)
@@ -158,21 +153,32 @@ def build_problem_zip(problem: Problem, output: Path):
                 out = remove_language_suffix(out, statement_language)
                 add_file(out, f)
 
-    # Include all testcases (specified by a .in file) and copy all related files
-    for pattern, required in testcases:
-        paths = list(util.glob(problem.path, pattern))
-        if required and len(paths) == 0:
-            util.error(f"No matches for required path {pattern}.")
-        for f in paths:
+    def add_testcase(in_file: Path):
+        base_name = util.drop_suffix(in_file, [".in", ".in.statement", ".in.download"])
+        for ext in config.KNOWN_DATA_EXTENSIONS:
+            f = base_name.with_suffix(ext)
             if f.is_file():
-                if not f.with_suffix(".ans").is_file():
-                    util.warn(f"No answer file found for {f}, skipping.")
-                else:
-                    for ext in config.KNOWN_DATA_EXTENSIONS:
-                        f2 = f.with_suffix(ext)
-                        if f2.is_file():
-                            out = f2.relative_to(problem.path)
-                            add_file(out, f2)
+                out = f.relative_to(problem.path)
+                add_file(out, f)
+
+    # Include all sample test cases and copy all related files.
+    samples = problem.download_samples()
+    if len(samples) == 0:
+        util.error("No samples found.")
+    for in_file, _ in samples:
+        add_testcase(in_file)
+
+    # Include all secret test cases and copy all related files.
+    pattern = "data/secret/**/*.in"
+    paths = util.glob(problem.path, pattern)
+    if len(paths) == 0:
+        util.error(f"No secret test cases found in {pattern}.")
+    for f in paths:
+        if f.is_file():
+            if f.with_suffix(".ans").is_file():
+                add_testcase(f)
+            else:
+                util.warn(f"No answer file found for {f}, skipping.")
 
     # DOMjudge and Kattis do not support 2023-07-draft yet.
     # TODO: Remove once they do.
