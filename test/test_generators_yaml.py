@@ -21,6 +21,8 @@ class MockProblem:
         self._program_callbacks = dict()
         self._rules_cache = dict()
         self.settings = MockSettings()
+        self.interactive = False
+        self.multi_pass = False
 
 
 class MockGeneratorConfig(generate.GeneratorConfig):
