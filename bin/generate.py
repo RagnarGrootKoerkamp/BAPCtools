@@ -780,7 +780,7 @@ class TestcaseRule(Rule):
             )
         return True
 
-    def generate(t, problem, generator_config, parent_bar):
+    def generate(t, problem: Problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
         t.generate_success = False
@@ -935,12 +935,8 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == "" and t.root not in config.INVALID_CASE_DIRECTORIES:
-                        bar.error(f"Hardcoded {ext} data must not be empty!")
-                        return False
-                    else:
-                        # substitute in contents? -> No!
-                        infile.with_suffix(ext).write_text(contents)
+                    # substitute in contents? -> No!
+                    infile.with_suffix(ext).write_text(contents)
 
                 # Step 4: Error if infile was not generated.
                 if not t._has_required_in(infile):
