@@ -2,6 +2,7 @@ import pytest
 import os
 import io
 from pathlib import Path
+from zipfile import ZipFile
 
 import tools
 import problem
@@ -143,11 +144,41 @@ class TestIdentityProblem:
     # Exporting
     def test_samplezip(self):
         tools.test(["samplezip"])
-        Path("samples.zip").unlink()
+        zip_path = Path("samples.zip")
+
+        # Sample zip should contain exactly one .in and .ans file.
+        assert sorted(
+            (info.filename, info.file_size)
+            for info in ZipFile(zip_path).infolist()
+            if info.filename.startswith("A/")
+        ) == [
+            (f"A/{i}.{ext}", size)
+            for i, size in enumerate([2, 4, 2, 5, 2, 2], start=1)
+            for ext in ["ans", "in"]
+        ], "Sample zip contents are not correct"
+
+        zip_path.unlink()
 
     def test_zip(self):
         tools.test(["zip", "--force"])
-        Path("identity.zip").unlink()
+        zip_path = Path("identity.zip")
+
+        # The full zip should contain the samples with the original file extensions.
+        assert sorted(
+            (info.filename, info.file_size)
+            for info in ZipFile(zip_path).infolist()
+            if info.filename.startswith("data/sample/")
+        ) == [
+            *(
+                (f"data/sample/{i}.{ext}", size)
+                for i, size in enumerate([2, 4, 2, 5], start=1)
+                for ext in ["ans", "in"]
+            ),
+            *((f"data/sample/5.{ext}", 2) for ext in ["ans", "in", "out"]),
+            *((f"data/sample/6.{ext}.statement", 2) for ext in ["ans", "in"]),
+        ], "Zip contents for data/sample/ are not correct"
+
+        zip_path.unlink()
 
     # Misc
     # def test_all(self): tools.test(['all'])
