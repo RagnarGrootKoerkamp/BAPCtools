@@ -7,7 +7,7 @@ import secrets
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Final, overload
+from typing import Final, Optional, overload
 
 import config
 import parallel
@@ -428,14 +428,24 @@ class Rule:
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, generator_config, key, name: str, yaml, parent, count_index):
+    def __init__(
+        self, problem: Problem, generator_config, key, name: str, yaml, parent, count_index
+    ):
         assert is_testcase(yaml)
 
         # if not None rule will be skipped during generation
-        self.parse_error = None
+        self.parse_error: Optional[str] = None
 
         # Whether this testcase is a sample.
-        self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
+        self.sample: bool = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
+        # each test case needs some kind of input
+        self.required_in: list[list[str]] = [[".in"]]
+        if self.sample:
+            # for samples a statement in file is also sufficient
+            self.required_in.append([".in.statement"])
+            if problem.interactive or problem.multi_pass:
+                # if .interaction is supported that is also fine as long as input download is provided as well.
+                self.required_in.append([".interaction", ".in.download"])
 
         # 1. Generator
         self.generator = None
@@ -484,10 +494,9 @@ class TestcaseRule(Rule):
         if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
             raise ParseException("Testcase does not have a valid name.")
 
+        # files to consider for hashing
+        hashes = {}
         try:
-            # files to consider for hashing
-            hashes = {}
-
             if yaml is None:
                 raise ParseException(
                     "Empty yaml entry (Testcases must be generated not only mentioned)."
@@ -506,21 +515,32 @@ class TestcaseRule(Rule):
                         yaml = {"copy": yaml["generate"][:-3]}
 
                 # checks
-                if not any(x in yaml for x in ["generate", "copy", "in", "interaction"]):
+                satisfied = False
+                msg = []
+                for required in [[".generate"], [".copy"]] + self.required_in:
+                    satisfied = satisfied or all(x[1:] in yaml for x in required)
+                    msg.append(" and ".join([x[1:] for x in required]))
+                if not satisfied:
+                    raise ParseException(f"Testcase requires at least one of: {', '.join(msg)}.")
+                if not problem.interactive and not problem.multi_pass and "interaction" in yaml:
                     raise ParseException(
-                        'Testcase requires at least one key in "generate", "copy", "in", "interaction".'
+                        "Testcase cannot have 'interaction' key for non-interactive/non-multi-pass problem."
                     )
+                if not self.sample:
+                    for ext in config.KNOWN_SAMPLE_TESTCASE_EXTENSIONS:
+                        if ext[1:] in yaml:
+                            raise ParseException(f"Non sample testcase cannot use '{ext[1:]}")
                 if "submission" in yaml and "ans" in yaml:
-                    raise ParseException('Testcase cannot specify both "submissions" and "ans".')
+                    raise ParseException("Testcase cannot specify both 'submissions' and 'ans'.")
                 if "count" in yaml and not isinstance(yaml["count"], int):
                     value = yaml["count"]
-                    raise ParseException(f'Testcase expected int for "count" but found {value}.')
+                    raise ParseException(f"Testcase expected int for 'count' but found {value}.")
 
                 # 1. generate
                 if "generate" in yaml:
                     assert_type("generate", yaml["generate"], str)
                     if len(yaml["generate"]) == 0:
-                        raise ParseException("`generate` must not be empty.")
+                        raise ParseException("'generate' must not be empty.")
 
                     # first replace {{constants}}
                     command_string = yaml["generate"]
@@ -591,9 +611,8 @@ class TestcaseRule(Rule):
                 if ".in" in self.hardcoded:
                     self.in_is_generated = False
                     self.rule["in"] = self.hardcoded[".in"]
-                for ext in config.KNOWN_TESTCASE_EXTENSIONS:
-                    if ext in self.hardcoded:
-                        hashes[ext] = hash_string(self.hardcoded[ext])
+                for ext, value in self.hardcoded.items():
+                    hashes[ext] = hash_string(value)
 
             # Warn/Error for unknown keys.
             for key in yaml:
@@ -608,13 +627,8 @@ class TestcaseRule(Rule):
                             color_type=MessageType.LOG,
                         )
 
-            if ".in" not in hashes:
-                generator_config.n_parse_error += 1
-                # An error is shown during generate.
-                return
-
             # build ordered list of hashes we want to consider
-            hs = [hashes[ext] for ext in config.KNOWN_TESTCASE_EXTENSIONS if ext in hashes]
+            hs = list(hashes.values())
 
             # combine hashes
             if len(hs) == 1:
@@ -626,10 +640,21 @@ class TestcaseRule(Rule):
                 self.copy_of = generator_config.rules_cache[self.hash]
             else:
                 generator_config.rules_cache[self.hash] = self
+
         except ParseException as e:
             # For testcases we can handle the parse error locally since this does not influence much else
             self.parse_error = e.message
             generator_config.n_parse_error += 1
+
+        if not any(all(ext in hashes for ext in required) for required in self.required_in):
+            generator_config.n_parse_error += 1
+            # An error is shown during generate.
+
+    def _has_required_in(t, infile: Path) -> bool:
+        for required in t.required_in:
+            if all(infile.with_suffix(ext).is_file() for ext in required):
+                return True
+        return False
 
     def link(t, problem, generator_config, bar, dst):
         src_dir = problem.path / "data" / t.path.parent
@@ -704,55 +729,58 @@ class TestcaseRule(Rule):
             )
         return True
 
-    def validate_ans(t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar):
+    # we assume .ans is a valid output and validate it as such
+    def validate_ans_and_out(
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
+    ):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
         if testcase.root == "invalid_input":
             return True
 
-        ansfile = problem.tmpdir / "data" / t.hash / "testcase.ans"
-        assert ansfile.is_file()
+        ansfile = infile.with_suffix(".ans")
+        if not ansfile.is_file():
+            bar.error("No .ans file was generated!")
+            return False
 
-        if problem.interactive or problem.multi_pass:
-            if ansfile.stat().st_size != 0:
-                interactive = "interaction " if problem.interactive else ""
-                multi_pass = "multi-pass " if problem.multi_pass else ""
-                bar.warn(f".ans file for {interactive}{multi_pass}problem is expected to be empty.")
+        outfile = infile.with_suffix(".out")
+        if not outfile.is_file() and testcase.root in ["invalid_output", "valid_output"]:
+            bar.error("No .out file was generated!")
+            return False
+
+        answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
+        if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
+            return True
+
+        mode = validate.Mode.ANSWER
+        if testcase.root in config.INVALID_CASE_DIRECTORIES:
+            mode = validate.Mode.INVALID
+        elif testcase.root == "valid_output":
+            mode = validate.Mode.VALID_OUTPUT
+        elif outfile.is_file():
+            mode = validate.Mode.VALID_OUTPUT
+
+        if not testcase.validate_format(
+            mode,
+            bar=bar,
+            warn_instead_of_error=config.args.no_validators,
+        ):
+            if not config.args.no_validators:
+                bar.debug("Use generate --no-validators to ignore validation results.")
+                bar.done(False)
+                return False
         else:
-            size = ansfile.stat().st_size
-            if (
-                size <= problem.limits.output * 1024 * 1024
-                and problem.limits.output * 1024 * 1024 < 2 * size
-            ):  # we already warn if the limit is exceeded
-                bar.warn(
-                    f".ans file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2 * size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
-                )
-
-            answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
-            if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
-                return True
-
-            if not testcase.validate_format(
-                validate.Mode.ANSWER,
-                bar=bar,
-                warn_instead_of_error=config.args.no_validators,
-            ):
-                if not config.args.no_validators:
-                    bar.debug("Use generate --no-validators to ignore validation results.")
-                    bar.done(False)
-                    return False
-            else:
-                for h in answer_validator_hashes:
-                    meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
-                write_yaml(
-                    meta_yaml,
-                    problem.tmpdir / "data" / t.hash / "meta_.yaml",
-                    allow_yamllib=True,
-                )
+            for h in answer_validator_hashes:
+                meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
+            write_yaml(
+                meta_yaml,
+                problem.tmpdir / "data" / t.hash / "meta_.yaml",
+                allow_yamllib=True,
+            )
         return True
 
-    def generate(t, problem, generator_config, parent_bar):
+    def generate(t, problem: Problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
         t.generate_success = False
@@ -907,16 +935,13 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == "" and t.root not in ["bad", "invalid_input"]:
-                        bar.error(f"Hardcoded {ext} data must not be empty!")
-                        return False
-                    else:
-                        # substitute in contents? -> No!
-                        infile.with_suffix(ext).write_text(contents)
+                    # substitute in contents? -> No!
+                    infile.with_suffix(ext).write_text(contents)
 
                 # Step 4: Error if infile was not generated.
-                if not infile.is_file():
-                    bar.error("No .in file was generated!")
+                if not t._has_required_in(infile):
+                    msg = ", ".join(" and ".join(required) for required in t.required_in)
+                    bar.error(f"No {msg} file was generated!")
                     return False
 
                 # Step 5: save which files where generated
@@ -933,7 +958,7 @@ class TestcaseRule(Rule):
             else:
                 check_deterministic(False)
 
-            assert infile.is_file(), f"Failed to generate in file: {infile}"
+            assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
         def generate_from_solution():
@@ -964,17 +989,22 @@ class TestcaseRule(Rule):
 
             used_solution = False
             changed_ans = False
-            if problem.interactive or problem.multi_pass:
-                # Generate empty ans file for interactive/multi-pass problems
+            if not problem.settings.ans_is_output:
+                # Generate empty ans file
                 if ".ans" not in meta_yaml["generated_extensions"]:
-                    if not ansfile.is_file() or ansfile.stat().st_size != 0:
+                    if not ansfile.is_file() and (problem.interactive or problem.multi_pass):
                         ansfile.write_text("")
                         changed_ans = True
-                # For interactive/multi-pass problems, run the solution and generate a .interaction.
+                # For interactive/multi-pass problems, run the solution and generate a .interaction if necessary.
                 if (
-                    t.config.solution
+                    (problem.interactive or problem.multi_pass)
+                    and t.config.solution
                     and (testcase.root == "sample" or config.args.interaction)
                     and needed(".interaction")
+                    and not any(
+                        infile.with_suffix(ext).is_file()
+                        for ext in [".out", ".in.statement", ".ans.statement"]
+                    )
                 ):
                     if not t.config.solution.run_interaction(bar, cwd, t):
                         return False
@@ -1004,9 +1034,25 @@ class TestcaseRule(Rule):
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
             return True
 
+        def generate_empty_interactive_sample_ans():
+            if not t.sample:
+                return True
+            if not problem.interactive and not problem.multi_pass:
+                return True
+            for ext in ["", ".statement", ".download"]:
+                ans_ext_file = infile.with_suffix(f".ans{ext}")
+                if ans_ext_file.exists():
+                    return True
+                if infile.with_suffix(f".in{ext}").exists():
+                    ans_ext_file.write_text("")
+                    return True
+            return True
+
         def generate_visualization():
             nonlocal meta_yaml
 
+            if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
+                return True
             if not t.config.visualizer:
                 return True
             if config.args.no_visualizer:
@@ -1076,19 +1122,21 @@ class TestcaseRule(Rule):
             # Store the generated testdata for deduplication test cases.
             hashes = {}
 
-            # remove files that should not be considered for this testcase
-            extensions = list(config.KNOWN_TESTCASE_EXTENSIONS)
-            if t.root not in [*config.INVALID_CASE_DIRECTORIES[1:], "valid_output"]:
-                extensions.remove(".ans")
-            if t.root not in [*config.INVALID_CASE_DIRECTORIES[2:], "valid_output"]:
-                extensions.remove(".out")
+            # consider specific files for the uniqueness of this testcase
+            relevant_files = {
+                "bad": [".in", ".ans"],
+                "invalid_answer": [".in", ".ans"],
+                "invalid_output": [".in", ".ans", ".out"],
+                "valid_output": [".in", ".ans", ".out"],
+            }
+            extensions = relevant_files.get(t.root, [".in"])
 
             for ext in extensions:
                 if target_infile.with_suffix(ext).is_file():
                     hashes[ext] = hash_file(target_infile.with_suffix(ext))
 
             # build ordered list of hashes we want to consider
-            hs = [hashes[ext] for ext in extensions if ext in hashes]
+            hs = list(hashes.values())
 
             # combine hashes
             if len(hs) == 1:
@@ -1120,29 +1168,35 @@ class TestcaseRule(Rule):
         if not generate_from_rule():
             return
 
-        # Step 3: check .in if needed
-        testcase = Testcase(problem, infile, short_path=t.path / t.name)
-        if not t.validate_in(problem, testcase, meta_yaml, bar):
+        if infile.is_file():
+            # Step 3: check .in if needed
+            testcase = Testcase(problem, infile, short_path=t.path / t.name)
+            if not t.validate_in(problem, testcase, meta_yaml, bar):
+                return
+
+            # Step 4: generate .ans and .interaction if needed
+            if not generate_from_solution():
+                return
+
+            # Step 5: validate .ans (and .out if it exists)
+            if not t.validate_ans_and_out(problem, testcase, meta_yaml, bar):
+                return
+
+            # Step 6: generate visualization if needed
+            if not generate_visualization():
+                return
+
+        # Step 7: for interactive and/or multi-pass samples, generate empty .ans if it does not exist
+        if not generate_empty_interactive_sample_ans():
             return
 
-        # Step 4: generate .ans and .interaction if needed
-        if not generate_from_solution():
-            return
-
-        # Step 5: validate .ans if needed
-        if not t.validate_ans(problem, testcase, meta_yaml, bar):
-            return
-
-        # Step 6: generate visualization if needed
-        if not generate_visualization():
-            return
-
-        # Step 7: copy all generated files
+        # Step 8: copy all generated files
         copy_generated()
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
         t.generate_success = True
-        add_testdata_to_cache()
+        if infile.is_file():
+            add_testdata_to_cache()
         if config.args.action != "generate":
             bar.logged = True  # Disable redundant 'up to date' message in run mode.
         bar.done(message="SKIPPED: up to date")
@@ -1368,12 +1422,12 @@ class Directory(Rule):
             meta_yaml = read_yaml(meta_path)
             testcase = Testcase(problem, infile, short_path=new_case)
 
-            # Step 1: validate input
+            # Step 1: validate .in
             if not t.validate_in(problem, testcase, meta_yaml, bar):
                 continue
 
-            # Step 2: validate answer
-            if not t.validate_ans(problem, testcase, meta_yaml, bar):
+            # Step 2: validate .ans (and .out if it exists)
+            if not t.validate_ans_and_out(problem, testcase, meta_yaml, bar):
                 continue
 
             t.link(problem, generator_config, bar, new_infile)
@@ -1381,13 +1435,13 @@ class Directory(Rule):
 
 
 # Returns the numbered name
-def numbered_testcase_name(basename, i, n):
+def numbered_testcase_name(base_name, i, n):
     width = len(str(n))
     number_prefix = f"{i:0{width}}"
-    if basename:
-        return number_prefix + "-" + basename
+    if base_name:
+        return number_prefix + "-" + base_name
     else:
-        assert basename is None or basename == ""
+        assert base_name is None or base_name == ""
         return number_prefix
 
 
@@ -1847,8 +1901,7 @@ class GeneratorConfig:
         build_programs(program.Visualizer, visualizers_used)
 
         self.problem.validators(validate.InputValidator)
-        if not self.problem.interactive and not self.problem.multi_pass:
-            self.problem.validators(validate.AnswerValidator)
+        self.problem.validators(validate.AnswerValidator)
         self.problem.validators(validate.OutputValidator)
 
         def cleanup_build_failures(t):

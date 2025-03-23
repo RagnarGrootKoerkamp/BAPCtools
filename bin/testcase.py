@@ -1,6 +1,8 @@
 """Test case"""
 
-from typing import cast, Literal
+from colorama import Fore, Style
+from pathlib import Path
+from typing import cast, Literal, Optional
 
 from util import (
     ExecStatus,
@@ -10,7 +12,6 @@ from util import (
     shorten_path,
     warn,
 )
-from colorama import Fore, Style
 import config
 import validate
 
@@ -69,7 +70,7 @@ class Testcase:
             is the (absolute) path to the input file, and `short_path` is used as the equivalent of the testcase's
             path relative to  `problem.path / 'data'`.
         """
-        assert path.suffix == ".in" or path.suffixes == [".in", ".statement"]
+        assert path.suffix == ".in"
 
         self.problem = base_problem
 
@@ -85,16 +86,14 @@ class Testcase:
         self.root = self.short_path.parts[0]
 
         self.in_path = path
-        self.ans_path = (
-            self.in_path.with_suffix(".ans")
-            if path.suffix == ".in"
-            else self.in_path.with_name(self.in_path.with_suffix("").stem + ".ans.statement")
-        )
+        self.ans_path = self.in_path.with_suffix(".ans")
         self.out_path = (
-            None
-            if self.root not in ["valid_output", "invalid_output"]
-            else self.in_path.with_suffix(".out")
+            self.in_path.with_suffix(".out")
+            if self.root in ["valid_output", "invalid_output"]
+            or self.in_path.with_suffix(".out").is_file()
+            else None
         )
+
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(""))
 
@@ -237,7 +236,6 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                 )
             case validate.Mode.VALID_OUTPUT:
-                assert self.root == "valid_output"
                 assert not self.problem.interactive
                 assert not self.problem.multi_pass
 
@@ -284,7 +282,7 @@ class Testcase:
         results = []
         for validator in validators:
             name = validator.name
-            if type(validator) is validate.OutputValidator and mode == validate.Mode.ANSWER:
+            if isinstance(validator, validate.OutputValidator) and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
             flags = self.testdata_yaml_validator_args(validator, bar)
@@ -395,11 +393,23 @@ class Testcase:
                     bar.error(msg, resume=True)
         else:
             success = all(results)
-            if success and mode in [validate.Mode.INPUT, validate.Mode.ANSWER]:
-                validate.sanity_check(
-                    self.problem,
-                    self.in_path if mode == validate.Mode.INPUT else self.ans_path,
-                    bar,
-                )
+            if success:
+                main_path: Optional[Path] = None
+                if mode == validate.Mode.INPUT:
+                    main_path = self.in_path
+                elif mode == validate.Mode.ANSWER:
+                    main_path = self.ans_path
+                elif mode == validate.Mode.VALID_OUTPUT and self.root not in [
+                    "valid_output",
+                    "invalid_output",
+                ]:
+                    main_path = self.out_path
+
+                if main_path is not None:
+                    validate.sanity_check(
+                        self.problem,
+                        main_path,
+                        bar,
+                    )
 
         return success
