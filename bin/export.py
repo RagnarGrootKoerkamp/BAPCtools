@@ -111,6 +111,11 @@ def build_problem_zip(problem: Problem, output: Path):
     files = [
         ("problem.yaml", True),
         ("statement/*", True),
+        ("solution/*", False),
+        ("problem_slide/*", False),
+        ("generators/*", False),
+        ("input_validators/**/*", True),
+        ("answer_validators/**/*", not problem.interactive),
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
         ("attachments/**/*", problem.interactive or problem.multi_pass),
@@ -121,9 +126,6 @@ def build_problem_zip(problem: Problem, output: Path):
 
     if problem.custom_output:
         files.append(("output_validator/**/*", True))
-
-    if config.args.kattis:
-        files.append(("input_validators/**/*", True))
 
     message("preparing zip file content", "Zip", problem.path, color_type=MessageType.LOG)
 
@@ -193,9 +195,10 @@ def build_problem_zip(problem: Problem, output: Path):
     if problem.settings.constants:
         constants_supported = [
             "data/**/testdata.yaml",
-            "output_validator/**/*",
             "input_validators/**/*",
-            # "statement/*", uses \constants
+            "answer_validators/**/*",
+            "output_validator/**/*",
+            # "statement/*", "solution/*", "problem_slide/*", use \constant{} commands
             # "submissions/*/**/*", removed support?
         ]
         for pattern in constants_supported:
