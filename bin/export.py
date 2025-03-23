@@ -314,6 +314,7 @@ def build_problem_zip(problem: Problem, output: Path):
                         )
                     else:
                         add_file(out, f)
+            shutil.rmtree(export_dir / d)
 
     # Build .ZIP file.
     message("writing zip file", "Zip", output, color_type=MessageType.LOG)
