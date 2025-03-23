@@ -66,7 +66,9 @@ Answer validation can be as simple as checking that standard input contains a si
 A more advanced use case would be to read an integer `n` from the testcase input file `testcase.in` file provided as the first argument,
 followed by verifying that the standard input contains `n` newline-separated integers.
 
-All answer files are also checked with the output validator invoked as
+BAPCtools assumes that all answer files are also valid outputs and therefore also checks that the `.ans` files pass output validation.
+If this assumption is wrong, you can specify `ans_is_output: False` in `problem.yaml` (note that this option is always `False` for interactive or multi-pass problems, because these do not have a single output).
+If enabled, the output validator is invoked as:
 
 ```
 output_validator /path/to/testcase.in /path/to/testcase.ans /path/to/feedbackdir \

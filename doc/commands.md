@@ -97,7 +97,7 @@ Use `bt run -v` to show results for all testcases.
 
   - The path of the `.in` file: `data/secret/1.in`
   - The path of the `.ans` file: `data/secret/1.ans` (any other extension also works, even if the file doesn't exist)
-  - The basename of the testcase: `data/secret/1`
+  - The base name of the testcase: `data/secret/1`
   - A directory: `data/secret`. In this case, all `.in` files that are (nested) in this directory will be used.
 
   Testcases must always be inside the `data` directory. Anything outside `data/` will raise an error.

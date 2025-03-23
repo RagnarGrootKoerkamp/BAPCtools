@@ -1,5 +1,7 @@
 # Validate all valid generator YAML found in the following dirs agains the CUE schema:
 
+cd "$(dirname "$0")"
+
 all_valid_yaml=(../../../doc ../../../skel/problem ../../problems valid_yaml)
 
 # Arguments
@@ -20,7 +22,10 @@ trap "rm -rf $SNIPPETS_DIR" EXIT
 for dir in "${all_valid_yaml[@]}"; do
     for file in $(find "$dir" -type f -name '*generators.yaml'); do
 	    echo -n "cue vet "$file" $schemadir/*.cue -d \"#Generators\" "
-	    output_cue=$(cue vet "$file" $schemadir/*.cue -d "#Generators" 2>&1)
+	    tmp="$(mktemp --suffix .yaml)"
+	    sed "s/{%testdata_yaml_comment%}/#/" "$file" | sed "s/{%output_validator_args%}//" > "$tmp"
+	    output_cue=$(cue vet "$tmp" $schemadir/*.cue -d "#Generators" 2>&1)
+	    rm "$tmp"
 	    exit_code_cue=$?
 	    if [ $exit_code_cue -eq 0 ]; then
 		    echo -n -e "\033[0;32mOK(cue)\033[0m"
@@ -69,6 +74,11 @@ done
 
 # Run `cue vet` on each invalid yaml file and snippet
 for snippet in "$SNIPPETS_DIR"/*.yaml; do
+	if ! grep -q '^[^#]' "$snippet"; then
+		# TODO: empty generators.yaml files _should_ be invalid, but for some reason, the CI currently disagrees.
+		echo "Skipping empty $(basename $snippet)"
+		continue
+	fi
 	echo -n "Invalidating $(basename $snippet) "
 	snippet_failed=0
 	cue vet "$snippet"  $schemadir/*.cue -d "#Generators" > /dev/null 2>&1

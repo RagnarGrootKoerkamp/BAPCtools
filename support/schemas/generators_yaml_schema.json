@@ -174,15 +174,42 @@
               "title": "Input",
               "description": "Explicit input given as a string"
             },
+            "in.statement": {
+              "type": "string",
+              "title": "Input (statement)",
+              "description": "Explicit input given as a string, only shown in problem statement (defaults to 'in')"
+            },
+            "in.download": {
+              "type": "string",
+              "title": "Input (download)",
+              "description": "Explicit input given as a string, only shown as sample download in the contest system (defaults to 'in.statement' or 'in')"
+            },
             "ans": {
               "type": "string",
               "title": "Default Answer",
               "description": "Explicit default answer given as a string"
             },
+            "ans.statement": {
+              "type": "string",
+              "title": "Default Answer (statement)",
+              "description": "Explicit default answer given as a strans, only shown in problem statement (defaults to 'in')"
+            },
+            "ans.download": {
+              "type": "string",
+              "title": "Default Answer (download)",
+              "description": "Explicit default answer given as a string, only shown as sample download in the contest system (defaults to 'ans.statement' or 'ans')"
+            },
             "out": {
               "type": "string",
-              "title": "Invalid output",
-              "description": "Explicit (in)valid output given as a string; can only be given in (in)valid_output"
+              "title": "Output",
+              "description": "Explicit (in)valid output given as a string; can only be given in sample or (in)valid_output"
+            },
+            "interaction": {
+              "title": "Sample interaction",
+              "description": "Input is prefixed with `<`, output is prefixed with `>`.",
+              "examples": ["<1 2\n>3\n<4 5\n>9\n<6 7\n>13\n"],
+              "type": "string",
+              "pattern": "^([<>][^\\n]*\\n)+$"
             },
             "desc": {
               "type": "string",
@@ -193,13 +220,6 @@
               "type": "string",
               "title": "Hint",
               "description": "Feedback shown to the solver about this test case given as a string"
-            },
-            "interaction": {
-              "title": "Sample interaction",
-              "description": "Input is prefixed with `<`, output is prefixed with `>`.",
-              "examples": ["<1 2\n>3\n<4 5\n>9\n<6 7\n>13\n"],
-              "type": "string",
-              "pattern": "^([<>][^\\n]*\\n)+$"
             },
             "visualizer": {
               "$ref": "#/$defs/visualizer"
