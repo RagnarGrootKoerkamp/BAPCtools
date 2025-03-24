@@ -133,8 +133,8 @@ def build_problem_zip(problem: Problem, output: Path):
     export_dir = problem.tmpdir / "export"
     if export_dir.exists():
         shutil.rmtree(export_dir)
-    # For Kattis, prepend the problem shortname to all files.
-    if config.args.kattis:
+    # For Kattis / draft spec, prepend the problem shortname to all files.
+    if config.args.kattis or not config.args.legacy:
         export_dir /= problem.name
     export_dir.mkdir(parents=True, exist_ok=True)
 
