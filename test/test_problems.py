@@ -167,15 +167,15 @@ class TestIdentityProblem:
         assert sorted(
             (info.filename, info.file_size)
             for info in ZipFile(zip_path).infolist()
-            if info.filename.startswith("data/sample/")
+            if info.filename.startswith("identity/data/sample/")
         ) == [
             *(
-                (f"data/sample/{i}.{ext}", size)
+                (f"identity/data/sample/{i}.{ext}", size)
                 for i, size in enumerate([2, 4, 2, 5], start=1)
                 for ext in ["ans", "in"]
             ),
-            *((f"data/sample/5.{ext}", 2) for ext in ["ans", "in", "out"]),
-            *((f"data/sample/6.{ext}.statement", 2) for ext in ["ans", "in"]),
+            *((f"identity/data/sample/5.{ext}", 2) for ext in ["ans", "in", "out"]),
+            *((f"identity/data/sample/6.{ext}.statement", 2) for ext in ["ans", "in"]),
         ], "Zip contents for data/sample/ are not correct"
 
         zip_path.unlink()
