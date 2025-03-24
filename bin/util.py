@@ -729,7 +729,7 @@ if has_ryaml:
 
         curr = data
         prev_key = list(data.keys())[remove_index - 1]
-        while isinstance(curr[prev_key], list | dict):
+        while isinstance(curr[prev_key], list | dict) and len(curr[prev_key]):
             # Try to remove the comment from the last element in the preceding list/dict
             curr = curr[prev_key]
             if isinstance(curr, list):
@@ -741,7 +741,7 @@ if has_ryaml:
             # Move the comment that belongs to the removed key (which comes _after_ the removed key)
             # to the preceding key
             curr.ca.items[prev_key] = data.ca.items.pop(remove)
-        elif prev_key in data.ca.items:
+        elif prev_key in curr.ca.items:
             # If the removed key does not have a comment,
             # the comment after the previous key should be removed
             curr.ca.items.pop(prev_key)
@@ -755,7 +755,9 @@ if has_ryaml:
         if new_value is None:
             new_value = data[old_key]
         data.insert(list(data.keys()).index(old_key), new_key, new_value)
-        ryaml_filter(data, old_key)
+        data.pop(old_key)
+        if old_key in data.ca.items:
+            data.ca.items[new_key] = data.ca.items.pop(old_key)
 
 
 # Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
