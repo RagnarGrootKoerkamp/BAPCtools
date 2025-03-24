@@ -55,8 +55,8 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
     generators_yaml = problem_path / "generators" / "generators.yaml"
     if not generators_yaml.is_file():
         return
-    data = read_yaml(generators_yaml)
-    if data is None or not isinstance(data, dict):
+    yaml_data = read_yaml(generators_yaml)
+    if yaml_data is None or not isinstance(yaml_data, dict):
         return
 
     changed = False
@@ -67,17 +67,19 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
         ("invalid_outputs", "invalid_output"),
         ("valid_outputs", "valid_output"),
     ]
-    for old_name, new_name in rename:
-        if old_name in data:
-            if new_name in data:
-                bar.error(
-                    f"can't rename 'data.{old_name}', 'data.{new_name}' already exists in generators.yaml",
-                    resume=True,
-                )
-                continue
-            bar.log(f"renaming 'data.{old_name}' to 'data.{new_name}' in generators.yaml")
-            ryaml_replace(data, old_name, new_name)
-            changed = True
+    if "data" in yaml_data and isinstance(yaml_data["data"], dict):
+        data = yaml_data["data"]
+        for old_name, new_name in rename:
+            if old_name in data:
+                if new_name in data:
+                    bar.error(
+                        f"can't rename 'data.{old_name}', 'data.{new_name}' already exists in generators.yaml",
+                        resume=True,
+                    )
+                    continue
+                bar.log(f"renaming 'data.{old_name}' to 'data.{new_name}' in generators.yaml")
+                ryaml_replace(data, old_name, new_name)
+                changed = True
 
     def upgrade_generated_testdata_yaml(data: dict[str, Any], path: str) -> bool:
         changed = False
@@ -111,10 +113,10 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         )
         return changed
 
-    changed |= upgrade_generated_testdata_yaml(data, "")
+    changed |= upgrade_generated_testdata_yaml(yaml_data, "")
 
     if changed:
-        write_yaml(data, generators_yaml)
+        write_yaml(yaml_data, generators_yaml)
 
 
 def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
