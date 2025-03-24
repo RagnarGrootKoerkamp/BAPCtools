@@ -115,7 +115,7 @@ def build_problem_zip(problem: Problem, output: Path):
         ("problem_slide/*", False),
         ("generators/*", False),
         ("input_validators/**/*", True),
-        ("answer_validators/**/*", not problem.interactive),
+        ("answer_validators/**/*", False),  # TODO make required when not problem.interactive?
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
         ("attachments/**/*", problem.interactive or problem.multi_pass),
