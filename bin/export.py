@@ -193,7 +193,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     yaml_data["name"] = {language: problem.settings.name[language] for language in languages}
     for type in PdfType:
         for file in export_dir.glob(str(type.path("*"))):
-            if file.suffixes[-2] not in languages:
+            if file.suffixes[-2][1:] not in languages:
                 file.unlink()
 
     # drop explicit timelimit for kattis
