@@ -5,7 +5,6 @@ import re
 # Local imports
 import config
 import latex
-from export import force_single_language
 from problem import Problem
 from util import *
 import contest
@@ -287,11 +286,6 @@ def rename_problem(problem):
     data = read_yaml(problem_yaml)
     data["name"] = newname
     write_yaml(data, problem_yaml)
-
-    # DOMjudge does not yet support multilingual problems.yaml files.
-    statement_language = force_single_language([problem])
-    if isinstance(newname, dict):
-        newname = newname[statement_language]
 
     problems_yaml = Path("problems.yaml")
     if problems_yaml.is_file():

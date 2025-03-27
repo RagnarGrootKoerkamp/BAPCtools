@@ -15,7 +15,7 @@ Here, `LANG` is a two-letter language code, see
 
 It is expected that the languages keys in the metadata and statement files agree.
 
-The default language for BAPCtools is English, but multiple languages can be specified at various points of the tool, typically using the `--language` flag or configuration files.
+The default language for BAPCtools is English, but multiple languages can be specified at various points of the tool, typically using the `--languages` flag or configuration files.
 
 ## Creating a contest
 
@@ -24,7 +24,7 @@ In short,
 1. configure `languages` in `.bapctools.yaml`.
 2. add a skeleton for `problem.LANG.tex` in `skel/problem/statement`.
 
-### Configure `language`
+### Configure `languages`
 
 To create a contest supporting French, Dutch, and Luxembourgish, set the configurartion key `languages` to the list `['nl', 'fr', 'lt']`.
 Configuration keys can be set in many ways, see **Personal configuration file** in the BAPCtools documentation, but an easy way is to create a new contest:
@@ -88,7 +88,7 @@ Thus, if the contest is set up as above, you need to do nothing extra.
 With arguments, or outside of a contest directory,
 
 ```sh
-bt new_problem --language en --language fr
+bt new_problem --languages en fr
 ```
 
 creates a problem with two languages, English and French.
@@ -108,7 +108,7 @@ creates PDFs for every problem language statement `problem.xy.tex`.
 With arguments,
 
 ```sh
-bt pdf --language en --language fr
+bt pdf --languages en fr
 ```
 
 produces PDFs for English and French.
@@ -117,7 +117,7 @@ The resulting PDFs are named `<problemdirectory>/problem.xy.pdf`.
 
 ## Solution PDF
 
-Similarly, `bt solutions [--language en --language fr]` creates
+Similarly, `bt solutions [--languages en fr]` creates
 `<problemdirectory>/solution.xy.pdf` for the given languages, defaulting to
 all available `solution.xy.tex` files.
 

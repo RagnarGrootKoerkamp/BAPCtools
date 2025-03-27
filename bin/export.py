@@ -9,42 +9,47 @@ from pathlib import Path
 from typing import Optional
 
 from contest import *
+from latex import PdfType
 from problem import Problem
 
 
-def force_single_language(problems):
-    if config.args.languages and len(config.args.languages) == 1:
-        statement_language = config.args.languages[0]
+def select_languages(problems: list[Problem]) -> list[str]:
+    if config.args.languages:
+        languages = config.args.languages
     else:
-        all_languages = set.union(*(set(p.statement_languages) for p in problems))
-        if len(all_languages) > 1:
-            fatal("Multiple languages found, please specify one with --language")
-        statement_language = all_languages.pop()
-    return statement_language
+        languages = list(set(sum((p.statement_languages for p in problems), [])))
+    languages.sort()
+    if config.args.legacy:
+        if len(languages) > 1:
+            # legacy can handle at most one language
+            fatal("Multiple languages found, please specify one with --languages")
+    if not languages:
+        fatal("No language found")
+    return languages
 
 
 # Write any .lang.pdf files to .pdf.
-def remove_language_suffix(fname, statement_language):
-    if not statement_language:
-        return fname
-    out = Path(fname)
-    if out.suffixes == ["." + statement_language, ".pdf"]:
-        out = out.with_suffix("").with_suffix(".pdf")
-    return out
+def remove_language_pdf_suffix(file: Path, lang: Optional[str]) -> Path:
+    if lang and file.name.endswith(f".{lang}.pdf"):
+        return file.with_name(file.name.removesuffix(f".{lang}.pdf") + ".pdf")
+    else:
+        return file
 
 
-def build_samples_zip(problems: list[Problem], output: Path, statement_language: str):
+def build_samples_zip(problems: list[Problem], output: Path, languages: list[str]) -> None:
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
     # Do not include contest PDF for kattis.
     if not config.args.kattis:
-        for fname in glob(Path("."), f"contest*.{statement_language}.pdf"):
-            if Path(fname).is_file():
-                zf.write(
-                    fname,
-                    remove_language_suffix(fname, statement_language),
-                    compress_type=zipfile.ZIP_DEFLATED,
-                )
+        for language in languages:
+            for file in glob(Path("."), f"contest*.{language}.pdf"):
+                out = remove_language_pdf_suffix(file, language) if config.args.legacy else file
+                if Path(file).is_file():
+                    zf.write(
+                        file,
+                        out,
+                        compress_type=zipfile.ZIP_DEFLATED,
+                    )
 
     for problem in problems:
         if not problem.label:
@@ -98,15 +103,14 @@ def build_samples_zip(problems: list[Problem], output: Path, statement_language:
     print("Wrote zip to samples.zip", file=sys.stderr)
 
 
-def build_problem_zip(problem: Problem, output: Path):
+def build_problem_zip(problem: Problem, output: Path) -> bool:
     """Make DOMjudge/Kattis ZIP file for specified problem."""
 
     if not has_ryaml:
         error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
-        return
+        return False
 
-    # Add problem PDF for only one language to the zip file (note that Kattis export does not include PDF)
-    statement_language = None if config.args.kattis else force_single_language([problem])
+    languages = select_languages([problem])
 
     files = [
         ("problem.yaml", True),
@@ -121,8 +125,12 @@ def build_problem_zip(problem: Problem, output: Path):
         ("attachments/**/*", problem.interactive or problem.multi_pass),
     ]
 
+    # Do not include PDFs for kattis.
     if not config.args.kattis:
-        files.append((f"problem.{statement_language}.pdf", True))
+        for language in languages:
+            files.append((PdfType.PROBLEM.path(language, ".pdf").name, True))
+            files.append((PdfType.PROBLEM_SLIDE.path(language, ".pdf").name, False))
+            files.append((PdfType.SOLUTION.path(language, ".pdf").name, False))
 
     if problem.custom_output:
         files.append(("output_validator/**/*", True))
@@ -138,7 +146,7 @@ def build_problem_zip(problem: Problem, output: Path):
         export_dir /= problem.name
     export_dir.mkdir(parents=True, exist_ok=True)
 
-    def add_file(path: Path, source: Path):
+    def add_file(path: Path, source: Path) -> None:
         path = export_dir / path
         path.parent.mkdir(parents=True, exist_ok=True)
         ensure_symlink(path, source)
@@ -151,17 +159,14 @@ def build_problem_zip(problem: Problem, output: Path):
             util.error(f"No matches for required path {pattern}.")
         for f in paths:
             if f.is_file():
-                out = f.relative_to(problem.path)
-                out = remove_language_suffix(out, statement_language)
-                add_file(out, f)
+                add_file(f.relative_to(problem.path), f)
 
-    def add_testcase(in_file: Path):
+    def add_testcase(in_file: Path) -> None:
         base_name = util.drop_suffix(in_file, [".in", ".in.statement", ".in.download"])
         for ext in config.KNOWN_DATA_EXTENSIONS:
             f = base_name.with_suffix(ext)
             if f.is_file():
-                out = f.relative_to(problem.path)
-                add_file(out, f)
+                add_file(f.relative_to(problem.path), f)
 
     # Include all sample test cases and copy all related files.
     samples = problem.download_samples()
@@ -213,6 +218,26 @@ def build_problem_zip(problem: Problem, output: Path):
                     )
                     f.unlink()
                     f.write_text(text)
+
+    # move pdfs
+    if config.args.legacy and languages:
+        for type in PdfType:
+            file = export_dir / type.path(languages[0], ".pdf").name
+            file.rename(remove_language_pdf_suffix(file, languages[0]))
+    else:
+        for language in languages:
+            for type in PdfType:
+                path = type.path(language, ".pdf")
+                file = export_dir / path.name
+                out = export_dir / path
+                if not file.exists():
+                    continue
+                if out.exists():
+                    util.warn(f"can't add {path} (already exists).")
+                    file.unlink()
+                    continue
+                out.parent.mkdir(parents=True, exist_ok=True)
+                file.rename(out)
 
     # downgrade some parts of the problem to be more legacy like
     if config.args.legacy:
@@ -341,8 +366,11 @@ def build_problem_zip(problem: Problem, output: Path):
 # Assumes the current working directory has: the zipfiles and
 # contest*.{lang}.pdf
 # solutions*.{lang}.pdf
+# problem-slides*.{lang}.pdf
 # Output is <outfile>
-def build_contest_zip(problems, zipfiles, outfile, statement_language):
+def build_contest_zip(
+    problems: list[Problem], zipfiles: list[Path], outfile: str, languages: list[str]
+) -> None:
     if not has_ryaml:
         error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
         return
@@ -360,24 +388,27 @@ def build_contest_zip(problems, zipfiles, outfile, statement_language):
     # For general zip export, also create pdfs and a samples zip.
     if not config.args.kattis:
         sampleout = Path("samples.zip")
-        build_samples_zip(problems, sampleout, statement_language)
+        build_samples_zip(problems, sampleout, languages)
 
-        for fname in (
-            [
-                "problems.yaml",
-                "contest.yaml",
-                sampleout,
-            ]
-            + list(Path(".").glob(f"contest*.{statement_language}.pdf"))
-            + list(Path(".").glob(f"solutions*.{statement_language}.pdf"))
-            + list(Path(".").glob(f"problem-slides*.{statement_language}.pdf"))
-        ):
-            if Path(fname).is_file():
+        def add_file(file: Path) -> None:
+            if file.is_file():
+                out = remove_language_pdf_suffix(file, language) if config.args.legacy else file
                 zf.write(
-                    fname,
-                    remove_language_suffix(fname, statement_language),
+                    file,
+                    out,
                     compress_type=zipfile.ZIP_DEFLATED,
                 )
+
+        add_file(Path("problems.yaml"))
+        add_file(Path("contest.yaml"))
+        add_file(sampleout)
+        for language in languages:
+            for name in [
+                *Path(".").glob(f"contest*.{language}.pdf"),
+                *Path(".").glob(f"solutions*.{language}.pdf"),
+                *Path(".").glob(f"problem-slides*.{language}.pdf"),
+            ]:
+                add_file(name)
 
     # For Kattis export, delete the original zipfiles.
     if config.args.kattis:
@@ -390,7 +421,7 @@ def build_contest_zip(problems, zipfiles, outfile, statement_language):
     zf.close()
 
 
-def update_contest_id(cid):
+def update_contest_id(cid: str) -> None:
     if has_ryaml:
         contest_yaml_path = Path("contest.yaml")
         data = read_yaml(contest_yaml_path)
@@ -400,7 +431,7 @@ def update_contest_id(cid):
         error("ruamel.yaml library not found. Update the id manually.")
 
 
-def export_contest(cid: Optional[str]):
+def export_contest(cid: Optional[str]) -> str:
     data = contest_yaml()
 
     if not data:
@@ -449,7 +480,7 @@ def export_contest(cid: Optional[str]):
     return new_cid
 
 
-def update_problems_yaml(problems, colors=None):
+def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = None) -> None:
     # Update name and time limit values.
     if not has_ryaml:
         log(
@@ -461,16 +492,13 @@ def update_problems_yaml(problems, colors=None):
     path = Path("problems.yaml")
     data = path.is_file() and read_yaml(path) or []
 
-    # DOMjudge does not yet support multilingual problems.yaml files.
-    statement_language = force_single_language(problems)
-
     change = False
     for problem in problems:
         found = False
 
-        problem_name = problem.settings.name
-        if isinstance(problem_name, dict):
-            problem_name = problem_name[statement_language]
+        problem_name: str | dict[str, str] = problem.settings.name
+        if isinstance(problem_name, dict) and config.args.legacy:
+            problem_name = problem_name[select_languages(problems)[0]]
 
         for d in data:
             if d["id"] == problem.name:
@@ -537,7 +565,7 @@ def update_problems_yaml(problems, colors=None):
             log("Already up to date")
 
 
-def export_problems(problems, cid):
+def export_problems(problems: list[Problem], cid: str) -> Any:
     if not contest_yaml():
         fatal("Exporting a contest only works if contest.yaml is available and not empty.")
 
@@ -569,7 +597,7 @@ def export_problems(problems, cid):
 
 
 # Export a single problem to the specified contest ID.
-def export_problem(problem, cid, pid):
+def export_problem(problem: Problem, cid: str, pid: Optional[str]) -> None:
     if pid:
         log(f"Export {problem.name} to id {pid}")
     else:
@@ -599,7 +627,7 @@ def export_problem(problem, cid, pid):
 
 # Export the contest and individual problems to DOMjudge.
 # Mimicked from https://github.com/DOMjudge/domjudge/blob/main/misc-tools/import-contest.sh
-def export_contest_and_problems(problems, statement_language):
+def export_contest_and_problems(problems: list[Problem], languages: list[str]) -> None:
     if config.args.contest_id:
         cid = config.args.contest_id
     else:
@@ -609,7 +637,11 @@ def export_contest_and_problems(problems, statement_language):
     if not any(contest["id"] == cid for contest in get_contests()):
         cid = export_contest(cid)
 
-    with open(f"contest.{statement_language}.pdf", "rb") as pdf_file:
+    if len(languages) != 1:
+        # TODO: fix this
+        fatal("DOMjudge does not yet support multiple languages")
+
+    with open(f"contest.{languages[0]}.pdf", "rb") as pdf_file:
         r = call_api(
             "POST",
             f"/contests/{cid}/problemset",
@@ -630,18 +662,19 @@ def export_contest_and_problems(problems, statement_language):
 
     check_if_user_has_team()
 
-    def get_problem_id(problem):
+    def get_problem_id(problem: Problem) -> Optional[str]:
         nonlocal ccs_problems
         for p in ccs_problems:
             if problem.name in [p.get("short_name"), p.get("id"), p.get("externalid")]:
                 return p["id"]
+        return None
 
     for problem in problems:
         pid = get_problem_id(problem)
         export_problem(problem, cid, pid)
 
 
-def check_if_user_has_team():
+def check_if_user_has_team() -> None:
     # Not using the /users/{uid} route, because {uid} is either numeric or a string depending on the DOMjudge config.
     users = call_api_get_json("/users")
     if not any(user["username"] == config.args.username and user["team"] for user in users):
