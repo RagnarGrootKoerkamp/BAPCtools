@@ -187,14 +187,19 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             else:
                 util.warn(f"No answer file found for {f}, skipping.")
 
+    # handle languages (files and yaml have to be in sync)
+    yaml_path = export_dir / "problem.yaml"
+    yaml_data = read_yaml(yaml_path)
+    yaml_data["name"] = {language: problem.settings.name[language] for language in languages}
+    for type in PdfType:
+        for file in export_dir.glob(str(type.path("*"))):
+            if file.suffixes[-2] not in languages:
+                file.unlink()
+
     # drop explicit timelimit for kattis
     if config.args.kattis:
-        yaml_path = export_dir / "problem.yaml"
-        yaml_data = read_yaml(yaml_path)
         if "limits" in yaml_data and "time_limit" in yaml_data["limits"]:
             ryaml_filter(yaml_data["limits"], "time_limit")
-            yaml_path.unlink()
-            write_yaml(yaml_data, yaml_path)
 
     # substitute constants.
     if problem.settings.constants:
@@ -243,9 +248,6 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     if config.args.legacy:
         from ruamel.yaml.comments import CommentedMap
 
-        # handle problem.yaml
-        yaml_path = export_dir / "problem.yaml"
-        yaml_data = read_yaml(yaml_path)
         # drop format version -> legacy
         if "problem_format_version" in yaml_data:
             ryaml_filter(yaml_data, "problem_format_version")
@@ -294,9 +296,6 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         )
         if validator_flags:
             yaml_data["validator_flags"] = validator_flags
-        # write legacy style yaml
-        yaml_path.unlink()
-        write_yaml(yaml_data, yaml_path)
 
         # handle time limit
         if not config.args.kattis:
@@ -340,6 +339,10 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     else:
                         add_file(out, f)
             shutil.rmtree(export_dir / d)
+
+    # handle yaml updates
+    yaml_path.unlink()
+    write_yaml(yaml_data, yaml_path)
 
     # Build .ZIP file.
     message("writing zip file", "Zip", output, color_type=MessageType.LOG)
