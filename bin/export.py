@@ -499,6 +499,7 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
     for problem in problems:
         found = False
 
+        # ProblemSettings always has `name: dict[str, str]`, but we revert to `str` when `--legacy` is used.
         problem_name: str | dict[str, str] = problem.settings.name
         if isinstance(problem_name, dict) and config.args.legacy:
             problem_name = problem_name[select_languages(problems)[0]]
