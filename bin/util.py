@@ -1132,7 +1132,7 @@ def copytree_and_substitute(
         pass
     elif preserve_symlinks and os.path.islink(src):
         shutil.copy(src, dst, follow_symlinks=False)
-    elif os.path.islink(src) and src.resolve().is_relative_to(base):
+    elif os.path.islink(src) and src.absolute().is_relative_to(base.absolute()):
         shutil.copy(src, dst, follow_symlinks=False)
     elif os.path.isdir(src):
         names = os.listdir(src)
