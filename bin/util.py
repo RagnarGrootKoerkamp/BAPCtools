@@ -1026,7 +1026,7 @@ def ensure_symlink(link: Path, target: Path, output: bool = False, relative: boo
             # Use os.path.relpath instead of Path.relative_to for non-subdirectories.
             link.symlink_to(os.path.relpath(target, link.parent), target.is_dir())
         else:
-            link.symlink_to(target.resolve(), target.is_dir())
+            link.symlink_to(target.absolute(), target.is_dir())
         return True
     except (FileNotFoundError, FileExistsError):
         # this must be a race condition
