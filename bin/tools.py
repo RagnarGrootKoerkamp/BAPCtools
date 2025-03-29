@@ -380,6 +380,12 @@ Run this from one of:
         ],
     )
     problemparser.add_argument("--skel", help="Skeleton problem directory to copy from.")
+    problemparser.add_argument(
+        "--defaults",
+        action="store_true",
+        help="Assume the defaults for fields not passed as arguments."
+        + " This skips input-prompts but fails when defaults cannot be assumed.",
+    )
 
     # Copy directory from skel.
     skelparser = subparsers.add_parser(

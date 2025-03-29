@@ -25,6 +25,10 @@ except Exception:
 
 
 def _ask_variable(name, default=None, allow_empty=False):
+    if config.args.defaults:
+        if not default and not allow_empty:
+            fatal(f"{name} has no default")
+        return default
     while True:
         val = input(f"{name}: ")
         val = default if val == "" else val

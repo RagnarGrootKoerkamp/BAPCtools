@@ -24,11 +24,11 @@ This lists all subcommands and their most important options.
 - Problem validation
   - [`bt input [-v] [testcases [testcases ...]]`](#input)
   - [`bt output [-v] [testcases [testcases ...]]`](#output)
-  - [`bt validate [-v] [--input | --answer | --invalid | --valid] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+  - [`bt validate [-v] [--input | --answer | --invalid | --valid-output | --generic [TYPE]] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
   - [`bt constraints [-v]`](#constraints)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
-  - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--skel SKEL]`](#new_problem)
+  - [`bt new_problem [problemname] [--author AUTHOR] [--type {pass-fail,float,custom,interactive,...}] [--defaults] [--skel SKEL]`](#new_problem)
   - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
   - [`bt rename_problem [problemname]`](#rename_problem)
   - [`bt gitlabci`](#gitlabci)
@@ -369,7 +369,7 @@ LOG: Copying /home/philae/git/bapc/BAPCtools/skel/problem to testproblem.
 ```
 
 ```
-~nwerc2020 % bt new_problem 'Test Problem 2' --author 'Ragnar Groot Koerkamp' --validation interactive
+~nwerc2020 % bt new_problem 'Test Problem 2' --author 'Ragnar Groot Koerkamp' --type interactive
 LOG: Copying /home/philae/git/bapc/BAPCtools/skel/problem to testproblem2.
 ```
 
@@ -382,7 +382,8 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 
 - `[<problem name>]`: The name of the problem. Will be asked interactively if not specified.
 - `--author`: The author of the problem. Will be asked interactively if not specified.
-- `--validation`: The validation mode to use. Must be one of `default`, `custom`, `custom interactive`.
+- `--type`: The problem type to use. Must be one of `pass-fail`, `float`, `custom`, `interactive`, `multi-pass`, or `interactive multi-pass`.
+- `--defaults`: Assume the defaults for fields not passed as arguments. This skips input-prompts but fails when defaults cannot be assumed.
 
 ## `skel`
 
