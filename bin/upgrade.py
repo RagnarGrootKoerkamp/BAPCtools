@@ -184,11 +184,11 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
 
             def move(src: str, dst: str) -> None:
                 if Path(src).is_symlink():
-                    src_dst = Path(src).resolve()
+                    src_dst = Path(src).absolute()
                     if src_dst.is_relative_to(content[0]):  # local symlink
                         Path(src).rename(dst)
                     else:  # link outside output_validators/
-                        dst_pos = Path(dst).resolve()
+                        dst_pos = Path(dst).absolute()
                         common = [
                             a
                             for a, b in zip(reversed(src_dst.parents), reversed(dst_pos.parents))
