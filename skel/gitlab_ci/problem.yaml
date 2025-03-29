@@ -2,9 +2,6 @@ verify_{%problem%}:
   script:
     - ./bt all --cp --error --no-bar --force --jobs 0 --problem {%problem_path%}
   only:
-    refs:
-      - master
-      - merge_requests
     changes:
       #- {%problem_path%}/problem_statement/**/*
       - {%problem_path%}/problem.yaml

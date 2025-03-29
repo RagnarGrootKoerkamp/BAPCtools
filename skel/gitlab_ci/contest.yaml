@@ -3,9 +3,6 @@ contest_pdf_{%contest%}:
       - ./bt pdf --cp --error --no-bar --contest {%contest_path%}
       - ./bt solutions --cp --error --no-bar --contest {%contest_path%}
   only:
-    refs:
-      - master
-      - merge_requests
     changes:
 {%changes%}
   artifacts:

@@ -1,8 +1,6 @@
 name: {%contest%} PDFs
 on:
   push:
-    branches:
-      - master
     paths:
       - {%contest_path%}/*/problem_statement/**
 jobs:
