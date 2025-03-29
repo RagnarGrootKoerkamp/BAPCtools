@@ -290,10 +290,10 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
         error("not inside git")
         return
 
-    git_root_path = Path(git("rev-parse", "--show-toplevel").strip()).resolve()
+    git_root_path = Path(git("rev-parse", "--show-toplevel").strip()).absolute()
 
     def problem_source_dir(problem: Problem) -> Path:
-        return problem.path.resolve().relative_to(git_root_path)
+        return problem.path.absolute().relative_to(git_root_path)
 
     if config.args.latest_bt:
         header_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/header_latest_bt.yaml").read_text()
@@ -302,7 +302,7 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
     print(header_yml)
 
     contest_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/contest.yaml").read_text()
-    contest_path = Path(".").resolve().relative_to(git_root_path)
+    contest_path = Path(".").absolute().relative_to(git_root_path)
     changes = "".join(
         f"      - {problem_source_dir(problem)}/{pdf_type.path().parent}/**/*\n"
         for problem in problems

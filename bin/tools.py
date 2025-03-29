@@ -87,12 +87,12 @@ def get_problems():
     level: Optional[Literal["problem", "problemset"]] = None
     if config.args.contest:
         # TODO #102: replace cast with typed Namespace field
-        contest = cast(Path, config.args.contest).resolve()
+        contest = cast(Path, config.args.contest).absolute()
         os.chdir(contest)
         level = "problemset"
     if config.args.problem:
         # TODO #102: replace cast with typed Namespace field
-        problem = cast(Path, config.args.problem).resolve()
+        problem = cast(Path, config.args.problem).absolute()
         level = "problem"
         os.chdir(problem.parent)
     elif is_problem_directory(Path(".")):
