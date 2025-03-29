@@ -399,7 +399,7 @@ def create_forgejo_actions(contest: str, problems: list[Problem]):
     contest_workflow = substitute(
         contest_workflow_source, {"contest": contest, "contest_path": str(contest_path)}
     )
-    contest_workflow_target = forgejo / Path(f"workflows/{contest}/contest.yaml")
+    contest_workflow_target = forgejo / Path(f"workflows/{contest}/_contest.yaml")
     contest_workflow_target.parent.mkdir(parents=True, exist_ok=True)
     contest_workflow_target.write_text(contest_workflow)
 
