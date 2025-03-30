@@ -224,12 +224,12 @@ class InputValidator(Validator):
     Also supports checktestdata and viva files, with different invocation.
     """
 
-    def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, "input_validators", **kwargs)
-
     validator_type: Final[str] = "input"
 
     source_dir: Final[str] = "input_validators"
+
+    def __init__(self, problem, path, **kwargs):
+        super().__init__(problem, path, InputValidator.source_dir, **kwargs)
 
     def run(
         self,
@@ -284,12 +284,12 @@ class AnswerValidator(Validator):
     Also supports checktestdata and viva files, with different invocation.
     """
 
-    def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, "answer_validators", **kwargs)
-
     validator_type: Final[str] = "answer"
 
     source_dir: Final[str] = "answer_validators"
+
+    def __init__(self, problem, path, **kwargs):
+        super().__init__(problem, path, AnswerValidator.source_dir, **kwargs)
 
     def run(
         self,
@@ -335,12 +335,12 @@ class OutputValidator(Validator):
        ./validator input answer feedbackdir [arguments from problem.yaml] < output
     """
 
-    def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, "output_validator", **kwargs)
-
     validator_type: Final[str] = "output"
 
     source_dir: Final[str] = "output_validator"
+
+    def __init__(self, problem, path, **kwargs):
+        super().__init__(problem, path, OutputValidator.source_dir, **kwargs)
 
     def run(
         self,
