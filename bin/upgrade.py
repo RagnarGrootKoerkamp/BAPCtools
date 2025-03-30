@@ -151,6 +151,22 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
             shutil.move(f, dest)
 
 
+def upgrade_format_validators(problem_path: Path, bar: ProgressBar) -> None:
+    rename = [
+        ("input_format_validators", "input_validators"),
+        ("answer_format_validators", "answer_validators"),
+    ]
+    for old_name, new_name in rename:
+        old_path = problem_path / old_name
+        new_path = problem_path / new_name
+        if old_path.is_dir():
+            if new_path.exists():
+                bar.error(f"can't rename '{old_name}', '{new_name}' already exists", resume=True)
+                continue
+            bar.log(f"renaming '{old_name}' to '{new_name}'")
+            old_path.rename(new_path)
+
+
 def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
     if (problem_path / "output_validators").is_dir():
         if (problem_path / "output_validator").exists():
@@ -370,6 +386,7 @@ def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
     upgrade_testdata_yaml(problem_path, bar)
     upgrade_generators_yaml(problem_path, bar)
     upgrade_statement(problem_path, bar)
+    upgrade_format_validators(problem_path, bar)
     upgrade_output_validators(problem_path, bar)
     # update .in.statement?
     upgrade_problem_yaml(problem_path, bar)
