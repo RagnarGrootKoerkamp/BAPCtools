@@ -197,7 +197,7 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                 )
             case validate.Mode.INVALID:
-                assert self.root in config.INVALID_CASE_DIRECTORIES[:-1]
+                assert self.root in config.INVALID_CASE_DIRECTORIES
 
                 ok = self.validate_format(
                     validate.Mode.INPUT,
