@@ -279,6 +279,8 @@ class TestContest:
             ), f"Zip contents for contest zip are not correct for languages {languages}"
 
         zip_path.unlink()
+        Path("identity/identity.zip").unlink()
+        Path("samples.zip").unlink()
 
 
 @pytest.fixture(scope="function")
