@@ -388,7 +388,6 @@ def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
     upgrade_statement(problem_path, bar)
     upgrade_format_validators(problem_path, bar)
     upgrade_output_validators(problem_path, bar)
-    # update .in.statement?
     upgrade_problem_yaml(problem_path, bar)
 
     bar.done()
