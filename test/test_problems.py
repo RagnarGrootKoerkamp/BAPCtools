@@ -160,23 +160,43 @@ class TestIdentityProblem:
         zip_path.unlink()
 
     def test_zip(self):
-        tools.test(["zip", "--force"])
         zip_path = Path("identity.zip")
+
+        tools.test(["zip", "--force"])
 
         # The full zip should contain the samples with the original file extensions.
         assert sorted(
             (info.filename, info.file_size)
             for info in ZipFile(zip_path).infolist()
-            if info.filename.startswith("data/sample/")
+            if info.filename.startswith("identity/data/sample/")
         ) == [
             *(
-                (f"data/sample/{i}.{ext}", size)
+                (f"identity/data/sample/{i}.{ext}", size)
                 for i, size in enumerate([2, 4, 2, 5], start=1)
                 for ext in ["ans", "in"]
             ),
-            *((f"data/sample/5.{ext}", 2) for ext in ["ans", "in", "out"]),
-            *((f"data/sample/6.{ext}.statement", 2) for ext in ["ans", "in"]),
+            *((f"identity/data/sample/5.{ext}", 2) for ext in ["ans", "in", "out"]),
+            *((f"identity/data/sample/6.{ext}.statement", 2) for ext in ["ans", "in"]),
         ], "Zip contents for data/sample/ are not correct"
+
+        # The full zip should contain all PDFs in their corresponding directories.
+        assert sorted(
+            info.filename for info in ZipFile(zip_path).infolist() if info.filename.endswith(".pdf")
+        ) == [
+            f"identity/{path}.{lang}.pdf"
+            for path in ["problem_slide/problem-slide", "solution/solution", "statement/problem"]
+            for lang in ["de", "en"]
+        ], "Zip contents for PDFs with both languages are not correct"
+
+        tools.test(["zip", "--force", "--lang", "en"])
+
+        # The full zip should contain all PDFs in their corresponding directories.
+        assert sorted(
+            info.filename for info in ZipFile(zip_path).infolist() if info.filename.endswith(".pdf")
+        ) == [
+            f"identity/{path}.en.pdf"
+            for path in ["problem_slide/problem-slide", "solution/solution", "statement/problem"]
+        ], "Zip contents for PDFs with `--lang en` are not correct"
 
         zip_path.unlink()
 
@@ -233,6 +253,34 @@ class TestContest:
 
     def test_gitlabci(self):
         tools.test(["gitlabci"])
+
+    def test_zip(self):
+        zip_path = Path("problems.zip")
+
+        for languages in [["en", "de"], ["en"]]:
+            tools.test(["zip", "--force", "--lang", *languages])
+
+            # The full zip should contain all PDFs in their corresponding directories.
+            assert sorted(info.filename for info in ZipFile(zip_path).infolist()) == sorted(
+                [
+                    "contest.yaml",
+                    "identity.zip",
+                    "problems.yaml",
+                    "samples.zip",
+                    *(
+                        f"{name}{suffix}.{lang}.pdf"
+                        for name in ["contest", "solutions", "problem-slides"]
+                        for lang in languages
+                        for suffix in ["", "-web"]
+                        # The problem slides do not have a -web version.
+                        if (name, suffix) != ("problem-slides", "-web")
+                    ),
+                ]
+            ), f"Zip contents for contest zip are not correct for languages {languages}"
+
+        zip_path.unlink()
+        Path("identity/identity.zip").unlink()
+        Path("samples.zip").unlink()
 
 
 @pytest.fixture(scope="function")

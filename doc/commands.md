@@ -55,7 +55,7 @@ The flags below work for any subcommand:
 - `--no-bar`: Disable showing progress bars. This is useful when running in non-interactive contexts (such as CI jobs) or on platforms/terminals that don't handle the progress bars well.
 - `--error`/`-e`: show full output of failing commands using `--error`. The default is to show a short snippet only.
 - `--force-build`: Force rebuilding binaries instead of reusing cached version.
-- `--language <LANG>`: select a single language to use. `<LANG>` should be a language code like `en` or `nl`.
+- `--lang`: select languages to use for LaTeX commands. The languages should be specified by language codes like `en` or `nl`.
 
 # Problem development
 

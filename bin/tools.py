@@ -343,9 +343,7 @@ Run this from one of:
         action="store_true",
         help="Copy the output pdf instead of symlinking it.",
     )
-    global_parser.add_argument(
-        "--language", dest="languages", action="append", help="Set language."
-    )
+    global_parser.add_argument("--lang", nargs="+", help="Languages to include.")
 
     subparsers = parser.add_subparsers(
         title="actions", dest="action", parser_class=SuppressingParser
@@ -808,11 +806,21 @@ Run this from one of:
         action="store_true",
         help="Make a zip more following the kattis problemarchive.com format.",
     )
+    zipparser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Make a zip more following the legacy format.",
+    )
     zipparser.add_argument("--no-solutions", action="store_true", help="Do not compile solutions")
 
     # Build a zip with all samples.
-    subparsers.add_parser(
+    samplezipparser = subparsers.add_parser(
         "samplezip", parents=[global_parser], help="Create zip file of all samples."
+    )
+    samplezipparser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Make a zip more following the legacy format.",
     )
 
     subparsers.add_parser(
@@ -831,6 +839,11 @@ Run this from one of:
         action="store",
         help="Contest ID to use when writing to the API. Defaults to value of contest_id in contest.yaml.",
     )
+    exportparser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Make export more following the legacy format.",
+    )
 
     updateproblemsyamlparser = subparsers.add_parser(
         "update_problems_yaml",
@@ -845,6 +858,11 @@ Run this from one of:
         "--sort",
         action="store_true",
         help="Sort the problems by id.",
+    )
+    updateproblemsyamlparser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Make problems.yaml more following the legacy format.",
     )
 
     # Print the corresponding temporary directory.
@@ -1009,8 +1027,8 @@ def run_parsed_arguments(args):
         sampleout = Path("samples.zip")
         if level == "problem":
             sampleout = problems[0].path / sampleout
-        statement_language = export.force_single_language(problems)
-        export.build_samples_zip(problems, sampleout, statement_language)
+        languages = export.select_languages(problems)
+        export.build_samples_zip(problems, sampleout, languages)
         return
 
     if action == "rename_problem":
@@ -1142,10 +1160,16 @@ def run_parsed_arguments(args):
                 config.args = old_args
 
                 if not config.args.kattis:
-                    # Make sure that all problems use the same language for the PDFs
-                    export.force_single_language(problems)
-
                     success &= latex.build_problem_pdfs(problem)
+                    if not config.args.no_solutions:
+                        success &= latex.build_problem_pdfs(
+                            problem, build_type=latex.PdfType.SOLUTION
+                        )
+
+                    if problem.path.glob(str(latex.PdfType.PROBLEM_SLIDE.path("*"))):
+                        success &= latex.build_problem_pdfs(
+                            problem, build_type=latex.PdfType.PROBLEM_SLIDE
+                        )
 
                 if not config.args.force:
                     success &= problem.validate_data(validate.Mode.INPUT, constraints={})
@@ -1159,10 +1183,8 @@ def run_parsed_arguments(args):
             print(file=sys.stderr)
 
     if action in ["export"]:
-        # Add contest PDF for only one language to DOMjudge
-        statement_language = export.force_single_language(problems)
-
-        export.export_contest_and_problems(problems, statement_language)
+        languages = export.select_languages(problems)
+        export.export_contest_and_problems(problems, languages)
 
     if level == "problemset":
         print(f"{Style.BRIGHT}CONTEST {contest}{Style.RESET_ALL}", file=sys.stderr)
@@ -1190,48 +1212,53 @@ def run_parsed_arguments(args):
             )
 
         if action in ["zip"]:
-            statement_language = None
+            languages = []
             if not config.args.kattis:
-                # Add contest/solutions PDF for only one language to the zip file
-                statement_language = export.force_single_language(problems)
+                languages = export.select_languages(problems)
 
-                success &= latex.build_contest_pdfs(contest, problems, tmpdir, statement_language)
-                success &= latex.build_contest_pdfs(
-                    contest, problems, tmpdir, statement_language, web=True
-                )
-                if not config.args.no_solutions:
-                    success &= latex.build_contest_pdf(
-                        contest,
-                        problems,
-                        tmpdir,
-                        statement_language,
-                        build_type=latex.PdfType.SOLUTION,
-                    )
-                    success &= latex.build_contest_pdf(
-                        contest,
-                        problems,
-                        tmpdir,
-                        statement_language,
-                        build_type=latex.PdfType.SOLUTION,
-                        web=True,
-                    )
                 # Only build the problem slides if at least one problem has the TeX for it
                 slideglob = latex.PdfType.PROBLEM_SLIDE.path("*")
-                if any(problem.path.glob(str(slideglob)) for problem in problems):
-                    success &= latex.build_contest_pdf(
-                        contest,
-                        problems,
-                        tmpdir,
-                        statement_language,
-                        build_type=latex.PdfType.PROBLEM_SLIDE,
+                build_problem_slides = any(
+                    problem.path.glob(str(slideglob)) for problem in problems
+                )
+
+                for language in languages:
+                    success &= latex.build_contest_pdfs(contest, problems, tmpdir, language)
+                    success &= latex.build_contest_pdfs(
+                        contest, problems, tmpdir, language, web=True
                     )
-                else:
+                    if not config.args.no_solutions:
+                        success &= latex.build_contest_pdf(
+                            contest,
+                            problems,
+                            tmpdir,
+                            language,
+                            build_type=latex.PdfType.SOLUTION,
+                        )
+                        success &= latex.build_contest_pdf(
+                            contest,
+                            problems,
+                            tmpdir,
+                            language,
+                            build_type=latex.PdfType.SOLUTION,
+                            web=True,
+                        )
+                    if build_problem_slides:
+                        success &= latex.build_contest_pdf(
+                            contest,
+                            problems,
+                            tmpdir,
+                            language,
+                            build_type=latex.PdfType.PROBLEM_SLIDE,
+                        )
+
+                if not build_problem_slides:
                     log(f"No problem has {slideglob.name}, skipping problem slides")
 
             outfile = contest + ".zip"
             if config.args.kattis:
                 outfile = contest + "-kattis.zip"
-            export.build_contest_zip(problems, problem_zips, outfile, statement_language)
+            export.build_contest_zip(problems, problem_zips, outfile, languages)
 
         if action in ["update_problems_yaml"]:
             export.update_problems_yaml(
