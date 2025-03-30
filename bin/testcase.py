@@ -10,7 +10,6 @@ from util import (
     fatal,
     print_name,
     shorten_path,
-    warn,
 )
 import config
 import validate
@@ -96,12 +95,6 @@ class Testcase:
 
         # Display name: everything after data/.
         self.name = str(self.short_path.with_suffix(""))
-
-        # Backwards compatibility support for `data/bad`.
-        if self.root == "bad":
-            if print_warn:
-                warn("data/bad is deprecated. Use data/{invalid_input,invalid_answer} instead.")
-            self.root = "invalid_answer" if self.ans_path.is_file() else "invalid_input"
 
     def __repr__(self):
         return self.name
