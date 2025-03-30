@@ -51,7 +51,7 @@ def problem_stats(problems):
         ("yaml", "problem.yaml"),
         ("tex", str(latex.PdfType.PROBLEM.path("*")), 1),
         ("sol", str(latex.PdfType.SOLUTION.path("*")), 1),
-        ("  val: I", ["input_validators/*", "input_format_validators/*"]),
+        ("  val: I", ["input_validators/*"]),
         ("A", ["answer_validators/*"]),
         ("O", ["output_validator/"]),
         (
