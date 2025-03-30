@@ -307,7 +307,7 @@ class Program:
             for f in self.source_files:
                 try:
                     if f.read_text().find("bits/stdc++.h") != -1:
-                        if "validators/" in str(f):
+                        if "validators/" in str(f) or "validator/" in str(f):
                             bar.error("Must not depend on bits/stdc++.h.", resume=True)
                             break
                         else:

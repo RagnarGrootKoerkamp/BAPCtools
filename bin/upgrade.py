@@ -1,7 +1,7 @@
 import config
 import generate
-import validate
 from util import *
+from validate import InputValidator, AnswerValidator, OutputValidator
 
 import shutil
 from typing import Any
@@ -154,8 +154,8 @@ def upgrade_statement(problem_path: Path, bar: ProgressBar) -> None:
 
 def upgrade_format_validators(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
-        ("input_format_validators", validate.InputValidator.source_dir),
-        ("answer_format_validators", validate.AnswerValidator.source_dir),
+        ("input_format_validators", InputValidator.source_dir),
+        ("answer_format_validators", AnswerValidator.source_dir),
     ]
     for old_name, new_name in rename:
         old_path = problem_path / old_name
@@ -170,16 +170,16 @@ def upgrade_format_validators(problem_path: Path, bar: ProgressBar) -> None:
 
 def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
     if (problem_path / "output_validators").is_dir():
-        if (problem_path / validate.OutputValidator.source_dir).exists():
+        if (problem_path / OutputValidator.source_dir).exists():
             bar.error(
-                f"can't rename 'output_validators/', '{validate.OutputValidator.source_dir}/' already exists",
+                f"can't rename 'output_validators/', '{OutputValidator.source_dir}/' already exists",
                 resume=True,
             )
             return
         content = [*(problem_path / "output_validators").iterdir()]
         if len(content) == 1 and content[0].is_dir():
             bar.log(
-                f"renaming 'output_validators/{content[0].name}' to '{validate.OutputValidator.source_dir}/'"
+                f"renaming 'output_validators/{content[0].name}' to '{OutputValidator.source_dir}/'"
             )
 
             def move(src: str, dst: str) -> None:
@@ -203,14 +203,12 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
                     Path(src).rename(dst)
 
             shutil.copytree(
-                content[0], problem_path / validate.OutputValidator.source_dir, copy_function=move
+                content[0], problem_path / OutputValidator.source_dir, copy_function=move
             )
             shutil.rmtree(problem_path / "output_validators")
         else:
-            bar.log("renaming 'output_validators/' to 'output_validator/'")
-            (problem_path / "output_validators").rename(
-                problem_path / validate.OutputValidator.source_dir
-            )
+            bar.log(f"renaming 'output_validators/' to '{OutputValidator.source_dir}/'")
+            (problem_path / "output_validators").rename(problem_path / OutputValidator.source_dir)
 
 
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
