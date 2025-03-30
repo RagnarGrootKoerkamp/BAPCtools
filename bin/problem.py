@@ -241,7 +241,9 @@ class ProblemSettings:
         self.interactive: bool = "interactive" in mode
         self.multi_pass: bool = "multi-pass" in mode
         self.custom_output: bool = (
-            self.interactive or self.multi_pass or (problem.path / "output_validator").is_dir()
+            self.interactive
+            or self.multi_pass
+            or (problem.path / validate.OutputValidator.source_dir).is_dir()
         )
 
         self.name: dict[str, str] = parse_setting(yaml_data, "name", {"en": ""})

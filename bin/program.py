@@ -307,12 +307,11 @@ class Program:
             for f in self.source_files:
                 try:
                     if f.read_text().find("bits/stdc++.h") != -1:
-                        if "validators/" in str(f):
-                            bar.error("Must not depend on bits/stdc++.h.", resume=True)
-                            break
-                        else:
+                        if f.is_relative_to(self.problem.path / "submissions"):
                             bar.log("Should not depend on bits/stdc++.h")
-                            break
+                        else:
+                            bar.error("Must not depend on bits/stdc++.h.", resume=True)
+                        break
                 except UnicodeDecodeError:
                     pass
 
