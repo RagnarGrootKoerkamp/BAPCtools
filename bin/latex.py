@@ -396,21 +396,21 @@ def build_problem_pdf(problem: "Problem", language: str, build_type=PdfType.PROB
 
 def build_problem_pdfs(problem: "Problem", build_type=PdfType.PROBLEM, web=False):
     """Build PDFs for various languages. If list of languages is specified,
-    (either via config files or --language arguments), build those. Otherwise
+    (either via config files or --lang arguments), build those. Otherwise
     build all languages for which there is a statement latex source.
     """
-    if config.args.languages is not None:
-        for lang in config.args.languages:
+    if config.args.lang is not None:
+        for lang in config.args.lang:
             if lang not in problem.statement_languages:
                 message(
                     f"No statement source for language {lang}",
                     problem.name,
                     color_type=MessageType.FATAL,
                 )
-        languages = config.args.languages
+        languages = config.args.lang
     else:
         languages = problem.statement_languages
-        # For solutions or problem slides, filter for `<build_type>.<language>.tex` files that exist.
+        # For solutions or problem slides, filter for `<build_type>.<lang>.tex` files that exist.
         if build_type != PdfType.PROBLEM:
             filtered_languages = []
             for lang in languages:
@@ -424,7 +424,7 @@ def build_problem_pdfs(problem: "Problem", build_type=PdfType.PROBLEM, web=False
                     )
             languages = filtered_languages
     if config.args.watch and len(languages) > 1:
-        fatal("--watch does not work with multiple languages. Please use --language")
+        fatal("--watch does not work with multiple languages. Please use --lang")
     return all([build_problem_pdf(problem, lang, build_type, web) for lang in languages])
 
 
@@ -551,8 +551,8 @@ def build_contest_pdfs(contest, problems, tmpdir, lang=None, build_type=PdfType.
         message(
             "No statement language present in every problem.", contest, color_type=MessageType.FATAL
         )
-    if config.args.languages is not None:
-        languages = config.args.languages
+    if config.args.lang is not None:
+        languages = config.args.lang
         for lang in set(languages) - statement_languages:
             message(
                 f"Unable to build all statements for language {lang}",
@@ -563,7 +563,7 @@ def build_contest_pdfs(contest, problems, tmpdir, lang=None, build_type=PdfType.
         languages = statement_languages
     if config.args.watch and len(languages) > 1:
         message(
-            "--watch does not work with multiple languages. Please use --language",
+            "--watch does not work with multiple languages. Please use --lang",
             contest,
             color_type=MessageType.FATAL,
         )

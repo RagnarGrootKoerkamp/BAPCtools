@@ -50,5 +50,6 @@ jobs:
                 lmodern
                 texlive-science
                 latexmk
+                texlive-lang-german
       - shell: wsl-bash {0}
         run: pytest
