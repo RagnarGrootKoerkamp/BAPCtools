@@ -11,6 +11,7 @@ from typing import Optional
 from contest import *
 from latex import PdfType
 from problem import Problem
+from validate import OutputValidator
 
 
 def select_languages(problems: list[Problem]) -> list[str]:
@@ -316,10 +317,10 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                         util.error(f"{f}: no name set for language {lang}.")
 
         # rename output_validator dir
-        if (export_dir / "output_validator").exists():
+        if (export_dir / OutputValidator.source_dir).exists():
             (export_dir / "output_validators").mkdir(parents=True)
-            (export_dir / "output_validator").rename(
-                export_dir / "output_validators" / "output_validator"
+            (export_dir / OutputValidator.source_dir).rename(
+                export_dir / "output_validators" / OutputValidator.source_dir
             )
 
         # rename statement dirs
