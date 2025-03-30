@@ -14,15 +14,15 @@ from problem import Problem
 
 
 def select_languages(problems: list[Problem]) -> list[str]:
-    if config.args.languages:
-        languages = config.args.languages
+    if config.args.lang:
+        languages = config.args.lang
     else:
         languages = list(set(sum((p.statement_languages for p in problems), [])))
     languages.sort()
     if config.args.legacy:
         if len(languages) > 1:
             # legacy can handle at most one language
-            fatal("Multiple languages found, please specify one with --languages")
+            fatal("Multiple languages found, please specify one with --lang")
     if not languages:
         fatal("No language found")
     return languages

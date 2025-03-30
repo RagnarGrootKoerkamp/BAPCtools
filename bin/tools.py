@@ -343,7 +343,7 @@ Run this from one of:
         action="store_true",
         help="Copy the output pdf instead of symlinking it.",
     )
-    global_parser.add_argument("--languages", nargs="+", help="Languages to include.")
+    global_parser.add_argument("--lang", nargs="+", help="Languages to include.")
 
     subparsers = parser.add_subparsers(
         title="actions", dest="action", parser_class=SuppressingParser
