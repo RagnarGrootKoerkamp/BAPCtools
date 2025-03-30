@@ -911,7 +911,6 @@ class Problem:
             else:
                 paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
         else:
-            assert hasattr(cls, "source_dir")
             paths = list(glob(problem.path / cls.source_dir, "*"))
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
