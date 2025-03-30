@@ -11,6 +11,7 @@ from typing import Optional
 from contest import *
 from latex import PdfType
 from problem import Problem
+from validate import InputValidator, AnswerValidator, OutputValidator
 
 
 def select_languages(problems: list[Problem]) -> list[str]:
@@ -118,8 +119,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         ("solution/*", False),
         ("problem_slide/*", False),
         ("generators/*", False),
-        ("input_validators/**/*", True),
-        ("answer_validators/**/*", False),  # TODO make required when not problem.interactive?
+        (f"{InputValidator.source_dir}/**/*", True),
+        (f"{AnswerValidator.source_dir}/**/*", False),  # TODO required when not interactive?
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
         ("attachments/**/*", problem.interactive or problem.multi_pass),
@@ -133,7 +134,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             files.append((PdfType.SOLUTION.path(language, ".pdf").name, False))
 
     if problem.custom_output:
-        files.append(("output_validator/**/*", True))
+        files.append((f"{OutputValidator.source_dir}/**/*", True))
 
     message("preparing zip file content", "Zip", problem.path, color_type=MessageType.LOG)
 
@@ -205,9 +206,9 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     if problem.settings.constants:
         constants_supported = [
             "data/**/testdata.yaml",
-            "input_validators/**/*",
-            "answer_validators/**/*",
-            "output_validator/**/*",
+            f"{InputValidator.source_dir}/**/*",
+            f"{AnswerValidator.source_dir}/**/*",
+            f"{OutputValidator.source_dir}/**/*",
             # "statement/*", "solution/*", "problem_slide/*", use \constant{} commands
             # "submissions/*/**/*", removed support?
         ]
@@ -316,10 +317,10 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                         util.error(f"{f}: no name set for language {lang}.")
 
         # rename output_validator dir
-        if (export_dir / "output_validator").exists():
+        if (export_dir / OutputValidator.source_dir).exists():
             (export_dir / "output_validators").mkdir(parents=True)
-            (export_dir / "output_validator").rename(
-                export_dir / "output_validators" / "output_validator"
+            (export_dir / OutputValidator.source_dir).rename(
+                export_dir / "output_validators" / OutputValidator.source_dir
             )
 
         # rename statement dirs

@@ -13,6 +13,7 @@ import config
 import generate
 import latex
 import program
+import validate
 from util import error, exec_command, glob, warn
 
 Selector = str | Callable | list[str] | list[Callable]
@@ -51,9 +52,9 @@ def problem_stats(problems):
         ("yaml", "problem.yaml"),
         ("tex", str(latex.PdfType.PROBLEM.path("*")), 1),
         ("sol", str(latex.PdfType.SOLUTION.path("*")), 1),
-        ("  val: I", ["input_validators/*"]),
-        ("A", ["answer_validators/*"]),
-        ("O", ["output_validator/"]),
+        ("  val: I", [f"{validate.InputValidator.source_dir}/*"]),
+        ("A", [f"{validate.AnswerValidator.source_dir}/*"]),
+        ("O", [f"{validate.OutputValidator.source_dir}/*"]),
         (
             "  sample",
             [lambda s: {x.stem for x in s if x.parts[2] == "sample"}],
