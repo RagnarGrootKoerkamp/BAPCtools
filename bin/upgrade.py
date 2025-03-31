@@ -36,12 +36,16 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
             old_path = old_base.with_suffix(ext)
             new_path = new_base.with_suffix(ext)
             if old_path.is_file():
+                old_rel_path, new_rel_path = [
+                    p.relative_to(problem_path) for p in (old_path, new_path)
+                ]
                 if new_path.exists():
                     bar.error(
-                        f"can't rename '{old_name}', '{new_name}' already exists", resume=True
+                        f"can't rename '{old_rel_path}', '{new_rel_path}' already exists",
+                        resume=True,
                     )
                     continue
-                bar.log(f"renaming '{old_name}' to '{new_name}'")
+                bar.log(f"renaming '{old_rel_path}' to '{new_rel_path}'")
                 old_path.rename(new_path)
 
     bad_dir = problem_path / "data" / "bad"
@@ -435,7 +439,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 data["limits"] = CommentedMap()
             if "time_limit" in data["limits"]:
                 bar.error(
-                    "can't change '.timelimit' file, 'limits.time_limit' already exists in problem.yaml",
+                    "can't change 'domjudge-problem.ini' file, 'limits.time_limit' already exists in problem.yaml",
                     resume=True,
                 )
             else:
