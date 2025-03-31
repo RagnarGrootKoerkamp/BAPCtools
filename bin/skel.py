@@ -254,7 +254,7 @@ def new_problem() -> None:
                 {
                     "id": dirname,
                     "label": next_label,
-                    "name": problemname[main_language],
+                    "name": problemname,
                     "rgb": "#000000",
                     "time_limit": 1.0,
                 }
