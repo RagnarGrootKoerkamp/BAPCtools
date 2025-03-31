@@ -5,7 +5,7 @@ import os
 import re
 from pathlib import Path
 from collections.abc import Mapping, Sequence
-from typing import Final, Literal, Optional
+from typing import Any, Final, Literal, Optional
 
 SPEC_VERSION: Final[str] = "2023-07-draft"
 
@@ -104,7 +104,7 @@ os.environ["PATH"] += os.pathsep + str(TOOLS_ROOT / "third_party")
 
 args = argparse.Namespace()
 
-DEFAULT_ARGS: Final[Mapping] = {
+DEFAULT_ARGS: Final[Mapping[str, Any]] = {
     "jobs": (os.cpu_count() or 1) // 2,
     "time": 600,  # Used for `bt fuzz`
     "verbose": 0,

@@ -1,12 +1,13 @@
-import datetime
-import sys
-import yaml
-import re
-import zipfile
 import config
+import datetime
+import re
+import shutil
+import sys
 import util
+import yaml
+import zipfile
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from contest import *
 from latex import PdfType
