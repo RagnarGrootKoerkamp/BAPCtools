@@ -18,7 +18,6 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import (
     Any,
-    cast,
     Iterable,
     Literal,
     NoReturn,
@@ -814,7 +813,7 @@ def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> O
         if isinstance(value, int) and t is float:
             value = float(value)
         if isinstance(value, t):
-            return cast(T, value)
+            return value
         if value == "" and (t is list or t is dict):
             # handle empty yaml keys
             return t()
@@ -971,7 +970,7 @@ def substitute(
     if variables is None:
         variables = {}
 
-    def substitute_function(match):
+    def substitute_function(match: re.Match[str]) -> str:
         name = match.group(1)
         if name in variables:
             return str(variables[name]) if variables[name] is not None else ""

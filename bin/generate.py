@@ -1,13 +1,15 @@
+import collections
 import random
 import re
-import shutil
-import collections
 import secrets
+import shutil
+import sys
+import time
 
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Final, Optional, overload
+from typing import Any, Final, Optional, overload
 
 import config
 import parallel
@@ -484,12 +486,6 @@ class TestcaseRule(Rule):
 
         # root in /data
         self.root = self.path.parts[0]
-        if self.root == "bad":
-            message(
-                "bad is deprecated. Use {invalid_input,invalid_answer} instead.",
-                self.path,
-                color_type=MessageType.WARN,
-            )
 
         if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
             raise ParseException("Testcase does not have a valid name.")
@@ -1124,7 +1120,6 @@ class TestcaseRule(Rule):
 
             # consider specific files for the uniqueness of this testcase
             relevant_files = {
-                "bad": [".in", ".ans"],
                 "invalid_answer": [".in", ".ans"],
                 "invalid_output": [".in", ".ans", ".out"],
                 "valid_output": [".in", ".ans", ".out"],

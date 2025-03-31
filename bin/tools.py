@@ -24,8 +24,9 @@ import shutil
 import colorama
 import re
 
+from colorama import Style
 from pathlib import Path
-from typing import Literal, cast
+from typing import cast, Literal, Optional
 
 # Local imports
 import config

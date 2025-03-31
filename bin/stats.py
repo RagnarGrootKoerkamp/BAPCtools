@@ -68,12 +68,12 @@ def problem_stats(problems):
             100,
         ),
         (
-            "bad",
+            "inv",
             [lambda s: {x.stem for x in s if x.parts[2] in config.INVALID_CASE_DIRECTORIES}],
             0,
         ),
         (
-            "good",
+            "v_o",
             [lambda s: {x.stem for x in s if x.parts[2] in ["valid_output"]}],
             0,
         ),
