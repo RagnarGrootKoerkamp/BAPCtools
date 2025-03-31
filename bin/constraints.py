@@ -1,9 +1,11 @@
 import re
 from collections import defaultdict
+from typing import Optional
 
 import latex
 import validate
 from colorama import Fore, Style
+from problem import Problem
 
 # Local imports
 from util import *
@@ -16,7 +18,9 @@ from util import *
 """
 
 
-def check_validators(problem):
+def check_validators(
+    problem: Problem,
+) -> tuple[set[int | float], list[str | tuple[int | float, str, int | float]]]:
     in_constraints: validate.ConstraintsDict = {}
     ans_constraints: validate.ConstraintsDict = {}
     problem.validate_data(validate.Mode.INPUT, constraints=in_constraints)
@@ -27,10 +31,10 @@ def check_validators(problem):
         log("No constraint validation of answer values found in answer or output validators.")
     print()
 
-    validator_values = set()
+    validator_values: set[int | float] = set()
     validator_defs: list[str | tuple[int | float, str, int | float]] = []
 
-    def f(cs):
+    def f(cs: validate.ConstraintsDict) -> None:
         for loc, value in sorted(cs.items()):
             name, has_low, has_high, vmin, vmax, low, high = value
             validator_defs.append((low, name, high))
@@ -45,12 +49,12 @@ def check_validators(problem):
     return validator_values, validator_defs
 
 
-def check_statement(problem, language):
+def check_statement(problem: Problem, language: str) -> tuple[set[int | float], list[str]]:
     statement_file = problem.path / latex.PdfType.PROBLEM.path(language)
     statement = statement_file.read_text()
 
-    statement_values = set()
-    statement_defs = []
+    statement_values: set[int | float] = set()
+    statement_defs: list[str] = []
 
     defines = ["\\def", "\\newcommand"]
     sections = ["Input", "Output", "Interaction"]
@@ -67,15 +71,16 @@ def check_statement(problem, language):
     }
     relations = re.compile(r"(<=|!=|>=|<|=|>)")
 
-    def math_eval(text):
+    def math_eval(text: str) -> Optional[int | float]:
         try:
             # eval is dangerous, but on the other hand we run submission code so this is fine
             text = text.replace("^", "**")
-            return eval(text, {"__builtin__": None})
+            value = eval(text, {"__builtin__": None})
+            return value if value is isinstance(value, (int, float)) else None
         except (SyntaxError, NameError, TypeError, ZeroDivisionError):
             return None
 
-    def constraint(text):
+    def constraint(text: str) -> None:
         # handles $$math$$
         if len(text) == 0:
             return
@@ -132,13 +137,13 @@ def check_statement(problem, language):
     in_io = False
     end = None
 
-    def matches(text):
+    def matches(text: str) -> bool:
         nonlocal pos
         if pos + len(text) > len(statement):
             return False
         return statement[pos : pos + len(text)] == text
 
-    def parse_group():
+    def parse_group() -> str:
         nonlocal pos
         assert statement[pos] == "{"
         next = pos + 1
@@ -155,7 +160,7 @@ def check_statement(problem, language):
         pos = next
         return name
 
-    def parse_command():
+    def parse_command() -> str:
         nonlocal pos
         assert statement[pos] == "\\"
         next = pos + 1
@@ -251,16 +256,16 @@ def check_statement(problem, language):
     return statement_values, statement_defs
 
 
-def check_constraints(problem):
+def check_constraints(problem: Problem) -> bool:
     validator_values, validator_defs = check_validators(problem)
-    statement_values = defaultdict(set)
-    statement_defs = defaultdict(set)
+    statement_values: dict[int | float, set[str]] = defaultdict(set)
+    statement_defs: dict[str, set[str]] = defaultdict(set)
     for lang in problem.statement_languages:
         values, defs = check_statement(problem, lang)
-        for entry in values:
-            statement_values[entry].add(lang)
-        for entry in defs:
-            statement_defs[entry].add(lang)
+        for value_entry in values:
+            statement_values[value_entry].add(lang)
+        for def_entry in defs:
+            statement_defs[def_entry].add(lang)
 
     # print all the definitions.
     value_len = 12

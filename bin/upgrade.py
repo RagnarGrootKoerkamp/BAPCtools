@@ -5,7 +5,8 @@ from validate import InputValidator, AnswerValidator, OutputValidator
 
 import secrets
 import shutil
-from typing import Any
+from pathlib import Path
+from typing import Any, cast
 
 if has_ryaml:
     # TODO #102 The conditional import in util.py isn't picked up properly
@@ -65,8 +66,7 @@ def upgrade_testdata_yaml(problem_path: Path, bar: ProgressBar) -> None:
     ]
 
     for f in (problem_path / "data").rglob("testdata.yaml"):
-        data = read_yaml(f)
-        assert data is not None
+        data = cast(CommentedMap, read_yaml(f))
 
         for old, new in rename:
             if old in data:
@@ -92,8 +92,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
     changed = False
 
     if "data" in yaml_data and isinstance(yaml_data["data"], dict):
-        data = yaml_data["data"]
-        assert isinstance(data, CommentedMap)
+        data = cast(CommentedMap, yaml_data["data"])
 
         rename = [
             ("invalid_inputs", "invalid_input"),
@@ -150,8 +149,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
     def upgrade_generated_testdata_yaml(data: dict[str, Any], path: str) -> bool:
         changed = False
         if "testdata.yaml" in data:
-            testdata = data["testdata.yaml"]
-            assert isinstance(testdata, dict)
+            testdata = cast(CommentedMap, data["testdata.yaml"])
             print_path = f" ({path[1:]})" if len(path) > 1 else ""
 
             rename = [
@@ -279,8 +277,6 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
 def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     assert (problem_path / "problem.yaml").exists()
     data = cast(CommentedMap, read_yaml(problem_path / "problem.yaml"))
-    assert data is not None
-    assert isinstance(data, dict)
 
     if (
         "problem_format_version" not in data
@@ -384,9 +380,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
         if data["validator_flags"]:
             generators_path = problem_path / "generators" / "generators.yaml"
             if generators_path.exists():
-                generators_data = read_yaml(generators_path)
-                assert generators_data is not None
-                assert isinstance(generators_data, CommentedMap)
+                generators_data = cast(CommentedMap, read_yaml(generators_path))
 
                 if "testdata.yaml" not in generators_data:
                     if "data" in generators_data:
@@ -401,10 +395,10 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             else:
                 testdata_path = problem_path / "data" / "testdata.yaml"
                 testdata_data = (
-                    read_yaml(testdata_path) if testdata_path.exists() else CommentedMap()
+                    cast(CommentedMap, read_yaml(testdata_path))
+                    if testdata_path.exists()
+                    else CommentedMap()
                 )
-                assert testdata_data is not None
-                assert isinstance(testdata_data, dict)
 
                 if add_args(testdata_data):
                     write_yaml(testdata_data, testdata_path)
@@ -470,7 +464,7 @@ def upgrade() -> None:
         return
     cwd = Path().cwd()
 
-    def is_problem_directory(path):
+    def is_problem_directory(path: Path) -> bool:
         return (path / "problem.yaml").is_file()
 
     if is_problem_directory(cwd):
