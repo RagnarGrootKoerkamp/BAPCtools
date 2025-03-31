@@ -3,6 +3,7 @@ import generate
 from util import *
 from validate import InputValidator, AnswerValidator, OutputValidator
 
+import secrets
 import shutil
 from typing import Any
 
@@ -27,6 +28,34 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
                 continue
             bar.log(f"renaming '{old_name}' to '{new_name}'")
             old_path.rename(new_path)
+
+    def rename_testcase(old_base: Path, new_dir: Path) -> None:
+        new_dir.mkdir(parents=True, exist_ok=True)
+        new_base = new_dir / old_base.name
+        for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
+            old_path = old_base.with_suffix(ext)
+            new_path = new_base.with_suffix(ext)
+            if old_path.is_file():
+                old_rel_path, new_rel_path = [
+                    p.relative_to(problem_path) for p in (old_path, new_path)
+                ]
+                if new_path.exists():
+                    bar.error(
+                        f"can't rename '{old_rel_path}', '{new_rel_path}' already exists",
+                        resume=True,
+                    )
+                    continue
+                bar.log(f"renaming '{old_rel_path}' to '{new_rel_path}'")
+                old_path.rename(new_path)
+
+    bad_dir = problem_path / "data" / "bad"
+    for file in bad_dir.glob("*.in"):
+        if file.with_suffix(".ans").is_file():
+            rename_testcase(file, problem_path / "data" / "invalid_answer")
+        else:
+            rename_testcase(file, problem_path / "data" / "invalid_input")
+    if bad_dir.is_dir() and not any(bad_dir.iterdir()):
+        bad_dir.rmdir()
 
 
 def upgrade_testdata_yaml(problem_path: Path, bar: ProgressBar) -> None:
@@ -62,14 +91,16 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
     changed = False
 
-    rename = [
-        ("invalid_inputs", "invalid_input"),
-        ("invalid_answers", "invalid_answer"),
-        ("invalid_outputs", "invalid_output"),
-        ("valid_outputs", "valid_output"),
-    ]
     if "data" in yaml_data and isinstance(yaml_data["data"], dict):
         data = yaml_data["data"]
+        assert isinstance(data, CommentedMap)
+
+        rename = [
+            ("invalid_inputs", "invalid_input"),
+            ("invalid_answers", "invalid_answer"),
+            ("invalid_outputs", "invalid_output"),
+            ("valid_outputs", "valid_output"),
+        ]
         for old_name, new_name in rename:
             if old_name in data:
                 if new_name in data:
@@ -81,6 +112,40 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 bar.log(f"renaming 'data.{old_name}' to 'data.{new_name}' in generators.yaml")
                 ryaml_replace(data, old_name, new_name)
                 changed = True
+
+        # this breaks comments... but that is fine
+        if "bad" in data:
+
+            def move_testcase(name: str, value: Any, new_parent: str) -> None:
+                parent = ryaml_get_or_add(data, new_parent)
+                if "data" not in parent:
+                    parent[data] = CommentedSeq
+                parent = parent["data"]
+                new_name = name
+                if isinstance(parent, list):
+                    parent.append(CommentedMap())
+                    parent[-1][new_name] = value
+                else:
+                    if new_name in parent:
+                        new_name = f"bad_{new_name}"
+                    if new_name in parent:
+                        new_name = f"{new_name}_{secrets.token_hex(6)}"
+                    assert new_name not in parent
+                    parent[new_name] = value
+                bar.log(f"renaming 'bad.{name}' to '{new_parent}.{new_name}' in generators.yaml")
+
+            bad = data["bad"]
+            if "data" in bad and bad["data"]:
+                children = bad["data"] if isinstance(bad["data"], list) else [bad["data"]]
+                for dictionary in children:
+                    for child_name, child_data in sorted(dictionary.items()):
+                        if "ans" in child_data:
+                            move_testcase(child_name, child_data, "invalid_answer")
+                        else:
+                            move_testcase(child_name, child_data, "invalid_input")
+
+            ryaml_filter(data, "bad")
+            changed = True
 
     def upgrade_generated_testdata_yaml(data: dict[str, Any], path: str) -> bool:
         changed = False
@@ -374,7 +439,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 data["limits"] = CommentedMap()
             if "time_limit" in data["limits"]:
                 bar.error(
-                    "can't change '.timelimit' file, 'limits.time_limit' already exists in problem.yaml",
+                    "can't change 'domjudge-problem.ini' file, 'limits.time_limit' already exists in problem.yaml",
                     resume=True,
                 )
             else:

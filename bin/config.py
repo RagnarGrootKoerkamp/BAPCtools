@@ -86,7 +86,6 @@ INVALID_CASE_DIRECTORIES: Final[Sequence[str]] = [
     "invalid_input",
     "invalid_answer",
     "invalid_output",
-    "bad",
 ]
 
 
