@@ -233,9 +233,9 @@ def new_problem() -> None:
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
     log(f"Copying {skeldir} to {target_dir / dirname}.")
 
-    if "2023-07-draft" not in (skeldir / "problem.yaml").read_text():
+    if config.SPEC_VERSION not in (skeldir / "problem.yaml").read_text():
         fatal(
-            "new_problem only supports `skel` directories where `problem.yaml` has `version: 2023-07-draft."
+            f"new_problem only supports `skel` directories where `problem.yaml` has `version: {config.SPEC_VERSION}."
         )
 
     problems_yaml = target_dir / "problems.yaml"
