@@ -19,7 +19,7 @@ class QueueItem(Generic[T]):
         self.index = index
 
     # Note: heapq uses a min heap, so higher priorities are 'smaller'.
-    def __lt__(self, other):
+    def __lt__(self, other: "QueueItem[T]") -> bool:
         if self.priority != other.priority:
             # python priority queue is a min heap but larger priority
             # items should come first => reverse compare
@@ -45,24 +45,24 @@ class AbstractQueue(Generic[T]):
         # mutex to lock parallel access
         self.mutex = threading.RLock()
 
-    def __enter__(self):
+    def __enter__(self) -> None:
         self.mutex.__enter__()
 
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         self.mutex.__exit__(*args)
 
     # Add one task. Higher priority => done first
-    def put(self, task: T, priority=0):
+    def put(self, task: T, priority: int = 0) -> None:
         raise Exception("Abstract method")
 
     # By default, do nothing on .join(). This is overridden in ParallelQueue.
-    def join(self):
+    def join(self) -> None:
         return
 
-    def done(self):
+    def done(self) -> None:
         raise Exception("Abstract method")
 
-    def abort(self):
+    def abort(self) -> None:
         self.aborted = True
 
 
@@ -71,7 +71,7 @@ class SequentialQueue(AbstractQueue[T]):
         super().__init__(f, pin)
 
     # Add one task. Higher priority => done first
-    def put(self, task: T, priority: int = 0):
+    def put(self, task: T, priority: int = 0) -> None:
         # no task will be handled after self.abort() so skip adding
         if self.aborted:
             return
@@ -80,7 +80,7 @@ class SequentialQueue(AbstractQueue[T]):
         heapq.heappush(self.tasks, QueueItem(task, priority, self.total_tasks))
 
     # Execute all tasks.
-    def done(self):
+    def done(self) -> None:
         if self.pin:
             cores = list(os.sched_getaffinity(0))
             os.sched_setaffinity(0, {cores[0]})
@@ -127,7 +127,7 @@ class ParallelQueue(AbstractQueue[T]):
 
         signal.signal(signal.SIGINT, self._interrupt_handler)
 
-    def _worker(self, cores: Literal[False] | list[int] = False):
+    def _worker(self, cores: Literal[False] | list[int] = False) -> None:
         if cores is not False:
             os.sched_setaffinity(0, cores)
         while True:
@@ -164,10 +164,10 @@ class ParallelQueue(AbstractQueue[T]):
                 if self.missing == 0:
                     self.all_done.notify_all()
 
-    def _interrupt_handler(self, sig, frame):
+    def _interrupt_handler(self, sig: Any, frame: Any) -> None:
         util.fatal("Running interrupted", force=True)
 
-    def _handle_first_error(self):
+    def _handle_first_error(self) -> None:
         if self.first_error is not None:
             first_error = self.first_error
             self.first_error = None
@@ -177,7 +177,7 @@ class ParallelQueue(AbstractQueue[T]):
             raise first_error
 
     # Add one task. Higher priority => done first
-    def put(self, task: T, priority: int = 0):
+    def put(self, task: T, priority: int = 0) -> None:
         with self.mutex:
             # no task should be added after .done() was called
             assert not self.finish
@@ -189,14 +189,14 @@ class ParallelQueue(AbstractQueue[T]):
                 heapq.heappush(self.tasks, QueueItem(task, priority, self.total_tasks))
                 self.todo.notify()
 
-    def join(self):
+    def join(self) -> None:
         # wait for all current task to be completed
         with self.all_done:
             self.all_done.wait_for(lambda: self.missing == 0)
             self._handle_first_error()
 
     # Wait for all tasks to be done and stop all threads
-    def done(self):
+    def done(self) -> None:
         self.finish = True
 
         # notify all workers with permission to leave main loop
@@ -213,7 +213,7 @@ class ParallelQueue(AbstractQueue[T]):
 
     # Discard all remaining work in the queue and stop all workers.
     # Call done() to join the threads.
-    def abort(self):
+    def abort(self) -> None:
         super().abort()
 
         with self.mutex:
@@ -227,7 +227,7 @@ class ParallelQueue(AbstractQueue[T]):
                 self.all_done.notify_all()
 
 
-def new_queue(f: Callable[[T], Any], pin: bool = False):
+def new_queue(f: Callable[[T], Any], pin: bool = False) -> AbstractQueue[T]:
     """
     f(task): the function to run on each queue item.
 
@@ -242,7 +242,7 @@ def new_queue(f: Callable[[T], Any], pin: bool = False):
         return SequentialQueue(f, pin)
 
 
-def run_tasks(f: Callable[[T], Any], tasks: Sequence[T], pin: bool = False):
+def run_tasks(f: Callable[[T], Any], tasks: Sequence[T], pin: bool = False) -> None:
     queue = new_queue(f, pin)
     for task in tasks:
         queue.put(task)

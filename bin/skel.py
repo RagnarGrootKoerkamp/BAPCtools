@@ -2,7 +2,9 @@ import os
 import datetime
 import re
 import shutil
+from collections.abc import Sequence
 from pathlib import Path
+from typing import cast, Optional
 
 # Local imports
 import config
@@ -14,12 +16,13 @@ from validate import OutputValidator
 
 try:
     import questionary
+    from prompt_toolkit.document import Document
     from questionary import Validator, ValidationError
 
     has_questionary = True
 
     class EmptyValidator(Validator):
-        def validate(self, document):
+        def validate(self, document: Document) -> None:
             if len(document.text) == 0:
                 raise ValidationError(message="Please enter a value")
 
@@ -27,25 +30,28 @@ except Exception:
     has_questionary = False
 
 
-def _ask_variable(name, default=None, allow_empty=False):
+def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
     if config.args.defaults:
         if not default and not allow_empty:
             fatal(f"{name} has no default")
-        return default
+        return default or ""
     while True:
         val = input(f"{name}: ")
-        val = default if val == "" else val
+        val = val or default or ""
         if val != "" or allow_empty:
             return val
 
 
-def _ask_variable_string(name, default=None, allow_empty=False):
+def _ask_variable_string(
+    name: str, default: Optional[str] = None, allow_empty: bool = False
+) -> str:
     if has_questionary:
         try:
             validate = None if allow_empty else EmptyValidator
-            return questionary.text(
-                name + ":", default=default or "", validate=validate
-            ).unsafe_ask()
+            return cast(
+                str,
+                questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
+            )
         except KeyboardInterrupt:
             fatal("Running interrupted")
     else:
@@ -53,10 +59,13 @@ def _ask_variable_string(name, default=None, allow_empty=False):
         return _ask_variable(name + text, default if default else "", allow_empty)
 
 
-def _ask_variable_bool(name, default=True):
+def _ask_variable_bool(name: str, default: bool = True) -> bool:
     if has_questionary:
         try:
-            return questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask()
+            return cast(
+                bool,
+                questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
+            )
         except KeyboardInterrupt:
             fatal("Running interrupted")
     else:
@@ -64,13 +73,16 @@ def _ask_variable_bool(name, default=True):
         return _ask_variable(name + text, "Y" if default else "N").lower()[0] == "y"
 
 
-def _ask_variable_choice(name, choices, default=None):
+def _ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str] = None) -> str:
     if has_questionary:
         try:
             plain = questionary.Style([("selected", "noreverse")])
-            return questionary.select(
-                name + ":", choices=choices, default=default, style=plain
-            ).unsafe_ask()
+            return cast(
+                str,
+                questionary.select(
+                    name + ":", choices=choices, default=default, style=plain
+                ).unsafe_ask(),
+            )
         except KeyboardInterrupt:
             fatal("Running interrupted")
     else:
@@ -87,7 +99,7 @@ def _ask_variable_choice(name, choices, default=None):
 # Returns the alphanumeric version of a string:
 # This reduces it to a string that follows the regex:
 # [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
-def _alpha_num(string):
+def _alpha_num(string: str) -> str:
     s = re.sub(r"[^a-zA-Z0-9_.-]", "", string.lower().replace(" ", "").replace("-", ""))
     while len(s) and s[0] in "_.-":
         s = s[1:]
@@ -96,7 +108,7 @@ def _alpha_num(string):
     return s
 
 
-def new_contest():
+def new_contest() -> None:
     if config.args.contest:
         fatal("--contest does not work for new_contest.")
     if config.args.problem:
@@ -124,7 +136,7 @@ def new_contest():
     )
 
 
-def get_skel_dir(target_dir):
+def get_skel_dir(target_dir: Path) -> tuple[Path, bool]:
     skeldir = config.TOOLS_ROOT / "skel/problem"
     preserve_symlinks = False
     if (target_dir / "skel/problem").is_dir():
@@ -139,7 +151,7 @@ def get_skel_dir(target_dir):
     return (skeldir, preserve_symlinks)
 
 
-def new_problem():
+def new_problem() -> None:
     target_dir = Path(".")
     if config.args.contest:
         os.chdir(Path(config.args.contest))
@@ -269,7 +281,7 @@ def new_problem():
             )
 
 
-def rename_problem(problem):
+def rename_problem(problem: Problem) -> None:
     if not has_ryaml:
         fatal("ruamel.yaml library not found.")
 
@@ -304,7 +316,7 @@ def rename_problem(problem):
             write_yaml(data, problems_yaml)
 
 
-def copy_skel_dir(problems):
+def copy_skel_dir(problems: list[Problem]) -> None:
     assert len(problems) == 1
     problem = problems[0]
 
@@ -336,10 +348,10 @@ def copy_skel_dir(problems):
 
 
 # NOTE: This is one of few places that prints to stdout instead of stderr.
-def create_gitlab_jobs(contest: str, problems: list[Problem]):
+def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
     git_root_path = Path(os.popen("git rev-parse --show-toplevel").read().strip()).resolve()
 
-    def problem_source_dir(problem: Problem):
+    def problem_source_dir(problem: Problem) -> Path:
         return problem.path.resolve().relative_to(git_root_path)
 
     if config.args.latest_bt:
@@ -372,7 +384,7 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]):
         )
 
 
-def create_forgejo_actions(contest: str, problems: list[Problem]):
+def create_forgejo_actions(contest: str, problems: list[Problem]) -> None:
     if Path(".git").is_dir():
         contest_path = Path(".")
         forgejo = Path(".forgejo")
@@ -418,7 +430,7 @@ def create_forgejo_actions(contest: str, problems: list[Problem]):
 
 # Differences with forgejo:
 # - flat structure, with all workflows directly in `.github/workflows`.
-def create_github_actions(contest: str, problems: list[Problem]):
+def create_github_actions(contest: str, problems: list[Problem]) -> None:
     if config.args.latest_bt:
         fatal("Caching the latest BAPCtools is not supported for github actions.")
 
