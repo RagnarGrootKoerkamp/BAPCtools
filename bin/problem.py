@@ -769,7 +769,7 @@ class Problem:
         return [t for t in testcases if isinstance(t, tuple)]
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
-    def selected_or_accepted_submissions(problem) -> list["run.Submission"]:
+    def selected_or_accepted_submissions(problem) -> list[run.Submission]:
         submissions = problem.submissions()
         if not submissions:
             return []
@@ -778,7 +778,7 @@ class Problem:
         else:
             return [s for s in submissions if s.expected_verdicts == [verdicts.Verdict.ACCEPTED]]
 
-    def submissions(problem) -> list["run.Submission"] | Literal[False]:
+    def submissions(problem) -> list[run.Submission] | Literal[False]:
         if problem._submissions is not None:
             if problem._submissions is False:
                 return False

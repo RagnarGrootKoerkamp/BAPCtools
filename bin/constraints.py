@@ -76,7 +76,7 @@ def check_statement(problem: Problem, language: str) -> tuple[set[int | float], 
             # eval is dangerous, but on the other hand we run submission code so this is fine
             text = text.replace("^", "**")
             value = eval(text, {"__builtin__": None})
-            return value if value is isinstance(value, (int, float)) else None
+            return value if isinstance(value, (int, float)) else None
         except (SyntaxError, NameError, TypeError, ZeroDivisionError):
             return None
 
