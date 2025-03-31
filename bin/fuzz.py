@@ -7,6 +7,7 @@ import signal
 import time
 import threading
 from pathlib import Path
+from typing import Any, Optional
 
 import parallel
 from util import *
@@ -24,9 +25,11 @@ from verdicts import Verdict
 
 
 class GeneratorTask:
-    def __init__(self, fuzz: "Fuzz", t, i, tmp_id):
+    def __init__(self, fuzz: "Fuzz", t: generate.TestcaseRule, i: int, tmp_id: int):
         self.fuzz = fuzz
-        self.generator = t.generator
+        generator = t.generator
+        assert generator is not None
+        self.generator = generator
         self.solution = t.config.solution
         self.i = i
         self.tmp_id = tmp_id
@@ -39,13 +42,13 @@ class GeneratorTask:
         self.save_mutex = threading.Lock()
         self.saved = False
 
-    def run(self, bar):
+    def run(self, bar: ProgressBar) -> None:
         if self._run(bar):
             self.fuzz.finish_task(self.tmp_id)
         else:
             self.fuzz.finish_task(self.tmp_id, 1 + len(self.fuzz.submissions))
 
-    def _run(self, bar):
+    def _run(self, bar: ProgressBar) -> bool:
         # GENERATE THE TEST DATA
         dir = Path("fuzz") / f"tmp_id_{str(self.tmp_id)}"
         cwd = self.fuzz.problem.tmpdir / "tool_runs" / dir
@@ -104,7 +107,7 @@ class GeneratorTask:
                 self.fuzz.queue.put(SubmissionTask(self, submission, testcase, self.tmp_id))
         return True
 
-    def save_test(self, bar):
+    def save_test(self, bar: ProgressBar) -> None:
         if self.saved:
             return
         save = False
@@ -122,17 +125,23 @@ class GeneratorTask:
 
 
 class SubmissionTask:
-    def __init__(self, generator_task, submission, testcase, tmp_id):
+    def __init__(
+        self,
+        generator_task: GeneratorTask,
+        submission: run.Submission,
+        testcase: Testcase,
+        tmp_id: int,
+    ):
         self.generator_task = generator_task
         self.submission = submission
         self.testcase = testcase
         self.tmp_id = tmp_id
 
-    def run(self, bar):
+    def run(self, bar: ProgressBar) -> None:
         self._run(bar)
         self.generator_task.fuzz.finish_task(self.tmp_id)
 
-    def _run(self, bar):
+    def _run(self, bar: ProgressBar) -> None:
         r = run.Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
         localbar = bar.start(f"{self.generator_task.i}: {self.submission.name}")
         result = r.run(localbar)
@@ -155,10 +164,11 @@ class Fuzz:
         # Filter to only keep valid rules depending on seed without duplicates from count
         added_testcase_rules = set()
 
-        def add_testcase(t):
+        def add_testcase(t: generate.TestcaseRule) -> None:
             if (
                 t.in_is_generated
                 and t.parse_error is None
+                and t.generator is not None
                 and t.generator.uses_seed
                 and t.generator.command_string.strip() not in added_testcase_rules
             ):
@@ -177,7 +187,7 @@ class Fuzz:
         # SUBMISSIONS
         self.submissions = self.problem.selected_or_accepted_submissions()
 
-    def run(self):
+    def run(self) -> bool:
         if not has_ryaml:
             error("Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
             return False
@@ -192,7 +202,7 @@ class Fuzz:
 
         message("Press CTRL+C to stop\n", "Fuzz", color_type=MessageType.LOG)
 
-        def runner(task: GeneratorTask):
+        def runner(task: GeneratorTask | SubmissionTask) -> None:
             task.run(bar)
 
         # config.args.no_bar = True
@@ -203,7 +213,7 @@ class Fuzz:
         self.tasks = 0
         self.queue = parallel.new_queue(runner, pin=True)
 
-        def soft_exit(sig, frame):
+        def soft_exit(sig: Any, frame: Any) -> None:
             if self.queue.aborted:
                 fatal("Running interrupted", force=True)
             else:
@@ -240,7 +250,7 @@ class Fuzz:
 
     # finish task from generator with tmp_id
     # also add new tasks if queue becomes too empty
-    def finish_task(self, tmp_id=None, count=1):
+    def finish_task(self, tmp_id: Optional[int] = None, count: int = 1) -> None:
         with self.queue:
             # return tmp_id (and reuse it if all submissions are finished)
             if tmp_id is not None:
@@ -259,18 +269,18 @@ class Fuzz:
                 self.iteration += 1
                 # 1 new generator tasks which will also create one task per submission
                 new_tasks = 1 + len(self.submissions)
-                tmp_id = min(self.free_tmp_id)
-                self.free_tmp_id.remove(tmp_id)
-                self.tmp_id_count[tmp_id] = new_tasks
+                new_tmp_id = min(self.free_tmp_id)
+                self.free_tmp_id.remove(new_tmp_id)
+                self.tmp_id_count[new_tmp_id] = new_tasks
                 self.tasks += new_tasks
                 self.queue.put(
-                    GeneratorTask(self, testcase_rule, self.iteration, tmp_id),
+                    GeneratorTask(self, testcase_rule, self.iteration, new_tmp_id),
                     priority=1,
                 )
 
     # Write new rule to yaml
     # lock between read and write to ensure that no rule gets lost
-    def save_test(self, command):
+    def save_test(self, command: str) -> None:
         with self.generators_yaml_mutex:
             generators_yaml = self.problem.path / "generators/generators.yaml"
             data = None
