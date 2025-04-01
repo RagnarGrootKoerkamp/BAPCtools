@@ -17,6 +17,7 @@ from enum import Enum
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import (
+    cast,
     Any,
     Iterable,
     Literal,
@@ -56,6 +57,21 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 # For some reason ryaml.load doesn't work well in parallel.
 ruamel_lock = threading.Lock()
+
+
+try:
+    import questionary
+    from prompt_toolkit.document import Document
+
+    has_questionary = True
+
+    class EmptyValidator(questionary.Validator):
+        def validate(self, document: Document) -> None:
+            if len(document.text) == 0:
+                raise questionary.ValidationError(message="Please enter a value")
+
+except Exception:
+    has_questionary = False
 
 
 def is_windows() -> bool:
@@ -857,6 +873,70 @@ def parse_deprecated_setting(
         use = f", use '{new}' instead" if new else ""
         warn(f"key '{key}' is deprecated{use}. SKIPPED.")
         yaml_data.pop(key)
+
+
+def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
+    if config.args.defaults:
+        if not default and not allow_empty:
+            fatal(f"{name} has no default")
+        return default or ""
+    while True:
+        val = input(f"{name}: ")
+        val = val or default or ""
+        if val != "" or allow_empty:
+            return val
+
+
+def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
+    if has_questionary:
+        try:
+            validate = None if allow_empty else EmptyValidator
+            return cast(
+                str,
+                questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
+            )
+        except KeyboardInterrupt:
+            fatal("Running interrupted")
+    else:
+        text = f" ({default})" if default else ""
+        return _ask_variable(name + text, default if default else "", allow_empty)
+
+
+def ask_variable_bool(name: str, default: bool = True) -> bool:
+    if has_questionary:
+        try:
+            return cast(
+                bool,
+                questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
+            )
+        except KeyboardInterrupt:
+            fatal("Running interrupted")
+    else:
+        text = " (Y/n)" if default else " (y/N)"
+        return _ask_variable(name + text, "Y" if default else "N").lower()[0] == "y"
+
+
+def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str] = None) -> str:
+    if has_questionary:
+        try:
+            plain = questionary.Style([("selected", "noreverse")])
+            return cast(
+                str,
+                questionary.select(
+                    name + ":", choices=choices, default=default, style=plain
+                ).unsafe_ask(),
+            )
+        except KeyboardInterrupt:
+            fatal("Running interrupted")
+    else:
+        default = default or choices[0]
+        text = f" ({default})" if default else ""
+        while True:
+            got = _ask_variable(name + text, default if default else "")
+            if got in choices:
+                return got
+            else:
+                warn(f"unknown option: {got}")
 
 
 # glob, but without hidden files
