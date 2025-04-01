@@ -219,7 +219,7 @@ def get_problems():
             problems.sort(key=lambda p: (-solves[p.name], p.label))
             verbose(f"order: {', '.join(map(lambda p: str(p.label), problems))}")
 
-            if has_ryaml and ask_variable_bool("Update order in contest.yaml"):
+            if ask_variable_bool("Update order in contest.yaml"):
                 if has_ryaml:
                     contest_yaml_path = Path("contest.yaml")
                     data = contest_yaml()
