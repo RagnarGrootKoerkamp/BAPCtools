@@ -31,6 +31,7 @@ from typing import cast, Literal, Optional
 # Local imports
 import config
 import constraints
+import contest
 import export
 import generate
 import fuzz
@@ -1380,8 +1381,8 @@ def test(args):
     original_directory = Path().cwd()
     config.n_warn = 0
     config.n_error = 0
-    _contest_yaml = None
-    _problems_yaml = None
+    contest._contest_yaml = None
+    contest._problems_yaml = None
     try:
         parser = build_parser()
         run_parsed_arguments(parser.parse_args(args))
