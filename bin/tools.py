@@ -31,6 +31,7 @@ from typing import cast, Literal, Optional
 # Local imports
 import config
 import constraints
+import contest
 import export
 import generate
 import fuzz
@@ -45,7 +46,6 @@ import validate
 import signal
 
 from problem import Problem
-import contest
 from contest import *
 from util import *
 
@@ -179,13 +179,15 @@ def get_problems():
             if len(problems) == 0:
                 fatal("Did not find problem.yaml. Are you running this from a problem directory?")
 
-        if config.args.order:
+        if config.args.order or contest_yaml().get("order"):
+            order = config.args.order or contest_yaml()["order"]
+
             # Sort by position of id in order
             def get_pos(id):
-                if id in config.args.order:
-                    return config.args.order.index(id)
+                if id in order:
+                    return order.index(id)
                 else:
-                    return len(config.args.order) + 1
+                    return len(order)
 
             problems.sort(key=lambda p: (get_pos(p.label), p.label))
 
@@ -216,8 +218,17 @@ def get_problems():
             # Sort the problems
             # Use negative solves instead of reversed, to preserver stable order.
             problems.sort(key=lambda p: (-solves[p.name], p.label))
-            order = ", ".join(map(lambda p: str(p.label), problems))
-            verbose("order: " + order)
+            verbose(f"order: {', '.join(map(lambda p: str(p.label), problems))}")
+
+            if ask_variable_bool("Update order in contest.yaml"):
+                if has_ryaml:
+                    contest_yaml_path = Path("contest.yaml")
+                    data = contest_yaml()
+                    data["order"] = [p.label for p in problems]
+                    write_yaml(data, contest_yaml_path)
+                    log("Updated order")
+                else:
+                    error("ruamel.yaml library not found. Update the order manually.")
 
     contest_name = Path().cwd().name
 
