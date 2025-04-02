@@ -1122,7 +1122,9 @@ class Problem:
         self._testcase_hashes[h] = t
         return None
 
-    def validate_data(problem, mode: validate.Mode, constraints: dict | bool | None = None) -> bool:
+    def validate_data(
+        problem, mode: validate.Mode, constraints: dict | Literal[True] | None = None
+    ) -> bool:
         """Validate aspects of the test data files.
 
         Arguments:
@@ -1289,7 +1291,7 @@ class Problem:
     def _validate_data(
         problem,
         mode: validate.Mode,
-        constraints: dict | bool | None,
+        constraints: dict | Literal[True] | None,
         action: str,
         testcases: Sequence[testcase.Testcase],
         extra: bool = False,
