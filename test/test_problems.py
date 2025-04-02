@@ -2,6 +2,7 @@ import pytest
 import os
 import io
 from pathlib import Path
+from zipfile import ZipFile
 
 import tools
 import problem
@@ -19,10 +20,8 @@ PROBLEMS = [
     "divsort",
     "interactivemultipass",
     "multipass",
+    "constants",
 ] + ["hellounix" if not util.is_mac() and not util.is_windows() else []]
-
-# Run various specific commands on this problem.
-IDENTITY_PROBLEMS = ["identity"]
 
 RUN_DIR = Path.cwd().resolve()
 
@@ -41,6 +40,40 @@ def setup_problem(request):
 class TestProblem:
     def test_problem(self):
         tools.test(["run"])
+
+
+@pytest.fixture(scope="class")
+def setup_constants_problem(request):
+    problem_dir = RUN_DIR / "test/problems/constants"
+    os.chdir(problem_dir)
+    try:
+        tools.test(["tmp", "--clean"])
+        yield
+    finally:
+        tools.test(["tmp", "--clean"])
+        os.chdir(RUN_DIR)
+
+
+@pytest.mark.usefixtures("setup_constants_problem")
+class TestConstantsProblem:
+    def test_generate(self):
+        tools.test(["generate"])
+
+    def test_pdf(self):
+        tools.test(["pdf"])
+
+    def test_solutions(self):
+        tools.test(["solutions"])
+
+    def test_problem_slides(self):
+        tools.test(["problem_slides"])
+
+    def test_validate(self):
+        tools.test(["validate"])
+
+    def test_zip(self):
+        tools.test(["zip", "--force"])
+        Path("constants.zip").unlink()
 
 
 @pytest.fixture(scope="class")
@@ -111,11 +144,61 @@ class TestIdentityProblem:
     # Exporting
     def test_samplezip(self):
         tools.test(["samplezip"])
-        Path("samples.zip").unlink()
+        zip_path = Path("samples.zip")
+
+        # Sample zip should contain exactly one .in and .ans file.
+        assert sorted(
+            (info.filename, info.file_size)
+            for info in ZipFile(zip_path).infolist()
+            if info.filename.startswith("A/")
+        ) == [
+            (f"A/{i}.{ext}", size)
+            for i, size in enumerate([2, 4, 2, 5, 2, 2], start=1)
+            for ext in ["ans", "in"]
+        ], "Sample zip contents are not correct"
+
+        zip_path.unlink()
 
     def test_zip(self):
+        zip_path = Path("identity.zip")
+
         tools.test(["zip", "--force"])
-        Path("identity.zip").unlink()
+
+        # The full zip should contain the samples with the original file extensions.
+        assert sorted(
+            (info.filename, info.file_size)
+            for info in ZipFile(zip_path).infolist()
+            if info.filename.startswith("identity/data/sample/")
+        ) == [
+            *(
+                (f"identity/data/sample/{i}.{ext}", size)
+                for i, size in enumerate([2, 4, 2, 5], start=1)
+                for ext in ["ans", "in"]
+            ),
+            *((f"identity/data/sample/5.{ext}", 2) for ext in ["ans", "in", "out"]),
+            *((f"identity/data/sample/6.{ext}.statement", 2) for ext in ["ans", "in"]),
+        ], "Zip contents for data/sample/ are not correct"
+
+        # The full zip should contain all PDFs in their corresponding directories.
+        assert sorted(
+            info.filename for info in ZipFile(zip_path).infolist() if info.filename.endswith(".pdf")
+        ) == [
+            f"identity/{path}.{lang}.pdf"
+            for path in ["problem_slide/problem-slide", "solution/solution", "statement/problem"]
+            for lang in ["de", "en"]
+        ], "Zip contents for PDFs with both languages are not correct"
+
+        tools.test(["zip", "--force", "--lang", "en"])
+
+        # The full zip should contain all PDFs in their corresponding directories.
+        assert sorted(
+            info.filename for info in ZipFile(zip_path).infolist() if info.filename.endswith(".pdf")
+        ) == [
+            f"identity/{path}.en.pdf"
+            for path in ["problem_slide/problem-slide", "solution/solution", "statement/problem"]
+        ], "Zip contents for PDFs with `--lang en` are not correct"
+
+        zip_path.unlink()
 
     # Misc
     # def test_all(self): tools.test(['all'])
@@ -171,6 +254,34 @@ class TestContest:
     def test_gitlabci(self):
         tools.test(["gitlabci"])
 
+    def test_zip(self):
+        zip_path = Path("problems.zip")
+
+        for languages in [["en", "de"], ["en"]]:
+            tools.test(["zip", "--force", "--lang", *languages])
+
+            # The full zip should contain all PDFs in their corresponding directories.
+            assert sorted(info.filename for info in ZipFile(zip_path).infolist()) == sorted(
+                [
+                    "contest.yaml",
+                    "identity.zip",
+                    "problems.yaml",
+                    "samples.zip",
+                    *(
+                        f"{name}{suffix}.{lang}.pdf"
+                        for name in ["contest", "solutions", "problem-slides"]
+                        for lang in languages
+                        for suffix in ["", "-web"]
+                        # The problem slides do not have a -web version.
+                        if (name, suffix) != ("problem-slides", "-web")
+                    ),
+                ]
+            ), f"Zip contents for contest zip are not correct for languages {languages}"
+
+        zip_path.unlink()
+        Path("identity/identity.zip").unlink()
+        Path("samples.zip").unlink()
+
 
 @pytest.fixture(scope="function")
 def tmp_contest_dir(tmp_path):
@@ -215,7 +326,7 @@ class TestNewContestProblem:
 
 class TestReadProblemConfig:
     def test_read_problem_config(self):
-        p = problem.Problem(RUN_DIR / "test/problems/test_problem_config", Path("/tmp/xyz"))
+        p = problem.Problem(RUN_DIR / "test/problems/testproblemconfig", Path("/tmp/xyz"))
         assert p.settings.name["en"] == "ABC XYZ"
         assert p.custom_output and not p.interactive and not p.multi_pass
         assert p.limits.time_limit == 3.0
