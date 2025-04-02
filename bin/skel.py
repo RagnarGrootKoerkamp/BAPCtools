@@ -2,9 +2,7 @@ import os
 import datetime
 import re
 import shutil
-from collections.abc import Sequence
 from pathlib import Path
-from typing import cast, Optional
 
 # Local imports
 import config
@@ -13,87 +11,6 @@ import latex
 from problem import Problem
 from util import *
 from validate import OutputValidator
-
-try:
-    import questionary
-    from prompt_toolkit.document import Document
-    from questionary import Validator, ValidationError
-
-    has_questionary = True
-
-    class EmptyValidator(Validator):
-        def validate(self, document: Document) -> None:
-            if len(document.text) == 0:
-                raise ValidationError(message="Please enter a value")
-
-except Exception:
-    has_questionary = False
-
-
-def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
-    if config.args.defaults:
-        if not default and not allow_empty:
-            fatal(f"{name} has no default")
-        return default or ""
-    while True:
-        val = input(f"{name}: ")
-        val = val or default or ""
-        if val != "" or allow_empty:
-            return val
-
-
-def _ask_variable_string(
-    name: str, default: Optional[str] = None, allow_empty: bool = False
-) -> str:
-    if has_questionary:
-        try:
-            validate = None if allow_empty else EmptyValidator
-            return cast(
-                str,
-                questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
-            )
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
-    else:
-        text = f" ({default})" if default else ""
-        return _ask_variable(name + text, default if default else "", allow_empty)
-
-
-def _ask_variable_bool(name: str, default: bool = True) -> bool:
-    if has_questionary:
-        try:
-            return cast(
-                bool,
-                questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
-            )
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
-    else:
-        text = " (Y/n)" if default else " (y/N)"
-        return _ask_variable(name + text, "Y" if default else "N").lower()[0] == "y"
-
-
-def _ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str] = None) -> str:
-    if has_questionary:
-        try:
-            plain = questionary.Style([("selected", "noreverse")])
-            return cast(
-                str,
-                questionary.select(
-                    name + ":", choices=choices, default=default, style=plain
-                ).unsafe_ask(),
-            )
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
-    else:
-        default = default or choices[0]
-        text = f" ({default})" if default else ""
-        while True:
-            got = _ask_variable(name + text, default if default else "")
-            if got in choices:
-                return got
-            else:
-                warn(f"unknown option: {got}")
 
 
 # Returns the alphanumeric version of a string:
@@ -115,15 +32,15 @@ def new_contest() -> None:
         fatal("--problem does not work for new_contest.")
 
     # Ask for all required infos.
-    title = _ask_variable_string("name", config.args.contestname)
-    subtitle = _ask_variable_string("subtitle", "", True).replace("_", "-")
-    dirname = _ask_variable_string("dirname", _alpha_num(title))
-    author = _ask_variable_string("author", f"The {title} Jury").replace("_", "-")
-    testsession = _ask_variable_bool("testsession", False)
-    year = _ask_variable_string("year", str(datetime.datetime.now().year))
-    source_url = _ask_variable_string("source url", "", True)
-    license = _ask_variable_choice("license", config.KNOWN_LICENSES)
-    rights_owner = _ask_variable_string(
+    title = ask_variable_string("name", config.args.contestname)
+    subtitle = ask_variable_string("subtitle", "", True).replace("_", "-")
+    dirname = ask_variable_string("dirname", _alpha_num(title))
+    author = ask_variable_string("author", f"The {title} Jury").replace("_", "-")
+    testsession = ask_variable_bool("testsession", False)
+    year = ask_variable_string("year", str(datetime.datetime.now().year))
+    source_url = ask_variable_string("source url", "", True)
+    license = ask_variable_choice("license", config.KNOWN_LICENSES)
+    rights_owner = ask_variable_string(
         "rights owner (if left empty, defaults to problem author)", "", allow_empty=True
     )
     rights_owner = f"rights_owner: {rights_owner}\n" if rights_owner else ""
@@ -165,23 +82,23 @@ def new_problem() -> None:
         lang: (
             config.args.problemname
             if config.args.problemname
-            else _ask_variable_string(f"problem name ({lang})")
+            else ask_variable_string(f"problem name ({lang})")
         )
         for lang in statement_languages
     }
     dirname = (
         _alpha_num(config.args.problemname)
         if config.args.problemname
-        else _ask_variable_string("dirname", _alpha_num(problemname[main_language]))
+        else ask_variable_string("dirname", _alpha_num(problemname[main_language]))
     )
-    author = config.args.author if config.args.author else _ask_variable_string("author")
+    author = config.args.author if config.args.author else ask_variable_string("author")
 
     output_validator_args = "#output_validator_args:"
     custom_output = False
     if config.args.type:
         problem_type = config.args.type
     else:
-        problem_type = _ask_variable_choice(
+        problem_type = ask_variable_choice(
             "type",
             ["pass-fail", "float", "custom", "interactive", "multi-pass", "interactive multi-pass"],
         )
@@ -208,18 +125,18 @@ def new_problem() -> None:
         "testdata_yaml_comment": "#" if output_validator_args[0] == "#" else "",
     }
 
-    source_name = _ask_variable_string(
+    source_name = ask_variable_string(
         "source", variables.get("source", variables.get("name", "")), True
     )
-    source_url = _ask_variable_string("source url", variables.get("source_url", ""), True)
+    source_url = ask_variable_string("source url", variables.get("source_url", ""), True)
     variables["source"] = (
         f"source:\n  name: {source_name}\n{f'  url: {source_url}' if source_url else '  #url:'}"
     )
 
-    variables["license"] = _ask_variable_choice(
+    variables["license"] = ask_variable_choice(
         "license", config.KNOWN_LICENSES, variables.get("license", None)
     )
-    variables["rights_owner"] = _ask_variable_string(
+    variables["rights_owner"] = ask_variable_string(
         f"rights owner{'' if variables.get('rights_owner', '') else ' (if left empty, defaults to problem author)'}",
         variables.get("rights_owner", ""),
         allow_empty=True,
@@ -289,14 +206,14 @@ def rename_problem(problem: Problem) -> None:
         lang: (
             config.args.problemname
             if config.args.problemname
-            else _ask_variable_string(f"New problem name ({lang})", problem.settings.name[lang])
+            else ask_variable_string(f"New problem name ({lang})", problem.settings.name[lang])
         )
         for lang in problem.statement_languages
     }
     dirname = (
         _alpha_num(config.args.problemname)
         if config.args.problemname
-        else _ask_variable_string("dirname", _alpha_num(newname[problem.statement_languages[0]]))
+        else ask_variable_string("dirname", _alpha_num(newname[problem.statement_languages[0]]))
     )
 
     shutil.move(problem.name, dirname)
