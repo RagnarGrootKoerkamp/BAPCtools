@@ -5,7 +5,7 @@ import sys
 
 from colorama import Fore, Style
 from pathlib import Path
-from typing import cast
+from typing import Optional, cast
 
 import config
 import interactive
@@ -174,7 +174,9 @@ class Run:
 
             result.duration = max_duration
 
-            # Delete .out files larger than 1MB.
+            self._visualize_output(bar)
+
+            # Delete .out files larger than 1GB.
             if (
                 not config.args.error
                 and self.out_path.is_file()
@@ -215,7 +217,7 @@ class Run:
         shutil.move(nextpass, self.in_path)
         return True
 
-    def _validate_output(self, bar):
+    def _validate_output(self, bar: ProgressBar) -> Optional[ExecResult]:
         output_validators = self.problem.validators(validate.OutputValidator)
         if not output_validators:
             return None
@@ -225,6 +227,16 @@ class Run:
             self.testcase,
             self,
             args=self.testcase.testdata_yaml_validator_args(output_validator, bar),
+        )
+
+    def _visualize_output(self, bar: ProgressBar) -> Optional[ExecResult]:
+        output_validators = self.problem.validators(validate.OutputVisualizer)
+        if not output_validators:
+            return None
+        return output_validators[0].run(
+            self.testcase,
+            self,
+            args=self.testcase.testdata_yaml_validator_args(output_validators[0], bar),
         )
 
 
