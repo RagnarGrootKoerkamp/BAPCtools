@@ -29,10 +29,6 @@ data: {sample: {data: []}, secret: {data: []}}
 solution: false
 data: {sample: {data: []}, secret: {data: []}}
 ---
-# visualizer is legacy
-visualizer: "/foo/bar/baz"
-data: {sample: {data: []}, secret: {data: []}}
----
 # random_salt must be null or string
 random_salt: 0
 data: {sample: {data: []}, secret: {data: []}}
