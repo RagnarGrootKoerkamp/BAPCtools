@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+
+set -e
+asy -f png $(dirname $0)/visualize.asy -o testcase.png
