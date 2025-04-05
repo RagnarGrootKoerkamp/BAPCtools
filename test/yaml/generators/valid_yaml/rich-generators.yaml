@@ -30,7 +30,6 @@ data:
       'group_with_testdata':
         testdata.yaml:
           input_validator_args: "--connected --max_n 2000"
-        visualizer: "/foo/bar/baz"
         data:
           'a': my_generator
   invalid_input:
