@@ -211,13 +211,13 @@ def get_problems():
                         self.pending += team_stats["num_pending"]
                         self.teams_pending += 1
 
-                def key(self, fall_back: str) -> tuple[int, float, str]:
+                def key(self) -> tuple[int, int]:
                     # self.solved more AC => easier
                     # possible tie breakers:
                     # self.submissions more needed to get the same number of AC => Harder
                     # self.teams_pending more teams tried => appeared easier
                     # TODO: consider more stats?
-                    return (-self.solved, self.submissions, fall_back)
+                    return (-self.solved, self.submissions)
 
             # Get active contest.
             cid = get_contest_id()
