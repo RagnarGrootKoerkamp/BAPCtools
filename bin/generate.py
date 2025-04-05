@@ -193,13 +193,14 @@ class VisualizerInvocation(Invocation):
     def __init__(self, problem, string):
         super().__init__(problem, string, allow_absolute=True, allow_relative=False)
 
-    # Run the visualizer, taking {name} as a command line argument.
-    # Stdin and stdout are not used.
-    # {name} is no longer used and hardcoded to `testcase` (see #273), and {seed} is also not used.
+    # Run the visualizer, passing the test case input to stdin.
     def run(self, bar, cwd):
         assert isinstance(self.program, program.Visualizer), "Visualizer program must be built!"
 
-        result = self.program.run(cwd, args=self._sub_args())
+        in_path = cwd / "testcase.in"
+
+        with in_path.open("rb") as in_file:
+            result = self.program.run(cwd, args=self._sub_args(), stdin=in_file)
 
         if result.status == ExecStatus.TIMEOUT:
             bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
@@ -327,7 +328,6 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
     "generate",
     "copy",
     "solution",
-    "visualizer",
     "random_salt",
     "retries",
     "count",
@@ -339,7 +339,6 @@ KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = [
     "testdata.yaml",
     "include",
     "solution",
-    "visualizer",
     "random_salt",
     "retries",
 ]
@@ -350,7 +349,6 @@ DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated"]
 
 # Holds all inheritable configuration options. Currently:
 # - config.solution
-# - config.visualizer
 # - config.random_salt
 class Config:
     # Used at each directory or testcase level.
@@ -363,13 +361,6 @@ class Config:
         return SolutionInvocation(p, x)
 
     @staticmethod
-    def parse_visualizer(p, x, path):
-        assert_type("Visualizer", x, [type(None), str], path)
-        if x is None:
-            return None
-        return VisualizerInvocation(p, x)
-
-    @staticmethod
     def parse_random_salt(p, x, path):
         assert_type("Random_salt", x, [type(None), str], path)
         if x is None:
@@ -379,7 +370,6 @@ class Config:
     INHERITABLE_KEYS: Final[Sequence] = [
         # True: use an AC submission by default when the solution: key is not present.
         ("solution", True, parse_solution),
-        ("visualizer", None, parse_visualizer),
         ("random_salt", "", parse_random_salt),
         # Non-portable keys only used by BAPCtools:
         # The number of retries to run a generator when it fails, each time incrementing the {seed}
@@ -388,7 +378,6 @@ class Config:
     ]
 
     solution: SolutionInvocation
-    visualizer: Optional[VisualizerInvocation]
     random_salt: str
     retries: int
 
@@ -1049,21 +1038,21 @@ class TestcaseRule(Rule):
 
             if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
                 return True
-            if not t.config.visualizer:
+            if not generator_config.visualizer:
                 return True
             if config.args.no_visualizer:
                 return True
 
             visualizer_hash = {
-                "visualizer_hash": t.config.visualizer.hash(),
-                "visualizer": t.config.visualizer.cache_command(),
+                "visualizer_hash": generator_config.visualizer.hash(),
+                "visualizer": generator_config.visualizer.cache_command(),
             }
 
             if meta_yaml.get("visualizer_hash") == visualizer_hash:
                 return True
 
             # Generate visualization
-            t.config.visualizer.run(bar, cwd)
+            generator_config.visualizer.run(bar, cwd)
 
             meta_yaml["visualizer_hash"] = visualizer_hash
             write_yaml(meta_yaml, meta_path, allow_yamllib=True)
@@ -1504,6 +1493,12 @@ class GeneratorConfig:
         self.hashed_in = set()
         # Files that should be processed
         self.restriction = restriction
+        # The input visualizer is shared between all test cases.
+        self.visualizer: Optional[VisualizerInvocation] = (
+            VisualizerInvocation(problem, "/input_visualizer")
+            if (problem.path / "input_visualizer").is_dir()
+            else None
+        )
 
         if yaml_path.is_file():
             self.yaml = read_yaml(yaml_path)
@@ -1829,7 +1824,6 @@ class GeneratorConfig:
     def build(self, build_visualizers=True, skip_double_build_warning=False):
         generators_used: set[Path] = set()
         solutions_used: set[Path] = set()
-        visualizers_used: set[Path] = set()
 
         # Collect all programs that need building.
         # Also, convert the default submission into an actual Invocation.
@@ -1850,14 +1844,12 @@ class GeneratorConfig:
                             default_solution = DefaultSolutionInvocation(self)
                         t.config.solution = default_solution
                     solutions_used.add(t.config.solution.program_path)
-            if build_visualizers and t.config.visualizer:
-                visualizers_used.add(t.config.visualizer.program_path)
 
         self.root_dir.walk(collect_programs, dir_f=None)
 
         def build_programs(
             program_type: type[program.Generator | program.Visualizer | run.Submission],
-            program_paths: set[Path],
+            program_paths: Iterable[Path],
         ):
             programs = list[program.Generator | program.Visualizer | run.Submission]()
             for program_path in program_paths:
@@ -1893,7 +1885,10 @@ class GeneratorConfig:
         # TODO: Consider building all types of programs in parallel as well.
         build_programs(program.Generator, generators_used)
         build_programs(run.Submission, solutions_used)
-        build_programs(program.Visualizer, visualizers_used)
+        build_programs(
+            program.Visualizer,
+            [self.visualizer.program_path] if build_visualizers and self.visualizer else [],
+        )
 
         self.problem.validators(validate.InputValidator)
         self.problem.validators(validate.AnswerValidator)
@@ -1902,10 +1897,6 @@ class GeneratorConfig:
         def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
                 t.config.solution = None
-            if not build_visualizers or (
-                t.config.visualizer and t.config.visualizer.program is None
-            ):
-                t.config.visualizer = None
 
         self.root_dir.walk(cleanup_build_failures, dir_f=None)
 

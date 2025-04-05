@@ -605,10 +605,11 @@ class Visualizer(Program):
         )
 
     # Run the visualizer.
-    # Stdin and stdout are not used.
-    def run(self, cwd, args=[]):
+    # Stdout is not used.
+    def run(self, cwd, stdin, args=[]):
         assert self.run_command is not None
         return self._exec_command(
             self.run_command + args,
             cwd=cwd,
+            stdin=stdin,
         )
