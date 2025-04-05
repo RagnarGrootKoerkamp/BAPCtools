@@ -49,7 +49,7 @@ def _list_invalid_generators() -> list[
 
     # constant testcases
     register("latin-1")("Naïve")
-    register("empty")("")
+    register("empty", [InputValidator, OutputValidator])("")
     register("newline")("\n")
     register("fixed_random")("YVRtr&*teTsRjs8ZC2%kN*T63V@jJq!d")
     register("not_printable_ascii")("\x7f")

@@ -1,3 +1,4 @@
+problem_format_version: 2023-07-draft
 name:
   en: Hello World!
   sv: Hej Världen!
@@ -11,3 +12,4 @@ license: public domain
 # a test submission that goes over this limit.)
 limits:
   memory: 512
+  time_limit: 2.0
