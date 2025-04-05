@@ -1,7 +1,11 @@
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 import program
+import testcase
+import run
+
+from util import *
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
@@ -18,12 +22,48 @@ class InputVisualizer(program.Program):
             **kwargs,
         )
 
+    # Run the visualizer (should create a testcase.<img> file).
+    # Stdout is not used.
+    def run(self, in_path: Path, cwd: Path, args: Optional[list[str]] = None) -> ExecResult:
+        assert self.run_command is not None, "Input Visualizer should be built before running it"
+
+        with in_path.open("rb") as in_file:
+            return self._exec_command(
+                self.run_command + (args or []),
+                cwd=cwd,
+                stdin=in_file,
+            )
+
+
+class OutputVisualizer(program.Program):
+    def __init__(self, problem: "Problem", path: Path, **kwargs):
+        super().__init__(
+            problem,
+            path,
+            "output_visualizer",
+            limits={"timeout": problem.limits.visualizer_time},
+            substitute_constants=True,
+            **kwargs,
+        )
+
     # Run the visualizer.
     # Stdout is not used.
-    def run(self, cwd, stdin, args=[]):
-        assert self.run_command is not None
-        return self._exec_command(
-            self.run_command + args,
-            cwd=cwd,
-            stdin=stdin,
-        )
+    def run(
+        self,
+        testcase: testcase.Testcase,
+        run: run.Run,
+        args: Optional[list[str]] = None,
+    ) -> ExecResult:
+        assert self.run_command is not None, "Output Visualizer should be built before running it"
+
+        in_path = testcase.in_path.resolve()
+        ans_path = testcase.ans_path.resolve()
+        out_path = run.out_path
+        cwd = run.feedbackdir
+
+        with out_path.open("rb") as out_file:
+            return self._exec_command(
+                self.run_command + [in_path, ans_path, cwd] + (args or []),
+                stdin=out_file,
+                cwd=cwd,
+            )

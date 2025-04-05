@@ -174,7 +174,7 @@ class Validator(program.Program):
             return ExecStatus.ERROR
 
         if self.language == "checktestdata":
-            with main_path.open() as main_file:
+            with main_path.open("rb") as main_file:
                 return self._exec_command(
                     self.run_command,
                     exec_code_map=format_exec_code_map,
@@ -263,7 +263,7 @@ class InputValidator(Validator):
 
         invocation = self.run_command.copy()
 
-        with testcase.in_path.open() as in_file:
+        with testcase.in_path.open("rb") as in_file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -316,7 +316,7 @@ class AnswerValidator(Validator):
 
         invocation = self.run_command + [testcase.in_path.resolve()]
 
-        with testcase.ans_path.open() as ans_file:
+        with testcase.ans_path.open("rb") as ans_file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -388,7 +388,6 @@ class OutputValidator(Validator):
             assert mode != Mode.INPUT
             # mode is actually a Run
             path = mode.out_path
-            in_path = mode.in_path
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
@@ -398,7 +397,7 @@ class OutputValidator(Validator):
             cwd = mode.feedbackdir
         invocation = self.run_command + [in_path, ans_path, cwd]
 
-        with path.open() as file:
+        with path.open("rb") as file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -460,7 +459,7 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
     if not path.exists():
         fatal(f"{path} not found during sanity check")
 
-    with open(path, "rb") as file:
+    with path.open("rb") as file:
         name = {
             ".in": "Input",
             ".ans": "Answer",
