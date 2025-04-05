@@ -11,17 +11,6 @@
 # TOOLING: may pick a default if not specified, but should raise an error.
 solution: /submissions/accepted/sol.py
 
-# The visualizer is used when no suitable image was generated already.
-# This should read `testcase.in` and/or `testcase.ans` from the current working
-# directory, and write `testcase.ext` for an extension in:
-# .png, .jpg, .svg
-#
-# This must be the absolute path, starting in the problem root.
-#
-# TOOLING: may provide a flag to make running this optional, as it can be slow
-# and usually isn't required.
-visualizer: /visualizers/vis.py
-
 # Optionally, a salt for generating the {seed} variables. Will be prepended to
 # the command being run.
 random_salt: abcd
@@ -169,12 +158,11 @@ data:
       "13": write_in_and_ans.py
 
       # To override the global/testgroup configuration on a per-testcase basis,
-      # a dictionary may be used. This allows the solution: and visualizer: keys,
+      # a dictionary may be used. This allows the solution: key,
       # as well as the generate: key which contains the command to execute.
-      14_no_visualizer:
+      14_override:
         generate: large_case_generator.py 1000000
         solution: /generators/gnu_multi_precision.cpp
-        visualizer: # Empty to disable the visualizer here.
         random_salt: "123"
 
       # An entry must include *some* key that produces an in-file,
