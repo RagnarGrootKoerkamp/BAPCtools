@@ -235,7 +235,7 @@ def get_problems():
                     problem_stats[team_stats["problem_id"]].update(team_stats)
 
             # Sort the problems
-            problems.sort(key=lambda p: problem_stats[p.name].key(cast(str, p.label)))
+            problems.sort(key=lambda p: (problem_stats[p.name].key(), p.label))
             verbose(f"order: {', '.join(map(lambda p: str(p.label), problems))}")
 
             if ask_variable_bool("Update order in contest.yaml"):
