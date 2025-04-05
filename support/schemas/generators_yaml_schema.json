@@ -43,9 +43,6 @@
         "solution": {
           "$ref": "#/$defs/solution"
         },
-        "visualizer": {
-          "$ref": "#/$defs/visualizer"
-        }
       },
       "additionalProperties": false
     },
@@ -221,9 +218,6 @@
               "title": "Hint",
               "description": "Feedback shown to the solver about this test case given as a string"
             },
-            "visualizer": {
-              "$ref": "#/$defs/visualizer"
-            },
             "random_salt": {
               "$ref": "#/$defs/random_salt"
             },
@@ -232,24 +226,6 @@
             }
           },
           "additionalProperties": false
-        }
-      ]
-    },
-    "visualizer": {
-      "title": "Visualizer",
-      "description": "Absolute path to and arguments for a visualizer. Leave empty to disable visualizion.",
-      "examples": [
-        "/visualizer",
-        "/visualizers/asy.py",
-        "/visualizers/vis --large"
-      ],
-      "oneOf": [
-        {
-          "type": "string",
-          "pattern": "^\/([^{}]|\\{name\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\})*$"
-        },
-        {
-          "type": "null"
         }
       ]
     },
@@ -301,9 +277,6 @@
   "properties": {
     "solution": {
       "$ref": "#/$defs/solution"
-    },
-    "visualizer": {
-      "$ref": "#/$defs/visualizer"
     },
     "random_salt": {
       "$ref": "#/$defs/random_salt"
