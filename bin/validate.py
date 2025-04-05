@@ -388,6 +388,7 @@ class OutputValidator(Validator):
             assert mode != Mode.INPUT
             # mode is actually a Run
             path = mode.out_path
+            in_path = mode.in_path  # relevant for multipass
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
