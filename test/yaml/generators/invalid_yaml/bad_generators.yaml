@@ -23,9 +23,6 @@ solution: true
 ---
 solution: false
 ---
-# visualizer is legacy
-visualizer: "/foo/bar/baz"
----
 # random_salt must be null or string
 random_salt: 0
 ---
