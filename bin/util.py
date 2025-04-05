@@ -791,7 +791,7 @@ def write_yaml(
             exit(1)
         if path is None:
             return yamllib.dump(data)
-        with open(path, "w") as stream:
+        with path.open("w") as stream:
             yamllib.dump(data, stream)
         return None
     with write_yaml_lock:
@@ -1478,7 +1478,7 @@ def hash_file_content(file: Path, buffer_size: int = 65536) -> str:
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
     sha = hashlib.sha512(usedforsecurity=False)
 
-    with open(file, "rb") as f:
+    with file.open("rb") as f:
         while True:
             data = f.read(buffer_size)
             if not data:
@@ -1496,7 +1496,7 @@ def hash_file(file: Path, buffer_size: int = 65536) -> str:
     sha.update(len(name).to_bytes(8, "big"))
     sha.update(name)
 
-    with open(file, "rb") as f:
+    with file.open("rb") as f:
         while True:
             data = f.read(buffer_size)
             if not data:

@@ -204,8 +204,8 @@ class VisualizerInvocation(Invocation):
 
         in_path = cwd / "testcase.in"
 
-        with in_path.open("rb") as in_file:
-            result = self.program.run(cwd, args=self._sub_args(), stdin=in_file)
+        # TODO should the input validator get any args?
+        result = self.program.run(in_path, cwd)
 
         if result.status == ExecStatus.TIMEOUT:
             bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")

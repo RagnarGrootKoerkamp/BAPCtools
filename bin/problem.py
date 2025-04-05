@@ -383,7 +383,7 @@ class Problem:
             unnormalised_yamlname = self.settings.name[lang]
             yamlname = " ".join(unnormalised_yamlname.split())
             texpath = self.path / latex.PdfType.PROBLEM.path(lang)
-            with open(texpath) as texfile:
+            with texpath.open() as texfile:
                 match texname := latex.get_argument_for_command(texfile, "problemname"):
                     case None:
                         error(rf"No \problemname found in {texpath.name}")
