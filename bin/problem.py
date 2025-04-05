@@ -913,6 +913,13 @@ class Problem:
                 paths = [problem.path / validate.OutputValidator.source_dir]
             else:
                 paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
+        elif cls == validate.OutputVisualizer:
+            # TODO: if not config.args.no_output_visualizer:
+            paths = (
+                [problem.path / validate.OutputVisualizer.source_dir]
+                if (problem.path / validate.OutputVisualizer.source_dir).is_dir()
+                else []
+            )
         else:
             paths = list(glob(problem.path / cls.source_dir, "*"))
 
@@ -947,7 +954,7 @@ class Problem:
             )
             for path in paths
         ]
-        bar = ProgressBar(f"Building {cls.validator_type} validator", items=validators)
+        bar = ProgressBar(f"Building {cls.validator_type}", items=validators)
 
         def build_program(p):
             localbar = bar.start(p)
@@ -966,9 +973,10 @@ class Problem:
         if not testcases:
             return False
 
-        # Pre build the output validator to prevent nested ProgressBars.
+        # Pre build the output validator and visualizer to prevent nested ProgressBars.
         if not problem.validators(validate.OutputValidator):
             return False
+        problem.validators(validate.OutputVisualizer)
 
         submissions = problem.submissions()
         if not submissions:
