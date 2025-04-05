@@ -694,6 +694,13 @@ Run this from one of:
         help="Do not run `generate` before running submissions.",
     )
     runparser.add_argument(
+        "--visualizer",
+        default=True,
+        dest="no_visualizer",
+        action="store_false",
+        help="Also run the output visualizer.",
+    )
+    runparser.add_argument(
         "--all",
         "-a",
         action="count",

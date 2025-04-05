@@ -16,6 +16,7 @@ import parallel
 import program
 import run
 import validate
+import visualize
 from testcase import Testcase
 from verdicts import Verdict
 from problem import Problem
@@ -121,7 +122,9 @@ class Invocation:
             raise ParseException("{seed(:[0-9]+)} may appear at most once.")
 
         # Automatically set self.program when that program has been built.
-        self.program: Optional[program.Generator | program.Visualizer | run.Submission] = None
+        self.program: Optional[program.Generator | visualize.InputVisualizer | run.Submission] = (
+            None
+        )
 
         def callback(program):
             self.program = program
@@ -195,7 +198,9 @@ class VisualizerInvocation(Invocation):
 
     # Run the visualizer, passing the test case input to stdin.
     def run(self, bar, cwd):
-        assert isinstance(self.program, program.Visualizer), "Visualizer program must be built!"
+        assert isinstance(self.program, visualize.InputVisualizer), (
+            "Input Visualizer program must be built!"
+        )
 
         in_path = cwd / "testcase.in"
 
@@ -204,10 +209,10 @@ class VisualizerInvocation(Invocation):
 
         if result.status == ExecStatus.TIMEOUT:
             bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error(f"Visualizer TIMEOUT after {result.duration}s")
+            bar.error(f"Input Visualizer TIMEOUT after {result.duration}s")
         elif not result.status:
             bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error("Visualizer failed", result.err)
+            bar.error("Input Visualizer failed", result.err)
 
         if result.status and config.args.error and result.err:
             bar.log("stderr", result.err)
@@ -1848,10 +1853,10 @@ class GeneratorConfig:
         self.root_dir.walk(collect_programs, dir_f=None)
 
         def build_programs(
-            program_type: type[program.Generator | program.Visualizer | run.Submission],
+            program_type: type[program.Generator | visualize.InputVisualizer | run.Submission],
             program_paths: Iterable[Path],
         ):
-            programs = list[program.Generator | program.Visualizer | run.Submission]()
+            programs = list[program.Generator | visualize.InputVisualizer | run.Submission]()
             for program_path in program_paths:
                 path = self.problem.path / program_path
                 if program_type is program.Generator and program_path in self.generators:
@@ -1886,7 +1891,7 @@ class GeneratorConfig:
         build_programs(program.Generator, generators_used)
         build_programs(run.Submission, solutions_used)
         build_programs(
-            program.Visualizer,
+            visualize.InputVisualizer,
             [self.visualizer.program_path] if build_visualizers and self.visualizer else [],
         )
 
