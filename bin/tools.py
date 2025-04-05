@@ -193,31 +193,49 @@ def get_problems():
 
         if config.args.order_from_ccs:
             # Sort by increasing difficulty, extracted from the CCS api.
-            # Get active contest.
+            class ProblemStat:
+                def __init__(self):
+                    self.solved = 0
+                    self.submissions = 0
+                    self.pending = 0
+                    self.teams_submitted = 0
+                    self.teams_pending = 0
 
+                def update(self, team_stats: dict[str, Any]):
+                    if team_stats["solved"]:
+                        self.solved += 1
+                    if team_stats["num_judged"]:
+                        self.submissions += team_stats["num_judged"]
+                        self.teams_submitted += 1
+                    if team_stats["num_pending"]:
+                        self.pending += team_stats["num_pending"]
+                        self.teams_pending += 1
+
+                def key(self) -> tuple[int, int]:
+                    # self.solved more AC => easier
+                    # possible tie breakers:
+                    # self.submissions more needed to get the same number of AC => Harder
+                    # self.teams_pending more teams tried => appeared easier
+                    # TODO: consider more stats?
+                    return (-self.solved, self.submissions)
+
+            # Get active contest.
             cid = get_contest_id()
-            solves = dict()
 
             # Read set of problems
             contest_problems = call_api_get_json(f"/contests/{cid}/problems?public=true")
             assert isinstance(problems, list)
-            for path in contest_problems:
-                solves[path["id"]] = 0
+
+            problem_stats = {problem["id"]: ProblemStat() for problem in contest_problems}
 
             scoreboard = call_api_get_json(f"/contests/{cid}/scoreboard?public=true")
 
             for team in scoreboard["rows"]:
-                for path in team["problems"]:
-                    if path["solved"]:
-                        solves[path["problem_id"]] += 1
-
-            # Convert away from defaultdict, so any non matching keys below raise an error.
-            solves = dict(solves)
-            verbose("solves: " + str(solves))
+                for team_stats in team["problems"]:
+                    problem_stats[team_stats["problem_id"]].update(team_stats)
 
             # Sort the problems
-            # Use negative solves instead of reversed, to preserver stable order.
-            problems.sort(key=lambda p: (-solves[p.name], p.label))
+            problems.sort(key=lambda p: (problem_stats[p.name].key(), p.label))
             verbose(f"order: {', '.join(map(lambda p: str(p.label), problems))}")
 
             if ask_variable_bool("Update order in contest.yaml"):
