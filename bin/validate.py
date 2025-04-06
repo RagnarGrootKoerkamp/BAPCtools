@@ -292,7 +292,8 @@ class AnswerValidator(Validator):
 
     source_dir: Final[str] = "answer_validators"
 
-    args_key: Final[str] = "answer_validator_args"
+    # use output_validator_args as well
+    args_key: Final[str] = "output_validator_args"
 
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, AnswerValidator.source_dir, **kwargs)
