@@ -267,7 +267,7 @@ class ProblemSettings:
         self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
 
         parse_deprecated_setting(
-            yaml_data, "validator_flags", "output_validator_args' in 'testdata.yaml"
+            yaml_data, "validator_flags", f"{validate.OutputValidator.args_key}' in 'testdata.yaml"
         )
 
         self.keywords: list[str] = parse_optional_list_setting(yaml_data, "keywords", str)
@@ -460,17 +460,19 @@ class Problem:
                     p._testdata_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
 
                     parse_deprecated_setting(
-                        flags, "output_validator_flags", "output_validator_args"
+                        flags, "output_validator_flags", validate.OutputValidator.args_key
                     )
-                    parse_deprecated_setting(flags, "input_validator_flags", "input_validator_args")
+                    parse_deprecated_setting(
+                        flags, "input_validator_flags", validate.InputValidator.args_key
+                    )
 
                     # Verify testdata.yaml
                     for k in flags:
                         match k:
-                            case "output_validator_args":
+                            case validate.OutputValidator.args_key:
                                 if not isinstance(flags[k], str):
                                     bar.error(f"{k} must be string", resume=True, print_item=False)
-                            case "input_validator_args":
+                            case validate.InputValidator.args_key:
                                 if not isinstance(flags[k], (str, dict)):
                                     bar.error(
                                         f"{k} must be string or map",
@@ -508,8 +510,8 @@ class Problem:
     def get_testdata_yaml(
         p,
         path: Path,
-        key: Literal["input_validator_args"] | Literal["output_validator_args"],
-        bar: ProgressBar | PrintBar,
+        key: str,
+        bar: BAR_TYPE,
         name: Optional[str] = None,
     ) -> list[str]:
         """
@@ -521,8 +523,7 @@ class Problem:
         Arguments
         ---------
         path: absolute path (a file or a directory)
-        key: The testdata.yaml key to look for, either of 'input_validator_args', 'output_validator_args', or 'grading'.
-            TODO: 'grading' is not yet implemented.
+        key: The testdata.yaml key to look for (TODO: 'grading' is not yet implemented)
         name: If key == 'input_validator_args', optionally the name of the input validator.
 
         Returns:
@@ -530,9 +531,16 @@ class Problem:
         A list of string arguments, which is empty if no testdata.yaml is found.
         TODO: when 'grading' is supported, it also can return dict
         """
-        if key not in ["input_validator_args", "output_validator_args"]:
+        known_args_keys = [
+            validate.InputValidator.args_key,
+            validate.OutputValidator.args_key,
+            validate.AnswerValidator.args_key,
+            visualize.InputVisualizer.args_key,
+            visualize.OutputVisualizer.args_key,
+        ]
+        if key not in known_args_keys:
             raise NotImplementedError(key)
-        if key != "input_validator_args" and name is not None:
+        if key != validate.InputValidator.args_key and name is not None:
             raise ValueError(
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
@@ -551,20 +559,19 @@ class Problem:
                 continue
             flags = p._testdata_yamls[f]
             if key in flags:
-                if key == "output_validator_args":
-                    if not isinstance(flags[key], str):
-                        bar.error("output_validator_args must be string")
-                        return []
-                    return flags[key].split()
-
-                if key == "input_validator_args":
+                if key == validate.InputValidator.args_key:
                     if not isinstance(flags[key], (str, dict)):
-                        bar.error("input_validator_args must be string or map")
+                        bar.error(f"{key} must be string or map")
                         return []
                     if isinstance(flags[key], str):
                         return flags[key].split()
                     elif name in flags[key]:
                         return flags[key][name].split()
+                elif key in known_args_keys:
+                    if not isinstance(flags[key], str):
+                        bar.error(f"{key} must be string")
+                        return []
+                    return flags[key].split()
 
         return []
 

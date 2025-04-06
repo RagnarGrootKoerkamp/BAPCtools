@@ -61,8 +61,8 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
 
 def upgrade_testdata_yaml(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
-        ("output_validator_flags", "output_validator_args"),
-        ("input_validator_flags", "input_validator_args"),
+        ("output_validator_flags", OutputValidator.args_key),
+        ("input_validator_flags", InputValidator.args_key),
     ]
 
     for f in (problem_path / "data").rglob("testdata.yaml"):
@@ -158,8 +158,8 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             print_path = f" ({path[1:]})" if len(path) > 1 else ""
 
             rename = [
-                ("output_validator_flags", "output_validator_args"),
-                ("input_validator_flags", "input_validator_args"),
+                ("output_validator_flags", OutputValidator.args_key),
+                ("input_validator_flags", InputValidator.args_key),
             ]
             for old, new in rename:
                 if old in testdata:
@@ -370,14 +370,14 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                     ryaml_filter(data, "limits")
 
     def add_args(new_data: dict[str, Any]) -> bool:
-        if "output_validator_args" in new_data:
+        if OutputValidator.args_key in new_data:
             bar.error(
-                "can't change 'validator_flags', 'output_validator_args' already exists in testdata.yaml",
+                f"can't change 'validator_flags', '{OutputValidator.args_key}' already exists in testdata.yaml",
                 resume=True,
             )
             return False
-        bar.log("change 'validator_flags' to 'output_validator_args' in testdata.yaml")
-        new_data["output_validator_args"] = data["validator_flags"]
+        bar.log(f"change 'validator_flags' to '{OutputValidator.args_key}' in testdata.yaml")
+        new_data[OutputValidator.args_key] = data["validator_flags"]
         ryaml_filter(data, "validator_flags")
         return True
 

@@ -2,9 +2,10 @@
 
 from colorama import Fore, Style
 from pathlib import Path
-from typing import cast, Literal, Optional
+from typing import Optional, TYPE_CHECKING
 
 from util import (
+    BAR_TYPE,
     ExecStatus,
     combine_hashes_dict,
     fatal,
@@ -13,6 +14,10 @@ from util import (
 )
 import config
 import validate
+
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    import validate
+    import visualize
 
 
 class Testcase:
@@ -102,10 +107,10 @@ class Testcase:
     def with_suffix(self, ext):
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_validator_args(
+    def testdata_yaml_args(
         self,
-        validator,  # TODO #102: Fix circular import when setting type to validate.AnyValidator
-        bar,  # TODO #102: Type should probably be ProgressBar | PrintBar or something
+        program: "validate.AnyValidator | visualize.AnyVisualizer",
+        bar: BAR_TYPE,
     ) -> list[str]:
         """
         The flags specified in testdata.yaml for the given validator applying to this testcase.
@@ -116,18 +121,13 @@ class Testcase:
         A nonempty list of strings, such as ["space_change_sensitive", "case_sensitive"]
         or ["--max_N", "50"] or even [""].
         """
-        key, name = (
-            ("input_validator_args", validator.name)
-            if isinstance(validator, validate.InputValidator)
-            else ("output_validator_args", None)
-        )
 
         path = self.problem.path / "data" / self.short_path
         return self.problem.get_testdata_yaml(
             path,
-            cast(Literal["input_validator_args", "output_validator_args"], key),
+            type(program).args_key,
             bar,
-            name=name,
+            name=program.name if isinstance(program, validate.InputValidator) else None,
         )
 
     def validator_hashes(self, cls: type["validate.AnyValidator"], bar):
@@ -147,7 +147,7 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_args(validator, bar)
+            flags = self.testdata_yaml_args(validator, bar)
             if not flags:
                 continue
             flags_string = " ".join(flags) if flags is not None else None
@@ -278,7 +278,7 @@ class Testcase:
             if isinstance(validator, validate.OutputValidator) and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
-            flags = self.testdata_yaml_validator_args(validator, bar)
+            flags = self.testdata_yaml_args(validator, bar)
             if flags is False:
                 continue
             flags = args if flags is None else flags + args
