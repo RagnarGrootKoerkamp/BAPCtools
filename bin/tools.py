@@ -637,11 +637,13 @@ Run this from one of:
     )
     genparser.add_argument(
         "--no-validators",
+        default=False,
         action="store_true",
         help="Ignore results of input and answer validation. Validators are still run.",
     )
     genparser.add_argument(
         "--no-solution",
+        default=False,
         action="store_true",
         help="Skip generating .ans/.interaction files with the solution.",
     )
@@ -653,6 +655,7 @@ Run this from one of:
     )
     genparser.add_argument(
         "--no-testcase-sanity-checks",
+        default=False,
         action="store_true",
         help="Skip sanity checks on testcases.",
     )
