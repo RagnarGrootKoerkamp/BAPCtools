@@ -2,13 +2,11 @@ from pathlib import Path
 from typing import Final, Optional, TYPE_CHECKING
 
 import program
-import testcase
 
 from util import *
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
-    import run
 
 
 class InputVisualizer(program.Program):
@@ -34,7 +32,6 @@ class InputVisualizer(program.Program):
         )
 
     # Run the visualizer (should create a testcase.<ext> file).
-    # Stdout is not used.
     def run(
         self, in_path: Path, ans_path: Path, cwd: Path, args: Optional[list[str]] = None
     ) -> ExecResult:
@@ -69,19 +66,16 @@ class OutputVisualizer(program.Program):
         )
 
     # Run the visualizer.
-    # should write to feedbackdir/judgeimage.<ext>
+    # should write to feedbackdir/judgeimage.<ext> and/or feedbackdir/teamimage.<ext>
     def run(
         self,
-        testcase: testcase.Testcase,
-        run: "run.Run",
+        in_path: Path,
+        ans_path: Path,
+        out_path: Path,
+        cwd: Path,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
         assert self.run_command is not None, "Output Visualizer should be built before running it"
-
-        in_path = run.in_path  # relevant for multipass
-        ans_path = testcase.ans_path.resolve()
-        out_path = run.out_path
-        cwd = run.feedbackdir
 
         with out_path.open("rb") as out_file:
             return self._exec_command(

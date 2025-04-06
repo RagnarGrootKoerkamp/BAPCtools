@@ -11,6 +11,7 @@ import latex
 from problem import Problem
 from util import *
 from validate import OutputValidator
+from visualize import OutputVisualizer
 
 
 # Returns the alphanumeric version of a string:
@@ -180,13 +181,19 @@ def new_problem() -> None:
         else:
             error("ruamel.yaml library not found. Please update problems.yaml manually.")
 
+    skip = []
+    if custom_output:
+        skip.append(skeldir / OutputValidator.source_dir)
+    if "interactive" in problem_type:
+        skip.append(skeldir / OutputVisualizer.source_dir)
+
     copytree_and_substitute(
         skeldir,
         target_dir / dirname,
         variables,
         exist_ok=True,
         preserve_symlinks=preserve_symlinks,
-        skip=[skeldir / OutputValidator.source_dir] if not custom_output else None,
+        skip=skip,
     )
 
     # Warn about missing problem statement skeletons for non-en languages
