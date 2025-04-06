@@ -1017,7 +1017,9 @@ class TestcaseRule(Rule):
                 return True
             if config.args.no_visualizer:
                 return True
-            visualizer = problem.visualizer(visualize.InputVisualizer)
+            visualizer = problem.visualizer(visualize.InputVisualizer) or problem.visualizer(
+                visualize.OutputVisualizer
+            )
             if visualizer is None:
                 return True
 
@@ -1035,7 +1037,35 @@ class TestcaseRule(Rule):
             assert in_path.is_file()
             assert ans_path.is_file()
 
-            result = visualizer.run(in_path, ans_path, cwd)
+            for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                in_path.with_suffix(ext).unlink(True)
+
+            if isinstance(visualizer, visualize.InputVisualizer):
+                result = visualizer.run(in_path, ans_path, cwd)
+            elif not problem.multi_pass:
+                feedbackdir = in_path.with_suffix(".feedbackdir")
+                feedbackdir.mkdir(parents=True, exist_ok=True)
+                teamimage = feedbackdir / "teamimage"
+                judgeimage = feedbackdir / "judgeimage"
+
+                for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                    teamimage.with_suffix(ext).unlink(True)
+                    judgeimage.with_suffix(ext).unlink(True)
+
+                result = visualizer.run(in_path, ans_path, ans_path, feedbackdir)
+                if result.status:
+                    found = None
+                    for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                        file = teamimage.with_suffix(ext)
+                        if file.is_file():
+                            found = file
+                    for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                        file = judgeimage.with_suffix(ext)
+                        if file.is_file():
+                            found = file
+                    if found is not None:
+                        found.rename(in_path.with_suffix(found.suffix))
+                        bar.log(f"Using {found.name} as testcase visualization")
 
             if result.status == ExecStatus.TIMEOUT:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
@@ -1877,6 +1907,7 @@ class GeneratorConfig:
         build_programs(run.Submission, solutions_used)
         if build_visualizers:
             self.problem.visualizer(visualize.InputVisualizer)
+            self.problem.visualizer(visualize.OutputVisualizer)
 
         self.problem.validators(validate.InputValidator)
         self.problem.validators(validate.AnswerValidator)
