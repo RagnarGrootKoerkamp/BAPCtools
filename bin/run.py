@@ -228,7 +228,7 @@ class Run:
         return output_validator.run(
             self.testcase,
             self,
-            args=self.testcase.testdata_yaml_validator_args(output_validator, bar),
+            args=self.testcase.testdata_yaml_args(output_validator, bar),
         )
 
     def _visualize_output(self, bar: ProgressBar) -> Optional[ExecResult]:
@@ -237,9 +237,12 @@ class Run:
         output_visualizer = self.problem.visualizer(visualize.OutputVisualizer)
         if output_visualizer is None:
             return None
-        # TODO args?
         return output_visualizer.run(
-            self.in_path, self.testcase.ans_path.resolve(), self.out_path, self.feedbackdir
+            self.in_path,
+            self.testcase.ans_path.resolve(),
+            self.out_path,
+            self.feedbackdir,
+            args=self.testcase.testdata_yaml_args(output_visualizer, bar),
         )
 
 

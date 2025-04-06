@@ -1026,6 +1026,7 @@ class TestcaseRule(Rule):
             # TODO if the input visualizer gets args these need to be hashed as well
             visualizer_hash = {
                 "visualizer_hash": visualizer.hash,
+                "visualizer_args": testcase.testdata_yaml_args(visualizer, PrintBar()),
             }
 
             if meta_yaml.get("visualizer_hash") == visualizer_hash:

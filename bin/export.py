@@ -295,7 +295,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         validator_flags = " ".join(
             problem.get_testdata_yaml(
                 problem.path / "data",
-                "output_validator_args",
+                OutputValidator.args_key,
                 PrintBar("Getting validator_flags for legacy export"),
             )
         )
