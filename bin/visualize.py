@@ -3,23 +3,23 @@ from typing import Final, Optional, TYPE_CHECKING
 
 import program
 import testcase
-import run
 
 from util import *
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
+    import run
 
 
 class InputVisualizer(program.Program):
     """
-    Visualizes an input file (such as "testcase.in"), called as:
+    Visualizes a testcase, called as:
 
-        ./visualizer [args] < input
+        ./visualizer input answer [args]
 
     """
 
-    validator_type: Final[str] = "input"
+    visualizer_type: Final[str] = "input"
 
     source_dir: Final[str] = "input_visualizer"
 
@@ -35,15 +35,15 @@ class InputVisualizer(program.Program):
 
     # Run the visualizer (should create a testcase.<ext> file).
     # Stdout is not used.
-    def run(self, in_path: Path, cwd: Path, args: Optional[list[str]] = None) -> ExecResult:
+    def run(
+        self, in_path: Path, ans_path: Path, cwd: Path, args: Optional[list[str]] = None
+    ) -> ExecResult:
         assert self.run_command is not None, "Input Visualizer should be built before running it"
 
-        with in_path.open("rb") as in_file:
-            return self._exec_command(
-                self.run_command + (args or []),
-                cwd=cwd,
-                stdin=in_file,
-            )
+        return self._exec_command(
+            self.run_command + [in_path, ans_path] + (args or []),
+            cwd=cwd,
+        )
 
 
 class OutputVisualizer(program.Program):
@@ -54,7 +54,7 @@ class OutputVisualizer(program.Program):
 
     """
 
-    validator_type: Final[str] = "output"
+    visualizer_type: Final[str] = "output"
 
     source_dir: Final[str] = "output_visualizer"
 
@@ -73,7 +73,7 @@ class OutputVisualizer(program.Program):
     def run(
         self,
         testcase: testcase.Testcase,
-        run: run.Run,
+        run: "run.Run",
         args: Optional[list[str]] = None,
     ) -> ExecResult:
         assert self.run_command is not None, "Output Visualizer should be built before running it"
@@ -89,3 +89,6 @@ class OutputVisualizer(program.Program):
                 stdin=out_file,
                 cwd=cwd,
             )
+
+
+AnyVisualizer = InputVisualizer | OutputVisualizer

@@ -6,7 +6,7 @@ import threading
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, TYPE_CHECKING
+from typing import Any, Final, Literal, Optional, overload, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
@@ -20,6 +20,7 @@ import testcase
 import validate
 import validator_tests
 import verdicts
+import visualize
 from util import *
 from colorama import Fore, Style
 
@@ -337,6 +338,9 @@ class Problem:
             tuple[type[validate.AnyValidator], bool], list[validate.AnyValidator]
         ]()
         self._validators_warn_cache = set[tuple[type[validate.AnyValidator], bool]]()
+        self._visualizer_cache = dict[
+            type[visualize.AnyVisualizer], Optional[visualize.AnyVisualizer]
+        ]()
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
@@ -857,6 +861,34 @@ class Problem:
         assert isinstance(problem._submissions, list)
         return problem._submissions.copy()
 
+    @overload
+    def visualizer(
+        problem, cls: type[visualize.InputVisualizer]
+    ) -> Optional[visualize.InputVisualizer]: ...
+    @overload
+    def visualizer(
+        problem, cls: type[visualize.OutputVisualizer]
+    ) -> Optional[visualize.OutputVisualizer]: ...
+    def visualizer(
+        problem, cls: type[visualize.AnyVisualizer]
+    ) -> Optional[visualize.AnyVisualizer]:
+        path = problem.path / cls.source_dir
+        if not path.is_dir():
+            return None
+        if cls not in problem._visualizer_cache:
+            if cls == visualize.OutputVisualizer and problem.interactive:
+                problem._visualizer_cache[cls] = None
+                warn("Output Visualizer is not supported for interactive problem. IGNORED.")
+            else:
+                visualizer = cls(problem, path)
+                bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
+                localbar = bar.start(visualizer)
+                visualizer.build(localbar)
+                localbar.done()
+                bar.finalize(print_done=False)
+                problem._visualizer_cache[cls] = visualizer if visualizer.ok else None
+        return problem._visualizer_cache[cls]
+
     def validators(
         problem,
         cls: type[validate.AnyValidator],
@@ -960,7 +992,7 @@ class Problem:
         problem._validators_cache[key] = validators
         return validators
 
-    # get all testcses and submissions and prepare the output validator
+    # get all testcases and submissions and prepare the output validator and visualizer
     def prepare_run(problem):
         testcases = problem.testcases()
         if not testcases:
@@ -969,6 +1001,10 @@ class Problem:
         # Pre build the output validator to prevent nested ProgressBars.
         if not problem.validators(validate.OutputValidator):
             return False
+
+        # Pre build the output visualizer to prevent nested ProgressBars.
+        if not config.args.no_visualizer:
+            problem.visualizer(visualize.OutputVisualizer)
 
         submissions = problem.submissions()
         if not submissions:

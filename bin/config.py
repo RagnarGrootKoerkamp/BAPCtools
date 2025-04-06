@@ -109,6 +109,7 @@ DEFAULT_ARGS: Final[Mapping[str, Any]] = {
     "time": 600,  # Used for `bt fuzz`
     "verbose": 0,
     "action": None,
+    "no_visualizer": True,
 }
 
 
