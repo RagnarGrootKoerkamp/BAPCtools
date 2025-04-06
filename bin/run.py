@@ -5,7 +5,7 @@ import sys
 
 from colorama import Fore, Style
 from pathlib import Path
-from typing import cast
+from typing import cast, Optional
 
 import config
 import interactive
@@ -13,6 +13,7 @@ import parallel
 import problem
 import program
 import validate
+import visualize
 from testcase import Testcase
 from util import (
     crop_output,
@@ -23,6 +24,7 @@ from util import (
     is_bsd,
     is_windows,
     ProgressBar,
+    shorten_path,
     warn,
 )
 from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdicts
@@ -174,7 +176,9 @@ class Run:
 
             result.duration = max_duration
 
-            # Delete .out files larger than 1MB.
+            self._visualize_output(bar)
+
+            # Delete .out files larger than 1GB.
             if (
                 not config.args.error
                 and self.out_path.is_file()
@@ -215,7 +219,7 @@ class Run:
         shutil.move(nextpass, self.in_path)
         return True
 
-    def _validate_output(self, bar):
+    def _validate_output(self, bar: ProgressBar) -> Optional[ExecResult]:
         output_validators = self.problem.validators(validate.OutputValidator)
         if not output_validators:
             return None
@@ -226,6 +230,15 @@ class Run:
             self,
             args=self.testcase.testdata_yaml_validator_args(output_validator, bar),
         )
+
+    def _visualize_output(self, bar: ProgressBar) -> Optional[ExecResult]:
+        if config.args.no_visualizer:
+            return None
+        output_visualizer = self.problem.visualizer(visualize.OutputVisualizer)
+        if output_visualizer is None:
+            return None
+        # TODO args?
+        return output_visualizer.run(self.testcase, self)
 
 
 class Submission(program.Program):
@@ -420,14 +433,15 @@ class Submission(program.Program):
                 if result.out:
                     data = crop_output(result.out)
 
-            judgemessage = run.feedbackdir / "judgemessage.txt"
-            judgeerror = run.feedbackdir / "judgeerror.txt"
             # Add data from feedbackdir.
             for f in run.feedbackdir.iterdir():
-                if f in [judgemessage, judgeerror]:
-                    continue
                 if f.name.startswith("."):
                     continue  # skip "hidden" files
+                if f.name in ["judgemessage.txt", "judgeerror.txt"]:
+                    continue
+                if f.name.startswith("judgeimage.") or f.name.startswith("teamimage."):
+                    data += f"{f.name}: {shorten_path(self.problem, f.parent) / f.name}\n"
+                    continue
                 if not f.is_file():
                     localbar.warn(f"Validator wrote to {f} but it's not a file.")
                     continue

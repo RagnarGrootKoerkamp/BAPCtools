@@ -647,6 +647,7 @@ Run this from one of:
     )
     genparser.add_argument(
         "--no-visualizer",
+        default=False,
         action="store_true",
         help="Skip generating graphics with the visualizer.",
     )
@@ -695,7 +696,6 @@ Run this from one of:
     )
     runparser.add_argument(
         "--visualizer",
-        default=True,
         dest="no_visualizer",
         action="store_false",
         help="Also run the output visualizer.",

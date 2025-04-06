@@ -93,7 +93,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
     if "visualizer" in yaml_data:
         warn(
-            "Cannot automatically upgrade 'visualizer'.\n - move visualizer to 'input_visualizer/'\n - use stdin to read testcase"
+            "Cannot automatically upgrade 'visualizer'.\n - move visualizer to 'input_visualizer/'\n - first argument is the in_file\n - second argument is the ans_file"
         )
 
     if "data" in yaml_data and isinstance(yaml_data["data"], dict):

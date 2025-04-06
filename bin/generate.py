@@ -89,7 +89,6 @@ def resolve_path(path, *, allow_absolute, allow_relative):
 # The following classes inherit from Invocation:
 # - GeneratorInvocation
 # - SolutionInvocation
-# - VisualizerInvocation
 class Invocation:
     SEED_REGEX: Final[re.Pattern[str]] = re.compile(r"\{seed(:[0-9]+)?\}")
     NAME_REGEX: Final[re.Pattern[str]] = re.compile(r"\{name\}")
@@ -189,33 +188,6 @@ class GeneratorInvocation(Invocation):
         if result.status and config.args.error and result.err:
             bar.log("stderr", result.err)
 
-        return result
-
-
-class VisualizerInvocation(Invocation):
-    def __init__(self, problem, string):
-        super().__init__(problem, string, allow_absolute=True, allow_relative=False)
-
-    # Run the visualizer, passing the test case input to stdin.
-    def run(self, bar, cwd):
-        assert isinstance(self.program, visualize.InputVisualizer), (
-            "Input Visualizer program must be built!"
-        )
-
-        in_path = cwd / "testcase.in"
-
-        # TODO should the input validator get any args?
-        result = self.program.run(in_path, cwd)
-
-        if result.status == ExecStatus.TIMEOUT:
-            bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error(f"Input Visualizer TIMEOUT after {result.duration}s")
-        elif not result.status:
-            bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error("Input Visualizer failed", result.err)
-
-        if result.status and config.args.error and result.err:
-            bar.log("stderr", result.err)
         return result
 
 
@@ -1043,24 +1015,43 @@ class TestcaseRule(Rule):
 
             if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
                 return True
-            if not generator_config.visualizer:
-                return True
             if config.args.no_visualizer:
                 return True
+            visualizer = problem.visualizer(visualize.InputVisualizer)
+            if visualizer is None:
+                return True
 
+            # TODO if the input visualizer gets args these need to be hashed as well
             visualizer_hash = {
-                "visualizer_hash": generator_config.visualizer.hash(),
-                "visualizer": generator_config.visualizer.cache_command(),
+                "visualizer_hash": visualizer.hash,
             }
 
             if meta_yaml.get("visualizer_hash") == visualizer_hash:
                 return True
 
             # Generate visualization
-            generator_config.visualizer.run(bar, cwd)
+            in_path = cwd / "testcase.in"
+            ans_path = cwd / "testcase.ans"
+            assert in_path.is_file()
+            assert ans_path.is_file()
 
-            meta_yaml["visualizer_hash"] = visualizer_hash
-            write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+            result = visualizer.run(in_path, ans_path, cwd)
+
+            if result.status == ExecStatus.TIMEOUT:
+                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                bar.error(f"Input Visualizer TIMEOUT after {result.duration}s")
+            elif not result.status:
+                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                bar.error("Input Visualizer failed", result.err)
+
+            if result.status and config.args.error and result.err:
+                bar.log("stderr", result.err)
+
+            if result.status:
+                meta_yaml["visualizer_hash"] = visualizer_hash
+                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+
+            # errors in the visualizer are not critical
             return True
 
         def copy_generated():
@@ -1498,12 +1489,6 @@ class GeneratorConfig:
         self.hashed_in = set()
         # Files that should be processed
         self.restriction = restriction
-        # The input visualizer is shared between all test cases.
-        self.visualizer: Optional[VisualizerInvocation] = (
-            VisualizerInvocation(problem, "/input_visualizer")
-            if (problem.path / "input_visualizer").is_dir()
-            else None
-        )
 
         if yaml_path.is_file():
             self.yaml = read_yaml(yaml_path)
@@ -1890,10 +1875,8 @@ class GeneratorConfig:
         # TODO: Consider building all types of programs in parallel as well.
         build_programs(program.Generator, generators_used)
         build_programs(run.Submission, solutions_used)
-        build_programs(
-            visualize.InputVisualizer,
-            [self.visualizer.program_path] if build_visualizers and self.visualizer else [],
-        )
+        if build_visualizers:
+            self.problem.visualizer(visualize.InputVisualizer)
 
         self.problem.validators(validate.InputValidator)
         self.problem.validators(validate.AnswerValidator)
