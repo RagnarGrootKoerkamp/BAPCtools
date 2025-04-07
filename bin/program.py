@@ -142,12 +142,9 @@ class Program:
         # Set self.name and self.tmpdir.
         # Ideally they are the same as the path inside the problem, but fallback to just the name.
         relpath = Path(path.name)
-        if path.parent != problem.path:
+        if path.absolute().parent != problem.path.absolute():
             try:
-                # Only resolve the parent of the program. This preserves programs that are symlinks to other directories.
-                relpath = (path.parent.resolve() / path.name).relative_to(
-                    problem.path.resolve() / self.subdir
-                )
+                relpath = path.absolute().relative_to(problem.path.absolute())
             except ValueError:
                 pass
 
