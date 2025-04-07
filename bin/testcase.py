@@ -118,7 +118,7 @@ class Testcase:
 
     def testdata_yaml_args(
         self,
-        program: validate.AnyValidator | visualize.AnyVisualizer,
+        program: "validate.AnyValidator | visualize.AnyVisualizer",
         bar: BAR_TYPE,
     ) -> list[str]:
         """
