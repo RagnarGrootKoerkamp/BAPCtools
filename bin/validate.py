@@ -482,7 +482,9 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
 
         if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
             bar.warn(f"{name} contains unexpected characters but was accepted!")
-        elif len(file_bytes) == 0:
+        elif len(file_bytes) == 0 and not (
+            path.suffix == ".ans" and problem.multi_pass
+        ):  # explicitly allow empty .ans files for multipass
             bar.warn(f"{name} is empty but was accepted!")
         elif len(file_bytes) > 20_000_000:
             bar.warn(f"{name} is larger than 20MB!")
@@ -498,7 +500,7 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
             and 2 * len(file_bytes) > problem.limits.output * 1024 * 1024
         ):
             bar.warn(f"{name} is close to output limit")
-        elif strict_whitespace:
+        elif strict_whitespace and len(file_bytes) > 0:
             if file_bytes[0] in [ord(" "), ord("\n")]:
                 bar.warn(f"{name} starts with whitespace but was accepted!")
             elif file_bytes[-1] != ord("\n"):
