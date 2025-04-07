@@ -13,6 +13,58 @@ if has_ryaml:
     from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 
+def _move_dir(src_base: Path, dst_base: Path) -> None:
+    assert src_base.is_dir()
+    assert not dst_base.exists()
+
+    src_base = src_base.absolute()
+    dst_base = dst_base.absolute()
+    base = [a for a, b in zip(reversed(src_base.parents), reversed(dst_base.parents)) if a == b][-1]
+
+    def movetree(src: Path, dst: Path, depth: int = 0) -> None:
+        dst.mkdir(parents=True)
+        for file in [*src.iterdir()]:
+            new_file = dst / file.name
+            if file.is_symlink():
+                # create a new symlink and make sure that the destination is handled properly
+                destination = file.readlink()
+                if destination.is_absolute():
+                    # absolute links should stay absolute
+                    # if their destination is inside the dir we move we have to change it
+                    if destination.is_relative_to(src_base):
+                        destination = dst_base / destination.relative_to(src_base)
+                    new_file.symlink_to(destination)
+                    file.unlink()
+                else:
+                    delta = sum(map(lambda x: -1 if x == ".." else 1, destination.parts))
+                    if depth + delta > 0:
+                        # the link is relative and points to another file we move
+                        file.rename(new_file)
+                    else:
+                        # the link is relative but points to a fixed place
+                        src_rel = src.relative_to(base)
+                        dst_rel = dst.relative_to(base)
+                        parts = (("..",) * len(dst_rel.parts)) + src_rel.parts + destination.parts
+                        resolved: list[str] = []
+                        for part in parts:
+                            if part == ".." and len(resolved) and resolved[-1] != "..":
+                                resolved.pop()
+                            else:
+                                resolved.append(part)
+                        new_file.symlink_to(Path(*resolved))
+                        file.unlink()
+            elif file.is_dir():
+                # recursively move (and delete) dirs
+                movetree(file, new_file, depth + 1)
+            else:
+                # recursively copy and delete dirs
+                file.rename(new_file)
+        # delete now empty dir
+        src.rmdir()
+
+    movetree(src_base, dst_base)
+
+
 def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
         ("data/invalid_inputs", "data/invalid_input"),
@@ -249,31 +301,7 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
             bar.log(
                 f"renaming 'output_validators/{content[0].name}' to '{OutputValidator.source_dir}/'"
             )
-
-            def move(src: str, dst: str) -> None:
-                if Path(src).is_symlink():
-                    src_dst = Path(src).resolve()
-                    if src_dst.is_relative_to(content[0]):  # local symlink
-                        Path(src).rename(dst)
-                    else:  # link outside output_validators/
-                        dst_pos = Path(dst).resolve()
-                        common = [
-                            a
-                            for a, b in zip(reversed(src_dst.parents), reversed(dst_pos.parents))
-                            if a == b
-                        ][-1]
-                        link = Path(
-                            "../" * (len(dst_pos.parents) - len(common.parts))
-                        ) / src_dst.relative_to(common)
-                        Path(dst).symlink_to(link)
-                        Path(src).unlink()
-                else:
-                    Path(src).rename(dst)
-
-            shutil.copytree(
-                content[0], problem_path / OutputValidator.source_dir, copy_function=move
-            )
-            shutil.rmtree(problem_path / "output_validators")
+            _move_dir(content[0], problem_path / OutputValidator.source_dir)
         else:
             bar.log(f"renaming 'output_validators/' to '{OutputValidator.source_dir}/'")
             (problem_path / "output_validators").rename(problem_path / OutputValidator.source_dir)
