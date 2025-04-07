@@ -144,7 +144,7 @@ class Program:
         relpath = Path(path.name)
         if path.absolute().parent != problem.path.absolute():
             try:
-                relpath = path.absolute().relative_to(problem.path.absolute())
+                relpath = path.absolute().relative_to(problem.path.absolute() / subdir)
             except ValueError:
                 pass
 
