@@ -5,7 +5,7 @@ import sys
 
 from colorama import Fore, Style
 from pathlib import Path
-from typing import cast, Optional
+from typing import Optional
 
 import config
 import interactive
@@ -42,7 +42,7 @@ class Run:
             self.problem.tmpdir
             / "runs"
             / self.submission.short_path
-            / cast(Path, self.testcase.short_path).with_suffix("")
+            / self.testcase.short_path.with_suffix("")
         )
 
         self.in_path: Path = self.tmpdir / "testcase.in"

@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Any, Final, Optional, overload
+from typing import Any, Final, Iterable, Optional, overload
 
 import config
 import parallel
@@ -174,7 +174,7 @@ class GeneratorInvocation(Invocation):
             )
             if result.status:
                 break
-            if not result.retry:
+            if result.status == ExecStatus.TIMEOUT:
                 break
 
         if not result.status:

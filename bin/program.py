@@ -513,7 +513,7 @@ class Program:
 
         return True
 
-    def _exec_command(self, *args, **kwargs):
+    def _exec_command(self, *args, **kwargs) -> ExecResult:
         if "timeout" not in kwargs and "timeout" in self.limits:
             kwargs["timeout"] = self.limits["timeout"]
         if "memory" not in kwargs and "memory" in self.limits:
@@ -565,16 +565,12 @@ class Generator(Program):
                 cwd=cwd,
             )
 
-        result.retry = False
-
         if result.status == ExecStatus.TIMEOUT:
             # Timeout -> stop retrying and fail.
             bar.log(f"TIMEOUT after {timeout}s", color=Fore.RED)
             return result
 
         if not result.status:
-            # Other error -> try again.
-            result.retry = True
             return result
 
         if stdout_path.read_text():
