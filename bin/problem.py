@@ -1334,7 +1334,7 @@ class Problem:
     def _validate_data(
         problem,
         mode: validate.Mode,
-        constraints: dict | Literal[True] | None,
+        constraints: validate.ConstraintsDict | Literal[True] | None,
         action: str,
         testcases: Sequence[testcase.Testcase],
         extra: bool = False,
@@ -1343,13 +1343,11 @@ class Problem:
         if not testcases:
             return True
 
-        if constraints is True:
-            constraints = {}
-        assert constraints is None or isinstance(constraints, dict)
+        constraints_dict = {} if constraints is True else constraints
+        check_constraints = constraints_dict is not None
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
         # Also, pick the relevant testcases
-        check_constraints = constraints is not None
         match mode:
             case validate.Mode.INPUT:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
@@ -1395,7 +1393,7 @@ class Problem:
                     return
 
             ok = testcase.validate_format(
-                mode, bar=localbar, constraints=constraints, warn_instead_of_error=extra
+                mode, bar=localbar, constraints=constraints_dict, warn_instead_of_error=extra
             )
             success &= ok
             localbar.done(ok)
@@ -1405,8 +1403,8 @@ class Problem:
         bar.finalize(print_done=True)
 
         # Make sure all constraints are satisfied.
-        if constraints:
-            for loc, value in sorted(constraints.items()):
+        if constraints_dict:
+            for loc, value in sorted(constraints_dict.items()):
                 loc = Path(loc).name
                 name, has_low, has_high, vmin, vmax, low, high = value
                 if not has_low:

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Final, Optional, TYPE_CHECKING
+from typing import Any, Final, Optional, TYPE_CHECKING
 
 import program
 
@@ -23,7 +23,7 @@ class InputVisualizer(program.Program):
 
     args_key: Final[str] = "input_visualizer_args"
 
-    def __init__(self, problem: "Problem", path: Path, **kwargs):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
         super().__init__(
             problem,
             path,
@@ -59,7 +59,7 @@ class OutputVisualizer(program.Program):
 
     args_key: Final[str] = "output_visualizer_args"
 
-    def __init__(self, problem: "Problem", path: Path, **kwargs):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
         super().__init__(
             problem,
             path,

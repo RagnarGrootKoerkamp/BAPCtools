@@ -41,7 +41,7 @@ def problems_yaml() -> Optional[list[dict[str, Any]]]:
 
 
 def get_api() -> str:
-    api = config.args.api or contest_yaml().get("api")
+    api = config.args.api or cast(str, contest_yaml().get("api"))
     if not api:
         fatal(
             "Could not find key `api` in contest.yaml and it was not specified on the command line."
