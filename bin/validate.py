@@ -209,7 +209,7 @@ class Validator(program.Program):
 
     def run(
         self,
-        testcase: testcase.Testcase,
+        testcase: "testcase.Testcase",
         mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
@@ -237,7 +237,7 @@ class InputValidator(Validator):
 
     def run(
         self,
-        testcase: testcase.Testcase,
+        testcase: "testcase.Testcase",
         mode: Mode = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
@@ -300,7 +300,7 @@ class AnswerValidator(Validator):
 
     def run(
         self,
-        testcase: testcase.Testcase,
+        testcase: "testcase.Testcase",
         mode: Mode = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
@@ -353,7 +353,7 @@ class OutputValidator(Validator):
 
     def run(
         self,
-        testcase: testcase.Testcase,
+        testcase: "testcase.Testcase",
         mode: "Mode | run.Run",
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
