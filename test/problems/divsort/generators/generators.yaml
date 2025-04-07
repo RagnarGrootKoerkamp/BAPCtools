@@ -94,6 +94,8 @@ data:
         ans: 3.333333333 abcd
         out: 3.33 abcd
   valid_output:
+    testdata.yaml:
+      output_validator_args: float_tolerance 1e-2
     data:
       valid:
         in: 10.0 3.0 ab cd
