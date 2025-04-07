@@ -7,10 +7,10 @@ from typing import Final, Optional, TYPE_CHECKING
 
 import config
 import program
-import testcase
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     import run
+    import testcase
 
 
 class Mode(Enum):
