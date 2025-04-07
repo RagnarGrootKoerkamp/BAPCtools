@@ -118,7 +118,7 @@ class Testcase:
 
     def testdata_yaml_args(
         self,
-        program: "validate.AnyValidator | visualize.AnyVisualizer",
+        program: validate.AnyValidator | visualize.AnyVisualizer,
         bar: BAR_TYPE,
     ) -> list[str]:
         """
@@ -140,7 +140,7 @@ class Testcase:
         )
 
     def validator_hashes(
-        self, cls: type["validate.AnyValidator"], bar: BAR_TYPE
+        self, cls: type[validate.AnyValidator], bar: BAR_TYPE
     ) -> dict[str, dict[str, str]]:
         """
         Returns
@@ -176,7 +176,7 @@ class Testcase:
 
     def validate_format(
         self,
-        mode: "validate.Mode",
+        mode: validate.Mode,
         *,
         bar: ProgressBar,
         constraints: Optional[validate.ConstraintsDict] = None,
@@ -274,7 +274,7 @@ class Testcase:
 
     def _run_validators(
         self,
-        mode: "validate.Mode",
+        mode: validate.Mode,
         validators: Sequence[validate.AnyValidator],
         expect_rejection: bool,
         *,
