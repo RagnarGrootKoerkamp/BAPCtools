@@ -13,6 +13,9 @@ if has_ryaml:
     from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 
+# src_base must be a dir (or symlink to dir)
+# dst_base must not exists
+# the parents of dst_base must exist
 def _move_dir(src_base: Path, dst_base: Path) -> None:
     assert src_base.is_dir()
     assert not dst_base.exists()
@@ -22,45 +25,44 @@ def _move_dir(src_base: Path, dst_base: Path) -> None:
     base = [a for a, b in zip(reversed(src_base.parents), reversed(dst_base.parents)) if a == b][-1]
 
     def movetree(src: Path, dst: Path, depth: int = 0) -> None:
-        dst.mkdir(parents=True)
-        for file in [*src.iterdir()]:
-            new_file = dst / file.name
-            if file.is_symlink():
-                # create a new symlink and make sure that the destination is handled properly
-                destination = file.readlink()
-                if destination.is_absolute():
-                    # absolute links should stay absolute
-                    # if their destination is inside the dir we move we have to change it
-                    if destination.is_relative_to(src_base):
-                        destination = dst_base / destination.relative_to(src_base)
-                    new_file.symlink_to(destination)
-                    file.unlink()
-                else:
-                    delta = sum(map(lambda x: -1 if x == ".." else 1, destination.parts))
-                    if depth + delta > 0:
-                        # the link is relative and points to another file we move
-                        file.rename(new_file)
-                    else:
-                        # the link is relative but points to a fixed place
-                        src_rel = src.relative_to(base)
-                        dst_rel = dst.relative_to(base)
-                        parts = (("..",) * len(dst_rel.parts)) + src_rel.parts + destination.parts
-                        resolved: list[str] = []
-                        for part in parts:
-                            if part == ".." and len(resolved) and resolved[-1] != "..":
-                                resolved.pop()
-                            else:
-                                resolved.append(part)
-                        new_file.symlink_to(Path(*resolved))
-                        file.unlink()
-            elif file.is_dir():
-                # recursively move (and delete) dirs
-                movetree(file, new_file, depth + 1)
+        if src.is_symlink():
+            # create a new symlink and make sure that the destination is handled properly
+            destination = src.readlink()
+            if destination.is_absolute():
+                # absolute links should stay absolute
+                # if their destination is inside the dir we move we have to change it
+                if destination.is_relative_to(src_base):
+                    destination = dst_base / destination.relative_to(src_base)
+                dst.symlink_to(destination)
+                src.unlink()
             else:
-                # recursively copy and delete dirs
-                file.rename(new_file)
-        # delete now empty dir
-        src.rmdir()
+                delta = sum(map(lambda x: -1 if x == ".." else 1, destination.parts))
+                if depth + delta > 1:
+                    # the link is relative and points to another file we move
+                    src.rename(dst)
+                else:
+                    # the link is relative but points to a fixed place
+                    src_rel = src.parent.relative_to(base)
+                    dst_rel = dst.parent.relative_to(base)
+                    parts = (("..",) * len(dst_rel.parts)) + src_rel.parts + destination.parts
+                    resolved: list[str] = []
+                    for part in parts:
+                        if part == ".." and len(resolved) and resolved[-1] != "..":
+                            resolved.pop()
+                        else:
+                            resolved.append(part)
+                    dst.symlink_to(Path(*resolved))
+                    src.unlink()
+        elif src.is_dir():
+            # recursively move stuff inside dirs
+            dst.mkdir()
+            for file in [*src.iterdir()]:
+                movetree(file, dst / file.name, depth + 1)
+            # delete now empty dir
+            src.rmdir()
+        else:
+            # move file
+            src.rename(dst)
 
     movetree(src_base, dst_base)
 
