@@ -993,41 +993,46 @@ if is_windows():
 
 
 # When output is True, copy the file when args.cp is true.
-def ensure_symlink(link: Path, target: Path, output: bool = False, relative: bool = False) -> None:
-    # on windows copy if necessary
-    if is_windows() and not windows_can_symlink:
-        if link.exists() or link.is_symlink():
-            link.unlink()
-        shutil.copyfile(target, link)
-        return
+def ensure_symlink(link: Path, target: Path, output: bool = False, relative: bool = False) -> bool:
+    try:
+        # on windows copy if necessary
+        if is_windows() and not windows_can_symlink:
+            if link.exists() or link.is_symlink():
+                link.unlink()
+            shutil.copyfile(target, link)
+            return True
 
-    # For output files: copy them on Windows, or when --cp is passed.
-    if output and config.args.cp:
-        if link.exists() or link.is_symlink():
-            link.unlink()
-        shutil.copyfile(target, link)
-        return
+        # For output files: copy them on Windows, or when --cp is passed.
+        if output and config.args.cp:
+            if link.exists() or link.is_symlink():
+                link.unlink()
+            shutil.copyfile(target, link)
+            return True
 
-    # Do nothing if link already points to the right target.
-    if link.is_symlink() and link.resolve() == target.resolve():
-        is_absolute = os.readlink(link)
-        if not relative and is_absolute:
-            return
-        # if relative and not is_absolute: return
+        # Do nothing if link already points to the right target.
+        if link.is_symlink() and link.resolve() == target.resolve():
+            is_absolute = os.readlink(link)
+            if not relative and is_absolute:
+                return True
+            # if relative and not is_absolute: return
 
-    if link.is_symlink() or link.exists():
-        if link.is_dir() and not link.is_symlink():
-            shutil.rmtree(link)
+        if link.is_symlink() or link.exists():
+            if link.is_dir() and not link.is_symlink():
+                shutil.rmtree(link)
+            else:
+                link.unlink()
+
+        # for windows the symlink needs to know if it points to a directory or file
+        if relative:
+            # Rewrite target to be relative to link.
+            # Use os.path.relpath instead of Path.relative_to for non-subdirectories.
+            link.symlink_to(os.path.relpath(target, link.parent), target.is_dir())
         else:
-            link.unlink()
-
-    # for windows the symlink needs to know if it points to a directory or file
-    if relative:
-        # Rewrite target to be relative to link.
-        # Use os.path.relpath instead of Path.relative_to for non-subdirectories.
-        link.symlink_to(os.path.relpath(target, link.parent), target.is_dir())
-    else:
-        link.symlink_to(target.resolve(), target.is_dir())
+            link.symlink_to(target.resolve(), target.is_dir())
+        return True
+    except (FileNotFoundError, FileExistsError):
+        # this must be a race condition
+        return False
 
 
 def has_substitute(

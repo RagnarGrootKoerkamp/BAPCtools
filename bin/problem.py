@@ -1046,6 +1046,10 @@ class Problem:
         testcases, submissions = ts_pair
         ok, verdict_table = Problem.run_some(testcases, submissions)
 
+        if len(testcases) * len(submissions) > 1:
+            if not config.args.verbose and not config.args.no_visualizer:
+                log("use -v with --visualize to see the paths to the generated images")
+
         if config.args.table:
             Problem._print_table(verdict_table.results, testcases)
         elif config.args.overview and not config.args.tree:
