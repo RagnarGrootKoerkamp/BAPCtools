@@ -1056,6 +1056,8 @@ class TestcaseRule(Rule):
             if isinstance(visualizer, visualize.InputVisualizer):
                 result = visualizer.run(in_path, ans_path, cwd)
             else:
+                assert out_path.is_file()
+
                 feedbackdir = in_path.with_suffix(".feedbackdir")
                 feedbackdir.mkdir(parents=True, exist_ok=True)
                 teamimage = feedbackdir / "teamimage"
