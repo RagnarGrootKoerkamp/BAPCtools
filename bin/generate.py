@@ -1017,13 +1017,31 @@ class TestcaseRule(Rule):
                 return True
             if config.args.no_visualizer:
                 return True
-            visualizer = problem.visualizer(visualize.InputVisualizer) or problem.visualizer(
-                visualize.OutputVisualizer
+
+            # Generate visualization
+            in_path = cwd / "testcase.in"
+            ans_path = cwd / "testcase.ans"
+            out_path = cwd / "testcase.out"
+            assert in_path.is_file()
+            assert ans_path.is_file()
+
+            visualizer: Optional[visualize.AnyVisualizer] = problem.visualizer(
+                visualize.InputVisualizer
             )
+            output_visualizer = problem.visualizer(visualize.OutputVisualizer)
+            if output_visualizer is not None and (
+                out_path.is_file() or problem.settings.ans_is_output
+            ):
+                if visualizer is None or out_path.is_file():
+                    visualizer = output_visualizer
+
+                if not out_path.is_file():
+                    assert problem.settings.ans_is_output
+                    out_path = ans_path
+
             if visualizer is None:
                 return True
 
-            # TODO if the input visualizer gets args these need to be hashed as well
             visualizer_hash = {
                 "visualizer_hash": visualizer.hash,
                 "visualizer_args": testcase.testdata_yaml_args(visualizer, PrintBar()),
@@ -1032,18 +1050,12 @@ class TestcaseRule(Rule):
             if meta_yaml.get("visualizer_hash") == visualizer_hash:
                 return True
 
-            # Generate visualization
-            in_path = cwd / "testcase.in"
-            ans_path = cwd / "testcase.ans"
-            assert in_path.is_file()
-            assert ans_path.is_file()
-
             for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
                 in_path.with_suffix(ext).unlink(True)
 
             if isinstance(visualizer, visualize.InputVisualizer):
                 result = visualizer.run(in_path, ans_path, cwd)
-            elif not problem.multi_pass:
+            else:
                 feedbackdir = in_path.with_suffix(".feedbackdir")
                 feedbackdir.mkdir(parents=True, exist_ok=True)
                 teamimage = feedbackdir / "teamimage"
@@ -1053,7 +1065,7 @@ class TestcaseRule(Rule):
                     teamimage.with_suffix(ext).unlink(True)
                     judgeimage.with_suffix(ext).unlink(True)
 
-                result = visualizer.run(in_path, ans_path, ans_path, feedbackdir)
+                result = visualizer.run(in_path, ans_path, out_path, feedbackdir)
                 if result.status:
                     found = None
                     for ext in config.KNOWN_VISUALIZER_EXTENSIONS:

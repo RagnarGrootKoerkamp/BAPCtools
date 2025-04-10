@@ -446,6 +446,7 @@ class Submission(program.Program):
                     continue
                 if f.name.startswith("judgeimage.") or f.name.startswith("teamimage."):
                     data += f"{f.name}: {shorten_path(self.problem, f.parent) / f.name}\n"
+                    ensure_symlink(run.problem.path / f.name, f, output=True, relative=False)
                     continue
                 if not f.is_file():
                     localbar.warn(f"Validator wrote to {f} but it's not a file.")
