@@ -215,6 +215,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             f"{OutputValidator.source_dir}/**/*",
             # "statement/*", "solution/*", "problem_slide/*", use \constant{} commands
             # "submissions/*/**/*", removed support?
+            f"{InputVisualizer.source_dir}/**/*",
+            f"{OutputVisualizer.source_dir}/**/*",
         ]
         for pattern in constants_supported:
             for f in export_dir.glob(pattern):
