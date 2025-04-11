@@ -141,18 +141,16 @@ class Program:
 
         # Set self.name and self.tmpdir.
         # Ideally they are the same as the path inside the problem, but fallback to just the name.
-        try:
-            # Only resolve the parent of the program. This preserves programs that are symlinks to other directories.
-            relpath = (path.parent.resolve() / path.name).relative_to(
-                problem.path.resolve() / self.subdir
-            )
-            self.short_path = relpath
-            self.name: str = str(relpath)
-            self.tmpdir = problem.tmpdir / self.subdir / relpath
-        except ValueError:
-            self.short_path = Path(path.name)
-            self.name = str(path.name)
-            self.tmpdir = problem.tmpdir / self.subdir / path.name
+        relpath = Path(path.name)
+        if path.absolute().parent != problem.path.absolute():
+            try:
+                relpath = path.absolute().relative_to(problem.path.absolute() / subdir)
+            except ValueError:
+                pass
+
+        self.short_path = relpath
+        self.name: str = str(relpath)
+        self.tmpdir = problem.tmpdir / self.subdir / self.name
 
         self.compile_command: Optional[list[str]] = None
         self.run_command: Optional[list[str]] = None
@@ -515,7 +513,7 @@ class Program:
 
         return True
 
-    def _exec_command(self, *args, **kwargs):
+    def _exec_command(self, *args, **kwargs) -> ExecResult:
         if "timeout" not in kwargs and "timeout" in self.limits:
             kwargs["timeout"] = self.limits["timeout"]
         if "memory" not in kwargs and "memory" in self.limits:
@@ -567,16 +565,12 @@ class Generator(Program):
                 cwd=cwd,
             )
 
-        result.retry = False
-
         if result.status == ExecStatus.TIMEOUT:
             # Timeout -> stop retrying and fail.
             bar.log(f"TIMEOUT after {timeout}s", color=Fore.RED)
             return result
 
         if not result.status:
-            # Other error -> try again.
-            result.retry = True
             return result
 
         if stdout_path.read_text():
@@ -591,24 +585,3 @@ class Generator(Program):
                 return result
 
         return result
-
-
-class Visualizer(Program):
-    def __init__(self, problem: "Problem", path: Path, **kwargs):
-        super().__init__(
-            problem,
-            path,
-            "visualizers",
-            limits={"timeout": problem.limits.visualizer_time},
-            substitute_constants=True,
-            **kwargs,
-        )
-
-    # Run the visualizer.
-    # Stdin and stdout are not used.
-    def run(self, cwd, args=[]):
-        assert self.run_command is not None
-        return self._exec_command(
-            self.run_command + args,
-            cwd=cwd,
-        )

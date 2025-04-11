@@ -28,8 +28,6 @@ The two main object types are `directory` and `generator`. The root of `generato
 
 - `testdata.yaml`: Optional yaml configuration that will be copied to `testdata.yaml` in this directory.
 - `solution`: Optional invocation of a solution to be used to generate `.ans` files. Set to empty to disable generating `.ans`. (Useful for e.g. the `data/samples/` directory.) This must be an absolute path relative to the problem root.
-- `visualizer`: Optional invocation of a visualizer to generate visualizations for each test case in this directory.
-  This must be an absolute path relative to the problem root. Set to empty to disable.
 - `random_salt`: Optional string that will be prepended to each command before computing its `{seed}`. May be used to regenerate all random cases and to prevent predictable seeds.
 - `data`: The test cases / test groups contained in this directory. This may take two forms:
   - A dictionary, each key is the name of a test case/test group, and each value must be a `directory` or `generator` object.
