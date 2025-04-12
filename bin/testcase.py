@@ -156,9 +156,9 @@ class Testcase:
 
         for validator in validators:
             flags = self.testdata_yaml_validator_args(validator, bar)
-            if not flags:
+            if flags is False:
                 continue
-            flags_string = " ".join(flags) if flags is not None else None
+            flags_string = " ".join(flags)
             o = {
                 "name": validator.name,
                 "flags": flags_string,
