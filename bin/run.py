@@ -16,6 +16,7 @@ import validate
 import visualize
 from testcase import Testcase
 from util import (
+    BAR_TYPE,
     crop_output,
     ensure_symlink,
     error,
@@ -219,7 +220,7 @@ class Run:
         shutil.move(nextpass, self.in_path)
         return True
 
-    def _validate_output(self, bar: ProgressBar) -> Optional[ExecResult]:
+    def _validate_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
         output_validators = self.problem.validators(validate.OutputValidator)
         if not output_validators:
             return None
@@ -231,7 +232,7 @@ class Run:
             args=self.testcase.testdata_yaml_args(output_validator, bar),
         )
 
-    def _visualize_output(self, bar: ProgressBar) -> Optional[ExecResult]:
+    def _visualize_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
         if config.args.no_visualizer:
             return None
         output_visualizer = self.problem.visualizer(visualize.OutputVisualizer)
@@ -240,7 +241,7 @@ class Run:
         return output_visualizer.run(
             self.in_path,
             self.testcase.ans_path.resolve(),
-            self.out_path,
+            self.out_path if not self.problem.interactive else None,
             self.feedbackdir,
             args=self.testcase.testdata_yaml_args(output_visualizer, bar),
         )

@@ -75,18 +75,21 @@ class OutputVisualizer(program.Program):
         self,
         in_path: Path,
         ans_path: Path,
-        out_path: Path,
+        out_path: Optional[Path],
         cwd: Path,
         args: Optional[list[str]] = None,
     ) -> ExecResult:
         assert self.run_command is not None, "Output Visualizer should be built before running it"
+        assert (out_path is None) == self.problem.interactive, (
+            "out_path should be None if and only if problem is interactive"
+        )
 
-        with out_path.open("rb") as out_file:
-            return self._exec_command(
-                self.run_command + [in_path, ans_path, cwd] + (args or []),
-                stdin=out_file,
-                cwd=cwd,
-            )
+        command = self.run_command + [in_path, ans_path, cwd] + (args or [])
+        if out_path is not None:
+            with out_path.open("rb") as out_file:
+                return self._exec_command(command, stdin=out_file, cwd=cwd)
+        else:
+            return self._exec_command(command, cwd=cwd)
 
 
 AnyVisualizer = InputVisualizer | OutputVisualizer

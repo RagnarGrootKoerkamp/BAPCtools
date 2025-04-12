@@ -1029,15 +1029,13 @@ class TestcaseRule(Rule):
                 visualize.InputVisualizer
             )
             output_visualizer = problem.visualizer(visualize.OutputVisualizer)
-            if output_visualizer is not None and (
-                out_path.is_file() or problem.settings.ans_is_output
-            ):
-                if visualizer is None or out_path.is_file():
-                    visualizer = output_visualizer
+            if output_visualizer is not None:
+                if out_path.is_file() or problem.settings.ans_is_output or problem.interactive:
+                    if visualizer is None or out_path.is_file():
+                        visualizer = output_visualizer
 
-                if not out_path.is_file():
-                    assert problem.settings.ans_is_output
-                    out_path = ans_path
+                    if not out_path.is_file() and problem.settings.ans_is_output:
+                        out_path = ans_path
 
             if visualizer is None:
                 return True
@@ -1056,8 +1054,6 @@ class TestcaseRule(Rule):
             if isinstance(visualizer, visualize.InputVisualizer):
                 result = visualizer.run(in_path, ans_path, cwd)
             else:
-                assert out_path.is_file()
-
                 feedbackdir = in_path.with_suffix(".feedbackdir")
                 feedbackdir.mkdir(parents=True, exist_ok=True)
                 teamimage = feedbackdir / "teamimage"
@@ -1067,7 +1063,9 @@ class TestcaseRule(Rule):
                     teamimage.with_suffix(ext).unlink(True)
                     judgeimage.with_suffix(ext).unlink(True)
 
-                result = visualizer.run(in_path, ans_path, out_path, feedbackdir)
+                result = visualizer.run(
+                    in_path, ans_path, out_path if not problem.interactive else None, feedbackdir
+                )
                 if result.status:
                     found = None
                     for ext in config.KNOWN_VISUALIZER_EXTENSIONS:

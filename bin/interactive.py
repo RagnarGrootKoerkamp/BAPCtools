@@ -167,6 +167,8 @@ def run_interactive_testcase(
                 verdict = Verdict.VALIDATOR_CRASH
                 break
 
+        run._visualize_output(bar or PrintBar("Visualize interactive test case"))
+
         if tle_result is None:
             # Set result.err to validator error and result.out to team error.
             return ExecResult(
@@ -430,6 +432,8 @@ while True:
 
     if interaction_file is not None:
         interaction_file.close()
+
+    run._visualize_output(bar or PrintBar("Visualize interactive test case"))
 
     if tle_result is None:
         return ExecResult(
