@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+set -e
+
+asy -f png $(dirname $0)/visualize.asy -u infilename="'${1}'" -u ansfilename="'${2}'" -o $3/judgeimage.png
