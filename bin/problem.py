@@ -469,7 +469,12 @@ class Problem:
                     # Verify testdata.yaml
                     for k in flags:
                         match k:
-                            case validate.OutputValidator.args_key:
+                            case (
+                                validate.OutputValidator.args_key
+                                | validate.AnswerValidator.args_key
+                                | visualize.InputVisualizer.args_key
+                                | visualize.OutputVisualizer.args_key
+                            ):
                                 if not isinstance(flags[k], str):
                                     bar.error(f"{k} must be string", resume=True, print_item=False)
                             case validate.InputValidator.args_key:

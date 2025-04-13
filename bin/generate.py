@@ -1040,9 +1040,11 @@ class TestcaseRule(Rule):
             if visualizer is None:
                 return True
 
+            visualizer_args = testcase.testdata_yaml_args(visualizer, PrintBar())
+
             visualizer_hash = {
                 "visualizer_hash": visualizer.hash,
-                "visualizer_args": testcase.testdata_yaml_args(visualizer, PrintBar()),
+                "visualizer_args": visualizer_args,
             }
 
             if meta_yaml.get("visualizer_hash") == visualizer_hash:
@@ -1064,7 +1066,11 @@ class TestcaseRule(Rule):
                     judgeimage.with_suffix(ext).unlink(True)
 
                 result = visualizer.run(
-                    in_path, ans_path, out_path if not problem.interactive else None, feedbackdir
+                    in_path,
+                    ans_path,
+                    out_path if not problem.interactive else None,
+                    feedbackdir,
+                    visualizer_args,
                 )
                 if result.status:
                     found = None
@@ -1082,10 +1088,14 @@ class TestcaseRule(Rule):
 
             if result.status == ExecStatus.TIMEOUT:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
-                bar.error(f"Input Visualizer TIMEOUT after {result.duration}s")
+                bar.error(
+                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer TIMEOUT after {result.duration}s"
+                )
             elif not result.status:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
-                bar.error("Input Visualizer failed", result.err)
+                bar.error(
+                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer failed", result.err
+                )
 
             if result.status and config.args.error and result.err:
                 bar.log("stderr", result.err)
