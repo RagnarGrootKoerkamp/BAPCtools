@@ -2,4 +2,12 @@
 
 set -e
 
-asy -f png $(dirname $0)/visualize.asy -u infilename="'${1}'" -u ansfilename="'${2}'" -o $3/judgeimage.png
+draw=false
+for var in "$@"
+do
+    [ "$var" = "--draw-please" ] && draw=true
+done
+
+if [ "$draw" = true ]; then
+	asy -f png $(dirname $0)/visualize.asy -u infilename="'${1}'" -u ansfilename="'${2}'" -o $3/judgeimage.png
+fi
