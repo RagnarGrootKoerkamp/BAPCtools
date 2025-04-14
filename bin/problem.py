@@ -888,17 +888,13 @@ class Problem:
         if not path.is_dir():
             return None
         if cls not in problem._visualizer_cache:
-            if cls == visualize.OutputVisualizer and problem.interactive:
-                problem._visualizer_cache[cls] = None
-                warn("Output Visualizer is not supported for interactive problem. IGNORED.")
-            else:
-                visualizer = cls(problem, path)
-                bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
-                localbar = bar.start(visualizer)
-                visualizer.build(localbar)
-                localbar.done()
-                bar.finalize(print_done=False)
-                problem._visualizer_cache[cls] = visualizer if visualizer.ok else None
+            visualizer = cls(problem, path)
+            bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
+            localbar = bar.start(visualizer)
+            visualizer.build(localbar)
+            localbar.done()
+            bar.finalize(print_done=False)
+            problem._visualizer_cache[cls] = visualizer if visualizer.ok else None
         return problem._visualizer_cache[cls]
 
     def validators(
