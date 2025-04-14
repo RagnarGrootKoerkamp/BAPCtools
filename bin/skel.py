@@ -11,7 +11,6 @@ import latex
 from problem import Problem
 from util import *
 from validate import OutputValidator
-from visualize import OutputVisualizer
 
 
 # Returns the alphanumeric version of a string:
@@ -184,8 +183,6 @@ def new_problem() -> None:
     skip = []
     if custom_output:
         skip.append(skeldir / OutputValidator.source_dir)
-    if "interactive" in problem_type:
-        skip.append(skeldir / OutputVisualizer.source_dir)
 
     copytree_and_substitute(
         skeldir,
