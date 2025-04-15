@@ -1889,10 +1889,10 @@ class GeneratorConfig:
         self.root_dir.walk(collect_programs, dir_f=None)
 
         def build_programs(
-            program_type: type[program.Generator | visualize.InputVisualizer | run.Submission],
+            program_type: type[program.Generator | run.Submission],
             program_paths: Iterable[Path],
         ):
-            programs = list[program.Generator | visualize.InputVisualizer | run.Submission]()
+            programs = list[program.Generator | run.Submission]()
             for program_path in program_paths:
                 path = self.problem.path / program_path
                 if program_type is program.Generator and program_path in self.generators:
