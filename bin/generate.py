@@ -1082,9 +1082,7 @@ class TestcaseRule(Rule):
                             found = file
                     if found is not None:
                         found.rename(in_path.with_suffix(found.suffix))
-                        bar.log(
-                            f"Using {found.name} from output_visualizer as test case visualization"
-                        )
+                        bar.log(f"Using {found.name} from output_visualizer as visualization")
 
             if result.status == ExecStatus.TIMEOUT:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
