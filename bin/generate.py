@@ -121,9 +121,7 @@ class Invocation:
             raise ParseException("{seed(:[0-9]+)} may appear at most once.")
 
         # Automatically set self.program when that program has been built.
-        self.program: Optional[program.Generator | visualize.InputVisualizer | run.Submission] = (
-            None
-        )
+        self.program: Optional[program.Generator | run.Submission] = None
 
         def callback(program):
             self.program = program
