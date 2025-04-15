@@ -273,7 +273,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "Generate test data for this problem. Version 2025-02.",
+  "description": "Generate test data for this problem. Version 2025-04.",
   "properties": {
     "solution": {
       "$ref": "#/$defs/solution"
