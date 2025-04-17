@@ -713,10 +713,10 @@ class TestcaseRule(Rule):
         mode = validate.Mode.ANSWER
         if testcase.root == ["invalid_answer"]:
             mode = validate.Mode.INVALID
-        elif testcase.root in ["valid_output", "invalid_output"]:
+        elif testcase.root == "invalid_output":
             ans_out_validator_hashes.update(output_validator_hashes)
-            mode = validate.Mode.VALID_OUTPUT
-        elif outfile.is_file():
+            mode = validate.Mode.INVALID
+        elif testcase.root == "valid_output" or outfile.is_file():
             ans_out_validator_hashes.update(output_validator_hashes)
             mode = validate.Mode.VALID_OUTPUT
 
