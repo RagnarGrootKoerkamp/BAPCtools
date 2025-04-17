@@ -711,7 +711,7 @@ class TestcaseRule(Rule):
         output_validator_hashes = testcase.validator_hashes(validate.OutputValidator, bar)
 
         mode = validate.Mode.ANSWER
-        if testcase.root == ["invalid_answer"]:
+        if testcase.root == "invalid_answer":
             mode = validate.Mode.INVALID
         elif testcase.root == "invalid_output":
             ans_out_validator_hashes.update(output_validator_hashes)
