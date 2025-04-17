@@ -627,7 +627,7 @@ class Problem:
 
         testcases = []
         for f in in_paths:
-            t = testcase.Testcase(p, f, print_warn=True)
+            t = testcase.Testcase(p, f)
             if (
                 (p.interactive or p.multi_pass)
                 and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]

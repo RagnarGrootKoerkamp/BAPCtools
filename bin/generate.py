@@ -220,8 +220,7 @@ class SolutionInvocation(Invocation):
     def run_interaction(self, bar, cwd, t):
         in_path = cwd / "testcase.in"
         interaction_path = cwd / "testcase.interaction"
-        if interaction_path.is_file():
-            return True
+        interaction_path.unlink(missing_ok=True)
 
         testcase = Testcase(self.problem, in_path, short_path=(t.path.parent / (t.name + ".in")))
         assert isinstance(self.program, run.Submission)
@@ -689,7 +688,6 @@ class TestcaseRule(Rule):
             )
         return True
 
-    # we assume .ans is a valid output and validate it as such
     def validate_ans_and_out(
         t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
     ):
@@ -709,17 +707,21 @@ class TestcaseRule(Rule):
             bar.error("No .out file was generated!")
             return False
 
-        answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
-        if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
-            return True
+        ans_out_validator_hashes = testcase.validator_hashes(validate.AnswerValidator, bar).copy()
+        output_validator_hashes = testcase.validator_hashes(validate.OutputValidator, bar)
 
         mode = validate.Mode.ANSWER
-        if testcase.root in config.INVALID_CASE_DIRECTORIES:
+        if testcase.root == ["invalid_answer"]:
             mode = validate.Mode.INVALID
-        elif testcase.root == "valid_output":
+        elif testcase.root in ["valid_output", "invalid_output"]:
+            ans_out_validator_hashes.update(output_validator_hashes)
             mode = validate.Mode.VALID_OUTPUT
         elif outfile.is_file():
+            ans_out_validator_hashes.update(output_validator_hashes)
             mode = validate.Mode.VALID_OUTPUT
+
+        if all(h in meta_yaml["ans_out_validator_hashes"] for h in ans_out_validator_hashes):
+            return True
 
         if not testcase.validate_format(
             mode,
@@ -731,8 +733,9 @@ class TestcaseRule(Rule):
                 bar.done(False)
                 return False
         else:
-            for h in answer_validator_hashes:
-                meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
+            for h in ans_out_validator_hashes:
+                meta_yaml["ans_out_validator_hashes"][h] = ans_out_validator_hashes[h]
+            meta_yaml["visualizer_hash"] = dict()
             write_yaml(
                 meta_yaml,
                 problem.tmpdir / "data" / t.hash / "meta_.yaml",
@@ -784,7 +787,7 @@ class TestcaseRule(Rule):
                     "generated_extensions": [],
                     "input_validator_hashes": dict(),
                     "solution_hash": dict(),
-                    "answer_validator_hashes": dict(),
+                    "ans_out_validator_hashes": dict(),
                     "visualizer_hash": dict(),
                 }
             meta_yaml["rule"] = t.rule
@@ -868,7 +871,7 @@ class TestcaseRule(Rule):
 
             if not infile.is_file() or meta_yaml.get("rule_hashes") != rule_hashes:
                 # clear all generated files
-                shutil.rmtree(cwd)
+                shutil.rmtree(cwd, ignore_errors=True)
                 cwd.mkdir(parents=True, exist_ok=True)
                 meta_yaml = init_meta()
 
@@ -921,7 +924,7 @@ class TestcaseRule(Rule):
             assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
-        def generate_from_solution():
+        def generate_from_solution(testcase: Testcase):
             nonlocal meta_yaml
 
             if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
@@ -986,7 +989,7 @@ class TestcaseRule(Rule):
             if used_solution:
                 meta_yaml["solution_hash"] = solution_hash
             if changed_ans:
-                meta_yaml["answer_validator_hashes"] = dict()
+                meta_yaml["ans_out_validator_hashes"] = dict()
                 meta_yaml["visualizer_hash"] = dict()
             if changed_ans or used_solution:
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
@@ -994,24 +997,10 @@ class TestcaseRule(Rule):
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
             return True
 
-        def generate_empty_interactive_sample_ans():
-            if not t.sample:
-                return True
-            if not problem.interactive and not problem.multi_pass:
-                return True
-            for ext in ["", ".statement", ".download"]:
-                ans_ext_file = infile.with_suffix(f".ans{ext}")
-                if ans_ext_file.exists():
-                    return True
-                if infile.with_suffix(f".in{ext}").exists():
-                    ans_ext_file.write_text("")
-                    return True
-            return True
-
-        def generate_visualization():
+        def generate_visualization(testcase: Testcase, bar: ProgressBar):
             nonlocal meta_yaml
 
-            if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
+            if testcase.root in config.INVALID_CASE_DIRECTORIES:
                 return True
             if config.args.no_visualizer:
                 return True
@@ -1028,18 +1017,18 @@ class TestcaseRule(Rule):
             )
             output_visualizer = problem.visualizer(visualize.OutputVisualizer)
             if output_visualizer is not None:
-                if out_path.is_file() or problem.settings.ans_is_output or problem.interactive:
+                if out_path.is_file() or problem.settings.ans_is_output:
                     if visualizer is None or out_path.is_file():
                         visualizer = output_visualizer
-
-                    if not out_path.is_file() and problem.settings.ans_is_output:
+                    if not out_path.is_file():
+                        assert problem.settings.ans_is_output
                         out_path = ans_path
 
             if visualizer is None:
+                # copy potential teamimage/judgeimage from output validator?
                 return True
 
-            visualizer_args = testcase.testdata_yaml_args(visualizer, PrintBar())
-
+            visualizer_args = testcase.testdata_yaml_args(visualizer, bar)
             visualizer_hash = {
                 "visualizer_hash": visualizer.hash,
                 "visualizer_args": visualizer_args,
@@ -1055,9 +1044,11 @@ class TestcaseRule(Rule):
                 result = visualizer.run(in_path, ans_path, cwd)
             else:
                 feedbackdir = in_path.with_suffix(".feedbackdir")
-                feedbackdir.mkdir(parents=True, exist_ok=True)
-                teamimage = feedbackdir / "teamimage"
-                judgeimage = feedbackdir / "judgeimage"
+                feedbackcopy = in_path.with_suffix(".feedbackcopy")
+                shutil.rmtree(feedbackcopy)
+                shutil.copytree(feedbackdir, feedbackcopy)
+                teamimage = feedbackcopy / "teamimage"
+                judgeimage = feedbackcopy / "judgeimage"
 
                 for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
                     teamimage.with_suffix(ext).unlink(True)
@@ -1067,7 +1058,7 @@ class TestcaseRule(Rule):
                     in_path,
                     ans_path,
                     out_path if not problem.interactive else None,
-                    feedbackdir,
+                    feedbackcopy,
                     visualizer_args,
                 )
                 if result.status:
@@ -1083,6 +1074,7 @@ class TestcaseRule(Rule):
                     if found is not None:
                         found.rename(in_path.with_suffix(found.suffix))
                         bar.log(f"Using {found.name} from output_visualizer as visualization")
+                shutil.rmtree(feedbackcopy)
 
             if result.status == ExecStatus.TIMEOUT:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
@@ -1103,6 +1095,20 @@ class TestcaseRule(Rule):
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
             # errors in the visualizer are not critical
+            return True
+
+        def generate_empty_interactive_sample_ans():
+            if not t.sample:
+                return True
+            if not problem.interactive and not problem.multi_pass:
+                return True
+            for ext in ["", ".statement", ".download"]:
+                ans_ext_file = infile.with_suffix(f".ans{ext}")
+                if ans_ext_file.exists():
+                    return True
+                if infile.with_suffix(f".in{ext}").exists():
+                    ans_ext_file.write_text("")
+                    return True
             return True
 
         def copy_generated():
@@ -1206,7 +1212,7 @@ class TestcaseRule(Rule):
                 return
 
             # Step 4: generate .ans and .interaction if needed
-            if not generate_from_solution():
+            if not generate_from_solution(testcase):
                 return
 
             # Step 5: validate .ans (and .out if it exists)
@@ -1214,7 +1220,7 @@ class TestcaseRule(Rule):
                 return
 
             # Step 6: generate visualization if needed
-            if not generate_visualization():
+            if not generate_visualization(testcase, bar):
                 return
 
         # Step 7: for interactive and/or multi-pass samples, generate empty .ans if it does not exist

@@ -70,7 +70,6 @@ class Testcase:
         path: Path,
         *,
         short_path: Optional[Path] = None,
-        print_warn: bool = False,
     ):
         """
         Arguments
@@ -149,7 +148,6 @@ class Testcase:
              hash =>
              - name
              - flags
-             - hash
         indicating which validators will be run for this testcase.
         """
         assert cls in [validate.InputValidator, validate.AnswerValidator, validate.OutputValidator]
