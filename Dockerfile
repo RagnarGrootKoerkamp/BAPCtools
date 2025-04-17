@@ -19,7 +19,7 @@ RUN pacman -Syu --noconfirm \
 	python-pytest \
 	python-ruamel-yaml \
 	python-yaml \
-	jdk17-openjdk \
+	jdk21-openjdk \
 	kotlin \
 	rust \
 	texlive-core \
