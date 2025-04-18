@@ -217,12 +217,14 @@ class Run:
 
     def _validate_output(self, bar):
         output_validators = self.problem.validators(validate.OutputValidator)
-        if len(output_validators) != 1:
+        if not output_validators:
             return None
-        validator = output_validators[0]
-
-        return validator.run(
-            self.testcase, self, args=self.testcase.testdata_yaml_validator_args(validator, bar)
+        output_validator = output_validators[0]
+        assert isinstance(output_validator, validate.OutputValidator)
+        return output_validator.run(
+            self.testcase,
+            self,
+            args=self.testcase.testdata_yaml_validator_args(output_validator, bar),
         )
 
 
@@ -522,10 +524,8 @@ class Submission(program.Program):
 
         testcases = self.problem.testcases(needans=False)
 
-        if self.problem.interactive:
-            output_validators = self.problem.validators(validate.OutputValidator)
-            if output_validators is False:
-                return
+        if not self.problem.validators(validate.OutputValidator):
+            return
 
         for testcase in testcases:
             header = ProgressBar.action("Running " + str(self.name), testcase.name)
@@ -589,10 +589,8 @@ class Submission(program.Program):
 
     # Run the submission using stdin as input.
     def test_interactive(self):
-        if self.problem.interactive:
-            output_validators = self.problem.validators(validate.OutputValidator)
-            if output_validators is False:
-                return
+        if not self.problem.validators(validate.OutputValidator):
+            return
 
         bar = ProgressBar("Running " + str(self.name), max_len=1, count=1)
         bar.start()
