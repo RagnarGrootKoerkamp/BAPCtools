@@ -7,10 +7,10 @@ from typing import Final, Optional, TYPE_CHECKING
 
 import config
 import program
-import testcase
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     import run
+    import testcase
 
 
 class Mode(Enum):
@@ -174,7 +174,7 @@ class Validator(program.Program):
             return ExecStatus.ERROR
 
         if self.language == "checktestdata":
-            with main_path.open() as main_file:
+            with main_path.open("rb") as main_file:
                 return self._exec_command(
                     self.run_command,
                     exec_code_map=format_exec_code_map,
@@ -209,7 +209,7 @@ class Validator(program.Program):
 
     def run(
         self,
-        testcase: testcase.Testcase,
+        testcase: "testcase.Testcase",
         mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
@@ -230,12 +230,14 @@ class InputValidator(Validator):
 
     source_dir: Final[str] = "input_validators"
 
+    args_key: Final[str] = "input_validator_args"
+
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, InputValidator.source_dir, **kwargs)
 
     def run(
         self,
-        testcase: testcase.Testcase,
+        testcase: "testcase.Testcase",
         mode: Mode = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
@@ -263,7 +265,7 @@ class InputValidator(Validator):
 
         invocation = self.run_command.copy()
 
-        with testcase.in_path.open() as in_file:
+        with testcase.in_path.open("rb") as in_file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -290,12 +292,15 @@ class AnswerValidator(Validator):
 
     source_dir: Final[str] = "answer_validators"
 
+    # use output_validator_args as well
+    args_key: Final[str] = "output_validator_args"
+
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, AnswerValidator.source_dir, **kwargs)
 
     def run(
         self,
-        testcase: testcase.Testcase,
+        testcase: "testcase.Testcase",
         mode: Mode = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
@@ -316,7 +321,7 @@ class AnswerValidator(Validator):
 
         invocation = self.run_command + [testcase.in_path.resolve()]
 
-        with testcase.ans_path.open() as ans_file:
+        with testcase.ans_path.open("rb") as ans_file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -341,12 +346,14 @@ class OutputValidator(Validator):
 
     source_dir: Final[str] = "output_validator"
 
+    args_key: Final[str] = "output_validator_args"
+
     def __init__(self, problem, path, **kwargs):
         super().__init__(problem, path, OutputValidator.source_dir, **kwargs)
 
     def run(
         self,
-        testcase: testcase.Testcase,
+        testcase: "testcase.Testcase",
         mode: "Mode | run.Run",
         constraints: Optional[ConstraintsDict] = None,
         args: Optional[list[str]] = None,
@@ -358,7 +365,7 @@ class OutputValidator(Validator):
         ---------
 
         mode: either a run.Run (namely, when validating submission output) or a Mode
-            (namely, when validation a testcase)
+            (namely, when validating a testcase)
 
         Returns
         -------
@@ -368,7 +375,7 @@ class OutputValidator(Validator):
         assert self.run_command is not None, "Validator should be built before running it"
 
         if mode == Mode.INPUT:
-            raise ValueError("OutputValidator do not support Mode.INPUT")
+            raise ValueError("OutputValidator does not support Mode.INPUT")
 
         in_path = testcase.in_path.resolve()
         ans_path = testcase.ans_path.resolve()
@@ -388,7 +395,7 @@ class OutputValidator(Validator):
             assert mode != Mode.INPUT
             # mode is actually a Run
             path = mode.out_path
-            in_path = mode.in_path
+            in_path = mode.in_path  # relevant for multipass
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
@@ -398,7 +405,7 @@ class OutputValidator(Validator):
             cwd = mode.feedbackdir
         invocation = self.run_command + [in_path, ans_path, cwd]
 
-        with path.open() as file:
+        with path.open("rb") as file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -460,7 +467,7 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
     if not path.exists():
         fatal(f"{path} not found during sanity check")
 
-    with open(path, "rb") as file:
+    with path.open("rb") as file:
         name = {
             ".in": "Input",
             ".ans": "Answer",
@@ -475,7 +482,9 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
 
         if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
             bar.warn(f"{name} contains unexpected characters but was accepted!")
-        elif len(file_bytes) == 0:
+        elif len(file_bytes) == 0 and not (
+            path.suffix == ".ans" and problem.multi_pass
+        ):  # explicitly allow empty .ans files for multipass
             bar.warn(f"{name} is empty but was accepted!")
         elif len(file_bytes) > 20_000_000:
             bar.warn(f"{name} is larger than 20MB!")
@@ -491,7 +500,7 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
             and 2 * len(file_bytes) > problem.limits.output * 1024 * 1024
         ):
             bar.warn(f"{name} is close to output limit")
-        elif strict_whitespace:
+        elif strict_whitespace and len(file_bytes) > 0:
             if file_bytes[0] in [ord(" "), ord("\n")]:
                 bar.warn(f"{name} starts with whitespace but was accepted!")
             elif file_bytes[-1] != ord("\n"):
