@@ -318,7 +318,7 @@ KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = [
 ]
 RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ["command"]
 KNOWN_ROOT_KEYS: Final[Sequence[str]] = ["generators", "parallel", "version"]
-DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated"]
+DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated", "visualizer"]
 
 
 # Holds all inheritable configuration options. Currently:
