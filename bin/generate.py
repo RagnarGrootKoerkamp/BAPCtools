@@ -1012,6 +1012,19 @@ class TestcaseRule(Rule):
             assert in_path.is_file()
             assert ans_path.is_file()
 
+            feedbackdir = in_path.with_suffix(".feedbackdir")
+            image_files = [f"judgeimage{ext}" for ext in config.KNOWN_VISUALIZER_EXTENSIONS] + [
+                f"teamimage{ext}" for ext in config.KNOWN_VISUALIZER_EXTENSIONS
+            ]
+
+            def use_feedback_image(feedbackdir: Path, source: str) -> None:
+                for name in image_files:
+                    path = feedbackdir / name
+                    if path.exists():
+                        ensure_symlink(in_path.with_suffix(path.suffix), path)
+                        bar.log(f"Using {name} from {source} as visualization")
+                        return
+
             visualizer: Optional[visualize.AnyVisualizer] = problem.visualizer(
                 visualize.InputVisualizer
             )
@@ -1025,7 +1038,9 @@ class TestcaseRule(Rule):
                         out_path = ans_path
 
             if visualizer is None:
-                # copy potential teamimage/judgeimage from output validator?
+                for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                    in_path.with_suffix(ext).unlink(True)
+                use_feedback_image(feedbackdir, "validator")
                 return True
 
             visualizer_args = testcase.testdata_yaml_args(visualizer, bar)
@@ -1043,16 +1058,13 @@ class TestcaseRule(Rule):
             if isinstance(visualizer, visualize.InputVisualizer):
                 result = visualizer.run(in_path, ans_path, cwd)
             else:
-                feedbackdir = in_path.with_suffix(".feedbackdir")
                 feedbackcopy = in_path.with_suffix(".feedbackcopy")
                 shutil.rmtree(feedbackcopy)
-                shutil.copytree(feedbackdir, feedbackcopy)
-                teamimage = feedbackcopy / "teamimage"
-                judgeimage = feedbackcopy / "judgeimage"
 
-                for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
-                    teamimage.with_suffix(ext).unlink(True)
-                    judgeimage.with_suffix(ext).unlink(True)
+                def skip_images(src: str, content: list[str]) -> list[str]:
+                    return [] if src != str(feedbackdir) else image_files
+
+                shutil.copytree(feedbackdir, feedbackcopy, ignore=skip_images)
 
                 result = visualizer.run(
                     in_path,
@@ -1062,19 +1074,7 @@ class TestcaseRule(Rule):
                     visualizer_args,
                 )
                 if result.status:
-                    found = None
-                    for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
-                        file = teamimage.with_suffix(ext)
-                        if file.is_file():
-                            found = file
-                    for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
-                        file = judgeimage.with_suffix(ext)
-                        if file.is_file():
-                            found = file
-                    if found is not None:
-                        found.rename(in_path.with_suffix(found.suffix))
-                        bar.log(f"Using {found.name} from output_visualizer as visualization")
-                shutil.rmtree(feedbackcopy)
+                    use_feedback_image(feedbackdir, "output_visualizer")
 
             if result.status == ExecStatus.TIMEOUT:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
