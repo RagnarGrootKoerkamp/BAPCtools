@@ -91,12 +91,12 @@
           },
           "description": "Defines arguments passed to the output validator for the test case/group."
         },
-        "input_visualizer_args": {
+        "test_case_visualizer_args": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Defines arguments passed to the input visualizer for the test case/group."
+          "description": "Defines arguments passed to the test case visualizer for the test case/group."
         },
         "output_visualizer_args": {
           "type": "array",
@@ -113,7 +113,7 @@
         "output_validator_flags": {
           "type": "string",
           "deprecated": true,
-          "description": "With 'problem_format_version: 2023-07-draft' in problem.yaml, use input_validator_args instead."
+          "description": "With 'problem_format_version: 2023-07-draft' in problem.yaml, use output_validator_args instead."
         },
         "accept_score": {
           "type": "string"

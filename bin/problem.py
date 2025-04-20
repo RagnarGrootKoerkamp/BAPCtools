@@ -472,7 +472,7 @@ class Problem:
                             case (
                                 validate.OutputValidator.args_key
                                 | validate.AnswerValidator.args_key
-                                | visualize.InputVisualizer.args_key
+                                | visualize.TestCaseVisualizer.args_key
                                 | visualize.OutputVisualizer.args_key
                             ):
                                 if not isinstance(flags[k], list):
@@ -544,7 +544,7 @@ class Problem:
             validate.InputValidator.args_key,
             validate.OutputValidator.args_key,
             validate.AnswerValidator.args_key,
-            visualize.InputVisualizer.args_key,
+            visualize.TestCaseVisualizer.args_key,
             visualize.OutputVisualizer.args_key,
         ]
         if key not in known_args_keys:
@@ -888,8 +888,8 @@ class Problem:
 
     @overload
     def visualizer(
-        problem, cls: type[visualize.InputVisualizer]
-    ) -> Optional[visualize.InputVisualizer]: ...
+        problem, cls: type[visualize.TestCaseVisualizer]
+    ) -> Optional[visualize.TestCaseVisualizer]: ...
     @overload
     def visualizer(
         problem, cls: type[visualize.OutputVisualizer]

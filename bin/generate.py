@@ -1026,7 +1026,7 @@ class TestcaseRule(Rule):
                         return
 
             visualizer: Optional[visualize.AnyVisualizer] = problem.visualizer(
-                visualize.InputVisualizer
+                visualize.TestCaseVisualizer
             )
             output_visualizer = problem.visualizer(visualize.OutputVisualizer)
             if output_visualizer is not None:
@@ -1055,7 +1055,7 @@ class TestcaseRule(Rule):
             for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
                 in_path.with_suffix(ext).unlink(True)
 
-            if isinstance(visualizer, visualize.InputVisualizer):
+            if isinstance(visualizer, visualize.TestCaseVisualizer):
                 result = visualizer.run(in_path, ans_path, cwd, visualizer_args)
             else:
                 feedbackcopy = in_path.with_suffix(".feedbackcopy")
@@ -1933,7 +1933,7 @@ class GeneratorConfig:
         build_programs(program.Generator, generators_used)
         build_programs(run.Submission, solutions_used)
         if build_visualizers:
-            self.problem.visualizer(visualize.InputVisualizer)
+            self.problem.visualizer(visualize.TestCaseVisualizer)
             self.problem.visualizer(visualize.OutputVisualizer)
 
         self.problem.validators(validate.InputValidator)
