@@ -411,7 +411,10 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             )
             return False
         bar.log(f"change 'validator_flags' to '{OutputValidator.args_key}' in testdata.yaml")
-        new_data[OutputValidator.args_key] = data["validator_flags"]
+        validator_flags = data["validator_flags"]
+        new_data[OutputValidator.args_key] = (
+            validator_flags.split() if isinstance(validator_flags, str) else validator_flags
+        )
         ryaml_filter(data, "validator_flags")
         return True
 

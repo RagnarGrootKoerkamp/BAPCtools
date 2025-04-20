@@ -8,11 +8,11 @@ data:
   secret:
     testdata.yaml:
       input_validator_args:
-        integers: small
+        integers: [small]
     data:
       integers:
         testdata.yaml:
-          input_validator_args: --integer
+          input_validator_args: [--integer]
             #grading: foo
         data:
           - unsorted-integer:
@@ -21,7 +21,7 @@ data:
       sorted:
         testdata.yaml:
           input_validator_args:
-            strings: --sorted
+            strings: [--sorted]
         data:
           - sorted-integer:
               in: 10.0 1.0 ab cd
@@ -30,14 +30,14 @@ data:
         data:
           nested_1:
             testdata.yaml:
-              input_validator_args: --small
+              input_validator_args: [--small]
             data:
               small_floats:
                 in: 10 3.5 ab cd
           nested_2:
             testdata.yaml:
               input_validator_args:
-                integers: "" # hides the input_validator_args in secret/testdata.yaml
+                integers: [] # hides the input_validator_args in secret/testdata.yaml
             data:
               - tiny_floats:
                   in: 10.0 3.5 ab dc
@@ -46,7 +46,7 @@ data:
                   desc: Must validate, because `secret/testdata.yaml` hidden by `secret/general/nested_2/testdata.yaml`
       tolerant:
         testdata.yaml:
-          output_validator_args: float_tolerance 1e-2
+          output_validator_args: [float_tolerance, "1e-2"]
         data:
           - tiny_floats:
               in: 10.0 3.0 ab dc
@@ -62,14 +62,14 @@ data:
           too_many_tokens: {in: 10.0 2.5 ab cd ef}
       integers:
         testdata.yaml:
-          input_validator_args: --integer
+          input_validator_args: [--integer]
         data:
           ints_expected: {in: 10.0 2.5 ab cd}
         include:
           - small_floats
       sorted:
         testdata.yaml:
-          input_validator_args: --sorted
+          input_validator_args: [--sorted]
         include:
           - unsorted # invalid here because of --sorted flag (valid input in invalid_answers/no_output_validator_args)
   invalid_answer:
@@ -84,7 +84,7 @@ data:
             ans: 5.0 Abccd
       with_output_validator_args:
         testdata.yaml:
-          output_validator_args: --forbid_abcd
+          output_validator_args: [--forbid_abcd]
         include:
           - imprecise # must reject because its ans includes abcd
   invalid_output:
@@ -95,7 +95,7 @@ data:
         out: 3.33 abcd
   valid_output:
     testdata.yaml:
-      output_validator_args: float_tolerance 1e-2
+      output_validator_args: [float_tolerance, "1e-2"]
     data:
       valid:
         in: 10.0 3.0 ab cd

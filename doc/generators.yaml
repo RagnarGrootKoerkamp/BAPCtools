@@ -17,7 +17,7 @@ random_salt: abcd
 
 # The top level may contain a testdata.yaml that will be written to data/ as specified.
 testdata.yaml:
-  output_validator_args: ""
+  output_validator_args: []
 
 # We support three types of generators:
 # - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
@@ -105,7 +105,7 @@ data:
   secret:
     include:
       # You can include other testcroups by there yaml name
-      - 'sample'
+      - "sample"
       # This will include "1", "2", "3", "4", and "5" from sample
     data:
       # Types of generator programs.
@@ -136,8 +136,8 @@ data:
       11-random-3: graph seed={seed:2} # Different seed, because command isn't the same.
       #11-random-4: graph {seed} {seed:2}  # Not allowed because the regex matches twice.
       12-counted:
-          generate: graph {seed:3} {count}
-          count: 2                       # generate two testcases at once
+        generate: graph {seed:3} {count}
+        count: 2 # generate two testcases at once
 
       # No key (testcase or testgroup) may be a prefix of another key.
       #01-second: graph 6                     # Collision with rule 01 above.
@@ -177,7 +177,7 @@ data:
       hard_cases_group:
         # Directories may contain a testdata.yaml that will be written as specified.
         testdata.yaml:
-          output_validator_args: space_change_sensitive
+          output_validator_args: [space_change_sensitive]
 
         # To enable automatic numbering of testcases, data: may also contain a list of
         # single-element dictionaries instead of a single dictionary. In this case,

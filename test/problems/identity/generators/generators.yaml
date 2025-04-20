@@ -73,7 +73,7 @@ data:
         in.statement: "6"
         ans.statement: "6"
     testdata.yaml:
-      output_visualizer_args: --draw-please
+      output_visualizer_args: [--draw-please]
 
   secret:
     data:

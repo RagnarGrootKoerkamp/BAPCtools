@@ -1056,7 +1056,7 @@ class TestcaseRule(Rule):
                 in_path.with_suffix(ext).unlink(True)
 
             if isinstance(visualizer, visualize.InputVisualizer):
-                result = visualizer.run(in_path, ans_path, cwd)
+                result = visualizer.run(in_path, ans_path, cwd, visualizer_args)
             else:
                 feedbackcopy = in_path.with_suffix(".feedbackcopy")
                 shutil.rmtree(feedbackcopy)

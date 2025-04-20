@@ -29,7 +29,7 @@ data:
         count: 5
       'group_with_testdata':
         testdata.yaml:
-          input_validator_args: "--connected --max_n 2000"
+          input_validator_args: [--connected, --max_n, "2000"]
         data:
           'a': my_generator
   invalid_input:

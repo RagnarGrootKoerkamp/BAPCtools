@@ -65,9 +65,6 @@
         "input_validator_args": {
           "oneOf": [
             {
-              "type": "string"
-            },
-            {
               "type": "array",
               "items": {
                 "type": "string"
@@ -77,7 +74,10 @@
               "type": "object",
               "patternProperties": {
                 "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])$":{
-                  "type": "string"
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -85,18 +85,25 @@
           "description": "Defines arguments passed to each input validator for the test case/group. If a sequence of strings, then those are the arguments that will be passed to each input validator for this the case/group. If a map, then each key is the name of the input validator and the value is the arguments to pass to that input validator for the test case/group. Validators not present in the map are run without any arguments."
         },
         "output_validator_args": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          ],
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
           "description": "Defines arguments passed to the output validator for the test case/group."
+        },
+        "input_visualizer_args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Defines arguments passed to the input visualizer for the test case/group."
+        },
+        "output_visualizer_args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Defines arguments passed to the output visualizer for the test case/group."
         },
         "input_validator_flags": {
           "type": "string",

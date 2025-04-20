@@ -475,12 +475,16 @@ class Problem:
                                 | visualize.InputVisualizer.args_key
                                 | visualize.OutputVisualizer.args_key
                             ):
-                                if not isinstance(flags[k], str):
-                                    bar.error(f"{k} must be string", resume=True, print_item=False)
-                            case validate.InputValidator.args_key:
-                                if not isinstance(flags[k], (str, dict)):
+                                if not isinstance(flags[k], list):
                                     bar.error(
-                                        f"{k} must be string or map",
+                                        f"{k} must be a list of strings",
+                                        resume=True,
+                                        print_item=False,
+                                    )
+                            case validate.InputValidator.args_key:
+                                if not isinstance(flags[k], (list, dict)):
+                                    bar.error(
+                                        f"{k} must be list or map",
                                         resume=True,
                                         print_item=False,
                                     )
@@ -564,19 +568,28 @@ class Problem:
                 continue
             flags = p._testdata_yamls[f]
             if key in flags:
+                args = flags[key]
                 if key == validate.InputValidator.args_key:
-                    if not isinstance(flags[key], (str, dict)):
-                        bar.error(f"{key} must be string or map")
+                    if not isinstance(args, (list, dict)):
+                        bar.error(f"{key} must be list of strings or map of lists")
                         return []
-                    if isinstance(flags[key], str):
-                        return flags[key].split()
-                    elif name in flags[key]:
-                        return flags[key][name].split()
+                    if isinstance(args, list):
+                        if any(not isinstance(arg, str) for arg in args):
+                            bar.error(f"{key} must be list of strings or map of lists")
+                            return []
+                        return args
+                    elif name in args:
+                        if not isinstance(args[name], list) or any(
+                            not isinstance(arg, str) for arg in args[name]
+                        ):
+                            bar.error(f"{key} must be list of strings or map of lists")
+                            return []
+                        return args[name]
                 elif key in known_args_keys:
-                    if not isinstance(flags[key], str):
-                        bar.error(f"{key} must be string")
+                    if not isinstance(args, list) or any(not isinstance(arg, str) for arg in args):
+                        bar.error(f"{key} must be a list of strings")
                         return []
-                    return flags[key].split()
+                    return args
 
         return []
 
