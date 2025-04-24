@@ -13,6 +13,64 @@ if has_ryaml:
     from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 
+# src_base must be a dir (or symlink to dir)
+# dst_base must not exists
+# the parents of dst_base must exist
+def _move_dir(src_base: Path, dst_base: Path) -> None:
+    assert src_base.is_dir()
+    assert not dst_base.exists()
+
+    src_base = src_base.absolute()
+    dst_base = dst_base.absolute()
+    base = [a for a, b in zip(reversed(src_base.parents), reversed(dst_base.parents)) if a == b][-1]
+
+    def resolve_up(parts: tuple[str, ...]) -> Path:
+        resolved: list[str] = []
+        for part in parts:
+            if part == ".":
+                continue
+            if part == ".." and len(resolved) and resolved[-1] != "..":
+                resolved.pop()
+            else:
+                resolved.append(part)
+        return Path(*resolved)
+
+    def movetree(src: Path, dst: Path) -> None:
+        if src.is_symlink():
+            # create a new symlink and make sure that the destination is handled properly
+            destination = src.readlink()
+            if destination.is_absolute():
+                # absolute links should stay absolute
+                # if their destination is inside the dir we move we have to change it
+                if destination.is_relative_to(src_base):
+                    destination = dst_base / destination.relative_to(src_base)
+                dst.symlink_to(destination)
+                src.unlink()
+            else:
+                if resolve_up(src.parent.parts + destination.parts).is_relative_to(src_base):
+                    # the link is relative and points to another file we move
+                    src.rename(dst)
+                else:
+                    # the link is relative but points to a fixed place
+                    src_rel = src.parent.relative_to(base)
+                    dst_rel = dst.parent.relative_to(base)
+                    parts = (("..",) * len(dst_rel.parts)) + src_rel.parts + destination.parts
+                    dst.symlink_to(resolve_up(parts))
+                    src.unlink()
+        elif src.is_dir():
+            # recursively move stuff inside dirs
+            dst.mkdir()
+            for file in [*src.iterdir()]:
+                movetree(file, dst / file.name)
+            # delete now empty dir
+            src.rmdir()
+        else:
+            # move file
+            src.rename(dst)
+
+    movetree(src_base, dst_base)
+
+
 def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
         ("data/invalid_inputs", "data/invalid_input"),
@@ -61,8 +119,8 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
 
 def upgrade_testdata_yaml(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
-        ("output_validator_flags", "output_validator_args"),
-        ("input_validator_flags", "input_validator_args"),
+        ("output_validator_flags", OutputValidator.args_key),
+        ("input_validator_flags", InputValidator.args_key),
     ]
 
     for f in (problem_path / "data").rglob("testdata.yaml"):
@@ -90,6 +148,11 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
         return
 
     changed = False
+
+    if "visualizer" in yaml_data:
+        warn(
+            "Cannot automatically upgrade 'visualizer'.\n - move visualizer to 'test_case_visualizer/'\n - first argument is the in_file\n - second argument is the ans_file"
+        )
 
     if "data" in yaml_data and isinstance(yaml_data["data"], dict):
         data = cast(CommentedMap, yaml_data["data"])
@@ -153,8 +216,8 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             print_path = f" ({path[1:]})" if len(path) > 1 else ""
 
             rename = [
-                ("output_validator_flags", "output_validator_args"),
-                ("input_validator_flags", "input_validator_args"),
+                ("output_validator_flags", OutputValidator.args_key),
+                ("input_validator_flags", InputValidator.args_key),
             ]
             for old, new in rename:
                 if old in testdata:
@@ -244,31 +307,7 @@ def upgrade_output_validators(problem_path: Path, bar: ProgressBar) -> None:
             bar.log(
                 f"renaming 'output_validators/{content[0].name}' to '{OutputValidator.source_dir}/'"
             )
-
-            def move(src: str, dst: str) -> None:
-                if Path(src).is_symlink():
-                    src_dst = Path(src).resolve()
-                    if src_dst.is_relative_to(content[0]):  # local symlink
-                        Path(src).rename(dst)
-                    else:  # link outside output_validators/
-                        dst_pos = Path(dst).resolve()
-                        common = [
-                            a
-                            for a, b in zip(reversed(src_dst.parents), reversed(dst_pos.parents))
-                            if a == b
-                        ][-1]
-                        link = Path(
-                            "../" * (len(dst_pos.parents) - len(common.parts))
-                        ) / src_dst.relative_to(common)
-                        Path(dst).symlink_to(link)
-                        Path(src).unlink()
-                else:
-                    Path(src).rename(dst)
-
-            shutil.copytree(
-                content[0], problem_path / OutputValidator.source_dir, copy_function=move
-            )
-            shutil.rmtree(problem_path / "output_validators")
+            _move_dir(content[0], problem_path / OutputValidator.source_dir)
         else:
             bar.log(f"renaming 'output_validators/' to '{OutputValidator.source_dir}/'")
             (problem_path / "output_validators").rename(problem_path / OutputValidator.source_dir)
@@ -365,14 +404,17 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
                     ryaml_filter(data, "limits")
 
     def add_args(new_data: dict[str, Any]) -> bool:
-        if "output_validator_args" in new_data:
+        if OutputValidator.args_key in new_data:
             bar.error(
-                "can't change 'validator_flags', 'output_validator_args' already exists in testdata.yaml",
+                f"can't change 'validator_flags', '{OutputValidator.args_key}' already exists in testdata.yaml",
                 resume=True,
             )
             return False
-        bar.log("change 'validator_flags' to 'output_validator_args' in testdata.yaml")
-        new_data["output_validator_args"] = data["validator_flags"]
+        bar.log(f"change 'validator_flags' to '{OutputValidator.args_key}' in testdata.yaml")
+        validator_flags = data["validator_flags"]
+        new_data[OutputValidator.args_key] = (
+            validator_flags.split() if isinstance(validator_flags, str) else validator_flags
+        )
         ryaml_filter(data, "validator_flags")
         return True
 

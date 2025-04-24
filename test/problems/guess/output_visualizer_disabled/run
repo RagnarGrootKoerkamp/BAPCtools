@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Set script directory
+SCRIPT_DIR="$(dirname "$0")"
+
+# Check if visualize.py exists
+if [[ ! -f "$SCRIPT_DIR/guess-visualizer.py" ]]; then
+    echo "Error: guess-visualizer.py not found in $SCRIPT_DIR" >&2
+    exit 1
+fi
+
+tmptexdir=$(mktemp -d)  # Create a unique temporary directory
+OUTPUT_FILE="$tmptexdir/judgeimage.tex"
+
+# Run visualize.py
+python3 "$SCRIPT_DIR/guess-visualizer.py" $1 $2 $3 >  "$OUTPUT_FILE"
+if [[ $? -ne 0 ]]; then
+    echo "Error: guess-visualizer.py failed" >&2
+    exit 1
+fi
+
+# Check if judgeimage.tex exists
+if [[ ! -f "$OUTPUT_FILE" ]]; then
+    echo "Error: texfile not found in $SCRIPT_DIR" >&2
+    exit 1
+fi
+
+# Run pdflatex
+(
+    cd "$tmptexdir" && pdflatex judgeimage.tex
+)
+if [[ $? -ne 0 ]]; then
+    echo "Error: pdflatex failed" >&2
+    exit 1
+fi
+
+mv "$tmptexdir/judgeimage.pdf" $3
+rm -r "$tmptexdir"
+
+echo "Script completed successfully."
+exit 0

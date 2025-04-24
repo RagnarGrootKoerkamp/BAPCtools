@@ -6,7 +6,7 @@ import threading
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, TYPE_CHECKING
+from typing import Any, Final, Literal, Optional, overload, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
@@ -20,6 +20,7 @@ import testcase
 import validate
 import validator_tests
 import verdicts
+import visualize
 from util import *
 from colorama import Fore, Style
 
@@ -266,7 +267,7 @@ class ProblemSettings:
         self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
 
         parse_deprecated_setting(
-            yaml_data, "validator_flags", "output_validator_args' in 'testdata.yaml"
+            yaml_data, "validator_flags", f"{validate.OutputValidator.args_key}' in 'testdata.yaml"
         )
 
         self.keywords: list[str] = parse_optional_list_setting(yaml_data, "keywords", str)
@@ -337,6 +338,9 @@ class Problem:
             tuple[type[validate.AnyValidator], bool], list[validate.AnyValidator]
         ]()
         self._validators_warn_cache = set[tuple[type[validate.AnyValidator], bool]]()
+        self._visualizer_cache = dict[
+            type[visualize.AnyVisualizer], Optional[visualize.AnyVisualizer]
+        ]()
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
@@ -383,7 +387,7 @@ class Problem:
             unnormalised_yamlname = self.settings.name[lang]
             yamlname = " ".join(unnormalised_yamlname.split())
             texpath = self.path / latex.PdfType.PROBLEM.path(lang)
-            with open(texpath) as texfile:
+            with texpath.open() as texfile:
                 match texname := latex.get_argument_for_command(texfile, "problemname"):
                     case None:
                         error(rf"No \problemname found in {texpath.name}")
@@ -456,20 +460,31 @@ class Problem:
                     p._testdata_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
 
                     parse_deprecated_setting(
-                        flags, "output_validator_flags", "output_validator_args"
+                        flags, "output_validator_flags", validate.OutputValidator.args_key
                     )
-                    parse_deprecated_setting(flags, "input_validator_flags", "input_validator_args")
+                    parse_deprecated_setting(
+                        flags, "input_validator_flags", validate.InputValidator.args_key
+                    )
 
                     # Verify testdata.yaml
                     for k in flags:
                         match k:
-                            case "output_validator_args":
-                                if not isinstance(flags[k], str):
-                                    bar.error(f"{k} must be string", resume=True, print_item=False)
-                            case "input_validator_args":
-                                if not isinstance(flags[k], (str, dict)):
+                            case (
+                                validate.OutputValidator.args_key
+                                | validate.AnswerValidator.args_key
+                                | visualize.TestCaseVisualizer.args_key
+                                | visualize.OutputVisualizer.args_key
+                            ):
+                                if not isinstance(flags[k], list):
                                     bar.error(
-                                        f"{k} must be string or map",
+                                        f"{k} must be a list of strings",
+                                        resume=True,
+                                        print_item=False,
+                                    )
+                            case validate.InputValidator.args_key:
+                                if not isinstance(flags[k], (list, dict)):
+                                    bar.error(
+                                        f"{k} must be list or map",
                                         resume=True,
                                         print_item=False,
                                     )
@@ -504,8 +519,8 @@ class Problem:
     def get_testdata_yaml(
         p,
         path: Path,
-        key: Literal["input_validator_args"] | Literal["output_validator_args"],
-        bar: ProgressBar | PrintBar,
+        key: str,
+        bar: BAR_TYPE,
         name: Optional[str] = None,
     ) -> list[str]:
         """
@@ -517,8 +532,7 @@ class Problem:
         Arguments
         ---------
         path: absolute path (a file or a directory)
-        key: The testdata.yaml key to look for, either of 'input_validator_args', 'output_validator_args', or 'grading'.
-            TODO: 'grading' is not yet implemented.
+        key: The testdata.yaml key to look for (TODO: 'grading' is not yet implemented)
         name: If key == 'input_validator_args', optionally the name of the input validator.
 
         Returns:
@@ -526,9 +540,16 @@ class Problem:
         A list of string arguments, which is empty if no testdata.yaml is found.
         TODO: when 'grading' is supported, it also can return dict
         """
-        if key not in ["input_validator_args", "output_validator_args"]:
+        known_args_keys = [
+            validate.InputValidator.args_key,
+            validate.OutputValidator.args_key,
+            validate.AnswerValidator.args_key,
+            visualize.TestCaseVisualizer.args_key,
+            visualize.OutputVisualizer.args_key,
+        ]
+        if key not in known_args_keys:
             raise NotImplementedError(key)
-        if key != "input_validator_args" and name is not None:
+        if key != validate.InputValidator.args_key and name is not None:
             raise ValueError(
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
@@ -547,20 +568,28 @@ class Problem:
                 continue
             flags = p._testdata_yamls[f]
             if key in flags:
-                if key == "output_validator_args":
-                    if not isinstance(flags[key], str):
-                        bar.error("output_validator_args must be string")
+                args = flags[key]
+                if key == validate.InputValidator.args_key:
+                    if not isinstance(args, (list, dict)):
+                        bar.error(f"{key} must be list of strings or map of lists")
                         return []
-                    return flags[key].split()
-
-                if key == "input_validator_args":
-                    if not isinstance(flags[key], (str, dict)):
-                        bar.error("input_validator_args must be string or map")
+                    if isinstance(args, list):
+                        if any(not isinstance(arg, str) for arg in args):
+                            bar.error(f"{key} must be list of strings or map of lists")
+                            return []
+                        return args
+                    elif name in args:
+                        if not isinstance(args[name], list) or any(
+                            not isinstance(arg, str) for arg in args[name]
+                        ):
+                            bar.error(f"{key} must be list of strings or map of lists")
+                            return []
+                        return args[name]
+                elif key in known_args_keys:
+                    if not isinstance(args, list) or any(not isinstance(arg, str) for arg in args):
+                        bar.error(f"{key} must be a list of strings")
                         return []
-                    if isinstance(flags[key], str):
-                        return flags[key].split()
-                    elif name in flags[key]:
-                        return flags[key][name].split()
+                    return args
 
         return []
 
@@ -611,7 +640,7 @@ class Problem:
 
         testcases = []
         for f in in_paths:
-            t = testcase.Testcase(p, f, print_warn=True)
+            t = testcase.Testcase(p, f)
             if (
                 (p.interactive or p.multi_pass)
                 and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
@@ -857,6 +886,30 @@ class Problem:
         assert isinstance(problem._submissions, list)
         return problem._submissions.copy()
 
+    @overload
+    def visualizer(
+        problem, cls: type[visualize.TestCaseVisualizer]
+    ) -> Optional[visualize.TestCaseVisualizer]: ...
+    @overload
+    def visualizer(
+        problem, cls: type[visualize.OutputVisualizer]
+    ) -> Optional[visualize.OutputVisualizer]: ...
+    def visualizer(
+        problem, cls: type[visualize.AnyVisualizer]
+    ) -> Optional[visualize.AnyVisualizer]:
+        path = problem.path / cls.source_dir
+        if not path.is_dir():
+            return None
+        if cls not in problem._visualizer_cache:
+            visualizer = cls(problem, path)
+            bar = ProgressBar(f"Building {cls.visualizer_type} visualizer", items=[visualizer])
+            localbar = bar.start(visualizer)
+            visualizer.build(localbar)
+            localbar.done()
+            bar.finalize(print_done=False)
+            problem._visualizer_cache[cls] = visualizer if visualizer.ok else None
+        return problem._visualizer_cache[cls]
+
     def validators(
         problem,
         cls: type[validate.AnyValidator],
@@ -960,7 +1013,7 @@ class Problem:
         problem._validators_cache[key] = validators
         return validators
 
-    # get all testcses and submissions and prepare the output validator
+    # get all testcases and submissions and prepare the output validator and visualizer
     def prepare_run(problem):
         testcases = problem.testcases()
         if not testcases:
@@ -969,6 +1022,10 @@ class Problem:
         # Pre build the output validator to prevent nested ProgressBars.
         if not problem.validators(validate.OutputValidator):
             return False
+
+        # Pre build the output visualizer to prevent nested ProgressBars.
+        if not config.args.no_visualizer:
+            problem.visualizer(visualize.OutputVisualizer)
 
         submissions = problem.submissions()
         if not submissions:
@@ -1002,6 +1059,10 @@ class Problem:
             return False
         testcases, submissions = ts_pair
         ok, verdict_table = Problem.run_some(testcases, submissions)
+
+        if len(testcases) * len(submissions) > 1:
+            if not config.args.verbose and not config.args.no_visualizer:
+                log("use -v with --visualize to see the paths to the generated images")
 
         if config.args.table:
             Problem._print_table(verdict_table.results, testcases)
@@ -1291,7 +1352,7 @@ class Problem:
     def _validate_data(
         problem,
         mode: validate.Mode,
-        constraints: dict | Literal[True] | None,
+        constraints: validate.ConstraintsDict | Literal[True] | None,
         action: str,
         testcases: Sequence[testcase.Testcase],
         extra: bool = False,
@@ -1300,13 +1361,11 @@ class Problem:
         if not testcases:
             return True
 
-        if constraints is True:
-            constraints = {}
-        assert constraints is None or isinstance(constraints, dict)
+        constraints_dict = {} if constraints is True else constraints
+        check_constraints = constraints_dict is not None
 
         # Pre-build the relevant Validators so as to avoid clash with ProgressBar bar below
         # Also, pick the relevant testcases
-        check_constraints = constraints is not None
         match mode:
             case validate.Mode.INPUT:
                 problem.validators(validate.InputValidator, check_constraints=check_constraints)
@@ -1352,7 +1411,7 @@ class Problem:
                     return
 
             ok = testcase.validate_format(
-                mode, bar=localbar, constraints=constraints, warn_instead_of_error=extra
+                mode, bar=localbar, constraints=constraints_dict, warn_instead_of_error=extra
             )
             success &= ok
             localbar.done(ok)
@@ -1362,8 +1421,8 @@ class Problem:
         bar.finalize(print_done=True)
 
         # Make sure all constraints are satisfied.
-        if constraints:
-            for loc, value in sorted(constraints.items()):
+        if constraints_dict:
+            for loc, value in sorted(constraints_dict.items()):
                 loc = Path(loc).name
                 name, has_low, has_high, vmin, vmax, low, high = value
                 if not has_low:

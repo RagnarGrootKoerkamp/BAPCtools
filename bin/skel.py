@@ -93,7 +93,7 @@ def new_problem() -> None:
     )
     author = config.args.author if config.args.author else ask_variable_string("author")
 
-    output_validator_args = "#output_validator_args:"
+    output_validator_args = f"#{OutputValidator.args_key}:"
     custom_output = False
     if config.args.type:
         problem_type = config.args.type
@@ -105,7 +105,7 @@ def new_problem() -> None:
     # The validation type `float` is not official, it only helps setting the `output_validator_args`.
     if problem_type == "float":
         problem_type = "pass-fail"
-        output_validator_args = "output_validator_args: float_tolerance 1e-6"
+        output_validator_args = f"{OutputValidator.args_key}: float_tolerance 1e-6"
         log("Using default float tolerance of 1e-6")
     # Since version 2023-07-draft of the spec, the `custom` validation type is no longer explicit.
     # The mere existence of the output_validator(s)/ folder signals non-default output validation.
@@ -121,7 +121,7 @@ def new_problem() -> None:
         "dirname": dirname,
         "author": author,
         "type": problem_type,
-        "output_validator_args": output_validator_args,
+        OutputValidator.args_key: output_validator_args,
         "testdata_yaml_comment": "#" if output_validator_args[0] == "#" else "",
     }
 
@@ -180,13 +180,17 @@ def new_problem() -> None:
         else:
             error("ruamel.yaml library not found. Please update problems.yaml manually.")
 
+    skip = []
+    if custom_output:
+        skip.append(skeldir / OutputValidator.source_dir)
+
     copytree_and_substitute(
         skeldir,
         target_dir / dirname,
         variables,
         exist_ok=True,
         preserve_symlinks=preserve_symlinks,
-        skip=[skeldir / OutputValidator.source_dir] if not custom_output else None,
+        skip=skip,
     )
 
     # Warn about missing problem statement skeletons for non-en languages

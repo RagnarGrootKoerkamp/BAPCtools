@@ -1,18 +1,25 @@
 """Test case"""
 
+from collections.abc import Sequence
 from colorama import Fore, Style
 from pathlib import Path
-from typing import cast, Literal, Optional
+from typing import Optional, TYPE_CHECKING
 
 from util import (
+    BAR_TYPE,
     ExecStatus,
     combine_hashes_dict,
     fatal,
     print_name,
+    ProgressBar,
     shorten_path,
 )
 import config
 import validate
+
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    import visualize
+    import problem
 
 
 class Testcase:
@@ -57,7 +64,13 @@ class Testcase:
 
     """
 
-    def __init__(self, base_problem, path, *, short_path=None, print_warn=False):
+    def __init__(
+        self,
+        base_problem: "problem.Problem",
+        path: Path,
+        *,
+        short_path: Optional[Path] = None,
+    ):
         """
         Arguments
         ---------
@@ -76,17 +89,17 @@ class Testcase:
         # TODO add self.out_path
         if short_path is None:
             try:
-                self.short_path = path.relative_to(self.problem.path / "data")
+                self.short_path: Path = path.relative_to(self.problem.path / "data")
             except ValueError:
                 fatal(f"Testcase {path} is not inside {self.problem.path / 'data'}.")
         else:
             self.short_path = short_path
 
-        self.root = self.short_path.parts[0]
+        self.root: str = self.short_path.parts[0]
 
-        self.in_path = path
-        self.ans_path = self.in_path.with_suffix(".ans")
-        self.out_path = (
+        self.in_path: Path = path
+        self.ans_path: Path = self.in_path.with_suffix(".ans")
+        self.out_path: Optional[Path] = (
             self.in_path.with_suffix(".out")
             if self.root in ["valid_output", "invalid_output"]
             or self.in_path.with_suffix(".out").is_file()
@@ -94,18 +107,18 @@ class Testcase:
         )
 
         # Display name: everything after data/.
-        self.name = str(self.short_path.with_suffix(""))
+        self.name: str = str(self.short_path.with_suffix(""))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.name
 
-    def with_suffix(self, ext):
+    def with_suffix(self, ext: str) -> Path:
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_validator_args(
+    def testdata_yaml_args(
         self,
-        validator,  # TODO #102: Fix circular import when setting type to validate.AnyValidator
-        bar,  # TODO #102: Type should probably be ProgressBar | PrintBar or something
+        program: "validate.AnyValidator | visualize.AnyVisualizer",
+        bar: BAR_TYPE,
     ) -> list[str]:
         """
         The flags specified in testdata.yaml for the given validator applying to this testcase.
@@ -116,21 +129,18 @@ class Testcase:
         A nonempty list of strings, such as ["space_change_sensitive", "case_sensitive"]
         or ["--max_N", "50"] or even [""].
         """
-        key, name = (
-            ("input_validator_args", validator.name)
-            if isinstance(validator, validate.InputValidator)
-            else ("output_validator_args", None)
-        )
 
         path = self.problem.path / "data" / self.short_path
         return self.problem.get_testdata_yaml(
             path,
-            cast(Literal["input_validator_args", "output_validator_args"], key),
+            type(program).args_key,
             bar,
-            name=name,
+            name=program.name if isinstance(program, validate.InputValidator) else None,
         )
 
-    def validator_hashes(self, cls: type["validate.AnyValidator"], bar):
+    def validator_hashes(
+        self, cls: type[validate.AnyValidator], bar: BAR_TYPE
+    ) -> dict[str, dict[str, str]]:
         """
         Returns
         -------
@@ -138,7 +148,6 @@ class Testcase:
              hash =>
              - name
              - flags
-             - hash
         indicating which validators will be run for this testcase.
         """
         assert cls in [validate.InputValidator, validate.AnswerValidator, validate.OutputValidator]
@@ -147,29 +156,29 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_validator_args(validator, bar)
-            if flags is False:
-                continue
+            flags = self.testdata_yaml_args(validator, bar)
             flags_string = " ".join(flags)
-            o = {
+            h = combine_hashes_dict(
+                {
+                    "name": validator.name,
+                    "flags": flags_string,
+                    "hash": validator.hash,
+                }
+            )
+            d[h] = {
                 "name": validator.name,
                 "flags": flags_string,
-                "hash": validator.hash,
             }
-            h = combine_hashes_dict(o)
-            # Don't actually store the somewhat useless validator hash.
-            del o["hash"]
-            d[h] = o
 
         return d
 
     def validate_format(
         self,
-        mode: "validate.Mode",
+        mode: validate.Mode,
         *,
-        bar,
-        constraints=None,
-        warn_instead_of_error=False,
+        bar: ProgressBar,
+        constraints: Optional[validate.ConstraintsDict] = None,
+        warn_instead_of_error: bool = False,
     ) -> bool:
         check_constraints = constraints is not None
 
@@ -263,13 +272,13 @@ class Testcase:
 
     def _run_validators(
         self,
-        mode: "validate.Mode",
-        validators,
-        expect_rejection,
+        mode: validate.Mode,
+        validators: Sequence[validate.AnyValidator],
+        expect_rejection: bool,
         *,
-        bar,
-        constraints=None,
-        warn_instead_of_error=False,
+        bar: ProgressBar,
+        constraints: Optional[validate.ConstraintsDict] = None,
+        warn_instead_of_error: bool = False,
     ) -> bool:
         args = []
         results = []
@@ -278,10 +287,8 @@ class Testcase:
             if isinstance(validator, validate.OutputValidator) and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
-            flags = self.testdata_yaml_validator_args(validator, bar)
-            if flags is False:
-                continue
-            flags = args if flags is None else flags + args
+            flags = self.testdata_yaml_args(validator, bar)
+            flags = flags + args
 
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
             results.append(ret.status)
@@ -325,7 +332,7 @@ class Testcase:
                 data += (
                     f"{Style.RESET_ALL}-> {shorten_path(self.problem, file.parent) / file.name}\n"
                 )
-            else:
+            elif ret.err:
                 data = ret.err
 
             if expect_rejection:
@@ -343,7 +350,7 @@ class Testcase:
                 )
             else:
                 bar.part_done(
-                    ret.status,
+                    bool(ret.status),
                     message,
                     data=data,
                     warn_instead_of_error=warn_instead_of_error,
