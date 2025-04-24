@@ -637,21 +637,25 @@ Run this from one of:
     )
     genparser.add_argument(
         "--no-validators",
+        default=False,
         action="store_true",
         help="Ignore results of input and answer validation. Validators are still run.",
     )
     genparser.add_argument(
         "--no-solution",
+        default=False,
         action="store_true",
         help="Skip generating .ans/.interaction files with the solution.",
     )
     genparser.add_argument(
         "--no-visualizer",
+        default=False,
         action="store_true",
         help="Skip generating graphics with the visualizer.",
     )
     genparser.add_argument(
         "--no-testcase-sanity-checks",
+        default=False,
         action="store_true",
         help="Skip sanity checks on testcases.",
     )
@@ -692,6 +696,12 @@ Run this from one of:
         "-G",
         action="store_true",
         help="Do not run `generate` before running submissions.",
+    )
+    runparser.add_argument(
+        "--visualizer",
+        dest="no_visualizer",
+        action="store_false",
+        help="Also run the output visualizer.",
     )
     runparser.add_argument(
         "--all",

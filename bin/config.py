@@ -108,6 +108,8 @@ DEFAULT_ARGS: Final[Mapping[str, Any]] = {
     "jobs": (os.cpu_count() or 1) // 2,
     "time": 600,  # Used for `bt fuzz`
     "verbose": 0,
+    "action": None,
+    "no_visualizer": True,
 }
 
 

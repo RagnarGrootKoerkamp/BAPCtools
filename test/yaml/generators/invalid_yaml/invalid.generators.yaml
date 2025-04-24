@@ -29,10 +29,6 @@ data: {sample: {data: []}, secret: {data: []}}
 solution: false
 data: {sample: {data: []}, secret: {data: []}}
 ---
-# visualizer must be null or string
-visualizer: 0
-data: {sample: {data: []}, secret: {data: []}}
----
 # random_salt must be null or string
 random_salt: 0
 data: {sample: {data: []}, secret: {data: []}}
@@ -266,7 +262,7 @@ data:
       a:
         generate: /generators/gen.py
 ---
-# Solution and visualizer must have an absolute path:
+# Solution must have an absolute path:
 solution: a
 data: {sample: {data: []}, secret: {data: []}}
 ---
@@ -274,18 +270,6 @@ solution: /a/b
 data: {sample: {data: []}, secret: {data: []}}
 ---
 solution: a 1 2
-data: {sample: {data: []}, secret: {data: []}}
----
-visualizer: a
-data: {sample: {data: []}, secret: {data: []}}
----
-visualizer: a/b
-data: {sample: {data: []}, secret: {data: []}}
----
-visualizer: a 1 2
-data: {sample: {data: []}, secret: {data: []}}
----
-visualizer: a {name}
 data: {sample: {data: []}, secret: {data: []}}
 ---
 ## No toplevel generate TODO
@@ -405,6 +389,5 @@ data:
     data:
     - '':
         in: '1 2'
-        visualizer: "/ab/c" # this is fine
-        testdata.yaml:      # this is not
-          input_validator_args: "connected"
+        testdata.yaml:      # this is not ok
+          input_validator_args: [connected]

@@ -1,6 +1,0 @@
-#!/usr/bin/env sh
-
-set -e
-
-name=$1
-cat $name.in $name.ans | asy -f png $(dirname $0)/visualize.asy -o $name.png

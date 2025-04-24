@@ -23,8 +23,10 @@ let filename = "[A-Za-z0-9][A-Za-z0-9_.-]{0,253}[A-Za-z0-9]"
 // Test data settings
 
 #testdata_settings: {
-	input_validator_args?: *"" | string | {[string]: string}
-	output_validator_args?: *"" | string
+	input_validator_args?: *[] | [string] | {[string]: [string]}
+	output_validator_args?: *[] | [string]
+	test_case_visualizer_args?: *[] | [string]
+	output_visualizer_args?: *[] | [string]
 	grading?: {
 		score?:       >0
 		max_score?:   >0
