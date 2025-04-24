@@ -13,6 +13,7 @@ from contest import *
 from latex import PdfType
 from problem import Problem
 from validate import InputValidator, AnswerValidator, OutputValidator
+from visualize import TestCaseVisualizer, OutputVisualizer
 
 
 def select_languages(problems: list[Problem]) -> list[str]:
@@ -125,6 +126,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
         ("attachments/**/*", problem.interactive or problem.multi_pass),
+        (f"{TestCaseVisualizer.source_dir}/**/*", False),
+        (f"{OutputVisualizer.source_dir}/**/*", False),
     ]
 
     # Do not include PDFs for kattis.
@@ -212,6 +215,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             f"{OutputValidator.source_dir}/**/*",
             # "statement/*", "solution/*", "problem_slide/*", use \constant{} commands
             # "submissions/*/**/*", removed support?
+            f"{TestCaseVisualizer.source_dir}/**/*",
+            f"{OutputVisualizer.source_dir}/**/*",
         ]
         for pattern in constants_supported:
             for f in export_dir.glob(pattern):
@@ -292,7 +297,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         validator_flags = " ".join(
             problem.get_testdata_yaml(
                 problem.path / "data",
-                "output_validator_args",
+                OutputValidator.args_key,
                 PrintBar("Getting validator_flags for legacy export"),
             )
         )
@@ -476,9 +481,7 @@ def export_contest(cid: Optional[str]) -> str:
     new_cid = yaml.load(r.text, Loader=yaml.SafeLoader)
     log(f"Uploaded the contest to contest_id {new_cid}.")
     if new_cid != cid:
-        log("Update contest_id in contest.yaml automatically? [Y/n]")
-        a = input().lower()
-        if a == "" or a[0] == "y":
+        if ask_variable_bool("Update contest_id in contest.yaml automatically"):
             update_contest_id(new_cid)
             log(f"Updated contest_id to {new_cid}")
 
@@ -558,12 +561,9 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
                 label = inc_label(label)
 
     if change:
-        if config.args.action in ["update_problems_yaml"]:
-            a = "y"
-        else:
-            log("Update problems.yaml with latest values? [Y/n]")
-            a = input().lower()
-        if a == "" or a[0] == "y":
+        if config.args.action in ["update_problems_yaml"] or ask_variable_bool(
+            "Update problems.yaml with latest values"
+        ):
             write_yaml(data, path)
             log("Updated problems.yaml")
     else:
@@ -686,7 +686,5 @@ def check_if_user_has_team() -> None:
     if not any(user["username"] == config.args.username and user["team"] for user in users):
         warn(f'User "{config.args.username}" is not associated with a team.')
         warn("Therefore, the jury submissions will not be run by the judgehosts.")
-        log("Continue export to DOMjudge? [N/y]")
-        a = input().lower()
-        if not a or a[0] != "y":
+        if ask_variable_bool("Continue export to DOMjudge", False):
             fatal("Aborted.")

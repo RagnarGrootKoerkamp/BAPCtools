@@ -51,5 +51,6 @@ jobs:
                 texlive-science
                 latexmk
                 texlive-lang-german
+                asymptote
       - shell: wsl-bash {0}
         run: pytest

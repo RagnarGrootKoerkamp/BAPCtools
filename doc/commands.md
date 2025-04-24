@@ -112,6 +112,7 @@ Use `bt run -v` to show results for all testcases.
 - `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and testcases. If combined with `--no-bar` only the final table is printed.
 - `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 - `--sanitizer`: when passed, run submissions with additional sanitizer flags (currently only C++). Note that this removes all memory limits for submissions.
+- `--visualizer`: when passed, run the output visualizer.
 
 ## `test`
 

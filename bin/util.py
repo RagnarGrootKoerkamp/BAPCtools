@@ -17,6 +17,7 @@ from enum import Enum
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import (
+    cast,
     Any,
     Iterable,
     Literal,
@@ -56,6 +57,21 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 # For some reason ryaml.load doesn't work well in parallel.
 ruamel_lock = threading.Lock()
+
+
+try:
+    import questionary
+    from prompt_toolkit.document import Document
+
+    has_questionary = True
+
+    class EmptyValidator(questionary.Validator):
+        def validate(self, document: Document) -> None:
+            if len(document.text) == 0:
+                raise questionary.ValidationError(message="Please enter a value")
+
+except Exception:
+    has_questionary = False
 
 
 def is_windows() -> bool:
@@ -775,7 +791,7 @@ def write_yaml(
             exit(1)
         if path is None:
             return yamllib.dump(data)
-        with open(path, "w") as stream:
+        with path.open("w") as stream:
             yamllib.dump(data, stream)
         return None
     with write_yaml_lock:
@@ -859,6 +875,70 @@ def parse_deprecated_setting(
         yaml_data.pop(key)
 
 
+def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
+    if config.args.defaults:
+        if not default and not allow_empty:
+            fatal(f"{name} has no default")
+        return default or ""
+    while True:
+        val = input(f"{name}: ")
+        val = val or default or ""
+        if val != "" or allow_empty:
+            return val
+
+
+def ask_variable_string(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
+    if has_questionary:
+        try:
+            validate = None if allow_empty else EmptyValidator
+            return cast(
+                str,
+                questionary.text(name + ":", default=default or "", validate=validate).unsafe_ask(),
+            )
+        except KeyboardInterrupt:
+            fatal("Running interrupted")
+    else:
+        text = f" ({default})" if default else ""
+        return _ask_variable(name + text, default if default else "", allow_empty)
+
+
+def ask_variable_bool(name: str, default: bool = True) -> bool:
+    if has_questionary:
+        try:
+            return cast(
+                bool,
+                questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask(),
+            )
+        except KeyboardInterrupt:
+            fatal("Running interrupted")
+    else:
+        text = " (Y/n)" if default else " (y/N)"
+        return _ask_variable(name + text, "Y" if default else "N").lower()[0] == "y"
+
+
+def ask_variable_choice(name: str, choices: Sequence[str], default: Optional[str] = None) -> str:
+    if has_questionary:
+        try:
+            plain = questionary.Style([("selected", "noreverse")])
+            return cast(
+                str,
+                questionary.select(
+                    name + ":", choices=choices, default=default, style=plain
+                ).unsafe_ask(),
+            )
+        except KeyboardInterrupt:
+            fatal("Running interrupted")
+    else:
+        default = default or choices[0]
+        text = f" ({default})" if default else ""
+        while True:
+            got = _ask_variable(name + text, default if default else "")
+            if got in choices:
+                return got
+            else:
+                warn(f"unknown option: {got}")
+
+
 # glob, but without hidden files
 def glob(path: Path, expression: str, include_hidden: bool = False) -> list[Path]:
     def keep(p: Path) -> bool:
@@ -913,41 +993,46 @@ if is_windows():
 
 
 # When output is True, copy the file when args.cp is true.
-def ensure_symlink(link: Path, target: Path, output: bool = False, relative: bool = False) -> None:
-    # on windows copy if necessary
-    if is_windows() and not windows_can_symlink:
-        if link.exists() or link.is_symlink():
-            link.unlink()
-        shutil.copyfile(target, link)
-        return
+def ensure_symlink(link: Path, target: Path, output: bool = False, relative: bool = False) -> bool:
+    try:
+        # on windows copy if necessary
+        if is_windows() and not windows_can_symlink:
+            if link.exists() or link.is_symlink():
+                link.unlink()
+            shutil.copyfile(target, link)
+            return True
 
-    # For output files: copy them on Windows, or when --cp is passed.
-    if output and config.args.cp:
-        if link.exists() or link.is_symlink():
-            link.unlink()
-        shutil.copyfile(target, link)
-        return
+        # For output files: copy them on Windows, or when --cp is passed.
+        if output and config.args.cp:
+            if link.exists() or link.is_symlink():
+                link.unlink()
+            shutil.copyfile(target, link)
+            return True
 
-    # Do nothing if link already points to the right target.
-    if link.is_symlink() and link.resolve() == target.resolve():
-        is_absolute = os.readlink(link)
-        if not relative and is_absolute:
-            return
-        # if relative and not is_absolute: return
+        # Do nothing if link already points to the right target.
+        if link.is_symlink() and link.resolve() == target.resolve():
+            is_absolute = os.readlink(link)
+            if not relative and is_absolute:
+                return True
+            # if relative and not is_absolute: return
 
-    if link.is_symlink() or link.exists():
-        if link.is_dir() and not link.is_symlink():
-            shutil.rmtree(link)
+        if link.is_symlink() or link.exists():
+            if link.is_dir() and not link.is_symlink():
+                shutil.rmtree(link)
+            else:
+                link.unlink()
+
+        # for windows the symlink needs to know if it points to a directory or file
+        if relative:
+            # Rewrite target to be relative to link.
+            # Use os.path.relpath instead of Path.relative_to for non-subdirectories.
+            link.symlink_to(os.path.relpath(target, link.parent), target.is_dir())
         else:
-            link.unlink()
-
-    # for windows the symlink needs to know if it points to a directory or file
-    if relative:
-        # Rewrite target to be relative to link.
-        # Use os.path.relpath instead of Path.relative_to for non-subdirectories.
-        link.symlink_to(os.path.relpath(target, link.parent), target.is_dir())
-    else:
-        link.symlink_to(target.absolute(), target.is_dir())
+            link.symlink_to(target.absolute(), target.is_dir())
+        return True
+    except (FileNotFoundError, FileExistsError):
+        # this must be a race condition
+        return False
 
 
 def has_substitute(
@@ -1398,7 +1483,7 @@ def hash_file_content(file: Path, buffer_size: int = 65536) -> str:
         raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), str(file))
     sha = hashlib.sha512(usedforsecurity=False)
 
-    with open(file, "rb") as f:
+    with file.open("rb") as f:
         while True:
             data = f.read(buffer_size)
             if not data:
@@ -1416,7 +1501,7 @@ def hash_file(file: Path, buffer_size: int = 65536) -> str:
     sha.update(len(name).to_bytes(8, "big"))
     sha.update(name)
 
-    with open(file, "rb") as f:
+    with file.open("rb") as f:
         while True:
             data = f.read(buffer_size)
             if not data:

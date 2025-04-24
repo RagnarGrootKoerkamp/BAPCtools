@@ -14,11 +14,10 @@ def contest_yaml() -> dict[str, Any]:
     if _contest_yaml is not None:
         return _contest_yaml
 
-    # TODO: Do we need both here?
-    for p in [Path("contest.yaml"), Path("../contest.yaml")]:
-        if p.is_file():
-            _contest_yaml = read_yaml_settings(p)
-            return _contest_yaml
+    contest_yaml_path = Path("contest.yaml")
+    if contest_yaml_path.is_file():
+        _contest_yaml = read_yaml_settings(contest_yaml_path)
+        return _contest_yaml
     _contest_yaml = {}
     return _contest_yaml
 
@@ -42,7 +41,7 @@ def problems_yaml() -> Optional[list[dict[str, Any]]]:
 
 
 def get_api() -> str:
-    api = config.args.api or contest_yaml().get("api")
+    api = config.args.api or cast(str, contest_yaml().get("api"))
     if not api:
         fatal(
             "Could not find key `api` in contest.yaml and it was not specified on the command line."

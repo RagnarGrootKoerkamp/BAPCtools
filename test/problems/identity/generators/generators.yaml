@@ -1,6 +1,4 @@
 solution: /submissions/accepted/author.py
-# The visualizer is disabled to speed up testing.
-#visualizer: /visualizers
 random_salt: "abc"
 
 generators:
@@ -74,6 +72,8 @@ data:
       "6":
         in.statement: "6"
         ans.statement: "6"
+    testdata.yaml:
+      output_visualizer_args: [--draw-please]
 
   secret:
     data:
@@ -133,7 +133,6 @@ data:
         solution: /generators/solution.c
         generate: random_gen.py {seed:7}
       testcase_dict_3:
-        visualizer:
         generate: random_gen.py {seed:8}
       unused_args_1: > # Spread arguments over multiple lines.
         random_gen.py

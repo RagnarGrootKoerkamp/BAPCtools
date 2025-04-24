@@ -1,1 +1,1 @@
-output_validator_args: float_tolerance 1E-6
+output_validator_args: [float_tolerance, "1E-6"]
