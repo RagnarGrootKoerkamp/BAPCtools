@@ -9,13 +9,14 @@ import time
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Any, Final, Optional, overload
+from typing import Any, Final, Iterable, Optional, overload
 
 import config
 import parallel
 import program
 import run
 import validate
+import visualize
 from testcase import Testcase
 from verdicts import Verdict
 from problem import Problem
@@ -88,7 +89,6 @@ def resolve_path(path, *, allow_absolute, allow_relative):
 # The following classes inherit from Invocation:
 # - GeneratorInvocation
 # - SolutionInvocation
-# - VisualizerInvocation
 class Invocation:
     SEED_REGEX: Final[re.Pattern[str]] = re.compile(r"\{seed(:[0-9]+)?\}")
     NAME_REGEX: Final[re.Pattern[str]] = re.compile(r"\{name\}")
@@ -121,7 +121,7 @@ class Invocation:
             raise ParseException("{seed(:[0-9]+)} may appear at most once.")
 
         # Automatically set self.program when that program has been built.
-        self.program: Optional[program.Generator | program.Visualizer | run.Submission] = None
+        self.program: Optional[program.Generator | run.Submission] = None
 
         def callback(program):
             self.program = program
@@ -172,7 +172,7 @@ class GeneratorInvocation(Invocation):
             )
             if result.status:
                 break
-            if not result.retry:
+            if result.status == ExecStatus.TIMEOUT:
                 break
 
         if not result.status:
@@ -186,30 +186,6 @@ class GeneratorInvocation(Invocation):
         if result.status and config.args.error and result.err:
             bar.log("stderr", result.err)
 
-        return result
-
-
-class VisualizerInvocation(Invocation):
-    def __init__(self, problem, string):
-        super().__init__(problem, string, allow_absolute=True, allow_relative=False)
-
-    # Run the visualizer, taking {name} as a command line argument.
-    # Stdin and stdout are not used.
-    # {name} is no longer used and hardcoded to `testcase` (see #273), and {seed} is also not used.
-    def run(self, bar, cwd):
-        assert isinstance(self.program, program.Visualizer), "Visualizer program must be built!"
-
-        result = self.program.run(cwd, args=self._sub_args())
-
-        if result.status == ExecStatus.TIMEOUT:
-            bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error(f"Visualizer TIMEOUT after {result.duration}s")
-        elif not result.status:
-            bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error("Visualizer failed", result.err)
-
-        if result.status and config.args.error and result.err:
-            bar.log("stderr", result.err)
         return result
 
 
@@ -244,8 +220,7 @@ class SolutionInvocation(Invocation):
     def run_interaction(self, bar, cwd, t):
         in_path = cwd / "testcase.in"
         interaction_path = cwd / "testcase.interaction"
-        if interaction_path.is_file():
-            return True
+        interaction_path.unlink(missing_ok=True)
 
         testcase = Testcase(self.problem, in_path, short_path=(t.path.parent / (t.name + ".in")))
         assert isinstance(self.program, run.Submission)
@@ -327,7 +302,6 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
     "generate",
     "copy",
     "solution",
-    "visualizer",
     "random_salt",
     "retries",
     "count",
@@ -339,18 +313,16 @@ KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = [
     "testdata.yaml",
     "include",
     "solution",
-    "visualizer",
     "random_salt",
     "retries",
 ]
 RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ["command"]
 KNOWN_ROOT_KEYS: Final[Sequence[str]] = ["generators", "parallel", "version"]
-DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated"]
+DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated", "visualizer"]
 
 
 # Holds all inheritable configuration options. Currently:
 # - config.solution
-# - config.visualizer
 # - config.random_salt
 class Config:
     # Used at each directory or testcase level.
@@ -363,13 +335,6 @@ class Config:
         return SolutionInvocation(p, x)
 
     @staticmethod
-    def parse_visualizer(p, x, path):
-        assert_type("Visualizer", x, [type(None), str], path)
-        if x is None:
-            return None
-        return VisualizerInvocation(p, x)
-
-    @staticmethod
     def parse_random_salt(p, x, path):
         assert_type("Random_salt", x, [type(None), str], path)
         if x is None:
@@ -379,7 +344,6 @@ class Config:
     INHERITABLE_KEYS: Final[Sequence] = [
         # True: use an AC submission by default when the solution: key is not present.
         ("solution", True, parse_solution),
-        ("visualizer", None, parse_visualizer),
         ("random_salt", "", parse_random_salt),
         # Non-portable keys only used by BAPCtools:
         # The number of retries to run a generator when it fails, each time incrementing the {seed}
@@ -388,7 +352,6 @@ class Config:
     ]
 
     solution: SolutionInvocation
-    visualizer: Optional[VisualizerInvocation]
     random_salt: str
     retries: int
 
@@ -725,7 +688,6 @@ class TestcaseRule(Rule):
             )
         return True
 
-    # we assume .ans is a valid output and validate it as such
     def validate_ans_and_out(
         t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
     ):
@@ -745,17 +707,21 @@ class TestcaseRule(Rule):
             bar.error("No .out file was generated!")
             return False
 
-        answer_validator_hashes = {**testcase.validator_hashes(validate.AnswerValidator, bar)}
-        if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
-            return True
+        ans_out_validator_hashes = testcase.validator_hashes(validate.AnswerValidator, bar).copy()
+        output_validator_hashes = testcase.validator_hashes(validate.OutputValidator, bar)
 
         mode = validate.Mode.ANSWER
-        if testcase.root in config.INVALID_CASE_DIRECTORIES:
+        if testcase.root == "invalid_answer":
             mode = validate.Mode.INVALID
-        elif testcase.root == "valid_output":
+        elif testcase.root == "invalid_output":
+            ans_out_validator_hashes.update(output_validator_hashes)
+            mode = validate.Mode.INVALID
+        elif testcase.root == "valid_output" or outfile.is_file():
+            ans_out_validator_hashes.update(output_validator_hashes)
             mode = validate.Mode.VALID_OUTPUT
-        elif outfile.is_file():
-            mode = validate.Mode.VALID_OUTPUT
+
+        if all(h in meta_yaml["ans_out_validator_hashes"] for h in ans_out_validator_hashes):
+            return True
 
         if not testcase.validate_format(
             mode,
@@ -767,8 +733,9 @@ class TestcaseRule(Rule):
                 bar.done(False)
                 return False
         else:
-            for h in answer_validator_hashes:
-                meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
+            for h in ans_out_validator_hashes:
+                meta_yaml["ans_out_validator_hashes"][h] = ans_out_validator_hashes[h]
+            meta_yaml["visualizer_hash"] = dict()
             write_yaml(
                 meta_yaml,
                 problem.tmpdir / "data" / t.hash / "meta_.yaml",
@@ -820,7 +787,7 @@ class TestcaseRule(Rule):
                     "generated_extensions": [],
                     "input_validator_hashes": dict(),
                     "solution_hash": dict(),
-                    "answer_validator_hashes": dict(),
+                    "ans_out_validator_hashes": dict(),
                     "visualizer_hash": dict(),
                 }
             meta_yaml["rule"] = t.rule
@@ -904,7 +871,7 @@ class TestcaseRule(Rule):
 
             if not infile.is_file() or meta_yaml.get("rule_hashes") != rule_hashes:
                 # clear all generated files
-                shutil.rmtree(cwd)
+                shutil.rmtree(cwd, ignore_errors=True)
                 cwd.mkdir(parents=True, exist_ok=True)
                 meta_yaml = init_meta()
 
@@ -957,7 +924,7 @@ class TestcaseRule(Rule):
             assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
-        def generate_from_solution():
+        def generate_from_solution(testcase: Testcase):
             nonlocal meta_yaml
 
             if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
@@ -1022,12 +989,112 @@ class TestcaseRule(Rule):
             if used_solution:
                 meta_yaml["solution_hash"] = solution_hash
             if changed_ans:
-                meta_yaml["answer_validator_hashes"] = dict()
+                meta_yaml["ans_out_validator_hashes"] = dict()
                 meta_yaml["visualizer_hash"] = dict()
             if changed_ans or used_solution:
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
 
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
+            return True
+
+        def generate_visualization(testcase: Testcase, bar: ProgressBar):
+            nonlocal meta_yaml
+
+            if testcase.root in config.INVALID_CASE_DIRECTORIES:
+                return True
+            if config.args.no_visualizer:
+                return True
+
+            # Generate visualization
+            in_path = cwd / "testcase.in"
+            ans_path = cwd / "testcase.ans"
+            out_path = cwd / "testcase.out"
+            assert in_path.is_file()
+            assert ans_path.is_file()
+
+            feedbackdir = in_path.with_suffix(".feedbackdir")
+            image_files = [f"judgeimage{ext}" for ext in config.KNOWN_VISUALIZER_EXTENSIONS] + [
+                f"teamimage{ext}" for ext in config.KNOWN_VISUALIZER_EXTENSIONS
+            ]
+
+            def use_feedback_image(feedbackdir: Path, source: str) -> None:
+                for name in image_files:
+                    path = feedbackdir / name
+                    if path.exists():
+                        ensure_symlink(in_path.with_suffix(path.suffix), path)
+                        bar.log(f"Using {name} from {source} as visualization")
+                        return
+
+            visualizer: Optional[visualize.AnyVisualizer] = problem.visualizer(
+                visualize.TestCaseVisualizer
+            )
+            output_visualizer = problem.visualizer(visualize.OutputVisualizer)
+            if output_visualizer is not None:
+                if out_path.is_file() or problem.settings.ans_is_output:
+                    if visualizer is None or out_path.is_file():
+                        visualizer = output_visualizer
+                    if not out_path.is_file():
+                        assert problem.settings.ans_is_output
+                        out_path = ans_path
+
+            if visualizer is None:
+                for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                    in_path.with_suffix(ext).unlink(True)
+                use_feedback_image(feedbackdir, "validator")
+                return True
+
+            visualizer_args = testcase.testdata_yaml_args(visualizer, bar)
+            visualizer_hash = {
+                "visualizer_hash": visualizer.hash,
+                "visualizer_args": visualizer_args,
+            }
+
+            if meta_yaml.get("visualizer_hash") == visualizer_hash:
+                return True
+
+            for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                in_path.with_suffix(ext).unlink(True)
+
+            if isinstance(visualizer, visualize.TestCaseVisualizer):
+                result = visualizer.run(in_path, ans_path, cwd, visualizer_args)
+            else:
+                feedbackcopy = in_path.with_suffix(".feedbackcopy")
+                shutil.rmtree(feedbackcopy)
+
+                def skip_images(src: str, content: list[str]) -> list[str]:
+                    return [] if src != str(feedbackdir) else image_files
+
+                shutil.copytree(feedbackdir, feedbackcopy, ignore=skip_images)
+
+                result = visualizer.run(
+                    in_path,
+                    ans_path,
+                    out_path if not problem.interactive else None,
+                    feedbackcopy,
+                    visualizer_args,
+                )
+                if result.status:
+                    use_feedback_image(feedbackdir, "output_visualizer")
+
+            if result.status == ExecStatus.TIMEOUT:
+                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                bar.error(
+                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer TIMEOUT after {result.duration}s"
+                )
+            elif not result.status:
+                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                bar.error(
+                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer failed", result.err
+                )
+
+            if result.status and config.args.error and result.err:
+                bar.log("stderr", result.err)
+
+            if result.status:
+                meta_yaml["visualizer_hash"] = visualizer_hash
+                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+
+            # errors in the visualizer are not critical
             return True
 
         def generate_empty_interactive_sample_ans():
@@ -1042,31 +1109,6 @@ class TestcaseRule(Rule):
                 if infile.with_suffix(f".in{ext}").exists():
                     ans_ext_file.write_text("")
                     return True
-            return True
-
-        def generate_visualization():
-            nonlocal meta_yaml
-
-            if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
-                return True
-            if not t.config.visualizer:
-                return True
-            if config.args.no_visualizer:
-                return True
-
-            visualizer_hash = {
-                "visualizer_hash": t.config.visualizer.hash(),
-                "visualizer": t.config.visualizer.cache_command(),
-            }
-
-            if meta_yaml.get("visualizer_hash") == visualizer_hash:
-                return True
-
-            # Generate visualization
-            t.config.visualizer.run(bar, cwd)
-
-            meta_yaml["visualizer_hash"] = visualizer_hash
-            write_yaml(meta_yaml, meta_path, allow_yamllib=True)
             return True
 
         def copy_generated():
@@ -1170,7 +1212,7 @@ class TestcaseRule(Rule):
                 return
 
             # Step 4: generate .ans and .interaction if needed
-            if not generate_from_solution():
+            if not generate_from_solution(testcase):
                 return
 
             # Step 5: validate .ans (and .out if it exists)
@@ -1178,7 +1220,7 @@ class TestcaseRule(Rule):
                 return
 
             # Step 6: generate visualization if needed
-            if not generate_visualization():
+            if not generate_visualization(testcase, bar):
                 return
 
         # Step 7: for interactive and/or multi-pass samples, generate empty .ans if it does not exist
@@ -1829,7 +1871,6 @@ class GeneratorConfig:
     def build(self, build_visualizers=True, skip_double_build_warning=False):
         generators_used: set[Path] = set()
         solutions_used: set[Path] = set()
-        visualizers_used: set[Path] = set()
 
         # Collect all programs that need building.
         # Also, convert the default submission into an actual Invocation.
@@ -1850,16 +1891,14 @@ class GeneratorConfig:
                             default_solution = DefaultSolutionInvocation(self)
                         t.config.solution = default_solution
                     solutions_used.add(t.config.solution.program_path)
-            if build_visualizers and t.config.visualizer:
-                visualizers_used.add(t.config.visualizer.program_path)
 
         self.root_dir.walk(collect_programs, dir_f=None)
 
         def build_programs(
-            program_type: type[program.Generator | program.Visualizer | run.Submission],
-            program_paths: set[Path],
+            program_type: type[program.Generator | run.Submission],
+            program_paths: Iterable[Path],
         ):
-            programs = list[program.Generator | program.Visualizer | run.Submission]()
+            programs = list[program.Generator | run.Submission]()
             for program_path in program_paths:
                 path = self.problem.path / program_path
                 if program_type is program.Generator and program_path in self.generators:
@@ -1893,7 +1932,9 @@ class GeneratorConfig:
         # TODO: Consider building all types of programs in parallel as well.
         build_programs(program.Generator, generators_used)
         build_programs(run.Submission, solutions_used)
-        build_programs(program.Visualizer, visualizers_used)
+        if build_visualizers:
+            self.problem.visualizer(visualize.TestCaseVisualizer)
+            self.problem.visualizer(visualize.OutputVisualizer)
 
         self.problem.validators(validate.InputValidator)
         self.problem.validators(validate.AnswerValidator)
@@ -1902,10 +1943,6 @@ class GeneratorConfig:
         def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
                 t.config.solution = None
-            if not build_visualizers or (
-                t.config.visualizer and t.config.visualizer.program is None
-            ):
-                t.config.visualizer = None
 
         self.root_dir.walk(cleanup_build_failures, dir_f=None)
 

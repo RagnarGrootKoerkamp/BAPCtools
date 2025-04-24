@@ -11,24 +11,13 @@
 # TOOLING: may pick a default if not specified, but should raise an error.
 solution: /submissions/accepted/sol.py
 
-# The visualizer is used when no suitable image was generated already.
-# This should read `testcase.in` and/or `testcase.ans` from the current working
-# directory, and write `testcase.ext` for an extension in:
-# .png, .jpg, .svg
-#
-# This must be the absolute path, starting in the problem root.
-#
-# TOOLING: may provide a flag to make running this optional, as it can be slow
-# and usually isn't required.
-visualizer: /visualizers/vis.py
-
 # Optionally, a salt for generating the {seed} variables. Will be prepended to
 # the command being run.
 random_salt: abcd
 
 # The top level may contain a testdata.yaml that will be written to data/ as specified.
 testdata.yaml:
-  output_validator_args: ""
+  output_validator_args: []
 
 # We support three types of generators:
 # - Standalone files, like generators/a.cpp, generators/b.py, ..., which will
@@ -116,7 +105,7 @@ data:
   secret:
     include:
       # You can include other testcroups by there yaml name
-      - 'sample'
+      - "sample"
       # This will include "1", "2", "3", "4", and "5" from sample
     data:
       # Types of generator programs.
@@ -147,8 +136,8 @@ data:
       11-random-3: graph seed={seed:2} # Different seed, because command isn't the same.
       #11-random-4: graph {seed} {seed:2}  # Not allowed because the regex matches twice.
       12-counted:
-          generate: graph {seed:3} {count}
-          count: 2                       # generate two testcases at once
+        generate: graph {seed:3} {count}
+        count: 2 # generate two testcases at once
 
       # No key (testcase or testgroup) may be a prefix of another key.
       #01-second: graph 6                     # Collision with rule 01 above.
@@ -169,12 +158,11 @@ data:
       "13": write_in_and_ans.py
 
       # To override the global/testgroup configuration on a per-testcase basis,
-      # a dictionary may be used. This allows the solution: and visualizer: keys,
+      # a dictionary may be used. This allows the solution: key,
       # as well as the generate: key which contains the command to execute.
-      14_no_visualizer:
+      14_override:
         generate: large_case_generator.py 1000000
         solution: /generators/gnu_multi_precision.cpp
-        visualizer: # Empty to disable the visualizer here.
         random_salt: "123"
 
       # An entry must include *some* key that produces an in-file,
@@ -189,7 +177,7 @@ data:
       hard_cases_group:
         # Directories may contain a testdata.yaml that will be written as specified.
         testdata.yaml:
-          output_validator_args: space_change_sensitive
+          output_validator_args: [space_change_sensitive]
 
         # To enable automatic numbering of testcases, data: may also contain a list of
         # single-element dictionaries instead of a single dictionary. In this case,

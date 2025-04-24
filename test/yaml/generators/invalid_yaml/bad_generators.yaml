@@ -23,9 +23,6 @@ solution: true
 ---
 solution: false
 ---
-# visualizer must be null or string
-visualizer: 0
----
 # random_salt must be null or string
 random_salt: 0
 ---
@@ -164,20 +161,12 @@ data:
 data:
   ab: /generators/dir/gen.py
 ---
-# Solution ans visualizer must have an absolute path:
+# Solution must have an absolute path:
 solution: a
 ---
 solution: a/b
 ---
 solution: a 1 2
----
-visualizer: a
----
-visualizer: a/b
----
-visualizer: a 1 2
----
-visualizer: a {name}
 ---
 # Directories may not have generate:.
 generate: xyz

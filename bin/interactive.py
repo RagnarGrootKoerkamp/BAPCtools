@@ -56,7 +56,7 @@ def run_interactive_testcase(
                 run.testcase.ans_path.resolve(),
                 run.feedbackdir.resolve(),
             ]
-            + run.testcase.testdata_yaml_validator_args(
+            + run.testcase.testdata_yaml_args(
                 output_validator,
                 bar or PrintBar("Run interactive test case"),
             )
@@ -166,6 +166,8 @@ def run_interactive_testcase(
                 error("exceeded limit of validation_passes")
                 verdict = Verdict.VALIDATOR_CRASH
                 break
+
+        run._visualize_output(bar or PrintBar("Visualize interaction"))
 
         if tle_result is None:
             # Set result.err to validator error and result.out to team error.
@@ -430,6 +432,8 @@ while True:
 
     if interaction_file is not None:
         interaction_file.close()
+
+    run._visualize_output(bar or PrintBar("Visualize interaction"))
 
     if tle_result is None:
         return ExecResult(

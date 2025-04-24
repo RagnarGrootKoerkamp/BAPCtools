@@ -13,6 +13,7 @@ from contest import *
 from latex import PdfType
 from problem import Problem
 from validate import InputValidator, AnswerValidator, OutputValidator
+from visualize import TestCaseVisualizer, OutputVisualizer
 
 
 def select_languages(problems: list[Problem]) -> list[str]:
@@ -125,6 +126,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         ("submissions/accepted/**/*", True),
         ("submissions/*/**/*", False),
         ("attachments/**/*", problem.interactive or problem.multi_pass),
+        (f"{TestCaseVisualizer.source_dir}/**/*", False),
+        (f"{OutputVisualizer.source_dir}/**/*", False),
     ]
 
     # Do not include PDFs for kattis.
@@ -212,6 +215,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             f"{OutputValidator.source_dir}/**/*",
             # "statement/*", "solution/*", "problem_slide/*", use \constant{} commands
             # "submissions/*/**/*", removed support?
+            f"{TestCaseVisualizer.source_dir}/**/*",
+            f"{OutputVisualizer.source_dir}/**/*",
         ]
         for pattern in constants_supported:
             for f in export_dir.glob(pattern):
@@ -292,7 +297,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         validator_flags = " ".join(
             problem.get_testdata_yaml(
                 problem.path / "data",
-                "output_validator_args",
+                OutputValidator.args_key,
                 PrintBar("Getting validator_flags for legacy export"),
             )
         )
