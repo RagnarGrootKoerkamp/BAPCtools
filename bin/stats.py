@@ -391,20 +391,26 @@ def more_stats(problems):
         error("not inside git")
         return
 
+    def parse_time(date: str):
+        return parser.parse(date) if date else None
+
     print("-" * len(header), file=sys.stderr)
     testcases = [len(generate.testcases(p)) for p in problems]
     testcases += get_stats(testcases)
     print(format_row("Testcases", *testcases), file=sys.stderr)
     changed: list[Any] = []
     for p in problems:
-        time = max(
-            [
-                parser.parse(git("log", "--format=%cI", "-1", "--", p.path / path))
-                for path in ["generators", "data"]
-            ]
-        )
-        duration = datetime.now(timezone.utc) - time
-        changed.append(duration.total_seconds())
+        times = [
+            parse_time(git("log", "--format=%cI", "-1", "--", p.path / path))
+            for path in ["generators", "data"]
+        ]
+        times = [t for t in times if t]
+        if times:
+            time = max(times)
+            duration = datetime.now(timezone.utc) - time
+            changed.append(duration.total_seconds())
+        else:
+            changed.append(None)
     changed += get_stats(changed)
     changed = [timedelta(seconds=s) for s in changed]
     changed[-4] = "-"  # sum of last changed is meaningless...
