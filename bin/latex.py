@@ -238,18 +238,15 @@ def make_environment() -> dict[str, str]:
         Path.cwd(),
         Path.cwd() / "solve_stats",
         Path.cwd() / "solve_stats" / "activity",
+        Path.cwd() / "latex",
         config.TOOLS_ROOT / "latex",
+        # The default empty element at the end makes sure that the new TEXINPUTS ends with a path separator.
+        # This is required to make LaTeX look in the default global paths: https://tex.stackexchange.com/a/410353
+        env.get("TEXINPUTS", ""),
     ]
-    texinputs = ""
-    for p in latex_paths:
-        texinputs += str(p) + ";"
+    texinputs = os.pathsep.join(map(str, latex_paths))
     if config.args.verbose >= 2:
         print(f"export TEXINPUTS='{texinputs}'", file=sys.stderr)
-    if "TEXINPUTS" in env:
-        prev = env["TEXINPUTS"]
-        if len(prev) > 0 and prev[-1] != ";":
-            prev += ";"
-        texinputs = prev + texinputs
     env["TEXINPUTS"] = texinputs
     return env
 
