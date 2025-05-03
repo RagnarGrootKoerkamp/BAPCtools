@@ -17,6 +17,7 @@ from util import (
     ensure_symlink,
     exec_command,
     fatal,
+    is_windows,
     message,
     MessageType,
     PrintBar,
@@ -232,24 +233,20 @@ def problem_data(problem: "Problem", language: str):
 
 
 def make_environment() -> dict[str, str]:
+    sep = ";" if is_windows() else ":"
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
     latex_paths = [
-        Path.cwd(),
-        Path.cwd() / "solve_stats",
-        Path.cwd() / "solve_stats" / "activity",
-        config.TOOLS_ROOT / "latex",
+        f"{Path.cwd()}",
+        f"{Path.cwd() / 'solve_stats'}//",
+        f"{Path.cwd() / 'latex'}//",
+        f"{config.TOOLS_ROOT / 'latex'}//",
     ]
-    texinputs = ""
-    for p in latex_paths:
-        texinputs += str(p) + ";"
+    texinputs = sep.join(latex_paths) + sep
     if config.args.verbose >= 2:
         print(f"export TEXINPUTS='{texinputs}'", file=sys.stderr)
     if "TEXINPUTS" in env:
-        prev = env["TEXINPUTS"]
-        if len(prev) > 0 and prev[-1] != ";":
-            prev += ";"
-        texinputs = prev + texinputs
+        texinputs = texinputs + env["TEXINPUTS"]
     env["TEXINPUTS"] = texinputs
     return env
 
