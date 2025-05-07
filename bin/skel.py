@@ -270,10 +270,10 @@ def copy_skel_dir(problems: list[Problem]) -> None:
 
 # NOTE: This is one of few places that prints to stdout instead of stderr.
 def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
-    git_root_path = Path(os.popen("git rev-parse --show-toplevel").read().strip()).resolve()
+    git_root_path = Path(os.popen("git rev-parse --show-toplevel").read().strip()).absolute()
 
-    def problem_source_dir(problem: Problem) -> Path:
-        return problem.path.resolve().relative_to(git_root_path)
+    def problem_source_dir(problem: Problem):
+        return problem.path.absolute().relative_to(git_root_path)
 
     if config.args.latest_bt:
         header_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/header_latest_bt.yaml").read_text()
@@ -282,7 +282,7 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
     print(header_yml)
 
     contest_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/contest.yaml").read_text()
-    contest_path = Path(".").resolve().relative_to(git_root_path)
+    contest_path = Path(".").absolute().relative_to(git_root_path)
     changes = "".join(
         f"      - {problem_source_dir(problem)}/{pdf_type.path().parent}/**/*\n"
         for problem in problems
