@@ -334,20 +334,21 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         if (export_dir / "statement").exists():
             (export_dir / "statement").rename(export_dir / "problem_statement")
         for d in ["solution", "problem_slide"]:
-            if (export_dir / d).is_dir():
-                for f in list(util.glob(problem.path, f"{d}/*")):
-                    if f.is_file():
-                        out = Path("problem_statement") / f.relative_to(problem.path / d)
-                        if out.exists():
-                            message(
-                                f"Can not export {f.relative_to(problem.path)} as {out}",
-                                "Zip",
-                                output,
-                                color_type=MessageType.WARN,
-                            )
-                        else:
-                            add_file(out, f)
-                shutil.rmtree(export_dir / d)
+            if not (export_dir / d).is_dir():
+                continue
+            for f in list(util.glob(problem.path, f"{d}/*")):
+                if f.is_file():
+                    out = Path("problem_statement") / f.relative_to(problem.path / d)
+                    if out.exists():
+                        message(
+                            f"Can not export {f.relative_to(problem.path)} as {out}",
+                            "Zip",
+                            output,
+                            color_type=MessageType.WARN,
+                        )
+                    else:
+                        add_file(out, f)
+            shutil.rmtree(export_dir / d)
 
     # handle yaml updates
     yaml_path.unlink()
