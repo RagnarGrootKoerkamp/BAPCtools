@@ -20,12 +20,10 @@ import "strings"
 	_parts: [#path, ...#command_args]
 }
 
-// Test cases and test groups allow configuration of solution, visualiser, and random salt.
+// Test cases and test groups allow configuration of solution, and random salt.
 #config: {
 	// Path to solution starts with slash, such as "/submissions/accepted/foo.py"
 	solution?: #filepath & =~"^/"
-	// Visualiser can be omitted to disable visualisation, may not use {count}
-	visualizer?:  #command & =~"^/" & !~"\\{count" | null
 	random_salt?: string
 }
 
@@ -41,9 +39,12 @@ import "strings"
 		count?:    int & >=1 & <=100
 		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
 		// such as "manual/samples/3".
-		copy?:                                    #dirpath
-		["in" | "ans" | "out" | "desc" | "hint"]: string
-		interaction?:                             =~"^([<>][^\\n]*\\n)+$"
+		copy?: #dirpath
+
+		["in" | "in.statement" | "in.download" |
+		 "ans" | "ans.statement" | "ans.download" |
+		 "out" | "desc" | "hint"]: string
+		interaction?: =~"^([<>][^\\n]*\\n)+$"
 		#config
 	}
 
@@ -70,7 +71,7 @@ import "strings"
 		valid_output?: #testgroup
 	})
 	#testgroup_config
-	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2025-02"
+	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2025-04"
 
 	... // Do allow unknown_key at top level for tooling
 }

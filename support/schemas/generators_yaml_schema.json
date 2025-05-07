@@ -43,9 +43,6 @@
         "solution": {
           "$ref": "#/$defs/solution"
         },
-        "visualizer": {
-          "$ref": "#/$defs/visualizer"
-        }
       },
       "additionalProperties": false
     },
@@ -68,9 +65,6 @@
         "input_validator_args": {
           "oneOf": [
             {
-              "type": "string"
-            },
-            {
               "type": "array",
               "items": {
                 "type": "string"
@@ -80,7 +74,10 @@
               "type": "object",
               "patternProperties": {
                 "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])$":{
-                  "type": "string"
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
               }
             }
@@ -88,18 +85,25 @@
           "description": "Defines arguments passed to each input validator for the test case/group. If a sequence of strings, then those are the arguments that will be passed to each input validator for this the case/group. If a map, then each key is the name of the input validator and the value is the arguments to pass to that input validator for the test case/group. Validators not present in the map are run without any arguments."
         },
         "output_validator_args": {
-          "oneOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          ],
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
           "description": "Defines arguments passed to the output validator for the test case/group."
+        },
+        "test_case_visualizer_args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Defines arguments passed to the test case visualizer for the test case/group."
+        },
+        "output_visualizer_args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Defines arguments passed to the output visualizer for the test case/group."
         },
         "input_validator_flags": {
           "type": "string",
@@ -109,7 +113,7 @@
         "output_validator_flags": {
           "type": "string",
           "deprecated": true,
-          "description": "With 'problem_format_version: 2023-07-draft' in problem.yaml, use input_validator_args instead."
+          "description": "With 'problem_format_version: 2023-07-draft' in problem.yaml, use output_validator_args instead."
         },
         "accept_score": {
           "type": "string"
@@ -174,15 +178,42 @@
               "title": "Input",
               "description": "Explicit input given as a string"
             },
+            "in.statement": {
+              "type": "string",
+              "title": "Input (statement)",
+              "description": "Explicit input given as a string, only shown in problem statement (defaults to 'in')"
+            },
+            "in.download": {
+              "type": "string",
+              "title": "Input (download)",
+              "description": "Explicit input given as a string, only shown as sample download in the contest system (defaults to 'in.statement' or 'in')"
+            },
             "ans": {
               "type": "string",
               "title": "Default Answer",
               "description": "Explicit default answer given as a string"
             },
+            "ans.statement": {
+              "type": "string",
+              "title": "Default Answer (statement)",
+              "description": "Explicit default answer given as a strans, only shown in problem statement (defaults to 'in')"
+            },
+            "ans.download": {
+              "type": "string",
+              "title": "Default Answer (download)",
+              "description": "Explicit default answer given as a string, only shown as sample download in the contest system (defaults to 'ans.statement' or 'ans')"
+            },
             "out": {
               "type": "string",
-              "title": "Invalid output",
-              "description": "Explicit (in)valid output given as a string; can only be given in (in)valid_output"
+              "title": "Output",
+              "description": "Explicit (in)valid output given as a string; can only be given in sample or (in)valid_output"
+            },
+            "interaction": {
+              "title": "Sample interaction",
+              "description": "Input is prefixed with `<`, output is prefixed with `>`.",
+              "examples": ["<1 2\n>3\n<4 5\n>9\n<6 7\n>13\n"],
+              "type": "string",
+              "pattern": "^([<>][^\\n]*\\n)+$"
             },
             "desc": {
               "type": "string",
@@ -194,16 +225,6 @@
               "title": "Hint",
               "description": "Feedback shown to the solver about this test case given as a string"
             },
-            "interaction": {
-              "title": "Sample interaction",
-              "description": "Input is prefixed with `<`, output is prefixed with `>`.",
-              "examples": ["<1 2\n>3\n<4 5\n>9\n<6 7\n>13\n"],
-              "type": "string",
-              "pattern": "^([<>][^\\n]*\\n)+$"
-            },
-            "visualizer": {
-              "$ref": "#/$defs/visualizer"
-            },
             "random_salt": {
               "$ref": "#/$defs/random_salt"
             },
@@ -212,24 +233,6 @@
             }
           },
           "additionalProperties": false
-        }
-      ]
-    },
-    "visualizer": {
-      "title": "Visualizer",
-      "description": "Absolute path to and arguments for a visualizer. Leave empty to disable visualizion.",
-      "examples": [
-        "/visualizer",
-        "/visualizers/asy.py",
-        "/visualizers/vis --large"
-      ],
-      "oneOf": [
-        {
-          "type": "string",
-          "pattern": "^\/([^{}]|\\{name\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\})*$"
-        },
-        {
-          "type": "null"
         }
       ]
     },
@@ -277,13 +280,10 @@
     }
   },
   "additionalProperties": true,
-  "description": "Generate test data for this problem. Version 2025-02.",
+  "description": "Generate test data for this problem. Version 2025-04.",
   "properties": {
     "solution": {
       "$ref": "#/$defs/solution"
-    },
-    "visualizer": {
-      "$ref": "#/$defs/visualizer"
     },
     "random_salt": {
       "$ref": "#/$defs/random_salt"

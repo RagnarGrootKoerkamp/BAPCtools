@@ -57,7 +57,7 @@ The flags below work for any subcommand:
 - `--no-bar`: Disable showing progress bars. This is useful when running in non-interactive contexts (such as CI jobs) or on platforms/terminals that don't handle the progress bars well.
 - `--error`/`-e`: show full output of failing commands using `--error`. The default is to show a short snippet only.
 - `--force-build`: Force rebuilding binaries instead of reusing cached version.
-- `--language <LANG>`: select a single language to use. `<LANG>` should be a language code like `en` or `nl`.
+- `--lang`: select languages to use for LaTeX commands. The languages should be specified by language codes like `en` or `nl`.
 
 # Problem development
 
@@ -97,7 +97,7 @@ Use `bt run -v` to show results for all testcases.
 
   - The path of the `.in` file: `data/secret/1.in`
   - The path of the `.ans` file: `data/secret/1.ans` (any other extension also works, even if the file doesn't exist)
-  - The basename of the testcase: `data/secret/1`
+  - The base name of the testcase: `data/secret/1`
   - A directory: `data/secret`. In this case, all `.in` files that are (nested) in this directory will be used.
 
   Testcases must always be inside the `data` directory. Anything outside `data/` will raise an error.
@@ -112,6 +112,7 @@ Use `bt run -v` to show results for all testcases.
 - `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and testcases. If combined with `--no-bar` only the final table is printed.
 - `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 - `--sanitizer`: when passed, run submissions with additional sanitizer flags (currently only C++). Note that this removes all memory limits for submissions.
+- `--visualizer`: when passed, run the output visualizer.
 
 ## `test`
 
@@ -239,7 +240,7 @@ This table contains:
 
 - The problem label and shortname.
 - Whether `problem.yaml` and `domjudge.ini` are found.
-- Whether `problem_statement/problem.en.tex` and `problem_statement/solution.tex` are found.
+- Whether `statement/problem.en.tex` and `solution/solution.en.tex` are found.
 - Whether the problem has any `input_validators` and `output_validators`.
 - The number of `sample` and `secret` testcases.
 - The number of `accepted`, `wrong_answer`, and `time_limit_exceeded` solutions.
@@ -427,7 +428,7 @@ contest_pdf_nwerc2020:
       - ./bt solutions --cp --no-bar --contest nwerc2020
   only:
     changes:
-      - nwerc2020/testproblem/problem_statement/**/*
+      - nwerc2020/testproblem/statement/**/*
 
   artifacts:
     expire_in: 1 week
@@ -570,7 +571,7 @@ When run for a contest:
   - Kattis needs the `input_validators` directory, while DOMjudge doesn't use this.
   - Kattis problem zips get an additional top level directory named after the problem shortname.
   - _Statements_: Kattis’s problemtools builds statement HTML (and PDF) using `problem2html` (and `problem2pdf`) rather than `bt pdf`. Problem authors should check the resulting statements after exporting to Kattis; pay attention to:
-    - The command `bt zip --kattis` exports `problem_statement/*` but not its subdirectories, so make sure illustrations and `\input`-ed tex sources are included.
+    - The command `bt zip --kattis` exports `{statement,solution}/*` but not its subdirectories, so make sure illustrations and `\input`-ed tex sources are included.
     - Proper images scaling in the HTML output requires explict widths, such as `\includegraphics[width=.5\textwidth]{foo.png}`.
 
 ## `export`

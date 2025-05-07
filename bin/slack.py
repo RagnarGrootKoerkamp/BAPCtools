@@ -1,3 +1,4 @@
+import config
 from util import *
 
 # Perform slack actions for the selected problems (all, or the selected/current one).

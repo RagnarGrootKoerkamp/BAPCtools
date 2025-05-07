@@ -1,2 +1,7 @@
 - id: identity
   label: A
+  name:
+    en: Identity
+    de: Identität
+  rgb: '#000000'
+  time_limit: 1.0

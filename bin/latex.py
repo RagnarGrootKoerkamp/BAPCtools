@@ -6,18 +6,18 @@ import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
 import config
 from contest import contest_yaml, problems_yaml
-import problem
 from util import (
     copy_and_substitute,
     ensure_symlink,
     exec_command,
     fatal,
+    is_windows,
     message,
     MessageType,
     PrintBar,
@@ -26,20 +26,27 @@ from util import (
     warn,
 )
 
-
-class PdfType(str, Enum):
-    PROBLEM = "problem"
-    PROBLEM_SLIDE = "problem-slide"
-    SOLUTION = "solution"
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    from problem import Problem
 
 
-def latex_builddir(problem: "problem.Problem", language: str) -> Path:
+class PdfType(Enum):
+    PROBLEM = Path("statement") / "problem"
+    PROBLEM_SLIDE = Path("problem_slide") / "problem-slide"
+    SOLUTION = Path("solution") / "solution"
+
+    def path(self, lang: Optional[str] = None, ext: str = ".tex") -> Path:
+        lang = f".{lang}" if lang is not None else ""
+        return self.value.with_name(f"{self.value.name}{lang}{ext}")
+
+
+def latex_builddir(problem: "Problem", language: str) -> Path:
     builddir = problem.tmpdir / "latex" / language
     builddir.mkdir(parents=True, exist_ok=True)
     return builddir
 
 
-def create_samples_file(problem: "problem.Problem", language: str) -> None:
+def create_samples_file(problem: "Problem", language: str) -> None:
     builddir = latex_builddir(problem, language)
 
     # create the samples.tex file
@@ -164,12 +171,23 @@ def create_samples_file(problem: "problem.Problem", language: str) -> None:
     samples_file_path.write_text("".join(samples_data))
 
 
+def create_constants_file(problem: "Problem", language: str) -> None:
+    constant_data: list[str] = []
+    for key, item in problem.settings.constants.items():
+        constant_data.append(f"\\expandafter\\def\\csname constants_{key}\\endcsname{{{item}}}\n")
+
+    builddir = latex_builddir(problem, language)
+    constants_file_path = builddir / "constants.tex"
+    constants_file_path.write_text("".join(constant_data))
+
+
 # Steps needed for both problem and contest compilation.
-def prepare_problem(problem: "problem.Problem", language: str):
+def prepare_problem(problem: "Problem", language: str):
     create_samples_file(problem, language)
+    create_constants_file(problem, language)
 
 
-def get_tl(problem: "problem.Problem"):
+def get_tl(problem: "Problem"):
     tl = problem.limits.time_limit
     tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
 
@@ -183,7 +201,7 @@ def get_tl(problem: "problem.Problem"):
     return tl if print_tl else ""
 
 
-def problem_data(problem: "problem.Problem", language: str):
+def problem_data(problem: "Problem", language: str):
     background = next(
         (
             p["rgb"][1:]
@@ -215,24 +233,20 @@ def problem_data(problem: "problem.Problem", language: str):
 
 
 def make_environment() -> dict[str, str]:
+    sep = ";" if is_windows() else ":"
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
     latex_paths = [
-        Path.cwd(),
-        Path.cwd() / "solve_stats",
-        Path.cwd() / "solve_stats" / "activity",
-        config.TOOLS_ROOT / "latex",
+        f"{Path.cwd()}",
+        f"{Path.cwd() / 'solve_stats'}//",
+        f"{Path.cwd() / 'latex'}//",
+        f"{config.TOOLS_ROOT / 'latex'}//",
     ]
-    texinputs = ""
-    for p in latex_paths:
-        texinputs += str(p) + ";"
+    texinputs = sep.join(latex_paths) + sep
     if config.args.verbose >= 2:
         print(f"export TEXINPUTS='{texinputs}'", file=sys.stderr)
     if "TEXINPUTS" in env:
-        prev = env["TEXINPUTS"]
-        if len(prev) > 0 and prev[-1] != ";":
-            prev += ";"
-        texinputs = prev + texinputs
+        texinputs = texinputs + env["TEXINPUTS"]
     env["TEXINPUTS"] = texinputs
     return env
 
@@ -350,19 +364,16 @@ def build_latex_pdf(
 
 # 1. Copy the latex/problem.tex file to tmpdir/<problem>/latex/<language>/problem.tex,
 #    substituting variables.
-# 2. Create tmpdir/<problem>/latex/<language>/samples.tex.
+# 2. Create tmpdir/<problem>/latex/<language>/{samples,constants}.tex.
 # 3. Run latexmk and link the resulting <build_type>.<language>.pdf into the problem directory.
-def build_problem_pdf(
-    problem: "problem.Problem", language: str, build_type=PdfType.PROBLEM, web=False
-):
+def build_problem_pdf(problem: "Problem", language: str, build_type=PdfType.PROBLEM, web=False):
     """
     Arguments:
     -- language: str, the two-letter language code appearing the file name, such as problem.en.tex
     """
-    main_file = build_type.value
-    main_file += "-web.tex" if web else ".tex"
+    main_file = build_type.path(ext="-web.tex" if web else ".tex").name
 
-    bar = PrintBar(f"{main_file[:-3]}{language}.pdf")
+    bar = PrintBar(f"{main_file[:-4]}.{language}.pdf")
     bar.log(f"Building PDF for language {language}")
 
     prepare_problem(problem, language)
@@ -374,42 +385,43 @@ def build_problem_pdf(
         local_data if local_data.is_file() else config.TOOLS_ROOT / "latex" / main_file,
         builddir / main_file,
         problem_data(problem, language),
+        bar=bar,
     )
 
     return build_latex_pdf(builddir, builddir / main_file, language, bar, problem.path)
 
 
-def build_problem_pdfs(problem: "problem.Problem", build_type=PdfType.PROBLEM, web=False):
+def build_problem_pdfs(problem: "Problem", build_type=PdfType.PROBLEM, web=False):
     """Build PDFs for various languages. If list of languages is specified,
-    (either via config files or --language arguments), build those. Otherwise
+    (either via config files or --lang arguments), build those. Otherwise
     build all languages for which there is a statement latex source.
     """
-    if config.args.languages is not None:
-        for lang in config.args.languages:
+    if config.args.lang is not None:
+        for lang in config.args.lang:
             if lang not in problem.statement_languages:
                 message(
                     f"No statement source for language {lang}",
                     problem.name,
                     color_type=MessageType.FATAL,
                 )
-        languages = config.args.languages
+        languages = config.args.lang
     else:
         languages = problem.statement_languages
-        # For solutions or problem slides, filter for `<build_type>.<language>.tex` files that exist.
+        # For solutions or problem slides, filter for `<build_type>.<lang>.tex` files that exist.
         if build_type != PdfType.PROBLEM:
             filtered_languages = []
             for lang in languages:
-                if (problem.path / "problem_statement" / f"{build_type.value}.{lang}.tex").exists():
+                if (problem.path / build_type.path(lang)).exists():
                     filtered_languages.append(lang)
                 else:
                     message(
-                        f"{build_type.value}.{lang}.tex not found",
+                        f"{build_type.path(lang)} not found",
                         problem.name,
                         color_type=MessageType.WARN,
                     )
             languages = filtered_languages
     if config.args.watch and len(languages) > 1:
-        fatal("--watch does not work with multiple languages. Please use --language")
+        fatal("--watch does not work with multiple languages. Please use --lang")
     return all([build_problem_pdf(problem, lang, build_type, web) for lang in languages])
 
 
@@ -424,7 +436,7 @@ def find_logo() -> Path:
 
 def build_contest_pdf(
     contest: str,
-    problems: list["problem.Problem"],
+    problems: list["Problem"],
     tmpdir: Path,
     language: str,
     build_type=PdfType.PROBLEM,
@@ -465,6 +477,7 @@ def build_contest_pdf(
         ),
         builddir / "contest_data.tex",
         config_data,
+        bar=bar,
     )
 
     problems_data = ""
@@ -478,35 +491,37 @@ def build_contest_pdf(
         elif headertex.exists():
             problems_data += f"\\input{{{headertex}}}\n"
 
-    local_per_problem_data = Path(f"contest-{build_type.value}.tex")
+    local_per_problem_data = Path(f"contest-{build_type.path().name}")
     per_problem_data_tex = (
         local_per_problem_data
         if local_per_problem_data.is_file()
-        else config.TOOLS_ROOT / "latex" / f"contest-{build_type.value}.tex"
+        else config.TOOLS_ROOT / "latex" / local_per_problem_data.name
     ).read_text()
 
     for prob in problems:
         if build_type == PdfType.PROBLEM:
             prepare_problem(prob, language)
         else:  # i.e. for SOLUTION and PROBLEM_SLIDE
-            tex_no_lang = prob.path / "problem_statement" / f"{build_type.value}.tex"
-            tex_with_lang = prob.path / "problem_statement" / f"{build_type.value}.{language}.tex"
+            create_constants_file(prob, language)
+            tex_no_lang = prob.path / build_type.path()
+            tex_with_lang = prob.path / build_type.path(language)
             if tex_with_lang.is_file():
                 # All is good
                 pass
             elif tex_no_lang.is_file():
                 bar.warn(
-                    f"Rename {build_type.value}.tex to {build_type.value}.{language}.tex",
+                    f"Rename {tex_no_lang.name} to {tex_with_lang.name}",
                     prob.name,
                 )
                 continue
             else:
-                bar.warn(f"{build_type.value}.{language}.tex not found", prob.name)
+                bar.warn(f"{tex_with_lang.name} not found", prob.name)
                 continue
 
         problems_data += substitute(
             per_problem_data_tex,
             problem_data(prob, language),
+            bar=bar,
         )
 
     if solutions:
@@ -518,7 +533,7 @@ def build_contest_pdf(
         elif footertex.exists():
             problems_data += f"\\input{{{footertex}}}\n"
 
-    (builddir / f"contest-{build_type.value}s.tex").write_text(problems_data)
+    (builddir / f"contest-{build_type.path(ext='s.tex').name}").write_text(problems_data)
 
     return build_latex_pdf(builddir, Path(main_file), language, bar)
 
@@ -533,8 +548,8 @@ def build_contest_pdfs(contest, problems, tmpdir, lang=None, build_type=PdfType.
         message(
             "No statement language present in every problem.", contest, color_type=MessageType.FATAL
         )
-    if config.args.languages is not None:
-        languages = config.args.languages
+    if config.args.lang is not None:
+        languages = config.args.lang
         for lang in set(languages) - statement_languages:
             message(
                 f"Unable to build all statements for language {lang}",
@@ -545,7 +560,7 @@ def build_contest_pdfs(contest, problems, tmpdir, lang=None, build_type=PdfType.
         languages = statement_languages
     if config.args.watch and len(languages) > 1:
         message(
-            "--watch does not work with multiple languages. Please use --language",
+            "--watch does not work with multiple languages. Please use --lang",
             contest,
             color_type=MessageType.FATAL,
         )

@@ -5,7 +5,7 @@ import sys
 
 from colorama import Fore, Style
 from pathlib import Path
-from typing import cast
+from typing import Optional
 
 import config
 import interactive
@@ -13,8 +13,10 @@ import parallel
 import problem
 import program
 import validate
+import visualize
 from testcase import Testcase
 from util import (
+    BAR_TYPE,
     crop_output,
     ensure_symlink,
     error,
@@ -23,6 +25,7 @@ from util import (
     is_bsd,
     is_windows,
     ProgressBar,
+    shorten_path,
     warn,
 )
 from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdicts
@@ -40,7 +43,7 @@ class Run:
             self.problem.tmpdir
             / "runs"
             / self.submission.short_path
-            / cast(Path, self.testcase.short_path).with_suffix("")
+            / self.testcase.short_path.with_suffix("")
         )
 
         self.in_path: Path = self.tmpdir / "testcase.in"
@@ -174,7 +177,9 @@ class Run:
 
             result.duration = max_duration
 
-            # Delete .out files larger than 1MB.
+            self._visualize_output(bar)
+
+            # Delete .out files larger than 1GB.
             if (
                 not config.args.error
                 and self.out_path.is_file()
@@ -215,14 +220,30 @@ class Run:
         shutil.move(nextpass, self.in_path)
         return True
 
-    def _validate_output(self, bar):
+    def _validate_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
         output_validators = self.problem.validators(validate.OutputValidator)
-        if len(output_validators) != 1:
+        if not output_validators:
             return None
-        validator = output_validators[0]
+        output_validator = output_validators[0]
+        assert isinstance(output_validator, validate.OutputValidator)
+        return output_validator.run(
+            self.testcase,
+            self,
+            args=self.testcase.testdata_yaml_args(output_validator, bar),
+        )
 
-        return validator.run(
-            self.testcase, self, args=self.testcase.testdata_yaml_validator_args(validator, bar)
+    def _visualize_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
+        if config.args.no_visualizer:
+            return None
+        output_visualizer = self.problem.visualizer(visualize.OutputVisualizer)
+        if output_visualizer is None:
+            return None
+        return output_visualizer.run(
+            self.in_path,
+            self.testcase.ans_path.resolve(),
+            self.out_path if not self.problem.interactive else None,
+            self.feedbackdir,
+            args=self.testcase.testdata_yaml_args(output_visualizer, bar),
         )
 
 
@@ -418,14 +439,16 @@ class Submission(program.Program):
                 if result.out:
                     data = crop_output(result.out)
 
-            judgemessage = run.feedbackdir / "judgemessage.txt"
-            judgeerror = run.feedbackdir / "judgeerror.txt"
             # Add data from feedbackdir.
             for f in run.feedbackdir.iterdir():
-                if f in [judgemessage, judgeerror]:
-                    continue
                 if f.name.startswith("."):
                     continue  # skip "hidden" files
+                if f.name in ["judgemessage.txt", "judgeerror.txt"]:
+                    continue
+                if f.name.startswith("judgeimage.") or f.name.startswith("teamimage."):
+                    data += f"{f.name}: {shorten_path(self.problem, f.parent) / f.name}\n"
+                    ensure_symlink(run.problem.path / f.name, f, output=True, relative=False)
+                    continue
                 if not f.is_file():
                     localbar.warn(f"Validator wrote to {f} but it's not a file.")
                     continue
@@ -522,10 +545,8 @@ class Submission(program.Program):
 
         testcases = self.problem.testcases(needans=False)
 
-        if self.problem.interactive:
-            output_validators = self.problem.validators(validate.OutputValidator)
-            if output_validators is False:
-                return
+        if not self.problem.validators(validate.OutputValidator):
+            return
 
         for testcase in testcases:
             header = ProgressBar.action("Running " + str(self.name), testcase.name)
@@ -589,10 +610,8 @@ class Submission(program.Program):
 
     # Run the submission using stdin as input.
     def test_interactive(self):
-        if self.problem.interactive:
-            output_validators = self.problem.validators(validate.OutputValidator)
-            if output_validators is False:
-                return
+        if not self.problem.validators(validate.OutputValidator):
+            return
 
         bar = ProgressBar("Running " + str(self.name), max_len=1, count=1)
         bar.start()

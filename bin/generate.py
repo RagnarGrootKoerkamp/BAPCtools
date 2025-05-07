@@ -1,19 +1,22 @@
+import collections
 import random
 import re
-import shutil
-import collections
 import secrets
+import shutil
+import sys
+import time
 
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Final, overload
+from typing import Any, Final, Iterable, Optional, overload
 
 import config
 import parallel
 import program
 import run
 import validate
+import visualize
 from testcase import Testcase
 from verdicts import Verdict
 from problem import Problem
@@ -86,7 +89,6 @@ def resolve_path(path, *, allow_absolute, allow_relative):
 # The following classes inherit from Invocation:
 # - GeneratorInvocation
 # - SolutionInvocation
-# - VisualizerInvocation
 class Invocation:
     SEED_REGEX: Final[re.Pattern[str]] = re.compile(r"\{seed(:[0-9]+)?\}")
     NAME_REGEX: Final[re.Pattern[str]] = re.compile(r"\{name\}")
@@ -119,7 +121,7 @@ class Invocation:
             raise ParseException("{seed(:[0-9]+)} may appear at most once.")
 
         # Automatically set self.program when that program has been built.
-        self.program: Optional[program.Generator | program.Visualizer | run.Submission] = None
+        self.program: Optional[program.Generator | run.Submission] = None
 
         def callback(program):
             self.program = program
@@ -170,7 +172,7 @@ class GeneratorInvocation(Invocation):
             )
             if result.status:
                 break
-            if not result.retry:
+            if result.status == ExecStatus.TIMEOUT:
                 break
 
         if not result.status:
@@ -184,30 +186,6 @@ class GeneratorInvocation(Invocation):
         if result.status and config.args.error and result.err:
             bar.log("stderr", result.err)
 
-        return result
-
-
-class VisualizerInvocation(Invocation):
-    def __init__(self, problem, string):
-        super().__init__(problem, string, allow_absolute=True, allow_relative=False)
-
-    # Run the visualizer, taking {name} as a command line argument.
-    # Stdin and stdout are not used.
-    # {name} is no longer used and hardcoded to `testcase` (see #273), and {seed} is also not used.
-    def run(self, bar, cwd):
-        assert isinstance(self.program, program.Visualizer), "Visualizer program must be built!"
-
-        result = self.program.run(cwd, args=self._sub_args())
-
-        if result.status == ExecStatus.TIMEOUT:
-            bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error(f"Visualizer TIMEOUT after {result.duration}s")
-        elif not result.status:
-            bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error("Visualizer failed", result.err)
-
-        if result.status and config.args.error and result.err:
-            bar.log("stderr", result.err)
         return result
 
 
@@ -239,11 +217,10 @@ class SolutionInvocation(Invocation):
             bar.log("stderr", result.err)
         return result
 
-    def run_interaction(self, bar, cwd, t):
+    def generate_interaction(self, bar, cwd, t):
         in_path = cwd / "testcase.in"
         interaction_path = cwd / "testcase.interaction"
-        if interaction_path.is_file():
-            return True
+        interaction_path.unlink(missing_ok=True)
 
         testcase = Testcase(self.problem, in_path, short_path=(t.path.parent / (t.name + ".in")))
         assert isinstance(self.program, run.Submission)
@@ -268,7 +245,7 @@ def default_solution_path(generator_config):
     if config.args.default_solution:
         if generator_config.has_yaml:
             message(
-                f"""--default-solution Ignored. Set the default solution in the generator.yaml!
+                f"""--default-solution Ignored. Set the default solution in the generators.yaml!
 solution: /{config.args.default_solution}""",
                 "generators.yaml",
                 color_type=MessageType.WARN,
@@ -297,7 +274,7 @@ solution: /{config.args.default_solution}""",
             raw = f"solution: /{solution.relative_to(problem.path)}\n" + raw
             yaml_path.write_text(raw)
             message(
-                f"No solution specified. {solution_short_path} added as default solution in the generator.yaml",
+                f"No solution specified. {solution_short_path} added as default solution in the generators.yaml",
                 "generators.yaml",
                 color_type=MessageType.LOG,
             )
@@ -325,7 +302,6 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
     "generate",
     "copy",
     "solution",
-    "visualizer",
     "random_salt",
     "retries",
     "count",
@@ -337,18 +313,16 @@ KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = [
     "testdata.yaml",
     "include",
     "solution",
-    "visualizer",
     "random_salt",
     "retries",
 ]
 RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ["command"]
 KNOWN_ROOT_KEYS: Final[Sequence[str]] = ["generators", "parallel", "version"]
-DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated"]
+DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated", "visualizer"]
 
 
 # Holds all inheritable configuration options. Currently:
 # - config.solution
-# - config.visualizer
 # - config.random_salt
 class Config:
     # Used at each directory or testcase level.
@@ -361,13 +335,6 @@ class Config:
         return SolutionInvocation(p, x)
 
     @staticmethod
-    def parse_visualizer(p, x, path):
-        assert_type("Visualizer", x, [type(None), str], path)
-        if x is None:
-            return None
-        return VisualizerInvocation(p, x)
-
-    @staticmethod
     def parse_random_salt(p, x, path):
         assert_type("Random_salt", x, [type(None), str], path)
         if x is None:
@@ -377,7 +344,6 @@ class Config:
     INHERITABLE_KEYS: Final[Sequence] = [
         # True: use an AC submission by default when the solution: key is not present.
         ("solution", True, parse_solution),
-        ("visualizer", None, parse_visualizer),
         ("random_salt", "", parse_random_salt),
         # Non-portable keys only used by BAPCtools:
         # The number of retries to run a generator when it fails, each time incrementing the {seed}
@@ -386,7 +352,6 @@ class Config:
     ]
 
     solution: SolutionInvocation
-    visualizer: Optional[VisualizerInvocation]
     random_salt: str
     retries: int
 
@@ -428,14 +393,24 @@ class Rule:
 
 
 class TestcaseRule(Rule):
-    def __init__(self, problem, generator_config, key, name: str, yaml, parent, count_index):
+    def __init__(
+        self, problem: Problem, generator_config, key, name: str, yaml, parent, count_index
+    ):
         assert is_testcase(yaml)
 
         # if not None rule will be skipped during generation
-        self.parse_error = None
+        self.parse_error: Optional[str] = None
 
         # Whether this testcase is a sample.
-        self.sample = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
+        self.sample: bool = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
+        # each test case needs some kind of input
+        self.required_in: list[list[str]] = [[".in"]]
+        if self.sample:
+            # for samples a statement in file is also sufficient
+            self.required_in.append([".in.statement"])
+            if problem.interactive or problem.multi_pass:
+                # if .interaction is supported that is also fine as long as input download is provided as well.
+                self.required_in.append([".interaction", ".in.download"])
 
         # 1. Generator
         self.generator = None
@@ -474,20 +449,13 @@ class TestcaseRule(Rule):
 
         # root in /data
         self.root = self.path.parts[0]
-        if self.root == "bad":
-            message(
-                "bad is deprecated. Use {invalid_input,invalid_answer} instead.",
-                self.path,
-                color_type=MessageType.WARN,
-            )
 
         if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
             raise ParseException("Testcase does not have a valid name.")
 
+        # files to consider for hashing
+        hashes = {}
         try:
-            # files to consider for hashing
-            hashes = {}
-
             if yaml is None:
                 raise ParseException(
                     "Empty yaml entry (Testcases must be generated not only mentioned)."
@@ -506,24 +474,42 @@ class TestcaseRule(Rule):
                         yaml = {"copy": yaml["generate"][:-3]}
 
                 # checks
-                if not any(x in yaml for x in ["generate", "copy", "in", "interaction"]):
+                satisfied = False
+                msg = []
+                for required in [[".generate"], [".copy"]] + self.required_in:
+                    satisfied = satisfied or all(x[1:] in yaml for x in required)
+                    msg.append(" and ".join([x[1:] for x in required]))
+                if not satisfied:
+                    raise ParseException(f"Testcase requires at least one of: {', '.join(msg)}.")
+                if not problem.interactive and not problem.multi_pass and "interaction" in yaml:
                     raise ParseException(
-                        'Testcase requires at least one key in "generate", "copy", "in", "interaction".'
+                        "Testcase cannot have 'interaction' key for non-interactive/non-multi-pass problem."
                     )
+                if not self.sample:
+                    for ext in config.KNOWN_SAMPLE_TESTCASE_EXTENSIONS:
+                        if ext[1:] in yaml:
+                            raise ParseException(f"Non sample testcase cannot use '{ext[1:]}")
                 if "submission" in yaml and "ans" in yaml:
-                    raise ParseException('Testcase cannot specify both "submissions" and "ans".')
+                    raise ParseException("Testcase cannot specify both 'submissions' and 'ans'.")
                 if "count" in yaml and not isinstance(yaml["count"], int):
                     value = yaml["count"]
-                    raise ParseException(f'Testcase expected int for "count" but found {value}.')
+                    raise ParseException(f"Testcase expected int for 'count' but found {value}.")
 
                 # 1. generate
                 if "generate" in yaml:
                     assert_type("generate", yaml["generate"], str)
                     if len(yaml["generate"]) == 0:
-                        raise ParseException("`generate` must not be empty.")
+                        raise ParseException("'generate' must not be empty.")
 
-                    # replace count
+                    # first replace {{constants}}
                     command_string = yaml["generate"]
+                    command_string = substitute(
+                        command_string,
+                        problem.settings.constants,
+                        pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+                    )
+
+                    # then replace {count} and {seed}
                     if "{count}" in command_string:
                         if "count" in yaml:
                             command_string = command_string.replace(
@@ -584,9 +570,8 @@ class TestcaseRule(Rule):
                 if ".in" in self.hardcoded:
                     self.in_is_generated = False
                     self.rule["in"] = self.hardcoded[".in"]
-                for ext in config.KNOWN_TESTCASE_EXTENSIONS:
-                    if ext in self.hardcoded:
-                        hashes[ext] = hash_string(self.hardcoded[ext])
+                for ext, value in self.hardcoded.items():
+                    hashes[ext] = hash_string(value)
 
             # Warn/Error for unknown keys.
             for key in yaml:
@@ -601,13 +586,8 @@ class TestcaseRule(Rule):
                             color_type=MessageType.LOG,
                         )
 
-            if ".in" not in hashes:
-                generator_config.n_parse_error += 1
-                # An error is shown during generate.
-                return
-
             # build ordered list of hashes we want to consider
-            hs = [hashes[ext] for ext in config.KNOWN_TESTCASE_EXTENSIONS if ext in hashes]
+            hs = list(hashes.values())
 
             # combine hashes
             if len(hs) == 1:
@@ -619,10 +599,21 @@ class TestcaseRule(Rule):
                 self.copy_of = generator_config.rules_cache[self.hash]
             else:
                 generator_config.rules_cache[self.hash] = self
+
         except ParseException as e:
             # For testcases we can handle the parse error locally since this does not influence much else
             self.parse_error = e.message
             generator_config.n_parse_error += 1
+
+        if not any(all(ext in hashes for ext in required) for required in self.required_in):
+            generator_config.n_parse_error += 1
+            # An error is shown during generate.
+
+    def _has_required_in(t, infile: Path) -> bool:
+        for required in t.required_in:
+            if all(infile.with_suffix(ext).is_file() for ext in required):
+                return True
+        return False
 
     def link(t, problem, generator_config, bar, dst):
         src_dir = problem.path / "data" / t.path.parent
@@ -697,58 +688,62 @@ class TestcaseRule(Rule):
             )
         return True
 
-    def validate_ans(t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar):
+    def validate_ans_and_out(
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
+    ):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
         if testcase.root == "invalid_input":
             return True
 
-        ansfile = problem.tmpdir / "data" / t.hash / "testcase.ans"
-        assert ansfile.is_file()
+        ansfile = infile.with_suffix(".ans")
+        if not ansfile.is_file():
+            bar.error("No .ans file was generated!")
+            return False
 
-        if problem.interactive or problem.multi_pass:
-            if ansfile.stat().st_size != 0:
-                interactive = "interaction " if problem.interactive else ""
-                multi_pass = "multi-pass " if problem.multi_pass else ""
-                bar.warn(f".ans file for {interactive}{multi_pass}problem is expected to be empty.")
+        outfile = infile.with_suffix(".out")
+        if not outfile.is_file() and testcase.root in ["invalid_output", "valid_output"]:
+            bar.error("No .out file was generated!")
+            return False
+
+        ans_out_validator_hashes = testcase.validator_hashes(validate.AnswerValidator, bar).copy()
+        output_validator_hashes = testcase.validator_hashes(validate.OutputValidator, bar)
+
+        mode = validate.Mode.ANSWER
+        if testcase.root == "invalid_answer":
+            mode = validate.Mode.INVALID
+        elif testcase.root == "invalid_output":
+            ans_out_validator_hashes.update(output_validator_hashes)
+            mode = validate.Mode.INVALID
+        elif testcase.root == "valid_output" or outfile.is_file():
+            ans_out_validator_hashes.update(output_validator_hashes)
+            mode = validate.Mode.VALID_OUTPUT
+
+        if all(h in meta_yaml["ans_out_validator_hashes"] for h in ans_out_validator_hashes):
+            return True
+
+        if not testcase.validate_format(
+            mode,
+            bar=bar,
+            warn_instead_of_error=config.args.no_validators,
+        ):
+            if not config.args.no_validators:
+                bar.debug("Use generate --no-validators to ignore validation results.")
+                bar.done(False)
+                return False
         else:
-            size = ansfile.stat().st_size
-            if (
-                size <= problem.limits.output * 1024 * 1024
-                and problem.limits.output * 1024 * 1024 < 2 * size
-            ):  # we already warn if the limit is exceeded
-                bar.warn(
-                    f".ans file is {size / 1024 / 1024:.3f}MiB, which is close to output limit (set limits.output to at least {(2 * size + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
-                )
-
-            answer_validator_hashes = {
-                **testcase.validator_hashes(validate.AnswerValidator, bar),
-                **testcase.validator_hashes(validate.OutputValidator, bar),
-            }
-            if all(h in meta_yaml["answer_validator_hashes"] for h in answer_validator_hashes):
-                return True
-
-            if not testcase.validate_format(
-                validate.Mode.ANSWER,
-                bar=bar,
-                warn_instead_of_error=config.args.no_validators,
-            ):
-                if not config.args.no_validators:
-                    bar.debug("Use generate --no-validators to ignore validation results.")
-                    bar.done(False)
-                    return False
-            else:
-                for h in answer_validator_hashes:
-                    meta_yaml["answer_validator_hashes"][h] = answer_validator_hashes[h]
-                write_yaml(
-                    meta_yaml,
-                    problem.tmpdir / "data" / t.hash / "meta_.yaml",
-                    allow_yamllib=True,
-                )
+            for h in ans_out_validator_hashes:
+                meta_yaml["ans_out_validator_hashes"][h] = ans_out_validator_hashes[h]
+            meta_yaml["visualizer_hash"] = dict()
+            write_yaml(
+                meta_yaml,
+                problem.tmpdir / "data" / t.hash / "meta_.yaml",
+                allow_yamllib=True,
+            )
         return True
 
-    def generate(t, problem, generator_config, parent_bar):
+    def generate(t, problem: Problem, generator_config, parent_bar):
         bar = parent_bar.start(str(t.path))
 
         t.generate_success = False
@@ -792,7 +787,8 @@ class TestcaseRule(Rule):
                     "generated_extensions": [],
                     "input_validator_hashes": dict(),
                     "solution_hash": dict(),
-                    "answer_validator_hashes": dict(),
+                    "interactor_hash": dict(),
+                    "ans_out_validator_hashes": dict(),
                     "visualizer_hash": dict(),
                 }
             meta_yaml["rule"] = t.rule
@@ -876,7 +872,7 @@ class TestcaseRule(Rule):
 
             if not infile.is_file() or meta_yaml.get("rule_hashes") != rule_hashes:
                 # clear all generated files
-                shutil.rmtree(cwd)
+                shutil.rmtree(cwd, ignore_errors=True)
                 cwd.mkdir(parents=True, exist_ok=True)
                 meta_yaml = init_meta()
 
@@ -903,15 +899,13 @@ class TestcaseRule(Rule):
 
                 # Step 3: Write hardcoded files.
                 for ext, contents in t.hardcoded.items():
-                    if contents == "" and t.root not in ["bad", "invalid_input"]:
-                        bar.error(f"Hardcoded {ext} data must not be empty!")
-                        return False
-                    else:
-                        infile.with_suffix(ext).write_text(contents)
+                    # substitute in contents? -> No!
+                    infile.with_suffix(ext).write_text(contents)
 
                 # Step 4: Error if infile was not generated.
-                if not infile.is_file():
-                    bar.error("No .in file was generated!")
+                if not t._has_required_in(infile):
+                    msg = ", ".join(" and ".join(required) for required in t.required_in)
+                    bar.error(f"No {msg} file was generated!")
                     return False
 
                 # Step 5: save which files where generated
@@ -928,10 +922,10 @@ class TestcaseRule(Rule):
             else:
                 check_deterministic(False)
 
-            assert infile.is_file(), f"Failed to generate in file: {infile}"
+            assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
-        def generate_from_solution():
+        def generate_from_solution(testcase: Testcase, bar: ProgressBar):
             nonlocal meta_yaml
 
             if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
@@ -950,30 +944,42 @@ class TestcaseRule(Rule):
                     "solution": None,
                 }
 
-            def needed(ext):
+            def needed(ext, interactor_hash=None):
                 if ext in meta_yaml["generated_extensions"]:
                     return False
                 if not infile.with_suffix(ext).is_file():
+                    return True
+                if (
+                    interactor_hash is not None
+                    and meta_yaml.get("interactor_hash") != interactor_hash
+                ):
                     return True
                 return meta_yaml.get("solution_hash") != solution_hash
 
             used_solution = False
             changed_ans = False
-            if problem.interactive or problem.multi_pass:
-                # Generate empty ans file for interactive/multi-pass problems
+            if not problem.settings.ans_is_output:
+                # Generate empty ans file
                 if ".ans" not in meta_yaml["generated_extensions"]:
-                    if not ansfile.is_file() or ansfile.stat().st_size != 0:
+                    if not ansfile.is_file() and (problem.interactive or problem.multi_pass):
                         ansfile.write_text("")
                         changed_ans = True
-                # For interactive/multi-pass problems, run the solution and generate a .interaction.
-                if (
-                    t.config.solution
-                    and (testcase.root == "sample" or config.args.interaction)
-                    and needed(".interaction")
-                ):
-                    if not t.config.solution.run_interaction(bar, cwd, t):
-                        return False
-                    used_solution = True
+                # For interactive/multi-pass problems, run the solution and generate a .interaction if necessary.
+                if problem.interactive or problem.multi_pass:
+                    interactor_hash = testcase.validator_hashes(validate.OutputValidator, bar)
+                    if (
+                        t.config.solution
+                        and (testcase.root == "sample" or config.args.interaction)
+                        and needed(".interaction", interactor_hash)
+                        and not any(
+                            infile.with_suffix(ext).is_file()
+                            for ext in [".out", ".in.statement", ".ans.statement"]
+                        )
+                    ):
+                        if not t.config.solution.generate_interaction(bar, cwd, t):
+                            return False
+                        used_solution = True
+                        meta_yaml["interactor_hash"] = interactor_hash
             else:
                 # Generate a .ans if not already generated by earlier steps.
                 if needed(".ans"):
@@ -991,7 +997,7 @@ class TestcaseRule(Rule):
             if used_solution:
                 meta_yaml["solution_hash"] = solution_hash
             if changed_ans:
-                meta_yaml["answer_validator_hashes"] = dict()
+                meta_yaml["ans_out_validator_hashes"] = dict()
                 meta_yaml["visualizer_hash"] = dict()
             if changed_ans or used_solution:
                 write_yaml(meta_yaml, meta_path, allow_yamllib=True)
@@ -999,27 +1005,118 @@ class TestcaseRule(Rule):
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
             return True
 
-        def generate_visualization():
+        def generate_visualization(testcase: Testcase, bar: ProgressBar):
             nonlocal meta_yaml
 
-            if not t.config.visualizer:
+            if testcase.root in config.INVALID_CASE_DIRECTORIES:
                 return True
             if config.args.no_visualizer:
                 return True
 
+            # Generate visualization
+            in_path = cwd / "testcase.in"
+            ans_path = cwd / "testcase.ans"
+            out_path = cwd / "testcase.out"
+            assert in_path.is_file()
+            assert ans_path.is_file()
+
+            feedbackdir = in_path.with_suffix(".feedbackdir")
+            image_files = [f"judgeimage{ext}" for ext in config.KNOWN_VISUALIZER_EXTENSIONS] + [
+                f"teamimage{ext}" for ext in config.KNOWN_VISUALIZER_EXTENSIONS
+            ]
+
+            def use_feedback_image(feedbackdir: Path, source: str) -> None:
+                for name in image_files:
+                    path = feedbackdir / name
+                    if path.exists():
+                        ensure_symlink(in_path.with_suffix(path.suffix), path)
+                        bar.log(f"Using {name} from {source} as visualization")
+                        return
+
+            visualizer: Optional[visualize.AnyVisualizer] = problem.visualizer(
+                visualize.TestCaseVisualizer
+            )
+            output_visualizer = problem.visualizer(visualize.OutputVisualizer)
+            if output_visualizer is not None:
+                if out_path.is_file() or problem.settings.ans_is_output:
+                    if visualizer is None or out_path.is_file():
+                        visualizer = output_visualizer
+                    if not out_path.is_file():
+                        assert problem.settings.ans_is_output
+                        out_path = ans_path
+
+            if visualizer is None:
+                for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                    in_path.with_suffix(ext).unlink(True)
+                use_feedback_image(feedbackdir, "validator")
+                return True
+
+            visualizer_args = testcase.testdata_yaml_args(visualizer, bar)
             visualizer_hash = {
-                "visualizer_hash": t.config.visualizer.hash(),
-                "visualizer": t.config.visualizer.cache_command(),
+                "visualizer_hash": visualizer.hash,
+                "visualizer_args": visualizer_args,
             }
 
             if meta_yaml.get("visualizer_hash") == visualizer_hash:
                 return True
 
-            # Generate visualization
-            t.config.visualizer.run(bar, cwd)
+            for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
+                in_path.with_suffix(ext).unlink(True)
 
-            meta_yaml["visualizer_hash"] = visualizer_hash
-            write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+            if isinstance(visualizer, visualize.TestCaseVisualizer):
+                result = visualizer.run(in_path, ans_path, cwd, visualizer_args)
+            else:
+                feedbackcopy = in_path.with_suffix(".feedbackcopy")
+                shutil.rmtree(feedbackcopy)
+
+                def skip_images(src: str, content: list[str]) -> list[str]:
+                    return [] if src != str(feedbackdir) else image_files
+
+                shutil.copytree(feedbackdir, feedbackcopy, ignore=skip_images)
+
+                result = visualizer.run(
+                    in_path,
+                    ans_path,
+                    out_path if not problem.interactive else None,
+                    feedbackcopy,
+                    visualizer_args,
+                )
+                if result.status:
+                    use_feedback_image(feedbackdir, "output_visualizer")
+
+            if result.status == ExecStatus.TIMEOUT:
+                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                bar.error(
+                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer TIMEOUT after {result.duration}s"
+                )
+            elif not result.status:
+                bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
+                bar.error(
+                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer failed", result.err
+                )
+
+            if result.status and config.args.error and result.err:
+                bar.log("stderr", result.err)
+
+            if result.status:
+                meta_yaml["visualizer_hash"] = visualizer_hash
+                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+
+            # errors in the visualizer are not critical
+            return True
+
+        def generate_empty_interactive_sample_ans():
+            if not t.sample:
+                return True
+            if not problem.interactive and not problem.multi_pass:
+                return True
+            for ext in ["", ".statement", ".download"]:
+                ans_ext_file = infile.with_suffix(f".ans{ext}")
+                if ans_ext_file.exists():
+                    return True
+                if infile.with_suffix(f".in{ext}").exists():
+                    ans_ext_file.write_text("")
+                    return True
             return True
 
         def copy_generated():
@@ -1071,19 +1168,20 @@ class TestcaseRule(Rule):
             # Store the generated testdata for deduplication test cases.
             hashes = {}
 
-            # remove files that should not be considered for this testcase
-            extensions = list(config.KNOWN_TESTCASE_EXTENSIONS)
-            if t.root not in [*config.INVALID_CASE_DIRECTORIES[1:], "valid_output"]:
-                extensions.remove(".ans")
-            if t.root not in [*config.INVALID_CASE_DIRECTORIES[2:], "valid_output"]:
-                extensions.remove(".out")
+            # consider specific files for the uniqueness of this testcase
+            relevant_files = {
+                "invalid_answer": [".in", ".ans"],
+                "invalid_output": [".in", ".ans", ".out"],
+                "valid_output": [".in", ".ans", ".out"],
+            }
+            extensions = relevant_files.get(t.root, [".in"])
 
             for ext in extensions:
                 if target_infile.with_suffix(ext).is_file():
                     hashes[ext] = hash_file(target_infile.with_suffix(ext))
 
             # build ordered list of hashes we want to consider
-            hs = [hashes[ext] for ext in extensions if ext in hashes]
+            hs = list(hashes.values())
 
             # combine hashes
             if len(hs) == 1:
@@ -1115,29 +1213,35 @@ class TestcaseRule(Rule):
         if not generate_from_rule():
             return
 
-        # Step 3: check .in if needed
-        testcase = Testcase(problem, infile, short_path=t.path / t.name)
-        if not t.validate_in(problem, testcase, meta_yaml, bar):
+        if infile.is_file():
+            # Step 3: check .in if needed
+            testcase = Testcase(problem, infile, short_path=t.path / t.name)
+            if not t.validate_in(problem, testcase, meta_yaml, bar):
+                return
+
+            # Step 4: generate .ans and .interaction if needed
+            if not generate_from_solution(testcase, bar):
+                return
+
+            # Step 5: validate .ans (and .out if it exists)
+            if not t.validate_ans_and_out(problem, testcase, meta_yaml, bar):
+                return
+
+            # Step 6: generate visualization if needed
+            if not generate_visualization(testcase, bar):
+                return
+
+        # Step 7: for interactive and/or multi-pass samples, generate empty .ans if it does not exist
+        if not generate_empty_interactive_sample_ans():
             return
 
-        # Step 4: generate .ans and .interaction if needed
-        if not generate_from_solution():
-            return
-
-        # Step 5: validate .ans if needed
-        if not t.validate_ans(problem, testcase, meta_yaml, bar):
-            return
-
-        # Step 6: generate visualization if needed
-        if not generate_visualization():
-            return
-
-        # Step 7: copy all generated files
+        # Step 8: copy all generated files
         copy_generated()
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
         t.generate_success = True
-        add_testdata_to_cache()
+        if infile.is_file():
+            add_testdata_to_cache()
         if config.args.action != "generate":
             bar.logged = True  # Disable redundant 'up to date' message in run mode.
         bar.done(message="SKIPPED: up to date")
@@ -1363,12 +1467,12 @@ class Directory(Rule):
             meta_yaml = read_yaml(meta_path)
             testcase = Testcase(problem, infile, short_path=new_case)
 
-            # Step 1: validate input
+            # Step 1: validate .in
             if not t.validate_in(problem, testcase, meta_yaml, bar):
                 continue
 
-            # Step 2: validate answer
-            if not t.validate_ans(problem, testcase, meta_yaml, bar):
+            # Step 2: validate .ans (and .out if it exists)
+            if not t.validate_ans_and_out(problem, testcase, meta_yaml, bar):
                 continue
 
             t.link(problem, generator_config, bar, new_infile)
@@ -1376,13 +1480,13 @@ class Directory(Rule):
 
 
 # Returns the numbered name
-def numbered_testcase_name(basename, i, n):
+def numbered_testcase_name(base_name, i, n):
     width = len(str(n))
     number_prefix = f"{i:0{width}}"
-    if basename:
-        return number_prefix + "-" + basename
+    if base_name:
+        return number_prefix + "-" + base_name
     else:
-        assert basename is None or basename == ""
+        assert base_name is None or base_name == ""
         return number_prefix
 
 
@@ -1775,7 +1879,6 @@ class GeneratorConfig:
     def build(self, build_visualizers=True, skip_double_build_warning=False):
         generators_used: set[Path] = set()
         solutions_used: set[Path] = set()
-        visualizers_used: set[Path] = set()
 
         # Collect all programs that need building.
         # Also, convert the default submission into an actual Invocation.
@@ -1796,16 +1899,14 @@ class GeneratorConfig:
                             default_solution = DefaultSolutionInvocation(self)
                         t.config.solution = default_solution
                     solutions_used.add(t.config.solution.program_path)
-            if build_visualizers and t.config.visualizer:
-                visualizers_used.add(t.config.visualizer.program_path)
 
         self.root_dir.walk(collect_programs, dir_f=None)
 
         def build_programs(
-            program_type: type[program.Generator | program.Visualizer | run.Submission],
-            program_paths: set[Path],
+            program_type: type[program.Generator | run.Submission],
+            program_paths: Iterable[Path],
         ):
-            programs = list[program.Generator | program.Visualizer | run.Submission]()
+            programs = list[program.Generator | run.Submission]()
             for program_path in program_paths:
                 path = self.problem.path / program_path
                 if program_type is program.Generator and program_path in self.generators:
@@ -1839,20 +1940,17 @@ class GeneratorConfig:
         # TODO: Consider building all types of programs in parallel as well.
         build_programs(program.Generator, generators_used)
         build_programs(run.Submission, solutions_used)
-        build_programs(program.Visualizer, visualizers_used)
+        if build_visualizers:
+            self.problem.visualizer(visualize.TestCaseVisualizer)
+            self.problem.visualizer(visualize.OutputVisualizer)
 
         self.problem.validators(validate.InputValidator)
-        if not self.problem.interactive and not self.problem.multi_pass:
-            self.problem.validators(validate.AnswerValidator)
+        self.problem.validators(validate.AnswerValidator)
         self.problem.validators(validate.OutputValidator)
 
         def cleanup_build_failures(t):
             if t.config.solution and t.config.solution.program is None:
                 t.config.solution = None
-            if not build_visualizers or (
-                t.config.visualizer and t.config.visualizer.program is None
-            ):
-                t.config.visualizer = None
 
         self.root_dir.walk(cleanup_build_failures, dir_f=None)
 

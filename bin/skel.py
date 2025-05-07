@@ -1,114 +1,46 @@
-import shutil
+import os
 import datetime
 import re
+import shutil
+from pathlib import Path
 
 # Local imports
 import config
-from export import force_single_language
+import contest
+import latex
 from problem import Problem
 from util import *
-import contest
-
-try:
-    import questionary
-    from questionary import Validator, ValidationError
-
-    has_questionary = True
-
-    class EmptyValidator(Validator):
-        def validate(self, document):
-            if len(document.text) == 0:
-                raise ValidationError(message="Please enter a value")
-
-except Exception:
-    has_questionary = False
-
-
-def _ask_variable(name, default=None, allow_empty=False):
-    if config.args.defaults:
-        if not default and not allow_empty:
-            fatal(f"{name} has no default")
-        return default
-    while True:
-        val = input(f"{name}: ")
-        val = default if val == "" else val
-        if val != "" or allow_empty:
-            return val
-
-
-def _ask_variable_string(name, default=None, allow_empty=False):
-    if has_questionary:
-        try:
-            validate = None if allow_empty else EmptyValidator
-            return questionary.text(
-                name + ":", default=default or "", validate=validate
-            ).unsafe_ask()
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
-    else:
-        text = f" ({default})" if default else ""
-        return _ask_variable(name + text, default if default else "", allow_empty)
-
-
-def _ask_variable_bool(name, default=True):
-    if has_questionary:
-        try:
-            return questionary.confirm(name + "?", default=default, auto_enter=False).unsafe_ask()
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
-    else:
-        text = " (Y/n)" if default else " (y/N)"
-        return _ask_variable(name + text, "Y" if default else "N").lower()[0] == "y"
-
-
-def _ask_variable_choice(name, choices, default=None):
-    if has_questionary:
-        try:
-            plain = questionary.Style([("selected", "noreverse")])
-            return questionary.select(
-                name + ":", choices=choices, default=default, style=plain
-            ).unsafe_ask()
-        except KeyboardInterrupt:
-            fatal("Running interrupted")
-    else:
-        default = default or choices[0]
-        text = f" ({default})" if default else ""
-        while True:
-            got = _ask_variable(name + text, default if default else "")
-            if got in choices:
-                return got
-            else:
-                warn(f"unknown option: {got}")
+from validate import OutputValidator
 
 
 # Returns the alphanumeric version of a string:
 # This reduces it to a string that follows the regex:
 # [a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]
-def _alpha_num(string):
+def _alpha_num(string: str) -> str:
     s = re.sub(r"[^a-zA-Z0-9_.-]", "", string.lower().replace(" ", "").replace("-", ""))
-    while s.startswith("_.-"):
+    while len(s) and s[0] in "_.-":
         s = s[1:]
-    while s.endswith("_.-"):
+    while len(s) and s[-1] in "_.-":
         s = s[:-1]
     return s
 
 
-def new_contest():
+def new_contest() -> None:
     if config.args.contest:
         fatal("--contest does not work for new_contest.")
     if config.args.problem:
         fatal("--problem does not work for new_contest.")
 
     # Ask for all required infos.
-    title = _ask_variable_string("name", config.args.contestname)
-    subtitle = _ask_variable_string("subtitle", "", True).replace("_", "-")
-    dirname = _ask_variable_string("dirname", _alpha_num(title))
-    author = _ask_variable_string("author", f"The {title} Jury").replace("_", "-")
-    testsession = _ask_variable_bool("testsession", False)
-    year = _ask_variable_string("year", str(datetime.datetime.now().year))
-    source_url = _ask_variable_string("source url", "", True)
-    license = _ask_variable_choice("license", config.KNOWN_LICENSES)
-    rights_owner = _ask_variable_string(
+    title = ask_variable_string("name", config.args.contestname)
+    subtitle = ask_variable_string("subtitle", "", True).replace("_", "-")
+    dirname = ask_variable_string("dirname", _alpha_num(title))
+    author = ask_variable_string("author", f"The {title} Jury").replace("_", "-")
+    testsession = ask_variable_bool("testsession", False)
+    year = ask_variable_string("year", str(datetime.datetime.now().year))
+    source_url = ask_variable_string("source url", "", True)
+    license = ask_variable_choice("license", config.KNOWN_LICENSES)
+    rights_owner = ask_variable_string(
         "rights owner (if left empty, defaults to problem author)", "", allow_empty=True
     )
     rights_owner = f"rights_owner: {rights_owner}\n" if rights_owner else ""
@@ -121,7 +53,7 @@ def new_contest():
     )
 
 
-def get_skel_dir(target_dir):
+def get_skel_dir(target_dir: Path) -> tuple[Path, bool]:
     skeldir = config.TOOLS_ROOT / "skel/problem"
     preserve_symlinks = False
     if (target_dir / "skel/problem").is_dir():
@@ -136,44 +68,44 @@ def get_skel_dir(target_dir):
     return (skeldir, preserve_symlinks)
 
 
-def new_problem():
+def new_problem() -> None:
     target_dir = Path(".")
     if config.args.contest:
         os.chdir(Path(config.args.contest))
     if config.args.problem:
         fatal("--problem does not work for new_problem.")
 
-    statement_languages = config.args.languages if config.args.languages else ["en"]
+    statement_languages = config.args.lang if config.args.lang else ["en"]
     main_language = "en" if "en" in statement_languages else statement_languages[0]
 
     problemname = {
         lang: (
             config.args.problemname
             if config.args.problemname
-            else _ask_variable_string(f"problem name ({lang})")
+            else ask_variable_string(f"problem name ({lang})")
         )
         for lang in statement_languages
     }
     dirname = (
         _alpha_num(config.args.problemname)
         if config.args.problemname
-        else _ask_variable_string("dirname", _alpha_num(problemname[main_language]))
+        else ask_variable_string("dirname", _alpha_num(problemname[main_language]))
     )
-    author = config.args.author if config.args.author else _ask_variable_string("author")
+    author = config.args.author if config.args.author else ask_variable_string("author")
 
-    output_validator_args = "#output_validator_args:"
+    output_validator_args = f"#{OutputValidator.args_key}:"
     custom_output = False
     if config.args.type:
         problem_type = config.args.type
     else:
-        problem_type = _ask_variable_choice(
+        problem_type = ask_variable_choice(
             "type",
             ["pass-fail", "float", "custom", "interactive", "multi-pass", "interactive multi-pass"],
         )
     # The validation type `float` is not official, it only helps setting the `output_validator_args`.
     if problem_type == "float":
         problem_type = "pass-fail"
-        output_validator_args = "output_validator_args: float_tolerance 1e-6"
+        output_validator_args = f"{OutputValidator.args_key}: float_tolerance 1e-6"
         log("Using default float tolerance of 1e-6")
     # Since version 2023-07-draft of the spec, the `custom` validation type is no longer explicit.
     # The mere existence of the output_validator(s)/ folder signals non-default output validation.
@@ -189,22 +121,22 @@ def new_problem():
         "dirname": dirname,
         "author": author,
         "type": problem_type,
-        "output_validator_args": output_validator_args,
+        OutputValidator.args_key: output_validator_args,
         "testdata_yaml_comment": "#" if output_validator_args[0] == "#" else "",
     }
 
-    source_name = _ask_variable_string(
+    source_name = ask_variable_string(
         "source", variables.get("source", variables.get("name", "")), True
     )
-    source_url = _ask_variable_string("source url", variables.get("source_url", ""), True)
+    source_url = ask_variable_string("source url", variables.get("source_url", ""), True)
     variables["source"] = (
         f"source:\n  name: {source_name}\n{f'  url: {source_url}' if source_url else '  #url:'}"
     )
 
-    variables["license"] = _ask_variable_choice(
+    variables["license"] = ask_variable_choice(
         "license", config.KNOWN_LICENSES, variables.get("license", None)
     )
-    variables["rights_owner"] = _ask_variable_string(
+    variables["rights_owner"] = ask_variable_string(
         f"rights owner{'' if variables.get('rights_owner', '') else ' (if left empty, defaults to problem author)'}",
         variables.get("rights_owner", ""),
         allow_empty=True,
@@ -218,9 +150,9 @@ def new_problem():
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
     log(f"Copying {skeldir} to {target_dir / dirname}.")
 
-    if "2023-07-draft" not in (skeldir / "problem.yaml").read_text():
+    if config.SPEC_VERSION not in (skeldir / "problem.yaml").read_text():
         fatal(
-            "new_problem only supports `skel` directories where `problem.yaml` has `version: 2023-07-draft."
+            f"new_problem only supports `skel` directories where `problem.yaml` has `version: {config.SPEC_VERSION}."
         )
 
     problems_yaml = target_dir / "problems.yaml"
@@ -239,7 +171,7 @@ def new_problem():
                 {
                     "id": dirname,
                     "label": next_label,
-                    "name": problemname[main_language],
+                    "name": problemname,
                     "rgb": "#000000",
                     "time_limit": 1.0,
                 }
@@ -248,24 +180,29 @@ def new_problem():
         else:
             error("ruamel.yaml library not found. Please update problems.yaml manually.")
 
+    skip = []
+    if custom_output:
+        skip.append(skeldir / OutputValidator.source_dir)
+
     copytree_and_substitute(
         skeldir,
         target_dir / dirname,
         variables,
         exist_ok=True,
         preserve_symlinks=preserve_symlinks,
-        skip=[skeldir / "output_validators"] if not custom_output else None,
+        skip=skip,
     )
 
     # Warn about missing problem statement skeletons for non-en languages
     for lang in statement_languages:
-        filename = f"problem.{lang}.tex"
-        statement_path = target_dir / dirname / "problem_statement" / filename
+        statement_path = target_dir / dirname / latex.PdfType.PROBLEM.path(lang)
         if not statement_path.is_file():
-            warn(f"No skeleton for {filename} found. Create it manually or update skel/problem.")
+            warn(
+                f"No skeleton for {statement_path.name} found. Create it manually or update skel/problem."
+            )
 
 
-def rename_problem(problem):
+def rename_problem(problem: Problem) -> None:
     if not has_ryaml:
         fatal("ruamel.yaml library not found.")
 
@@ -273,14 +210,14 @@ def rename_problem(problem):
         lang: (
             config.args.problemname
             if config.args.problemname
-            else _ask_variable_string(f"New problem name ({lang})", problem.settings.name[lang])
+            else ask_variable_string(f"New problem name ({lang})", problem.settings.name[lang])
         )
         for lang in problem.statement_languages
     }
     dirname = (
         _alpha_num(config.args.problemname)
         if config.args.problemname
-        else _ask_variable_string("dirname", _alpha_num(newname[problem.statement_languages[0]]))
+        else ask_variable_string("dirname", _alpha_num(newname[problem.statement_languages[0]]))
     )
 
     shutil.move(problem.name, dirname)
@@ -289,11 +226,6 @@ def rename_problem(problem):
     data = read_yaml(problem_yaml)
     data["name"] = newname
     write_yaml(data, problem_yaml)
-
-    # DOMjudge does not yet support multilingual problems.yaml files.
-    statement_language = force_single_language([problem])
-    if isinstance(newname, dict):
-        newname = newname[statement_language]
 
     problems_yaml = Path("problems.yaml")
     if problems_yaml.is_file():
@@ -305,7 +237,7 @@ def rename_problem(problem):
             write_yaml(data, problems_yaml)
 
 
-def copy_skel_dir(problems):
+def copy_skel_dir(problems: list[Problem]) -> None:
     assert len(problems) == 1
     problem = problems[0]
 
@@ -337,10 +269,10 @@ def copy_skel_dir(problems):
 
 
 # NOTE: This is one of few places that prints to stdout instead of stderr.
-def create_gitlab_jobs(contest: str, problems: list[Problem]):
+def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
     git_root_path = Path(os.popen("git rev-parse --show-toplevel").read().strip()).resolve()
 
-    def problem_source_dir(problem: Problem):
+    def problem_source_dir(problem: Problem) -> Path:
         return problem.path.resolve().relative_to(git_root_path)
 
     if config.args.latest_bt:
@@ -352,8 +284,9 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]):
     contest_yml = (config.TOOLS_ROOT / "skel/gitlab_ci/contest.yaml").read_text()
     contest_path = Path(".").resolve().relative_to(git_root_path)
     changes = "".join(
-        "      - " + str(problem_source_dir(problem)) + "/problem_statement/**/*\n"
+        f"      - {problem_source_dir(problem)}/{pdf_type.path().parent}/**/*\n"
         for problem in problems
+        for pdf_type in latex.PdfType
     )
     print(
         substitute(
@@ -372,7 +305,7 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]):
         )
 
 
-def create_forgejo_actions(contest: str, problems: list[Problem]):
+def create_forgejo_actions(contest: str, problems: list[Problem]) -> None:
     if Path(".git").is_dir():
         contest_path = Path(".")
         forgejo = Path(".forgejo")
@@ -418,7 +351,7 @@ def create_forgejo_actions(contest: str, problems: list[Problem]):
 
 # Differences with forgejo:
 # - flat structure, with all workflows directly in `.github/workflows`.
-def create_github_actions(contest: str, problems: list[Problem]):
+def create_github_actions(contest: str, problems: list[Problem]) -> None:
     if config.args.latest_bt:
         fatal("Caching the latest BAPCtools is not supported for github actions.")
 
