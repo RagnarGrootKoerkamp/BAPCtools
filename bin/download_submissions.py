@@ -2,6 +2,7 @@
 import base64
 import json
 from os import makedirs
+from pathlib import Path
 
 import config
 import parallel
@@ -19,7 +20,10 @@ def download_submissions():
     if contest_id is None:
         fatal("No contest ID found. Set in contest.yaml or pass --contest-id <cid>.")
 
-    bar = ProgressBar("Downloading metadata", count=4, max_len=len("submissions"))
+    for d in ["submissions", "scoreboard"]:
+        Path(d).mkdir(exist_ok=True)
+
+    bar = ProgressBar("Downloading metadata", count=3, max_len=len("submissions"))
     bar.start("submissions")
     submissions = {s["id"]: s for s in call_api_get_json(f"/contests/{contest_id}/submissions")}
     bar.done()
@@ -29,14 +33,10 @@ def download_submissions():
         len(s["team_id"]) if s["team_id"].isdigit() else 0 for s in submissions.values()
     )
 
-    bar.start("teams")
-    with open("submissions/teams.json", "w") as f:
-        f.write(json.dumps(call_api_get_json(f"/contests/{contest_id}/teams"), indent=2))
-    bar.done()
-
-    # Fetch account info so we can filter for team submissions
-    bar.start("accounts")
-    accounts = {a["team_id"]: a for a in call_api_get_json(f"/contests/{contest_id}/accounts")}
+    bar.start("scoreboard")
+    for endpoint in ["teams", "organizations", "problems", "scoreboard", "clarifications"]:
+        with open(f"scoreboard/{endpoint}.json", "w") as f:
+            f.write(json.dumps(call_api_get_json(f"/contests/{contest_id}/{endpoint}"), indent=2))
     bar.done()
 
     bar.start("judgements")
@@ -55,9 +55,6 @@ def download_submissions():
         i = int(s["id"])
         bar.start(s["id"])
         if "judgement_type_id" not in s:
-            bar.done()
-            return
-        if accounts[s["team_id"]]["type"] != "team":
             bar.done()
             return
 
@@ -84,7 +81,7 @@ def download_submissions():
         submissionid = f"{i:>0{submission_digits}}"
         ext = source_code[0]["filename"].split(".")[-1]
         with open(
-            f"submissions/{s['problem_id']}/{verdict_dir}/t{teamid}_s{submissionid}.{ext}",
+            f"submissions/{s['problem_id']}/{verdict_dir}/t{teamid}_s{submissionid}_{s['max_run_time']}s.{ext}",
             "wb",
         ) as f:
             f.write(source)
