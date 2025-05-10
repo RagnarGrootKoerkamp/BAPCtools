@@ -1,7 +1,10 @@
 #!/usr/bin/python3
-from random import seed, choice
+from random import seed, choice, randrange
 from string import ascii_lowercase as sigma
 import sys
+
+# to make ruff happy
+randrange(1, 2)
 
 
 def randstr(n):
