@@ -19,6 +19,7 @@ RUN pacman -Syu --noconfirm \
 	python-pytest \
 	python-ruamel-yaml \
 	python-yaml \
+	python-requests \
 	jdk21-openjdk \
 	kotlin \
 	rust \
