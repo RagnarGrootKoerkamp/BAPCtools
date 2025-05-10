@@ -1152,7 +1152,7 @@ def run_parsed_arguments(args):
         ):
             continue
         print(Style.BRIGHT, "PROBLEM ", problem.name, Style.RESET_ALL, sep="", file=sys.stderr)
-        print(action, config.args.no_generate)
+
         if action in ["generate"]:
             success &= generate.generate(problem)
         if action in ["all", "constraints", "run"] and not config.args.no_generate:
