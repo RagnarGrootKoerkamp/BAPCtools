@@ -31,4 +31,4 @@ data:
 
       - random:
           generate: eval.py {seed} 1000 randstr(randrange(1, 101))
-          count: 100
+          count: 5

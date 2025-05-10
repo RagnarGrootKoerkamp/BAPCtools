@@ -703,6 +703,7 @@ Run this from one of:
         "--visualizer",
         dest="no_visualizer",
         action="store_false",
+        default=True,
         help="Also run the output visualizer.",
     )
     runparser.add_argument(
@@ -1179,7 +1180,6 @@ def run_parsed_arguments(args):
             config.args.jobs = (os.cpu_count() or 1) // 2
             config.args.add = None
             config.args.verbose = 0
-            config.args.no_visualizer = True
             success &= generate.generate(problem)
             config.args = old_args
         if action in ["fuzz"]:
