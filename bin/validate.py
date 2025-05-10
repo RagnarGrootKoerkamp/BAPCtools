@@ -403,6 +403,9 @@ class OutputValidator(Validator):
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
         if not isinstance(mode, Mode):
             cwd = mode.feedbackdir
+        if self.problem.multi_pass:
+            multipassdir = cwd / "multipass"
+            multipassdir.mkdir(parents=True, exist_ok=True)
         invocation = self.run_command + [in_path, ans_path, cwd]
 
         with path.open("rb") as file:
