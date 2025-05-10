@@ -1,0 +1,30 @@
+\begin{frame}
+    \frametitle{\problemtitle}
+    \begin{block}{Problem}
+        This is a multi-pass problem, where in each pass, you should:
+        \vspace{-0.5em}
+        \begin{enumerate}
+            \item Encrypt text, such that the length stays the same and every character differs.
+            \item Decrypt the text that you encrypted, such that you retrieve the original input.
+        \end{enumerate}
+    \end{block}
+    \pause
+    \begin{block}{Solution}
+        Some of the many possible solutions (there were some resubmissions):
+        \begin{itemize}
+            \addtolength{\leftmargini}{15ex}
+            \small
+            \item ($70\times$) Use a Caesar cipher with offset $1 \leq x < 26$ for encrypting, and offset $26 - x$ for decrypting.
+            \item ($14\times$) Use a Caesar cipher with offset $13$ for both encrypting and decrypting.
+            \item ($2\times$) Assuming $0$-based \texttt{char} values, XOR the last bit of each value
+                (`\texttt{a}' $\leftrightarrow$ `\texttt{b}',
+                `\texttt{c}' $\leftrightarrow$ `\texttt{d}', \dots).
+            \item ($1\times$) Atbash: Mirror the characters (`\texttt{a}' $\leftrightarrow$ `\texttt{z}',
+            `\texttt{b}' $\leftrightarrow$ `\texttt{y}', \dots)
+            for both encrypting and decrypting.
+            \item ($1\times$) Generate a (seeded) random permutation to encrypt, and use its inverse to decrypt.
+        \end{itemize}
+    \end{block}
+    \pause
+    \solvestats
+\end{frame}

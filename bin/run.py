@@ -207,7 +207,9 @@ class Run:
     def _prepare_nextpass(self, nextpass):
         if not nextpass or not nextpass.is_file():
             return False
-        # clear all files outside of feedbackdir
+        # TODO: keep feedback files and concatenate them?
+        #  - judgemessage.txt
+        #  - judgeerror.txt
         for f in self.tmpdir.iterdir():
             if f == self.feedbackdir:
                 continue
@@ -216,7 +218,15 @@ class Run:
             elif f.exists():
                 shutil.rmtree(f)
         # use nextpass.in as next input
-        shutil.move(nextpass, self.in_path)
+        nextpass.rename(self.in_path)
+        # clear all files outside of "feedbackdir / multipass"
+        for f in self.feedbackdir.iterdir():
+            if f == self.feedbackdir / "multipass":
+                continue
+            if f.is_file():
+                f.unlink()
+            elif f.exists():
+                shutil.rmtree(f)
         return True
 
     def _validate_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
@@ -441,7 +451,7 @@ class Submission(program.Program):
             for f in run.feedbackdir.iterdir():
                 if f.name.startswith("."):
                     continue  # skip "hidden" files
-                if f.name in ["judgemessage.txt", "judgeerror.txt"]:
+                if f.name in ["judgemessage.txt", "judgeerror.txt", "multipass"]:
                     continue
                 if f.name.startswith("judgeimage.") or f.name.startswith("teamimage."):
                     data += f"{f.name}: {shorten_path(self.problem, f.parent) / f.name}\n"
