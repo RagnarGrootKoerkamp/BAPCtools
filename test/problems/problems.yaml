@@ -5,3 +5,9 @@
     de: Identität
   rgb: '#000000'
   time_limit: 1.0
+- id: constants
+  label: B
+  name:
+    en: constants
+  rgb: '#000000'
+  time_limit: 1.0
