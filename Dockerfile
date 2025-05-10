@@ -17,9 +17,9 @@ RUN pacman -Syu --noconfirm \
 	python-colorama \
 	python-matplotlib \
 	python-pytest \
+	python-requests \
 	python-ruamel-yaml \
 	python-yaml \
-	python-requests \
 	jdk21-openjdk \
 	kotlin \
 	rust \

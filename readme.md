@@ -78,7 +78,10 @@ Resource limits (memory limit/hard cpu time limit) are not supported.
 A docker image containing this git repo and dependencies, together with commonly
 used languages, is provided at
 [ragnargrootkoerkamp/bacptools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
-This version may be somewhat outdated. Ping me if you'd like it to be updated.
+This version may be somewhat outdated, but we intend to update it whenever dependencies change.
+Ping me if you'd like it to be updated.
+Alternatively, inside the Docker container, you can run `git -C /opt/BAPCtools pull` to update to the latest version of BAPCtools,
+and use `pacman -Sy <package>` to install potential missing dependencies.
 
 This image can be used for e.g.:
 
@@ -90,7 +93,7 @@ This image can be used for e.g.:
   docker run -v $PWD:/data --rm -it ragnargrootkoerkamp/bapctools <bt subcommands>
   ```
 
-To update the image:
+For maintainers, these are the steps to build and push an updated image:
 
 ```
 $ sudo systemctl start docker
