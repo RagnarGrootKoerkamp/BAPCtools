@@ -181,7 +181,7 @@ def new_problem() -> None:
             error("ruamel.yaml library not found. Please update problems.yaml manually.")
 
     skip = []
-    if custom_output:
+    if not custom_output:
         skip.append(skeldir / OutputValidator.source_dir)
 
     copytree_and_substitute(
