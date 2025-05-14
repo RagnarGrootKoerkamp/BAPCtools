@@ -16,6 +16,6 @@ const size_t mb = 513;
 int main() {
 	std::cerr << "Trying to allocate at least: " << 513 << " MB" << std::endl;
 	vector<char> v(513 * 1024 * 1024);
-	std::cerr << "Allocated: " << v.size() << " MB" << std::endl;
+	std::cerr << "Allocated: " << (v.end() - v.begin()) << " MB" << std::endl;
 	return 0;
 }
