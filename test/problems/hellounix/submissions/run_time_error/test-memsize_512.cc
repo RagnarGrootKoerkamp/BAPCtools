@@ -16,7 +16,7 @@ const size_t mb = 513;
 template<typename T>
 T use(std::vector<T>& todo) {
 	if (todo.empty()) return {};
-	volatile T* p = &to_use[0];
+	volatile T* p = &todo[0];
 	// reading a volatile pointer is a side effect and cannot be optimized
 	return p[0];
 }
