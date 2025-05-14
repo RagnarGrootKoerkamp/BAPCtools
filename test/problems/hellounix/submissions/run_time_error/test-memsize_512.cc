@@ -15,19 +15,10 @@ const size_t mb = 513;
 
 template<typename T>
 T use(std::vector<T>& todo) {
-	// init with some data
-	for (std::size_t i = 0; i < todo.size(); i++) todo[i] = T(i % 7);
-	// do some computation that needs the memory
-	for (int k = 0; k < 7; k++) {
-		for (std::size_t i = 0; i < todo.size(); i++) {
-			std::size_t j = (i + todo[i]) % todo.size();
-			todo[j] = (todo[i] % 7) + (todo[j] % 7);
-		}
-	}
-	// accumulate the result
-	T res = 0;
-	for (auto x : todo) res = (res >> 1) + (x >> 1);
-	return res;
+	if (todo.empty()) return {};
+	volatile T* p = &to_use[0];
+	// reading a volatile pointer is a side effect and cannot be optimized
+	return p[0];
 }
 
 int main() {
