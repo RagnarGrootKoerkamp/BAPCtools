@@ -1459,7 +1459,9 @@ class Problem:
                 return None, None, None
 
             cur_ok, verdict_table = Problem.run_some(testcases, cur_submissions)
-            ok &= cur_ok
+            if not cur_ok:
+                ok = False
+                return None, None, None
 
             def get_slowest(result):
                 slowest_pair = result.slowest_testcase()
