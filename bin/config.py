@@ -5,7 +5,9 @@ import os
 import re
 from pathlib import Path
 from collections.abc import Mapping, Sequence
-from typing import Final, Literal, Optional
+from typing import Any, Final, Literal, Optional
+
+SPEC_VERSION: Final[str] = "2023-07-draft"
 
 # return values
 RTV_AC: Final[int] = 42
@@ -32,8 +34,19 @@ KNOWN_LICENSES: Final[Sequence[str]] = [
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD: Final[int] = 4
 
-FILE_NAME_REGEX: Final[str] = "[a-zA-Z0-9][a-zA-Z0-9_.-]*[a-zA-Z0-9]"
+FILE_NAME_REGEX: Final[str] = "[a-zA-Z0-9][a-zA-Z0-9_.-]{0,253}[a-zA-Z0-9]"
 COMPILED_FILE_NAME_REGEX: Final[re.Pattern[str]] = re.compile(FILE_NAME_REGEX)
+
+CONSTANT_NAME_REGEX = "[a-zA-Z_][a-zA-Z0-9_]*"
+COMPILED_CONSTANT_NAME_REGEX: Final[re.Pattern[str]] = re.compile(CONSTANT_NAME_REGEX)
+CONSTANT_SUBSTITUTE_REGEX: Final[re.Pattern[str]] = re.compile(
+    f"\\{{\\{{({CONSTANT_NAME_REGEX})\\}}\\}}"
+)
+
+BAPCTOOLS_SUBSTITUTE_REGEX: Final[re.Pattern[str]] = re.compile(
+    f"\\{{%({CONSTANT_NAME_REGEX})%\\}}"
+)
+
 
 KNOWN_TESTCASE_EXTENSIONS: Final[Sequence[str]] = [
     ".in",
@@ -48,13 +61,19 @@ KNOWN_VISUALIZER_EXTENSIONS: Final[Sequence[str]] = [
     ".pdf",
 ]
 
+KNOWN_SAMPLE_TESTCASE_EXTENSIONS: Final[Sequence[str]] = [
+    ".in.statement",
+    ".ans.statement",
+    ".in.download",
+    ".ans.download",
+]
+
 KNOWN_TEXT_DATA_EXTENSIONS: Final[Sequence[str]] = [
     *KNOWN_TESTCASE_EXTENSIONS,
+    *KNOWN_SAMPLE_TESTCASE_EXTENSIONS,
     ".interaction",
     ".hint",
     ".desc",
-    ".in.statement",
-    ".ans.statement",
     #'.args',
 ]
 
@@ -67,7 +86,6 @@ INVALID_CASE_DIRECTORIES: Final[Sequence[str]] = [
     "invalid_input",
     "invalid_answer",
     "invalid_output",
-    "bad",
 ]
 
 
@@ -86,11 +104,12 @@ os.environ["PATH"] += os.pathsep + str(TOOLS_ROOT / "third_party")
 
 args = argparse.Namespace()
 
-DEFAULT_ARGS: Final[Mapping] = {
+DEFAULT_ARGS: Final[Mapping[str, Any]] = {
     "jobs": (os.cpu_count() or 1) // 2,
     "time": 600,  # Used for `bt fuzz`
     "verbose": 0,
-    "languages": None,
+    "action": None,
+    "no_visualizer": True,
 }
 
 
@@ -101,7 +120,7 @@ grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_
 grep -Ev '^(h|jobs|time|verbose)$' | sed 's/^/"/;s/$/",/' | tr '\n' ' ' | sed 's/^/ARGS_LIST: Final[Sequence[str]] = [/;s/, $/]\n/'
 """
 # fmt: off
-ARGS_LIST: Final[Sequence[str]] = ["1", "add", "all", "answer", "api", "author", "check_deterministic", "clean", "colors", "contest", "contest_id", "contestname", "cp", "defaults", "default_solution", "depth", "directory", "error", "force", "force_build", "generic", "input", "interaction", "interactive", "invalid", "kattis", "language", "latest_bt", "memory", "more", "move_to", "no_bar", "no_generate", "no_solution", "no_solutions", "no_testcase_sanity_checks", "no_time_limit", "no_validators", "no_visualizer", "open", "order", "order_from_ccs", "overview", "password", "post_freeze", "problem", "problemname", "remove", "reorder", "samples", "sanitizer", "skel", "skip", "sort", "submissions", "table", "testcases", "time_limit", "timeout", "token", "tree", "type", "username", "valid_output", "watch", "web", "write"]
+ARGS_LIST: Final[Sequence[str]] = ["1", "add", "all", "answer", "api", "author", "check_deterministic", "clean", "colors", "contest", "contest_id", "contestname", "cp", "defaults", "default_solution", "depth", "directory", "error", "force", "force_build", "generic", "input", "interaction", "interactive", "invalid", "kattis", "lang", "latest_bt", "legacy", "memory", "more", "move_to", "no_bar", "no_generate", "no_solution", "no_solutions", "no_testcase_sanity_checks", "no_time_limit", "no_validators", "no_visualizer", "open", "order", "order_from_ccs", "overview", "password", "post_freeze", "problem", "problemname", "remove", "reorder", "samples", "sanitizer", "skel", "skip", "sort", "submissions", "table", "testcases", "time_limit", "timeout", "token", "tree", "type", "username", "valid_output", "watch", "web", "write"]
 # fmt: on
 
 

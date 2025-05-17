@@ -1,6 +1,5 @@
 #solution: /submissions/accepted/submission.py
-#visualizer: /visualizers/asy.sh
-version: 2025-02  # use this version of the generators framework
+version: 2025-04  # use this version of the generators framework
 
 {%testdata_yaml_comment%}testdata.yaml:
   # One or more of:

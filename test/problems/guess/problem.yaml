@@ -1,13 +1,14 @@
+problem_format_version: 2023-07-draft
+type: interactive
 name:
   en: Guess the Number
 source: Kattis
 uuid: 4c1ca09b-af36-4cb6-82ec-2cd029c02a6a
 license: cc by-sa
 
-validation: custom interactive
-
 # Override standard limits: say that the TLE solutions provided should
 # be at least 4 times above the time limit in order for us to be
 # happy.
 limits:
-  time_safety_margin: 4
+  time_multipliers:
+    time_limit_to_tle: 4

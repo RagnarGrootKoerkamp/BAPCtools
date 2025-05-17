@@ -11,7 +11,9 @@ from colorama import ansi, Fore, Style
 
 import config
 import generate
+import latex
 import program
+import validate
 from util import error, exec_command, glob, warn
 
 Selector = str | Callable | list[str] | list[Callable]
@@ -48,11 +50,11 @@ def problem_stats(problems):
         # Roughly in order of importance
         ("  time", lambda p: p.limits.time_limit, 0),
         ("yaml", "problem.yaml"),
-        ("tex", "problem_statement/problem*.tex", 1),
-        ("sol", "problem_statement/solution*.tex", 1),
-        ("  val: I", ["input_validators/*", "input_format_validators/*"]),
-        ("A", ["answer_validators/*"]),
-        ("O", ["output_validators/*"]),
+        ("tex", str(latex.PdfType.PROBLEM.path("*")), 1),
+        ("sol", str(latex.PdfType.SOLUTION.path("*")), 1),
+        ("  val: I", [f"{validate.InputValidator.source_dir}/*"]),
+        ("A", [f"{validate.AnswerValidator.source_dir}/*"]),
+        ("O", [f"{validate.OutputValidator.source_dir}/*"]),
         (
             "  sample",
             [lambda s: {x.stem for x in s if x.parts[2] == "sample"}],
@@ -66,12 +68,12 @@ def problem_stats(problems):
             100,
         ),
         (
-            "bad",
+            "inv",
             [lambda s: {x.stem for x in s if x.parts[2] in config.INVALID_CASE_DIRECTORIES}],
             0,
         ),
         (
-            "good",
+            "v_o",
             [lambda s: {x.stem for x in s if x.parts[2] in ["valid_output"]}],
             0,
         ),
@@ -172,7 +174,7 @@ def problem_stats(problems):
         def value(x):
             if x[0] == "  time" or x[0] == "subs":
                 return x[1](problem)
-            if x[0] == "A" and (problem.interactive or problem.multi_pass):
+            if x[0] == "A" and problem.interactive:
                 return None  # Do not show an entry for the answer validator if it is not required
             if x[0] == "O" and not problem.custom_output:
                 return None  # Do not show an entry for the output validator if it is not required

@@ -3,10 +3,11 @@ import shutil
 import stat
 import subprocess
 import threading
-from typing import Final, TYPE_CHECKING
-
 from colorama import Fore
+from pathlib import Path
+from typing import Final, Optional, TYPE_CHECKING
 
+import config
 from util import *
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
@@ -91,7 +92,7 @@ def sanitizer():
 # Member variables are:
 # - short_path:     the path relative to problem/subdir/, or None
 # - tmpdir:         the build directory in tmpfs. This is only created when build() is called.
-# - input_files:    list of source files linked into tmpdir
+# - input_files:    list of source files linked/copied into tmpdir
 # - language:       the detected language
 # - env:            the environment variables used for compile/run command substitution
 # - hash:           a hash of all of the program including all source files
@@ -116,8 +117,9 @@ class Program:
         subdir: str,
         deps: Optional[list[Path]] = None,
         *,
-        skip_double_build_warning=False,
+        skip_double_build_warning: bool = False,
         limits: dict[str, int] = {},
+        substitute_constants: bool = False,
     ):
         if deps is not None:
             assert isinstance(self, Generator)
@@ -139,24 +141,23 @@ class Program:
 
         # Set self.name and self.tmpdir.
         # Ideally they are the same as the path inside the problem, but fallback to just the name.
-        try:
-            # Only resolve the parent of the program. This preserves programs that are symlinks to other directories.
-            relpath = (path.parent.resolve() / path.name).relative_to(
-                problem.path.resolve() / self.subdir
-            )
-            self.short_path = relpath
-            self.name: str = str(relpath)
-            self.tmpdir = problem.tmpdir / self.subdir / relpath
-        except ValueError:
-            self.short_path = Path(path.name)
-            self.name = str(path.name)
-            self.tmpdir = problem.tmpdir / self.subdir / path.name
+        relpath = Path(path.name)
+        if path.absolute().parent != problem.path.absolute():
+            try:
+                relpath = path.absolute().relative_to(problem.path.absolute() / subdir)
+            except ValueError:
+                pass
+
+        self.short_path = relpath
+        self.name: str = str(relpath)
+        self.tmpdir = problem.tmpdir / self.subdir / self.name
 
         self.compile_command: Optional[list[str]] = None
         self.run_command: Optional[list[str]] = None
         self.hash: Optional[str] = None
         self.env: dict[str, int | str | Path] = {}
         self.limits: dict[str, int] = limits
+        self.substitute_constants: bool = substitute_constants
 
         self.ok = True
         self.built = False
@@ -305,12 +306,11 @@ class Program:
             for f in self.source_files:
                 try:
                     if f.read_text().find("bits/stdc++.h") != -1:
-                        if "validators/" in str(f):
-                            bar.error("Must not depend on bits/stdc++.h.", resume=True)
-                            break
-                        else:
+                        if f.is_relative_to(self.problem.path / "submissions"):
                             bar.log("Should not depend on bits/stdc++.h")
-                            break
+                        else:
+                            bar.error("Must not depend on bits/stdc++.h.", resume=True)
+                        break
                 except UnicodeDecodeError:
                     pass
 
@@ -438,13 +438,27 @@ class Program:
         self.input_files = []
         hashes = []
         for f in self.source_files:
-            ensure_symlink(self.tmpdir / f.name, f)
-            self.input_files.append(self.tmpdir / f.name)
             if not f.is_file():
                 self.ok = False
                 bar.error(f"{str(f)} is not a file")
                 return False
-            hashes.append(hash_file(f))
+            tmpf = self.tmpdir / f.name
+            if (
+                not self.substitute_constants
+                or not self.problem.settings.constants
+                or not has_substitute(f, config.CONSTANT_SUBSTITUTE_REGEX)
+            ):
+                ensure_symlink(tmpf, f)
+            else:
+                copy_and_substitute(
+                    f,
+                    tmpf,
+                    self.problem.settings.constants,
+                    pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+                    bar=bar,
+                )
+            self.input_files.append(tmpf)
+            hashes.append(hash_file(tmpf))
         self.hash = combine_hashes(hashes)
 
         if not self._get_language(bar):
@@ -499,7 +513,7 @@ class Program:
 
         return True
 
-    def _exec_command(self, *args, **kwargs):
+    def _exec_command(self, *args, **kwargs) -> ExecResult:
         if "timeout" not in kwargs and "timeout" in self.limits:
             kwargs["timeout"] = self.limits["timeout"]
         if "memory" not in kwargs and "memory" in self.limits:
@@ -520,6 +534,7 @@ class Generator(Program):
             path,
             "generators",
             limits={"timeout": problem.limits.generator_time},
+            substitute_constants=True,
             **kwargs,
         )
 
@@ -550,16 +565,12 @@ class Generator(Program):
                 cwd=cwd,
             )
 
-        result.retry = False
-
         if result.status == ExecStatus.TIMEOUT:
             # Timeout -> stop retrying and fail.
             bar.log(f"TIMEOUT after {timeout}s", color=Fore.RED)
             return result
 
         if not result.status:
-            # Other error -> try again.
-            result.retry = True
             return result
 
         if stdout_path.read_text():
@@ -574,23 +585,3 @@ class Generator(Program):
                 return result
 
         return result
-
-
-class Visualizer(Program):
-    def __init__(self, problem: "Problem", path: Path, **kwargs):
-        super().__init__(
-            problem,
-            path,
-            "visualizers",
-            limits={"timeout": problem.limits.visualizer_time},
-            **kwargs,
-        )
-
-    # Run the visualizer.
-    # Stdin and stdout are not used.
-    def run(self, cwd, args=[]):
-        assert self.run_command is not None
-        return self._exec_command(
-            self.run_command + args,
-            cwd=cwd,
-        )

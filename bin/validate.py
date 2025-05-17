@@ -2,10 +2,15 @@ import re
 from util import *
 from enum import Enum
 from collections.abc import Sequence
-from typing import Final
+from pathlib import Path
+from typing import Final, Optional, TYPE_CHECKING
 
+import config
 import program
-import testcase
+
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    import run
+    import testcase
 
 
 class Mode(Enum):
@@ -105,6 +110,7 @@ class Validator(program.Program):
                 "memory": problem.limits.validation_memory,
             },
             skip_double_build_warning=skip_double_build_warning,
+            substitute_constants=True,
         )
         assert self.__class__ is not Validator  # Validator is abstract and may not be instantiated
 
@@ -168,7 +174,7 @@ class Validator(program.Program):
             return ExecStatus.ERROR
 
         if self.language == "checktestdata":
-            with main_path.open() as main_file:
+            with main_path.open("rb") as main_file:
                 return self._exec_command(
                     self.run_command,
                     exec_code_map=format_exec_code_map,
@@ -203,10 +209,10 @@ class Validator(program.Program):
 
     def run(
         self,
-        testcase: testcase.Testcase,
-        mode,
+        testcase: "testcase.Testcase",
+        mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         raise Exception("Abstract method")
 
@@ -220,19 +226,21 @@ class InputValidator(Validator):
     Also supports checktestdata and viva files, with different invocation.
     """
 
+    validator_type: Final[str] = "input"
+
+    source_dir: Final[str] = "input_validators"
+
+    args_key: Final[str] = "input_validator_args"
+
     def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, "input_validators", **kwargs)
-
-    validator_type = "input"
-
-    source_dirs = ["input_validators", "input_format_validators"]
+        super().__init__(problem, path, InputValidator.source_dir, **kwargs)
 
     def run(
         self,
-        testcase,
-        mode=Mode.INPUT,
+        testcase: "testcase.Testcase",
+        mode: Mode = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         """
         Arguments
@@ -257,7 +265,7 @@ class InputValidator(Validator):
 
         invocation = self.run_command.copy()
 
-        with testcase.in_path.open() as in_file:
+        with testcase.in_path.open("rb") as in_file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -273,26 +281,29 @@ class InputValidator(Validator):
 
 class AnswerValidator(Validator):
     """
-    Validate the default answer file (such as "testcase.ans"), called as:
+    Validate the default answer file "testcase.ans" (or "testcase.out" if it exists), called as:
 
         ./validator input < answer.
 
     Also supports checktestdata and viva files, with different invocation.
     """
 
+    validator_type: Final[str] = "answer"
+
+    source_dir: Final[str] = "answer_validators"
+
+    # use output_validator_args as well
+    args_key: Final[str] = "output_validator_args"
+
     def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, "answer_validators", **kwargs)
-
-    validator_type = "answer"
-
-    source_dirs = ["answer_validators", "answer_format_validators"]
+        super().__init__(problem, path, AnswerValidator.source_dir, **kwargs)
 
     def run(
         self,
-        testcase,
-        mode=Mode.ANSWER,
+        testcase: "testcase.Testcase",
+        mode: Mode = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         assert self.run_command is not None, "Validator should be built before running it"
 
@@ -310,7 +321,7 @@ class AnswerValidator(Validator):
 
         invocation = self.run_command + [testcase.in_path.resolve()]
 
-        with testcase.ans_path.open() as ans_file:
+        with testcase.ans_path.open("rb") as ans_file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -331,20 +342,21 @@ class OutputValidator(Validator):
        ./validator input answer feedbackdir [arguments from problem.yaml] < output
     """
 
+    validator_type: Final[str] = "output"
+
+    source_dir: Final[str] = "output_validator"
+
+    args_key: Final[str] = "output_validator_args"
+
     def __init__(self, problem, path, **kwargs):
-        super().__init__(problem, path, "output_validators", **kwargs)
-
-    validator_type = "output"
-
-    # TODO #424: We should not support multiple output validators inside output_validator/.
-    source_dirs = ["output_validator", "output_validators"]
+        super().__init__(problem, path, OutputValidator.source_dir, **kwargs)
 
     def run(
         self,
-        testcase,  # TODO #102: fix type errors after setting type to Testcase
-        mode,  # TODO #102: fix type errors after setting type to Mode | run.Run
+        testcase: "testcase.Testcase",
+        mode: "Mode | run.Run",
         constraints: Optional[ConstraintsDict] = None,
-        args=None,
+        args: Optional[list[str]] = None,
     ) -> ExecResult:
         """
         Run this validator on the given testcase.
@@ -353,7 +365,7 @@ class OutputValidator(Validator):
         ---------
 
         mode: either a run.Run (namely, when validating submission output) or a Mode
-            (namely, when validation a testcase)
+            (namely, when validating a testcase)
 
         Returns
         -------
@@ -363,7 +375,7 @@ class OutputValidator(Validator):
         assert self.run_command is not None, "Validator should be built before running it"
 
         if mode == Mode.INPUT:
-            raise ValueError("OutputValidator do not support Mode.INPUT")
+            raise ValueError("OutputValidator does not support Mode.INPUT")
 
         in_path = testcase.in_path.resolve()
         ans_path = testcase.ans_path.resolve()
@@ -374,18 +386,16 @@ class OutputValidator(Validator):
                 raise ValueError(
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_output"
                 )
+            assert testcase.out_path is not None
             path = testcase.out_path.resolve()
         elif mode == Mode.VALID_OUTPUT:
-            if testcase.root != "valid_output":
-                raise ValueError(
-                    "OutputValidator in Mode.VALID_OUTPUT should only be run for data/valid_output"
-                )
+            assert testcase.out_path is not None
             path = testcase.out_path.resolve()
         else:
             assert mode != Mode.INPUT
             # mode is actually a Run
             path = mode.out_path
-            in_path = mode.in_path
+            in_path = mode.in_path  # relevant for multipass
 
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             raise ValueError("Invalid output validator language")
@@ -395,7 +405,7 @@ class OutputValidator(Validator):
             cwd = mode.feedbackdir
         invocation = self.run_command + [in_path, ans_path, cwd]
 
-        with path.open() as file:
+        with path.open("rb") as file:
             ret = self._exec_helper(
                 invocation + arglist,
                 exec_code_map=validator_exec_code_map,
@@ -456,17 +466,25 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
 
     if not path.exists():
         fatal(f"{path} not found during sanity check")
-        return
-    with open(path, "rb") as file:
+
+    with path.open("rb") as file:
         name = {
             ".in": "Input",
             ".ans": "Answer",
             ".out": "Output",
         }[path.suffix]
         file_bytes = file.read()
+
+        if problem.interactive and path.suffix == ".ans":
+            if len(file_bytes) != 0:
+                bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
+            return  # Since the .ans file MUST be empty, the other sanity checks can be skipped.
+
         if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
             bar.warn(f"{name} contains unexpected characters but was accepted!")
-        elif len(file_bytes) == 0:
+        elif len(file_bytes) == 0 and not (
+            path.suffix == ".ans" and problem.multi_pass
+        ):  # explicitly allow empty .ans files for multipass
             bar.warn(f"{name} is empty but was accepted!")
         elif len(file_bytes) > 20_000_000:
             bar.warn(f"{name} is larger than 20MB!")
@@ -477,7 +495,12 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
             bar.warn(
                 f"{name} exceeds output limit (set limits->output to at least {(len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
             )
-        elif strict_whitespace:
+        elif (
+            path.suffix in [".ans", ".out"]
+            and 2 * len(file_bytes) > problem.limits.output * 1024 * 1024
+        ):
+            bar.warn(f"{name} is close to output limit")
+        elif strict_whitespace and len(file_bytes) > 0:
             if file_bytes[0] in [ord(" "), ord("\n")]:
                 bar.warn(f"{name} starts with whitespace but was accepted!")
             elif file_bytes[-1] != ord("\n"):

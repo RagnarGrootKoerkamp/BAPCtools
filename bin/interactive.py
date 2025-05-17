@@ -1,13 +1,15 @@
+import os
 import signal
-import time
 import subprocess
 import sys
 import threading
+import time
+from pathlib import Path
 from typing import Final, Literal, Optional, TYPE_CHECKING
 
 import config
-from util import *
 import validate
+from util import *
 from verdicts import Verdict
 
 if TYPE_CHECKING:
@@ -32,7 +34,7 @@ def run_interactive_testcase(
     bar: Optional[ProgressBar] = None,
 ):
     output_validators = run.problem.validators(validate.OutputValidator)
-    if len(output_validators) != 1:
+    if not output_validators:
         return None
     output_validator = output_validators[0]
 
@@ -54,7 +56,7 @@ def run_interactive_testcase(
                 run.testcase.ans_path.resolve(),
                 run.feedbackdir.resolve(),
             ]
-            + run.testcase.testdata_yaml_validator_args(
+            + run.testcase.testdata_yaml_args(
                 output_validator,
                 bar or PrintBar("Run interactive test case"),
             )
@@ -164,6 +166,8 @@ def run_interactive_testcase(
                 error("exceeded limit of validation_passes")
                 verdict = Verdict.VALIDATOR_CRASH
                 break
+
+        run._visualize_output(bar or PrintBar("Visualize interaction"))
 
         if tle_result is None:
             # Set result.err to validator error and result.out to team error.
@@ -428,6 +432,8 @@ while True:
 
     if interaction_file is not None:
         interaction_file.close()
+
+    run._visualize_output(bar or PrintBar("Visualize interaction"))
 
     if tle_result is None:
         return ExecResult(

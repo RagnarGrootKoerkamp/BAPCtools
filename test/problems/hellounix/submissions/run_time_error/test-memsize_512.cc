@@ -13,9 +13,17 @@ using namespace std;
 
 const size_t mb = 513;
 
+template<typename T>
+T use(std::vector<T>& todo) {
+	if (todo.empty()) return {};
+	volatile T* p = &todo[0];
+	// reading a volatile pointer is a side effect and cannot be optimized
+	return p[0];
+}
+
 int main() {
-	std::cerr << "Trying to allocate at least: " << 513 << " MB" << std::endl;
-	vector<char> v(513 * 1024 * 1024);
-	std::cerr << "Allocated: " << v.size() << " MB" << std::endl;
+	std::cerr << "Trying to allocate at least: " << mb << " MB" << std::endl;
+	vector<char> v(mb * 1024 * 1024);
+	std::cerr << "Allocated: " << mb << " MB (" << use(v) << ")" << std::endl;
 	return 0;
 }
