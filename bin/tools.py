@@ -773,6 +773,9 @@ Run this from one of:
     timelimitparser.add_argument(
         "--timeout", "-t", type=int, help="Override the default timeout. Default: 60."
     )
+    timelimitparser.add_argument(
+        "--no-generate", "-G", action="store_true", help="Do not run `generate`."
+    )
 
     # Test
     testparser = subparsers.add_parser(
@@ -1154,7 +1157,7 @@ def run_parsed_arguments(args):
 
         if action in ["generate"]:
             success &= generate.generate(problem)
-        if action in ["all", "constraints", "run"] and not config.args.no_generate:
+        if action in ["all", "constraints", "run", "time_limit"] and not config.args.no_generate:
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.jobs = (os.cpu_count() or 1) // 2
