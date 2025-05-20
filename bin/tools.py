@@ -24,12 +24,14 @@ import shutil
 import colorama
 import re
 
+from colorama import Style
 from pathlib import Path
-from typing import Literal, cast
+from typing import cast, Literal, Optional
 
 # Local imports
 import config
 import constraints
+import contest
 import export
 import generate
 import fuzz
@@ -39,11 +41,11 @@ import slack
 import solve_stats
 import download_submissions
 import stats
+import upgrade
 import validate
 import signal
 
 from problem import Problem
-import contest
 from contest import *
 from util import *
 
@@ -177,45 +179,74 @@ def get_problems():
             if len(problems) == 0:
                 fatal("Did not find problem.yaml. Are you running this from a problem directory?")
 
-        if config.args.order:
+        if config.args.order or contest_yaml().get("order"):
+            order = config.args.order or contest_yaml()["order"]
+
             # Sort by position of id in order
             def get_pos(id):
-                if id in config.args.order:
-                    return config.args.order.index(id)
+                if id in order:
+                    return order.index(id)
                 else:
-                    return len(config.args.order) + 1
+                    return len(order)
 
             problems.sort(key=lambda p: (get_pos(p.label), p.label))
 
         if config.args.order_from_ccs:
             # Sort by increasing difficulty, extracted from the CCS api.
-            # Get active contest.
+            class ProblemStat:
+                def __init__(self):
+                    self.solved = 0
+                    self.submissions = 0
+                    self.pending = 0
+                    self.teams_submitted = 0
+                    self.teams_pending = 0
 
+                def update(self, team_stats: dict[str, Any]):
+                    if team_stats["solved"]:
+                        self.solved += 1
+                    if team_stats["num_judged"]:
+                        self.submissions += team_stats["num_judged"]
+                        self.teams_submitted += 1
+                    if team_stats["num_pending"]:
+                        self.pending += team_stats["num_pending"]
+                        self.teams_pending += 1
+
+                def key(self) -> tuple[int, int]:
+                    # self.solved more AC => easier
+                    # possible tie breakers:
+                    # self.submissions more needed to get the same number of AC => Harder
+                    # self.teams_pending more teams tried => appeared easier
+                    # TODO: consider more stats?
+                    return (-self.solved, self.submissions)
+
+            # Get active contest.
             cid = get_contest_id()
-            solves = dict()
 
             # Read set of problems
             contest_problems = call_api_get_json(f"/contests/{cid}/problems?public=true")
             assert isinstance(problems, list)
-            for path in contest_problems:
-                solves[path["id"]] = 0
+
+            problem_stats = {problem["id"]: ProblemStat() for problem in contest_problems}
 
             scoreboard = call_api_get_json(f"/contests/{cid}/scoreboard?public=true")
 
             for team in scoreboard["rows"]:
-                for path in team["problems"]:
-                    if path["solved"]:
-                        solves[path["problem_id"]] += 1
-
-            # Convert away from defaultdict, so any non matching keys below raise an error.
-            solves = dict(solves)
-            verbose("solves: " + str(solves))
+                for team_stats in team["problems"]:
+                    problem_stats[team_stats["problem_id"]].update(team_stats)
 
             # Sort the problems
-            # Use negative solves instead of reversed, to preserver stable order.
-            problems.sort(key=lambda p: (-solves[p.name], p.label))
-            order = ", ".join(map(lambda p: str(p.label), problems))
-            verbose("order: " + order)
+            problems.sort(key=lambda p: (problem_stats[p.name].key(), p.label))
+            verbose(f"order: {', '.join(map(lambda p: str(p.label), problems))}")
+
+            if ask_variable_bool("Update order in contest.yaml"):
+                if has_ryaml:
+                    contest_yaml_path = Path("contest.yaml")
+                    data = contest_yaml()
+                    data["order"] = [p.label for p in problems]
+                    write_yaml(data, contest_yaml_path)
+                    log("Updated order")
+                else:
+                    error("ruamel.yaml library not found. Update the order manually.")
 
     contest_name = Path().cwd().name
 
@@ -342,14 +373,19 @@ Run this from one of:
         action="store_true",
         help="Copy the output pdf instead of symlinking it.",
     )
-    global_parser.add_argument(
-        "--language", dest="languages", action="append", help="Set language."
-    )
+    global_parser.add_argument("--lang", nargs="+", help="Languages to include.")
 
     subparsers = parser.add_subparsers(
         title="actions", dest="action", parser_class=SuppressingParser
     )
     subparsers.required = True
+
+    # upgrade
+    subparsers.add_parser(
+        "upgrade",
+        parents=[global_parser],
+        help="Upgrade a problem or contest.",
+    )
 
     # New contest
     contestparser = subparsers.add_parser(
@@ -601,21 +637,25 @@ Run this from one of:
     )
     genparser.add_argument(
         "--no-validators",
+        default=False,
         action="store_true",
         help="Ignore results of input and answer validation. Validators are still run.",
     )
     genparser.add_argument(
         "--no-solution",
+        default=False,
         action="store_true",
         help="Skip generating .ans/.interaction files with the solution.",
     )
     genparser.add_argument(
         "--no-visualizer",
+        default=False,
         action="store_true",
         help="Skip generating graphics with the visualizer.",
     )
     genparser.add_argument(
         "--no-testcase-sanity-checks",
+        default=False,
         action="store_true",
         help="Skip sanity checks on testcases.",
     )
@@ -656,6 +696,12 @@ Run this from one of:
         "-G",
         action="store_true",
         help="Do not run `generate` before running submissions.",
+    )
+    runparser.add_argument(
+        "--visualizer",
+        dest="no_visualizer",
+        action="store_false",
+        help="Also run the output visualizer.",
     )
     runparser.add_argument(
         "--all",
@@ -726,6 +772,9 @@ Run this from one of:
     )
     timelimitparser.add_argument(
         "--timeout", "-t", type=int, help="Override the default timeout. Default: 60."
+    )
+    timelimitparser.add_argument(
+        "--no-generate", "-G", action="store_true", help="Do not run `generate`."
     )
 
     # Test
@@ -806,11 +855,21 @@ Run this from one of:
         action="store_true",
         help="Make a zip more following the kattis problemarchive.com format.",
     )
+    zipparser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Make a zip more following the legacy format.",
+    )
     zipparser.add_argument("--no-solutions", action="store_true", help="Do not compile solutions")
 
     # Build a zip with all samples.
-    subparsers.add_parser(
+    samplezipparser = subparsers.add_parser(
         "samplezip", parents=[global_parser], help="Create zip file of all samples."
+    )
+    samplezipparser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Make a zip more following the legacy format.",
     )
 
     gitlab_parser = subparsers.add_parser(
@@ -848,6 +907,11 @@ Run this from one of:
         action="store",
         help="Contest ID to use when writing to the API. Defaults to value of contest_id in contest.yaml.",
     )
+    exportparser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Make export more following the legacy format.",
+    )
 
     updateproblemsyamlparser = subparsers.add_parser(
         "update_problems_yaml",
@@ -862,6 +926,11 @@ Run this from one of:
         "--sort",
         action="store_true",
         help="Sort the problems by id.",
+    )
+    updateproblemsyamlparser.add_argument(
+        "--legacy",
+        action="store_true",
+        help="Make problems.yaml more following the legacy format.",
     )
 
     # Print the corresponding temporary directory.
@@ -940,6 +1009,11 @@ def run_parsed_arguments(args):
             )
         else:
             config.args.testcases = []
+
+    # upgrade commands.
+    if action == "upgrade":
+        upgrade.upgrade()
+        return
 
     # Skel commands.
     if action == "new_contest":
@@ -1021,8 +1095,8 @@ def run_parsed_arguments(args):
         sampleout = Path("samples.zip")
         if level == "problem":
             sampleout = problems[0].path / sampleout
-        statement_language = export.force_single_language(problems)
-        export.build_samples_zip(problems, sampleout, statement_language)
+        languages = export.select_languages(problems)
+        export.build_samples_zip(problems, sampleout, languages)
         return
 
     if action == "rename_problem":
@@ -1083,7 +1157,7 @@ def run_parsed_arguments(args):
 
         if action in ["generate"]:
             success &= generate.generate(problem)
-        if action in ["all", "constraints", "run"] and not config.args.no_generate:
+        if action in ["all", "constraints", "run", "time_limit"] and not config.args.no_generate:
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.jobs = (os.cpu_count() or 1) // 2
@@ -1162,10 +1236,16 @@ def run_parsed_arguments(args):
                 config.args = old_args
 
                 if not config.args.kattis:
-                    # Make sure that all problems use the same language for the PDFs
-                    export.force_single_language(problems)
-
                     success &= latex.build_problem_pdfs(problem)
+                    if not config.args.no_solutions:
+                        success &= latex.build_problem_pdfs(
+                            problem, build_type=latex.PdfType.SOLUTION
+                        )
+
+                    if problem.path.glob(str(latex.PdfType.PROBLEM_SLIDE.path("*"))):
+                        success &= latex.build_problem_pdfs(
+                            problem, build_type=latex.PdfType.PROBLEM_SLIDE
+                        )
 
                 if not config.args.force:
                     success &= problem.validate_data(validate.Mode.INPUT, constraints={})
@@ -1179,10 +1259,8 @@ def run_parsed_arguments(args):
             print(file=sys.stderr)
 
     if action in ["export"]:
-        # Add contest PDF for only one language to DOMjudge
-        statement_language = export.force_single_language(problems)
-
-        export.export_contest_and_problems(problems, statement_language)
+        languages = export.select_languages(problems)
+        export.export_contest_and_problems(problems, languages)
 
     if level == "problemset":
         print(f"{Style.BRIGHT}CONTEST {contest}{Style.RESET_ALL}", file=sys.stderr)
@@ -1210,50 +1288,53 @@ def run_parsed_arguments(args):
             )
 
         if action in ["zip"]:
-            statement_language = None
+            languages = []
             if not config.args.kattis:
-                # Add contest/solutions PDF for only one language to the zip file
-                statement_language = export.force_single_language(problems)
+                languages = export.select_languages(problems)
 
-                success &= latex.build_contest_pdfs(contest, problems, tmpdir, statement_language)
-                success &= latex.build_contest_pdfs(
-                    contest, problems, tmpdir, statement_language, web=True
-                )
-                if not config.args.no_solutions:
-                    success &= latex.build_contest_pdf(
-                        contest,
-                        problems,
-                        tmpdir,
-                        statement_language,
-                        build_type=latex.PdfType.SOLUTION,
-                    )
-                    success &= latex.build_contest_pdf(
-                        contest,
-                        problems,
-                        tmpdir,
-                        statement_language,
-                        build_type=latex.PdfType.SOLUTION,
-                        web=True,
-                    )
                 # Only build the problem slides if at least one problem has the TeX for it
-                if any(
-                    glob(problem.path / "problem_statement", "problem-slide.*.tex")
-                    for problem in problems
-                ):
-                    success &= latex.build_contest_pdf(
-                        contest,
-                        problems,
-                        tmpdir,
-                        statement_language,
-                        build_type=latex.PdfType.PROBLEM_SLIDE,
+                slideglob = latex.PdfType.PROBLEM_SLIDE.path("*")
+                build_problem_slides = any(
+                    problem.path.glob(str(slideglob)) for problem in problems
+                )
+
+                for language in languages:
+                    success &= latex.build_contest_pdfs(contest, problems, tmpdir, language)
+                    success &= latex.build_contest_pdfs(
+                        contest, problems, tmpdir, language, web=True
                     )
-                else:
-                    log("No problem has problem-slide.*.tex, skipping problem slides")
+                    if not config.args.no_solutions:
+                        success &= latex.build_contest_pdf(
+                            contest,
+                            problems,
+                            tmpdir,
+                            language,
+                            build_type=latex.PdfType.SOLUTION,
+                        )
+                        success &= latex.build_contest_pdf(
+                            contest,
+                            problems,
+                            tmpdir,
+                            language,
+                            build_type=latex.PdfType.SOLUTION,
+                            web=True,
+                        )
+                    if build_problem_slides:
+                        success &= latex.build_contest_pdf(
+                            contest,
+                            problems,
+                            tmpdir,
+                            language,
+                            build_type=latex.PdfType.PROBLEM_SLIDE,
+                        )
+
+                if not build_problem_slides:
+                    log(f"No problem has {slideglob.name}, skipping problem slides")
 
             outfile = contest + ".zip"
             if config.args.kattis:
                 outfile = contest + "-kattis.zip"
-            export.build_contest_zip(problems, problem_zips, outfile, statement_language)
+            export.build_contest_zip(problems, problem_zips, outfile, languages)
 
         if action in ["update_problems_yaml"]:
             export.update_problems_yaml(

@@ -1,23 +1,23 @@
 import config
 
 from pathlib import Path
+from typing import cast, Any, Optional
 
 from util import *
 
 # Read the contest.yaml, if available
-_contest_yaml = None
+_contest_yaml: Optional[dict[str, Any]] = None
 
 
-def contest_yaml():
+def contest_yaml() -> dict[str, Any]:
     global _contest_yaml
     if _contest_yaml is not None:
         return _contest_yaml
 
-    # TODO: Do we need both here?
-    for p in [Path("contest.yaml"), Path("../contest.yaml")]:
-        if p.is_file():
-            _contest_yaml = read_yaml_settings(p)
-            return _contest_yaml
+    contest_yaml_path = Path("contest.yaml")
+    if contest_yaml_path.is_file():
+        _contest_yaml = read_yaml_settings(contest_yaml_path)
+        return _contest_yaml
     _contest_yaml = {}
     return _contest_yaml
 
@@ -25,23 +25,23 @@ def contest_yaml():
 _problems_yaml = None
 
 
-def problems_yaml():
+def problems_yaml() -> Optional[list[dict[str, Any]]]:
     global _problems_yaml
-    if _problems_yaml:
-        return _problems_yaml
     if _problems_yaml is False:
         return None
+    if _problems_yaml:
+        return _problems_yaml
 
     problemsyaml_path = Path("problems.yaml")
     if not problemsyaml_path.is_file():
         _problems_yaml = False
         return None
     _problems_yaml = read_yaml(problemsyaml_path)
-    return _problems_yaml
+    return cast(list[dict[str, Any]], _problems_yaml)
 
 
-def get_api():
-    api = config.args.api or contest_yaml().get("api")
+def get_api() -> str:
+    api = config.args.api or cast(str, contest_yaml().get("api"))
     if not api:
         fatal(
             "Could not find key `api` in contest.yaml and it was not specified on the command line."
@@ -105,7 +105,7 @@ def call_api(method, endpoint, **kwargs):
     return r
 
 
-def call_api_get_json(url):
+def call_api_get_json(url: str):
     r = call_api("GET", url)
     r.raise_for_status()
     try:

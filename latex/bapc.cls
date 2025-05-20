@@ -424,6 +424,18 @@
 }
 
 %-------------------------------------------------------------------------------
+% Command to include consatnts.
+% The tooling has to define the commands \constants_<key>{}
+%-------------------------------------------------------------------------------
+\newcommand{\constant}[1]{%
+	\ifcsname constants_#1\endcsname%
+		\csname constants_#1\endcsname%
+	\else%
+		\PackageError{constants}{constant{#1} is not defined}{}%
+	\fi%
+}
+
+%-------------------------------------------------------------------------------
 % The following are required for the overall layout:
 %-------------------------------------------------------------------------------
 \let\sffamilyFB\sffamily% Prevent error if babel fr loads \sffamilyFB in cache

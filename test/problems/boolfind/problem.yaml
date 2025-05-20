@@ -1,26 +1,11 @@
+problem_format_version: 2023-07-draft
+type: interactive
 name: boolfind
-author: DOMjudge
-# BAPC 2020
-source:
-# 2020.bapc.eu
-source_url:
+credits:
+  authors: DOMjudge
 uuid: 8f7ed1ba-43f5-424e-9af4-8a5f2e428ce3
 license: unknown
 rights_owner:
-# 'default', 'custom', or 'interactive'
-validation: custom interactive
 
-# One or more of:
-# case_sensitive
-# space_change_sensitive
-# float_absolute_tolerance eps
-# float_relative_tolerance eps
-# float_tolerance eps
-#validator_flags:
-
-# To change the time limit factors for Kattis, use:
-# limits:
-# Time limit is 2*slowest accepted submission:
-#     time_multiplier: 2
-# Warning for submissions within 1 second of limit:
-#     time_safety_margin: 1
+limits:
+  time_limit: 1.0
