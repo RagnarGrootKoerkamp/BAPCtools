@@ -210,10 +210,8 @@
 	\begin{tabularx}{\textwidth}{|X|X|}%             http://tex.stackexchange.com/a/31704
 		\mySampleHeading{\langinputsample{}} & \mySampleHeading{\langoutputsample{}} \\
 		\hline
-		\SampleListing{#1}
-		&
-		\SampleListing{#2}
-		\\
+		\SampleListing{#1}~ &
+		\SampleListing{#2}~ \\
 		\hline
 	\end{tabularx}%
 	\rmfamily
@@ -228,7 +226,7 @@
 	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
 		\mySampleHeading{\langinput{}} \\
 		\hline
-		\SampleListing{#1} \\
+		\SampleListing{#1}~ \\
 		\hline
 	\end{tabularx}%
 	\nopagebreak
@@ -237,7 +235,7 @@
 	\begin{tabularx}{\textwidth}{|X|}%
 		\mySampleHeading{\langoutput{}} \\
 		\hline
-		\SampleListing{#2} \\
+		\SampleListing{#2}~ \\
 		\hline
 	\end{tabularx}%
 	\rmfamily
@@ -249,10 +247,8 @@
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
 	\begin{tabularx}{\textwidth}{|X|X|}%             http://tex.stackexchange.com/a/31704
 		\hline
-		\SampleListing{#1}
-		&
-		\SampleListing{#2}
-		\\
+		\SampleListing{#1}~ &
+		\SampleListing{#2}~ \\
 		\hline
 	\end{tabularx}%
 	\rmfamily
@@ -264,7 +260,7 @@
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
 	\begin{tabularx}{\textwidth}{|X|}%               http://tex.stackexchange.com/a/31704
 		\hline
-		\SampleListing{#1} \\
+		\SampleListing{#1}~ \\
 		\hline
 	\end{tabularx}%
 	\nopagebreak
@@ -272,7 +268,7 @@
 	\noindent
 	\begin{tabularx}{\textwidth}{|X|}%
 		\hline
-		\SampleListing{#2} \\
+		\SampleListing{#2}~ \\
 		\hline
 	\end{tabularx}%
 	\rmfamily
