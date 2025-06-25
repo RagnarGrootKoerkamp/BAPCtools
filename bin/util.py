@@ -1463,7 +1463,7 @@ def combine_hashes(values: Sequence[str]) -> str:
     return hasher.hexdigest()
 
 
-def combine_hashes_dict(d: dict[str, Optional[str]]) -> str:
+def combine_hashes_dict(d: Mapping[str, Optional[str]]) -> str:
     hasher = hashlib.sha512(usedforsecurity=False)
     for key, value in d.items():
         hasher.update(key.encode())

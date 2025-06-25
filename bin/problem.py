@@ -1175,9 +1175,21 @@ class Problem:
 
     # Returns None for new testcases or the Testcase object it equals.
     def matches_existing_testcase(self, t):
-        if t.root in ["invalid_input", "invalid_answer"]:
-            return None
-        h = hash_file_content(t.in_path)
+        hashes = {}
+        relevant_files = {
+            "invalid_input": ["in"],
+            "invalid_answer": [".in", ".ans"],
+            "invalid_output": [".in", ".ans", ".out"],
+            "valid_output": [".in", ".ans", ".out"],
+        }
+        relevant_files_default = [".in"] if self.settings.ans_is_output else [".in", ".ans"]
+        extensions = relevant_files.get(t.root, relevant_files_default)
+
+        for ext in extensions:
+            if t.with_suffix(ext).is_file():
+                hashes[ext] = hash_file_content(t.with_suffix(ext))
+
+        h = combine_hashes_dict(hashes)
         if h in self._testcase_hashes:
             return self._testcase_hashes[h]
         self._testcase_hashes[h] = t
@@ -1394,14 +1406,7 @@ class Problem:
 
             localbar = bar.start(testcase.name)
 
-            if (
-                mode == validate.Mode.INPUT
-                and not testcase.in_path.is_symlink()
-                and not testcase.root == "invalid_answer"
-                and not testcase.root == "invalid_output"
-                and not testcase.root == "valid_output"
-                and not extra
-            ):
+            if mode == validate.Mode.INPUT and not testcase.in_path.is_symlink() and not extra:
                 t2 = problem.matches_existing_testcase(testcase)
                 if t2 is not None:
                     localbar.warn(
