@@ -556,7 +556,7 @@ class TestcaseRule(Rule):
                     self.rule["copy"] = str(self.copy)
                     for ext in config.KNOWN_TESTCASE_EXTENSIONS:
                         if self.copy.with_suffix(ext).is_file():
-                            hashes[ext] = hash_file(self.copy.with_suffix(ext))
+                            hashes[ext] = hash_file_content(self.copy.with_suffix(ext))
 
                 # 3. hardcoded
                 for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
@@ -586,14 +586,8 @@ class TestcaseRule(Rule):
                             color_type=MessageType.LOG,
                         )
 
-            # build ordered list of hashes we want to consider
-            hs = list(hashes.values())
-
             # combine hashes
-            if len(hs) == 1:
-                self.hash = hs[0]
-            else:
-                self.hash = combine_hashes(hs)
+            self.hash = combine_hashes_dict(hashes)
 
             if self.hash in generator_config.rules_cache:
                 self.copy_of = generator_config.rules_cache[self.hash]
@@ -1170,24 +1164,20 @@ class TestcaseRule(Rule):
 
             # consider specific files for the uniqueness of this testcase
             relevant_files = {
+                "invalid_input": [".in"],
                 "invalid_answer": [".in", ".ans"],
                 "invalid_output": [".in", ".ans", ".out"],
                 "valid_output": [".in", ".ans", ".out"],
             }
-            extensions = relevant_files.get(t.root, [".in"])
+            relevant_files_default = [".in"] if problem.settings.ans_is_output else [".in", ".ans"]
+            extensions = relevant_files.get(t.root, relevant_files_default)
 
             for ext in extensions:
                 if target_infile.with_suffix(ext).is_file():
-                    hashes[ext] = hash_file(target_infile.with_suffix(ext))
-
-            # build ordered list of hashes we want to consider
-            hs = list(hashes.values())
+                    hashes[ext] = hash_file_content(target_infile.with_suffix(ext))
 
             # combine hashes
-            if len(hs) == 1:
-                test_hash = hs[0]
-            else:
-                test_hash = combine_hashes(hs)
+            test_hash = combine_hashes_dict(hashes)
 
             # check for duplicates
             if test_hash not in generator_config.generated_testdata:
