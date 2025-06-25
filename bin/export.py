@@ -113,6 +113,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
         return False
 
+    from ruamel.yaml.comments import CommentedMap
+
     languages = select_languages([problem])
 
     files = [
@@ -195,7 +197,9 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     # handle languages (files and yaml have to be in sync)
     yaml_path = export_dir / "problem.yaml"
     yaml_data = read_yaml(yaml_path)
-    yaml_data["name"] = {language: problem.settings.name[language] for language in languages}
+    yaml_data["name"] = CommentedMap(
+        {language: problem.settings.name[language] for language in languages}
+    )
     for type in PdfType:
         for file in export_dir.glob(str(type.path("*"))):
             if file.suffixes[-2][1:] not in languages:
@@ -254,8 +258,6 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 
     # downgrade some parts of the problem to be more legacy like
     if config.args.legacy:
-        from ruamel.yaml.comments import CommentedMap
-
         # drop format version -> legacy
         if "problem_format_version" in yaml_data:
             ryaml_filter(yaml_data, "problem_format_version")
