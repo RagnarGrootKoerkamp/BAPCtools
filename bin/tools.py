@@ -928,6 +928,11 @@ Run this from one of:
         help="Sort the problems by id.",
     )
     updateproblemsyamlparser.add_argument(
+        "--number",
+        action="store_true",
+        help="Use Sxx for as problem labels.",
+    )
+    updateproblemsyamlparser.add_argument(
         "--legacy",
         action="store_true",
         help="Make problems.yaml more following the legacy format.",

@@ -565,6 +565,15 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
                 d["label"] = label
                 label = inc_label(label)
 
+    if config.args.number:
+        n = 0
+        for d in data:
+            n += 1
+            newlabel = f"S{n:>02}"
+            if d["label"] != newlabel:
+                d["label"] = newlabel
+                change = True
+
     if change:
         if config.args.action in ["update_problems_yaml"] or ask_variable_bool(
             "Update problems.yaml with latest values"
