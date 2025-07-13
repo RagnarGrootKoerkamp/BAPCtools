@@ -70,11 +70,11 @@ def single_pass(action: str, words: list[str]) -> list[str]:
         assert p.stdin is not None and p.stdout is not None
 
         raw = "\n".join([action, str(len(words)), *words])
-        (stdout, stderr) = p.communicate(input=raw)
+        stdout, stderr = p.communicate(input=raw)
         output = [line.strip() for line in stdout.strip().split("\n") if line.strip()]
 
         assert len(output) == len(words), (
-            f"Your submission printed {len(output)} words, expected {len(words)} words."
+            f"Your submission printed {len(output)} words, expected {len(words)} words"
         )
         print(f"{action} exit code: {p.returncode}")
         print(f"{action} output:")
