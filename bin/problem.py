@@ -941,12 +941,13 @@ class Problem:
         if print_warn:
             key = (cls, check_constraints)
             if key not in problem._validators_warn_cache:
+                constraints_msg = " for constraints cecking" if check_constraints else ""
                 problem._validators_warn_cache.add(key)
                 if cls == validate.InputValidator and not validators:
-                    warn("No input validators found.")
+                    warn(f"No input validators{constraints_msg} found.")
                 if cls == validate.AnswerValidator and not validators and not problem.interactive:
                     # for interactive problems, the .ans file should be empty
-                    warn("No answer validators found.")
+                    warn(f"No answer validators{constraints_msg} found.")
 
         build_ok = all(v.ok for v in validators)
 
