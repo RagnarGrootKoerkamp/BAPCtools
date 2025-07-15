@@ -11,4 +11,4 @@ rights_owner:
 
 limits:
   memory: 512
-  time_limit: 3.0
+  time_limit: 10.0
