@@ -1,4 +1,5 @@
 name: {%contest%} PDFs
+enable-email-notifications: true
 on:
   push:
     paths:

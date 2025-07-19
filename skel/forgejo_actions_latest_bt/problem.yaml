@@ -1,4 +1,5 @@
 name: {%problem_path%}
+enable-email-notifications: true
 on:
   push:
     paths:
