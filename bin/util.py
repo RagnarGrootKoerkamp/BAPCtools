@@ -1315,6 +1315,10 @@ class ResourcePopen(subprocess.Popen[bytes]):
             return (pid, sts)
 
 
+class AbortException(Exception):
+    pass
+
+
 def default_exec_code_map(returncode: int) -> ExecStatus:
     if returncode == 0:
         return ExecStatus.ACCEPTED
@@ -1380,15 +1384,6 @@ def exec_command(
 
     process: Optional[ResourcePopen] = None
 
-    def interrupt_handler(sig: Any, frame: Any) -> None:
-        nonlocal process
-        if process is not None:
-            process.kill()
-        fatal("Running interrupted", force=True)
-
-    if threading.current_thread() is threading.main_thread():
-        old_handler = signal.signal(signal.SIGINT, interrupt_handler)
-
     timeout_expired = False
     tstart = time.monotonic()
 
@@ -1418,15 +1413,9 @@ def exec_command(
 
     tend = time.monotonic()
 
-    if threading.current_thread() is threading.main_thread():
-        signal.signal(signal.SIGINT, old_handler)
-
     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
     if process.returncode == -2:
-        if threading.current_thread() is threading.main_thread():
-            fatal("Running interrupted")
-        else:
-            raise ChildProcessError()
+        raise AbortException()
 
     def maybe_crop(s: str) -> str:
         return crop_output(s) if crop else s

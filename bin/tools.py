@@ -1400,9 +1400,12 @@ def main():
     # Will likely only work on linux
     os.environ["MALLOC_PERTURB_"] = str(0b01011001)
 
-    parser = build_parser()
-    parser.set_defaults(**read_personal_config())
-    run_parsed_arguments(parser.parse_args())
+    try:
+        parser = build_parser()
+        parser.set_defaults(**read_personal_config())
+        run_parsed_arguments(parser.parse_args())
+    except AbortException:
+        fatal("Running interrupted")
 
 
 if __name__ == "__main__":
