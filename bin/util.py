@@ -1383,6 +1383,17 @@ def exec_command(
         memory = None
 
     process: Optional[ResourcePopen] = None
+    old_handler = None
+
+    def interrupt_handler(sig: Any, frame: Any) -> None:
+        nonlocal process
+        if process is not None:
+            process.kill()
+        if old_handler is not None:
+            old_handler(sig, frame)
+
+    if threading.current_thread() is threading.main_thread():
+        old_handler = signal.signal(signal.SIGINT, interrupt_handler)
 
     timeout_expired = False
     tstart = time.monotonic()
@@ -1412,6 +1423,9 @@ def exec_command(
         (stdout, stderr) = process.communicate()
 
     tend = time.monotonic()
+
+    if threading.current_thread() is threading.main_thread():
+        signal.signal(signal.SIGINT, old_handler)
 
     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
     if process.returncode == -2:
