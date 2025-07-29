@@ -2,6 +2,7 @@ import config
 import problem
 import random
 import generate
+import shutil
 import signal
 import time
 import threading
@@ -54,6 +55,7 @@ class GeneratorTask:
         # GENERATE THE TEST DATA
         dir = Path("fuzz") / f"tmp_id_{str(self.tmp_id)}"
         cwd = self.fuzz.problem.tmpdir / "tool_runs" / dir
+        shutil.rmtree(cwd, ignore_errors=True)
         cwd.mkdir(parents=True, exist_ok=True)
         name = "testcase"
         infile = cwd / (name + ".in")
@@ -69,7 +71,7 @@ class GeneratorTask:
         if not result.status:
             return False  # No need to call bar.done() in this case, because the Generator calls bar.error()
         if ".ans" in self.rule.hardcoded:
-            infile.with_suffix(".ans").write_text(self.rule.hardcoded[".ans"])
+            ansfile.write_text(self.rule.hardcoded[".ans"])
         localbar.done()
 
         testcase = Testcase(self.fuzz.problem, infile, short_path=dir / (name + ".in"))
@@ -84,33 +86,31 @@ class GeneratorTask:
         localbar.done()
 
         # Generate .ans.
-        if self.fuzz.problem.settings.ans_is_output:
-            if self.solution and not testcase.ans_path.is_file():
-                if testcase.ans_path.is_file():
-                    testcase.ans_path.unlink()
-                # Run the solution and validate the generated .ans.
-                localbar = bar.start(f"{self.i}: generate ans")
-                if not self.solution.run(bar, cwd).status:
+        if not ansfile.is_file():
+            if self.fuzz.problem.settings.ans_is_output:
+                if self.solution:
+                    # Run the solution and validate the generated .ans.
+                    localbar = bar.start(f"{self.i}: generate ans")
+                    if not self.solution.run(bar, cwd).status:
+                        self.fuzz.queue.ensure_alive()
+                        localbar.done()
+                        return False
                     self.fuzz.queue.ensure_alive()
                     localbar.done()
-                    return False
-                self.fuzz.queue.ensure_alive()
-                localbar.done()
+            elif self.fuzz.problem.interactive or self.fuzz.problem.multi_pass:
+                ansfile.write_text("")
 
-            if ansfile.is_file():
-                localbar = bar.start(f"{self.i}: validate output")
-                if not testcase.validate_format(Mode.ANSWER, bar=localbar):
-                    self.fuzz.queue.ensure_alive()
-                    localbar.done(False)
-                    return False
+        if ansfile.is_file():
+            localbar = bar.start(f"{self.i}: validate output")
+            if not testcase.validate_format(Mode.ANSWER, bar=localbar):
                 self.fuzz.queue.ensure_alive()
-                localbar.done()
-            else:
-                bar.error(f"{self.i}: {ansfile.name} was not generated.")
+                localbar.done(False)
                 return False
+            self.fuzz.queue.ensure_alive()
+            localbar.done()
         else:
-            if not testcase.ans_path.is_file():
-                testcase.ans_path.write_text("")
+            bar.error(f"{self.i}: {ansfile.name} was not generated.")
+            return False
 
         # Run all submissions against the testcase.
         with self.fuzz.queue:
