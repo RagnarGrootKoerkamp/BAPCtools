@@ -1244,6 +1244,14 @@ def limit_setter(
     group: Optional[int] = None,
     cores: Literal[False] | list[int] = False,
 ) -> Callable[[], None]:
+    if memory_limit:
+        assert command is not None
+        name = Path(command[0]).name
+
+    if group is not None:
+        assert not is_windows()
+        assert not is_mac()
+
     def setlimits() -> None:
         if timeout:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
@@ -1255,8 +1263,7 @@ def limit_setter(
             )
 
         if memory_limit:
-            assert command is not None
-            if Path(command[0]).name not in ["java", "javac", "kotlin", "kotlinc"] and not is_bsd():
+            if name not in ["java", "javac", "kotlin", "kotlinc"] and not is_bsd():
                 resource.setrlimit(
                     resource.RLIMIT_AS,
                     (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
@@ -1264,8 +1271,6 @@ def limit_setter(
 
         # TODO: with python 3.11 it is better to use Popen(process_group=group)
         if group is not None:
-            assert not is_windows()
-            assert not is_mac()
             os.setpgid(0, group)
 
         if cores is not False and not is_windows() and not is_bsd():
