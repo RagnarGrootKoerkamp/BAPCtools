@@ -1246,7 +1246,7 @@ def limit_setter(
 ) -> Callable[[], None]:
     if memory_limit:
         assert command is not None
-        name = Path(command[0]).name
+        jvm = Path(command[0]).name in ["java", "javac", "kotlin", "kotlinc"]
 
     if group is not None:
         assert not is_windows()
@@ -1263,7 +1263,7 @@ def limit_setter(
             )
 
         if memory_limit:
-            if name not in ["java", "javac", "kotlin", "kotlinc"] and not is_bsd():
+            if not jvm and not is_bsd():
                 resource.setrlimit(
                     resource.RLIMIT_AS,
                     (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
