@@ -1262,12 +1262,11 @@ def limit_setter(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
 
-        if memory_limit:
-            if not jvm and not is_bsd():
-                resource.setrlimit(
-                    resource.RLIMIT_AS,
-                    (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
-                )
+        if memory_limit and not jvm and not is_bsd():
+            resource.setrlimit(
+                resource.RLIMIT_AS,
+                (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
+            )
 
         # TODO: with python 3.11 it is better to use Popen(process_group=group)
         if group is not None:
