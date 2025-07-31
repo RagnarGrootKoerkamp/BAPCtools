@@ -273,6 +273,8 @@ class ProblemSettings:
         self.keywords: list[str] = parse_optional_list_setting(yaml_data, "keywords", str)
         # Not implemented in BAPCtools. We always test all languges in langauges.yaml.
         self.languages: list[str] = parse_optional_list_setting(yaml_data, "languages", str)
+        # Not implemented in BAPCtools
+        self.allow_file_writing: bool = parse_setting(yaml_data, "allow_file_writing", False)
 
         constants: dict[str, Any] = parse_setting(yaml_data, "constants", {})
         self.constants: dict[str, str] = {}
