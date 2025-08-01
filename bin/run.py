@@ -116,12 +116,11 @@ class Run:
                         break
                 elif result.status == ExecStatus.ERROR:
                     result.verdict = Verdict.RUNTIME_ERROR
-                    if config.args.error:
-                        result.err = (
-                            "Exited with code " + str(result.returncode) + ":\n" + result.err
-                        )
+                    msg = f"Exited with code {result.returncode}"
+                    if config.args.error and result.err:
+                        result.err = f"{msg}:\n{result.err}"
                     else:
-                        result.err = "Exited with code " + str(result.returncode)
+                        result.err = msg
                     break
 
                 result = self._validate_output(bar)
