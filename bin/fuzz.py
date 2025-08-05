@@ -236,13 +236,27 @@ class Fuzz:
         def runner(task: GeneratorTask | SubmissionTask) -> None:
             task.run(bar)
 
-        # config.args.no_bar = True
-        # max(len(s.name) for s in self.submissions)
-        bar = ProgressBar("Fuzz", max_len=60)
         self.start_time = time.monotonic()
         self.iteration = 0
         self.tasks = 0
         self.queue = parallel.new_queue(runner, pin=True)
+
+        # pool of ids used for generators
+        self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
+        self.free_tmp_id = {*range(self.tmp_ids)}
+        self.tmp_id_count = [0] * self.tmp_ids
+
+        max_len = max(
+            25,
+            *[len(s.name) for s in self.submissions],
+            *[
+                len(t.generator.cache_command(seed=2**32))
+                for t in self.testcase_rules
+                if t.generator is not None
+            ],
+        )
+        max_len += len(f"{self.tmp_ids}: ")
+        bar = ProgressBar("Fuzz", max_len=max_len)
 
         def soft_exit(sig: Any, frame: Any) -> None:
             if self.queue.aborted:
@@ -258,11 +272,6 @@ class Fuzz:
                     )
 
         old_handler = signal.signal(signal.SIGINT, soft_exit)
-
-        # pool of ids used for generators
-        self.tmp_ids = 2 * max(1, self.queue.num_threads) + 1
-        self.free_tmp_id = {*range(self.tmp_ids)}
-        self.tmp_id_count = [0] * self.tmp_ids
 
         # add first generator task
         self.finish_task()
