@@ -4,11 +4,12 @@ import random
 import generate
 import shutil
 import signal
+import sys
 import time
 import threading
 from colorama import Style
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, TextIO
 
 import parallel
 from util import *
@@ -172,6 +173,23 @@ class SubmissionTask:
             localbar.done()
 
 
+class FuzzProgressBar(ProgressBar):
+    def __init__(self, queue: parallel.AbstractQueue, prefix: str, max_len: int):
+        super().__init__(prefix, max_len)
+        self.queue = queue
+
+    def _print(
+        self,
+        *objects,
+        sep: str = "",
+        end: str = "\n",
+        file: TextIO = sys.stderr,
+        flush: bool = True,
+    ):
+        self.queue.ensure_alive()
+        super()._print(*objects, sep=sep, end=end, file=file, flush=flush)
+
+
 class Fuzz:
     def __init__(self, problem: problem.Problem):
         self.generators_yaml_mutex = threading.Lock()
@@ -256,7 +274,7 @@ class Fuzz:
             ],
         )
         max_len += len(f"{self.tmp_ids}: ")
-        bar = ProgressBar("Fuzz", max_len=max_len)
+        bar = FuzzProgressBar(self.queue, "Fuzz", max_len=max_len)
 
         def soft_exit(sig: Any, frame: Any) -> None:
             if self.queue.aborted:
@@ -264,7 +282,7 @@ class Fuzz:
             else:
                 self.queue.abort()
                 with bar:
-                    bar.clearline()
+                    print(bar.carriage_return, file=sys.stderr)
                     message(
                         "Running interrupted (waiting on remaining tasks)\n",
                         "\nFuzz",
