@@ -242,7 +242,7 @@ while True:
 
         if interaction:
             team_tee = subprocess.Popen(
-                ["python3", "-c", TEE_CODE, ">"],
+                [sys.executable, "-c", TEE_CODE, ">"],
                 stdin=subprocess.PIPE,
                 stdout=validator.stdin,
                 stderr=interaction_file,
@@ -251,7 +251,7 @@ while True:
             )
             team_tee_pid = team_tee.pid
             val_tee = subprocess.Popen(
-                ["python3", "-c", TEE_CODE, "<"],
+                [sys.executable, "-c", TEE_CODE, "<"],
                 stdin=validator.stdout,
                 stdout=subprocess.PIPE,
                 stderr=interaction_file,

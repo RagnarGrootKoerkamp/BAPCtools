@@ -1244,6 +1244,14 @@ def limit_setter(
     group: Optional[int] = None,
     cores: Literal[False] | list[int] = False,
 ) -> Callable[[], None]:
+    if memory_limit:
+        assert command is not None
+        jvm = Path(command[0]).name in ["java", "javac", "kotlin", "kotlinc"]
+
+    if group is not None:
+        assert not is_windows()
+        assert not is_mac()
+
     def setlimits() -> None:
         if timeout:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
@@ -1254,18 +1262,14 @@ def limit_setter(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
 
-        if memory_limit:
-            assert command is not None
-            if Path(command[0]).name not in ["java", "javac", "kotlin", "kotlinc"] and not is_bsd():
-                resource.setrlimit(
-                    resource.RLIMIT_AS,
-                    (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
-                )
+        if memory_limit and not jvm and not is_bsd():
+            resource.setrlimit(
+                resource.RLIMIT_AS,
+                (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
+            )
 
         # TODO: with python 3.11 it is better to use Popen(process_group=group)
         if group is not None:
-            assert not is_windows()
-            assert not is_mac()
             os.setpgid(0, group)
 
         if cores is not False and not is_windows() and not is_bsd():
@@ -1313,6 +1317,10 @@ class ResourcePopen(subprocess.Popen[bytes]):
             else:
                 self.rusage = None
             return (pid, sts)
+
+
+class AbortException(Exception):
+    pass
 
 
 def default_exec_code_map(returncode: int) -> ExecStatus:
@@ -1379,12 +1387,14 @@ def exec_command(
         memory = None
 
     process: Optional[ResourcePopen] = None
+    old_handler = None
 
     def interrupt_handler(sig: Any, frame: Any) -> None:
         nonlocal process
         if process is not None:
             process.kill()
-        fatal("Running interrupted", force=True)
+        if old_handler is not None:
+            old_handler(sig, frame)
 
     if threading.current_thread() is threading.main_thread():
         old_handler = signal.signal(signal.SIGINT, interrupt_handler)
@@ -1423,10 +1433,7 @@ def exec_command(
 
     # -2 corresponds to SIGINT, i.e. keyboard interrupt / CTRL-C.
     if process.returncode == -2:
-        if threading.current_thread() is threading.main_thread():
-            fatal("Running interrupted")
-        else:
-            raise ChildProcessError()
+        raise AbortException()
 
     def maybe_crop(s: str) -> str:
         return crop_output(s) if crop else s

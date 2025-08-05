@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import heapq
 import os
-import signal
 import threading
 from collections.abc import Callable, Sequence
 from typing import Any, Generic, Literal, Optional, TypeVar
@@ -65,6 +64,10 @@ class AbstractQueue(Generic[T]):
     def abort(self) -> None:
         self.aborted = True
 
+    def ensure_alive(self) -> None:
+        if self.aborted:
+            raise util.AbortException()
+
 
 class SequentialQueue(AbstractQueue[T]):
     def __init__(self, f: Callable[[T], Any], pin: bool):
@@ -87,7 +90,11 @@ class SequentialQueue(AbstractQueue[T]):
 
         # no task will be handled after self.abort()
         while self.tasks and not self.aborted:
-            self.f(heapq.heappop(self.tasks).task)
+            try:
+                self.f(heapq.heappop(self.tasks).task)
+            except Exception as e:
+                if not self.aborted:
+                    raise e
 
         if self.pin:
             os.sched_setaffinity(0, cores)
@@ -125,8 +132,6 @@ class ParallelQueue(AbstractQueue[T]):
             t.start()
             self.threads.append(t)
 
-        signal.signal(signal.SIGINT, self._interrupt_handler)
-
     def _worker(self, cores: Literal[False] | list[int] = False) -> None:
         if cores is not False:
             os.sched_setaffinity(0, cores)
@@ -153,8 +158,9 @@ class ParallelQueue(AbstractQueue[T]):
                 current_error = None
                 self.f(task)
             except Exception as e:
-                self.abort()
-                current_error = e
+                if not self.aborted:
+                    self.abort()
+                    current_error = e
 
             with self.mutex:
                 if not self.first_error:
@@ -164,16 +170,10 @@ class ParallelQueue(AbstractQueue[T]):
                 if self.missing == 0:
                     self.all_done.notify_all()
 
-    def _interrupt_handler(self, sig: Any, frame: Any) -> None:
-        util.fatal("Running interrupted", force=True)
-
     def _handle_first_error(self) -> None:
         if self.first_error is not None:
             first_error = self.first_error
             self.first_error = None
-            # we are the main thread now, so we can handle this
-            if isinstance(first_error, ChildProcessError):
-                self._interrupt_handler(None, None)
             raise first_error
 
     # Add one task. Higher priority => done first
