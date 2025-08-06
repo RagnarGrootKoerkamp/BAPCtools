@@ -105,8 +105,16 @@ eq:
 ---
 yaml:
   problem_format_version: 2023-07-draft
-  credits: A. U. Thor <author@example.com>
+  credits:
+    authors: A. U. Thor <author@example.com>
 eq:
+  credits:
+    authors:
+      - name: A. U. Thor
+        email: author@example.com
+---
+yaml:
+  problem_format_version: 2023-07-draft
   credits:
     authors:
       - name: A. U. Thor

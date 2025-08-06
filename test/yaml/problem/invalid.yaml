@@ -164,6 +164,14 @@ yaml:
     - name: Audrey Authorson
       email: bob@foo.bar
 warn: "incompatible value for key 'credits' in problem.yaml. SKIPPED."
+---
+yaml:
+  problem_format_version: 2023-07-draft
+  name: Cannot specify multiple authors in credits
+  credits:
+    authors:
+      - name: 42
+warn: "incompatible value for key 'name' in problem.yaml. SKIPPED."
 
 ---
 # Source

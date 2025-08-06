@@ -34,18 +34,21 @@ def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None)
 
 
 class Person:
-    def __init__(self, name: str):
-        match = re.match("(.*)<(.*)>", name)
-        self.name: str = (match[1] if match else name).strip()
-        self.email: Optional[str] = match[2].strip() if match else None
+    def __init__(self, yaml_data: str | dict[str, Any]):
+        if isinstance(yaml_data, dict):
+            self.name: str = parse_setting(yaml_data, "name", "")
+            self.email: Optional[str] = parse_optional_setting(yaml_data, "email", str)
+            self.kattis: Optional[str] = parse_optional_setting(yaml_data, "kattis", str)
+            self.orcid: Optional[str] = parse_optional_setting(yaml_data, "orcid", str)
+        else:
+            match = re.match("(.*)<(.*)>", yaml_data)
+            self.name = (match[1] if match else yaml_data).strip()
+            self.email = match[2].strip() if match else None
+            self.kattis = self.orcid = None
 
 
 class ProblemCredits:
-    def __init__(
-        self,
-        yaml_data: dict[str, Any],
-        problem_settings: "ProblemSettings",
-    ):
+    def __init__(self, yaml_data: dict[str, Any]):
         self.authors: list[Person] = []
         self.contributors: list[Person] = []
         self.testers: list[Person] = []
@@ -61,22 +64,35 @@ class ProblemCredits:
             return
 
         credits = parse_setting(yaml_data, "credits", dict[str, Any]())
-        self.authors = [Person(s) for s in parse_optional_list_setting(credits, "authors", str)]
-        self.contributors = [
-            Person(s) for s in parse_optional_list_setting(credits, "contributors", str)
-        ]
+        self.authors = self.parse_optional_list_persons(credits, "authors")
+        self.contributors = self.parse_optional_list_persons(credits, "contributors")
         self.translators = parse_setting(credits, "translators", {})
         for lang in list(self.translators.keys()):
-            self.translators[lang] = [
-                Person(s) for s in parse_optional_list_setting(self.translators, lang, str)
-            ]
-        self.testers = [Person(s) for s in parse_optional_list_setting(credits, "testers", str)]
-        self.packagers = [Person(s) for s in parse_optional_list_setting(credits, "packagers", str)]
-        self.acknowledgements = [
-            Person(s) for s in parse_optional_list_setting(credits, "acknowledgements", str)
-        ]
+            self.translators[lang] = self.parse_optional_list_persons(self.translators, lang)
+        self.testers = self.parse_optional_list_persons(credits, "testers")
+        self.packagers = self.parse_optional_list_persons(credits, "packagers")
+        self.acknowledgements = self.parse_optional_list_persons(credits, "acknowledgements")
 
         check_unknown_keys(credits, "credits")
+
+    # Based on parse_optional_list_setting: the type checker does not like type unions like `str | dict`.
+    @staticmethod
+    def parse_optional_list_persons(yaml_data: dict[str, Any], key: str) -> list[Person]:
+        if key in yaml_data:
+            value = yaml_data.pop(key)
+            if isinstance(value, str | dict):
+                return [Person(value)]
+            if isinstance(value, list):
+                if not all(isinstance(v, str | dict) for v in value):
+                    warn(
+                        f"some values for key '{key}' in problem.yaml do not have type str or dict. SKIPPED."
+                    )
+                    return []
+                if not value:
+                    warn(f"value for '{key}' in problem.yaml should not be an empty list.")
+                return list(map(Person, value))
+            warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+        return []
 
 
 class ProblemSource:
@@ -253,7 +269,7 @@ class ProblemSettings:
             self.name[lang] = parse_setting(self.name, lang, "")
         self.uuid: str = parse_setting(yaml_data, "uuid", "")
         self.version: str = parse_setting(yaml_data, "version", "")
-        self.credits: ProblemCredits = ProblemCredits(yaml_data, self)
+        self.credits: ProblemCredits = ProblemCredits(yaml_data)
         self.source: ProblemSources = ProblemSources(yaml_data)
         self.license: str = parse_setting(yaml_data, "license", "unknown")
         self.rights_owner: Optional[str] = parse_optional_setting(yaml_data, "rights_owner", str)
@@ -271,7 +287,7 @@ class ProblemSettings:
         )
 
         self.keywords: list[str] = parse_optional_list_setting(yaml_data, "keywords", str)
-        # Not implemented in BAPCtools. We always test all languges in langauges.yaml.
+        # Not implemented in BAPCtools. We always test all languages in languages.yaml.
         self.languages: list[str] = parse_optional_list_setting(yaml_data, "languages", str)
         # Not implemented in BAPCtools
         self.allow_file_writing: bool = parse_setting(yaml_data, "allow_file_writing", False)
