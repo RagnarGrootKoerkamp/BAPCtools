@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://json.schemastore.org/problem_package_generators.json",
   "$defs": {
-    "testgroup": {
+    "test_group": {
       "type": "object",
       "title": "Test Group",
       "description": "A test group",
@@ -37,19 +37,19 @@
             "type": "string"
           }
         },
-        "testdata.yaml": {
-          "$ref": "#/$defs/testdata_settings"
+        "test_group.yaml": {
+          "$ref": "#/$defs/test_group_settings"
         },
         "solution": {
           "$ref": "#/$defs/solution"
-        },
+        }
       },
       "additionalProperties": false
     },
-    "testdata_settings": {
+    "test_group_settings": {
       "type": "object",
       "title": "Test data settings",
-      "description": "The settings that apply to the test data for this test group. Will be copied to this test group's `testdata.yaml`.",
+      "description": "The settings that apply to the test data for this test group. Will be copied to this test group's `test_group.yaml`.",
       "properties": {
         "on_reject": {
           "enum": ["break", "continue"],
@@ -134,10 +134,10 @@
         "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9]|)$": {
           "oneOf": [
             {
-              "$ref": "#/$defs/testgroup"
+              "$ref": "#/$defs/test_group"
             },
             {
-              "$ref": "#/$defs/testcase"
+              "$ref": "#/$defs/test_case"
             }
           ]
         }
@@ -145,7 +145,7 @@
       "additionalProperties": false,
       "minProperties": 1
     },
-    "testcase": {
+    "test_case": {
       "title": "Test Case",
       "description": "A test case, i.e., a single instance to the problem.",
       "oneOf": [
@@ -280,7 +280,7 @@
     }
   },
   "additionalProperties": true,
-  "description": "Generate test data for this problem. Version 2025-04.",
+  "description": "Generate test data for this problem. Version 2025-08.",
   "properties": {
     "solution": {
       "$ref": "#/$defs/solution"
@@ -309,37 +309,37 @@
       "type": "object",
       "properties": {
         "sample": {
-          "$ref": "#/$defs/testgroup",
+          "$ref": "#/$defs/test_group",
           "title": "Sample inputs",
           "description": "Test cases shown to the solver in the problem statement"
         },
         "secret": {
-          "$ref": "#/$defs/testgroup",
+          "$ref": "#/$defs/test_group",
           "title": "Secret inputs",
           "description": "The test cases against which submissions are validated"
         },
         "invalid_input": {
-          "$ref": "#/$defs/testgroup",
+          "$ref": "#/$defs/test_group",
           "title": "Invalid inputs",
           "description": "Test cases whose input files are invalid"
         },
         "invalid_answer": {
-          "$ref": "#/$defs/testgroup",
+          "$ref": "#/$defs/test_group",
           "title": "Invalid answers",
           "description": "Test cases whose answer files are invalid. Inputs must be valid."
         },
         "invalid_output": {
-          "$ref": "#/$defs/testgroup",
+          "$ref": "#/$defs/test_group",
           "title": "Invalid outputs",
           "description": "Valid test cases for which the `.out` string is rejected by output validation."
         },
         "valid_output": {
-          "$ref": "#/$defs/testgroup",
+          "$ref": "#/$defs/test_group",
           "title": "Valid outputs",
           "description": "Valid test cases for which the `.out` must pass output validation."
         },
-        "testdata.yaml": {
-          "$ref": "#/$defs/testdata_settings"
+        "test_group.yaml": {
+          "$ref": "#/$defs/test_group_settings"
         }
       },
       "additionalProperties": false,

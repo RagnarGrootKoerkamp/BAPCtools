@@ -283,7 +283,9 @@ class ProblemSettings:
         self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
 
         parse_deprecated_setting(
-            yaml_data, "validator_flags", f"{validate.OutputValidator.args_key}' in 'testdata.yaml"
+            yaml_data,
+            "validator_flags",
+            f"{validate.OutputValidator.args_key}' in 'test_group.yaml",
         )
 
         self.keywords: list[str] = parse_optional_list_setting(yaml_data, "keywords", str)
@@ -362,9 +364,9 @@ class Problem:
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
-        # TODO #102: Add type for testdata.yaml (typed Namespace?)
-        self._testdata_yamls = dict[Path, dict[str, Any]]()
-        self._testdata_lock = threading.Lock()
+        # TODO #102: Add type for test_group.yaml (typed Namespace?)
+        self._test_group_yamls = dict[Path, dict[str, Any]]()
+        self._test_group_lock = threading.Lock()
 
         # The label for the problem: A, B, A1, A2, X, ...
         self.label = label
@@ -457,25 +459,25 @@ class Problem:
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
 
-    # TODO #102 move to TestData class
-    def _parse_testdata_yaml(p, path, bar):
+    # TODO #102 move to a new TestGroup class
+    def _parse_test_group_yaml(p, path, bar):
         assert path.is_relative_to(p.path / "data")
         for dir in [path] + list(path.parents):
             # Do not go above the data directory.
             if dir == p.path:
                 return
 
-            f = dir / "testdata.yaml"
-            if not f.is_file() or f in p._testdata_yamls:
+            f = dir / "test_group.yaml"
+            if not f.is_file() or f in p._test_group_yamls:
                 continue
-            with p._testdata_lock:
-                if f not in p._testdata_yamls:
+            with p._test_group_lock:
+                if f not in p._test_group_yamls:
                     raw = substitute(
                         f.read_text(),
                         p.settings.constants,
                         pattern=config.CONSTANT_SUBSTITUTE_REGEX,
                     )
-                    p._testdata_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
+                    p._test_group_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
 
                     parse_deprecated_setting(
                         flags, "output_validator_flags", validate.OutputValidator.args_key
@@ -484,7 +486,7 @@ class Problem:
                         flags, "input_validator_flags", validate.InputValidator.args_key
                     )
 
-                    # Verify testdata.yaml
+                    # Verify test_group.yaml
                     for k in flags:
                         match k:
                             case (
@@ -524,7 +526,7 @@ class Problem:
                                 | "static_validation"
                             ):
                                 bar.warn(
-                                    f"{k} in testdata.yaml not implemented in BAPCtools",
+                                    f"{k} in test_group.yaml not implemented in BAPCtools",
                                     print_item=False,
                                 )
                             case _:
@@ -534,7 +536,7 @@ class Problem:
             if dir == p.path / "data":
                 break
 
-    def get_testdata_yaml(
+    def get_test_group_yaml(
         p,
         path: Path,
         key: str,
@@ -542,20 +544,20 @@ class Problem:
         name: Optional[str] = None,
     ) -> list[str]:
         """
-        Find the testdata flags applying at the given path for the given key.
-        If necessary, walk up from `path` looking for the first testdata.yaml file that applies,
+        Find the value of the given test_group.yaml key applying at the given path.
+        If necessary, walk up from `path` looking for the first test_group.yaml file that applies.
 
         Side effects: parses and caches the file.
 
         Arguments
         ---------
         path: absolute path (a file or a directory)
-        key: The testdata.yaml key to look for (TODO: 'grading' is not yet implemented)
+        key: The test_group.yaml key to look for (TODO: 'grading' is not yet implemented)
         name: If key == 'input_validator_args', optionally the name of the input validator.
 
         Returns:
         --------
-        A list of string arguments, which is empty if no testdata.yaml is found.
+        A list of string arguments, which is empty if no test_group.yaml is found.
         TODO: when 'grading' is supported, it also can return dict
         """
         known_args_keys = [
@@ -572,8 +574,8 @@ class Problem:
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
 
-        # parse and cache testdata.yaml
-        p._parse_testdata_yaml(path, bar)
+        # parse and cache test_group.yaml
+        p._parse_test_group_yaml(path, bar)
 
         # extract the flags
         for dir in [path] + list(path.parents):
@@ -581,10 +583,10 @@ class Problem:
             if dir == p.path:
                 return []
 
-            f = dir / "testdata.yaml"
-            if f not in p._testdata_yamls:
+            f = dir / "test_group.yaml"
+            if f not in p._test_group_yamls:
                 continue
-            flags = p._testdata_yamls[f]
+            flags = p._test_group_yamls[f]
             if key in flags:
                 args = flags[key]
                 if key == validate.InputValidator.args_key:
@@ -1331,7 +1333,7 @@ class Problem:
         if not p.validators(validate.OutputValidator, strict=True, print_warn=False):
             return True
 
-        args = p.get_testdata_yaml(
+        args = p.get_test_group_yaml(
             p.path / "data" / "valid_output",
             "output_validator_args",
             PrintBar("Generic Output Validation"),
@@ -1492,7 +1494,7 @@ class Problem:
                 return None, None, None
 
             def get_slowest(result):
-                slowest_pair = result.slowest_testcase()
+                slowest_pair = result.slowest_test_case()
                 assert slowest_pair is not None
                 return slowest_pair
 

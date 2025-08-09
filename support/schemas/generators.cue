@@ -27,17 +27,17 @@ import "strings"
 	random_salt?: string
 }
 
-#testgroup_config: {
+#test_group_config: {
 	#config
-	"testdata.yaml": #testdata_settings
+	"test_group.yaml": #test_group_settings
 }
 
-#testcase:
+#test_case:
 	#command & !~"^/" |
 	{
 		generate?: #command & !~"^/"
 		count?:    int & >=1 & <=100
-		// The "copy" key uses a path relative to "/generators/" ending in a testcase name,
+		// The "copy" key uses a path relative to "/generators/" ending in a test case name,
 		// such as "manual/samples/3".
 		copy?: #dirpath
 
@@ -48,30 +48,30 @@ import "strings"
 		#config
 	}
 
-#data_dict: {[#name]: #testgroup | #testcase}
-#data_list: {[#name | ""]: #testgroup | #testcase} & struct.MinFields(1) & struct.MaxFields(1)
+#data_dict: {[#name]: #test_group | #test_case}
+#data_list: {[#name | ""]: #test_group | #test_case} & struct.MinFields(1) & struct.MaxFields(1)
 
-#testgroup: {
+#test_group: {
 	data?: #data_dict | [...#data_list]
 	include?: [...#dirpath]
-	#testgroup_config
+	#test_group_config
 }
 
 #Generators: {
-	// Generators are named like files or testcases, like "tree.py" or "a".
+	// Generators are named like files or test cases, like "tree.py" or "a".
 	// Each consists of a nonempty list of paths relative to "/generators/",
 	// such as ["tree_generator/tree.py", "lib.py"].
 	generators?: [#name]: [...(#path & !~"^/")] & [_, ...]
 	data: close({
-		sample!:          #testgroup
-		secret!:          #testgroup
-		invalid_input?:  #testgroup
-		invalid_answer?: #testgroup
-		invalid_output?: #testgroup
-		valid_output?: #testgroup
+		sample!:         #test_group
+		secret!:         #test_group
+		invalid_input?:  #test_group
+		invalid_answer?: #test_group
+		invalid_output?: #test_group
+		valid_output?:   #test_group
 	})
-	#testgroup_config
-	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2025-04"
+	#test_group_config
+	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2025-08"
 
 	... // Do allow unknown_key at top level for tooling
 }

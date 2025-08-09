@@ -7,7 +7,7 @@ data: {sample: {data: []}}
 # missing sample:
 data: {secret: {data: []}}
 ---
-# invalid testgroup below root
+# invalid test group below root
 data: {sample: {data: []}, secret: {data: []}, public: {data: []}}
 ---
 # solution must be null or string
@@ -276,7 +276,7 @@ data: {sample: {data: []}, secret: {data: []}}
 #generate: xyz
 #data: {sample: {data: []}, secret: {data: []}}
 #---
-# No testgroup generate
+# No generate in test group
 data:
   sample: {data: []}
   secret:
@@ -381,7 +381,7 @@ data:
        generate: my_generator {count}
        count: 101
 ---
-# No testdata.yaml on testcase level
+# No test_group.yaml on testcase level
 # TODO Not picked up by JSON schema
 data:
   sample: {}
@@ -389,5 +389,5 @@ data:
     data:
     - '':
         in: '1 2'
-        testdata.yaml:      # this is not ok
+        test_group.yaml:      # this is not ok
           input_validator_args: [connected]

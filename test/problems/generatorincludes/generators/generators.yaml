@@ -10,7 +10,7 @@ data:
   secret:
     data:
       - small:
-          testdata.yaml:
+          test_group.yaml:
             output_validator_args: [space_change_sensitive]
             input_validator_args:
               connected: [--small]

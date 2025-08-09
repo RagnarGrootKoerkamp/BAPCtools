@@ -54,20 +54,20 @@ class MockProblem:
 
 
 class TestProblemYaml:
-    @pytest.mark.parametrize("testdata", read_tests("valid"))
-    def test_valid(self, testdata):
+    @pytest.mark.parametrize("test_data", read_tests("valid"))
+    def test_valid(self, test_data):
         config.n_error = 0
         config.n_warn = 0
 
-        p = problem.ProblemSettings(testdata["yaml"], cast(problem.Problem, MockProblem()))
+        p = problem.ProblemSettings(test_data["yaml"], cast(problem.Problem, MockProblem()))
         assert config.n_error == 0 and config.n_warn == 0, (
             f"Expected zero errors and warnings, got {config.n_error} and {config.n_warn}"
         )
-        if "eq" in testdata:
-            assert_equal(p, testdata["eq"])
+        if "eq" in test_data:
+            assert_equal(p, test_data["eq"])
 
-    @pytest.mark.parametrize("testdata", read_tests("invalid"))
-    def test_invalid(self, monkeypatch, testdata):
+    @pytest.mark.parametrize("test_data", read_tests("invalid"))
+    def test_invalid(self, monkeypatch, test_data):
         config.n_error = 0
         config.n_warn = 0
 
@@ -85,16 +85,16 @@ class TestProblemYaml:
         )
 
         try:
-            problem.ProblemSettings(testdata["yaml"], cast(problem.Problem, MockProblem()))
+            problem.ProblemSettings(test_data["yaml"], cast(problem.Problem, MockProblem()))
         except SystemExit as e:
             assert e.code == -42
 
-        assert ([call(testdata["fatal"])] if "fatal" in testdata else []) == fatal.mock_calls
+        assert ([call(test_data["fatal"])] if "fatal" in test_data else []) == fatal.mock_calls
 
-        if isinstance(testdata.get("error", None), str):
-            testdata["error"] = [testdata["error"]]
-        assert [call(x) for x in testdata.get("error", [])] == error.mock_calls
+        if isinstance(test_data.get("error", None), str):
+            test_data["error"] = [test_data["error"]]
+        assert [call(x) for x in test_data.get("error", [])] == error.mock_calls
 
-        if isinstance(testdata.get("warn", None), str):
-            testdata["warn"] = [testdata["warn"]]
-        assert [call(x) for x in testdata.get("warn", [])] == warn.mock_calls
+        if isinstance(test_data.get("warn", None), str):
+            test_data["warn"] = [test_data["warn"]]
+        assert [call(x) for x in test_data.get("warn", [])] == warn.mock_calls

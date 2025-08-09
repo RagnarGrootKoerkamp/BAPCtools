@@ -22,6 +22,7 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
     import problem
 
 
+# TODO #102: Consistently separate the compound noun "test case", e.g. "TestCase" or "test_case"
 class Testcase:
     """
     A single test case. It consists of files with matching base names, typically
@@ -59,8 +60,8 @@ class Testcase:
     ans_path: Path
         Like `hamiltonicity/data/secret/cubic/petersen.ans`.
 
-    testdata_yaml: dict
-        The YAML-parsed test data flags that apply to this test case.
+    out_path: Path
+        Like `hamiltonicity/data/secret/cubic/petersen.out`.
 
     """
 
@@ -115,13 +116,13 @@ class Testcase:
     def with_suffix(self, ext: str) -> Path:
         return self.in_path.with_suffix(ext)
 
-    def testdata_yaml_args(
+    def test_group_yaml_args(
         self,
         program: "validate.AnyValidator | visualize.AnyVisualizer",
         bar: BAR_TYPE,
     ) -> list[str]:
         """
-        The flags specified in testdata.yaml for the given validator applying to this testcase.
+        The flags specified in test_group.yaml for the given validator applying to this testcase.
 
         Returns
         -------
@@ -131,7 +132,7 @@ class Testcase:
         """
 
         path = self.problem.path / "data" / self.short_path
-        return self.problem.get_testdata_yaml(
+        return self.problem.get_test_group_yaml(
             path,
             type(program).args_key,
             bar,
@@ -156,7 +157,7 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.testdata_yaml_args(validator, bar)
+            flags = self.test_group_yaml_args(validator, bar)
             flags_string = " ".join(flags)
             h = combine_hashes_dict(
                 {
@@ -287,7 +288,7 @@ class Testcase:
             if isinstance(validator, validate.OutputValidator) and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
-            flags = self.testdata_yaml_args(validator, bar)
+            flags = self.test_group_yaml_args(validator, bar)
             flags = flags + args
 
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)

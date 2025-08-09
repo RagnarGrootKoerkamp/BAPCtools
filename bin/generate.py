@@ -306,11 +306,11 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
     "retries",
     "count",
 ] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
-RESERVED_TESTCASE_KEYS: Final[Sequence[str]] = ["data", "testdata.yaml", "include"]
+RESERVED_TESTCASE_KEYS: Final[Sequence[str]] = ["data", "test_group.yaml", "include"]
 KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = [
     "type",
     "data",
-    "testdata.yaml",
+    "test_group.yaml",
     "include",
     "solution",
     "random_salt",
@@ -1045,7 +1045,7 @@ class TestcaseRule(Rule):
                 use_feedback_image(feedbackdir, "validator")
                 return True
 
-            visualizer_args = testcase.testdata_yaml_args(visualizer, bar)
+            visualizer_args = testcase.test_group_yaml_args(visualizer, bar)
             visualizer_hash = {
                 "visualizer_hash": visualizer.hash,
                 "visualizer_args": visualizer_args,
@@ -1155,11 +1155,11 @@ class TestcaseRule(Rule):
                     # both source and target do not exist
                     pass
 
-        def add_testdata_to_cache():
-            # Used to identify generated testcases
+        def add_test_case_to_cache():
+            # Used to identify generated test cases
             generator_config.hashed_in.add(hash_file_content(infile))
 
-            # Store the generated testdata for deduplication test cases.
+            # Store the hashes of the generated files for this test case to detect duplicate test cases.
             hashes = {}
 
             # consider specific files for the uniqueness of this testcase
@@ -1180,11 +1180,11 @@ class TestcaseRule(Rule):
             test_hash = combine_hashes_dict(hashes)
 
             # check for duplicates
-            if test_hash not in generator_config.generated_testdata:
-                generator_config.generated_testdata[test_hash] = t
+            if test_hash not in generator_config.generated_test_cases:
+                generator_config.generated_test_cases[test_hash] = t
             else:
                 bar.warn(
-                    f"Testcase {t.path} is equal to {generator_config.generated_testdata[test_hash].path}."
+                    f"Testcase {t.path} is equal to {generator_config.generated_test_cases[test_hash].path}."
                 )
 
         # Step 1: handle non unique generate entry
@@ -1231,7 +1231,7 @@ class TestcaseRule(Rule):
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
         t.generate_success = True
         if infile.is_file():
-            add_testdata_to_cache()
+            add_test_case_to_cache()
         if config.args.action != "generate":
             bar.logged = True  # Disable redundant 'up to date' message in run mode.
         bar.done(message="SKIPPED: up to date")
@@ -1299,11 +1299,7 @@ class Directory(Rule):
                             color_type=MessageType.LOG,
                         )
 
-        if "testdata.yaml" in yaml:
-            self.testdata_yaml = yaml["testdata.yaml"]
-        else:
-            self.testdata_yaml = False
-
+        self.test_group_yaml: Any = yaml.get("test_group.yaml", False)
         self.numbered = False
 
         # List of child TestcaseRule/Directory objects, filled by parse().
@@ -1388,7 +1384,7 @@ class Directory(Rule):
     def generate(d, problem, generator_config, bar):
         # Generate the current directory:
         # - Create the directory.
-        # - Write testdata.yaml.
+        # - Write test_group.yaml.
         # - Link included testcases.
         #   - Input of included testcases are re-validated with the
         #     directory-specific input validator flags.
@@ -1398,29 +1394,29 @@ class Directory(Rule):
         dir_path = problem.path / "data" / d.path
         dir_path.mkdir(parents=True, exist_ok=True)
 
-        # Write the testdata.yaml, or remove it when the key is set but empty.
-        testdata_yaml_path = dir_path / "testdata.yaml"
-        if d.testdata_yaml:
-            generator_config.known_files.add(testdata_yaml_path)
-            yaml_text = write_yaml(dict(d.testdata_yaml))
+        # Write the test_group.yaml, or remove it when the key is set but empty.
+        test_group_yaml_path = dir_path / "test_group.yaml"
+        if d.test_group_yaml:
+            generator_config.known_files.add(test_group_yaml_path)
+            yaml_text = write_yaml(dict(d.test_group_yaml))
 
-            if testdata_yaml_path.is_file():
-                if yaml_text == testdata_yaml_path.read_text():
+            if test_group_yaml_path.is_file():
+                if yaml_text == test_group_yaml_path.read_text():
                     # identical -> skip
                     pass
                 else:
                     # different -> overwrite
-                    generator_config.remove(testdata_yaml_path)
-                    testdata_yaml_path.write_text(yaml_text)
-                    bar.log("CHANGED: testdata.yaml")
+                    generator_config.remove(test_group_yaml_path)
+                    test_group_yaml_path.write_text(yaml_text)
+                    bar.log("CHANGED: test_group.yaml")
             else:
                 # new file -> create it
-                testdata_yaml_path.write_text(yaml_text)
-                bar.log("NEW: testdata.yaml")
-        elif d.testdata_yaml == "" and testdata_yaml_path.is_file():
+                test_group_yaml_path.write_text(yaml_text)
+                bar.log("NEW: test_group.yaml")
+        elif d.test_group_yaml == "" and test_group_yaml_path.is_file():
             # empty -> remove it
-            generator_config.remove(testdata_yaml_path)
-            bar.log("REMOVED: testdata.yaml")
+            generator_config.remove(test_group_yaml_path)
+            bar.log("REMOVED: test_group.yaml")
         bar.done()
 
     def generate_includes(d, problem, generator_config, bar):
@@ -1470,7 +1466,7 @@ class Directory(Rule):
 
 
 # Returns the numbered name
-def numbered_testcase_name(base_name, i, n):
+def numbered_test_case_name(base_name, i, n):
     width = len(str(n))
     number_prefix = f"{i:0{width}}"
     if base_name:
@@ -1521,25 +1517,25 @@ class GeneratorConfig:
         yaml_path = self.problem.path / "generators" / "generators.yaml"
         self.n_parse_error = 0
 
-        # A map of paths `secret/testgroup/testcase` to their canonical TestcaseRule.
+        # A map of paths `secret/test_group/test_case` to their canonical TestcaseRule.
         # For generated cases this is the rule itself.
-        # For included cases, this is the 'resolved' location of the testcase that is included.
+        # For included cases, this is the 'resolved' location of the test case that is included.
         self.known_cases = dict()
-        # A map of paths `secret/testgroup` to Directory rules.
+        # A map of paths `secret/test_group` to Directory rules.
         self.known_directories = dict()
         # Used for cleanup
         self.known_files = set()
-        # A map from key to (is_included, list of testcases and directories),
+        # A map from key to (is_included, list of test cases and directories),
         # used for `include` statements.
         self.known_keys = collections.defaultdict[str, tuple[bool, list[TestcaseRule | Directory]]](
             lambda: (False, [])
         )
         # A set of testcase rules, including seeds.
         self.rules_cache = dict()
-        # The set of generated testcases keyed by hash(testdata).
-        self.generated_testdata = dict()
+        # The set of generated test cases keyed by hash(test_case).
+        self.generated_test_cases = dict()
         # Path to the trash directory for this run
-        self.trashdir: Optional[Path] = None
+        self.trash_dir: Optional[Path] = None
         # Set of hash(.in) for all generated testcases
         self.hashed_in = set()
         # Files that should be processed
@@ -1602,8 +1598,8 @@ class GeneratorConfig:
                     color_type=MessageType.ERROR,
                 )
 
-        num_numbered_testcases = 0
-        testcase_id = 0
+        num_numbered_test_cases = 0
+        test_case_id = 0
 
         def parse_count(yaml, warn_for=None):
             if not has_count(yaml):
@@ -1639,7 +1635,7 @@ class GeneratorConfig:
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
         def count(yaml):
-            nonlocal num_numbered_testcases
+            nonlocal num_numbered_test_cases
             ds = yaml.get("data")
             if isinstance(ds, dict):
                 ds = [ds]
@@ -1652,7 +1648,7 @@ class GeneratorConfig:
                 if isinstance(elem, dict):
                     for key in elem:
                         if is_testcase(elem[key]) and numbered:
-                            num_numbered_testcases += parse_count(elem[key])
+                            num_numbered_test_cases += parse_count(elem[key])
                         elif is_directory(elem[key]):
                             count(elem[key])
 
@@ -1706,23 +1702,23 @@ class GeneratorConfig:
                 raise ParseException("Duplicate entry", d.path)
             add_known(d)
 
-            # Parse child directories/testcases.
+            # Parse child test cases/groups.
             if "data" in yaml and yaml["data"]:
                 data = yaml["data"] if isinstance(yaml["data"], list) else [yaml["data"]]
-                # Count the number of child testgroups.
-                num_testgroups = 0
+                # Count the number of child test groups.
+                num_test_groups = 0
                 for dictionary in data:
                     assert_type("Elements of data", dictionary, dict, d.path)
                     for key in dictionary.keys():
                         assert_type("Key of data", key, [type(None), str], d.path / str(key))
                     for child_name, child_yaml in sorted(dictionary.items()):
                         if is_directory(child_yaml):
-                            num_testgroups += 1
+                            num_test_groups += 1
 
-                testgroup_id = 0
+                test_group_id = 0
                 for dictionary in data:
                     for key in dictionary:
-                        assert_type("Testcase/directory name", key, [type(None), str], d.path)
+                        assert_type("Test case/group name", key, [type(None), str], d.path)
 
                     # Process named children alphabetically, but not in the root directory.
                     # There, process in the 'natural order'.
@@ -1759,24 +1755,24 @@ class GeneratorConfig:
                         if d.numbered:
                             if is_directory(child_yaml):
 
-                                def next_testgroup_name():
-                                    nonlocal testgroup_id
-                                    testgroup_id += 1
-                                    return numbered_testcase_name(
-                                        child_key, testgroup_id, num_testgroups
+                                def next_test_group_name():
+                                    nonlocal test_group_id
+                                    test_group_id += 1
+                                    return numbered_test_case_name(
+                                        child_key, test_group_id, num_test_groups
                                     )
 
-                                child_name = next_testgroup_name
+                                child_name = next_test_group_name
                             elif is_testcase(child_yaml):
 
-                                def next_testcase_name():
-                                    nonlocal testcase_id
-                                    testcase_id += 1
-                                    return numbered_testcase_name(
-                                        child_key, testcase_id, num_numbered_testcases
+                                def next_test_case_name():
+                                    nonlocal test_case_id
+                                    test_case_id += 1
+                                    return numbered_test_case_name(
+                                        child_key, test_case_id, num_numbered_test_cases
                                     )
 
-                                child_name = next_testcase_name
+                                child_name = next_test_case_name
                             else:
                                 # Use error will be given inside parse(child).
                                 child_name = lambda: ""  # noqa: E731  # TODO this can probably be prettier
@@ -1785,7 +1781,7 @@ class GeneratorConfig:
                             child_name = lambda: child_key  # noqa: E731  # TODO this can probably be prettier
                             if not child_name():
                                 raise ParseException(
-                                    "Unnumbered testcases must not have an empty key",
+                                    "Unnumbered test cases must not have an empty key",
                                     d.path,
                                 )
                         c = parse(child_key, child_name, child_yaml, d)
@@ -1826,7 +1822,7 @@ class GeneratorConfig:
                     assert_type("include", include, str, d.path)
                     if "/" in include:
                         message(
-                            f"Include {include} should be a testcase/testgroup key, not a path.",
+                            f"Include {include} should be a test case/group key, not a path.",
                             "generators.yaml",
                             d.path,
                             color_type=MessageType.ERROR,
@@ -1856,7 +1852,7 @@ class GeneratorConfig:
                             pass
                     else:
                         message(
-                            f"Unknown include key {include} does not refer to a previous testcase.",
+                            f"Unknown include key {include} does not refer to a previous test case.",
                             "generators.yaml",
                             d.path,
                             color_type=MessageType.ERROR,
@@ -1995,9 +1991,9 @@ class GeneratorConfig:
 
     # move a file or into the trash directory
     def remove(self, src):
-        if self.trashdir is None:
-            self.trashdir = self.problem.tmpdir / "trash" / secrets.token_hex(4)
-        dst = self.trashdir / src.absolute().relative_to((self.problem.path / "data").absolute())
+        if self.trash_dir is None:
+            self.trash_dir = self.problem.tmpdir / "trash" / secrets.token_hex(4)
+        dst = self.trash_dir / src.absolute().relative_to((self.problem.path / "data").absolute())
         dst.parent.mkdir(parents=True, exist_ok=True)
 
         shutil.move(src, dst)
@@ -2034,8 +2030,8 @@ class GeneratorConfig:
         bar = ProgressBar("Clean Up", max_len=-1)
 
         self._remove_unknown(self.problem.path / "data", bar)
-        if self.trashdir is not None:
-            bar.warn("Some files were changed/removed.", f"-> {self.trashdir}")
+        if self.trash_dir is not None:
+            bar.warn("Some files were changed/removed.", f"-> {self.trash_dir}")
         bar.finalize()
 
     # write a gitignore file to ignore everything in data/ except data/sample/
@@ -2187,22 +2183,22 @@ data/*
             assert "data" in d.yaml
             assert isinstance(d.yaml["data"], list)
 
-            # dont move unknown cases/directories or testcases with count
-            testnodes = {
+            # don't move unknown test cases/groups, or test cases with count
+            test_nodes = {
                 id(c.yaml): str(c.path)
                 for c in d.data
                 if c.path in testcase_paths and not has_count(c.yaml)
             }
-            others = [e for e in d.yaml["data"] if id(next(iter(e.values()))) not in testnodes]
+            others = [e for e in d.yaml["data"] if id(next(iter(e.values()))) not in test_nodes]
 
             class TestcaseResult:
                 def __init__(self, yaml):
                     self.yaml = yaml
-                    self.testnode = testnodes[id(next(iter(yaml.values())))]
+                    self.test_node = test_nodes[id(next(iter(yaml.values())))]
                     self.scores = []
                     self.result = []
                     for i in range(len(submissions)):
-                        verdict = verdict_table.results[i][self.testnode]
+                        verdict = verdict_table.results[i][self.test_node]
                         # moving TLE cases to the front is most important to save resources
                         # RTE are less reliable and therefore less important than WA
                         if verdict == Verdict.TIME_LIMIT_EXCEEDED:
@@ -2211,10 +2207,10 @@ data/*
                             self.scores.append((i, 4))
                         elif verdict == Verdict.RUNTIME_ERROR:
                             self.scores.append((i, 3))
-                        self.result.append(verdict_table._get_verdict(i, self.testnode))
+                        self.result.append(verdict_table._get_verdict(i, self.test_node))
 
                 def __str__(self):
-                    return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.testnode:<{max_testcase_len}} {''.join(self.result)}"
+                    return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.test_node:<{max_testcase_len}} {''.join(self.result)}"
 
                 def score(self, weights):
                     return sum(weights[i] * x for i, x in self.scores)
@@ -2234,7 +2230,9 @@ data/*
                     return weights
 
             todo = [
-                TestcaseResult(e) for e in d.yaml["data"] if id(next(iter(e.values()))) in testnodes
+                TestcaseResult(e)
+                for e in d.yaml["data"]
+                if id(next(iter(e.values()))) in test_nodes
             ]
 
             # TODO: ProgressBar?

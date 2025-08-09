@@ -125,13 +125,24 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
         bad_dir.rmdir()
 
 
-def upgrade_testdata_yaml(problem_path: Path, bar: ProgressBar) -> None:
+def rename_testdata_to_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
+    for f in (problem_path / "data").rglob("testdata.yaml"):
+        new_name = f.with_name("test_group.yaml")
+        rename_log = f"'{f.relative_to(problem_path)}' to '{new_name.relative_to(problem_path)}'"
+        if new_name.exists():
+            bar.error(f"can't rename {rename_log}, target already exists", resume=True)
+            continue
+        bar.log(f"renaming {rename_log}")
+        f.rename(new_name)
+
+
+def upgrade_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
         ("output_validator_flags", OutputValidator.args_key),
         ("input_validator_flags", InputValidator.args_key),
     ]
 
-    for f in (problem_path / "data").rglob("testdata.yaml"):
+    for f in (problem_path / "data").rglob("test_group.yaml"):
         data = cast(CommentedMap, read_yaml(f))
 
         for old, new in rename:
@@ -217,10 +228,28 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             ryaml_filter(data, "bad")
             changed = True
 
-    def upgrade_generated_testdata_yaml(data: dict[str, Any], path: str) -> bool:
+    def rename_testdata_to_test_group_yaml(data: dict[str, Any], path: str) -> bool:
         changed = False
-        if "testdata.yaml" in data:
-            testdata = cast(CommentedMap, data["testdata.yaml"])
+        old, new = "testdata.yaml", "test_group.yaml"
+        if old in data:
+            print_path = f" ({path[1:]})" if len(path) > 1 else ""
+            bar.log(f"change '{old}' to '{new}' in generators.yaml{print_path}")
+            ryaml_replace(data, old, new)
+            changed = True
+        if "data" in data and data["data"]:
+            children = data["data"] if isinstance(data["data"], list) else [data["data"]]
+            for dictionary in children:
+                for child_name, child_data in sorted(dictionary.items()):
+                    if generate.is_directory(child_data):
+                        changed |= rename_testdata_to_test_group_yaml(
+                            child_data, path + "." + child_name
+                        )
+        return changed
+
+    def upgrade_generated_test_group_yaml(data: dict[str, Any], path: str) -> bool:
+        changed = False
+        if "test_group.yaml" in data:
+            test_group_yaml = cast(CommentedMap, data["test_group.yaml"])
             print_path = f" ({path[1:]})" if len(path) > 1 else ""
 
             rename = [
@@ -228,27 +257,28 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 ("input_validator_flags", InputValidator.args_key),
             ]
             for old, new in rename:
-                if old in testdata:
-                    if new in testdata:
+                if old in test_group_yaml:
+                    if new in test_group_yaml:
                         bar.error(
                             f"can't change '{old}', '{new}' already exists in generators.yaml{print_path}",
                             resume=True,
                         )
                         continue
                     bar.log(f"change '{old}' to '{new}' in generators.yaml{print_path}")
-                    ryaml_replace(testdata, old, new)
+                    ryaml_replace(test_group_yaml, old, new)
                     changed = True
         if "data" in data and data["data"]:
             children = data["data"] if isinstance(data["data"], list) else [data["data"]]
             for dictionary in children:
                 for child_name, child_data in sorted(dictionary.items()):
                     if generate.is_directory(child_data):
-                        changed |= upgrade_generated_testdata_yaml(
+                        changed |= upgrade_generated_test_group_yaml(
                             child_data, path + "." + child_name
                         )
         return changed
 
-    changed |= upgrade_generated_testdata_yaml(yaml_data, "")
+    changed |= rename_testdata_to_test_group_yaml(yaml_data, "")
+    changed |= upgrade_generated_test_group_yaml(yaml_data, "")
 
     if changed:
         write_yaml(yaml_data, generators_yaml)
@@ -414,11 +444,11 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
     def add_args(new_data: dict[str, Any]) -> bool:
         if OutputValidator.args_key in new_data:
             bar.error(
-                f"can't change 'validator_flags', '{OutputValidator.args_key}' already exists in testdata.yaml",
+                f"can't change 'validator_flags', '{OutputValidator.args_key}' already exists in test_group.yaml",
                 resume=True,
             )
             return False
-        bar.log(f"change 'validator_flags' to '{OutputValidator.args_key}' in testdata.yaml")
+        bar.log(f"change 'validator_flags' to '{OutputValidator.args_key}' in test_group.yaml")
         validator_flags = data["validator_flags"]
         new_data[OutputValidator.args_key] = (
             validator_flags.split() if isinstance(validator_flags, str) else validator_flags
@@ -432,26 +462,26 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if generators_path.exists():
                 generators_data = cast(CommentedMap, read_yaml(generators_path))
 
-                if "testdata.yaml" not in generators_data:
+                if "test_group.yaml" not in generators_data:
                     if "data" in generators_data:
                         # insert before data
                         pos = list(generators_data.keys()).index("data")
-                        generators_data.insert(pos, "testdata.yaml", CommentedMap())
+                        generators_data.insert(pos, "test_group.yaml", CommentedMap())
                     else:
                         # insert at end
-                        generators_data["testdata.yaml"] = CommentedMap()
-                if add_args(generators_data["testdata.yaml"]):
+                        generators_data["test_group.yaml"] = CommentedMap()
+                if add_args(generators_data["test_group.yaml"]):
                     write_yaml(generators_data, generators_path)
             else:
-                testdata_path = problem_path / "data" / "testdata.yaml"
-                testdata_data = (
-                    cast(CommentedMap, read_yaml(testdata_path))
-                    if testdata_path.exists()
+                test_group_path = problem_path / "data" / "test_group.yaml"
+                test_group_data = (
+                    cast(CommentedMap, read_yaml(test_group_path))
+                    if test_group_path.exists()
                     else CommentedMap()
                 )
 
-                if add_args(testdata_data):
-                    write_yaml(testdata_data, testdata_path)
+                if add_args(test_group_data):
+                    write_yaml(test_group_data, test_group_path)
         else:
             ryaml_filter(data, "validator_flags")
 
@@ -498,7 +528,8 @@ def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
     bar.start(problem_path)
 
     upgrade_data(problem_path, bar)
-    upgrade_testdata_yaml(problem_path, bar)
+    rename_testdata_to_test_group_yaml(problem_path, bar)
+    upgrade_test_group_yaml(problem_path, bar)
     upgrade_generators_yaml(problem_path, bar)
     upgrade_statement(problem_path, bar)
     upgrade_format_validators(problem_path, bar)

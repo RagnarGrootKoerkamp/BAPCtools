@@ -228,7 +228,7 @@ class Run:
         return output_validator.run(
             self.testcase,
             self,
-            args=self.testcase.testdata_yaml_args(output_validator, bar),
+            args=self.testcase.test_group_yaml_args(output_validator, bar),
         )
 
     def _visualize_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
@@ -242,7 +242,7 @@ class Run:
             self.testcase.ans_path.resolve(),
             self.out_path if not self.problem.interactive else None,
             self.feedbackdir,
-            args=self.testcase.testdata_yaml_args(output_visualizer, bar),
+            args=self.testcase.test_group_yaml_args(output_visualizer, bar),
         )
 
 
@@ -501,7 +501,7 @@ class Submission(program.Program):
         else:
             color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
 
-        (salient_testcase, salient_duration) = verdicts.salient_testcase()
+        (salient_testcase, salient_duration) = verdicts.salient_test_case()
         salient_print_verdict = self.verdict
         salient_duration_style = Style.BRIGHT if salient_duration >= self.limits["timeout"] else ""
 
@@ -509,7 +509,7 @@ class Submission(program.Program):
         message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_testcase:{max_testcase_len}}{Style.RESET_ALL}"
 
         if verdicts.run_until in [RunUntil.DURATION, RunUntil.ALL]:
-            slowest_pair = verdicts.slowest_testcase()
+            slowest_pair = verdicts.slowest_test_case()
             assert slowest_pair is not None
             (slowest_testcase, slowest_duration) = slowest_pair
             slowest_verdict = verdicts[slowest_testcase]

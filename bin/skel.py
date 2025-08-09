@@ -122,7 +122,7 @@ def new_problem() -> None:
         "author": author,
         "type": problem_type,
         OutputValidator.args_key: output_validator_args,
-        "testdata_yaml_comment": "#" if output_validator_args[0] == "#" else "",
+        "test_group_yaml_comment": "#" if output_validator_args[0] == "#" else "",
     }
 
     source_name = ask_variable_string(

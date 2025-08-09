@@ -27,8 +27,8 @@ data:
       'morecurlies':
         generate: my_generator {seed:1} --name {name} --ctr {count} --arg {count}
         count: 5
-      'group_with_testdata':
-        testdata.yaml:
+      'group_with_test_group_yaml':
+        test_group.yaml:
           input_validator_args: [--connected, --max_n, "2000"]
         data:
           'a': my_generator

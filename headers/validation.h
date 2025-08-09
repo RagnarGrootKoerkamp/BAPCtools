@@ -10,8 +10,9 @@
 // This strict checking mode is used for *.in and *.ans files.
 // When validating submission outputs, the checking is more lenient,
 // but the case_sensitive and space_change_sensitive flags can be passed
-// via the output_validator_args in testdata.yaml to enable strict checking behaviour
-// for submission outputs regarding case and whitespace, respectively.
+// via the output_validator_args in test_group.yaml or <testcase>.yaml
+// to enable strict checking behaviour for submission outputs
+// regarding case and whitespace, respectively.
 
 #include <algorithm>
 #include <array>

@@ -213,7 +213,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     # substitute constants.
     if problem.settings.constants:
         constants_supported = [
-            "data/**/testdata.yaml",
+            "data/**/test_group.yaml",
             f"{InputValidator.source_dir}/**/*",
             f"{AnswerValidator.source_dir}/**/*",
             f"{OutputValidator.source_dir}/**/*",
@@ -298,7 +298,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             ryaml_filter(limits, "time_limit")
         # validator_flags
         validator_flags = " ".join(
-            problem.get_testdata_yaml(
+            problem.get_test_group_yaml(
                 problem.path / "data",
                 OutputValidator.args_key,
                 PrintBar("Getting validator_flags for legacy export"),
@@ -325,13 +325,6 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     else:
                         util.error(f"{f}: no name set for language {lang}.")
 
-        # rename output_validator dir
-        if (export_dir / OutputValidator.source_dir).exists():
-            (export_dir / "output_validators").mkdir(parents=True)
-            (export_dir / OutputValidator.source_dir).rename(
-                export_dir / "output_validators" / OutputValidator.source_dir
-            )
-
         # rename statement dirs
         if (export_dir / "statement").exists():
             (export_dir / "statement").rename(export_dir / "problem_statement")
@@ -351,6 +344,18 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     else:
                         add_file(out, f)
             shutil.rmtree(export_dir / d)
+
+        # rename output_validator dir
+        if (export_dir / OutputValidator.source_dir).exists():
+            (export_dir / "output_validators").mkdir(parents=True)
+            (export_dir / OutputValidator.source_dir).rename(
+                export_dir / "output_validators" / OutputValidator.source_dir
+            )
+
+        # rename test_group.yaml back to testdata.yaml
+        for f in (export_dir / "data").rglob("test_group.yaml"):
+            f.rename(f.with_name("testdata.yaml"))
+            # TODO potentially, some keys also need to be renamed, but we don't use this often enough for this to matter (I hope)
 
     # handle yaml updates
     yaml_path.unlink()

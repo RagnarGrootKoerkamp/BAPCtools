@@ -4,7 +4,7 @@ import sys
 import threading
 from enum import Enum
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 
 from colorama import Fore, Style
 
@@ -12,9 +12,12 @@ import config
 import testcase
 from util import ProgressBar
 
+if TYPE_CHECKING:
+    import run
+
 
 class Verdict(Enum):
-    """The verdict of a testcase or testgroup"""
+    """The verdict of a test case or test group"""
 
     ACCEPTED = 1
     WRONG_ANSWER = 2
@@ -69,7 +72,7 @@ VERDICTS = [
 class RunUntil(Enum):
     # Run until the lexicographically first error is known.
     FIRST_ERROR = 1
-    # Run until the lexicographically first timeout testcase is known.
+    # Run until the lexicographically first timeout test case is known.
     DURATION = 2
     # Run all cases.
     ALL = 3
@@ -135,14 +138,14 @@ def from_string_domjudge(s: str) -> Verdict:
 class Verdicts:
     """The verdicts of a submission.
 
-    Testcases and testgroups are identified by strings.  In particular,
-    * the testcase whose input file is 'a/b/1.in' is called 'a/b/1'
-    * the two topmost testgroups are 'sample', 'secret'
+    Test cases and test groups are identified by strings.  In particular,
+    * the test case whose input file is 'a/b/1.in' is called 'a/b/1'
+    * the two topmost test groups are 'sample', 'secret'
     * the root is called '.'
 
-    Initialised with all testcases. Individual verdicts are registered
+    Initialised with all test cases. Individual verdicts are registered
     with set(), which infers verdicts upwards in the tree as they become
-    available (and returns the topmost inferred testgroup).
+    available (and returns the topmost inferred test group).
     Verdicts (registered and inferred) are accessed with __getitem__
 
     >>> V = Verdicts(["a/b/1", "a/b/2", "a/c/1", "a/d/1", "b/3"], timeout=1)
@@ -152,26 +155,25 @@ class Verdicts:
     ACCEPTED None
 
     Attributes:
-    - run_until: Which testcases to run.
-    - children[testgroup]: the lexicographically sorted list of direct children (testgroups and testcases) of the given testnode
-
-    - verdict[testnode]: the verdict at the given testnode, or None. In particular,
+    - run_until: Which test cases to run.
+    - children[test_group]: the lexicographically sorted list of direct children (test groups and test cases) of the given test node
+    - verdict[test_node]: the verdict at the given test node, or None. In particular,
         verdict['.'] is the root verdict, sometimes called final verdict or submission verdict.
         Should not be directly set; use __setitem__ on the Verdict object instead.
 
         None: not computed yet.
         False: determined to be unneeded.
-    - duration[testcase]: the duration of the testcase
+    - duration[test_case]: the duration of the test case
     """
 
     def __init__(
         self,
-        testcases_list: list[testcase.Testcase],
+        test_cases_list: list[testcase.Testcase],
         timeout: int,
         run_until: RunUntil = RunUntil.FIRST_ERROR,
     ):
-        testcases: set[str] = set(t.name for t in testcases_list)
-        testgroups: set[str] = set(str(path) for tc in testcases for path in Path(tc).parents)
+        test_cases: set[str] = set(t.name for t in test_cases_list)
+        test_groups: set[str] = set(str(path) for tc in test_cases for path in Path(tc).parents)
 
         # Lock operations reading/writing non-static data.
         # Private methods assume the lock is already locked when entering a public method.
@@ -180,16 +182,16 @@ class Verdicts:
         self.run_until = run_until
         self.timeout = timeout
 
-        # (testcase | testgroup) -> Verdict | None | Literal[False]
+        # (test_case | test_group) -> Verdict | None | Literal[False]
         self.verdict: dict[str, Verdict | None | Literal[False]] = {
-            g: None for g in testcases | testgroups
+            g: None for g in test_cases | test_groups
         }
-        # testcase -> float | None
-        self.duration: dict[str, float | None] = {g: None for g in testcases}
+        # test_case -> float | None
+        self.duration: dict[str, float | None] = {g: None for g in test_cases}
 
-        # const testgroup -> [testgroup | testcase]
-        self.children: dict[str, list[str]] = {node: [] for node in testgroups}
-        for node in testcases | testgroups:
+        # const test_group -> [test_group | test_case]
+        self.children: dict[str, list[str]] = {node: [] for node in test_groups}
+        for node in test_cases | test_groups:
             if node != ".":
                 parent = str(Path(node).parent)
                 self.children[parent].append(node)
@@ -203,20 +205,20 @@ class Verdicts:
     def __exit__(self, *args):
         self.lock.__exit__(*args)
 
-    def is_testgroup(self, node: str) -> bool:
-        """Is the given testnode name a testgroup (rather than a testcase)?
-        This assumes nonempty testgroups.
+    def is_test_group(self, node: str) -> bool:
+        """Is the given test node name a test group (rather than a test case)?
+        This assumes nonempty test groups.
         """
         return node in self.children
 
-    def is_testcase(self, node: str) -> bool:
-        """Is the given testnode name a testcase (rather than a testgroup)?
-        This assumes nonempty testgroups.
+    def is_test_case(self, node: str) -> bool:
+        """Is the given test node name a test case (rather than a test group)?
+        This assumes nonempty test groups.
         """
         return node not in self.children
 
-    def set(self, testcase: str, verdict: str | Verdict, duration: float):
-        """Set the verdict and duration of the given testcase (implying possibly others)
+    def set(self, test_case: str, verdict: str | Verdict, duration: float):
+        """Set the verdict and duration of the given test case (implying possibly others)
 
         verdict can be given as a Verdict or as a string using either long or
         short form ('ACCEPTED', 'AC', or Verdict.ACCEPTED).
@@ -224,23 +226,25 @@ class Verdicts:
         with self:
             if isinstance(verdict, str):
                 verdict = from_string(verdict)
-            self.duration[testcase] = duration
-            self._set_verdict_for_node(testcase, verdict, duration >= self.timeout)
+            self.duration[test_case] = duration
+            self._set_verdict_for_node(test_case, verdict, duration >= self.timeout)
 
-    def __getitem__(self, testnode) -> Verdict | None | Literal[False]:
+    def __getitem__(self, test_node) -> Verdict | None | Literal[False]:
         with self:
-            return self.verdict[testnode]
+            return self.verdict[test_node]
 
-    def salient_testcase(self) -> tuple[str, float]:
-        """The testcase most salient to the root verdict.
-        If self['.'] is Verdict.ACCEPTED, then this is the slowest testcase.
-        Otherwise, it is the lexicographically first testcase that was rejected."""
+    def salient_test_case(self) -> tuple[str, float]:
+        """The test case most salient to the root verdict.
+        If self['.'] is Verdict.ACCEPTED, then this is the slowest test case.
+        Otherwise, it is the lexicographically first test case that was rejected."""
         with self:
             match self["."]:
                 case None:
-                    raise ValueError("Salient testcase called before submission verdict determined")
+                    raise ValueError(
+                        "Salient test case called before submission verdict determined"
+                    )
                 case Verdict.ACCEPTED:
-                    # This implicitly assumes there is at least one testcase.
+                    # This implicitly assumes there is at least one test case.
                     return max(
                         ((tc, d) for tc, d in self.duration.items() if d is not None),
                         key=lambda x: x[1],
@@ -249,14 +253,14 @@ class Verdicts:
                     tc = min(
                         tc
                         for tc, v in self.verdict.items()
-                        if self.is_testcase(tc) and v != Verdict.ACCEPTED
+                        if self.is_test_case(tc) and v != Verdict.ACCEPTED
                     )
                     duration = self.duration[tc]
                     assert duration is not None
                     return (tc, duration)
 
-    def slowest_testcase(self) -> None | tuple[str, float]:
-        """The slowest testcase, if all cases were run or a timeout occurred."""
+    def slowest_test_case(self) -> None | tuple[str, float]:
+        """The slowest test case, if all cases were run or a timeout occurred."""
         with self:
             tc, d = max(
                 ((tc, d) for tc, d in self.duration.items() if d is not None),
@@ -270,8 +274,8 @@ class Verdicts:
 
             return tc, d
 
-    def aggregate(self, testgroup: str) -> Verdict:
-        """The aggregate verdict at the given testgroup.
+    def aggregate(self, test_group: str) -> Verdict:
+        """The aggregate verdict at the given test group.
         Computes the lexicographically first non-accepted verdict.
 
         Raises:
@@ -280,29 +284,29 @@ class Verdicts:
             [AC, None, RTE] is not (the first error cannot be determined).
         """
         with self:
-            child_verdicts = list(self.verdict[c] for c in self.children[testgroup])
+            child_verdicts = list(self.verdict[c] for c in self.children[test_group])
             if all(v == Verdict.ACCEPTED for v in child_verdicts):
                 return Verdict.ACCEPTED
             else:
                 first_error = next(v for v in child_verdicts if v != Verdict.ACCEPTED)
                 if first_error in [None, False]:
                     raise ValueError(
-                        f"Verdict aggregation at {testgroup} with unknown child verdicts"
+                        f"Verdict aggregation at {test_group} with unknown child verdicts"
                     )
                 assert first_error is not None
                 assert first_error is not False
                 return first_error
 
-    def _set_verdict_for_node(self, testnode: str, verdict: Verdict, timeout: bool):
+    def _set_verdict_for_node(self, test_node: str, verdict: Verdict, timeout: bool):
         # This assumes self.lock is already held.
         # Note that `False` verdicts can be overwritten if they were already started before being set to False.
-        if self.verdict[testnode] not in [None, False]:
+        if self.verdict[test_node] not in [None, False]:
             raise ValueError(
-                f"Overwriting verdict of {testnode} to {verdict} (was {self.verdict[testnode]})"
+                f"Overwriting verdict of {test_node} to {verdict} (was {self.verdict[test_node]})"
             )
-        self.verdict[testnode] = verdict
-        if testnode != ".":
-            parent = str(Path(testnode).parent)
+        self.verdict[test_node] = verdict
+        if test_node != ".":
+            parent = str(Path(test_node).parent)
 
             # Possibly mark sibling cases as unneeded.
             match self.run_until:
@@ -310,14 +314,14 @@ class Verdicts:
                     # On error, set all later siblings to False.
                     if verdict != Verdict.ACCEPTED:
                         for sibling in self.children[parent]:
-                            if sibling > testnode and self.verdict[sibling] is None:
+                            if sibling > test_node and self.verdict[sibling] is None:
                                 self.verdict[sibling] = False
 
                 case RunUntil.DURATION:
                     # On timeout, set all later siblings to False.
                     if timeout:
                         for sibling in self.children[parent]:
-                            if sibling > testnode and self.verdict[sibling] is None:
+                            if sibling > test_node and self.verdict[sibling] is None:
                                 self.verdict[sibling] = False
 
                 case RunUntil.ALL:
@@ -333,29 +337,29 @@ class Verdicts:
                     # parent verdict cannot be determined yet
                     pass
 
-    def run_is_needed(self, testcase: str) -> bool:
+    def run_is_needed(self, test_case: str) -> bool:
         """
         There are 3 modes for running cases:
         - default: run until the lexicographically first error is known
         - duration: run until the slowest case is known
         - all: run all cases
 
-        Testcases/groups have their verdict set to `False` as soon as it is determined they are not needed.
+        Test cases/groups have their verdict set to `False` as soon as it is determined they are not needed.
         """
         with self:
-            if self.verdict[testcase] is not None:
+            if self.verdict[test_case] is not None:
                 return False
 
             match self.run_until:
                 case RunUntil.FIRST_ERROR:
                     # Run only if parents do not have known verdicts yet.
                     return all(
-                        self.verdict[str(parent)] is None for parent in Path(testcase).parents
+                        self.verdict[str(parent)] is None for parent in Path(test_case).parents
                     )
                 case RunUntil.DURATION:
                     # Run only if not explicitly marked as unneeded.
                     return all(
-                        self.verdict[str(parent)] is not False for parent in Path(testcase).parents
+                        self.verdict[str(parent)] is not False for parent in Path(test_case).parents
                     )
                 case RunUntil.ALL:
                     # Run all cases.
@@ -374,16 +378,16 @@ class VerdictTable:
     def __init__(
         self,
         submissions,
-        testcases: list[testcase.Testcase],
+        test_cases: list[testcase.Testcase],
         width: int = ProgressBar.columns,
         height: int = shutil.get_terminal_size().lines,
         max_name_width: int = 50,
     ):
         self.submissions: list[str] = [s.name for s in submissions]
-        self.testcases: list[str] = [t.name for t in testcases]
-        self.samples: set[str] = set(t.name for t in testcases if t.root == "sample")
+        self.test_cases: list[str] = [t.name for t in test_cases]
+        self.samples: set[str] = set(t.name for t in test_cases if t.root == "sample")
         self.results: list[Verdicts] = []
-        self.current_testcases: set[str] = set()
+        self.current_test_cases: set[str] = set()
         self.last_printed: list[int] = []
         self.width: int
         self.print_without_force: bool
@@ -407,11 +411,11 @@ class VerdictTable:
                 lines = [f"{Style.DIM}{Fore.CYAN}{name}{Fore.WHITE}:"]
 
                 verdicts = []
-                for t, testcase in enumerate(self.testcases):
+                for t, test_case in enumerate(self.test_cases):
                     if t % 10 == 0:
                         verdicts.append(VerdictTable.Group(0, ""))
                     verdicts[-1].length += 1
-                    verdicts[-1].text += "s" if testcase in self.samples else "-"
+                    verdicts[-1].text += "s" if test_case in self.samples else "-"
 
                 printed = self.name_width + 1
                 for length, tmp in verdicts:
@@ -439,14 +443,14 @@ class VerdictTable:
 
     def next_submission(self, verdicts: Verdicts):
         self.results.append(verdicts)
-        self.current_testcases = set()
+        self.current_test_cases = set()
 
-    def add_testcase(self, testcase: str):
-        self.current_testcases.add(testcase)
+    def add_test_case(self, test_case: str):
+        self.current_test_cases.add(test_case)
 
-    def update_verdicts(self, testcase: str, verdict: str | Verdict, duration: float):
-        self.results[-1].set(testcase, verdict, duration)
-        self.current_testcases.discard(testcase)
+    def update_verdicts(self, test_case: str, verdict: str | Verdict, duration: float):
+        self.results[-1].set(test_case, verdict, duration)
+        self.current_test_cases.discard(test_case)
 
     def _clear(self, *, force: bool = True):
         if force or self.print_without_force:
@@ -466,11 +470,11 @@ class VerdictTable:
 
                 self.last_printed = []
 
-    def _get_verdict(self, s: int, testcase: str, check_sample: bool = True) -> str:
+    def _get_verdict(self, s: int, test_case: str, check_sample: bool = True) -> str:
         res = f"{Style.DIM}-{Style.RESET_ALL}"
-        if s < len(self.results) and self.results[s][testcase] not in [None, False]:
-            res = to_char(self.results[s][testcase], check_sample and testcase in self.samples)
-        elif s + 1 == len(self.results) and testcase in self.current_testcases:
+        if s < len(self.results) and self.results[s][test_case] not in [None, False]:
+            res = to_char(self.results[s][test_case], check_sample and test_case in self.samples)
+        elif s + 1 == len(self.results) and test_case in self.current_test_cases:
             res = Style.DIM + to_char(None)
         return res
 
@@ -518,7 +522,7 @@ class VerdictTable:
                 first = True
                 verdicts = []
                 for child in reversed(self.results[-1].children[node]):
-                    if self.results[-1].is_testgroup(child):
+                    if self.results[-1].is_test_group(child):
                         if first:
                             stack.append((child, indent + pipe + " ", "└─", True))
                             first = False
@@ -603,11 +607,11 @@ class VerdictTable:
 
                 # group verdicts in parts of length at most ten
                 verdicts = []
-                for t, testcase in enumerate(self.testcases):
+                for t, test_case in enumerate(self.test_cases):
                     if t % 10 == 0:
                         verdicts.append(VerdictTable.Group(0, ""))
                     verdicts[-1].length += 1
-                    verdicts[-1].text += self._get_verdict(s, testcase)
+                    verdicts[-1].text += self._get_verdict(s, test_case)
 
                 for length, tmp in verdicts:
                     if self.width >= 0 and printed + 1 + length > self.width:
@@ -680,8 +684,8 @@ class TableProgressBar(ProgressBar):
         print(*objects, sep=sep, end=end, file=file, flush=False)
 
     # TODO #102: item has type `str` in the base class, but type `run.Run` here.
-    def start(self, item):  # type: ignore[override]
-        self.table.add_testcase(item.testcase.name)
+    def start(self, item: "run.Run"):  # type: ignore[override]
+        self.table.add_test_case(item.testcase.name)
         return super().start(item)
 
     def done(self, success=True, message="", data="", print_item=True):

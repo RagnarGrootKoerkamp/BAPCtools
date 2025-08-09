@@ -15,8 +15,8 @@ solution: /submissions/accepted/sol.py
 # the command being run.
 random_salt: abcd
 
-# The top level may contain a testdata.yaml that will be written to data/ as specified.
-testdata.yaml:
+# The top level may contain a test_group.yaml that will be written to data/ as specified.
+test_group.yaml:
   output_validator_args: []
 
 # We support three types of generators:
@@ -74,19 +74,19 @@ data:
 
       "2":
         in: 23 foo # generates the test case input file data/2.in with contents "23 foo"
-      # The copy key indicates a manual testcase that will be copied
-      # from the given directory into the target testcase. The given directory
+      # The copy key indicates a manual test case that will be copied
+      # from the given directory into the target test case. The given directory
       # must not start with a /, not include an extension and will be relative to generators/.
       "3":
         copy: manual_cases/sample/3
-      # Small testcases can be specified explictly:
+      # Small test cases can be specified explictly:
       "4":
         in: 1 0
         # Values must be a strings, so `1` is wrapped in quotes.
         ans: "1"
         desc: Right identity for addition
         hint: Make sure addition with zero also works
-      # Use YAML multiline syntax for multiline testcases
+      # Use YAML multiline syntax for multiline test cases
       # The pipe | preserves newlines, but strips indentation whitespace.
       # See also https://yaml-multiline.info/
       "5":
@@ -98,13 +98,13 @@ data:
           23
           0
           -4
-  # Every testcase present in the directory must be listed.
-  # TOOLING: may still allow unlisted testcases and warn about them.
+  # Every test case present in the directory must be listed.
+  # TOOLING: may still allow unlisted test cases and warn about them.
   #'6':
 
   secret:
     include:
-      # You can include other testcroups by there yaml name
+      # You can include other test groups by their yaml name
       - "sample"
       # This will include "1", "2", "3", "4", and "5" from sample
     data:
@@ -137,9 +137,9 @@ data:
       #11-random-4: graph {seed} {seed:2}  # Not allowed because the regex matches twice.
       12-counted:
         generate: graph {seed:3} {count}
-        count: 2 # generate two testcases at once
+        count: 2 # generate two test cases at once
 
-      # No key (testcase or testgroup) may be a prefix of another key.
+      # No key (test case or test group) may be a prefix of another key.
       #01-second: graph 6                     # Collision with rule 01 above.
       #12-counted-1: graph 7                  # Collision with the first rule of 12-counted above
       #12-counted-2: graph 8                  # Collision with the second rule of 12-counted above
@@ -151,13 +151,13 @@ data:
       # Any such written files will be saved.
       #
       # In case a generator program writes testcase.in, its stdout will be ignored.
-      # In case testcase.in is not created, stdout will be used as the input for the testcase.
+      # In case testcase.in is not created, stdout will be used as the input for the test case.
       #
       # The generator below generates and writes both testcase.in and testcase.ans, and
       # the optionally specified `solution:` will not be called.
       "13": write_in_and_ans.py
 
-      # To override the global/testgroup configuration on a per-testcase basis,
+      # To override the global/test group configuration on a per-test-case basis,
       # a dictionary may be used. This allows the solution: key,
       # as well as the generate: key which contains the command to execute.
       14_override:
@@ -172,22 +172,22 @@ data:
       #   desc: add two numbers
       #   hint: check for maxint!
 
-      # Introduce a testgroup.
+      # Introduce a test group.
       # The top-level `data:` key is always assumed to be a directory.
       hard_cases_group:
-        # Directories may contain a testdata.yaml that will be written as specified.
-        testdata.yaml:
+        # Directories may contain a test_group.yaml that will be written as specified.
+        test_group.yaml:
           output_validator_args: [space_change_sensitive]
 
-        # To enable automatic numbering of testcases, data: may also contain a list of
+        # To enable automatic numbering of test cases, data: may also contain a list of
         # single-element dictionaries instead of a single dictionary. In this case,
-        # testcases and/or groups will be numbered in the order they appear, starting at
+        # test cases and/or groups will be numbered in the order they appear, starting at
         # 1. The system will determine the required number of digits to use and numbers
         # will be zero-padded accordingly, using a dash as separator from the given name
         # (when the given name is not empty). Each dictionary in the list must contain a
         # single item.
         #
-        # Numbering is per directory. Testcases/testgroups are ordered by the order of lists
+        # Numbering is per directory. Test cases/test groups are ordered by the order of lists
         # and alphabetical for dictionaries.
         data:
           # 15.in
@@ -206,18 +206,18 @@ data:
           - j: tree j
           # 24-h
           - k: tree k
-          # When mixing testcases and testgroups within a testgroup, testgroups
+          # When mixing test cases and test groups within a test group, test groups
           # must be last.
-          # Testgroup numbers are always prefixed with g when they are numbered.
-          # g1-numbered_testgroup
-          - numbered_testgroup:
+          # Test group numbers are always prefixed with g when they are numbered.
+          # 1-numbered_test_group
+          - numbered_test_group:
               data:
                 # 18-c
                 - c: tree c
                 # 19-d
                 - d: tree d
-          # g2-numbered_testgroup
-          - numbered_testgroup:
+          # 2-numbered_test_group
+          - numbered_test_group:
               data:
                 # e
                 e: tree e
@@ -229,11 +229,11 @@ data:
 #  15: tree empty
 #  16-a: tree a
 #  17-b: tree b
-#  g1-numbered_testgroup:
+#  1-numbered_test_group:
 #    data:
 #      18-c: tree c
 #      19-d: tree d
-#  g2-numbered_testgroup:
+#  2-numbered_test_group:
 #    data:
 #      e: tree e
 #      f: tree f
