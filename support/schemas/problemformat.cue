@@ -23,14 +23,18 @@ let filename = "[A-Za-z0-9][A-Za-z0-9_.-]{0,253}[A-Za-z0-9]"
 // Test data settings
 
 #test_group_settings: {
+	scoring?: {
+		score?:       >0 | "unbounded"
+		aggregation?: "sum" | "min"
+		require_pass: string | [string]
+	}
 	input_validator_args?: *[] | [string] | {[string]: [string]}
 	output_validator_args?: *[] | [string]
 	test_case_visualizer_args?: *[] | [string]
 	output_visualizer_args?: *[] | [string]
-	grading?: {
-		score?:       >0
-		max_score?:   >0
-		aggregation?: "sum" | "min"
-		// run_samples?: bool
+	static_validation?: *false | true | {
+		args?: string
+		score?: int
 	}
+	full_feedback?: bool
 }

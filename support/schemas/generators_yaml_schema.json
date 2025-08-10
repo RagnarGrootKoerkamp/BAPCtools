@@ -51,16 +51,39 @@
       "title": "Test data settings",
       "description": "The settings that apply to the test data for this test group. Will be copied to this test group's `test_group.yaml`.",
       "properties": {
-        "on_reject": {
-          "enum": ["break", "continue"],
-          "default": "break"
-        },
-        "grading": {
-          "enum": ["default", "custom"]
-        },
-        "grader_flags": {
-          "type": "string",
-          "examples": ["min", "sum"]
+        "scoring": {
+          "type": "object",
+          "title": "Scoring settings",
+          "description": "For scoring problems, submissions are given a non-negative score instead of a verdict. The goal of each submission is to maximize this score. The scoring behavior is configured for `secret` and each test data group using the `scoring` object.",
+          "properties": {
+            "score": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "enum": ["unbounded"]
+                }
+              ]
+            },
+            "aggregation": {
+              "enum": ["pass-fail", "sum", "min"]
+            },
+            "require_pass": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
         },
         "input_validator_args": {
           "oneOf": [
@@ -115,14 +138,29 @@
           "deprecated": true,
           "description": "With 'problem_format_version: 2023-07-draft' in problem.yaml, use output_validator_args instead."
         },
-        "accept_score": {
-          "type": "string"
+        "static_validation": {
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "args": {
+                  "type": "string",
+                  "description": "Represents the additional arguments passed to the static validator in this group's static validation test case."
+                },
+                "score": {
+                  "type": "integer",
+                  "description": "The maximum score of the static validation test case."
+                }
+              }
+            }
+          ]
         },
-        "reject_score": {
-          "type": "string"
-        },
-        "range": {
-          "type": "string"
+        "full_feedback": {
+          "description": "Defaults to `false` in `secret` and `true` in `sample`.\nWhen `full_feedback` is `true`, somebody whose submission didn't pass case should be shown:\n- the given input,\n- the produced output (stdout),\n- any error messages (stderr),\n- the illustration created by the output visualizer (if applicable),\n- the expected output.",
+          "type": "boolean"
         }
       }
     },
