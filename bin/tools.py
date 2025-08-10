@@ -1032,6 +1032,15 @@ def run_parsed_arguments(args):
     # Get problem_paths and cd to contest
     problems, level, contest, tmpdir = get_problems()
 
+    # Check non unique uuid
+    # TODO: check this even more globally?
+    uuids: dict[str, Problem] = {}
+    for p in problems:
+        if p.settings.uuid in uuids:
+            warn(f"{p.name} has the same uuid as {uuids[p.settings.uuid].name}")
+        else:
+            uuids[p.settings.uuid] = p
+
     # Check for incompatible actions at the problem/problemset level.
     if level != "problem":
         if action == "test":
