@@ -128,10 +128,13 @@ def new_problem() -> None:
     source_name = ask_variable_string(
         "source", variables.get("source", variables.get("name", "")), True
     )
-    source_url = ask_variable_string("source url", variables.get("source_url", ""), True)
-    variables["source"] = (
-        f"source:\n  name: {source_name}\n{f'  url: {source_url}' if source_url else '  #url:'}"
-    )
+    if source_name:
+        source_url = ask_variable_string("source url", variables.get("source_url", ""), True)
+        variables["source"] = (
+            f"source:\n  name: {source_name}\n{f'  url: {source_url}' if source_url else '  #url:'}\n"
+        )
+    else:
+        variables["source"] = ""
 
     variables["license"] = ask_variable_choice(
         "license", config.KNOWN_LICENSES, variables.get("license", None)

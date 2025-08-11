@@ -7,8 +7,7 @@ name:
 {%problemname%}
 uuid: {%uuid%}
 credits: {%author%}
-{%source%}
-license: {%license%}
+{%source%}license: {%license%}
 {%rights_owner%}
 # limits:
 #   time_limit: 1.0
