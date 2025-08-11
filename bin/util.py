@@ -135,7 +135,9 @@ def error(msg: Any) -> None:
     config.n_error += 1
 
 
-def fatal(msg: Any, *, force: bool = threading.active_count() > 1) -> NoReturn:
+def fatal(msg: Any, *, force: Optional[bool] = None) -> NoReturn:
+    if force is None:
+        force = threading.active_count() > 1
     print(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
     exit1(force)
 
