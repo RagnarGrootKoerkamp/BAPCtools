@@ -298,7 +298,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             ryaml_filter(limits, "time_limit")
         # validator_flags
         validator_flags = " ".join(
-            problem.get_test_group_yaml(
+            problem.get_test_case_yaml(
                 problem.path / "data",
                 OutputValidator.args_key,
                 PrintBar("Getting validator_flags for legacy export"),

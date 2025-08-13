@@ -72,9 +72,7 @@ KNOWN_TEXT_DATA_EXTENSIONS: Final[Sequence[str]] = [
     *KNOWN_TESTCASE_EXTENSIONS,
     *KNOWN_SAMPLE_TESTCASE_EXTENSIONS,
     ".interaction",
-    ".hint",
-    ".desc",
-    #'.args',
+    ".yaml",
 ]
 
 KNOWN_DATA_EXTENSIONS: Final[Sequence[str]] = [

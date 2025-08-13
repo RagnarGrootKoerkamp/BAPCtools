@@ -82,7 +82,7 @@ data:
           stdoutpy: stdout.py 200
           stdoutcpp: stdout.cpp 201
           inans: write_in_and_ans.py 202
-          hintdesc: hint_desc.py 203
+          hint_desc_yaml: hint_desc_yaml.py 203
           main_py: main_py 204
           main_c: main_c 205
           main_cpp: main_cpp 206

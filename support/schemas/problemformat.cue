@@ -18,9 +18,23 @@ let filename = "[A-Za-z0-9][A-Za-z0-9_.-]{0,253}[A-Za-z0-9]"
 
 // Paths can both refer to objects like the test group "data/secret/huge" or
 // a program file like "/submissions/accepted/x.cpp"
-
 #path: #dirpath | #filepath
+
 // Test data settings
+#test_case_or_group_settings: {
+	args?: *[] | [string]
+	input_validator_args?: *[] | [string] | {[string]: [string]}
+	output_validator_args?: *[] | [string]
+	test_case_visualizer_args?: *[] | [string]
+	output_visualizer_args?: *[] | [string]
+	full_feedback?: bool
+}
+
+#test_case_settings: {
+    #test_case_or_group_settings
+	hint?: string
+	description?: string
+}
 
 #test_group_settings: {
 	scoring?: {
@@ -28,13 +42,9 @@ let filename = "[A-Za-z0-9][A-Za-z0-9_.-]{0,253}[A-Za-z0-9]"
 		aggregation?: "sum" | "min"
 		require_pass: string | [string]
 	}
-	input_validator_args?: *[] | [string] | {[string]: [string]}
-	output_validator_args?: *[] | [string]
-	test_case_visualizer_args?: *[] | [string]
-	output_visualizer_args?: *[] | [string]
+    #test_case_or_group_settings
 	static_validation?: *false | true | {
 		args?: string
 		score?: int
 	}
-	full_feedback?: bool
 }

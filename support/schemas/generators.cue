@@ -43,8 +43,10 @@ import "strings"
 
 		["in" | "in.statement" | "in.download" |
 		 "ans" | "ans.statement" | "ans.download" |
-		 "out" | "desc" | "hint"]: string
+		 "out"]: string
 		interaction?: =~"^([<>][^\\n]*\\n)+$"
+		yaml?: #test_case_config
+
 		#config
 	}
 

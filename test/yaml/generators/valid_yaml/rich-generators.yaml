@@ -21,8 +21,9 @@ data:
       'explicit':
         in: "-1 2"
         ans: "1"
-        desc: "Negative numbers"
-        hint: "Remember that a can be negative"
+        yaml:
+          description: "Negative numbers"
+          hint: "Remember that a can be negative"
       'curlies': my_generator {seed:1} --name {name}
       'morecurlies':
         generate: my_generator {seed:1} --name {name} --ctr {count} --arg {count}

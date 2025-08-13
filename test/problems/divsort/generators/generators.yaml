@@ -43,7 +43,8 @@ data:
                   in: 10.0 3.5 ab dc
               - large_integers:
                   in: 102.0 2.0 ab cd
-                  desc: Must validate, because `secret/general/nested_2/test_group.yaml` shadows `secret/test_group.yaml`
+                  yaml:
+                    description: Must validate, because `secret/general/nested_2/test_group.yaml` shadows `secret/test_group.yaml`
       tolerant:
         test_group.yaml:
           output_validator_args: [float_tolerance, "1e-2"]
@@ -51,9 +52,10 @@ data:
           - tiny_floats:
               in: 10.0 3.0 ab dc
               ans: 3.33 abcd
-              desc: |
-                Must be AC. Compare invalid_output/imprecise, which is (there)
-                invalid because of float_tolerance
+              yaml:
+                description: |
+                  Must be AC. Compare invalid_output/imprecise, which is (there)
+                  invalid because of float_tolerance
 
   invalid_input:
     data:

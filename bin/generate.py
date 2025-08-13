@@ -394,7 +394,14 @@ class Rule:
 
 class TestcaseRule(Rule):
     def __init__(
-        self, problem: Problem, generator_config, key, name: str, yaml, parent, count_index
+        self,
+        problem: Problem,
+        generator_config,
+        key,
+        name: str,
+        yaml: dict[str, Any],
+        parent,
+        count_index,
     ):
         assert is_testcase(yaml)
 
@@ -558,11 +565,16 @@ class TestcaseRule(Rule):
                         if self.copy.with_suffix(ext).is_file():
                             hashes[ext] = hash_file_content(self.copy.with_suffix(ext))
 
-                # 3. hardcoded
+                # 3. hardcoded strings (or, for the Test Case Configuration, a yaml mapping)
                 for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
                     if ext[1:] in yaml:
                         value = yaml[ext[1:]]
-                        assert_type(ext, value, str)
+                        if ext == ".yaml":
+                            assert_type(ext, value, dict)
+                            value = write_yaml(value)
+                            assert value is not None
+                        else:
+                            assert_type(ext, value, str)
                         if len(value) > 0 and value[-1] != "\n":
                             value += "\n"
                         self.hardcoded[ext] = value
@@ -1045,7 +1057,7 @@ class TestcaseRule(Rule):
                 use_feedback_image(feedbackdir, "validator")
                 return True
 
-            visualizer_args = testcase.test_group_yaml_args(visualizer, bar)
+            visualizer_args = testcase.test_case_yaml_args(visualizer, bar)
             visualizer_hash = {
                 "visualizer_hash": visualizer.hash,
                 "visualizer_args": visualizer_args,

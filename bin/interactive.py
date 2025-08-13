@@ -56,7 +56,7 @@ def run_interactive_testcase(
                 run.testcase.ans_path.resolve(),
                 run.feedbackdir.resolve(),
             ]
-            + run.testcase.test_group_yaml_args(
+            + run.testcase.test_case_yaml_args(
                 output_validator,
                 bar or PrintBar("Run interactive test case"),
             )

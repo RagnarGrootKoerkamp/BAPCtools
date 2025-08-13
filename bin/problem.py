@@ -365,7 +365,7 @@ class Problem:
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
         # TODO #102: Add type for test_group.yaml (typed Namespace?)
-        self._test_group_yamls = dict[Path, dict[str, Any]]()
+        self._test_case_yamls = dict[Path, dict[str, Any]]()
         self._test_group_lock = threading.Lock()
 
         # The label for the problem: A, B, A1, A2, X, ...
@@ -460,83 +460,80 @@ class Problem:
         self.custom_output: bool = self.settings.custom_output
 
     # TODO #102 move to a new TestGroup class
-    def _parse_test_group_yaml(p, path, bar):
+    def _parse_test_case_and_groups_yaml(p, path: Path, bar: BAR_TYPE):
         assert path.is_relative_to(p.path / "data")
-        for dir in [path] + list(path.parents):
+        for f in [path] + list(path.parents):
             # Do not go above the data directory.
-            if dir == p.path:
+            if f == p.path:
                 return
 
-            f = dir / "test_group.yaml"
-            if not f.is_file() or f in p._test_group_yamls:
-                continue
+            if f.is_dir():
+                f = f / "test_group.yaml"
             with p._test_group_lock:
-                if f not in p._test_group_yamls:
-                    raw = substitute(
-                        f.read_text(),
-                        p.settings.constants,
-                        pattern=config.CONSTANT_SUBSTITUTE_REGEX,
-                    )
-                    p._test_group_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
+                if not f.is_file() or f in p._test_case_yamls:
+                    continue
+                raw = substitute(
+                    f.read_text(),
+                    p.settings.constants,
+                    pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+                )
+                p._test_case_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
 
-                    parse_deprecated_setting(
-                        flags, "output_validator_flags", validate.OutputValidator.args_key
-                    )
-                    parse_deprecated_setting(
-                        flags, "input_validator_flags", validate.InputValidator.args_key
-                    )
+                parse_deprecated_setting(
+                    flags, "output_validator_flags", validate.OutputValidator.args_key
+                )
+                parse_deprecated_setting(
+                    flags, "input_validator_flags", validate.InputValidator.args_key
+                )
 
-                    # Verify test_group.yaml
-                    for k in flags:
-                        match k:
-                            case (
-                                validate.OutputValidator.args_key
-                                | validate.AnswerValidator.args_key
-                                | visualize.TestCaseVisualizer.args_key
-                                | visualize.OutputVisualizer.args_key
-                            ):
-                                if not isinstance(flags[k], list):
-                                    bar.error(
-                                        f"{k} must be a list of strings",
-                                        resume=True,
-                                        print_item=False,
-                                    )
-                            case validate.InputValidator.args_key:
-                                if not isinstance(flags[k], (list, dict)):
-                                    bar.error(
-                                        f"{k} must be list or map",
-                                        resume=True,
-                                        print_item=False,
-                                    )
-                                if isinstance(flags[k], dict):
-                                    input_validator_names = set(
-                                        val.name for val in p.validators(validate.InputValidator)
-                                    )
-                                    for name in set(flags[k]) - input_validator_names:
-                                        bar.warn(
-                                            f"Unknown input validator {name}; expected {input_validator_names}",
-                                            print_item=False,
-                                        )
-                            case (
-                                "args"
-                                | "description"
-                                | "full_feedback"
-                                | "hint"
-                                | "scoring"
-                                | "static_validation"
-                            ):
-                                bar.warn(
-                                    f"{k} in test_group.yaml not implemented in BAPCtools",
-                                    print_item=False,
+                # Use variable kwargs so the type checker does not complain when passing them to a PrintBar (nothing happens in that case anyway)
+                bar_kwargs = {"resume": True, "print_item": False}
+
+                # Verify test_group.yaml
+                for k in flags:
+                    match k:
+                        case (
+                            validate.OutputValidator.args_key
+                            | validate.AnswerValidator.args_key
+                            | visualize.TestCaseVisualizer.args_key
+                            | visualize.OutputVisualizer.args_key
+                        ):
+                            if not isinstance(flags[k], list):
+                                bar.error(
+                                    f"{k} must be a list of strings",
+                                    None,
+                                    **bar_kwargs,
                                 )
-                            case _:
-                                path = f.relative_to(p.path / "data")
-                                bar.warn(f'Unknown key "{k}" in {path}', print_item=False)
-            # Do not go above the data directory.
-            if dir == p.path / "data":
-                break
+                        case validate.InputValidator.args_key:
+                            if not isinstance(flags[k], (list, dict)):
+                                bar.error(
+                                    f"{k} must be list or map",
+                                    None,
+                                    **bar_kwargs,
+                                )
+                            if isinstance(flags[k], dict):
+                                input_validator_names = set(
+                                    val.name for val in p.validators(validate.InputValidator)
+                                )
+                                for name in set(flags[k]) - input_validator_names:
+                                    bar.warn(
+                                        f"Unknown input validator {name}; expected {input_validator_names}",
+                                        None,
+                                        **bar_kwargs,
+                                    )
+                        case "description" | "hint":
+                            pass  # We don't do anything with hint or description in BAPCtools, but no need to warn about this
+                        case "args" | "full_feedback" | "scoring" | "static_validation":
+                            bar.warn(
+                                f"{k} in test_group.yaml not implemented in BAPCtools",
+                                None,
+                                **bar_kwargs,
+                            )
+                        case _:
+                            path = f.relative_to(p.path / "data")
+                            bar.warn(f'Unknown key "{k}" in {path}', None, **bar_kwargs)
 
-    def get_test_group_yaml(
+    def get_test_case_yaml(
         p,
         path: Path,
         key: str,
@@ -574,19 +571,21 @@ class Problem:
                 f"Only input validators support flags by validator name, got {key} and {name}"
             )
 
-        # parse and cache test_group.yaml
-        p._parse_test_group_yaml(path, bar)
+        # parse and cache <test_case>.yaml and test_group.yaml
+        path = path.with_suffix(".yaml")
+        p._parse_test_case_and_groups_yaml(path, bar)
 
         # extract the flags
-        for dir in [path] + list(path.parents):
+        for f in [path] + list(path.parents):
             # Do not go above the data directory.
-            if dir == p.path:
+            if f == p.path:
                 return []
 
-            f = dir / "test_group.yaml"
-            if f not in p._test_group_yamls:
+            if f.suffix != ".yaml":
+                f = f / "test_group.yaml"
+            if f not in p._test_case_yamls:
                 continue
-            flags = p._test_group_yamls[f]
+            flags = p._test_case_yamls[f]
             if key in flags:
                 args = flags[key]
                 if key == validate.InputValidator.args_key:
@@ -1333,7 +1332,7 @@ class Problem:
         if not p.validators(validate.OutputValidator, strict=True, print_warn=False):
             return True
 
-        args = p.get_test_group_yaml(
+        args = p.get_test_case_yaml(
             p.path / "data" / "valid_output",
             "output_validator_args",
             PrintBar("Generic Output Validation"),

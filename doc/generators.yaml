@@ -84,8 +84,9 @@ data:
         in: 1 0
         # Values must be a strings, so `1` is wrapped in quotes.
         ans: "1"
-        desc: Right identity for addition
-        hint: Make sure addition with zero also works
+        yaml:
+          description: Right identity for addition
+          hint: Make sure addition with zero also works
       # Use YAML multiline syntax for multiline test cases
       # The pipe | preserves newlines, but strips indentation whitespace.
       # See also https://yaml-multiline.info/
@@ -147,7 +148,7 @@ data:
 
       # Commands are only allowed to read and write files of the form
       # `testcase.<ext>`, where <ext> is a known file extension in
-      # .in, .ans, .hint, .desc, .png, .jpg, .svg.
+      # .in, .ans, .out, .yaml, .png, .jpg, .svg.
       # Any such written files will be saved.
       #
       # In case a generator program writes testcase.in, its stdout will be ignored.
@@ -169,8 +170,9 @@ data:
       # either by using 'in', 'copy', or 'generate'
       # 14_no_input_produced: # this is an error
       #   solution: /submissions/accepted/foo.py
-      #   desc: add two numbers
-      #   hint: check for maxint!
+      #   yaml:
+      #     description: add two numbers
+      #     hint: check for maxint!
 
       # Introduce a test group.
       # The top-level `data:` key is always assumed to be a directory.

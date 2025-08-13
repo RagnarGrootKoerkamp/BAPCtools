@@ -116,7 +116,7 @@ class Testcase:
     def with_suffix(self, ext: str) -> Path:
         return self.in_path.with_suffix(ext)
 
-    def test_group_yaml_args(
+    def test_case_yaml_args(
         self,
         program: "validate.AnyValidator | visualize.AnyVisualizer",
         bar: BAR_TYPE,
@@ -131,9 +131,8 @@ class Testcase:
         or ["--max_N", "50"] or even [""].
         """
 
-        path = self.problem.path / "data" / self.short_path
-        return self.problem.get_test_group_yaml(
-            path,
+        return self.problem.get_test_case_yaml(
+            self.problem.path / "data" / self.short_path,
             type(program).args_key,
             bar,
             name=program.name if isinstance(program, validate.InputValidator) else None,
@@ -157,7 +156,7 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.test_group_yaml_args(validator, bar)
+            flags = self.test_case_yaml_args(validator, bar)
             flags_string = " ".join(flags)
             h = combine_hashes_dict(
                 {
@@ -288,7 +287,7 @@ class Testcase:
             if isinstance(validator, validate.OutputValidator) and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
-            flags = self.test_group_yaml_args(validator, bar)
+            flags = self.test_case_yaml_args(validator, bar)
             flags = flags + args
 
             ret = validator.run(self, mode=mode, constraints=constraints, args=flags)

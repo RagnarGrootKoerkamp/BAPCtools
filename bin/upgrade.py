@@ -1,5 +1,6 @@
 import config
 import generate
+from collections import defaultdict
 from util import *
 from validate import InputValidator, AnswerValidator, OutputValidator
 
@@ -96,6 +97,8 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
             bar.log(f"renaming '{old_name}' to '{new_name}'")
             old_path.rename(new_path)
 
+    # Move test cases in 'bad' to either 'invalid_input' or 'invalid_answer', whichever applies
+
     def rename_testcase(old_base: Path, new_dir: Path) -> None:
         new_dir.mkdir(parents=True, exist_ok=True)
         new_base = new_dir / old_base.name
@@ -123,6 +126,33 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
             rename_testcase(file, problem_path / "data" / "invalid_input")
     if bad_dir.is_dir() and not any(bad_dir.iterdir()):
         bad_dir.rmdir()
+
+    # Move .hint and .desc files to the Test Case Configuration .yaml file
+
+    test_case_yamls = defaultdict[Path, CommentedMap](CommentedMap)
+    for f in (problem_path / "data").rglob("*.yaml"):
+        if f.with_suffix(".in").exists():  # Prevent reading test_group.yaml, which has no *.in file
+            test_case_yamls[f] = read_yaml(f)
+
+    for f in (problem_path / "data").rglob("*.desc"):
+        test_case_yaml = test_case_yamls[f.with_suffix(".yaml")]
+        if "description" in test_case_yaml:
+            bar.warn(f"can't move '{f}' to '*.yaml', it already contains the key 'description'")
+        else:
+            bar.log(f"moving '{f}' to 'description' key in '*.yaml'")
+            test_case_yaml["description"] = f.read_text()
+            write_yaml(test_case_yaml, f.with_suffix(".yaml"))
+            f.unlink()
+
+    for f in (problem_path / "data").rglob("*.hint"):
+        test_case_yaml = test_case_yamls[f.with_suffix(".yaml")]
+        if "hint" in test_case_yaml:
+            bar.warn(f"can't move '{f}' to '*.yaml', it already contains the key 'hint'")
+        else:
+            bar.log(f"moving '{f}' to 'hint' key in '*.yaml'")
+            test_case_yaml["hint"] = f.read_text()
+            write_yaml(test_case_yaml, f.with_suffix(".yaml"))
+            f.unlink()
 
 
 def rename_testdata_to_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
@@ -228,23 +258,28 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             ryaml_filter(data, "bad")
             changed = True
 
-    def rename_testdata_to_test_group_yaml(data: dict[str, Any], path: str) -> bool:
-        changed = False
-        old, new = "testdata.yaml", "test_group.yaml"
-        if old in data:
-            print_path = f" ({path[1:]})" if len(path) > 1 else ""
-            bar.log(f"change '{old}' to '{new}' in generators.yaml{print_path}")
-            ryaml_replace(data, old, new)
-            changed = True
+    def apply_recursively(
+        operation: Callable[[dict[str, Any], str], bool], data: dict[str, Any], path=""
+    ) -> bool:
+        changed = operation(data, path)
         if "data" in data and data["data"]:
             children = data["data"] if isinstance(data["data"], list) else [data["data"]]
             for dictionary in children:
                 for child_name, child_data in sorted(dictionary.items()):
+                    if not child_name:
+                        child_name = '""'
                     if generate.is_directory(child_data):
-                        changed |= rename_testdata_to_test_group_yaml(
-                            child_data, path + "." + child_name
-                        )
+                        changed |= apply_recursively(operation, child_data, path + "." + child_name)
         return changed
+
+    def rename_testdata_to_test_group_yaml(data: dict[str, Any], path: str) -> bool:
+        old, new = "testdata.yaml", "test_group.yaml"
+        if old in data:
+            print_path = f" ({path[1:]})" if len(path) > 1 else ""
+            bar.log(f"changing '{old}' to '{new}' in generators.yaml{print_path}")
+            ryaml_replace(data, old, new)
+            return True
+        return False
 
     def upgrade_generated_test_group_yaml(data: dict[str, Any], path: str) -> bool:
         changed = False
@@ -264,21 +299,39 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                             resume=True,
                         )
                         continue
-                    bar.log(f"change '{old}' to '{new}' in generators.yaml{print_path}")
+                    bar.log(f"changing '{old}' to '{new}' in generators.yaml{print_path}")
                     ryaml_replace(test_group_yaml, old, new)
                     changed = True
+        return changed
+
+    def replace_hint_desc_in_test_cases(data: dict[str, Any], path: str) -> bool:
+        changed = False
         if "data" in data and data["data"]:
             children = data["data"] if isinstance(data["data"], list) else [data["data"]]
             for dictionary in children:
                 for child_name, child_data in sorted(dictionary.items()):
-                    if generate.is_directory(child_data):
-                        changed |= upgrade_generated_test_group_yaml(
-                            child_data, path + "." + child_name
-                        )
+                    if not child_name:
+                        child_name = '""'
+                    if generate.is_testcase(child_data):
+                        if "desc" in child_data:
+                            ryaml_get_or_add(child_data, "yaml")["description"] = child_data["desc"]
+                            ryaml_filter(child_data, "desc")
+                            bar.log(
+                                f"moving 'desc' inside 'yaml' in generators.yaml ({path}.{child_name})"
+                            )
+                            changed = True
+                        if "hint" in child_data:
+                            ryaml_get_or_add(child_data, "yaml")["hint"] = child_data["hint"]
+                            ryaml_filter(child_data, "hint")
+                            bar.log(
+                                f"moving 'hint' inside 'yaml' in generators.yaml ({path}.{child_name})"
+                            )
+                            changed = True
         return changed
 
-    changed |= rename_testdata_to_test_group_yaml(yaml_data, "")
-    changed |= upgrade_generated_test_group_yaml(yaml_data, "")
+    changed |= apply_recursively(rename_testdata_to_test_group_yaml, yaml_data, "")
+    changed |= apply_recursively(upgrade_generated_test_group_yaml, yaml_data, "")
+    changed |= apply_recursively(replace_hint_desc_in_test_cases, yaml_data, "")
 
     if changed:
         write_yaml(yaml_data, generators_yaml)

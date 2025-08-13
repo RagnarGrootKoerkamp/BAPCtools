@@ -46,44 +46,15 @@
       },
       "additionalProperties": false
     },
-    "test_group_settings": {
+    "test_case_or_group_settings": {
       "type": "object",
-      "title": "Test data settings",
-      "description": "The settings that apply to the test data for this test group. Will be copied to this test group's `test_group.yaml`.",
       "properties": {
-        "scoring": {
-          "type": "object",
-          "title": "Scoring settings",
-          "description": "For scoring problems, submissions are given a non-negative score instead of a verdict. The goal of each submission is to maximize this score. The scoring behavior is configured for `secret` and each test data group using the `scoring` object.",
-          "properties": {
-            "score": {
-              "oneOf": [
-                {
-                  "type": "integer",
-                  "minimum": 1
-                },
-                {
-                  "enum": ["unbounded"]
-                }
-              ]
-            },
-            "aggregation": {
-              "enum": ["pass-fail", "sum", "min"]
-            },
-            "require_pass": {
-              "oneOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "string"
-                  }
-                }
-              ]
-            }
-          }
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Defines arguments passed to the submission for the test case/group."
         },
         "input_validator_args": {
           "oneOf": [
@@ -137,32 +108,100 @@
           "type": "string",
           "deprecated": true,
           "description": "With 'problem_format_version: 2023-07-draft' in problem.yaml, use output_validator_args instead."
-        },
-        "static_validation": {
-          "oneOf": [
-            {
-              "type": "boolean"
-            },
-            {
-              "type": "object",
-              "properties": {
-                "args": {
-                  "type": "string",
-                  "description": "Represents the additional arguments passed to the static validator in this group's static validation test case."
-                },
-                "score": {
-                  "type": "integer",
-                  "description": "The maximum score of the static validation test case."
-                }
-              }
-            }
-          ]
-        },
-        "full_feedback": {
-          "description": "Defaults to `false` in `secret` and `true` in `sample`.\nWhen `full_feedback` is `true`, somebody whose submission didn't pass case should be shown:\n- the given input,\n- the produced output (stdout),\n- any error messages (stderr),\n- the illustration created by the output visualizer (if applicable),\n- the expected output.",
-          "type": "boolean"
         }
       }
+    },
+    "test_case_settings": {
+      "title": "Test case settings",
+      "description": "The settings that apply to this test case.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/test_case_or_group_settings"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "hint": {
+              "type": "string",
+              "description": "A hint provides feedback for solving a test case to, e.g., somebody whose submission didn't pass."
+            },
+            "description": {
+              "type": "string",
+              "description": "A description conveys the purpose of a test case. It is an explanation of what aspect or edge case of the solution the input file is meant to test."
+            }
+          }
+        }
+      ]
+    },
+    "test_group_settings": {
+      "title": "Test group settings",
+      "description": "The settings that apply to the test data for this test group. Will be copied to this test group's `test_group.yaml`.",
+      "allOf": [
+        {"$ref": "#/$defs/test_case_or_group_settings"},
+        {
+          "type": "object",
+          "properties": {
+            "scoring": {
+              "type": "object",
+              "title": "Scoring settings",
+              "description": "For scoring problems, submissions are given a non-negative score instead of a verdict. The goal of each submission is to maximize this score. The scoring behavior is configured for `secret` and each test data group using the `scoring` object.",
+              "properties": {
+                "score": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "enum": ["unbounded"]
+                    }
+                  ]
+                },
+                "aggregation": {
+                  "enum": ["pass-fail", "sum", "min"]
+                },
+                "require_pass": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "static_validation": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "args": {
+                      "type": "string",
+                      "description": "Represents the additional arguments passed to the static validator in this group's static validation test case."
+                    },
+                    "score": {
+                      "type": "integer",
+                      "description": "The maximum score of the static validation test case."
+                    }
+                  }
+                }
+              ]
+            },
+            "full_feedback": {
+              "description": "Defaults to `false` in `secret` and `true` in `sample`.\nWhen `full_feedback` is `true`, somebody whose submission didn't pass case should be shown:\n- the given input,\n- the produced output (stdout),\n- any error messages (stderr),\n- the illustration created by the output visualizer (if applicable),\n- the expected output.",
+              "type": "boolean"
+            }
+          }
+        }
+      ]
     },
     "data_dict": {
       "title": "Data Dictionary",
@@ -253,15 +292,8 @@
               "type": "string",
               "pattern": "^([<>][^\\n]*\\n)+$"
             },
-            "desc": {
-              "type": "string",
-              "title": "Description",
-              "description": "Privileged information explaining the purpose of this test case given as a string"
-            },
-            "hint": {
-              "type": "string",
-              "title": "Hint",
-              "description": "Feedback shown to the solver about this test case given as a string"
+            "yaml": {
+              "$ref": "#/$defs/test_case_settings"
             },
             "random_salt": {
               "$ref": "#/$defs/random_salt"
