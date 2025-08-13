@@ -347,15 +347,14 @@ Settings for this contest will be asked for interactively. The following files a
 ```
 /tmp/tmp % bt new_contest
 name: NWERC 2020
-subtitle []: The Northwestern European Programming Contest 2020
-dirname [nwerc2020]:
-author [The NWERC 2020 jury]:
-testsession? [n (y/n)]: n
-year [2020]:
-source [NWERC 2020]:
-source url []: 2020.nwerc.eu
-license [cc by-sa]:
-rights owner [author]:
+subtitle: The Northwestern European Programming Contest 2020
+dirname (nwerc2020):
+author (The NWERC 2020 jury):
+test session? (y/N): n
+year (2020):
+source url: 2020.nwerc.eu
+license (cc by-sa):
+rights owner (if left empty, defaults to problem author):
 ```
 
 ## `new_problem`
@@ -365,9 +364,13 @@ Create a new problem directory and fill it with skel files. If `problems.yaml` i
 ```
 ~nwerc2020 % bt new_problem
 problem name (en): Test Problem
-dirname [testproblem]:
+dirname (testproblem):
 author: Ragnar Groot Koerkamp
-validation (default/custom/custom interactive) [default]:
+type (pass-fail):
+source (NWERC 2020):
+source url (2020.nwerc.eu):
+license (cc by-sa):
+rights owner (if left empty, defaults to problem author):
 LOG: Copying /home/philae/git/bapc/BAPCtools/skel/problem to testproblem.
 ```
 
@@ -629,7 +632,7 @@ This file should contain a list of problems, with for every problem the keys `id
 
 - `--colors`: Apply the given list of colors to the list of problems, in the same order as in `problems.yaml`.
   Should be a comma-separated list of colors (hash-sign is optional), e.g.: `--colors ff0000,00ff00,0000ff`.
-- `--sort`: Sort the problems in `problems.yaml` and re-label them starting from `A` (or `X` if `contest.yaml` contains `testsession: True`).
+- `--sort`: Sort the problems in `problems.yaml` and re-label them starting from `A` (or `X` if `contest.yaml` contains `test_session: True`).
 
 ## `tmp`
 

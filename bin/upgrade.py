@@ -71,6 +71,14 @@ def _move_dir(src_base: Path, dst_base: Path) -> None:
     movetree(src_base, dst_base)
 
 
+def upgrade_contest_yaml(contest_yaml_path: Path, bar: ProgressBar) -> None:
+    yaml_data = read_yaml(contest_yaml_path)
+    if "testsession" in yaml_data:
+        ryaml_replace(yaml_data, "testsession", "test_session")
+        write_yaml(yaml_data, contest_yaml_path)
+        bar.log("renaming 'testsession' to 'test_session'")
+
+
 def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     rename = [
         ("data/invalid_inputs", "data/invalid_input"),
@@ -514,7 +522,14 @@ def upgrade() -> None:
     else:
         paths = [p for p in cwd.iterdir() if is_problem_directory(p)]
 
-    bar = ProgressBar("upgrade", items=paths)
+    bar = ProgressBar("upgrade", items=["contest.yaml", *paths])
+
+    bar.start("contest.yaml")
+    if (cwd / "contest.yaml").is_file():
+        upgrade_contest_yaml(cwd / "contest.yaml", bar)
+    bar.done()
+
     for path in paths:
         _upgrade(path, bar)
+
     bar.finalize()

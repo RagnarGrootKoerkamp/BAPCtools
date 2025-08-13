@@ -154,7 +154,7 @@ The following placeholders are automatically substituted in the `contest_data.te
 {%subtitle%}
 {%year%}
 {%author%}
-{%testsession%}
+{%test_session%}
 {%logofile%}
 ...
 <any entry in the contest.yaml>

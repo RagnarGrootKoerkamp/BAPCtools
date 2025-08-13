@@ -36,7 +36,7 @@ def new_contest() -> None:
     subtitle = ask_variable_string("subtitle", "", True).replace("_", "-")
     dirname = ask_variable_string("dirname", _alpha_num(title))
     author = ask_variable_string("author", f"The {title} Jury").replace("_", "-")
-    testsession = ask_variable_bool("testsession", False)
+    test_session = ask_variable_bool("test session", False)
     year = ask_variable_string("year", str(datetime.datetime.now().year))
     source_url = ask_variable_string("source url", "", True)
     license = ask_variable_choice("license", config.KNOWN_LICENSES)
@@ -165,7 +165,7 @@ def new_problem() -> None:
             data = read_yaml(problems_yaml) or []
             prev_label = data[-1]["label"] if data else None
             next_label = (
-                ("X" if contest.contest_yaml().get("testsession") else "A")
+                ("X" if contest.contest_yaml().get("test_session") else "A")
                 if prev_label is None
                 else inc_label(prev_label)
             )

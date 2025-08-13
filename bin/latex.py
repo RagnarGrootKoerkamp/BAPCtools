@@ -459,13 +459,13 @@ def build_contest_pdf(
         "subtitle": "",
         "year": "YEAR",
         "author": "AUTHOR",
-        "testsession": "",
+        "test_session": "",
     }
     config_data = contest_yaml()
     for x in default_config_data:
         if x not in config_data:
             config_data[x] = default_config_data[x]
-    config_data["testsession"] = "\\testsession" if config_data.get("testsession") else ""
+    config_data["test_session"] = "\\testsession" if config_data.get("test_session") else ""
     config_data["logofile"] = find_logo().as_posix()
 
     local_contest_data = Path("contest_data.tex")
