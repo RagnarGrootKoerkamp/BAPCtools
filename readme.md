@@ -13,10 +13,18 @@ time since I'm not aware of usage outside of BAPC yet.
 
 ## Installation
 
-You can install the [bapctools-git AUR
-package](https://aur.archlinux.org/packages/bapctools-git/), mirrored
-[here](https://github.com/RagnarGrootKoerkamp/bapctools-git), or use the [Docker
-image](#Docker).
+> [!IMPORTANT]
+> The latest version of BAPCtools is only compatible with problem format version
+> [`2025-09`](https://icpc.io/problem-package-format/spec/2025-09.html).
+> The [`bt upgrade` command](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/HEAD/doc/commands.md#upgrade)
+> is a best-effort automated way to upgrade `legacy` problems to `2025-09`.
+> To use BAPCtools with `legacy` problems,
+> you can use the [`legacy` branch](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/legacy) of this repository,
+> which is no longer maintained.
+
+You can install the [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/),
+mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git),
+or use the [Docker image](#Docker).
 
 Otherwise, clone this repository and install the required dependencies manually.
 (If you know how to make a Debian package, feel free to help out.)
@@ -35,7 +43,7 @@ Otherwise, clone this repository and install the required dependencies manually.
 Optional dependencies, required for some subcommands:
 
 - The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python-ruamel-yaml` Arch Linux package (`python3-ruamel.yaml` on Debian derivatives).
-  - This is only needed for commands that update `generators.yaml`.
+  - This is only needed for commands that update `generators.yaml` and `bt upgrade`.
 - The `latexmk` and `pdflatex` commands, provided by `texlive-bin` on Arch Linux and
   potentially some specific LaTeX packages (like tikz) provided by
   `texlive-extra`.
@@ -77,7 +85,7 @@ Resource limits (memory limit/hard cpu time limit) are not supported.
 
 A docker image containing this git repo and dependencies, together with commonly
 used languages, is provided at
-[ragnargrootkoerkamp/bacptools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
+[ragnargrootkoerkamp/bapctools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
 This version may be somewhat outdated, but we intend to update it whenever dependencies change.
 Ping me if you'd like it to be updated.
 Alternatively, inside the Docker container, you can run `git -C /opt/BAPCtools pull` to update to the latest version of BAPCtools,
