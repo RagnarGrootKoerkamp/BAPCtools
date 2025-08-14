@@ -418,7 +418,7 @@ image: bapctools
 
 default:
   before_script:
-    - git -C /cache/BAPCtools pull || git clone https://github.com/RagnarGrootKoerkamp/BAPCtools.git /cache/BAPCtools
+    - git -C /cache/BAPCtools pull || git clone https://github.com/RagnarGrootKoerkamp/BAPCtools.git /cache/BAPCtools --branch legacy
     - ln -s /cache/BAPCtools/bin/tools.py bt
 
 contest_pdf_nwerc2020:

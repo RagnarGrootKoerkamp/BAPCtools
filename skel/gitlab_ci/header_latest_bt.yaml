@@ -4,5 +4,5 @@ image:
 
 default:
   before_script:
-    - git -C /cache/BAPCtools pull --ff-only || git clone https://github.com/RagnarGrootKoerkamp/BAPCtools.git /cache/BAPCtools
+    - git -C /cache/BAPCtools pull --ff-only || git clone https://github.com/RagnarGrootKoerkamp/BAPCtools.git /cache/BAPCtools --branch legacy
     - ln -s /cache/BAPCtools/bin/tools.py bt

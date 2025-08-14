@@ -13,10 +13,16 @@ time since I'm not aware of usage outside of BAPC yet.
 
 ## Installation
 
-You can install the [bapctools-git AUR
-package](https://aur.archlinux.org/packages/bapctools-git/), mirrored
-[here](https://github.com/RagnarGrootKoerkamp/bapctools-git), or use the [Docker
-image](#Docker).
+> [!IMPORTANT]
+> The `legacy` version of BAPCtools is no longer maintained.
+> Please use the latest version, which is compatible with problem format version
+> [`2023-07-draft`](https://icpc.io/problem-package-format/spec/2023-07-draft.html).
+> The `bt upgrade` command in the latest version of BAPCtools
+> is a best-effort automated way to upgrade `legacy` problems to `2023-07-draft`.
+
+You can install the [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/),
+mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git),
+or use the [Docker image](#Docker).
 
 Otherwise, clone this repository and install the required dependencies manually.
 (If you know how to make a Debian package, feel free to help out.)
@@ -77,7 +83,7 @@ Resource limits (memory limit/hard cpu time limit) are not supported.
 
 A docker image containing this git repo and dependencies, together with commonly
 used languages, is provided at
-[ragnargrootkoerkamp/bacptools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
+[ragnargrootkoerkamp/bapctools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
 This version may be somewhat outdated, but we intend to update it whenever dependencies change.
 Ping me if you'd like it to be updated.
 Alternatively, inside the Docker container, you can run `git -C /opt/BAPCtools pull` to update to the latest version of BAPCtools,
@@ -90,7 +96,7 @@ This image can be used for e.g.:
 - running `bt` on your local problems. Use this command to mount your local
   directory into the docker image and run a command on it:
   ```
-  docker run -v $PWD:/data --rm -it ragnargrootkoerkamp/bapctools <bt subcommands>
+  docker run -v $PWD:/data --rm -it ragnargrootkoerkamp/bapctools:legacy <bt subcommands>
   ```
 
 For maintainers, these are the steps to build and push an updated image:
@@ -99,9 +105,9 @@ For maintainers, these are the steps to build and push an updated image:
 $ sudo systemctl start docker
 $ docker pull archlinux:latest
 $ docker login
-$ docker build . -t ragnargrootkoerkamp/bapctools
-$ docker push ragnargrootkoerkamp/bapctools
-$ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools
+$ docker build . -t ragnargrootkoerkamp/bapctools:legacy
+$ docker push ragnargrootkoerkamp/bapctools:legacy
+$ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools:legacy
 ```
 
 The last step is needed when your CI server is not automatically pulling the latest version.

@@ -1,4 +1,4 @@
-# NOTE: This installs the BAPCtools version from the GitHub master branch.
+# NOTE: This installs the BAPCtools version from the GitHub legacy branch.
 FROM archlinux:latest
 MAINTAINER ragnar.grootkoerkamp@gmail.com
 
@@ -37,7 +37,7 @@ RUN pacman -Syu --noconfirm \
 	cue \
 	&& pacman -Scc --noconfirm
 
-RUN git clone https://github.com/RagnarGrootKoerkamp/BAPCtools /opt/bapctools && \
+RUN git clone https://github.com/RagnarGrootKoerkamp/BAPCtools /opt/bapctools --branch legacy && \
 	ln -sfn /opt/bapctools/bin/tools.py /usr/bin/bt && ln -sfn /opt/bapctools/third_party/checktestdata /usr/bin/checktestdata
 
 RUN mkdir /data
