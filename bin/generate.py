@@ -457,12 +457,17 @@ class TestcaseRule(Rule):
         # root in /data
         self.root = self.path.parts[0]
 
-        if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
-            raise ParseException("Testcase does not have a valid name.")
-
         # files to consider for hashing
         hashes = {}
         try:
+            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
+                raise ParseException("Test case does not have a valid name.")
+
+            if name == "test_group":
+                raise ParseException(
+                    "Test case must not be named 'test_group', this clashes with the group-level 'test_group.yaml'."
+                )
+
             if yaml is None:
                 raise ParseException(
                     "Empty yaml entry (Testcases must be generated not only mentioned)."
@@ -1678,7 +1683,7 @@ class GeneratorConfig:
 
             if is_testcase(yaml):
                 if isinstance(parent, RootDirectory):
-                    raise ParseException("Testcase must be inside Directory", name)
+                    raise ParseException("Test case must be inside a Directory.", name)
 
                 count = parse_count(yaml, parent.path / name)
 

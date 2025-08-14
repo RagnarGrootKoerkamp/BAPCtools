@@ -33,6 +33,12 @@ data:
           input_validator_args: [--connected, --max_n, "2000"]
         data:
           'a': my_generator
+          # A test case may not be called 'test_group', but it may appear as part of the name.
+          'test_group_': my_generator
+      'group_with_numbers':
+        data:
+          # A numbered test case may be called 'X-test-group'.
+          - 'test_group': my_generator
   invalid_input:
     data:
     - '':

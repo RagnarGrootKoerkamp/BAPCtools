@@ -612,6 +612,15 @@ class Problem:
 
         return []
 
+    # Because Problem.testcases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
+    # this cache makes sure that some warnings (like malformed test case names) only appear once.
+    _warned_for_test_case = set[str]()
+
+    def _warn_once(p, test_name, msg):
+        if test_name not in p._warned_for_test_case:
+            p._warned_for_test_case.add(test_name)
+            warn(msg)
+
     def testcases(
         p,
         *,
@@ -660,6 +669,15 @@ class Problem:
         testcases = []
         for f in in_paths:
             t = testcase.Testcase(p, f)
+            if not config.COMPILED_FILE_NAME_REGEX.fullmatch(f.name):
+                p._warn_once(t.name, f"Test case name {t.name} is not valid. Skipping.")
+                continue
+            if f.with_suffix("").name == "test_group":
+                p._warn_once(
+                    t.name,
+                    "Test case must not be named 'test_group', this clashes with the group-level 'test_group.yaml'. Skipping.",
+                )
+                continue
             if (
                 (p.interactive or p.multi_pass)
                 and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
@@ -671,7 +689,7 @@ class Problem:
                 continue
             if needans and not t.ans_path.is_file():
                 if t.root != "invalid_input":
-                    warn(f"Found input file {f} without a .ans file. Skipping.")
+                    p._warn_once(t.name, f"Found input file {f} without a .ans file. Skipping.")
                     continue
             if mode == validate.Mode.VALID_OUTPUT:
                 if t.out_path is None:

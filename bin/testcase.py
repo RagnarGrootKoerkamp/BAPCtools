@@ -87,7 +87,6 @@ class Testcase:
 
         self.problem = base_problem
 
-        # TODO add self.out_path
         if short_path is None:
             try:
                 self.short_path: Path = path.relative_to(self.problem.path / "data")
