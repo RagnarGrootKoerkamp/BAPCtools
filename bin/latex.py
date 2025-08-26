@@ -210,12 +210,9 @@ def problem_data(problem: "Problem", language: str):
         "ffffff",
     )
     # Source: https://github.com/DOMjudge/domjudge/blob/095854650facda41dbb40966e70199840b887e33/webapp/src/Twig/TwigExtension.php#L1056
-    foreground = (
-        "000000" if sum(int(background[i : i + 2], 16) for i in range(0, 6, 2)) > 450 else "ffffff"
-    )
-    border = "".join(
-        ("00" + hex(max(0, int(background[i : i + 2], 16) - 64))[2:])[-2:] for i in range(0, 6, 2)
-    )
+    background_rgb = [int(background[i : i + 2], 16) for i in [0, 2, 4]]
+    foreground = "000000" if sum(background_rgb) > 450 else "ffffff"
+    border = "".join(f"{max(0, color - 64):02x}" for color in background_rgb)
 
     return {
         "problemlabel": problem.label,
