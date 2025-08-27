@@ -373,6 +373,9 @@
       },
       "additionalProperties": false
     },
+    "test_group.yaml": {
+      "$ref": "#/$defs/test_group_settings"
+    },
     "data": {
       "title": "Test data root",
       "description": "The root test group. Must contain the test groups 'sample' and 'secret'.",
@@ -407,9 +410,6 @@
           "$ref": "#/$defs/test_group",
           "title": "Valid outputs",
           "description": "Valid test cases for which the `.out` must pass output validation."
-        },
-        "test_group.yaml": {
-          "$ref": "#/$defs/test_group_settings"
         }
       },
       "additionalProperties": false,
