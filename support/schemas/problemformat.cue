@@ -25,7 +25,7 @@ let filename = "[A-Za-z0-9][A-Za-z0-9_.-]{0,253}[A-Za-z0-9]"
 	args?: *[] | [string]
 	input_validator_args?: *[] | [string] | {[string]: [string]}
 	output_validator_args?: *[] | [string]
-	test_case_visualizer_args?: *[] | [string]
+	input_visualizer_args?: *[] | [string]
 	output_visualizer_args?: *[] | [string]
 	full_feedback?: bool
 }

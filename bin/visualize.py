@@ -9,7 +9,7 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
     from problem import Problem
 
 
-class TestCaseVisualizer(program.Program):
+class InputVisualizer(program.Program):
     """
     Visualizes a test case, called as:
 
@@ -17,17 +17,17 @@ class TestCaseVisualizer(program.Program):
 
     """
 
-    visualizer_type: Final[str] = "test case"
+    visualizer_type: Final[str] = "input"
 
-    source_dir: Final[str] = "test_case_visualizer"
+    source_dir: Final[str] = "input_visualizer"
 
-    args_key: Final[str] = "test_case_visualizer_args"
+    args_key: Final[str] = "input_visualizer_args"
 
     def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
         super().__init__(
             problem,
             path,
-            TestCaseVisualizer.source_dir,
+            InputVisualizer.source_dir,
             limits={"timeout": problem.limits.visualizer_time},
             substitute_constants=True,
             **kwargs,
@@ -37,9 +37,7 @@ class TestCaseVisualizer(program.Program):
     def run(
         self, in_path: Path, ans_path: Path, cwd: Path, args: Optional[list[str]] = None
     ) -> ExecResult:
-        assert self.run_command is not None, (
-            "Test Case Visualizer should be built before running it"
-        )
+        assert self.run_command is not None, "Input Visualizer should be built before running it"
 
         return self._exec_command(
             self.run_command + [in_path, ans_path] + (args or []),
@@ -94,4 +92,4 @@ class OutputVisualizer(program.Program):
             return self._exec_command(command, cwd=cwd)
 
 
-AnyVisualizer = TestCaseVisualizer | OutputVisualizer
+AnyVisualizer = InputVisualizer | OutputVisualizer

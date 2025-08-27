@@ -85,12 +85,12 @@
           },
           "description": "Defines arguments passed to the output validator for the test case/group."
         },
-        "test_case_visualizer_args": {
+        "input_visualizer_args": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Defines arguments passed to the test case visualizer for the test case/group."
+          "description": "Defines arguments passed to the input visualizer for the test case/group."
         },
         "output_visualizer_args": {
           "type": "array",
