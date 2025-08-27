@@ -66,10 +66,10 @@ class MockRun:
 
 @pytest.mark.usefixtures("validator")
 class TestDefaultOutputValidator:
-    @pytest.mark.parametrize("testdata", read_tests())
-    def test_default_output_validator(self, validator, testdata):
+    @pytest.mark.parametrize("test_data", read_tests())
+    def test_default_output_validator(self, validator, test_data):
         problem, validator = validator
-        flags, ans, out, exp = testdata
+        flags, ans, out, exp = test_data
         flags = flags.split()
 
         (problem.tmpdir / "data").mkdir(exist_ok=True, parents=True)
@@ -91,7 +91,7 @@ class TestDefaultOutputValidator:
         result = validator.run(t, r, args=flags)
 
         if result.status != exp:
-            print(testdata)
+            print(test_data)
             for k in vars(result):
                 print(k, " -> ", getattr(result, k))
         assert result.status == exp

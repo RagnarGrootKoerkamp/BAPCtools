@@ -10,7 +10,7 @@ Input and answer validation run on the _files_ in `data/*`; their purpose is to 
 Output validation runs on the output of the author submissions in `submissions` (and eventually on solver submissions when the problem is hosted on a judge system);
 the purpose of output validation is to check correctness of _submissions_.
 
-The testcases in `/data/sample` and `/data/secret` must pass each of input, answer, and output validation;
+The test cases in `/data/sample` and `/data/secret` must pass each of input, answer, and output validation;
 whereas submission output must only pass output validation.
 
 
@@ -18,7 +18,7 @@ whereas submission output must only pass output validation.
 
 These are some things that hold for all types of validation mentioned below.
 
-- For each testcase, all validators of the same type are run in lexicographic order. If one
+- For each test case, all validators of the same type are run in lexicographic order. If one
   fails, later ones are skipped.
 - In BAPCtools, the current working directory is always a temporary
   `<testcase>.feedbackdir` directory.
@@ -30,22 +30,22 @@ These are some things that hold for all types of validation mentioned below.
 - The return code must be `43` for failed validation. (Note that the spec is
   slightly more lenient and allows any non-`42` return code for input format
   validation. BAPCtools expects a code of exactly `43` when validating
-  invalid testcases (see below).)
+  invalid test cases (see below).)
 - For input and answer validation, the out-of-spec `--constraints-file
 <path>` flag is set when running `bt constraints`. The validator can write some
-  statistics on the testcase to this file. See the [implementation
+  statistics on the test case to this file. See the [implementation
   notes](implementation_notes.md#constraints-checking).
 - `<{input,output}_validator_args>` are either empty, or the value of the
-  `{input,output}_validator_args` key in the first `testdata.yaml` file that is found
-  in the directory (testgroup) of the current testcase or its parents.
+  `{input,output}_validator_args` key in the first `test_group.yaml` file that is found
+  in the directory (test group) of the current test case or its parents.
 
 ## Input validation
 
 `bt validate --input`
 
-Test if the testcase input file `testcase.in` file passes the 'input validators'. Each file or
+Test if the test case input file `testcase.in` file passes the 'input validators'. Each file or
 directory in `/input_validators/` is an input validator.
-Input validators receive the testcase on standard input, as
+Input validators receive the test case on standard input, as
 
 ```
 input_validator [input_validator_args] < testcase.in
@@ -55,15 +55,15 @@ input_validator [input_validator_args] < testcase.in
 
 `bt validate --answer`
 
-BAPCtools allows (in fact, encourages) the validation of the `.ans`-file of each testcase.
+BAPCtools allows (in fact, encourages) the validation of the `.ans`-file of each test case.
 As for input validation, every program in `answer_validators` is a validator, and all validators must pass.
-Answer validators receive the testcase answer file on standard input, as
+Answer validators receive the test case answer file on standard input, as
 ```
 answer_validator /path/to/testcase.in [output_validator_args] < testcase.ans
 ```
 
 Answer validation can be as simple as checking that standard input contains a single integer (and nothing else).
-A more advanced use case would be to read an integer `n` from the testcase input file `testcase.in` file provided as the first argument,
+A more advanced use case would be to read an integer `n` from the test case input file `testcase.in` file provided as the first argument,
 followed by verifying that the standard input contains `n` newline-separated integers.
 
 BAPCtools assumes that all answer files are also valid outputs and therefore also checks that the `.ans` files pass output validation.
@@ -110,7 +110,7 @@ Examples:
 Invalid answers are test cases in `data/invalid_answer`.
 Such a test case consist of input and answer files (`.in` and `.ans`), just like a normal test case.
 The input file must pass input validation (i.e., all input validators must accept).
-The testcase must fail answer validation, i.e., at least one answer validator or the output validator must reject it.
+The test case must fail answer validation, i.e., at least one answer validator or the output validator must reject it.
 The output validator is run in strict mode, i.e., with the flags `case_sensitive` and `space_change_sensitive`;
 to ensure maximum conformity of answer files in the test data.
 

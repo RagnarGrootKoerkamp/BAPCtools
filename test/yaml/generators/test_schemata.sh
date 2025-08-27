@@ -23,7 +23,7 @@ for dir in "${all_valid_yaml[@]}"; do
     for file in $(find "$dir" -type f -name '*generators.yaml'); do
 	    echo -n "cue vet "$file" $schemadir/*.cue -d \"#Generators\" "
 	    tmp="$(mktemp --suffix .yaml)"
-	    sed "s/{%testdata_yaml_comment%}/#/" "$file" | sed "s/{%output_validator_args%}//" > "$tmp"
+	    sed "s/{%test_group_yaml_comment%}/#/" "$file" | sed "s/{%output_validator_args%}//" > "$tmp"
 	    output_cue=$(cue vet "$tmp" $schemadir/*.cue -d "#Generators" 2>&1)
 	    rm "$tmp"
 	    exit_code_cue=$?

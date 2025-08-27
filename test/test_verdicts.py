@@ -77,5 +77,5 @@ class TestVerdicts:
         verds.set("secret/a/1", "TLE", 2.9)
         verds.set("secret/a/2", "RTE", 3.5)
         verds.set("secret/a/3", "TLE", 3.2)
-        assert verds.salient_testcase() == ("secret/a/1", 2.9)
-        assert verds.slowest_testcase() == ("secret/a/2", 3.5)
+        assert verds.salient_test_case() == ("secret/a/1", 2.9)
+        assert verds.slowest_test_case() == ("secret/a/2", 3.5)
