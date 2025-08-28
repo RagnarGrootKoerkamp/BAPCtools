@@ -475,35 +475,35 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
         }[path.suffix]
         file_bytes = file.read()
 
-        if problem.interactive and path.suffix == ".ans":
-            if len(file_bytes) != 0:
+        if len(file_bytes) == 0:
+            # only allow empty files for multipass .ans
+            if not (path.suffix == ".ans" and problem.multi_pass):
+                bar.warn(f"{name} is empty but was accepted!")
+        else:
+            # enforce empty .ans file for interactive
+            if problem.interactive and path.suffix == ".ans":
                 bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
             return  # Since the .ans file MUST be empty, the other sanity checks can be skipped.
 
-        if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
-            bar.warn(f"{name} contains unexpected characters but was accepted!")
-        elif len(file_bytes) == 0 and not (
-            path.suffix == ".ans" and problem.multi_pass
-        ):  # explicitly allow empty .ans files for multipass
-            bar.warn(f"{name} is empty but was accepted!")
+        # check file size limits
+        if path.suffix in [".ans", ".out"]:
+            if len(file_bytes) > problem.limits.output * 1024 * 1024:
+                new_limit = (len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024
+                bar.warn(
+                    f"{name} exceeds output limit (set limits->output to at least {new_limit}MiB in problem.yaml)"
+                )
+            elif 2 * len(file_bytes) > problem.limits.output * 1024 * 1024:
+                bar.warn(f"{name} is close to output limit (you should condier doubling it)")
         elif len(file_bytes) > 20_000_000:
             bar.warn(f"{name} is larger than 20MB!")
-        elif (
-            path.suffix in [".ans", ".out"]
-            and len(file_bytes) > problem.limits.output * 1024 * 1024
-        ):
-            bar.warn(
-                f"{name} exceeds output limit (set limits->output to at least {(len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024}MiB in problem.yaml)"
-            )
-        elif (
-            path.suffix in [".ans", ".out"]
-            and 2 * len(file_bytes) > problem.limits.output * 1024 * 1024
-        ):
-            bar.warn(f"{name} is close to output limit")
-        elif strict_whitespace and len(file_bytes) > 0:
+
+        # check content
+        if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
+            bar.warn(f"{name} contains unexpected characters but was accepted!")
+        if strict_whitespace and len(file_bytes) > 0:
             if file_bytes[0] in [ord(" "), ord("\n")]:
                 bar.warn(f"{name} starts with whitespace but was accepted!")
-            elif file_bytes[-1] != ord("\n"):
+            if file_bytes[-1] != ord("\n"):
                 bar.warn(f"{name} does not end with a newline but was accepted!")
-            elif _has_consecutive_whitespaces(file_bytes):
+            if _has_consecutive_whitespaces(file_bytes):
                 bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")
