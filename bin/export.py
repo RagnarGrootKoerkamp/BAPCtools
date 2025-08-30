@@ -597,9 +597,8 @@ def export_problems(problems: list[Problem], cid: str) -> Any:
     update_problems_yaml(problems)
 
     # Uploading problems.yaml
-    with open("problems.yaml", "r") as file:
-        data = "".join(file.readlines())
     verbose("Uploading problems.yaml:")
+    data = Path("problems.yaml").read_text()
     verbose(data)
     r = call_api(
         "POST",

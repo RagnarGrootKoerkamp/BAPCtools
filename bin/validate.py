@@ -467,43 +467,46 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
     if not path.exists():
         fatal(f"{path} not found during sanity check")
 
-    with path.open("rb") as file:
-        name = {
-            ".in": "Input",
-            ".ans": "Answer",
-            ".out": "Output",
-        }[path.suffix]
-        file_bytes = file.read()
+    name = {
+        ".in": "Input",
+        ".ans": "Answer",
+        ".out": "Output",
+    }[path.suffix]
 
-        if len(file_bytes) == 0:
-            # only allow empty files for multipass .ans
-            if not (path.suffix == ".ans" and problem.multi_pass):
-                bar.warn(f"{name} is empty but was accepted!")
-        else:
-            # enforce empty .ans file for interactive
-            if problem.interactive and path.suffix == ".ans":
-                bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
-            return  # Since the .ans file MUST be empty, the other sanity checks can be skipped.
+    file_bytes = path.read_bytes()
 
-        # check file size limits
-        if path.suffix in [".ans", ".out"]:
-            if len(file_bytes) > problem.limits.output * 1024 * 1024:
-                new_limit = (len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024
-                bar.warn(
-                    f"{name} exceeds output limit (set limits->output to at least {new_limit}MiB in problem.yaml)"
-                )
-            elif 2 * len(file_bytes) > problem.limits.output * 1024 * 1024:
-                bar.warn(f"{name} is close to output limit (you should condier doubling it)")
-        elif len(file_bytes) > 20_000_000:
+    if len(file_bytes) == 0:
+        # only allow empty files for multipass .ans
+        if not (path.suffix == ".ans" and problem.multi_pass):
+            bar.warn(f"{name} is empty but was accepted!")
+    else:
+        # enforce empty .ans file for interactive
+        if problem.interactive and path.suffix == ".ans":
+            bar.warn(f"use empty .ans file for {problem.settings.type_name()} problem")
+        return  # Since the .ans file MUST be empty, the other sanity checks can be skipped.
+
+    # check file size limits
+    file_size_limit = 20_000_000
+    if path.suffix in [".ans", ".out"]:
+        if len(file_bytes) > problem.limits.output * 1024 * 1024:
+            new_limit = (len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024
+            bar.warn(
+                f"{name} exceeds output limit (set limits->output to at least {new_limit}MiB in problem.yaml)"
+            )
+        elif 2 * len(file_bytes) > problem.limits.output * 1024 * 1024:
+            bar.warn(f"{name} is close to output limit (you should consider doubling it)")
+        elif len(file_bytes) > file_size_limit:
             bar.warn(f"{name} is larger than 20MB!")
+    elif len(file_bytes) > file_size_limit:
+        bar.warn(f"{name} is larger than 20MB!")
 
-        # check content
-        if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
-            bar.warn(f"{name} contains unexpected characters but was accepted!")
-        if strict_whitespace and len(file_bytes) > 0:
-            if file_bytes[0] in [ord(" "), ord("\n")]:
-                bar.warn(f"{name} starts with whitespace but was accepted!")
-            if file_bytes[-1] != ord("\n"):
-                bar.warn(f"{name} does not end with a newline but was accepted!")
-            if _has_consecutive_whitespaces(file_bytes):
-                bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")
+    # check content
+    if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
+        bar.warn(f"{name} contains unexpected characters but was accepted!")
+    if strict_whitespace and len(file_bytes) > 0:
+        if file_bytes[0] in [ord(" "), ord("\n")]:
+            bar.warn(f"{name} starts with whitespace but was accepted!")
+        if file_bytes[-1] != ord("\n"):
+            bar.warn(f"{name} does not end with a newline but was accepted!")
+        if _has_consecutive_whitespaces(file_bytes):
+            bar.warn(f"{name} contains consecutive whitespace characters but was accepted!")
