@@ -273,7 +273,24 @@ def copy_skel_dir(problems: list[Problem]) -> None:
 
 # NOTE: This is one of few places that prints to stdout instead of stderr.
 def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
-    git_root_path = Path(os.popen("git rev-parse --show-toplevel").read().strip()).resolve()
+    if shutil.which("git") is None:
+        error("git command not found!")
+        return
+
+    def git(*args):
+        res = exec_command(
+            ["git", *args],
+            crop=False,
+            preexec_fn=False,
+            timeout=None,
+        )
+        return res.out if res else ""
+
+    if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
+        error("not inside git")
+        return
+
+    git_root_path = Path(git("rev-parse", "--show-toplevel").strip()).resolve()
 
     def problem_source_dir(problem: Problem) -> Path:
         return problem.path.resolve().relative_to(git_root_path)

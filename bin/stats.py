@@ -377,7 +377,7 @@ def more_stats(problems):
 
     # git stats
     if shutil.which("git") is None:
-        error("git not found!")
+        error("git command not found!")
         return
 
     def git(*args):
