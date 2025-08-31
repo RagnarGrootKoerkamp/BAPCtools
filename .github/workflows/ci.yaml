@@ -16,6 +16,7 @@ jobs:
     container: ragnargrootkoerkamp/bapctools
     steps:
       - uses: actions/checkout@v4
+      - run: git config --global --add safe.directory "$(pwd)"
       - run: bash test/yaml/generators/test_schemata.sh
       - run: pytest
 
