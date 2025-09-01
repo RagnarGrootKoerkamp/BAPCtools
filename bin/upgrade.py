@@ -319,7 +319,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 for child_name, child_data in sorted(dictionary.items()):
                     if not child_name:
                         child_name = '""'
-                    if generate.is_testcase(child_data):
+                    if child_data and generate.is_testcase(child_data):
                         if "desc" in child_data:
                             ryaml_get_or_add(child_data, "yaml")["description"] = child_data["desc"]
                             ryaml_filter(child_data, "desc")
