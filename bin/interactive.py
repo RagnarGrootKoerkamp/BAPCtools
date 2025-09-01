@@ -202,7 +202,7 @@ def run_interactive_testcase(
     with (
         interaction.open("a")
         if isinstance(interaction, Path)
-        else nullcontext(None) as interaction_file
+        else nullcontext(sys.stderr) as interaction_file
     ):
         # Connect pipes with tee.
         TEE_CODE = R"""
@@ -431,7 +431,7 @@ while True:
                 break
 
             if interaction:
-                print("---", file=interaction_file or sys.stderr, flush=True)
+                print("---", file=interaction_file, flush=True)
 
     run._visualize_output(bar or PrintBar("Visualize interaction"))
 
