@@ -29,7 +29,7 @@ def run_interactive_testcase(
     team_error: Literal[False] | None = False,
     *,
     # False/None: no output
-    # True: stdout
+    # True: stderr
     # else: path
     interaction: Optional[bool | Path] = False,
     submission_args: Optional[list[str]] = None,
