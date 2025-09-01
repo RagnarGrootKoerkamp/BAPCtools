@@ -197,12 +197,15 @@ def run_interactive_testcase(
     # - Close remaining read end of pipes
 
     # TODO: Print interaction when needed.
+    old_handler = None
     if isinstance(interaction, Path):
         assert not interaction.is_relative_to(run.tmpdir)
+    elif interaction:
+        assert threading.current_thread() is threading.main_thread()
     with (
         interaction.open("a")
         if isinstance(interaction, Path)
-        else nullcontext(sys.stderr) as interaction_file
+        else nullcontext(None) as interaction_file
     ):
         # Connect pipes with tee.
         TEE_CODE = R"""
@@ -241,6 +244,15 @@ while True:
             # then we can wait for all program ins the same group
             gid = validator_pid
 
+            if interaction is True:
+
+                def interrupt_handler(sig: Any, frame: Any) -> None:
+                    os.killpg(gid, signal.SIGKILL)
+                    if callable(old_handler):
+                        old_handler(sig, frame)
+
+                old_handler = signal.signal(signal.SIGINT, interrupt_handler)
+
             assert validator.stdin and validator.stdout
 
             if interaction:
@@ -248,7 +260,7 @@ while True:
                     [sys.executable, "-c", TEE_CODE, ">"],
                     stdin=subprocess.PIPE,
                     stdout=validator.stdin,
-                    stderr=interaction_file,
+                    stderr=interaction_file or True,
                     pipesize=BUFFER_SIZE,
                     preexec_fn=limit_setter(None, None, None, gid),
                 )
@@ -257,7 +269,7 @@ while True:
                     [sys.executable, "-c", TEE_CODE, "<"],
                     stdin=validator.stdout,
                     stdout=subprocess.PIPE,
-                    stderr=interaction_file,
+                    stderr=interaction_file or True,
                     pipesize=BUFFER_SIZE,
                     preexec_fn=limit_setter(None, None, None, gid),
                 )
@@ -351,6 +363,9 @@ while True:
 
             stop_kill_handler.set()
 
+            if old_handler:
+                signal.signal(signal.SIGINT, old_handler)
+
             assert submission_time is not None
             did_timeout = submission_time > time_limit
             aborted = submission_time >= timeout
@@ -431,7 +446,7 @@ while True:
                 break
 
             if interaction:
-                print("---", file=interaction_file, flush=True)
+                print("---", file=interaction_file or sys.stderr, flush=True)
 
     run._visualize_output(bar or PrintBar("Visualize interaction"))
 

@@ -1395,7 +1395,7 @@ def exec_command(
         nonlocal process
         if process is not None:
             process.kill()
-        if old_handler is not None:
+        if callable(old_handler):
             old_handler(sig, frame)
 
     if threading.current_thread() is threading.main_thread():
