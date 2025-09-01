@@ -4,6 +4,7 @@ import subprocess
 import sys
 
 from colorama import Fore, Style
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional
 
@@ -81,92 +82,91 @@ class Run:
         else:
             if interaction:
                 assert not interaction.is_relative_to(self.tmpdir)
-                interaction = interaction.open("a")
-            nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else None
-            pass_id = 0
-            max_duration = 0
-            tle_result = None
-            while True:
-                pass_id += 1
-                result = self.submission.run(self.in_path, self.out_path)
-                max_duration = max(max_duration, result.duration)
+            with interaction.open("a") if interaction else nullcontext(None) as interaction_file:
+                nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else None
+                pass_id = 0
+                max_duration = 0
+                tle_result = None
+                while True:
+                    pass_id += 1
+                    result = self.submission.run(self.in_path, self.out_path)
+                    max_duration = max(max_duration, result.duration)
 
-                # write an interaction file for samples
-                if interaction:
-                    data = self.in_path.read_text()
-                    if len(data) > 0 and data[-1] == "\n":
-                        data = data[:-1]
-                    data = data.replace("\n", "\n<")
-                    print("<", data, sep="", file=interaction)
+                    # write an interaction file for samples
+                    if interaction:
+                        data = self.in_path.read_text()
+                        if len(data) > 0 and data[-1] == "\n":
+                            data = data[:-1]
+                        data = data.replace("\n", "\n<")
+                        print("<", data, sep="", file=interaction_file)
 
-                    data = self.out_path.read_text()
-                    if len(data) > 0 and data[-1] == "\n":
-                        data = data[:-1]
-                    data = data.replace("\n", "\n>")
-                    print(">", data, sep="", file=interaction)
+                        data = self.out_path.read_text()
+                        if len(data) > 0 and data[-1] == "\n":
+                            data = data[:-1]
+                        data = data.replace("\n", "\n>")
+                        print(">", data, sep="", file=interaction_file)
 
-                if result.duration > self.problem.limits.time_limit:
-                    result.verdict = Verdict.TIME_LIMIT_EXCEEDED
-                    if tle_result is None:
-                        tle_result = result
-                        tle_result.pass_id = pass_id if self.problem.multi_pass else None
-                    else:
-                        tle_result.timeout_expired |= result.timeout_expired
-                    if not self._continue_with_tle(result.verdict, result.timeout_expired):
+                    if result.duration > self.problem.limits.time_limit:
+                        result.verdict = Verdict.TIME_LIMIT_EXCEEDED
+                        if tle_result is None:
+                            tle_result = result
+                            tle_result.pass_id = pass_id if self.problem.multi_pass else None
+                        else:
+                            tle_result.timeout_expired |= result.timeout_expired
+                        if not self._continue_with_tle(result.verdict, result.timeout_expired):
+                            break
+                    elif result.status == ExecStatus.ERROR:
+                        result.verdict = Verdict.RUNTIME_ERROR
+                        msg = f"Exited with code {result.returncode}"
+                        if config.args.error and result.err:
+                            result.err = f"{msg}:\n{result.err}"
+                        else:
+                            result.err = msg
                         break
-                elif result.status == ExecStatus.ERROR:
-                    result.verdict = Verdict.RUNTIME_ERROR
-                    msg = f"Exited with code {result.returncode}"
-                    if config.args.error and result.err:
-                        result.err = f"{msg}:\n{result.err}"
+
+                    result = self._validate_output(bar)
+                    if result is None:
+                        bar.error(
+                            f"No output validator found for testcase {self.testcase.name}",
+                            resume=True,
+                        )
+                        result = ExecResult(
+                            None,
+                            ExecStatus.REJECTED,
+                            0,
+                            False,
+                            None,
+                            None,
+                            Verdict.VALIDATOR_CRASH,
+                        )
+                    elif result.status:
+                        result.verdict = Verdict.ACCEPTED
+                        validate.sanity_check(
+                            self.problem, self.out_path, bar, strict_whitespace=False
+                        )
+                    elif result.status == ExecStatus.REJECTED:
+                        result.verdict = Verdict.WRONG_ANSWER
+                        if nextpass and nextpass.is_file():
+                            bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
+                            result.verdict = Verdict.VALIDATOR_CRASH
                     else:
-                        result.err = msg
-                    break
-
-                result = self._validate_output(bar)
-                if result is None:
-                    bar.error(
-                        f"No output validator found for testcase {self.testcase.name}",
-                        resume=True,
-                    )
-                    result = ExecResult(
-                        None,
-                        ExecStatus.REJECTED,
-                        0,
-                        False,
-                        None,
-                        None,
-                        Verdict.VALIDATOR_CRASH,
-                    )
-                elif result.status:
-                    result.verdict = Verdict.ACCEPTED
-                    validate.sanity_check(self.problem, self.out_path, bar, strict_whitespace=False)
-                elif result.status == ExecStatus.REJECTED:
-                    result.verdict = Verdict.WRONG_ANSWER
-                    if nextpass and nextpass.is_file():
-                        bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
+                        config.n_error += 1
                         result.verdict = Verdict.VALIDATOR_CRASH
-                else:
-                    config.n_error += 1
-                    result.verdict = Verdict.VALIDATOR_CRASH
 
-                if result.verdict != Verdict.ACCEPTED:
-                    break
+                    if result.verdict != Verdict.ACCEPTED:
+                        break
 
-                if not self._prepare_nextpass(nextpass):
-                    break
+                    if not self._prepare_nextpass(nextpass):
+                        break
 
-                assert self.problem.limits.validation_passes is not None
-                if pass_id >= self.problem.limits.validation_passes:
-                    bar.error("exceeded limit of validation_passes", resume=True)
-                    result.verdict = Verdict.VALIDATOR_CRASH
-                    break
+                    assert self.problem.limits.validation_passes is not None
+                    if pass_id >= self.problem.limits.validation_passes:
+                        bar.error("exceeded limit of validation_passes", resume=True)
+                        result.verdict = Verdict.VALIDATOR_CRASH
+                        break
 
-                if interaction:
-                    print("---", file=interaction)
-
-            if interaction:
-                interaction.close()
+                    if interaction:
+                        print("---", file=interaction_file)
 
             if self.problem.multi_pass:
                 result.pass_id = pass_id
@@ -349,14 +349,15 @@ class Submission(program.Program):
         # Just for safety reasons, change the cwd.
         if cwd is None:
             cwd = self.tmpdir
-        with in_path.open("rb") as inf:
-            out_file = out_path.open("wb") if out_path else None
-
+        with (
+            in_path.open("rb") as in_file,
+            out_path.open("wb") if out_path else nullcontext(None) as out_file,
+        ):
             # Print stderr to terminal is stdout is None, otherwise return its value.
             result = self._exec_command(
                 self.run_command + args,
                 crop=crop,
-                stdin=inf,
+                stdin=in_file,
                 stdout=out_file,
                 stderr=None if out_file is None else True,
                 cwd=cwd,
@@ -366,9 +367,7 @@ class Submission(program.Program):
                     else self.limits["timeout"]
                 ),
             )
-            if out_file:
-                out_file.close()
-            return result
+        return result
 
     # Run this submission on all testcases that are given.
     # Returns (OK verdict, printed newline)
