@@ -4,6 +4,8 @@ import subprocess
 import sys
 import threading
 import time
+
+from contextlib import nullcontext
 from pathlib import Path
 from typing import Final, Literal, Optional, TYPE_CHECKING
 
@@ -194,15 +196,16 @@ def run_interactive_testcase(
     # - Close remaining program + write end of pipe
     # - Close remaining read end of pipes
 
-    interaction_file = None
     # TODO: Print interaction when needed.
-    if interaction and interaction is not True:
+    if isinstance(interaction, Path):
         assert not interaction.is_relative_to(run.tmpdir)
-        interaction_file = interaction.open("a")
-        interaction = True
-
-    # Connect pipes with tee.
-    TEE_CODE = R"""
+    with (
+        interaction.open("a")
+        if isinstance(interaction, Path)
+        else nullcontext(None) as interaction_file
+    ):
+        # Connect pipes with tee.
+        TEE_CODE = R"""
 import sys
 c = sys.argv[1]
 new = True
@@ -217,221 +220,218 @@ while True:
     new = l=='\n'
 """
 
-    pass_id = 0
-    max_duration = 0
-    tle_result = None
-    while True:
-        pass_id += 1
-        validator_command = get_validator_command()
-        validator = subprocess.Popen(
-            validator_command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            # TODO: Make a flag to pass validator error directly to terminal.
-            stderr=subprocess.PIPE if validator_error is False else None,
-            cwd=validator_dir,
-            pipesize=BUFFER_SIZE,
-            preexec_fn=limit_setter(validator_command, validation_time, validation_memory, 0),
-        )
-        validator_pid = validator.pid
-        # add all programs to the same group (for simplicity we take the pid of the validator)
-        # then we can wait for all program ins the same group
-        gid = validator_pid
-
-        assert validator.stdin and validator.stdout
-
-        if interaction:
-            team_tee = subprocess.Popen(
-                [sys.executable, "-c", TEE_CODE, ">"],
+        pass_id = 0
+        max_duration = 0
+        tle_result = None
+        while True:
+            pass_id += 1
+            validator_command = get_validator_command()
+            validator = subprocess.Popen(
+                validator_command,
                 stdin=subprocess.PIPE,
-                stdout=validator.stdin,
-                stderr=interaction_file,
-                pipesize=BUFFER_SIZE,
-                preexec_fn=limit_setter(None, None, None, gid),
-            )
-            team_tee_pid = team_tee.pid
-            val_tee = subprocess.Popen(
-                [sys.executable, "-c", TEE_CODE, "<"],
-                stdin=validator.stdout,
                 stdout=subprocess.PIPE,
-                stderr=interaction_file,
+                # TODO: Make a flag to pass validator error directly to terminal.
+                stderr=subprocess.PIPE if validator_error is False else None,
+                cwd=validator_dir,
                 pipesize=BUFFER_SIZE,
-                preexec_fn=limit_setter(None, None, None, gid),
+                preexec_fn=limit_setter(validator_command, validation_time, validation_memory, 0),
             )
-            val_tee_pid = val_tee.pid
+            validator_pid = validator.pid
+            # add all programs to the same group (for simplicity we take the pid of the validator)
+            # then we can wait for all program ins the same group
+            gid = validator_pid
 
-        submission = subprocess.Popen(
-            submission_command,
-            stdin=(val_tee if interaction else validator).stdout,
-            stdout=(team_tee if interaction else validator).stdin,
-            stderr=subprocess.PIPE if team_error is False else None,
-            cwd=submission_dir,
-            pipesize=BUFFER_SIZE,
-            preexec_fn=limit_setter(submission_command, timeout, memory, gid),
-        )
-        submission_pid = submission.pid
+            assert validator.stdin and validator.stdout
 
-        stop_kill_handler = threading.Event()
-        submission_time: Optional[float] = None
+            if interaction:
+                team_tee = subprocess.Popen(
+                    [sys.executable, "-c", TEE_CODE, ">"],
+                    stdin=subprocess.PIPE,
+                    stdout=validator.stdin,
+                    stderr=interaction_file,
+                    pipesize=BUFFER_SIZE,
+                    preexec_fn=limit_setter(None, None, None, gid),
+                )
+                team_tee_pid = team_tee.pid
+                val_tee = subprocess.Popen(
+                    [sys.executable, "-c", TEE_CODE, "<"],
+                    stdin=validator.stdout,
+                    stdout=subprocess.PIPE,
+                    stderr=interaction_file,
+                    pipesize=BUFFER_SIZE,
+                    preexec_fn=limit_setter(None, None, None, gid),
+                )
+                val_tee_pid = val_tee.pid
 
-        def kill_handler_function():
-            if stop_kill_handler.wait(timeout + 1):
-                return
-            nonlocal submission_time
-            submission_time = timeout + 1
-            try:
-                os.kill(submission_pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
-            if validation_time > timeout and stop_kill_handler.wait(validation_time - timeout):
-                return
-            os.killpg(gid, signal.SIGKILL)
+            submission = subprocess.Popen(
+                submission_command,
+                stdin=(val_tee if interaction else validator).stdout,
+                stdout=(team_tee if interaction else validator).stdin,
+                stderr=subprocess.PIPE if team_error is False else None,
+                cwd=submission_dir,
+                pipesize=BUFFER_SIZE,
+                preexec_fn=limit_setter(submission_command, timeout, memory, gid),
+            )
+            submission_pid = submission.pid
 
-        kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
-        kill_handler.start()
+            stop_kill_handler = threading.Event()
+            submission_time: Optional[float] = None
 
-        # Will be filled in the loop below.
-        validator_status = None
-        submission_status = None
-        first = None
-
-        # Wait for first to finish
-        left = 4 if interaction else 2
-        first_done = True
-        while left > 0:
-            pid, status, rusage = os.wait4(-gid, 0)
-
-            # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
-            status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
-
-            if pid == validator_pid:
-                if first is None:
-                    first = "validator"
-                validator_status = status
-
-                # Close the output stream.
-                validator.stdout.close()
-                if interaction:
-                    assert val_tee.stdout
-                    val_tee.stdout.close()
-
-                # Kill the team submission and everything else in case we already know it's WA.
-                if first_done and validator_status != config.RTV_AC:
-                    stop_kill_handler.set()
-                    os.killpg(gid, signal.SIGKILL)
-                first_done = False
-            elif pid == submission_pid:
-                if first is None:
-                    first = "submission"
-                submission_status = status
-
-                # Close the output stream.
-                validator.stdin.close()
-                if interaction:
-                    assert team_tee.stdin
-                    team_tee.stdin.close()
-
-                # Possibly already written by the alarm.
-                if submission_time is None:
-                    submission_time = rusage.ru_utime + rusage.ru_stime
-
-                first_done = False
-            elif interaction:
-                if pid == team_tee_pid or pid == val_tee_pid:
+            def kill_handler_function():
+                if stop_kill_handler.wait(timeout + 1):
+                    return
+                nonlocal submission_time
+                submission_time = timeout + 1
+                try:
+                    os.kill(submission_pid, signal.SIGKILL)
+                except ProcessLookupError:
                     pass
+                if validation_time > timeout and stop_kill_handler.wait(validation_time - timeout):
+                    return
+                os.killpg(gid, signal.SIGKILL)
+
+            kill_handler = threading.Thread(target=kill_handler_function, daemon=True)
+            kill_handler.start()
+
+            # Will be filled in the loop below.
+            validator_status = None
+            submission_status = None
+            first = None
+
+            # Wait for first to finish
+            left = 4 if interaction else 2
+            first_done = True
+            while left > 0:
+                pid, status, rusage = os.wait4(-gid, 0)
+
+                # On abnormal exit (e.g. from calling abort() in an assert), we set status to -1.
+                status = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
+
+                if pid == validator_pid:
+                    if first is None:
+                        first = "validator"
+                    validator_status = status
+
+                    # Close the output stream.
+                    validator.stdout.close()
+                    if interaction:
+                        assert val_tee.stdout
+                        val_tee.stdout.close()
+
+                    # Kill the team submission and everything else in case we already know it's WA.
+                    if first_done and validator_status != config.RTV_AC:
+                        stop_kill_handler.set()
+                        os.killpg(gid, signal.SIGKILL)
+                    first_done = False
+                elif pid == submission_pid:
+                    if first is None:
+                        first = "submission"
+                    submission_status = status
+
+                    # Close the output stream.
+                    validator.stdin.close()
+                    if interaction:
+                        assert team_tee.stdin
+                        team_tee.stdin.close()
+
+                    # Possibly already written by the alarm.
+                    if submission_time is None:
+                        submission_time = rusage.ru_utime + rusage.ru_stime
+
+                    first_done = False
+                elif interaction:
+                    if pid == team_tee_pid or pid == val_tee_pid:
+                        pass
+                    else:
+                        assert False
                 else:
                     assert False
-            else:
-                assert False
 
-            left -= 1
+                left -= 1
 
-        stop_kill_handler.set()
+            stop_kill_handler.set()
 
-        assert submission_time is not None
-        did_timeout = submission_time > time_limit
-        aborted = submission_time >= timeout
-        max_duration = max(max_duration, submission_time)
+            assert submission_time is not None
+            did_timeout = submission_time > time_limit
+            aborted = submission_time >= timeout
+            max_duration = max(max_duration, submission_time)
 
-        # If submission timed out: TLE
-        # If team exists first with TLE/RTE -> TLE/RTE
-        # If team exists first nicely -> validator result
-        # If validator exits first with WA -> WA
-        # If validator exits first with AC:
-        # - team TLE/RTE -> TLE/RTE
-        # - more team output -> WA
-        # - no more team output -> AC
+            # If submission timed out: TLE
+            # If team exists first with TLE/RTE -> TLE/RTE
+            # If team exists first nicely -> validator result
+            # If validator exits first with WA -> WA
+            # If validator exits first with AC:
+            # - team TLE/RTE -> TLE/RTE
+            # - more team output -> WA
+            # - no more team output -> AC
 
-        if validator_status not in [config.RTV_AC, config.RTV_WA]:
-            config.n_error += 1
-            verdict = Verdict.VALIDATOR_CRASH
-        elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
-            error("got WRONG_ANSWER but found nextpass.in")
-            verdict = Verdict.VALIDATOR_CRASH
-        elif aborted:
-            verdict = Verdict.TIME_LIMIT_EXCEEDED
-        elif first == "validator":
-            # WA has priority because validator reported it first.
-            if did_timeout:
+            if validator_status not in [config.RTV_AC, config.RTV_WA]:
+                config.n_error += 1
+                verdict = Verdict.VALIDATOR_CRASH
+            elif validator_status == config.RTV_WA and nextpass and nextpass.is_file():
+                error("got WRONG_ANSWER but found nextpass.in")
+                verdict = Verdict.VALIDATOR_CRASH
+            elif aborted:
                 verdict = Verdict.TIME_LIMIT_EXCEEDED
-            elif validator_status == config.RTV_WA:
-                verdict = Verdict.WRONG_ANSWER
-            elif submission_status != 0:
-                verdict = Verdict.RUNTIME_ERROR
+            elif first == "validator":
+                # WA has priority because validator reported it first.
+                if did_timeout:
+                    verdict = Verdict.TIME_LIMIT_EXCEEDED
+                elif validator_status == config.RTV_WA:
+                    verdict = Verdict.WRONG_ANSWER
+                elif submission_status != 0:
+                    verdict = Verdict.RUNTIME_ERROR
+                else:
+                    verdict = Verdict.ACCEPTED
             else:
-                verdict = Verdict.ACCEPTED
-        else:
-            assert first == "submission"
-            if submission_status != 0:
-                verdict = Verdict.RUNTIME_ERROR
-            elif did_timeout:
-                verdict = Verdict.TIME_LIMIT_EXCEEDED
-            elif validator_status == config.RTV_WA:
-                verdict = Verdict.WRONG_ANSWER
-            else:
-                verdict = Verdict.ACCEPTED
+                assert first == "submission"
+                if submission_status != 0:
+                    verdict = Verdict.RUNTIME_ERROR
+                elif did_timeout:
+                    verdict = Verdict.TIME_LIMIT_EXCEEDED
+                elif validator_status == config.RTV_WA:
+                    verdict = Verdict.WRONG_ANSWER
+                else:
+                    verdict = Verdict.ACCEPTED
 
-        val_err = None
-        if validator_error is False:
-            assert validator.stderr
-            val_err = _feedback(run, validator.stderr.read())
-        team_err = None
-        if team_error is False:
-            assert submission.stderr
-            team_err = submission.stderr.read().decode("utf-8", "replace")
+            val_err = None
+            if validator_error is False:
+                assert validator.stderr
+                val_err = _feedback(run, validator.stderr.read())
+            team_err = None
+            if team_error is False:
+                assert submission.stderr
+                team_err = submission.stderr.read().decode("utf-8", "replace")
 
-        if verdict == Verdict.TIME_LIMIT_EXCEEDED:
-            if tle_result is None:
-                tle_result = ExecResult(
-                    None,
-                    ExecStatus.ACCEPTED,
-                    max_duration,
-                    aborted,
-                    val_err,
-                    team_err,
-                    verdict,
-                    pass_id if run.problem.multi_pass else None,
-                )
-            else:
-                tle_result.timeout_expired |= aborted
+            if verdict == Verdict.TIME_LIMIT_EXCEEDED:
+                if tle_result is None:
+                    tle_result = ExecResult(
+                        None,
+                        ExecStatus.ACCEPTED,
+                        max_duration,
+                        aborted,
+                        val_err,
+                        team_err,
+                        verdict,
+                        pass_id if run.problem.multi_pass else None,
+                    )
+                else:
+                    tle_result.timeout_expired |= aborted
 
-        if not verdict and not run._continue_with_tle(verdict, aborted):
-            break
+            if not verdict and not run._continue_with_tle(verdict, aborted):
+                break
 
-        if not run._prepare_nextpass(nextpass):
-            break
+            if not run._prepare_nextpass(nextpass):
+                break
 
-        assert run.problem.limits.validation_passes is not None
-        if pass_id >= run.problem.limits.validation_passes:
-            error("exceeded limit of validation_passes")
-            verdict = Verdict.VALIDATOR_CRASH
-            break
+            assert run.problem.limits.validation_passes is not None
+            if pass_id >= run.problem.limits.validation_passes:
+                error("exceeded limit of validation_passes")
+                verdict = Verdict.VALIDATOR_CRASH
+                break
 
-        if interaction:
-            print("---", file=sys.stderr if interaction is None else interaction_file, flush=True)
-
-    if interaction_file is not None:
-        interaction_file.close()
+            if interaction:
+                print("---", file=interaction_file or sys.stderr, flush=True)
 
     run._visualize_output(bar or PrintBar("Visualize interaction"))
 
