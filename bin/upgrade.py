@@ -73,6 +73,12 @@ def _move_dir(src_base: Path, dst_base: Path) -> None:
     movetree(src_base, dst_base)
 
 
+def args_split(args: str):
+    splitted = CommentedSeq(shlex.split(args))
+    splitted.fa.set_flow_style()
+    return splitted
+
+
 def upgrade_contest_yaml(contest_yaml_path: Path, bar: ProgressBar) -> None:
     yaml_data = read_yaml(contest_yaml_path)
     if "testsession" in yaml_data:
@@ -187,7 +193,7 @@ def upgrade_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 ryaml_replace(data, old, new)
 
             if new in data and isinstance(data[new], str):
-                data[new] = shlex.split(data[new])
+                data[new] = args_split(data[new])
 
         write_yaml(data, f)
 
@@ -307,7 +313,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                     ryaml_replace(test_group_yaml, old, new)
                     changed = True
                 if new in test_group_yaml and isinstance(test_group_yaml[new], str):
-                    test_group_yaml[new] = shlex.split(test_group_yaml[new])
+                    test_group_yaml[new] = args_split(test_group_yaml[new])
                     changed = True
         return changed
 
@@ -511,7 +517,7 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
         bar.log(f"change 'validator_flags' to '{OutputValidator.args_key}' in test_group.yaml")
         validator_flags = data["validator_flags"]
         new_data[OutputValidator.args_key] = (
-            shlex.split(validator_flags) if isinstance(validator_flags, str) else validator_flags
+            args_split(validator_flags) if isinstance(validator_flags, str) else validator_flags
         )
         ryaml_filter(data, "validator_flags")
         return True
