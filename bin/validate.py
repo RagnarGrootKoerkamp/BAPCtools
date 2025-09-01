@@ -486,19 +486,21 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
         return  # Since the .ans file MUST be empty, the other sanity checks can be skipped.
 
     # check file size limits
-    file_size_limit = 20_000_000
+    # TODO: consider time limit?
+    file_size_limit = 20  # in MiB
+    inMiB = 1024 * 1024
+    if len(file_bytes) > file_size_limit * inMiB:
+        bar.warn(f"{name} is larger than {file_size_limit}MiB!")
+
+    # check output limits
     if path.suffix in [".ans", ".out"]:
-        if len(file_bytes) > problem.limits.output * 1024 * 1024:
-            new_limit = (len(file_bytes) + 1024 * 1024 - 1) // 1024 // 1024
+        if len(file_bytes) > problem.limits.output * inMiB:
+            new_limit = (len(file_bytes) + inMiB - 1) // inMiB
             bar.warn(
                 f"{name} exceeds output limit (set limits->output to at least {new_limit}MiB in problem.yaml)"
             )
-        elif 2 * len(file_bytes) > problem.limits.output * 1024 * 1024:
+        elif 2 * len(file_bytes) > problem.limits.output * inMiB:
             bar.warn(f"{name} is close to output limit (you should consider doubling it)")
-        elif len(file_bytes) > file_size_limit:
-            bar.warn(f"{name} is larger than 20MB!")
-    elif len(file_bytes) > file_size_limit:
-        bar.warn(f"{name} is larger than 20MB!")
 
     # check content
     if _has_invalid_byte(file_bytes, other_whitespaces=not strict_whitespace):
