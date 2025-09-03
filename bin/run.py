@@ -238,7 +238,7 @@ class Run:
         if output_visualizer is None:
             return None
         return output_visualizer.run(
-            self.in_path,
+            self.testcase.in_path,
             self.testcase.ans_path.resolve(),
             self.out_path if not self.problem.interactive else None,
             self.feedbackdir,
