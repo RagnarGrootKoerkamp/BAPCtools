@@ -384,8 +384,14 @@ class Testcase:
 
         if expect_rejection:
             success = ExecStatus.REJECTED in results
+            accepted = all(results)
             if not success:
-                msg = f"was not rejected by {mode} validation"
+                reason = (
+                    "All validators accepted."
+                    if accepted
+                    else f"At least one validator must exit with {config.RTV_WA}."
+                )
+                msg = f"was not properly rejected by {mode} validation. {reason}"
                 if warn_instead_of_error:
                     bar.warn(msg)
                 else:
