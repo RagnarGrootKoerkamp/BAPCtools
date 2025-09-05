@@ -217,7 +217,6 @@ class Testcase:
                     return ok
 
                 assert not self.problem.interactive
-                assert not self.problem.multi_pass
 
                 ok = self.validate_format(
                     validate.Mode.ANSWER,
@@ -227,6 +226,8 @@ class Testcase:
                 )
                 if not ok or self.root == "invalid_answer":
                     return ok
+
+                assert not self.problem.multi_pass
 
                 return self._run_validators(
                     validate.Mode.INVALID,
