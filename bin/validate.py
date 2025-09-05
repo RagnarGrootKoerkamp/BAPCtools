@@ -476,8 +476,8 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
     file_bytes = path.read_bytes()
 
     if len(file_bytes) == 0:
-        # only allow empty files for multipass .ans
-        if not (path.suffix == ".ans" and problem.multi_pass):
+        # only allow empty files for interactive or multi-pass .ans
+        if not (path.suffix == ".ans" and (problem.interactive or problem.multi_pass)):
             bar.warn(f"{name} is empty but was accepted!")
     else:
         # enforce empty .ans file for interactive
