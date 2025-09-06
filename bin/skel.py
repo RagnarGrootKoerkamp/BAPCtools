@@ -107,7 +107,7 @@ def new_problem() -> None:
         problem_type = "pass-fail"
         output_validator_args = f"{OutputValidator.args_key}: float_tolerance 1e-6"
         log("Using default float tolerance of 1e-6")
-    # Since version 2023-07-draft of the spec, the `custom` validation type is no longer explicit.
+    # Since version 2025-09 of the spec, the `custom` validation type is no longer explicit.
     # The mere existence of the output_validator(s)/ folder signals non-default output validation.
     if problem_type == "custom":
         custom_output = True
@@ -153,9 +153,13 @@ def new_problem() -> None:
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
     log(f"Copying {skeldir} to {target_dir / dirname}.")
 
-    if config.SPEC_VERSION not in (skeldir / "problem.yaml").read_text():
+    skel_yaml = read_yaml(skeldir / "problem.yaml")
+    if (
+        "problem_format_version" not in skel_yaml
+        or skel_yaml["problem_format_version"] not in config.SPEC_VERSION
+    ):
         fatal(
-            f"new_problem only supports `skel` directories where `problem.yaml` has `version: {config.SPEC_VERSION}."
+            f"new_problem only supports `skel` directories where `problem.yaml` has `version: {config.SPEC_VERSION[0]}."
         )
 
     problems_yaml = target_dir / "problems.yaml"

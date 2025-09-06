@@ -26,7 +26,7 @@ constexpr std::string_view WHITESPACE               = " \f\n\r\t\v";
 
 // Only use non-capturing groups, and optimize the RegEx during initialization (improves run time at the cost of build time)
 constexpr auto REGEX_OPTIONS = std::regex::nosubs | std::regex::optimize;
-// Source: https://icpc.io/problem-package-format/spec/2023-07-draft.html
+// Source: https://icpc.io/problem-package-format/spec/2025-09.html
 const std::regex FLOAT_REGEX("[+-]?([0-9]*\\.[0-9]+|[0-9]+\\.|[0-9]+)([Ee][+-]?[0-9]+)?", REGEX_OPTIONS);
 
 //============================================================================//

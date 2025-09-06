@@ -47,7 +47,7 @@ constexpr std::string_view generate_binary_substring = "generat";
 
 // Only use non-capturing groups, and optimize the RegEx during initialization (improves run time at the cost of build time)
 constexpr auto regex_options = std::regex::nosubs | std::regex::optimize;
-// Source: https://icpc.io/problem-package-format/spec/2023-07-draft.html
+// Source: https://icpc.io/problem-package-format/spec/2025-09.html
 // Made stricter by:
 // - Disallowing '+' as sign (both at the start and in the exponent)
 // - Disallowing 'E' as exponent

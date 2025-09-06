@@ -151,7 +151,7 @@ class ProblemLimits:
         assert isinstance(yaml_data, dict)
 
         # Known keys:
-        # (defaults from https://icpc.io/problem-package-format/spec/2023-07-draft.html#limits)
+        # (defaults from https://icpc.io/problem-package-format/spec/2025-09.html#limits)
         time_multipliers = parse_setting(yaml_data, "time_multipliers", dict[str, Any]())
 
         parse_deprecated_setting(yaml_data, "time_multiplier", "ac_to_time_limit")
@@ -229,14 +229,14 @@ class ProblemSettings:
             yaml_data["name"] = {"en": yaml_data["name"]}
 
         # Known keys:
-        # (defaults from https://icpc.io/problem-package-format/spec/2023-07-draft.html#problem-metadata)
+        # (defaults from https://icpc.io/problem-package-format/spec/2025-09.html#problem-metadata)
         self.problem_format_version: str = parse_setting(
             yaml_data, "problem_format_version", "legacy-icpc"
         )
 
         if self.problem_format_version.startswith("legacy"):
             fatal("legacy is no longer supported, try running 'bt upgrade'")
-        elif self.problem_format_version != config.SPEC_VERSION:
+        elif self.problem_format_version not in config.SPEC_VERSION:
             fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
 
         parse_deprecated_setting(yaml_data, "validation", "type")
