@@ -1,26 +1,26 @@
 ---
 # Problem name tests
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Minimal
 eq:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name:
     en: Minimal
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name:
     en: Minimal
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name:
     en: Minimal
     nl: Minimaal
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name:
     en: Hello World!
     pt-BR: Olá mundo!
@@ -31,7 +31,7 @@ yaml:
 ---
 # Problem type tests
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: pass-fail type
   type: pass-fail
 eq:
@@ -40,7 +40,7 @@ eq:
   multi_pass: False
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: pass-fail type by default
 eq:
   custom_output: False
@@ -48,7 +48,7 @@ eq:
   multi_pass: False
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: interactive type
   type: interactive
 eq:
@@ -57,7 +57,7 @@ eq:
   multi_pass: False
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: multi-pass type
   type: multi-pass
 eq:
@@ -66,7 +66,7 @@ eq:
   multi_pass: True
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: interactive multi-pass type
   type: interactive multi-pass
 eq:
@@ -75,7 +75,7 @@ eq:
   multi_pass: True
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: multi-pass interactive type
   type: multi-pass interactive
 eq:
@@ -86,7 +86,7 @@ eq:
 ---
 # Credits tests
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   credits: A. U. Thor
 eq:
   credits:
@@ -95,7 +95,7 @@ eq:
         email: ~
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   credits: A. U. Thor <author@example.com>
 eq:
   credits:
@@ -104,7 +104,7 @@ eq:
         email: author@example.com
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   credits:
     authors: A. U. Thor <author@example.com>
 eq:
@@ -114,14 +114,14 @@ eq:
         email: author@example.com
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   credits:
     authors:
       - name: A. U. Thor
         email: author@example.com
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   credits:
     authors: A. U. Thor <author@example.com>
     translators:
@@ -143,7 +143,7 @@ eq:
 ---
 # Source tests
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Source can be just a string
   source: NWERC 2024
 eq:
@@ -152,7 +152,7 @@ eq:
       url: ~
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Source can be map
   source:
     name: NWERC 2024
@@ -162,7 +162,7 @@ eq:
       url: ~
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Source can be map with two keys (name, url)
   source:
     name: NWERC 2024
@@ -173,7 +173,7 @@ eq:
       url: https://2024.nwerc.example/contest
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Many sources can be specified
   source:
     - name: NWERC 2024
@@ -192,14 +192,14 @@ eq:
 ---
 # License tests
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Default license is unknown and rights-less
 eq:
   license: unknown
   rights_owner:
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Rights-less license
   license: public domain
 eq:
@@ -207,13 +207,13 @@ eq:
   rights_owner:
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Specify license and rights owner
   license: cc0
   rights_owner: Bob
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Don't need rights_owner if credits are given
   license: cc0
   credits: Bob
@@ -222,14 +222,14 @@ eq:
   rights_owner:  # Allowed to be empty
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Don't need rights_owner if credits.authors are given
   license: cc0
   credits:
     authors: "Bob"
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Don't need rights_owner if source is given
   license: cc0
   source: NWERC 2024
@@ -237,11 +237,11 @@ yaml:
 ---
 # Embargo tests
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Embargo date
   embargo_until: 2025-12-31
 ---
 yaml:
-  problem_format_version: 2023-07-draft
+  problem_format_version: 2025-09
   name: Embargo datetime
   embargo_until: 2025-12-31T23:59:59

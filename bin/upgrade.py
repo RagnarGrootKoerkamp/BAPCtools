@@ -199,6 +199,7 @@ def upgrade_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
 
 def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
+    print(problem_path)
     generators_yaml = problem_path / "generators" / "generators.yaml"
     if not generators_yaml.is_file():
         return
@@ -325,7 +326,11 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                 for child_name, child_data in sorted(dictionary.items()):
                     if not child_name:
                         child_name = '""'
-                    if child_data and generate.is_testcase(child_data):
+                    if (
+                        child_data
+                        and generate.is_testcase(child_data)
+                        and isinstance(child_data, dict)
+                    ):
                         if "desc" in child_data:
                             ryaml_get_or_add(child_data, "yaml")["description"] = child_data["desc"]
                             ryaml_filter(child_data, "desc")
@@ -423,10 +428,10 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
     if (
         "problem_format_version" not in data
-        or data["problem_format_version"] != config.SPEC_VERSION
+        or data["problem_format_version"] != config.SPEC_VERSION[0]
     ):
         bar.log("set 'problem_format_version' in problem.yaml")
-        data.insert(0, "problem_format_version", config.SPEC_VERSION)
+        data.insert(0, "problem_format_version", config.SPEC_VERSION[0])
 
     if "validation" in data:
         if "type" in data:
