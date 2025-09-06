@@ -147,7 +147,7 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
             bar.warn(f"can't move '{f}' to '*.yaml', it already contains the key 'description'")
         else:
             bar.log(f"moving '{f}' to 'description' key in '*.yaml'")
-            test_case_yaml["description"] = f.read_text()
+            test_case_yaml["description"] = f.read_text().strip()
             write_yaml(test_case_yaml, f.with_suffix(".yaml"))
             f.unlink()
 
@@ -157,7 +157,7 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
             bar.warn(f"can't move '{f}' to '*.yaml', it already contains the key 'hint'")
         else:
             bar.log(f"moving '{f}' to 'hint' key in '*.yaml'")
-            test_case_yaml["hint"] = f.read_text()
+            test_case_yaml["hint"] = f.read_text().strip()
             write_yaml(test_case_yaml, f.with_suffix(".yaml"))
             f.unlink()
 
