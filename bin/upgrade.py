@@ -199,7 +199,6 @@ def upgrade_test_group_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
 
 def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
-    print(problem_path)
     generators_yaml = problem_path / "generators" / "generators.yaml"
     if not generators_yaml.is_file():
         return
@@ -428,10 +427,10 @@ def upgrade_problem_yaml(problem_path: Path, bar: ProgressBar) -> None:
 
     if (
         "problem_format_version" not in data
-        or data["problem_format_version"] != config.SPEC_VERSION[0]
+        or data["problem_format_version"] != config.SPEC_VERSION
     ):
         bar.log("set 'problem_format_version' in problem.yaml")
-        data.insert(0, "problem_format_version", config.SPEC_VERSION[0])
+        data.insert(0, "problem_format_version", config.SPEC_VERSION)
 
     if "validation" in data:
         if "type" in data:

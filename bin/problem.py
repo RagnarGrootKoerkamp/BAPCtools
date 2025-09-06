@@ -236,7 +236,7 @@ class ProblemSettings:
 
         if self.problem_format_version.startswith("legacy"):
             fatal("legacy is no longer supported, try running 'bt upgrade'")
-        elif self.problem_format_version not in config.SPEC_VERSION:
+        elif self.problem_format_version != config.SPEC_VERSION:
             fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
 
         parse_deprecated_setting(yaml_data, "validation", "type")
