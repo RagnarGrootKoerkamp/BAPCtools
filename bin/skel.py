@@ -153,13 +153,10 @@ def new_problem() -> None:
     skeldir, preserve_symlinks = get_skel_dir(target_dir)
     log(f"Copying {skeldir} to {target_dir / dirname}.")
 
-    skel_yaml = read_yaml(skeldir / "problem.yaml")
-    if (
-        "problem_format_version" not in skel_yaml
-        or skel_yaml["problem_format_version"] not in config.SPEC_VERSION
-    ):
+    skel_yaml = (skeldir / "problem.yaml").read_text()
+    if not any(version in skel_yaml for version in config.SPEC_VERSION):
         fatal(
-            f"new_problem only supports `skel` directories where `problem.yaml` has `version: {config.SPEC_VERSION[0]}."
+            f"new_problem only supports `skel` directories where `problem.yaml` has version: {config.SPEC_VERSION[0]}."
         )
 
     problems_yaml = target_dir / "problems.yaml"
