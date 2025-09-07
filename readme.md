@@ -16,9 +16,9 @@ time since I'm not aware of usage outside of BAPC yet.
 > [!IMPORTANT]
 > The `legacy` version of BAPCtools is no longer maintained.
 > Please use the latest version, which is compatible with problem format version
-> [`2023-07-draft`](https://icpc.io/problem-package-format/spec/2023-07-draft.html).
+> [`2025-09`](https://icpc.io/problem-package-format/spec/2025-09.html).
 > The `bt upgrade` command in the latest version of BAPCtools
-> is a best-effort automated way to upgrade `legacy` problems to `2023-07-draft`.
+> is a best-effort automated way to upgrade `legacy` problems to `2025-09`.
 
 You can install the [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/),
 mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git),
