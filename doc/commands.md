@@ -43,6 +43,7 @@ This lists all subcommands and their most important options.
   - [`bt solve_stats [--contest-id CONTESTID] [--post-freeze]`](#solve_stats)
   - [`bt sort`](#sort)
   - [`bt update_problems_yaml [--colors COLORS] [--sort]`](#update_problems_yaml)
+  - [`bt upgrade`](#upgrade)
   - [`bt tmp [--clean]`](#tmp)
   - `bt create_slack_channels --token xoxb-...`
 
@@ -633,6 +634,11 @@ This file should contain a list of problems, with for every problem the keys `id
 - `--colors`: Apply the given list of colors to the list of problems, in the same order as in `problems.yaml`.
   Should be a comma-separated list of colors (hash-sign is optional), e.g.: `--colors ff0000,00ff00,0000ff`.
 - `--sort`: Sort the problems in `problems.yaml` and re-label them starting from `A` (or `X` if `contest.yaml` contains `test_session: True`).
+
+## `upgrade`
+
+`bt upgrade` upgrades a problem from problem format version [`legacy`](https://icpc.io/problem-package-format/spec/legacy.html)
+to [`2025-09`](https://icpc.io/problem-package-format/spec/2025-09.html).
 
 ## `tmp`
 
