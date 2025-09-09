@@ -412,7 +412,7 @@ def build_contest_zip(
 
         def add_file(file: Path) -> None:
             if file.is_file():
-                out = remove_language_pdf_suffix(file, language) if config.args.legacy else file
+                out = remove_language_pdf_suffix(file, languages[0]) if config.args.legacy else file
                 zf.write(
                     file,
                     out,
