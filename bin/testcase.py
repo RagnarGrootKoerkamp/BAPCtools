@@ -131,7 +131,7 @@ class Testcase:
         """
 
         return self.problem.get_test_case_yaml(
-            self.problem.path / "data" / self.short_path,
+            self.problem.path / "data" / self.short_path.with_suffix(".yaml"),
             type(program).args_key,
             bar,
             name=program.name if isinstance(program, validate.InputValidator) else None,
