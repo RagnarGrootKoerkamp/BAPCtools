@@ -1258,7 +1258,7 @@ def run_parsed_arguments(args):
                             problem, build_type=latex.PdfType.SOLUTION
                         )
 
-                    if problem.path.glob(str(latex.PdfType.PROBLEM_SLIDE.path("*"))):
+                    if any(problem.path.glob(str(latex.PdfType.PROBLEM_SLIDE.path("*")))):
                         success &= latex.build_problem_pdfs(
                             problem, build_type=latex.PdfType.PROBLEM_SLIDE
                         )
@@ -1311,7 +1311,7 @@ def run_parsed_arguments(args):
                 # Only build the problem slides if at least one problem has the TeX for it
                 slideglob = latex.PdfType.PROBLEM_SLIDE.path("*")
                 build_problem_slides = any(
-                    problem.path.glob(str(slideglob)) for problem in problems
+                    any(problem.path.glob(str(slideglob))) for problem in problems
                 )
 
                 for language in languages:
