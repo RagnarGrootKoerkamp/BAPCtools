@@ -487,7 +487,10 @@ class Problem:
                 )
 
                 # Use variable kwargs so the type checker does not complain when passing them to a PrintBar (nothing happens in that case anyway)
-                bar_kwargs = {"resume": True, "print_item": False}
+                bar_warn_kwargs = {} if isinstance(bar, PrintBar) else {"print_item": False}
+                bar_error_kwargs = (
+                    {} if isinstance(bar, PrintBar) else {"resume": True, "print_item": False}
+                )
 
                 # Verify test_group.yaml
                 for k in flags:
@@ -502,14 +505,14 @@ class Problem:
                                 bar.error(
                                     f"{k} must be a list of strings",
                                     None,
-                                    **bar_kwargs,
+                                    **bar_error_kwargs,
                                 )
                         case validate.InputValidator.args_key:
                             if not isinstance(flags[k], (list, dict)):
                                 bar.error(
                                     f"{k} must be list or map",
                                     None,
-                                    **bar_kwargs,
+                                    **bar_error_kwargs,
                                 )
                             if isinstance(flags[k], dict):
                                 input_validator_names = set(
@@ -519,7 +522,7 @@ class Problem:
                                     bar.warn(
                                         f"Unknown input validator {name}; expected {input_validator_names}",
                                         None,
-                                        **bar_kwargs,
+                                        **bar_warn_kwargs,
                                     )
                         case "description" | "hint":
                             pass  # We don't do anything with hint or description in BAPCtools, but no need to warn about this
@@ -527,11 +530,11 @@ class Problem:
                             bar.warn(
                                 f"{k} in test_group.yaml not implemented in BAPCtools",
                                 None,
-                                **bar_kwargs,
+                                **bar_warn_kwargs,
                             )
                         case _:
                             path = f.relative_to(p.path / "data")
-                            bar.warn(f'Unknown key "{k}" in {path}', None, **bar_kwargs)
+                            bar.warn(f'Unknown key "{k}" in {path}', None, **bar_warn_kwargs)
 
     def get_test_case_yaml(
         p,
