@@ -461,7 +461,7 @@ class Problem:
 
     # TODO #102 move to a new TestGroup class
     def _parse_test_case_and_groups_yaml(p, path: Path, bar: BAR_TYPE):
-        assert path.is_relative_to(p.path / "data")
+        assert path.is_relative_to(p.path / "data"), f"{path} is not in data"
         for f in [path] + list(path.parents):
             # Do not go above the data directory.
             if f == p.path:
@@ -548,7 +548,7 @@ class Problem:
 
         Arguments
         ---------
-        path: absolute path (a file or a directory)
+        path: absolute path (a <test_case>.yaml file or a test group directory)
         key: The test_group.yaml key to look for (TODO: 'grading' is not yet implemented)
         name: If key == 'input_validator_args', optionally the name of the input validator.
 
@@ -572,7 +572,6 @@ class Problem:
             )
 
         # parse and cache <test_case>.yaml and test_group.yaml
-        path = path.with_suffix(".yaml")
         p._parse_test_case_and_groups_yaml(path, bar)
 
         # extract the flags
@@ -581,7 +580,7 @@ class Problem:
             if f == p.path:
                 return []
 
-            if f.suffix != ".yaml":
+            if f.is_dir():
                 f = f / "test_group.yaml"
             if f not in p._test_case_yamls:
                 continue
