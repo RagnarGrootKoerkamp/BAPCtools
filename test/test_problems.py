@@ -23,7 +23,7 @@ PROBLEMS = [
     "constants",
 ] + ["hellounix" if not util.is_mac() and not util.is_windows() else []]
 
-RUN_DIR = Path.cwd().resolve()
+RUN_DIR = Path.cwd().absolute()
 
 
 @pytest.fixture(scope="class", params=PROBLEMS)
