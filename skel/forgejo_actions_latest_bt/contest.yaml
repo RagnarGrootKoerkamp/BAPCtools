@@ -3,7 +3,8 @@ enable-email-notifications: true
 on:
   push:
     paths:
-      - {%contest_path%}/*/problem_statement/**
+      - {%contest_path%}/*/statement/**
+      - {%contest_path%}/*/solution/**
 jobs:
   build_pdfs:
     name: {%contest%} PDFs

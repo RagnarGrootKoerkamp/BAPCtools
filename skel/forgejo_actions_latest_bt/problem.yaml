@@ -4,7 +4,9 @@ on:
   push:
     paths:
       - {%problem_path%}/**
-      - "!{%problem_path%}/problem_statement/**"
+      - "!{%problem_path%}/statement/**"
+      - "!{%problem_path%}/solution/**"
+      - "!{%problem_path%}/problem_slide/**"
       - "!{%problem_path%}/attachments/**"
 jobs:
   verify:
