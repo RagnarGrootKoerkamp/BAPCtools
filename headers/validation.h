@@ -10,7 +10,7 @@
 // This strict checking mode is used for *.in and *.ans files.
 // When validating submission outputs, the checking is more lenient,
 // but the case_sensitive and space_change_sensitive flags can be passed
-// via the output_validator_args in test_group.yaml or <testcase>.yaml
+// via the output_validator_args in test_group.yaml or <test_case>.yaml
 // to enable strict checking behaviour for submission outputs
 // regarding case and whitespace, respectively.
 
@@ -799,6 +799,7 @@ class Validator {
 		return v;
 	}
 
+  public:
 	std::string gen_string(const std::string& name, long long low, long long high,
 	                       std::string_view chars) {
 		assert(!chars.empty());
@@ -811,11 +812,9 @@ class Validator {
 		std::string s(len, ' ');
 		for(auto& x : s) x = chars[uniform_number<int>(0, chars.size() - 1)];
 
-		out << s;
 		return s;
 	}
 
-  public:
 	template <typename Tag = ArbitraryTag>
 	long long gen_integer(const std::string& name, long long low, long long high, Tag tag = Tag{}) {
 		return gen_number(name, low, high, tag);
@@ -1004,8 +1003,11 @@ class Validator {
 	                                      const std::string_view chars = "", Tag tag = Tag(),
 	                                      Separator sep = Space) {
 		reset<std::string>(name);
-		if(gen) return gen_strings(name, count, min, max, chars, tag, sep);
-		assert(!gen);
+		if(gen) {
+			auto v = gen_strings(name, count, min, max, chars, tag, sep);
+			for (auto s : v) out << s;
+			return v;
+		}
 		std::vector<std::string> v(count);
 		for(int i = 0; i < count; ++i) {
 			v[i] = read_string(name, min, max, chars, tag);
@@ -1027,7 +1029,6 @@ class Validator {
 				std::string s(uniform_number(min, max), ' ');
 				for(auto& x : s) x = chars[uniform_number<int>(0, chars.size() - 1)];
 				v.push_back(s);
-				out << s;
 				if(i < count - 1) separator(sep);
 			}
 		} else if constexpr(Tag::unique) {
@@ -1040,7 +1041,6 @@ class Validator {
 					for(auto& x : s) x = chars[uniform_number<int>(0, chars.size() - 1)];
 				} while(!seen_here.insert(s).second);
 				v.push_back(s);
-				out << s;
 				if(i < count - 1) separator(sep);
 			}
 		} else {
@@ -1109,7 +1109,9 @@ class Validator {
 	std::string read_string(const std::string& name, long long min, long long max,
 	                        const std::string_view chars = "", Tag tag = Tag()) {
 		if(gen) {
-			return gen_string(name, min, max, chars);
+			std::string s = gen_string(name, min, max, chars);
+			out << s;
+			return s;
 		}
 		std::string s = get_string();
 		std::array<bool, 256> ok_char{};
