@@ -148,12 +148,16 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     export_dir = problem.tmpdir / "export"
     if export_dir.exists():
         shutil.rmtree(export_dir)
-    # For Kattis / draft spec, prepend the problem shortname to all files.
+    # For Kattis / 2025-09 spec, prepend the problem shortname to all files.
     if config.args.kattis or not config.args.legacy:
         export_dir /= problem.name
     export_dir.mkdir(parents=True, exist_ok=True)
 
     def add_file(path: Path, source: Path) -> None:
+        if source.stat().st_size >= config.ICPC_FILE_LIMIT * 1024**2:
+            util.warn(
+                f"{path} is too large for the ICPC Archive (limit {config.ICPC_FILE_LIMIT}MiB)!"
+            )
         path = export_dir / path
         path.parent.mkdir(parents=True, exist_ok=True)
         ensure_symlink(path, source)

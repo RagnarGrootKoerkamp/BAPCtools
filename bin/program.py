@@ -301,6 +301,12 @@ class Program:
         return False
 
     def _checks(self, bar: ProgressBar):
+        for f in self.source_files:
+            if f.stat().st_size >= config.ICPC_FILE_LIMIT * 1024**2:
+                bar.warn(
+                    f"{f} is too large for the ICPC Archive (limit {config.ICPC_FILE_LIMIT}MiB)!"
+                )
+
         # Make sure C++ does not depend on stdc++.h, because it's not portable.
         if self.language == "cpp":
             for f in self.source_files:

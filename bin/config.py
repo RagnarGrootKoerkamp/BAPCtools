@@ -13,6 +13,9 @@ SPEC_VERSION: Final[str] = "2025-09"
 RTV_AC: Final[int] = 42
 RTV_WA: Final[int] = 43
 
+# limit in MiB for the ICPC Archive
+ICPC_FILE_LIMIT: Final[int] = 100
+
 SUBMISSION_DIRS: Final[Sequence[str]] = [
     "accepted",
     "wrong_answer",

@@ -2290,7 +2290,7 @@ data/*
 
 # Delete files in the tmpdir trash directory. By default all files older than 10min are removed
 # and additionally the oldest files are removed until the trash is less than 1 GiB
-def clean_trash(problem, time_limit=10 * 60, size_lim=1024 * 1024 * 1024):
+def clean_trash(problem, time_limit=10 * 60, size_lim=1024**3):
     trashdir = problem.tmpdir / "trash"
     if trashdir.exists():
         dirs = [(d, path_size(d)) for d in trashdir.iterdir()]

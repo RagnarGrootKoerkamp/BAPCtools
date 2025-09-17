@@ -1267,7 +1267,7 @@ def limit_setter(
         if memory_limit and not jvm and not is_bsd():
             resource.setrlimit(
                 resource.RLIMIT_AS,
-                (memory_limit * 1024 * 1024, memory_limit * 1024 * 1024),
+                (memory_limit * 1024**2, memory_limit * 1024**2),
             )
 
         # TODO: with python 3.11 it is better to use Popen(process_group=group)
