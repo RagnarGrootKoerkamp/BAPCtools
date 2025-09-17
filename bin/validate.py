@@ -489,8 +489,8 @@ def sanity_check(problem, path, bar, strict_whitespace=True):
     # TODO: consider time limit?
     file_size_limit = 20  # in MiB
     inMiB = 1024**2
-    assert config.ICPC_FILE_LIMIT > file_size_limit * inMiB
-    if len(file_bytes) >= config.ICPC_FILE_LIMIT:
+    assert config.ICPC_FILE_LIMIT > file_size_limit
+    if len(file_bytes) >= config.ICPC_FILE_LIMIT * inMiB:
         bar.warn(f"{name} is too large for the ICPC Archive (limit {config.ICPC_FILE_LIMIT}MiB)!")
     elif len(file_bytes) > file_size_limit * inMiB:
         bar.warn(f"{name} is larger than {file_size_limit}MiB!")
