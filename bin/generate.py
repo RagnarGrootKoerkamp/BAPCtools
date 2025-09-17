@@ -178,10 +178,10 @@ class GeneratorInvocation(Invocation):
         if not result.status:
             if retries > 1:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-                bar.error(f"Generator failed {retry + 1} times", result.err)
+                bar.error(f"Generator crashed {retry + 1} times", result.err)
             else:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-                bar.error("Generator failed", result.err)
+                bar.error("Generator crashed", result.err)
 
         if result.status and config.args.error and result.err:
             bar.log("stderr", result.err)
@@ -1103,7 +1103,8 @@ class TestcaseRule(Rule):
             elif not result.status:
                 bar.debug(f"{Style.RESET_ALL}-> {shorten_path(problem, cwd)}")
                 bar.error(
-                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer failed", result.err
+                    f"{type(visualizer).visualizer_type.capitalize()} Visualizer crashed",
+                    result.err,
                 )
 
             if result.status and config.args.error and result.err:
