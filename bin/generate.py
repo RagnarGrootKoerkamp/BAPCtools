@@ -211,7 +211,7 @@ class SolutionInvocation(Invocation):
             bar.error(f"Solution TIMEOUT after {result.duration}s")
         elif not result.status:
             bar.debug(f"{Style.RESET_ALL}-> {shorten_path(self.problem, cwd)}")
-            bar.error("Solution failed", result.err)
+            bar.error("Solution crashed", result.err)
 
         if result.status and config.args.error and result.err:
             bar.log("stderr", result.err)
