@@ -20,6 +20,7 @@
 #include <cassert>
 #include <charconv>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <functional>
 #include <iomanip>
@@ -43,7 +44,7 @@ constexpr std::string_view case_sensitive_flag       = "case_sensitive";
 constexpr std::string_view ws_sensitive_flag         = "space_change_sensitive";
 constexpr std::string_view constraints_file_flag     = "--constraints_file";
 constexpr std::string_view generate_flag             = "--generate";
-constexpr std::string_view generate_binary_substring = "generat";
+constexpr std::string_view generate_binary_substring = "generators";
 
 // Only use non-capturing groups, and optimize the RegEx during initialization (improves run time at the cost of build time)
 constexpr auto regex_options = std::regex::nosubs | std::regex::optimize;
@@ -1443,9 +1444,11 @@ class InputValidator : public Validator {
 				return std::stol(argv[i + 1]);
 			}
 		}
-		// If no --generate is given, but `generat` is a substring of the binary path,
+		// If no --generate is given, but `generator` is a directory of the binary path,
 		// use the first argument as seed.
-		if(std::string(argv[0]).find(generate_binary_substring) != std::string::npos) {
+		bool is_generator = false;
+		for(auto part : std::filesystem::path(argv[0])) is_generator |= part == generate_binary_substring;
+		if(is_generator) {
 			return std::stol(argv[1]);
 		}
 		return std::nullopt;
