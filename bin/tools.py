@@ -24,6 +24,7 @@ import shutil
 import colorama
 import re
 
+from collections import Counter
 from colorama import Style
 from pathlib import Path
 from typing import cast, Literal, Optional
@@ -184,6 +185,14 @@ def get_problems():
         if config.args.order or contest_yaml().get("order"):
             order = config.args.order or contest_yaml()["order"]
 
+            counts = Counter(order)
+            for id, count in counts.items():
+                if count > 1:
+                    warn(f"{id} appears {count} times in 'order'")
+            for p in problems:
+                if p.label not in counts:
+                    warn(f"{p.label} does not appear in 'order'")
+
             # Sort by position of id in order
             def get_pos(id):
                 if id in order:
@@ -243,8 +252,8 @@ def get_problems():
             if ask_variable_bool("Update order in contest.yaml"):
                 if has_ryaml:
                     contest_yaml_path = Path("contest.yaml")
-                    data = contest_yaml()
-                    data["order"] = [p.label for p in problems]
+                    data = read_yaml(contest_yaml_path)
+                    data["order"] = "".join(p.label or p.name for p in problems)
                     write_yaml(data, contest_yaml_path)
                     log("Updated order")
                 else:
