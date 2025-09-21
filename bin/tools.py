@@ -182,82 +182,83 @@ def get_problems():
             if len(problems) == 0:
                 fatal("Did not find problem.yaml. Are you running this from a problem directory?")
 
-        if config.args.order or contest_yaml().get("order"):
-            order = config.args.order or contest_yaml()["order"]
+        if config.args.action == "solutions":
+            if config.args.order or contest_yaml().get("order"):
+                order = config.args.order or contest_yaml()["order"]
 
-            counts = Counter(order)
-            for id, count in counts.items():
-                if count > 1:
-                    warn(f"{id} appears {count} times in 'order'")
-            for p in problems:
-                if p.label not in counts:
-                    warn(f"{p.label} does not appear in 'order'")
+                counts = Counter(order)
+                for id, count in counts.items():
+                    if count > 1:
+                        warn(f"{id} appears {count} times in 'order'")
+                for p in problems:
+                    if p.label not in counts:
+                        warn(f"{p.label} does not appear in 'order'")
 
-            # Sort by position of id in order
-            def get_pos(id):
-                if id in order:
-                    return order.index(id)
-                else:
-                    return len(order)
+                # Sort by position of id in order
+                def get_pos(id):
+                    if id in order:
+                        return order.index(id)
+                    else:
+                        return len(order)
 
-            problems.sort(key=lambda p: (get_pos(p.label), p.label))
+                problems.sort(key=lambda p: (get_pos(p.label), p.label))
 
-        if config.args.order_from_ccs:
-            # Sort by increasing difficulty, extracted from the CCS api.
-            class ProblemStat:
-                def __init__(self):
-                    self.solved = 0
-                    self.submissions = 0
-                    self.pending = 0
-                    self.teams_submitted = 0
-                    self.teams_pending = 0
+            if config.args.order_from_ccs:
+                # Sort by increasing difficulty, extracted from the CCS api.
+                class ProblemStat:
+                    def __init__(self):
+                        self.solved = 0
+                        self.submissions = 0
+                        self.pending = 0
+                        self.teams_submitted = 0
+                        self.teams_pending = 0
 
-                def update(self, team_stats: dict[str, Any]):
-                    if team_stats["solved"]:
-                        self.solved += 1
-                    if team_stats["num_judged"]:
-                        self.submissions += team_stats["num_judged"]
-                        self.teams_submitted += 1
-                    if team_stats["num_pending"]:
-                        self.pending += team_stats["num_pending"]
-                        self.teams_pending += 1
+                    def update(self, team_stats: dict[str, Any]):
+                        if team_stats["solved"]:
+                            self.solved += 1
+                        if team_stats["num_judged"]:
+                            self.submissions += team_stats["num_judged"]
+                            self.teams_submitted += 1
+                        if team_stats["num_pending"]:
+                            self.pending += team_stats["num_pending"]
+                            self.teams_pending += 1
 
-                def key(self) -> tuple[int, int]:
-                    # self.solved more AC => easier
-                    # possible tie breakers:
-                    # self.submissions more needed to get the same number of AC => Harder
-                    # self.teams_pending more teams tried => appeared easier
-                    # TODO: consider more stats?
-                    return (-self.solved, self.submissions)
+                    def key(self) -> tuple[int, int]:
+                        # self.solved more AC => easier
+                        # possible tie breakers:
+                        # self.submissions more needed to get the same number of AC => Harder
+                        # self.teams_pending more teams tried => appeared easier
+                        # TODO: consider more stats?
+                        return (-self.solved, self.submissions)
 
-            # Get active contest.
-            cid = get_contest_id()
+                # Get active contest.
+                cid = get_contest_id()
 
-            # Read set of problems
-            contest_problems = call_api_get_json(f"/contests/{cid}/problems?public=true")
-            assert isinstance(problems, list)
+                # Read set of problems
+                contest_problems = call_api_get_json(f"/contests/{cid}/problems?public=true")
+                assert isinstance(problems, list)
 
-            problem_stats = {problem["id"]: ProblemStat() for problem in contest_problems}
+                problem_stats = {problem["id"]: ProblemStat() for problem in contest_problems}
 
-            scoreboard = call_api_get_json(f"/contests/{cid}/scoreboard?public=true")
+                scoreboard = call_api_get_json(f"/contests/{cid}/scoreboard?public=true")
 
-            for team in scoreboard["rows"]:
-                for team_stats in team["problems"]:
-                    problem_stats[team_stats["problem_id"]].update(team_stats)
+                for team in scoreboard["rows"]:
+                    for team_stats in team["problems"]:
+                        problem_stats[team_stats["problem_id"]].update(team_stats)
 
-            # Sort the problems
-            problems.sort(key=lambda p: (problem_stats[p.name].key(), p.label))
-            verbose(f"order: {', '.join(map(lambda p: str(p.label), problems))}")
+                # Sort the problems
+                problems.sort(key=lambda p: (problem_stats[p.name].key(), p.label))
+                verbose(f"order: {', '.join(map(lambda p: str(p.label), problems))}")
 
-            if ask_variable_bool("Update order in contest.yaml"):
-                if has_ryaml:
-                    contest_yaml_path = Path("contest.yaml")
-                    data = read_yaml(contest_yaml_path)
-                    data["order"] = "".join(p.label or p.name for p in problems)
-                    write_yaml(data, contest_yaml_path)
-                    log("Updated order")
-                else:
-                    error("ruamel.yaml library not found. Update the order manually.")
+                if ask_variable_bool("Update order in contest.yaml"):
+                    if has_ryaml:
+                        contest_yaml_path = Path("contest.yaml")
+                        data = read_yaml(contest_yaml_path)
+                        data["order"] = "".join(p.label or p.name for p in problems)
+                        write_yaml(data, contest_yaml_path)
+                        log("Updated order")
+                    else:
+                        error("ruamel.yaml library not found. Update the order manually.")
 
     contest_name = Path().cwd().name
 
