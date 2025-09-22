@@ -89,6 +89,7 @@ def get_contests():
 def call_api(method, endpoint, **kwargs):
     import requests  # Slow import, so only import it inside this function.
 
+    assert endpoint.startswith("/")
     url = get_api() + endpoint
     verbose(f"{method} {url}")
     r = requests.request(
