@@ -1,4 +1,5 @@
 import config
+import sys
 
 from pathlib import Path
 from typing import cast, Any, Optional
@@ -81,8 +82,6 @@ def get_contest_id():
 
 
 def get_contests():
-    url = f"{get_api()}/contests"
-    verbose(f"query {url}")
     contests = call_api_get_json("/contests")
     assert isinstance(contests, list)
     return contests
@@ -91,6 +90,7 @@ def get_contests():
 def call_api(method, endpoint, **kwargs):
     import requests  # Slow import, so only import it inside this function.
 
+    assert endpoint.startswith("/")
     url = get_api() + endpoint
     verbose(f"{method} {url}")
     r = requests.request(
@@ -111,4 +111,4 @@ def call_api_get_json(url: str):
     try:
         return r.json()
     except Exception as e:
-        print(f"\nError in decoding JSON:\n{e}\n{r.text()}")
+        print(f"\nError in decoding JSON:\n{e}\n{r.text()}", file=sys.stderr)
