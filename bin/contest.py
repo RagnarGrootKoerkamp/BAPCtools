@@ -81,8 +81,6 @@ def get_contest_id():
 
 
 def get_contests():
-    url = f"{get_api()}/contests"
-    verbose(f"query {url}")
     contests = call_api_get_json("/contests")
     assert isinstance(contests, list)
     return contests
