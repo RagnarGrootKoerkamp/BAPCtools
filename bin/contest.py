@@ -1,4 +1,5 @@
 import config
+import sys
 
 from pathlib import Path
 from typing import cast, Any, Optional
@@ -110,4 +111,4 @@ def call_api_get_json(url: str):
     try:
         return r.json()
     except Exception as e:
-        print(f"\nError in decoding JSON:\n{e}\n{r.text()}")
+        print(f"\nError in decoding JSON:\n{e}\n{r.text()}", file=sys.stderr)
