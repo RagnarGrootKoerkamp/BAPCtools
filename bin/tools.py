@@ -186,9 +186,13 @@ def get_problems():
             if config.args.order or contest_yaml().get("order"):
                 order = config.args.order or contest_yaml()["order"]
 
+                labels = {p.label for p in problems}
                 counts = Counter(order)
                 for id, count in counts.items():
-                    if count > 1:
+                    if id not in labels:
+                        append_s = "s" if count != 1 else ""
+                        warn(f"Unknown {id} appears {count} time{append_s} in 'order'")
+                    elif count > 1:
                         warn(f"{id} appears {count} times in 'order'")
                 for p in problems:
                     if p.label not in counts:
