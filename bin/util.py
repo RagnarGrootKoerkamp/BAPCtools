@@ -253,11 +253,7 @@ class ProgressBar:
         assert not (items and (max_len or count))
         assert items is not None or max_len
         if items is not None:
-            count = len(items)
-            if count == 0:
-                max_len = 0
-            else:
-                max_len = max(ProgressBar.item_len(x) for x in items)
+            max_len = max((ProgressBar.item_len(x) for x in items), default=0)
         assert max_len is not None
         self.prefix: str = prefix  # The prefix to always print
         self.item_width: int = max_len + 1  # The max length of the items we're processing
