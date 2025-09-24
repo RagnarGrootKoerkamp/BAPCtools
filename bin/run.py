@@ -390,7 +390,7 @@ class Submission(program.Program):
         if (
             config.args.all == 1
             or config.args.verbose
-            or config.args.action in ["all", "timelimit"]
+            or config.args.action in ["all", "time_limit"]
         ):
             run_until = RunUntil.DURATION
         if config.args.all == 2 or config.args.reorder:
