@@ -1488,14 +1488,14 @@ class Problem:
         return success
 
     def determine_time_limit(problem):
+        problem.limits.time_limit = config.args.timeout or 60
+        problem.limits.time_limit_is_default = False
+        problem.limits.timeout = problem.limits.time_limit + 1
+
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
         testcases, submissions = ts_pair
-
-        problem.limits.time_limit = config.args.timeout or 60
-        problem.limits.time_limit_is_default = False
-        problem.limits.timeout = problem.limits.time_limit
 
         ok = True
 
