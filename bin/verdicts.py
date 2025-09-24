@@ -299,6 +299,8 @@ class Verdicts:
 
     def _set_verdict_for_node(self, test_node: str, verdict: Verdict, timeout: bool):
         # This assumes self.lock is already held.
+        if timeout:
+            assert verdict == Verdict.TIME_LIMIT_EXCEEDED
         # Note that `False` verdicts can be overwritten if they were already started before being set to False.
         if self.verdict[test_node] not in [None, False]:
             raise ValueError(
