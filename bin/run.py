@@ -197,11 +197,13 @@ class Run:
     def _continue_with_tle(self, verdict, timeout_expired):
         if not self.problem.multi_pass:
             return False
+        if config.args.all == 2 or config.args.reorder:
+            return True
         if verdict != Verdict.TIME_LIMIT_EXCEEDED:
             return False
         if timeout_expired:
             return False
-        return any([config.args.verbose, config.args.all, config.args.action == "all"])
+        return config.args.verbose or config.args.all or config.args.action in ["all", "time_limit"]
 
     # prepare next pass
     def _prepare_nextpass(self, nextpass):
