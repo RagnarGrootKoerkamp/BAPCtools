@@ -256,7 +256,6 @@ class Submission(program.Program):
                 "code": problem.limits.code,
                 "compilation_time": problem.limits.compilation_time,
                 "compilation_memory": problem.limits.compilation_memory,
-                "timeout": problem.limits.timeout,
                 "memory": problem.limits.memory,
             },
             skip_double_build_warning=skip_double_build_warning,
@@ -346,7 +345,6 @@ class Submission(program.Program):
     # generating testcases.
     def run(self, in_path, out_path, crop=True, args=[], cwd=None, generator_timeout=False):
         assert self.run_command is not None
-        assert self.limits["timeout"] == self.problem.limits.timeout
         # Just for safety reasons, change the cwd.
         if cwd is None:
             cwd = self.tmpdir
@@ -365,7 +363,7 @@ class Submission(program.Program):
                 timeout=(
                     self.problem.limits.generator_time
                     if generator_timeout
-                    else self.limits["timeout"]
+                    else self.problem.limits.timeout
                 ),
             )
         return result
@@ -399,7 +397,7 @@ class Submission(program.Program):
 
         verdicts = Verdicts(
             testcases,
-            self.limits["timeout"],
+            self.problem.limits.timeout,
             run_until,
         )
 
@@ -470,7 +468,7 @@ class Submission(program.Program):
                 color = f"{Style.DIM}"
             else:
                 color = Fore.GREEN if got_expected else Fore.RED
-            timeout = result.duration >= self.limits["timeout"]
+            timeout = result.duration >= self.problem.limits.timeout
             duration_style = Style.BRIGHT if timeout else ""
             passmsg = (
                 f":{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}" if self.problem.multi_pass else ""
@@ -503,7 +501,9 @@ class Submission(program.Program):
 
         (salient_testcase, salient_duration) = verdicts.salient_test_case()
         salient_print_verdict = self.verdict
-        salient_duration_style = Style.BRIGHT if salient_duration >= self.limits["timeout"] else ""
+        salient_duration_style = (
+            Style.BRIGHT if salient_duration >= self.problem.limits.timeout else ""
+        )
 
         # Summary line is the only thing shown.
         message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_testcase:{max_testcase_len}}{Style.RESET_ALL}"
@@ -524,7 +524,7 @@ class Submission(program.Program):
             )
 
             slowest_duration_style = (
-                Style.BRIGHT if slowest_duration >= self.limits["timeout"] else ""
+                Style.BRIGHT if slowest_duration >= self.problem.limits.timeout else ""
             )
 
             message += f" {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_testcase}{Style.RESET_ALL}"
@@ -563,7 +563,7 @@ class Submission(program.Program):
                     )
 
                 assert result.err is None and result.out is None
-                if result.duration >= self.limits["timeout"]:
+                if result.duration >= self.problem.limits.timeout:
                     status = f"{Fore.RED}Aborted!"
                     config.n_error += 1
                 elif not result.status and result.status != ExecStatus.TIMEOUT:

@@ -1502,8 +1502,6 @@ class Problem:
             nonlocal ok
 
             cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
-            for s in cur_submissions:
-                s.limits["timeout"] = problem.limits.timeout
 
             if len(cur_submissions) == 0:
                 return None, None, None
@@ -1536,9 +1534,6 @@ class Problem:
         )
         safety_time_limit = problem.limits.time_limit * problem.limits.time_limit_to_tle
         problem.limits.timeout = int(safety_time_limit * problem.limits.time_limit_to_tle + 1)
-        if isinstance(problem._submissions, list):
-            for s in problem._submissions:
-                s.limits["timeout"] = problem.limits.timeout
 
         if config.args.write:
             if not has_ryaml:
