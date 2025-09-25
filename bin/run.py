@@ -346,6 +346,7 @@ class Submission(program.Program):
     # generating testcases.
     def run(self, in_path, out_path, crop=True, args=[], cwd=None, generator_timeout=False):
         assert self.run_command is not None
+        assert self.limits["timeout"] == self.problem.limits.timeout
         # Just for safety reasons, change the cwd.
         if cwd is None:
             cwd = self.tmpdir

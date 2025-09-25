@@ -1488,21 +1488,22 @@ class Problem:
         return success
 
     def determine_time_limit(problem):
-        problem.limits.time_limit = config.args.timeout or 60
-        problem.limits.time_limit_is_default = False
-        problem.limits.timeout = problem.limits.time_limit + 1
-
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
         testcases, submissions = ts_pair
 
         ok = True
+        problem.limits.time_limit = config.args.timeout or 60
+        problem.limits.time_limit_is_default = False
+        problem.limits.timeout = problem.limits.time_limit + 1
 
         def run_all(select_verdict, select):
             nonlocal ok
 
             cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
+            for s in cur_submissions:
+                s.limits["timeout"] = problem.limits.timeout
 
             if len(cur_submissions) == 0:
                 return None, None, None
@@ -1535,6 +1536,9 @@ class Problem:
         )
         safety_time_limit = problem.limits.time_limit * problem.limits.time_limit_to_tle
         problem.limits.timeout = int(safety_time_limit * problem.limits.time_limit_to_tle + 1)
+        if isinstance(problem._submissions, list):
+            for s in problem._submissions:
+                s.limits["timeout"] = problem.limits.timeout
 
         if config.args.write:
             if not has_ryaml:
