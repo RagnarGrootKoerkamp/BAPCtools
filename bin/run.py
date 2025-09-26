@@ -698,6 +698,7 @@ while True:
                 os.close(w)
                 if writer:
                     writer.kill()
+                    writer.wait()
             bar.done()
 
             if not is_tty:
