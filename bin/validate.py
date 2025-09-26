@@ -185,7 +185,7 @@ class Validator(program.Program):
         if self.language == "viva":
             # Called as `viva validator.viva testcase.in`.
             result = self._exec_command(
-                self.run_command + [main_path.resolve()],
+                self.run_command + [main_path.absolute()],
                 exec_code_map=format_exec_code_map,
                 cwd=cwd,
             )
@@ -319,7 +319,7 @@ class AnswerValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
 
-        invocation = self.run_command + [testcase.in_path.resolve()]
+        invocation = self.run_command + [testcase.in_path.absolute()]
 
         with testcase.ans_path.open("rb") as ans_file:
             ret = self._exec_helper(
@@ -377,8 +377,8 @@ class OutputValidator(Validator):
         if mode == Mode.INPUT:
             raise ValueError("OutputValidator does not support Mode.INPUT")
 
-        in_path = testcase.in_path.resolve()
-        ans_path = testcase.ans_path.resolve()
+        in_path = testcase.in_path.absolute()
+        ans_path = testcase.ans_path.absolute()
         if mode == Mode.ANSWER:
             path = ans_path
         elif mode == Mode.INVALID:
@@ -387,10 +387,10 @@ class OutputValidator(Validator):
                     "OutputValidator in Mode.INVALID should only be run for data/invalid_output"
                 )
             assert testcase.out_path is not None
-            path = testcase.out_path.resolve()
+            path = testcase.out_path.absolute()
         elif mode == Mode.VALID_OUTPUT:
             assert testcase.out_path is not None
-            path = testcase.out_path.resolve()
+            path = testcase.out_path.absolute()
         else:
             assert mode != Mode.INPUT
             # mode is actually a Run

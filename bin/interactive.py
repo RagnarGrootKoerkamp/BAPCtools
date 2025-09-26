@@ -54,9 +54,9 @@ def run_interactive_testcase(
         return (
             output_validator.run_command
             + [
-                run.in_path.resolve(),
-                run.testcase.ans_path.resolve(),
-                run.feedbackdir.resolve(),
+                run.in_path.absolute(),
+                run.testcase.ans_path.absolute(),
+                run.feedbackdir.absolute(),
             ]
             + run.testcase.test_case_yaml_args(
                 output_validator,
