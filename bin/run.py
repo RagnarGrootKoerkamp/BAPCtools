@@ -241,7 +241,7 @@ class Run:
             return None
         return output_visualizer.run(
             self.testcase.in_path,
-            self.testcase.ans_path.resolve(),
+            self.testcase.ans_path.absolute(),
             self.out_path if not self.problem.interactive else None,
             self.feedbackdir,
             args=self.testcase.test_case_yaml_args(output_visualizer, bar),

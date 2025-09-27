@@ -11,7 +11,7 @@ import validate
 import util
 import config
 
-RUN_DIR = Path.cwd().resolve()
+RUN_DIR = Path.cwd().absolute()
 # Note: the python version isn't tested by default, because it's quite slow.
 DEFAULT_OUTPUT_VALIDATOR = ["default_output_validator.cpp"]
 

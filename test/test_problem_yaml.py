@@ -7,7 +7,7 @@ from unittest.mock import call, MagicMock
 import config
 import problem
 
-RUN_DIR = Path.cwd().resolve()
+RUN_DIR = Path.cwd().absolute()
 
 config.args.verbose = 2
 config.args.error = True
