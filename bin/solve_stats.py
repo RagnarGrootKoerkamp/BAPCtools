@@ -1,8 +1,10 @@
 from os import makedirs
 from multiprocessing import Pool
 from pathlib import Path
+from typing import Optional
 
 import config
+import parallel
 from contest import get_contest_id, call_api_get_json
 from util import ProgressBar
 
@@ -13,6 +15,7 @@ from util import ProgressBar
 # wait on each other until they can obtain the lock.
 # Instead, multiprocessing spawns full-fledged Python processes and pickles the arguments and return values.
 # This means we cannot use closures or share global data, e.g. we cannot share `bar` instance between the processes.
+# Our custom parallel module can be used for API fetching without problems.
 
 bins = 120
 judgement_colors = {"AC": "lime", "WA": "red", "TLE": "#c0f", "RTE": "orange", "": "skyblue"}
@@ -29,7 +32,6 @@ def time_string_to_minutes(time_string: str) -> float:
 
 
 def plot_problem(
-    problem_id: str,
     minutes: list[dict[str, int]],
     label: str,
     judgement_types: dict[str, dict],
@@ -38,7 +40,7 @@ def plot_problem(
 
     fig, ax = plt.subplots(figsize=(12, 2))
     # Ugly accumulator. Matplotlib doesn't support negative stacked bars properly: https://stackoverflow.com/a/38900035
-    neg_acc = [0 for m in minutes]
+    neg_acc = [0 for _ in minutes]
     # Reverse order, so that the order at the bottom is WA-TLE-RTE
     for jt in sorted(judgement_types, reverse=True):
         if jt == "CE":
@@ -85,21 +87,24 @@ def generate_solve_stats(post_freeze: bool):
     contest_duration = time_string_to_minutes(contest["duration"])
     scale = contest_duration / bins
 
+    def get_contest_data(tuple):
+        i, endpoint = tuple
+        data[i] = get_json_assoc(url_prefix + endpoint)
+
     bar.start("Contest data")
-    with Pool(num_jobs) as p:
-        problems, submissions, teams, languages, judgement_types = p.map(
-            get_json_assoc,
-            [
-                url_prefix + endpoint
-                for endpoint in [
-                    "problems",
-                    "submissions",
-                    "teams?public=1",
-                    "languages",
-                    "judgement-types",
-                ]
-            ],
-        )
+    data: list[Optional[dict]] = [None] * 5
+    parallel.run_tasks(
+        get_contest_data,
+        list(
+            enumerate(["problems", "submissions", "teams?public=1", "languages", "judgement-types"])
+        ),
+    )
+    problems, submissions, teams, languages, judgement_types = data
+    assert problems is not None, "Could not fetch problems"
+    assert submissions is not None, "Could not fetch submissions"
+    assert teams is not None, "Could not fetch teams"
+    assert languages is not None, "Could not fetch languages"
+    assert judgement_types is not None, "Could not fetch judgement_types"
     bar.done()
 
     judgement_types[""] = {"id": "", "name": "pending"}
@@ -150,7 +155,7 @@ def generate_solve_stats(post_freeze: bool):
             plot_problem,
             [
                 # Passing all required data to plot_problem, because we dan't use closures (see comment at top of file)
-                [problem_id, stats[problem_id], problems[problem_id]["label"], judgement_types]
+                [stats[problem_id], problems[problem_id]["label"], judgement_types]
                 for problem_id in stats
             ],
         )
