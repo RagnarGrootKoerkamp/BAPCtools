@@ -27,7 +27,7 @@ import re
 from collections import Counter
 from colorama import Style
 from pathlib import Path
-from typing import cast, Literal, Optional
+from typing import cast, Optional
 
 # Local imports
 import config
@@ -75,47 +75,42 @@ if sys.version_info < (3, 10):
     fatal("BAPCtools requires at least Python 3.10.")
 
 
-# Get the list of relevant problems.
-# Either use the problems.yaml, or check the existence of problem.yaml and sort
-# by shortname.
-def get_problems():
-    def is_problem_directory(path):
-        return (path / "problem.yaml").is_file()
+# A path is a problem directory if it contains a `problem.yaml` file.
+def is_problem_directory(path: Path) -> bool:
+    return (path / "problem.yaml").is_file()
 
-    contest: Optional[Path] = None
-    problem: Optional[Path] = None
-    level: Optional[Literal["problem", "problemset"]] = None
+
+# Changes the working directory to the root of the contest.
+# Returns the "level" of the current command (either 'problem' or 'problemset')
+# and, if `level == 'problem'`, the directory of the problem.
+def change_directory() -> Optional[Path]:
+    problem_dir: Optional[Path] = None
+    config.level = "problemset"
     if config.args.contest:
         # TODO #102: replace cast with typed Namespace field
-        contest = cast(Path, config.args.contest).resolve()
-        os.chdir(contest)
-        level = "problemset"
+        contest_dir = cast(Path, config.args.contest).absolute()
+        os.chdir(contest_dir)
     if config.args.problem:
         # TODO #102: replace cast with typed Namespace field
-        problem = cast(Path, config.args.problem).resolve()
-        level = "problem"
-        os.chdir(problem.parent)
-    elif is_problem_directory(Path(".")):
-        problem = Path().cwd()
-        level = "problem"
-        os.chdir("..")
-    else:
-        level = "problemset"
+        problem_dir = cast(Path, config.args.problem).absolute()
+    elif is_problem_directory(Path().cwd()):
+        problem_dir = Path().cwd().absolute()
+    if problem_dir is not None:
+        config.level = "problem"
+        os.chdir(problem_dir.parent)
+    return problem_dir
 
+
+# Get the list of relevant problems.
+# Either use the problems.yaml,
+# or check the existence of problem.yaml and sort by shortname.
+def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
     # We create one tmpdir per contest.
     h = hashlib.sha256(bytes(Path().cwd())).hexdigest()[-6:]
     tmpdir = Path(tempfile.gettempdir()) / ("bapctools_" + h)
     tmpdir.mkdir(parents=True, exist_ok=True)
 
-    def parse_problems_yaml(problemlist):
-        if problemlist is None:
-            fatal(f"Did not find any problem in {problemsyaml}.")
-        problemlist = problemlist
-        if problemlist is None:
-            problemlist = []
-        if not isinstance(problemlist, list):
-            fatal("problems.yaml must contain a problems: list.")
-
+    def parse_problems_yaml(problemlist: list[dict[str, Any]]) -> list[tuple[str, str]]:
         labels = dict[str, str]()  # label -> shortname
         problems = []
         for p in problemlist:
@@ -136,7 +131,7 @@ def get_problems():
                 error(f"No directory found for problem {shortname} mentioned in problems.yaml.")
         return problems
 
-    def fallback_problems():
+    def fallback_problems() -> list[tuple[Path, str]]:
         problem_paths = list(filter(is_problem_directory, glob(Path("."), "*/")))
         label = (
             chr(ord("Z") - len(problem_paths) + 1) if contest_yaml().get("test_session") else "A"
@@ -148,25 +143,24 @@ def get_problems():
         return problems
 
     problems = []
-    if level == "problem":
-        assert problem
+    if config.level == "problem":
+        assert problem_dir
         # If the problem is mentioned in problems.yaml, use that ID.
         problemsyaml = problems_yaml()
         if problemsyaml:
             problem_labels = parse_problems_yaml(problemsyaml)
             for shortname, label in problem_labels:
-                if shortname == problem.name:
-                    problems = [Problem(Path(problem.name), tmpdir, label)]
+                if shortname == problem_dir.name:
+                    problems = [Problem(Path(problem_dir.name), tmpdir, label)]
                     break
 
         if len(problems) == 0:
             found_label = None
             for path, label in fallback_problems():
-                if path.name == problem.name:
+                if path.name == problem_dir.name:
                     found_label = label
-            problems = [Problem(Path(problem.name), tmpdir, found_label)]
-    else:
-        level = "problemset"
+            problems = [Problem(Path(problem_dir.name), tmpdir, found_label)]
+    else:  # config.level == 'problemset'
         # If problems.yaml is available, use it.
         problemsyaml = problems_yaml()
         if problemsyaml:
@@ -264,10 +258,8 @@ def get_problems():
                     else:
                         error("ruamel.yaml library not found. Update the order manually.")
 
-    contest_name = Path().cwd().name
-
     # Filter problems by submissions/testcases, if given.
-    if level == "problemset" and (config.args.submissions or config.args.testcases):
+    if config.level == "problemset" and (config.args.submissions or config.args.testcases):
         submissions = config.args.submissions or []
         testcases = config.args.testcases or []
 
@@ -286,8 +278,7 @@ def get_problems():
 
         problems = [p for p in problems if keep_problem(p)]
 
-    config.level = level
-    return problems, level, contest_name, tmpdir
+    return problems, tmpdir
 
 
 # NOTE: This is one of the few places that prints to stdout instead of stderr.
@@ -1045,8 +1036,11 @@ def run_parsed_arguments(args):
         skel.new_problem()
         return
 
-    # Get problem_paths and cd to contest
-    problems, level, contest, tmpdir = get_problems()
+    # Get problems list and cd to contest directory
+    problem_dir = change_directory()
+    level = config.level
+    contest_name = Path().cwd().name
+    problems, tmpdir = get_problems(problem_dir)
 
     # Check non unique uuid
     # TODO: check this even more globally?
@@ -1136,15 +1130,15 @@ def run_parsed_arguments(args):
         return
 
     if action == "gitlabci":
-        skel.create_gitlab_jobs(contest, problems)
+        skel.create_gitlab_jobs(contest_name, problems)
         return
 
     if action == "forgejo_actions":
-        skel.create_forgejo_actions(contest, problems)
+        skel.create_forgejo_actions(contest_name, problems)
         return
 
     if action == "github_actions":
-        skel.create_github_actions(contest, problems)
+        skel.create_github_actions(contest_name, problems)
         return
 
     if action == "skel":
@@ -1293,15 +1287,15 @@ def run_parsed_arguments(args):
         export.export_contest_and_problems(problems, languages)
 
     if level == "problemset":
-        print(f"{Style.BRIGHT}CONTEST {contest}{Style.RESET_ALL}", file=sys.stderr)
+        print(f"{Style.BRIGHT}CONTEST {contest_name}{Style.RESET_ALL}", file=sys.stderr)
 
         # build pdf for the entire contest
         if action in ["pdf"]:
-            success &= latex.build_contest_pdfs(contest, problems, tmpdir, web=config.args.web)
+            success &= latex.build_contest_pdfs(contest_name, problems, tmpdir, web=config.args.web)
 
         if action in ["solutions"]:
             success &= latex.build_contest_pdfs(
-                contest,
+                contest_name,
                 problems,
                 tmpdir,
                 build_type=latex.PdfType.SOLUTION,
@@ -1310,7 +1304,7 @@ def run_parsed_arguments(args):
 
         if action in ["problem_slides"]:
             success &= latex.build_contest_pdfs(
-                contest,
+                contest_name,
                 problems,
                 tmpdir,
                 build_type=latex.PdfType.PROBLEM_SLIDE,
@@ -1329,20 +1323,20 @@ def run_parsed_arguments(args):
                 )
 
                 for language in languages:
-                    success &= latex.build_contest_pdfs(contest, problems, tmpdir, language)
+                    success &= latex.build_contest_pdfs(contest_name, problems, tmpdir, language)
                     success &= latex.build_contest_pdfs(
-                        contest, problems, tmpdir, language, web=True
+                        contest_name, problems, tmpdir, language, web=True
                     )
                     if not config.args.no_solutions:
                         success &= latex.build_contest_pdf(
-                            contest,
+                            contest_name,
                             problems,
                             tmpdir,
                             language,
                             build_type=latex.PdfType.SOLUTION,
                         )
                         success &= latex.build_contest_pdf(
-                            contest,
+                            contest_name,
                             problems,
                             tmpdir,
                             language,
@@ -1351,7 +1345,7 @@ def run_parsed_arguments(args):
                         )
                     if build_problem_slides:
                         success &= latex.build_contest_pdf(
-                            contest,
+                            contest_name,
                             problems,
                             tmpdir,
                             language,
@@ -1361,9 +1355,9 @@ def run_parsed_arguments(args):
                 if not build_problem_slides:
                     log(f"No problem has {slideglob.name}, skipping problem slides")
 
-            outfile = contest + ".zip"
+            outfile = contest_name + ".zip"
             if config.args.kattis:
-                outfile = contest + "-kattis.zip"
+                outfile = contest_name + "-kattis.zip"
             export.build_contest_zip(problems, problem_zips, outfile, languages)
 
         if action in ["update_problems_yaml"]:
