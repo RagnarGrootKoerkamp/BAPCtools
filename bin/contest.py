@@ -38,6 +38,9 @@ def problems_yaml() -> Optional[list[dict[str, Any]]]:
         _problems_yaml = False
         return None
     _problems_yaml = read_yaml(problemsyaml_path)
+    if _problems_yaml is None:
+        _problems_yaml = False
+        return None
     if not isinstance(_problems_yaml, list):
         fatal("problems.yaml must contain a list of problems")
     return cast(list[dict[str, Any]], _problems_yaml)
