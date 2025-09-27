@@ -27,7 +27,7 @@ import re
 from collections import Counter
 from colorama import Style
 from pathlib import Path
-from typing import cast, Optional
+from typing import Any, cast, Optional
 
 # Local imports
 import config
@@ -193,7 +193,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                         warn(f"{p.label} does not appear in 'order'")
 
                 # Sort by position of id in order
-                def get_pos(id):
+                def get_pos(id: Optional[str]) -> int:
                     if id in order:
                         return order.index(id)
                     else:
@@ -211,7 +211,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                         self.teams_submitted = 0
                         self.teams_pending = 0
 
-                    def update(self, team_stats: dict[str, Any]):
+                    def update(self, team_stats: dict[str, Any]) -> None:
                         if team_stats["solved"]:
                             self.solved += 1
                         if team_stats["num_judged"]:
@@ -263,7 +263,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
         submissions = config.args.submissions or []
         testcases = config.args.testcases or []
 
-        def keep_problem(problem):
+        def keep_problem(problem: Problem) -> bool:
             for s in submissions:
                 x = resolve_path_argument(problem, s, "submissions")
                 if x:
@@ -282,12 +282,12 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
 
 
 # NOTE: This is one of the few places that prints to stdout instead of stderr.
-def print_sorted(problems):
+def print_sorted(problems: list[Problem]) -> None:
     for problem in problems:
         print(f"{problem.label:<2}: {problem.path}")
 
 
-def split_submissions_and_testcases(s):
+def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Path]]:
     # Everything containing data/, .in, or .ans goes into testcases.
     submissions = []
     testcases = []
@@ -313,7 +313,7 @@ class SuppressingParser(argparse.ArgumentParser):
         super(SuppressingParser, self).__init__(**kwargs, argument_default=argparse.SUPPRESS)
 
 
-def build_parser():
+def build_parser() -> SuppressingParser:
     parser = SuppressingParser(
         description="""
 Tools for ICPC style problem sets.
@@ -1005,8 +1005,7 @@ Run this from one of:
     return parser
 
 
-# Takes a Namespace object returned by argparse.parse_args().
-def run_parsed_arguments(args):
+def run_parsed_arguments(args: argparse.Namespace) -> None:
     # Process arguments
     config.args = args
     config.set_default_args()
@@ -1410,12 +1409,12 @@ def read_personal_config():
 
 # Takes command line arguments
 def main():
-    def interrupt_handler(sig, frame):
+    def interrupt_handler(sig: Any, frame: Any) -> None:
         fatal("Running interrupted")
 
     signal.signal(signal.SIGINT, interrupt_handler)
 
-    # Don't zero newly allocated memory for this any any subprocess
+    # Don't zero newly allocated memory for this and any subprocess
     # Will likely only work on linux
     os.environ["MALLOC_PERTURB_"] = str(0b01011001)
 
