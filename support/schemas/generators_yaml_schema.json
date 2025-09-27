@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://json.schemastore.org/problem_package_generators.json",
+  "$defs": {
+    "test_group": {
+      "type": "object",
+      "title": "Test Group",
+      "description": "A test group",
+      "properties": {
+        "data": {
+          "description": "Commands or dictionaries defining the test data in this test group",
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "allOf": [
+                  {
+                    "$ref": "#/$defs/data_dict"
+                  },
+                  {
+                    "type": "object",
+                    "maxProperties": 1
+                  }
+                ]
+              }
+            },
+            {
+              "$ref": "#/$defs/data_dict"
+            }
+          ]
+        },
+        "include": {
+          "title": "Inclusion",
+          "type": "array",
+          "description": "Test cases and test groups to be included in this test group from elsewhere.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "test_group.yaml": {
+          "$ref": "#/$defs/test_group_settings"
+        },
+        "solution": {
+          "$ref": "#/$defs/solution"
+        }
+      },
+      "additionalProperties": false
+    },
+    "test_case_or_group_settings": {
+      "type": "object",
+      "properties": {
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Defines arguments passed to the submission for the test case/group."
+        },
+        "input_validator_args": {
+          "oneOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "object",
+              "patternProperties": {
+                "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])$":{
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          ],
+          "description": "Defines arguments passed to each input validator for the test case/group. If a sequence of strings, then those are the arguments that will be passed to each input validator for this the case/group. If a map, then each key is the name of the input validator and the value is the arguments to pass to that input validator for the test case/group. Validators not present in the map are run without any arguments."
+        },
+        "output_validator_args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Defines arguments passed to the output validator for the test case/group."
+        },
+        "input_visualizer_args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Defines arguments passed to the input visualizer for the test case/group."
+        },
+        "output_visualizer_args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Defines arguments passed to the output visualizer for the test case/group."
+        },
+        "input_validator_flags": {
+          "type": "string",
+          "deprecated": true,
+          "description": "With 'problem_format_version: 2025-09' in problem.yaml, use input_validator_args instead."
+        },
+        "output_validator_flags": {
+          "type": "string",
+          "deprecated": true,
+          "description": "With 'problem_format_version: 2025-09' in problem.yaml, use output_validator_args instead."
+        }
+      }
+    },
+    "test_case_settings": {
+      "title": "Test case settings",
+      "description": "The settings that apply to this test case.",
+      "allOf": [
+        {
+          "$ref": "#/$defs/test_case_or_group_settings"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "hint": {
+              "type": "string",
+              "description": "A hint provides feedback for solving a test case to, e.g., somebody whose submission didn't pass."
+            },
+            "description": {
+              "type": "string",
+              "description": "A description conveys the purpose of a test case. It is an explanation of what aspect or edge case of the solution the input file is meant to test."
+            }
+          }
+        }
+      ]
+    },
+    "test_group_settings": {
+      "title": "Test group settings",
+      "description": "The settings that apply to the test data for this test group. Will be copied to this test group's `test_group.yaml`.",
+      "allOf": [
+        {"$ref": "#/$defs/test_case_or_group_settings"},
+        {
+          "type": "object",
+          "properties": {
+            "scoring": {
+              "type": "object",
+              "title": "Scoring settings",
+              "description": "For scoring problems, submissions are given a non-negative score instead of a verdict. The goal of each submission is to maximize this score. The scoring behavior is configured for `secret` and each test data group using the `scoring` object.",
+              "properties": {
+                "score": {
+                  "oneOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 1
+                    },
+                    {
+                      "enum": ["unbounded"]
+                    }
+                  ]
+                },
+                "aggregation": {
+                  "enum": ["pass-fail", "sum", "min"]
+                },
+                "require_pass": {
+                  "oneOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            "static_validation": {
+              "oneOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "args": {
+                      "type": "string",
+                      "description": "Represents the additional arguments passed to the static validator in this group's static validation test case."
+                    },
+                    "score": {
+                      "type": "integer",
+                      "description": "The maximum score of the static validation test case."
+                    }
+                  }
+                }
+              ]
+            },
+            "full_feedback": {
+              "description": "Defaults to `false` in `secret` and `true` in `sample`.\nWhen `full_feedback` is `true`, somebody whose submission didn't pass case should be shown:\n- the given input,\n- the produced output (stdout),\n- any error messages (stderr),\n- the illustration created by the output visualizer (if applicable),\n- the expected output.",
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "data_dict": {
+      "title": "Data Dictionary",
+      "description": "Defines the contents of a test group",
+      "type": "object",
+      "patternProperties": {
+        "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9]|)$": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/test_group"
+            },
+            {
+              "$ref": "#/$defs/test_case"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "minProperties": 1
+    },
+    "test_case": {
+      "title": "Test Case",
+      "description": "A test case, i.e., a single instance to the problem.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/command"
+        },
+        {
+          "title": "Test case dictionary",
+          "description": "Test case creation dictionary.",
+          "type": "object",
+          "properties": {
+            "generate": {
+              "$ref": "#/$defs/command"
+            },
+            "copy": {
+              "type": "string",
+              "title": "Copy",
+              "description": "Copy this test case from the given path relative to `/generators/`.",
+              "examples": ["manual_cases/sample/3"]
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "title": "Count",
+              "description": "Generate this number of test cases, substituting `{count}` in the `generate:` command with values between 1 and `count`, inclusive."
+            },
+            "in": {
+              "type": "string",
+              "title": "Input",
+              "description": "Explicit input given as a string"
+            },
+            "in.statement": {
+              "type": "string",
+              "title": "Input (statement)",
+              "description": "Explicit input given as a string, only shown in problem statement (defaults to 'in')"
+            },
+            "in.download": {
+              "type": "string",
+              "title": "Input (download)",
+              "description": "Explicit input given as a string, only shown as sample download in the contest system (defaults to 'in.statement' or 'in')"
+            },
+            "ans": {
+              "type": "string",
+              "title": "Default Answer",
+              "description": "Explicit default answer given as a string"
+            },
+            "ans.statement": {
+              "type": "string",
+              "title": "Default Answer (statement)",
+              "description": "Explicit default answer given as a strans, only shown in problem statement (defaults to 'in')"
+            },
+            "ans.download": {
+              "type": "string",
+              "title": "Default Answer (download)",
+              "description": "Explicit default answer given as a string, only shown as sample download in the contest system (defaults to 'ans.statement' or 'ans')"
+            },
+            "out": {
+              "type": "string",
+              "title": "Output",
+              "description": "Explicit (in)valid output given as a string; can only be given in sample or (in)valid_output"
+            },
+            "interaction": {
+              "title": "Sample interaction",
+              "description": "Input is prefixed with `<`, output is prefixed with `>`.",
+              "examples": ["<1 2\n>3\n<4 5\n>9\n<6 7\n>13\n"],
+              "type": "string",
+              "pattern": "^([<>][^\\n]*\\n)+$"
+            },
+            "yaml": {
+              "$ref": "#/$defs/test_case_settings"
+            },
+            "random_salt": {
+              "$ref": "#/$defs/random_salt"
+            },
+            "solution": {
+              "$ref": "#/$defs/solution"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "random_salt": {
+      "title": "Random Salt",
+      "type": "string",
+      "description": "“Salt” to add to {seed} variables",
+      "examples": ["abcd"]
+    },
+    "solution": {
+      "$ref": "#/$defs/slashedfilepath",
+      "title": "Default Solution",
+      "description": "Absolute path to a solution for this problem or test case.",
+      "examples": ["/submissions/accepted/sol.py"]
+    },
+    "command": {
+      "title": "Generator Invocation",
+      "description": "Invocation of a generator to create this test case",
+      "examples": ["forest --n 40 --connected", "path.cpp 20", "random {seed}"],
+      "type": "string",
+      "pattern": "^([^{}]|\\{name\\}|\\{count\\})*(\\{seed(:[0-9]+)?\\})?([^{}]|\\{name\\}|\\{count\\})*$"
+    },
+    "slashedfilepath": {
+      "type": "string",
+      "pattern": "^/([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]/)*[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]$"
+    },
+    "unslashedfilepath": {
+      "type": "string",
+      "pattern": "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]/)*[A-Za-z0-9][A-Za-z0-9_.-]*[A-Za-z0-9]$"
+    },
+    "dirpath": {
+      "type": "string",
+      "pattern": "^([A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?/)*[A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?$"
+    },
+    "path": {
+      "type": "string",
+      "anyOf": [
+        {
+          "pattern": "^([A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?/)*[A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?$"
+        },
+        {
+          "pattern": "^/?([A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?/)*[A-Za-z0-9][A-Za-z0-9_.-]{0,253}[A-Za-z0-9]$"
+        }
+      ]
+    }
+  },
+  "additionalProperties": true,
+  "description": "Generate test data for this problem. Version 2025-08.",
+  "properties": {
+    "solution": {
+      "$ref": "#/$defs/solution"
+    },
+    "random_salt": {
+      "$ref": "#/$defs/random_salt"
+    },
+    "generators": {
+      "title": "Generators",
+      "description": "List of generators for this problem.",
+      "type": "object",
+      "patternProperties": {
+        "^([A-Za-z0-9][A-Za-z0-9_-]*[A-Za-z0-9]|[A-Za-z0-9])$": {
+          "title": "Generator",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/path"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "test_group.yaml": {
+      "$ref": "#/$defs/test_group_settings"
+    },
+    "data": {
+      "title": "Test data root",
+      "description": "The root test group. Must contain the test groups 'sample' and 'secret'.",
+      "type": "object",
+      "properties": {
+        "sample": {
+          "$ref": "#/$defs/test_group",
+          "title": "Sample inputs",
+          "description": "Test cases shown to the solver in the problem statement"
+        },
+        "secret": {
+          "$ref": "#/$defs/test_group",
+          "title": "Secret inputs",
+          "description": "The test cases against which submissions are validated"
+        },
+        "invalid_input": {
+          "$ref": "#/$defs/test_group",
+          "title": "Invalid inputs",
+          "description": "Test cases whose input files are invalid"
+        },
+        "invalid_answer": {
+          "$ref": "#/$defs/test_group",
+          "title": "Invalid answers",
+          "description": "Test cases whose answer files are invalid. Inputs must be valid."
+        },
+        "invalid_output": {
+          "$ref": "#/$defs/test_group",
+          "title": "Invalid outputs",
+          "description": "Valid test cases for which the `.out` string is rejected by output validation."
+        },
+        "valid_output": {
+          "$ref": "#/$defs/test_group",
+          "title": "Valid outputs",
+          "description": "Valid test cases for which the `.out` must pass output validation."
+        }
+      },
+      "additionalProperties": false,
+      "required": ["sample", "secret"]
+    }
+  },
+  "required": ["data"],
+  "title": "Generator",
+  "type": "object"
+}

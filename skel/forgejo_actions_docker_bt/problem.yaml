@@ -1,0 +1,20 @@
+name: {%problem_path%}
+enable-email-notifications: true
+on:
+  push:
+    paths:
+      - {%problem_path%}/**
+      - "!{%problem_path%}/statement/**"
+      - "!{%problem_path%}/solution/**"
+      - "!{%problem_path%}/problem_slide/**"
+      - "!{%problem_path%}/attachments/**"
+jobs:
+  verify:
+    name: Verify {%problem%}
+    runs-on: bapctools-docker
+    container:
+      image: ragnargrootkoerkamp/bapctools
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          bt all --cp --error --no-bar --force --jobs 0 --problem {%problem_path%}

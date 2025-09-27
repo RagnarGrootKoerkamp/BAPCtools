@@ -16,6 +16,9 @@
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{bapc}
 
+\providecommand{\lang}{en}% fallback definition, should be defined as -usepretex to latexmk
+\input{lang/\lang.tex}
+
 %\RequirePackage{frcursive}
 
 %-------------------------------------------------------------------------------
@@ -23,15 +26,13 @@
 % it is decorated with the text "This is not a blank page".
 %-------------------------------------------------------------------------------
 
-\newcommand{\defaultblankpagetext}{This page is intentionally left blank.}
-
 \newcommand{\ThisIsNotABlankPage}{
 	\cleartooddpage[
 		\thispagestyle{empty}
 		\vfill
 		\begin{center}
 			\huge{%
-				\ifdefempty{\customblankpagetext}{\defaultblankpagetext}{\customblankpagetext}%
+				\langblank{}%
 			}
 			%\includegraphics{images/blank-page-fr.png}
 		\end{center}
@@ -60,22 +61,27 @@
 \nonzeroparskip
 
 % Require some packages.
+\RequirePackage{microtype}
 \RequirePackage{eqparbox}
 \RequirePackage{tabularx}
 \RequirePackage{environ}
 \RequirePackage{etoolbox}
 \RequirePackage{float}
 \RequirePackage{listingsutf8}
+\RequirePackage{upquote}
 \RequirePackage{tocloft}
+\RequirePackage{xparse}
+\RequirePackage{siunitx}
+\sisetup{per-mode=symbol}
 
 \RequirePackage[hidelinks,bookmarks=true,pdfusetitle]{hyperref}
 
 \newcommand{\todo}[1]{{\color{red}[#1]}}
 
-\newcommand{\timelimit}{TIMELIMIT MISSING}
+\newcommand{\timelimit}{\langtimelimitmissing{}}
 \newcommand{\problemlabel}{} % Empty to hide activity chart
-\newcommand{\problemyamlname}{Problem name}
-\newcommand{\problemauthor}{Problem author}
+\newcommand{\problemyamlname}{\langproblemname{}}
+\newcommand{\problemauthor}{\langproblemauthor{}}
 \newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 
 %-------------------------------------------------------------------------------
@@ -85,10 +91,11 @@
 % turned out to be a lot easier in terms of custom formatting.
 %-------------------------------------------------------------------------------
 \renewcommand{\thesection}{\problemlabel}
-\newcommand{\listofproblemsname}{Problems}
+\newcommand{\listofproblemsname}{\langproblems{}}
 \newlistof{listofproblems}{lop}{\listofproblemsname}
 \newlistentry{problem}{lop}{0}
 \newcounter{SampleCount}
+\newcounter{NextSample}
 \renewcommand{\printloptitle}[1]{
 	\hfill
 	\sffamily
@@ -113,9 +120,10 @@
 	}
 	\vspace{-2.3em}
 	\hfill
-	\ifdefempty{\timelimit}{}{{\color{darkgray}\fontfamily{qcr}Time limit: \timelimit{}s}}
+	\ifdefempty{\timelimit}{}{{\color{darkgray}\fontfamily{qcr}\langtimelimit{}: \timelimit{}s}}
 
 	\setcounter{SampleCount}{0}
+	\setcounter{NextSample}{1}
 	\setcounter{figure}{0}
 
 	\rmfamily
@@ -142,27 +150,27 @@
 %-------------------------------------------------------------------------------
 \copypagestyle{bapc}{headings}
 \makepsmarks{bapc}{
-	\createmark{section}{both}{shownumber}{Problem }{: }
+	\createmark{section}{both}{shownumber}{\langproblem{} }{: }
 }
 \pagestyle{bapc}
 \nouppercaseheads
 
 
 %-------------------------------------------------------------------------------
-% Environments for specifying Input, Output and optionally Explanation.
+% Environments for specifying Input, Output and Interaction
 %-------------------------------------------------------------------------------
 \newenvironment{Input}{
-	\subsection*{Input}
-}{}
+	\subsection*{\langinput{}}
+}{\par}
 \newenvironment{Output}{
-	\subsection*{Output}
-}{}
+	\subsection*{\langoutput{}}
+}{\par}
 \newenvironment{Interaction}{
-	\subsection*{Interaction}
-}{}
+	\subsection*{\langinteraction{}}
+}{\par}
 \newenvironment{Explanation}{
-	\subsection*{Explanation of samples}
-}{}
+	\subsection*{\langexplanation{}}
+}{\par}
 
 %-------------------------------------------------------------------------------
 % Environment for specifying Samples.
@@ -185,13 +193,13 @@
 % A solution to this problem was found on http://tex.stackexchange.com/a/111488 .
 %-------------------------------------------------------------------------------
 \newcommand{\mySampleHeading}[1]{
-	\multicolumn{1}{l}{\large \bfseries\textrm{Sample #1 \arabic{SampleCount}}}
+	\multicolumn{1}{l}{\large \bfseries\textrm{#1 \arabic{SampleCount}}}
 }
 \newcommand{\SampleListing}[1]{
-  	\lstinputlisting[aboveskip=-0.7\baselineskip,belowskip=-0.9\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
+	\lstinputlisting[aboveskip=-0.7\baselineskip,belowskip=-0.9\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
 }
 \newcommand{\InteractiveSampleListing}[1]{
-    \lstinputlisting[aboveskip=-1.0\baselineskip,belowskip=-1\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
+	\lstinputlisting[aboveskip=-1.0\baselineskip,belowskip=-1\baselineskip,inputencoding=utf8/latin1,basicstyle=\ttfamily]{#1}
 }
 \newcommand{\SideBySideSample}[2]{
 	\par\bigskip\noindent%
@@ -200,12 +208,10 @@
 	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
 	\begin{tabularx}{\textwidth}{|X|X|}%             http://tex.stackexchange.com/a/31704
-		\mySampleHeading{Input} & \mySampleHeading{Output} \\
+		\mySampleHeading{\langinputsample{}} & \mySampleHeading{\langoutputsample{}} \\
 		\hline
-	  	\SampleListing{#1}
-		&
-	  	\SampleListing{#2}
-        \\
+		\SampleListing{#1}~ &
+		\SampleListing{#2}~ \\
 		\hline
 	\end{tabularx}%
 	\rmfamily
@@ -218,25 +224,57 @@
 	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
 	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
 	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
-		\mySampleHeading{Input} \\
+		\mySampleHeading{\langinput{}} \\
 		\hline
-	  	\SampleListing{#1} \\
+		\SampleListing{#1}~ \\
 		\hline
 	\end{tabularx}%
 	\nopagebreak
-    \par
-    \noindent
-	\begin{tabularx}{\textwidth}{|X|}%             http://tex.stackexchange.com/a/31704
-	  	\mySampleHeading{Output} \\
+	\par
+	\noindent
+	\begin{tabularx}{\textwidth}{|X|}%
+		\mySampleHeading{\langoutput{}} \\
 		\hline
-	  	\SampleListing{#2} \\
+		\SampleListing{#2}~ \\
+		\hline
+	\end{tabularx}%
+	\rmfamily
+}
+
+\newcommand{\SideBySideSampleNoHeading}[2]{
+	\normalsize%
+	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
+	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
+	\begin{tabularx}{\textwidth}{|X|X|}%             http://tex.stackexchange.com/a/31704
+		\hline
+		\SampleListing{#1}~ &
+		\SampleListing{#2}~ \\
+		\hline
+	\end{tabularx}%
+	\rmfamily
+}
+
+\newcommand{\FullWidthSampleNoHeading}[2]{
+	\normalsize%
+	\renewcommand\baselinestretch{1}\selectfont% <-- combining various lengths in order
+	\setlength{\extrarowheight}{2.5pt}%              to set the top and bottom padding; see
+	\begin{tabularx}{\textwidth}{|X|}%               http://tex.stackexchange.com/a/31704
+		\hline
+		\SampleListing{#1}~ \\
+		\hline
+	\end{tabularx}%
+	\nopagebreak
+	\par
+	\noindent
+	\begin{tabularx}{\textwidth}{|X|}%
+		\hline
+		\SampleListing{#2}~ \\
 		\hline
 	\end{tabularx}%
 	\rmfamily
 }
 
 \newlength{\PS@idealwidth}
-\setlength{\PS@idealwidth}{0.48\textwidth}
 \newsavebox{\PS@inputbox}
 \newsavebox{\PS@outputbox}
 \newlength{\PS@inputwidth}
@@ -245,6 +283,7 @@
 \newcommand{\Sample}[2]{
 	\savebox{\PS@inputbox}{\SampleListing{#1}}
 	\savebox{\PS@outputbox}{\SampleListing{#2}}
+	\setlength{\PS@idealwidth}{\dimeval{0.5\textwidth - 2\arraycolsep}}
 	\settowidth{\PS@inputwidth}{\usebox{\PS@inputbox}}
 	\settowidth{\PS@outputwidth}{\usebox{\PS@outputbox}}
 	% Check if too wide for side-by-side
@@ -262,16 +301,61 @@
 	\fi
 }
 
+\newcommand{\SampleNoHeading}[2]{
+	\savebox{\PS@inputbox}{\SampleListing{#1}}
+	\savebox{\PS@outputbox}{\SampleListing{#2}}
+	\settowidth{\PS@inputwidth}{\usebox{\PS@inputbox}}
+	\settowidth{\PS@outputwidth}{\usebox{\PS@outputbox}}
+	% Check if too wide for side-by-side
+	\ifdim\PS@inputwidth<\PS@idealwidth
+		\ifdim\PS@outputwidth<\PS@idealwidth
+			% If both input and output are small enough, print side-by-side.
+			\SideBySideSampleNoHeading{#1}{#2}
+		\else
+			% If output width is too large, print full-width.
+			\FullWidthSampleNoHeading{#1}{#2}
+		\fi
+	\else
+		% If input width is too large, print full-width.
+		\FullWidthSampleNoHeading{#1}{#2}
+	\fi
+}
+
+\newcommand{\MultipassSampleHeading}{
+	\stepcounter{SampleCount}
+	\par%
+	\begin{tabularx}{0.983\textwidth}{X}%
+		\centering \large\bfseries\textrm{\langsamplecase{} \arabic{SampleCount}}%
+	\end{tabularx}
+  \par%
+	\nopagebreak[4]%
+}
+
+\newcommand{\SamplePass}[3]{%
+  \begin{samepage}%
+	\begin{tabularx}{0.983\textwidth}{XXX}%
+		\large\bfseries\textrm{\langinput{}} \hfill%
+		& %
+		\centering \large\bfseries\textrm{\langpass{} #1}%
+		& %
+		\hfill \large\bfseries\textrm{\langoutput{}}\\%
+	\end{tabularx}
+  \\%
+  \SampleNoHeading{#2}{#3}%
+  \end{samepage}%
+}
+
+
 \newcommand{\InteractiveSampleHeading}{
 	\par\bigskip\noindent%
 	\normalsize%
 	\stepcounter{SampleCount}%
 	\begin{tabularx}{0.983\textwidth}{XXX}%
-		\large\bfseries\textrm{Read} \hfill%
+		\large\bfseries\textrm{\langread{}} \hfill%
 		& %
-		\centering \large\bfseries\textrm{Sample Interaction \arabic{SampleCount}}%
+		\centering \large\bfseries\textrm{\langsampleinteraction{} \arabic{SampleCount}}%
 		& %
-		\hfill \large\bfseries\textrm{Write}\\%
+		\hfill \large\bfseries\textrm{\langwrite{}}\\%
 	\end{tabularx}
 	\nopagebreak
 	\vspace{-1.0em}
@@ -314,10 +398,51 @@
 	\par%
 }
 
+\newcommand{\InteractivePass}[1]{
+	\par\bgroup\bigskip\noindent%
+	\centering\large\bfseries\textrm{\langpass{} #1}
+	\nopagebreak
+	\vspace{-1.0em}
+	\par\egroup
+}
+
+%-------------------------------------------------------------------------------
+% Command to automatically include samples in order.
+% The tooling has to define the commands \Sample1{},...\Sample<n>{}
+%-------------------------------------------------------------------------------
+\newcommand{\nextsample}{%
+	\expandafter\csname Sample\theNextSample\endcsname%
+	\expandafter\let\csname Sample\theNextSample\endcsname\undefined%
+	\stepcounter{NextSample}%
+}
+
+\newcommand{\remainingsamples}{%
+	\ifcsname Sample\theNextSample\endcsname%
+		\nextsample%
+		\remainingsamples%
+	\fi%
+}
+
+%-------------------------------------------------------------------------------
+% Command to include consatnts.
+% The tooling has to define the commands \constants_<key>{}
+%-------------------------------------------------------------------------------
+\newcommand{\constant}[1]{%
+	\ifcsname constants_#1\endcsname%
+		\csname constants_#1\endcsname%
+	\else%
+		\PackageError{constants}{constant{#1} is not defined}{}%
+	\fi%
+}
+
 %-------------------------------------------------------------------------------
 % The following are required for the overall layout:
 %-------------------------------------------------------------------------------
-\usepackage[english]{babel}
+\let\sffamilyFB\sffamily% Prevent error if babel fr loads \sffamilyFB in cache
+\let\ttfamilyFB\ttfamily
+\let\rmfamilyFB\rmfamily
+\usepackage[\langbabel]{babel}
+\usepackage[none]{hyphenat} % Disable hyphenation with language [none]
 \usepackage{lmodern}
 \usepackage{graphicx}
 \usepackage{courier}
@@ -363,15 +488,17 @@
 \makeatletter
 \counterwithout{figure}{chapter}
 \counterwithout{table}{chapter}
+\@addtoreset{figure}{section} % Added from https://tex.stackexchange.com/a/45931:
+\@addtoreset{table}{section}  % Makes sure that hyperlinks go to correct problem
 \renewcommand\@memfront@floats{}
 \renewcommand\@memmain@floats{}
 \renewcommand\@memback@floats{}
 \makeatletter
 
 \newcommand{\illustration}[3]{
-  \begin{wrapfigure}{r}{#1\textwidth}
+	\begin{wrapfigure}{r}{#1\textwidth}
 	\vspace{-10pt}
-    \includegraphics[width=#1\textwidth]{#2}
+	\includegraphics[width=#1\textwidth]{#2}
 	\ifstrempty{#3}{
 		\vspace{-25pt}
 	}{
@@ -381,9 +508,9 @@
 		\end{flushright}
 		\vspace{-15pt}
 	}
-  \end{wrapfigure}
-  %\par
-  %\noindent
+	\end{wrapfigure}
+	%\par
+	%\noindent
 }
 
 %% Number figures as A.1 A.2... B.1 B.2...

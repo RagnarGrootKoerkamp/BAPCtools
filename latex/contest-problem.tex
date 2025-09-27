@@ -1,10 +1,12 @@
-\begingroup\graphicspath{{{%problemdir%}/problem_statement/}}
+\begingroup\graphicspath{{{%problemdir%}/statement/}}
 	\renewcommand{\problemlabel}{{%problemlabel%}}
 	\renewcommand{\problemyamlname}{{%problemyamlname%}}
 	\renewcommand{\problemauthor}{{%problemauthor%}}
 	\renewcommand{\timelimit}{{%timelimit%}}
-	\input{{%problemdir%}/problem_statement/problem.en.tex}
 	\input{{%builddir%}/samples.tex}
+	\input{{%builddir%}/constants.tex}
+	\input{{%problemdir%}/statement/problem.\lang.tex}
+	\remainingsamples{}
 	\renewcommand{\problemlabel}{}
 	\renewcommand{\problemyamlname}{}
 	\renewcommand{\problemauthor}{}

@@ -1,7 +1,5 @@
 /*
  * This should give a TIMELIMIT.
- *
- * @EXPECTED_RESULTS@: TIMELIMIT
  */
 
 int main()

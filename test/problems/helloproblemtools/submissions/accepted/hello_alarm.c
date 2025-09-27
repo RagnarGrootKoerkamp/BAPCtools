@@ -1,6 +1,7 @@
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 /* Based on the libc manual*/
 
@@ -25,7 +26,7 @@ int main (void)
   /* Establish a handler for SIGALRM signals. */
   signal (SIGALRM, catch_alarm);
   /* Set an alarm to go off in a little while. */
-  alarm (1);
+  alarm(1);
   /* Check the flag once in a while to see when to quit. */
   while (keep_going)
     do_nothing();

@@ -1,103 +1,139 @@
 solution: /submissions/accepted/author.py
-# The visualizer is disabled to speed up testing.
-#visualizer: /visualizers {name}
-random_salt: 'abc'
+random_salt: "abc"
 
 generators:
-  main.py:
+  main_py:
     - main.py
     - lib.py
-  main.cpp:
+  main_cpp:
     - main.cpp
     - lib.h
-  main.c:
+  main_c:
     - main.c
     - lib.h
 
 data:
+  invalid_input:
+    data:
+      "lo":
+        in: "-1"
+      "hi":
+        in: "1001"
+      "extra_line":
+        in: "0\n\n"
+      "leading_space":
+        in: " 0"
+      "trailing_space":
+        in: "0 "
+      "leading_newline":
+        in: "\n0"
+  invalid_answer:
+    data:
+      "leading_space":
+        in: "0"
+        ans: " 0"
+      "trailing_space":
+        in: "0"
+        ans: "0 "
+  invalid_output:
+    data:
+      "wrong_answer":
+        in: "0"
+        ans: "0"
+        out: "1"
+  valid_output:
+    data:
+      "extra_space":
+        in: "0"
+        ans: "0"
+        out: " 0"
   sample:
-    type: directory
     #solution:
     data:
       # Both the empty value and ~ parse as None.
-      '1':
-      '2': ~
-      '3': manual/sample.in
-      '4': manual/inans.in
+      "1":
+        in: "0"
+        # 0 is quoted since only strings are allowed to prevent conversion issues.
+        ans: "0"
+      "2":
+        # Use | for multi-line input
+        in: |
+          999
+        ans: |
+          999
+      "3":
+        copy: manual/sample
+      "4":
+        copy: manual/inans
+      "5":
+        in: "5"
+        ans: "5"
+        out: "5"
+      "6":
+        in.statement: "6"
+        ans.statement: "6"
+    test_group.yaml:
+      output_visualizer_args: [--draw-please]
 
   secret:
-    type: directory
     data:
       named_group:
-        type: directory
         data:
           stdoutpy: stdout.py 200
           stdoutcpp: stdout.cpp 201
-          inans: write_in_and_ans.py {name} 202
-          hintdesc: hint_desc.py {name} 203
-          main.py: main.py 204
-          main.c: main.c 205
-          main.cpp: main.cpp 206
+          inans: write_in_and_ans.py 202
+          hint_desc_yaml: hint_desc_yaml.py 203
+          main_py: main_py 204
+          main_c: main_c 205
+          main_cpp: main_cpp 206
       numbered_group:
-        type: directory
         data:
           - dir: dir 300
-            dir2: dir 301
-          - dir: dir/ 306
+          - dir2: dir 301
           - dir_run: dir_run 303
           - dir_build: dir_build 304
           - dir_build_run: dir_build_run 305
       zero_prefix_group:
-        type: directory
         data:
           # Both ~ (None) and the empty string can be used to have only numbers as testcase names.
           - ~: stdout.py 123 # 01.in
-          - '': stdout.py 124
-          - '': stdout.py 125
-          - '': stdout.py 126
-          - '': stdout.py 127
-          - '': stdout.py 128
-          - '': stdout.py 129
-          - '': stdout.py 130
-          - '': stdout.py 131
-          - '': stdout.py 132 # 10.in
+          - "": stdout.py 124
+          - "": stdout.py 125
+          - "": stdout.py 126
+          - "": stdout.py 127
+          - "": stdout.py 128
+          - "": stdout.py 129
+          - "": stdout.py 130
+          - "": stdout.py 131
+          - "": stdout.py 132 # 10.in
       seeding:
-        type: directory
-        testdata.yaml:
-          arbitrary_key: some_value
         solution: /submissions/accepted/author.cpp
-        random_salt: 'def'
+        random_salt: "def"
         data:
-          - '': random_gen.py {seed}
-          - '': random_gen.py  {seed} # the entire argument is hashed, so the double space matters.
-          - '': random_gen.py {seed:1}
-          - '': random_gen.py {seed:01} # :01 is part of the command string, so the hash is different.
+          - "": random_gen.py {seed}
+          - "": random_gen.py  {seed} # the entire argument is hashed, so the double space matters.
+          - "": random_gen.py {seed:1}
+          - "": random_gen.py {seed:01} # :01 is part of the command string, so the hash is different.
           # Random_salt must be a string.
-          - '':
-              random_salt: '1.0'
-              input: random_gen.py {seed}
-          - '':
-              random_salt: '1.00'
-              input: random_gen.py {seed}
-          - '':
-              random_salt: 'yes'
-              input: random_gen.py {seed}
-          - '':
-              random_salt: 'true'
-              input: random_gen.py {seed}
+          - "":
+              random_salt: "1.0"
+              generate: random_gen.py {seed}
+          - "":
+              random_salt: "1.00"
+              generate: random_gen.py {seed}
+          - "":
+              random_salt: "yes"
+              generate: random_gen.py {seed}
+          - "":
+              random_salt: "true"
+              generate: random_gen.py {seed}
       testcase_dict_1:
-        input: random_gen.py {seed:6}
+        generate: random_gen.py {seed:6}
       testcase_dict_2:
         solution: /generators/solution.c
-        input: random_gen.py {seed:7}
+        generate: random_gen.py {seed:7}
       testcase_dict_3:
-        visualizer:
-        input: random_gen.py {seed:8}
-      testcase_dict_4:
-        solution:
-        visualizer:
-        random_salt: xyz
-        input: random_gen.py {seed:9}
+        generate: random_gen.py {seed:8}
       unused_args_1: > # Spread arguments over multiple lines.
         random_gen.py
         {seed}
@@ -119,38 +155,60 @@ data:
       # Commands should always be strings.
       boolean_generator_yes:
         solution: /generators/yes
-        input: y
+        generate: y
       boolean_generator_no:
         solution: /generators/no
-        input: n
+        generate: n
       boolean_generator_true:
         solution: /generators/true
-        input: t
+        generate: t
       boolean_generator_false:
         solution: /generators/false
-        input: f
-        unknown_key:
-      empty_group_1:
-        type: directory
+        generate: f
       empty_group_2:
-        type: directory
-        data:
+        data: {}
       empty_group_3:
-        type: directory
         data: []
-      empty_group_4:
-        type: directory
-        data:
-      empty_group_5:
-        type: directory
+      non_empty_group_5:
         data:
           - a: stdout.py 501 # 1-a
-            b: stdout.py 502 # 1-b
-      empty_group_6:
-        type: directory
+          - b: stdout.py 502 # 2-b
+      non_empty_group_6:
         data:
-          - '': stdout.py 503
-      json: {type: directory, data: [{'': stdout.py 600, '1': stdout.py 601}, {'': stdout.py 602}]}
-    unknown_key:
+          - "": stdout.py 503
+      json:
+        {
+          data:
+            [
+              { "": stdout.py 600 },
+              { "1": stdout.py 601 },
+              { "": stdout.py 602 },
+            ],
+        }
+      numbered_count_group:
+        data:
+          - count1:
+              generate: stdout.py 700 {count}
+              count: 1
+          - generate:
+              generate: stdout.py 701 {name}
+              count: 3
+          - seed:
+              generate: random_gen.py {seed:9}
+              count: 3
+          - in:
+              in: "702"
+              count: 3
+          - copy:
+              copy: manual/copy
+              count: 3
+      count_group:
+        data:
+          generate:
+            generate: stdout.py 704
+            count: 3
+          seed:
+            generate: random_gen.py {seed:10}
+            count: 3
 
 unknown_key:

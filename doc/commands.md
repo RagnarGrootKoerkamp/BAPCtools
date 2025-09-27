@@ -12,30 +12,38 @@ Unless otherwise specified, commands work both on the problem and contest level.
 This lists all subcommands and their most important options.
 
 - Problem development:
-  - [`bt run [-v] [-t TIMELIMIT] [-m MEMORY] [--force] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
-  - [`bt test [-v] [-t TIMEOUT] [-m MEMORY] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
-  - [`bt generate [-v] [-t TIMEOUT] [--force [--samples]] [--all] [--check-deterministic] [--add-manual] [--move-manual [DIRECTORY]] [--clean] [--clean-generated] [--jobs JOBS] [testcases [testcases ...]]`](#generate)
-  - [`bt pdf [-v] [--all] [--web] [--cp] [--no-timelimit]`](#pdf)
-  - [`bt solutions [-v] [--web] [--cp] [--order ORDER]`](#solutions)
+  - [`bt run [-v] [-t TIME_LIMIT] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
+  - [`bt test [-v] [-t TIMEOUT] submission [--interactive | --samples | [testcases [testcases ...]]]`](#test)
+  - [`bt time_limit [-a] [-w] [submissions [submissions ...]] [testcases [testcases ...]]`](#time_limit)
+  - [`bt generate [-v] [-t TIMEOUT] [--add] [--clean] [--check-deterministic] [--jobs JOBS] [--no-validators] [--no-visualizer] [--reorder] [testcases [testcases ...]]`](#generate)
+  - [`bt pdf [-v] [--all] [--web] [--cp] [-w] [-o PROGRAM] [--no-time-limit]`](#pdf)
+  - [`bt solutions [-v] [--web] [--cp] [-w] [-o PROGRAM] [--order ORDER]`](#solutions)
+  - [`bt problem_slides [-v] [--cp] [-w] [-o PROGRAM]`](#problem_slides)
   - [`bt stats`](#stats)
   - [`bt fuzz [-v] [-t TIME] [--timeout TIMEOUT] [testcases [testcases ...]]`](#fuzz)
 - Problem validation
   - [`bt input [-v] [testcases [testcases ...]]`](#input)
   - [`bt output [-v] [testcases [testcases ...]]`](#output)
-  - [`bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+  - [`bt validate [-v] [--input | --answer | --invalid | --valid-output | --generic [TYPE]] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
   - [`bt constraints [-v]`](#constraints)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
-  - [`bt new_problem [problemname] [--author AUTHOR] [--validation {default,custom,custom interactive}] [--skel SKEL]`](#new_problem)
+  - [`bt new_problem [problemname] [--author AUTHOR] [--type {pass-fail,float,custom,interactive,...}] [--defaults] [--skel SKEL]`](#new_problem)
   - [`bt skel [--skel SKEL] directory [directory ...]`](#skel)
   - [`bt rename_problem [problemname]`](#rename_problem)
-  - [`bt gitlabci`](#gitlabci)
+  - [`bt gitlabci [--latest-bt]`](#gitlabci)
+  - [`bt forgejo_actions [--latest-bt]`](#forgejo_actions)
+  - [`bt github_actions`](#github_actions)
 - Exporting
   - [`bt samplezip`](#samplezip)
   - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
+  - [`bt export`](#export)
 - Misc
-  - [`bt all [-v] [--cp] [--no-timelimit] [--cleanup-generated]`](#all)
+  - [`bt all [-v] [--cp] [--no-time-limit] [--check-deterministic]`](#all)
+  - [`bt solve_stats [--contest-id CONTESTID] [--post-freeze]`](#solve_stats)
   - [`bt sort`](#sort)
+  - [`bt update_problems_yaml [--colors COLORS] [--sort]`](#update_problems_yaml)
+  - [`bt upgrade`](#upgrade)
   - [`bt tmp [--clean]`](#tmp)
   - `bt create_slack_channels --token xoxb-...`
 
@@ -46,10 +54,11 @@ The flags below work for any subcommand:
 - `--verbose`/`-v`: Without this, only failing steps are printed to the terminal. With `-v`, progress bars print one line for each processed item. Pass `-v` twice to see all commands that are executed.
 - `--contest <directory>`: The directory of the contest to use, if not the current directory. At most one of `--contest` and `--problem` may be used. Useful in CI jobs.
 - `--problem <directory>`: The directory of the problem to use, if not the current directory. At most one of `--contest` and `--problem` may be used. Useful in CI jobs.
+- `--memory <MB>`/`-m <MB>`: Override the maximum amount of memory in MB a program (submission/generator/etc.) may use.
 - `--no-bar`: Disable showing progress bars. This is useful when running in non-interactive contexts (such as CI jobs) or on platforms/terminals that don't handle the progress bars well.
 - `--error`/`-e`: show full output of failing commands using `--error`. The default is to show a short snippet only.
-- `--cpp-flags`: Additional flags to pass to any C++ compilation rule. Useful for e.g. `--cpp-flags=-fsanitize=undefined`.
 - `--force-build`: Force rebuilding binaries instead of reusing cached version.
+- `--lang`: select languages to use for LaTeX commands. The languages should be specified by language codes like `en` or `nl`.
 
 # Problem development
 
@@ -68,19 +77,19 @@ By default, this prints one summary line per submission containing the slowest t
 If the submission failed, it also prints the testcases for which it failed.
 Use `bt run -v` to show results for all testcases.
 
-**FLAGS**
+**Flags**
 
 - `[<submissions and/or testcases>]`: Submissions and testcases may be freely mixed. The arguments containing `data/` or having `.in` or `.ans` as extension will be treated as testcases. All other arguments are interpreted as submissions. This argument is only allowed when running directly from a problem directory, and does not work with `--problem` and `--contest`.
 
   Testcases and submissions should be passed as a relative or absolute path to the testcase/submission.
 
-  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret,bad}` respectively.
+  When submissions or testcases is not specified, they default to all submissions in `submissions/` and all testcases under `data/{sample,secret}` respectively.
 
   **Submission** paths can take a few forms:
 
   - The path of the single file: `submissions/accepted/submission.py`
   - The path of the submission directory (when it contains multiple files): `submissions/accepted/directory_submission/`
-  - One of the directories inside `submissions/`: `submissions/time_limit_exceeded`. This will add all solutions in the given directory.
+  - One of the directories inside `submissions/`: `submissions/time_limit_exceeded`. This will add all submissions in the given directory.
   - Any file/directory outside `submission` is also allowed. Directories will be interpreted as a single multi-file submission.
 
   Duplicate submissions will deduplicated.
@@ -89,7 +98,7 @@ Use `bt run -v` to show results for all testcases.
 
   - The path of the `.in` file: `data/secret/1.in`
   - The path of the `.ans` file: `data/secret/1.ans` (any other extension also works, even if the file doesn't exist)
-  - The basename of the testcase: `data/secret/1`
+  - The base name of the testcase: `data/secret/1`
   - A directory: `data/secret`. In this case, all `.in` files that are (nested) in this directory will be used.
 
   Testcases must always be inside the `data` directory. Anything outside `data/` will raise an error.
@@ -98,12 +107,13 @@ Use `bt run -v` to show results for all testcases.
 
 - `--samples`: Run the given submissions against the sample data only. Not allowed in combination with passing in testcases directly.
 - `--no-generate`/`-G`: Do not generate testcases before running the submissions. This usually won't be needed since checking that generated testcases are up to date is fast.
-- `--force`/`-f`: Overwrite existing generated testcases, instead of printing a warning and keeping the old data.
-- `--timelimit <second>`/`-t <second>`: The timelimit to use for the submission.
+- `--time-limit <second>`/`-t <second>`: The time limit to use for the submission.
 - `--timeout <second>`: The timeout to use for the submission.
-- `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
-- `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same solutions.
-- `--skip-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
+- `--table`: Print a table of which testcases were solved by which submissions. May be used to deduplicate testcases that fail the same submissions.
+- `--overview`/`-o`: Print a live overview of the received verdicts for all submissions and testcases. If combined with `--no-bar` only the final table is printed.
+- `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
+- `--sanitizer`: when passed, run submissions with additional sanitizer flags (currently only C++). Note that this removes all memory limits for submissions.
+- `--visualizer`: when passed, run the output visualizer.
 
 ## `test`
 
@@ -139,7 +149,21 @@ This is useful for running submissions without having to compile them manually. 
 - `[<testcases>]`: The testcases to run the submission on. See `run <testcases>` for more. Can not be used together with `--samples`.
 - `--samples`: Run the submission on the samples only. Can not be used together with explicitly listed testcases.
 - `--timeout <second>`/`-t <second>`: The timeout to use for the submission.
-- `--memory <bytes>`/`-m <bytes>`: The maximum amount of memory in bytes the any submission may use.
+
+## `time_limit`
+
+The `time_limit` command is used determine a time limit based on the `time_multipliers`: `ac_to_time_limit` and `time_limit_to_tle`.
+The syntax is:
+
+```
+bt time_limit [<submissions and/or testcases>]
+```
+
+**Flags**
+- `--write`/`-w`: write the determined time limit to `.timelimit`
+- `--all`/`-a`: run all submissions not only AC and TLE submissions.
+- `<submissions>`: The path to the submission to use to determine the time limit. See `run <submissions>` for more.
+- `<testcases>`: The path to the testcases to use determine the time limit. See `run <testcases>` for more.
 
 ## `generate`
 
@@ -147,42 +171,28 @@ Use the `generate` command to generate the testcases specified in `generators/ge
 
 This command tries to be smart about not regenerating testcases that are up to date. When the generator and its invocation haven't changed, nothing will be done.
 
-Any files in `data/` that are not tracked in `generators.yaml` will raise a warning.
+Any files in `data/` that are not tracked in `generators.yaml` will be removed.
 
 Pass a list of testcases or directories to only generate a subset of data. See [run](#run) for possible ways to pass in testcases.
 
 **Flags**
 
-- `--force`/`-f`: By default, `generate` will not overwrite any files, but instead warn that they will change. Pass `--force` to overwrite existing files.
-- `--samples`: Even with `--force`, samples won't be overwritten by default. `--force --samples` also overwrites samples. (Samples usually have a manually curated input and output that should not be overwritten easily.)
-- `--all`/`-a`: Fully regenerate all test cases, skipping the up-to-date check.
-- `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check. This is implicitly set to true for `bt all`.
-- `--add-manual`: Testcases and directories in `data/` that do not have a corresponding entry in `generators.yaml` are automatically added.
-- `--move-manual [directory]`: Move all inline testcases to the specified directory (which defaults to `generators/manual`) and update `generators.yaml`. Implies `--add-manual`.
-- `--clean`: Delete all files/testcases not listed in `generators.yaml`. Without `-f`, this does a dry-run.
-- `--clean-generated`: Delete all generated files. Useful to save on disk space, since all this data can be regenerated.
+- `--check-deterministic`: Check that the .in files are generated deterministically for all test cases, skipping the up-to-date check.
+- `--add [<testcases>, <directories>]`: Add the testcases (inside the directories) as `copy` entries in the `generator.yaml`
+- `--clean`: Delete all cached files.
+- `--reorder`: Runs all submissions that should fail and reorders the testcases in the given directories by difficulty.
 - `--jobs <number>`/`-j <number>`: The number of parallel jobs to use when generating testcases. Defaults to half the number of cores. Set to `0` to disable parallelization.
-- `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*timelimit+1`).
-- `--skip-solution`: Skip generating .ans or .interaction files with the solution.
-- `--skip-visualizer`: Skip generating graphics with the visualiser.
-- `--skip-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
-
-## `clean`
-
-The `clean` command deletes all generated testdata from the `data/` directory. It only removes files that satisfy both these conditions:
-
-- The `.in` corresponding to the current file was generated.
-- The extension of the current file is handled by the problem archive format: `.in`, `.ans`, `.interaction`, `.hint`, `.desc`, `.png`, `.jpg`, `.svg`.
-
-Furthermore, it removes generated `testdata.yaml`.
-
-**Flags**
-
-- `--force`/`-f`: When this is passed, all untracked files (i.e. files not matching any rule in `generators/generators.yaml`) are deleted. Without `--force`, such files raise a warning.
+- `--timeout <seconds>`/`-t <seconds>`: Override the default timeout for generators and visualizers (`30s`) and submissions (`1.5*time_limit+1`).
+- `--no-validators`: Ignore the results of input and output validators.
+  (They are still run.)
+- `--no-solution`: Skip generating .ans or .interaction files with the solution.
+- `--no-visualizer`: Skip generating graphics with the visualiser.
+- `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 
 ## `pdf`
 
-Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively.
+Renders a pdf for the current problem or contest. The pdf is written to `problem.en.pdf` or `contest.en.pdf` respectively.
+If there are problem statements (and problem names in `problem.yaml`) present for other languages, creates those PDFs as well.
 
 **Note:** All LaTeX compilation is done in tmpfs (`/tmp/` on linux). The resulting pdfs will be symlinks into the temporary directory. See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
 
@@ -190,14 +200,15 @@ Renders a pdf for the current problem or contest. The pdf is written to `problem
 
 - `--all`/`-a`: When run from the contest level, this enables building pdfs for all problems in the contest as well.
 - `--cp`: Instead of symlinking the final pdf, copy it into the problem/contest directory.
-- `--no-timelimit`: When passed, time limits will not be shown in the problem/contest pdfs.
-- `--watch`/`-w`: Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
-- `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
+- `--no-time-limit`: When passed, time limits will not be shown in the problem/contest pdfs.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Note that this implies `--cp`.
+- `--open <program>`/`-o <program>`: Open the continuously compiled pdf (with a specified program).
+- `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.tex) and [problem-web.tex](../latex/problem-web.tex) instead of [problem.tex](../latex/problem.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages and make the pdf single sides.
 - `-1`: Run the LaTeX compiler only once.
 
 ## `solutions`
 
-Renders a pdf for the current problem or contest. The pdf is written to `problem.pdf` or `contest.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
+Renders a pdf with solutions for the current problem or contest. The pdf is written to `solution.en.pdf` or `solutions.en.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
 See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
 
 **Flags**
@@ -206,8 +217,21 @@ See the [Implementation notes](implementation_notes.md#building-latex-files) for
 - `--order`: The order of the problems, e.g. `BDCA`. Can be used to order problems from easy to difficult. When labels have multiple letters, `B1,A1,A2,B2` is also allowed.
 - `--order-from-ccs`: Order the problems by increasing difficulty, extracted from the api, e.g.: https://www.domjudge.org/demoweb. Defaults to value of `api` in contest.yaml.
 - `--contest-id`: Contest ID to use when reading from the API. Only useful with `--order-from-ccs`. Defaults to value of `contest_id` in `contest.yaml`.
-- `--watch`/`-w`: Continuously compile the pdf whenever a `problem_statement.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `solution.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Note that this implies `--cp`.
+- `--open <program>`/`-o <program>`: Open the continuously compiled pdf (with a specified program).
 - `--web`: Build a web version of the pdf. This uses [contest-web.tex](../latex/contest-web.tex) instead of [contest.tex](../latex/contest.text) and [solutions-web.tex](../latex/solutions-web.tex) instead of [solutions.tex](../latex/solutions.tex). In practice, the only thing this does is to remove empty _this is not a blank page_ pages.
+- `-1`: Run the LaTeX compiler only once.
+
+## `problem_slides`
+
+Renders a pdf with problem slides for the current problem or contest. The pdf is written to `problem-slide.en.pdf` or `problem-slides.en.pdf` respectively, and is a symlink to the generated pdf which is in a temporary directory.
+See the [Implementation notes](implementation_notes.md#building-latex-files) for more.
+
+**Flags**
+
+- `--cp`: Instead of symlinking the final pdf, copy it into the contest directory.
+- `--watch`/`-w`: Continuously compile the pdf whenever a `problem-slide.en.tex` changes. Note that this does not pick up changes to `*.yaml` configuration files. Note that this implies `--cp`.
+- `--open <program>`/`-o <program>`: Open the continuously compiled pdf (with a specified program).
 - `-1`: Run the LaTeX compiler only once.
 
 ## `stats`
@@ -217,19 +241,19 @@ This table contains:
 
 - The problem label and shortname.
 - Whether `problem.yaml` and `domjudge.ini` are found.
-- Whether `problem_statement/problem.en.tex` and `problem_statement/solution.tex` are found.
+- Whether `statement/problem.en.tex` and `solution/solution.en.tex` are found.
 - Whether the problem has any `input_validators` and `output_validators`.
 - The number of `sample` and `secret` testcases.
 - The number of `accepted`, `wrong_answer`, and `time_limit_exceeded` solutions.
-- The number of `c++`, `java`, `python2`, and `python3` solutions.
+- The number of C(++), Python 3, Java, and Kotlin solutions.
 - An optional comment, as specified by the `comment:` field in `problem.yaml`.
 - When `verified:` is set to `true` in `problem.yaml`, the comment will be shown in green.
 
 This may look like:
 
 ```
-problem               yaml ini tex sol    Ival Oval    sample secret    AC  WA TLE    cpp java py2 py3   comment
-A appealtotheaudience    Y   Y   Y   N       Y    Y         2     30     4   4   2      2    0   0   2
+problem               time yaml tex sol   val: I A O    sample secret bad    AC  WA TLE subs   cpp py java kt   comment
+A appealtotheaudience  1.0    Y   Y   N        Y Y           2     30   0     4   4   2   10     2  1    1  0
 ```
 
 ## `fuzz`
@@ -249,28 +273,28 @@ stored in `generators.yaml` corresponding to `data/fuzz/<id>.in`.
 
 # Problem validation
 
-## `input`
+## `validate`
 
-Use `bt input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified.
+Use `bt validate --input [<testcases>]` to validate the `.in` files for the given testcases, or all testcases when not specified.
 
 See `run <testcases>` for a description of how to pass testcases.
 
-## `output`
+`bt validate --answer <testcases>` is similar to `bt validate --input` but validates `.ans` files instead of `.in` files.
 
-`bt output <testcases>` is similar to `bt input` but validates `.ans` files instead of `.in` files.
+`bt validate --invalid <invalid_testcases>` checks invalid test cases in `data/invalid_*`.
 
-## `validate`
+`bt validate --valid-output <valid_testcases>` checks valid test cases in `data/valid_output`.
 
-`bt validate` is a convenience command that validates both input and output files.
+`bt validate --generic <type>` automatically generates generic (in)valid test cases (like those in `data/valid_output` or `data/invalid_*`) and checks them. `dir` must be one of `valid_input`, `valid_answer`, `valid_output`, or `valid_output`
 
-**Flags**
+`bt validate` runs all of the above.
 
 It supports the following flags when run for a single problem:
 
 - `[testcases]`: a list of testcases and/or directories to validate. See `run <testcases>` for allowed formats. When not set, all testcases are validated.
 - `--remove`: when passed, all invalid testcases are deleted.
 - `--move-to <directory>`: when passed, all invalid testcases are moved to the given directory.
-- `--skip-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
+- `--no-testcase-sanity-checks`: when passed, all sanity checks on the testcases are skipped. You might want to set this in `.bapctools.yaml`.
 
 ## `constraints`
 
@@ -281,11 +305,9 @@ It supports the following flags when run for a single problem:
 
 See the [implementation notes](implementation_notes.md#constraints-checking) for more info.
 
-NOTE: Validators based on [headers/validation.h](../headers/validation.h) require C++20 to compile `std::source_location`.
-
 **Verify testcase**
 
-Validators that accept the `--constraints_file <path>` option are run on all testcases to check whether the bounds specified in the validator are actually reached by the testdata. A warning is raised when this is not the case.
+Validators that accept the `--constraints_file <path>` option are run on all testcases to check whether the bounds specified in the validator are actually reached by the test data. A warning is raised when this is not the case.
 E.g. when an `input_validator` based on [headers/validation.h](../headers/validation.h) does `v.read_integer("n", 1, 1000)` (on line `7`) and the maximum value of `n` over all testcases is `999`, the following warning will be raised:
 
 ```
@@ -326,15 +348,14 @@ Settings for this contest will be asked for interactively. The following files a
 ```
 /tmp/tmp % bt new_contest
 name: NWERC 2020
-subtitle []: The Northwestern European Programming Contest 2020
-dirname [nwerc2020]:
-author [The NWERC 2020 jury]:
-testsession? [n (y/n)]: n
-year [2020]:
-source [NWERC 2020]:
-source url []: 2020.nwerc.eu
-license [cc by-sa]:
-rights owner [author]:
+subtitle: The Northwestern European Programming Contest 2020
+dirname (nwerc2020):
+author (The NWERC 2020 jury):
+test session? (y/N): n
+year (2020):
+source url: 2020.nwerc.eu
+license (cc by-sa):
+rights owner (if left empty, defaults to problem author):
 ```
 
 ## `new_problem`
@@ -343,15 +364,19 @@ Create a new problem directory and fill it with skel files. If `problems.yaml` i
 
 ```
 ~nwerc2020 % bt new_problem
-problem name: Test Problem
-dirname [testproblem]:
+problem name (en): Test Problem
+dirname (testproblem):
 author: Ragnar Groot Koerkamp
-validation (default/custom/custom interactive) [default]:
+type (pass-fail):
+source (NWERC 2020):
+source url (2020.nwerc.eu):
+license (cc by-sa):
+rights owner (if left empty, defaults to problem author):
 LOG: Copying /home/philae/git/bapc/BAPCtools/skel/problem to testproblem.
 ```
 
 ```
-~nwerc2020 % bt new_problem 'Test Problem 2' --author 'Ragnar Groot Koerkamp' --validation interactive
+~nwerc2020 % bt new_problem 'Test Problem 2' --author 'Ragnar Groot Koerkamp' --type interactive
 LOG: Copying /home/philae/git/bapc/BAPCtools/skel/problem to testproblem2.
 ```
 
@@ -364,7 +389,8 @@ Files are usually copied from [skel/problem](../skel/problem), but this can be o
 
 - `[<problem name>]`: The name of the problem. Will be asked interactively if not specified.
 - `--author`: The author of the problem. Will be asked interactively if not specified.
-- `--validation`: The validation mode to use. Must be one of `default`, `custom`, `custom interactive`.
+- `--type`: The problem type to use. Must be one of `pass-fail`, `float`, `custom`, `interactive`, `multi-pass`, or `interactive multi-pass`.
+- `--defaults`: Assume the defaults for fields not passed as arguments. This skips input-prompts but fails when defaults cannot be assumed.
 
 ## `skel`
 
@@ -373,7 +399,10 @@ The skel directory is found as with the `new_problem` command and can be overrid
 
 ## `rename_problem`
 
-Rename a problem, including its problem directory. If `problems.yaml` is present, also rename the problem in this file. Do not forget to pass a `--problem` to rename when running this from a contest directory.
+Rename a problem, including its problem directory. If `problems.yaml` is present, also rename the problem in this file.
+For multilingual problmems, asks for problem names in all languages;
+the default problem directory name is based on the English problem name (if present.)
+Do not forget to pass a `--problem` to rename when running this from a contest directory.
 
 **Flags**
 
@@ -382,6 +411,9 @@ Rename a problem, including its problem directory. If `problems.yaml` is present
 ## `gitlabci`
 
 `bt gitlabici` prints configuration for Gitlab Continuous Integration to the terminal. This can be piped into the `.gitlab-ci.yml` file in the root of the repository. When there are multiple contests, just append the `bt gitlabci` of each of them, but deduplicate the top level `image:` and `default:` keys.
+
+Use the `--latest-bt` flag to pull the latest version of BAPCtools before each
+run. By default, the version in the docker image is used.
 
 Example output:
 
@@ -400,13 +432,13 @@ contest_pdf_nwerc2020:
       - ./bt solutions --cp --no-bar --contest nwerc2020
   only:
     changes:
-      - nwerc2020/testproblem/problem_statement/**/*
+      - nwerc2020/testproblem/statement/**/*
 
   artifacts:
     expire_in: 1 week
     paths:
-      - nwerc2020/contest.pdf
-      - nwerc2020/solutions.pdf
+      - nwerc2020/solution*.pdf
+      - nwerc2020/contest*.pdf
 
 verify_testproblem:
   script:
@@ -417,7 +449,7 @@ verify_testproblem:
   artifacts:
     expire_in: 1 week
     paths:
-      - nwerc2020/testproblem/problem.pdf
+      - nwerc2020/testproblem/problem*.pdf
 ```
 
 The default behaviour is:
@@ -454,6 +486,42 @@ We use the following configuration for the gitlab runners:
   [runners.docker.tmpfs]
     "/tmp" = "rw,exec"
 ```
+
+## `forgejo_actions`
+
+`bt forgejo_actions` writes Forgejo Actions workflows for the current contest to
+the `.forgejo` directory in the root of the git repository.
+When there are multiple contests, run `bt forgejo_actions` once for each
+contest (either in the contest directory, or by passing `--contest <contest>`).
+
+Use the `--latest-bt` flag to pull the latest version of BAPCtools before each
+run. By default, the version in the docker image is used.
+
+The generated workflows are similar to those for `bt gitlabci` described above.
+
+For smooth operation, use the following in the forgejo runner `config.yaml` to
+increase the memory limit of the container and mount `/tmp` to memory.
+```
+container:
+  options: --memory=4g --memory-swap=4g --tmpfs /tmp:exec
+```
+and use the following label in `.runner`:
+```json
+{
+  "labels": [
+    "bapctools-docker:docker://ragnargrootkoerkamp/bapctools"
+  ]
+}
+```
+
+## `github_actions`
+
+`bt github_actions` writes Github Actions workflows for the current contest to
+the `.github` directory in the root of the git repository.
+When there are multiple contests, run `bt github_actions` once for each
+contest (either in the contest directory, or by passing `--contest <contest>`).
+
+The generated workflows are similar to those for `bt gitlabci` described above.
 
 # Exporting
 
@@ -506,6 +574,16 @@ When run for a contest:
   - The contest level zip is written to `contest/<contest>-kattis.zip`
   - Kattis needs the `input_validators` directory, while DOMjudge doesn't use this.
   - Kattis problem zips get an additional top level directory named after the problem shortname.
+  - _Statements_: Kattis’s problemtools builds statement HTML (and PDF) using `problem2html` (and `problem2pdf`) rather than `bt pdf`. Problem authors should check the resulting statements after exporting to Kattis; pay attention to:
+    - The command `bt zip --kattis` exports `{statement,solution}/*` but not its subdirectories, so make sure illustrations and `\input`-ed tex sources are included.
+    - Proper images scaling in the HTML output requires explict widths, such as `\includegraphics[width=.5\textwidth]{foo.png}`.
+
+## `export`
+
+This command uploads the `contest.yaml`, `problems.yaml`, and problem zips to DOMjudge.
+Make sure to run the [`bt zip`](#zip) command before exporting, this does not happen automatically.
+
+When run for a single problem, `contest.yaml` and `problems.yaml` are uploaded for the entire contest, but only the zip for the selected problem is uploaded.
 
 # Misc
 
@@ -518,9 +596,22 @@ This is a convenience command (mostly for use in CI) that runs the following sub
 - Validate input
 - Validate output
 - Run all submissions
-- Clean up generated testcases when done, similar to `bt generate --clean-generated` when `--cleanup-generated` is passed.
 
-This supports the `--cp` and `--no-timelimit` flags which are described under the `pdf` subcommand and the `--skip-testcase-sanity-checks` flag from `validate`.
+This supports the `--cp` and `--no-time-limit` flags which are described under the `pdf` subcommand and the `--no-testcase-sanity-checks` flag from `validate`.
+
+## `solve_stats`
+
+Generates solve statistics that can be used in the solution presentation.
+This command uses Matplotlib to generate one PDF for every problem (shown in the top-right of the slide),
+one PDF for the language statistics (optionally included in `solution_footer.tex`),
+and one TeX file that provides the data for the `\solvestats` command.
+
+This command uses the `/teams?public=1` API endpoint of DOMjudge, so all teams on the public scoreboard are included (including spectator/company teams).
+
+**Flags**
+
+- `--contest-id`: Contest ID to use when reading from the API. Defaults to value of `contest_id` in `contest.yaml`.
+- `--post-freeze`: When given, the solve stats will include submissions from after the scoreboard freeze.
 
 ## `sort`
 
@@ -532,6 +623,22 @@ A : appealtotheaudience
 B : breakingbranches
 ...
 ```
+
+## `update_problems_yaml`
+
+`bt update_problems_yaml` updates the `problems.yaml` file of the contest.
+This file should contain a list of problems, with for every problem the keys `id`, `label`, `name`, `rgb`, and `time_limit`.
+
+**Flags**
+
+- `--colors`: Apply the given list of colors to the list of problems, in the same order as in `problems.yaml`.
+  Should be a comma-separated list of colors (hash-sign is optional), e.g.: `--colors ff0000,00ff00,0000ff`.
+- `--sort`: Sort the problems in `problems.yaml` and re-label them starting from `A` (or `X` if `contest.yaml` contains `test_session: True`).
+
+## `upgrade`
+
+`bt upgrade` upgrades a problem from problem format version [`legacy`](https://icpc.io/problem-package-format/spec/legacy.html)
+to [`2025-09`](https://icpc.io/problem-package-format/spec/2025-09.html).
 
 ## `tmp`
 

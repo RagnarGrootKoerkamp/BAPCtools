@@ -1,0 +1,14 @@
+problem_format_version: 2025-09
+type: pass-fail
+name: generatorincludes
+credits:
+  authors: Thore Husfeldt
+source:
+  name: Problems
+  url:
+uuid: 745cc994-4c3d-40cf-97c2-cc2a72af1884
+license: cc by-sa
+rights_owner: author
+
+limits:
+  time_limit: 1.0

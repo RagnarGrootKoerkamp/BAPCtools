@@ -1,0 +1,12 @@
+problem_format_version: 2025-09
+type: multi-pass
+name:
+  en: Alternative Encryption
+credits:
+  authors: Thomas Beuman
+source:
+  name: NWERC 2024 Test Session
+  url: https://2024.nwerc.eu
+uuid: 8ee7605a-95a3-86c2-3995-0a10d365de46
+license: cc by-sa
+rights_owner: author

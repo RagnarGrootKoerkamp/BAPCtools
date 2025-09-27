@@ -1,0 +1,57 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3.10'
+      - uses: pre-commit/action@v3.0.1
+
+  test:
+    runs-on: ubuntu-latest
+    container: ragnargrootkoerkamp/bapctools
+    steps:
+      - uses: actions/checkout@v4
+      - run: git config --global --add safe.directory "$(pwd)"
+      - run: bash test/yaml/generators/test_schemata.sh
+      - run: pytest
+
+  test-wsl:
+    runs-on: windows-latest
+    steps:
+      - run: |
+          git config --global core.autocrlf false
+          git config --global core.eol lf
+      - uses: actions/checkout@v4
+      - uses: Vampire/setup-wsl@v4
+        with:
+            distribution: Ubuntu-24.04
+            wsl-version: 2
+            additional-packages:
+                python3
+                python3-yaml
+                python3-colorama
+                python3-argcomplete
+                python3-ruamel.yaml
+                python3-matplotlib
+                python3-requests
+                python3-pytest
+                build-essential
+                default-jre
+                default-jdk
+                kotlin
+                texlive
+                texlive-latex-base
+                texlive-latex-recommended
+                texlive-latex-extra
+                lmodern
+                texlive-science
+                latexmk
+                texlive-lang-german
+                asymptote
+      - shell: wsl-bash {0}
+        run: pytest

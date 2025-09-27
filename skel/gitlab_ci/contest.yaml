@@ -1,15 +1,12 @@
 contest_pdf_{%contest%}:
   script:
-      - ./bt pdf --cp --error --no-bar --contest {%contest%}
-      - ./bt solutions --cp --error --no-bar --contest {%contest%}
+      - ./bt pdf --cp --error --no-bar --contest {%contest_path%}
+      - ./bt solutions --cp --error --no-bar --contest {%contest_path%}
   only:
-    refs:
-      - master
-      - merge_requests
     changes:
 {%changes%}
   artifacts:
     expire_in: 1 week
     paths:
-      - {%contest%}/contest.pdf
-      - {%contest%}/solutions.pdf
+      - {%contest_path%}/contest*.pdf
+      - {%contest_path%}/solution*.pdf

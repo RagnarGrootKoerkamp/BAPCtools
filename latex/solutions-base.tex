@@ -1,7 +1,9 @@
 \usepackage[T1, OT1]{fontenc}
 \DeclareTextSymbolDefault{\dh}{T1}
-\usepackage[english]{babel}
 \usepackage{lmodern}
+
+\providecommand{\lang}{en}% fallback definition, should be defined as -usepretex to latexmk
+\input{lang/\lang.tex}
 
 %-------------------------------------------------------------------------------
 % The following are required for most problems:
@@ -19,7 +21,7 @@
 \pgfplotsset{compat=1.15}
 \usepackage{graphicx}
 \usepackage{listings}
-%\usepackage{subcaption}
+\usepackage{subcaption}
 \usepackage{algorithm}
 \usepackage[makeroom]{cancel}
 \usepackage[noend]{algpseudocode}
@@ -29,13 +31,6 @@
 \usepackage[autoplay,controls,loop,poster=last]{animate}
 \usepackage{multicol}
 \usepackage{wrapfig}
-
-% Needed for solve stats.
-\providecolor{Accepted}{named}{LimeGreen}
-\providecolor{WrongAnswer}{named}{Red}
-\providecolor{TimeLimit}{named}{Plum}
-\providecolor{RunError}{named}{Goldenrod}
-\providecolor{Pending}{named}{SkyBlue}
 
 \lstset{
 	backgroundcolor=\color{white},
@@ -48,20 +43,32 @@
 	stringstyle=\color{red}
 }
 
+% To parse contest_data.tex
+\newcommand\testsession{}
+\newcommand\copyrightyear[1]{}
+
 \newcommand{\timelimit}{0.0s}
 \newcommand{\problemlabel}{} % Empty to hide activity chart
-\newcommand{\problemauthor}{Problem author}
+\newcommand{\problemauthor}{\langproblemauthor}
 % TODO: Clean these up
 \newcommand{\problemyamlname}{Problem name}
 \newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 \newcommand{\problemtitle}{\problemlabel: \problemyamlname}
 
-% If solve_stats/activity/A.tex exists, define the \activitychart command
-\IfFileExists{A.tex}{
+\newcommand{\constant}[1]{%
+	\ifcsname constants_#1\endcsname%
+		\csname constants_#1\endcsname%
+	\else%
+		\PackageError{constants}{constant{#1} is not defined}{}%
+	\fi%
+}
+
+% If solve_stats/activity/A.pdf exists, define the \activitychart command
+\IfFileExists{solve_stats/activity/A.pdf}{
 	\newcommand{\activitychart}{
-	  \ifdefempty{\problemlabel}{}{%
-        \includegraphics[width=\textwidth]{solve_stats/activity/\problemlabel}%
-	  }%
+		\ifdefempty{\problemlabel}{}{%
+			\includegraphics[width=\textwidth,height=0.1\textheight]{solve_stats/activity/\problemlabel}%
+		}%
 	}
 }{
 	\newcommand{\activitychart}{}
@@ -69,8 +76,8 @@
 
 \newcommand{\printsolvestats}[3]{%
 	\vfill%
-    \onslide<+->%
-	Statistics: #1 submissions, #2 accepted, #3 unknown%
+	\onslide<+->%
+	\langstatistics{}: #1 \langsubmissions{}, #2 \langaccepted{}\ifthenelse{\equal{#3}0}{}{, #3 \langunknown{}}%
 }
 
 % Define \solvestats for the current problem if the file exists.
@@ -85,32 +92,32 @@
 \usetheme[numbering=none,block=fill]{metropolis}
 
 \setbeamertemplate{frametitle}{%
-  \nointerlineskip%
-  \begin{beamercolorbox}[%
-      wd=\paperwidth,%
-      sep=0.4ex,%
-      leftskip=4.2ex,% 2.2ex
-      rightskip=2.2ex,%
-    ]{frametitle}%
-    \begin{minipage}{0\paperwidth}%
-    \rule{0ex}{5.5ex}%
-    \end{minipage}
-    \begin{minipage}{0.4\paperwidth}%
-	\ifdefempty{\problemlabel}{%
-		\insertframetitle\strut%
-	}{%
-		\problemtitle%
-		\\[0.3em]%
-		\tiny%
-		Problem Author: \problemauthor%
-        \strut%
-	}%
-    \end{minipage}%
-    \hfill%
-    \begin{minipage}{0.5\paperwidth}%
-      \activitychart%
-      %\vspace{-2ex}%
-    \end{minipage}%
-    %\rule[-2.2ex]{0pt}{2.2ex}%
-  \end{beamercolorbox}%
+	\nointerlineskip%
+	\begin{beamercolorbox}[%
+			wd=\paperwidth,%
+			sep=0.4ex,%
+			leftskip=4.2ex,% 2.2ex
+			rightskip=2.2ex,%
+		]{frametitle}%
+		\begin{minipage}{0\paperwidth}%
+		\rule{0ex}{5.5ex}%
+		\end{minipage}
+		\begin{minipage}{0.4\paperwidth}%
+		\ifdefempty{\problemlabel}{%
+			\insertframetitle\strut%
+		}{%
+			\problemtitle%
+			\\[0.3em]%
+			\tiny%
+			\langproblemauthor{}: \problemauthor%
+			\strut%
+		}%
+		\end{minipage}%
+		\hfill%
+		\begin{minipage}{0.5\paperwidth}%
+			\activitychart%
+			%\vspace{-2ex}%
+		\end{minipage}%
+		%\rule[-2.2ex]{0pt}{2.2ex}%
+	\end{beamercolorbox}%
 }

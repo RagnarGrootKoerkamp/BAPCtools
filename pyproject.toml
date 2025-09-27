@@ -1,5 +1,18 @@
-[tool.black]
+[tool.ruff]
 # Line length 100
 line-length = 100
-# Keep ' instead of converting to "
-skip-string-normalization = true
+# Assume Python 3.10
+target-version = "py310"
+
+[tool.ruff.lint]
+# Ignore star-imports
+# TODO #102: This is definitely fixable, but for now, postponing the clean-up of all imports
+ignore = ["F403", "F405"]
+
+
+[tool.pyright]
+include = ["bin"]
+exclude = ["bin/misc"]
+executionEnvironments = [
+  { root = "bin" },
+]

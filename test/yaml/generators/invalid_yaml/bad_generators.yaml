@@ -1,0 +1,246 @@
+# This file contains multiple yaml documents. Each of them should fail to parse as a generators.yaml file.
+
+---
+# Wrong top level type
+abc
+---
+0
+---
+true
+---
+[{data:[]}]
+---
+# solution must be null or string
+solution: 0
+---
+solution: 0.0
+---
+solution: []
+---
+solution: {}
+---
+solution: true
+---
+solution: false
+---
+# random_salt must be null or string
+random_salt: 0
+---
+random_salt: 0.0
+---
+random_salt: []
+---
+random_salt: {}
+---
+random_salt: true
+---
+random_salt: false
+---
+# generators must be a dictionary of non-empty list of string
+generators: str
+---
+generators: []
+---
+generators: [str]
+---
+generators:
+  g: a
+---
+generators:
+  g: 1
+---
+generators:
+  g:
+---
+generators:
+  g: []
+---
+generators:
+  g:
+    - true
+---
+# data: must be a dictionary or list of dictionaries
+data: str
+---
+# Note: We could actually decide to make this work in the future, but for now this is an error.
+data:
+  - str
+---
+data: 1
+---
+data: [1]
+---
+data: {1: 2}
+---
+data: [{}]
+---
+data:
+  - true
+---
+# Unnumbered keys must not be empty.
+data:
+  '': str
+---
+data:
+  - '':
+    - a
+---
+data:
+  a :
+    - a
+---
+data:
+  a : []
+---
+# generate must not contain {seed} twice.
+data:
+  ab: gen {seed} {seed}
+---
+data:
+  ab: gen {seed} {seed:1}
+---
+data:
+  ab: gen {seed:1} {seed}
+---
+data:
+  ab: gen {seed:1} {seed:1}
+---
+data:
+  ab: gen {seed:1} {seed:2}
+---
+# Unlisted cases should be null, not empty string
+data:
+  ab: ''
+---
+# Testcase object must be command string or contain generate.
+data:
+  ab: true
+---
+data:
+  ab: 1
+---
+data:
+  ab: []
+---
+data:
+  ab:
+    generate: true
+---
+data:
+  ab:
+    generate: 1
+---
+data:
+  ab:
+    generate: {}
+---
+data:
+  ab:
+    generate: []
+---
+# Copied cases must not have an absolute path.
+data:
+  ab: /a/b/c
+---
+data:
+  ab: {copy: /a/b/c}
+---
+data:
+  ab: /c
+---
+data:
+  ab: {copy: /generators/c}
+---
+# Generator invocations must not have an absolute path.
+data:
+  ab: /gen
+---
+data:
+  ab: /generators/gen
+---
+data:
+  ab: /generators/dir/gen.py
+---
+# Solution must have an absolute path:
+solution: a
+---
+solution: a/b
+---
+solution: a 1 2
+---
+# Directories may not have generate:.
+generate: xyz
+---
+data:
+  ab:
+    generate: x
+    data:
+---
+# Testcases may not have data:.
+data:
+  ab:
+    generate: abc
+    data: {}
+---
+# File names must be >= 2 letters
+data:
+  a:
+    type: directory
+---
+# Keys are strings
+data:
+  1.: hi
+---
+data:
+  true: hi
+---
+data:
+  1: hi
+  '1': hi
+---
+data:
+  01: hia
+  '1': hib
+---
+data:
+  01: hi
+  '1': hi
+---
+data:
+  0: x
+---
+data:
+  1: x
+---
+# Arguments are separated by whitespace
+data:
+  1: x y z
+  2: |
+    x
+    y
+    z
+---
+# Numbered cases must contain exactly one testcase
+data:
+  -
+---
+data:
+  - a:
+    b:
+---
+# Numbered testcases must contain a dict
+data:
+  - 1
+---
+data:
+  - string
+---
+data:
+  - []
+---
+data:
+  - {}
+---
+data: [{}]
+---
+data: [{}]

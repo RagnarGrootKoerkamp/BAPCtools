@@ -1,8 +1,6 @@
 /*
  * This should give CORRECT on the default problem 'hello',
  * since the random extra file will not be passed to g++.
- *
- * @EXPECTED_RESULTS@: CORRECT
  */
 
 #include <iostream>

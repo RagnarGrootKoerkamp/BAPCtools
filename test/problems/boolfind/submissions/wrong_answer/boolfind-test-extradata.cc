@@ -2,8 +2,6 @@
  * Sample solution in C++ for the "boolfind" interactive problem.
  * Gives correct answer, but with additional cruft on each line, so
  * should fail.
- *
- * @EXPECTED_RESULTS@: WRONG-ANSWER
  */
 
 #include <iostream>

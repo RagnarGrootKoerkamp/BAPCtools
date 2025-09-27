@@ -1,8 +1,6 @@
 /*
  * Writes very long lines to stdout. Should give WRONG-ANSWER, but not
  * crash the system.
- *
- * @EXPECTED_RESULTS@: WRONG-ANSWER
  */
 
 #include <stdio.h>

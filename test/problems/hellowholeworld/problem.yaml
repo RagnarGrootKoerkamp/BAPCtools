@@ -1,0 +1,9 @@
+problem_format_version: 2025-09
+type: pass-fail
+name:
+  en: Hello, Whole World!
+  de: Hallo, ganze Welt!
+  da: Hej, hele verden!
+credits:
+  authors: Thore Husfeldt
+uuid: c7c28c31-809a-400c-84ae-f6a3b29a217a

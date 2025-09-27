@@ -1,0 +1,34 @@
+solution: /submissions/accepted/mzuenni_sample.cpp
+
+test_group.yaml:
+  output_validator_args:
+    - case_sensitive
+data:
+  sample:
+    data:
+      - "":
+          in: |
+            encrypt
+            3
+            plaintext
+            nwerc
+            correct
+
+  secret:
+    data:
+      - min:
+          in: |
+            encrypt
+            1
+            a
+      - letters: eval.py 0 26 sigma[i % 26]
+      - letters: eval.py 0 1000 sigma[i % 26]
+      - random_equal: eval.py {seed} 1000 sigma[i % 26] * randrange(1, 101)
+      - max_equal: eval.py 0 1000 sigma[i % 26] * 100
+      - random2: eval.py {seed} 1000 randstr(2)
+      - random3: eval.py {seed} 1000 randstr(3)
+      - max_random: eval.py {seed} 1000 randstr(100)
+
+      - random:
+          generate: eval.py {seed} 1000 randstr(randrange(1, 101))
+          count: 100

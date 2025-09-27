@@ -1,284 +1,184 @@
 import os
+import shutil
+import subprocess
 import sys
 
+from colorama import Fore, Style
+from contextlib import nullcontext
+from pathlib import Path
+from typing import Optional
+
 import config
-import validate
-import program
 import interactive
 import parallel
-
-from util import *
-from colorama import Fore, Style
-
-
-# Testcas input is only allowed to contain newlines and printable characters
-def _is_invalid_input_byte(byte):
-    if byte == ord('\n'): return False;
-    if byte >= 0x20 and byte < 0x7F : return False;
-    return True
-
-# User output is additionally allowed to contain all other types of whitespaces
-def _is_invalid_output_byte(byte):
-    if byte == ord('\t'): return False;
-    if byte == ord('\r'): return False;
-    if byte == ord('\v'): return False;
-    if byte == ord('\f'): return False;
-    return _is_invalid_input_byte(byte)
-
-# assumes that the only possible whitespaces are space and newline
-def _has_consecutive_whitespaces(bytes):
-    last_whitespace = False
-    for byte in bytes:
-        cur_whitespace = byte == ord(' ') or byte == ord('\n')
-        if cur_whitespace and last_whitespace:
-            return True
-        last_whitespace = cur_whitespace
-    return False
-
-
-class Testcase:
-    def __init__(self, problem, path, *, short_path=None):
-        assert path.suffix == '.in' or path.suffixes == [".in", ".statement"]
-
-        self.problem = problem
-
-        self.in_path = path
-        self.ans_path = (
-            self.in_path.with_suffix('.ans')
-            if path.suffix == '.in'
-            else self.in_path.with_name(self.in_path.with_suffix('').stem + '.ans.statement')
-        )
-        # Note: testcases outside problem/data must pass in the short_path explicitly.
-        if short_path is None:
-            try:
-                self.short_path = path.relative_to(problem.path / 'data')
-            except ValueError:
-                fatal(f"Testcase {path} is not inside {problem.path / 'data'}.")
-        else:
-            assert short_path is not None
-            self.short_path = short_path
-
-        # Display name: everything after data/.
-        self.name = str(self.short_path.with_suffix(''))
-
-        bad = self.short_path.parts[0] == 'bad'
-        self.bad_input = bad and not self.ans_path.is_file()
-        self.bad_output = bad and self.ans_path.is_file()
-
-        self.sample = self.short_path.parts[0] == 'sample'
-
-        self.included = False
-        if path.is_symlink():
-            include_target = Path(os.path.normpath(path.parent / os.readlink(path)))
-            if is_relative_to(problem.path / 'data', include_target):
-                self.included = True
-            else:
-                # The case is a manual cases included from generators/.
-                pass
-
-        # Get the testdata.yaml content for this testcase.
-        # Read using the short_path instead of the in_path, because during
-        # generate the testcase will live in a temporary directory, where
-        # testdata.yaml doesn't exist.
-        self.testdata_yaml = problem.get_testdata_yaml(self.problem.path / 'data' / self.short_path)
-
-    def with_suffix(self, ext):
-        return self.in_path.with_suffix(ext)
-
-    # Return the flags specified in testdata.yaml for the given validator,
-    # None if no flags were found, or False if this validator should be skipped.
-    def testdata_yaml_validator_flags(self, validator_type, validator):
-        # Do not use flags when using the default output validator.
-        if self.problem.settings.validation == 'default' and validator_type == 'output':
-            return None
-
-        if self.testdata_yaml is None:
-            return None
-        key = (
-            'input_validator_flags'
-            if validator_type == 'input_format'
-            else 'output_validator_flags'
-        )
-        if key not in self.testdata_yaml:
-            return None
-        data = self.testdata_yaml[key]
-        if isinstance(data, str):
-            data = {'name': data}
-        if isinstance(data, dict):
-            data = [data]
-        for d in data:
-            if d['name'] == validator.path.name:
-                if 'flags' in d:
-                    # Split the string into a list of arguments.
-                    return d['flags'].split()
-                return None
-
-        # Configuration was found but this validator was not listed.
-        return False
-
-    # Validate the testcase input/output format. validator_type must be 'input_format' or 'output_format'.
-    def validate_format(
-        self, validator_type, *, bar, constraints=None, warn_instead_of_error=False
-    ):
-        assert validator_type in ['input_format', 'output_format']
-
-        bad_testcase = self.bad_input if validator_type == 'input_format' else self.bad_output
-
-        success = True
-
-        validators = self.problem.validators(validator_type, check_constraints=constraints != None)
-        if validators == False:
-            return True
-
-        for validator in validators:
-            flags = self.testdata_yaml_validator_flags(validator_type, validator)
-            if flags is False:
-                continue
-
-            ret = validator.run(self, constraints=None if bad_testcase else constraints, args=flags)
-
-            success &= ret.ok is True
-            message = ''
-
-            # Failure?
-            if ret.ok is True:
-                message = 'Passed ' + validator.name
-            else:
-                message = 'Failed ' + validator.name
-
-            # Print stdout and stderr whenever something is printed
-            data = ''
-            if ret.ok is not True or config.args.error:
-                if ret.err and ret.out:
-                    ret.out = (
-                        ret.err
-                        + f'\n{Fore.RED}VALIDATOR STDOUT{Style.RESET_ALL}\n'
-                        + Fore.YELLOW
-                        + ret.out
-                    )
-                elif ret.err:
-                    data = ret.err
-                elif ret.out:
-                    data = ret.out
-            else:
-                data = ret.err
-
-            bar.part_done(
-                ret.ok is True, message, data=data, warn_instead_of_error=warn_instead_of_error
-            )
-
-            if ret.ok is True:
-                continue
-
-            # Move testcase to destination directory if specified.
-            if config.args.move_to:
-                infile = self.in_path
-                targetdir = self.problem.path / config.args.move_to
-                targetdir.mkdir(parents=True, exist_ok=True)
-                intarget = targetdir / infile.name
-                infile.rename(intarget)
-                bar.log('Moved to ' + print_name(intarget))
-                ansfile = self.ans_path
-                if ansfile.is_file():
-                    anstarget = intarget.with_suffix('.ans')
-                    ansfile.rename(anstarget)
-                    bar.log('Moved to ' + print_name(anstarget))
-
-            # Remove testcase if specified.
-            elif validator_type == 'input_format' and config.args.remove:
-                bar.log(Fore.RED + 'REMOVING TESTCASE!' + Style.RESET_ALL)
-                if self.in_path.exists():
-                    self.in_path.unlink()
-                if self.ans_path.exists():
-                    self.ans_path.unlink()
-
-            break
-
-        if not config.args.skip_testcase_sanity_checks and success and not bad_testcase :
-            if validator_type == 'input_format' and self.in_path.exists():
-                bytes = self.in_path.read_bytes()
-                if any(_is_invalid_input_byte(b) for b in bytes):
-                    bar.warn('Testcase contains unexpected characters but was accepted!')
-                elif len(bytes) == 0:
-                    bar.warn('Testcase is empty but was accepted!')
-                elif bytes[0] == ord(' ') or bytes[0] == ord('\n'):
-                    bar.warn('Testcase starts with whitespace but was accepted!')
-                elif bytes[-1] != ord('\n'):
-                    bar.warn('Testcase does not end with a newline but was accepted!')
-                elif _has_consecutive_whitespaces(bytes):
-                    bar.warn('Testcase contains consecutive whitespace characters but was accepted!')
-                elif len(bytes) > 20_000_000_000:
-                    bar.warn('Testcase is larger than 20Mb!')
-
-            if validator_type == 'output_format' and self.ans_path.exists():
-                bytes = self.ans_path.read_bytes()
-                if any(_is_invalid_output_byte(b) for b in bytes):
-                    bar.warn('Answere contains unexpected characters but was accepted!')
-                elif len(bytes) > 20_000_000_000:
-                    bar.warn('Output is larger than 20Mb!')
-
-        return success
+import problem
+import program
+import validate
+import visualize
+from testcase import Testcase
+from util import (
+    BAR_TYPE,
+    crop_output,
+    ensure_symlink,
+    error,
+    ExecResult,
+    ExecStatus,
+    is_bsd,
+    is_windows,
+    ProgressBar,
+    shorten_path,
+    warn,
+)
+from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdicts
 
 
 class Run:
-    def __init__(self, problem, submission, testcase):
+    def __init__(self, problem: "problem.Problem", submission: "Submission", testcase: Testcase):
         self.problem = problem
         self.submission = submission
         self.testcase = testcase
-        self.name = self.testcase.name
+        self.name: str = self.testcase.name
         self.result = None
 
-        tmp_path = (
-            self.problem.tmpdir / 'runs' / self.submission.short_path / self.testcase.short_path
+        self.tmpdir: Path = (
+            self.problem.tmpdir
+            / "runs"
+            / self.submission.short_path
+            / self.testcase.short_path.with_suffix("")
         )
-        self.out_path = tmp_path.with_suffix('.out')
-        self.feedbackdir = tmp_path.with_suffix('.feedbackdir')
+
+        self.in_path: Path = self.tmpdir / "testcase.in"
+        self.out_path: Path = self.tmpdir / "testcase.out"
+        self.feedbackdir: Path = self.in_path.with_suffix(".feedbackdir")
+
+        if self.tmpdir.is_file():
+            self.tmpdir.unlink()
+        elif self.tmpdir.exists():
+            shutil.rmtree(self.tmpdir)
+
         self.feedbackdir.mkdir(exist_ok=True, parents=True)
-        # Clean all files in feedbackdir.
-        for f in self.feedbackdir.iterdir():
-            if f.is_file():
-                f.unlink()
-            else:
-                shutil.rmtree(f)
+        ensure_symlink(self.in_path, self.testcase.in_path)
 
     # Return an ExecResult object amended with verdict.
-    def run(self, *, interaction=None, submission_args=None):
+    def run(self, bar, *, interaction=None, submission_args=None):
         if self.problem.interactive:
             result = interactive.run_interactive_testcase(
-                self, interaction=interaction, submission_args=submission_args
+                self, interaction=interaction, submission_args=submission_args, bar=bar
             )
+            if result is None:
+                bar.error(
+                    f"No output validator found for testcase {self.testcase.name}",
+                    resume=True,
+                )
+                result = ExecResult(
+                    None,
+                    ExecStatus.REJECTED,
+                    0,
+                    False,
+                    None,
+                    None,
+                    Verdict.VALIDATOR_CRASH,
+                )
         else:
-            result = self.submission.run(self.testcase.in_path, self.out_path)
-            if result.duration > self.problem.settings.timelimit:
-                result.verdict = 'TIME_LIMIT_EXCEEDED'
-                if result.duration >= self.problem.settings.timeout:
-                    result.print_verdict_ = 'TLE (aborted)'
-            elif result.ok is not True:
-                result.verdict = 'RUN_TIME_ERROR'
-                if config.args.error:
-                    result.err = 'Exited with code ' + str(result.ok) + ':\n' + result.err
-                else:
-                    result.err = 'Exited with code ' + str(result.ok)
-            else:
-                # Overwrite the result with validator returncode and stdout/stderr, but keep the original duration.
-                duration = result.duration
-                result = self._validate_output()
-                if result is False:
-                    error(f'No output validators found for testcase {self.testcase.name}')
-                    result = ExecResult(-1, 0, None, None)
-                    result.verdict = 'VALIDATOR_CRASH'
-                else:
-                    result.duration = duration
+            if interaction:
+                assert not interaction.is_relative_to(self.tmpdir)
+            with interaction.open("a") if interaction else nullcontext(None) as interaction_file:
+                nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else None
+                pass_id = 0
+                max_duration = 0
+                tle_result = None
+                while True:
+                    pass_id += 1
+                    result = self.submission.run(self.in_path, self.out_path)
+                    max_duration = max(max_duration, result.duration)
 
-                    if result.ok is True:
-                        result.verdict = 'ACCEPTED'
-                    elif result.ok is False:
-                        result.verdict = 'WRONG_ANSWER'
+                    # write an interaction file for samples
+                    if interaction:
+                        data = self.in_path.read_text()
+                        if len(data) > 0 and data[-1] == "\n":
+                            data = data[:-1]
+                        data = data.replace("\n", "\n<")
+                        print("<", data, sep="", file=interaction_file)
+
+                        data = self.out_path.read_text()
+                        if len(data) > 0 and data[-1] == "\n":
+                            data = data[:-1]
+                        data = data.replace("\n", "\n>")
+                        print(">", data, sep="", file=interaction_file)
+
+                    if result.duration > self.problem.limits.time_limit:
+                        result.verdict = Verdict.TIME_LIMIT_EXCEEDED
+                        if tle_result is None:
+                            tle_result = result
+                            tle_result.pass_id = pass_id if self.problem.multi_pass else None
+                        else:
+                            tle_result.timeout_expired |= result.timeout_expired
+                        if not self._continue_with_tle(result.verdict, result.timeout_expired):
+                            break
+                    elif result.status == ExecStatus.ERROR:
+                        result.verdict = Verdict.RUNTIME_ERROR
+                        msg = f"Exited with code {result.returncode}"
+                        if config.args.error and result.err:
+                            result.err = f"{msg}:\n{result.err}"
+                        else:
+                            result.err = msg
+                        break
+
+                    result = self._validate_output(bar)
+                    if result is None:
+                        bar.error(
+                            f"No output validator found for testcase {self.testcase.name}",
+                            resume=True,
+                        )
+                        result = ExecResult(
+                            None,
+                            ExecStatus.REJECTED,
+                            0,
+                            False,
+                            None,
+                            None,
+                            Verdict.VALIDATOR_CRASH,
+                        )
+                    elif result.status:
+                        result.verdict = Verdict.ACCEPTED
+                        validate.sanity_check(
+                            self.problem, self.out_path, bar, strict_whitespace=False
+                        )
+                    elif result.status == ExecStatus.REJECTED:
+                        result.verdict = Verdict.WRONG_ANSWER
+                        if nextpass and nextpass.is_file():
+                            bar.error("got WRONG_ANSWER but found nextpass.in", resume=True)
+                            result.verdict = Verdict.VALIDATOR_CRASH
                     else:
                         config.n_error += 1
-                        result.verdict = 'VALIDATOR_CRASH'
+                        result.verdict = Verdict.VALIDATOR_CRASH
 
-            # Delete .out files larger than 1MB.
+                    if result.verdict != Verdict.ACCEPTED:
+                        break
+
+                    if not self._prepare_nextpass(nextpass):
+                        break
+
+                    assert self.problem.limits.validation_passes is not None
+                    if pass_id >= self.problem.limits.validation_passes:
+                        bar.error("exceeded limit of validation_passes", resume=True)
+                        result.verdict = Verdict.VALIDATOR_CRASH
+                        break
+
+                    if interaction:
+                        print("---", file=interaction_file)
+
+            if self.problem.multi_pass:
+                result.pass_id = pass_id
+
+            if tle_result is not None:
+                result = tle_result
+
+            result.duration = max_duration
+
+            self._visualize_output(bar)
+
+            # Delete .out files larger than 1GB.
             if (
                 not config.args.error
                 and self.out_path.is_file()
@@ -286,54 +186,82 @@ class Run:
             ):
                 self.out_path.unlink()
 
+        if result.verdict and (self.feedbackdir / "nextpass.in").is_file():
+            assert not self.problem.multi_pass
+            bar.warn("Validator created nextpass.in for non multi-pass problem. Ignored.")
+
         self.result = result
         return result
 
-    def _validate_output(self):
-        validator_type = 'output'
-        output_validators = self.problem.validators(validator_type)
-        if output_validators is False:
+    # check if we should continue after tle
+    def _continue_with_tle(self, verdict, timeout_expired):
+        if not self.problem.multi_pass:
             return False
+        if config.args.all == 2 or config.args.reorder:
+            return True
+        if verdict != Verdict.TIME_LIMIT_EXCEEDED:
+            return False
+        if timeout_expired:
+            return False
+        return config.args.verbose or config.args.all or config.args.action in ["all", "time_limit"]
 
-        last_result = False
-        for output_validator in output_validators:
-            flags = self.testcase.testdata_yaml_validator_flags(validator_type, output_validator)
-            if flags is False:
+    # prepare next pass
+    def _prepare_nextpass(self, nextpass):
+        if not nextpass or not nextpass.is_file():
+            return False
+        # clear all files outside of feedbackdir
+        for f in self.tmpdir.iterdir():
+            if f == self.feedbackdir:
                 continue
+            if f.is_file():
+                f.unlink()
+            elif f.exists():
+                shutil.rmtree(f)
+        # use nextpass.in as next input
+        shutil.move(nextpass, self.in_path)
+        return True
 
-            ret = output_validator.run(self.testcase, self, args=flags)
+    def _validate_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
+        output_validators = self.problem.validators(validate.OutputValidator)
+        if not output_validators:
+            return None
+        output_validator = output_validators[0]
+        assert isinstance(output_validator, validate.OutputValidator)
+        return output_validator.run(
+            self.testcase,
+            self,
+            args=self.testcase.test_case_yaml_args(output_validator, bar),
+        )
 
-            judgemessage = self.feedbackdir / 'judgemessage.txt'
-            judgeerror = self.feedbackdir / 'judgeerror.txt'
-            if ret.err is None:
-                ret.err = ''
-            if judgemessage.is_file():
-                ret.err += judgemessage.read_text()
-                judgemessage.unlink()
-            if judgeerror.is_file():
-                # Remove any std output because it will usually only contain the
-                ret.err = judgeerror.read_text()
-                judgeerror.unlink()
-            if ret.err:
-                header = output_validator.name + ': ' if len(output_validators) > 1 else ''
-                ret.err = header + ret.err
-
-            if ret.ok == config.RTV_WA:
-                ret.ok = False
-
-            if ret.ok is not True:
-                return ret
-
-            last_result = ret
-
-        return last_result
+    def _visualize_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
+        if config.args.no_visualizer:
+            return None
+        output_visualizer = self.problem.visualizer(visualize.OutputVisualizer)
+        if output_visualizer is None:
+            return None
+        return output_visualizer.run(
+            self.testcase.in_path,
+            self.testcase.ans_path.resolve(),
+            self.out_path if not self.problem.interactive else None,
+            self.feedbackdir,
+            args=self.testcase.test_case_yaml_args(output_visualizer, bar),
+        )
 
 
 class Submission(program.Program):
-    subdir = 'submissions'
-
     def __init__(self, problem, path, skip_double_build_warning=False):
-        super().__init__(problem, path, skip_double_build_warning=skip_double_build_warning)
+        super().__init__(
+            problem,
+            path,
+            "submissions",
+            limits={
+                "code": problem.limits.code,
+                "compilation_time": problem.limits.compilation_time,
+                "compilation_memory": problem.limits.compilation_memory,
+                "memory": problem.limits.memory,
+            },
+            skip_double_build_warning=skip_double_build_warning,
+        )
 
         self.verdict = None
         self.duration = None
@@ -341,149 +269,170 @@ class Submission(program.Program):
         # The first element will match the directory the file is in, if possible.
         self.expected_verdicts = self._get_expected_verdicts()
 
-    def _get_expected_verdicts(self):
-        verdicts = []
+        # NOTE: Judging of interactive problems on systems without `os.wait4` is
+        # suboptimal because we cannot determine which of the submission and
+        # interactor exits first. Thus, we don't distinguish the different non-AC
+        # verdicts.
+        if self.problem.interactive and (is_windows() or is_bsd()):
+            wrong_verdicts = [
+                Verdict.WRONG_ANSWER,
+                Verdict.TIME_LIMIT_EXCEEDED,
+                Verdict.RUNTIME_ERROR,
+            ]
+            for wrong_verdict in wrong_verdicts:
+                if wrong_verdict in self.expected_verdicts:
+                    self.expected_verdicts += wrong_verdicts
+                    break
+
+    def _get_expected_verdicts(self) -> list[Verdict]:
+        expected_verdicts = []
 
         # Look for '@EXPECTED_RESULTS@: ' in all source files. This should be followed by a comma separated list of the following:
         # - ACCEPTED / CORRECT
         # - WRONG_ANSWER / WRONG-ANSWER / NO-OUTPUT
         # - TIME_LIMIT_EXCEEDED / TIMELIMIT
         # - RUN_TIME_ERROR / RUN-ERROR
-        domjudge_verdict_map = {
-            'CORRECT': 'ACCEPTED',
-            'WRONG-ANSWER': 'WRONG_ANSWER',
-            'TIMELIMIT': 'TIME_LIMIT_EXCEEDED',
-            'RUN-ERROR': 'RUN_TIME_ERROR',
-            'NO-OUTPUT': 'WRONG_ANSWER',
-            'CHECK-MANUALLY': None,
-            'COMPILER-ERROR': None,
-        }
         # Matching is case insensitive and all source files are checked.
-        key = '@EXPECTED_RESULTS@: '
-        if self.path.is_file():
-            files = [self.path]
-        elif self.path.is_dir():
-            files = self.path.glob('**/*')
-        else:
-            files = []
+        key = "@EXPECTED_RESULTS@: "
+        files = (
+            [self.path]
+            if self.path.is_file()
+            else self.path.glob("**/*")
+            if self.path.is_dir()
+            else []
+        )
         for f in files:
             if not f.is_file():
                 continue
             try:
                 text = f.read_text().upper()
                 beginpos = text.index(key) + len(key)
-                endpos = text.find('\n', beginpos)
-                arguments = map(str.strip, text[beginpos:endpos].split(','))
+                endpos = text.find("\n", beginpos)
+                arguments = map(str.strip, text[beginpos:endpos].split(","))
                 for arg in arguments:
-                    if arg in domjudge_verdict_map:
-                        arg = domjudge_verdict_map[arg]
-                        if arg is None:
-                            continue
-                    if arg not in config.VERDICTS:
+                    try:
+                        expected_verdicts.append(from_string_domjudge(arg))
+                    except ValueError:
                         error(
-                            f'@EXPECTED_RESULT@: `{arg}` for submission {self.short_path} is not valid'
+                            f"@EXPECTED_RESULTS@: `{arg}` for submission {self.short_path} is not valid"
                         )
                         continue
-                    verdicts.append(arg)
                 break
             except (UnicodeDecodeError, ValueError):
                 # Skip binary files.
                 # Skip files where the key does not occur.
                 pass
 
-        subdir = self.short_path.parts[0].upper()
-        if subdir in config.VERDICTS:
-            if len(verdicts) > 0 and subdir not in verdicts:
-                error(
-                    f'Submission {self.short_path} must have implicit verdict {subdir} listed in @EXPECTED_RESULTS@.'
-                )
-                verdicts = [subdir] + verdicts
-            elif len(verdicts) == 0:
-                verdicts = [subdir]
+        if len(self.path.parts) >= 3 and self.path.parts[-3] == "submissions":
+            # Submissions in any of config.VERDICTS should not have `@EXPECTED_RESULTS@: `, and vice versa.
+            # See https://github.com/DOMjudge/domjudge/issues/1861
+            subdir = self.short_path.parts[0]
+            if subdir in config.SUBMISSION_DIRS:
+                if len(expected_verdicts) != 0:
+                    warn(f"@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.")
+                expected_verdicts = [from_string(subdir.upper())]
+            else:
+                if len(expected_verdicts) == 0:
+                    error(
+                        f"Submission {self.short_path} must have @EXPECTED_RESULTS@. Defaulting to ACCEPTED."
+                    )
 
-        if len(verdicts) == 0:
-            verdicts = ['ACCEPTED']
-        return verdicts
+        expected_verdicts.sort()
+        return expected_verdicts or [Verdict.ACCEPTED]
 
     # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
     # args is used by SubmissionInvocation to pass on additional arguments.
     # Returns ExecResult
-    def run(self, in_path, out_path, crop=True, args=[], cwd=None):
+    # The `generator_timeout` argument is used when a submission is run as a solution when
+    # generating testcases.
+    def run(self, in_path, out_path, crop=True, args=[], cwd=None, generator_timeout=False):
         assert self.run_command is not None
         # Just for safety reasons, change the cwd.
         if cwd is None:
             cwd = self.tmpdir
-        with in_path.open('rb') as inf:
-            out_file = out_path.open('wb') if out_path else None
-
+        with (
+            in_path.open("rb") as in_file,
+            out_path.open("wb") if out_path else nullcontext(None) as out_file,
+        ):
             # Print stderr to terminal is stdout is None, otherwise return its value.
-            result = exec_command(
+            result = self._exec_command(
                 self.run_command + args,
                 crop=crop,
-                stdin=inf,
+                stdin=in_file,
                 stdout=out_file,
                 stderr=None if out_file is None else True,
-                timeout=self.problem.settings.timeout,
                 cwd=cwd,
+                timeout=(
+                    self.problem.limits.generator_time
+                    if generator_timeout
+                    else self.problem.limits.timeout
+                ),
             )
-            if out_file:
-                out_file.close()
-            return result
+        return result
 
-    # Run this submission on all testcases for the current problem.
+    # Run this submission on all testcases that are given.
     # Returns (OK verdict, printed newline)
-    def run_all_testcases(
-        self, max_submission_name_len=None, table_dict=None, *, needs_leading_newline
+    def run_testcases(
+        self,
+        max_submission_name_len: int,
+        verdict_table,
+        testcases,
+        *,
+        needs_leading_newline,
     ):
-        runs = [Run(self.problem, self, testcase) for testcase in self.problem.testcases()]
-        max_item_len = max(len(run.name) for run in runs) + max_submission_name_len - len(self.name)
+        runs = [Run(self.problem, self, testcase) for testcase in testcases]
+        max_testcase_len = max(len(run.name) for run in runs)
+        if self.problem.multi_pass:
+            max_testcase_len += 2
+        max_item_len = max_testcase_len + max_submission_name_len - len(self.name)
+        padding_len = max_submission_name_len - len(self.name)
+        run_until = RunUntil.FIRST_ERROR
 
-        bar = ProgressBar(
-            'Running ' + self.name,
+        if (
+            config.args.all == 1
+            or config.args.verbose
+            or config.args.action in ["all", "time_limit"]
+        ):
+            run_until = RunUntil.DURATION
+        if config.args.all == 2 or config.args.reorder:
+            run_until = RunUntil.ALL
+
+        verdicts = Verdicts(
+            testcases,
+            self.problem.limits.timeout,
+            run_until,
+        )
+
+        verdict_table.next_submission(verdicts)
+        bar = verdict_table.ProgressBar(
+            self.name,
             count=len(runs),
             max_len=max_item_len,
             needs_leading_newline=needs_leading_newline,
         )
 
-        max_duration = -1
-
-        verdict = (-100, 'ACCEPTED', 'ACCEPTED', 0)  # priority, verdict, print_verdict, duration
-        verdict_run = None
-
-        def process_run(run, p):
-            nonlocal max_duration, verdict, verdict_run
+        def process_run(run: Run):
+            if not verdicts.run_is_needed(run.name):
+                bar.skip()
+                return
 
             localbar = bar.start(run)
-            result = run.run()
+            result = run.run(localbar)
 
-            new_verdict = (
-                config.PRIORITY[result.verdict],
-                result.verdict,
-                result.print_verdict(),
-                result.duration,
-            )
-            if new_verdict > verdict:
-                verdict = new_verdict
-                verdict_run = run
-            max_duration = max(max_duration, result.duration)
-
-            if table_dict is not None:
-                table_dict[run.name] = result.verdict == 'ACCEPTED'
-
-            got_expected = result.verdict in ['ACCEPTED'] + self.expected_verdicts
+            verdict_table.update_verdicts(run.name, result.verdict, result.duration)
 
             # Print stderr whenever something is printed
             if result.out and result.err:
-                output_type = 'PROGRAM STDERR' if self.problem.interactive else 'STDOUT'
+                output_type = "PROGRAM STDERR" if self.problem.interactive else "STDOUT"
                 data = (
-                    f'STDERR:'
+                    "STDERR:"
                     + localbar._format_data(result.err)
-                    + f'\n{output_type}:'
+                    + f"\n{output_type}:"
                     + localbar._format_data(result.out)
-                    + '\n'
+                    + "\n"
                 )
             else:
-                data = ''
+                data = ""
                 if result.err:
                     data = crop_output(result.err)
                 if result.out:
@@ -491,42 +440,56 @@ class Submission(program.Program):
 
             # Add data from feedbackdir.
             for f in run.feedbackdir.iterdir():
+                if f.name.startswith("."):
+                    continue  # skip "hidden" files
+                if f.name in ["judgemessage.txt", "judgeerror.txt"]:
+                    continue
+                if f.name.startswith("judgeimage.") or f.name.startswith("teamimage."):
+                    data += f"{f.name}: {shorten_path(self.problem, f.parent) / f.name}\n"
+                    ensure_symlink(run.problem.path / f.name, f, output=True, relative=False)
+                    continue
                 if not f.is_file():
-                    localbar.warn(f'Validator wrote to {f} but it\'s not a file.')
+                    localbar.warn(f"Validator wrote to {f} but it's not a file.")
                     continue
                 try:
                     t = f.read_text()
                 except UnicodeDecodeError:
                     localbar.warn(
-                        f'Validator wrote to {f} but it cannot be parsed as unicode text.'
+                        f"Validator wrote to {f} but it cannot be parsed as unicode text."
                     )
                     continue
-                f.unlink()
                 if not t:
                     continue
-                if len(data) > 0 and data[-1] != '\n':
-                    data += '\n'
-                data += f'{f.name}:' + localbar._format_data(t) + '\n'
+                if len(data) > 0 and data[-1] != "\n":
+                    data += "\n"
+                data += f"{f.name}:" + localbar._format_data(t) + "\n"
 
-            localbar.done(got_expected, f'{result.duration:6.3f}s {result.print_verdict()}', data)
+            got_expected = result.verdict in [Verdict.ACCEPTED] + self.expected_verdicts
 
-            # Lazy judging: stop on the first error when not in verbose mode.
-            if (
-                not config.args.verbose and not config.args.table
-            ) and result.verdict in config.MAX_PRIORITY_VERDICT:
-                bar.count = None
-                p.stop()
+            if result.verdict == Verdict.ACCEPTED:
+                color = f"{Style.DIM}"
+            else:
+                color = Fore.GREEN if got_expected else Fore.RED
+            timeout = result.duration >= self.problem.limits.timeout
+            duration_style = Style.BRIGHT if timeout else ""
+            passmsg = (
+                f":{Fore.CYAN}{result.pass_id}{Style.RESET_ALL}" if self.problem.multi_pass else ""
+            )
+            testcase = f"{run.name}{Style.RESET_ALL}{passmsg}"
+            style_len = len(f"{Style.RESET_ALL}")
+            message = f"{color}{result.verdict.short():>3}{duration_style}{result.duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {testcase:{max_testcase_len + style_len}}"
 
-        p = parallel.Parallel(lambda run: process_run(run, p), not self.problem.interactive)
+            # Update padding since we already print the testcase name after the verdict.
+            localbar.item_width = padding_len
+            localbar.done(got_expected, message, data, print_item=False)
 
+        p = parallel.new_queue(process_run, pin=True)
         for run in runs:
             p.put(run)
-
         p.done()
 
-        self.verdict = verdict[1]
-        self.print_verdict = verdict[2]
-        self.duration = max_duration
+        self.verdict = verdicts["."]
+        assert isinstance(self.verdict, Verdict), "Verdict of root must not be empty"
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
@@ -535,63 +498,95 @@ class Submission(program.Program):
                 if self.verdict in self.expected_verdicts
                 else Style.BRIGHT + Fore.RED
             )
-            boldcolor = Style.BRIGHT
         else:
             color = Fore.GREEN if self.verdict in self.expected_verdicts else Fore.RED
-            boldcolor = ''
 
-        printed_newline = bar.finalize(
-            message=f'{max_duration:6.3f}s {color}{self.print_verdict:<20}{Style.RESET_ALL} @ {verdict_run.testcase.name}'
+        (salient_testcase, salient_duration) = verdicts.salient_test_case()
+        salient_print_verdict = self.verdict
+        salient_duration_style = (
+            Style.BRIGHT if salient_duration >= self.problem.limits.timeout else ""
         )
 
-        return (self.verdict in self.expected_verdicts, printed_newline)
+        # Summary line is the only thing shown.
+        message = f"{color}{salient_print_verdict.short():>3}{salient_duration_style}{salient_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {salient_testcase:{max_testcase_len}}{Style.RESET_ALL}"
+
+        if verdicts.run_until in [RunUntil.DURATION, RunUntil.ALL]:
+            slowest_pair = verdicts.slowest_test_case()
+            assert slowest_pair is not None
+            (slowest_testcase, slowest_duration) = slowest_pair
+            slowest_verdict = verdicts[slowest_testcase]
+            assert isinstance(slowest_verdict, Verdict), (
+                "Verdict of slowest testcase must not be empty"
+            )
+
+            slowest_color = (
+                Fore.GREEN
+                if slowest_verdict == Verdict.ACCEPTED or slowest_verdict in self.expected_verdicts
+                else Fore.RED
+            )
+
+            slowest_duration_style = (
+                Style.BRIGHT if slowest_duration >= self.problem.limits.timeout else ""
+            )
+
+            message += f" {Style.DIM}{Fore.CYAN}slowest{Fore.RESET}:{Style.RESET_ALL} {slowest_color}{slowest_verdict.short():>3}{slowest_duration_style}{slowest_duration:6.3f}s{Style.RESET_ALL} {Style.DIM}@ {slowest_testcase}{Style.RESET_ALL}"
+
+        bar.item_width -= max_testcase_len + 1
+        printed_newline = bar.finalize(message=message, suppress_newline=config.args.tree)
+        if config.args.tree:
+            verdict_table.print(force=True, new_lines=0)
+            verdict_table.last_printed = []
+            print(file=sys.stderr)
+            printed_newline = True
+
+        return self.verdict in self.expected_verdicts, printed_newline
 
     def test(self):
-        print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
+        print(ProgressBar.action("Running", str(self.name)), file=sys.stderr)
 
         testcases = self.problem.testcases(needans=False)
 
-        if self.problem.interactive:
-            output_validators = self.problem.validators('output')
-            if output_validators is False:
-                return
+        if not self.problem.validators(validate.OutputValidator):
+            return
 
         for testcase in testcases:
-            header = ProgressBar.action('Running ' + str(self.name), testcase.name)
+            header = ProgressBar.action("Running " + str(self.name), testcase.name)
             print(header, file=sys.stderr)
 
             if not self.problem.interactive:
                 assert self.run_command is not None
-                with testcase.in_path.open('rb') as inf:
-                    result = exec_command(
+                with testcase.in_path.open("rb") as inf:
+                    result = self._exec_command(
                         self.run_command,
                         crop=False,
                         stdin=inf,
                         stdout=None,
                         stderr=None,
-                        timeout=self.problem.settings.timeout,
                     )
 
                 assert result.err is None and result.out is None
-                if result.duration > self.problem.settings.timeout:
-                    status = f'{Fore.RED}Aborted!'
+                if result.duration >= self.problem.limits.timeout:
+                    status = f"{Fore.RED}Aborted!"
                     config.n_error += 1
-                elif result.ok is not True and result.ok != -9:
+                elif not result.status and result.status != ExecStatus.TIMEOUT:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
-                elif result.duration > self.problem.settings.timelimit:
-                    status = f'{Fore.YELLOW}Done (TLE):'
+                elif (
+                    result.duration > self.problem.limits.time_limit
+                    or result.status == ExecStatus.TIMEOUT
+                ):
+                    status = f"{Fore.YELLOW}Done (TLE):"
                     config.n_warn += 1
                 else:
-                    status = f'{Fore.GREEN}Done:'
+                    status = f"{Fore.GREEN}Done:"
 
                 if status:
                     print(
-                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                 print(file=sys.stderr)
@@ -602,26 +597,24 @@ class Submission(program.Program):
                 result = interactive.run_interactive_testcase(
                     run, interaction=True, validator_error=None, team_error=None
                 )
-                if result.verdict != 'ACCEPTED':
+                if result.verdict != Verdict.ACCEPTED:
                     config.n_error += 1
                     print(
-                        f'{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                 else:
                     print(
-                        f'{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
 
     # Run the submission using stdin as input.
     def test_interactive(self):
-        if self.problem.interactive:
-            output_validators = self.problem.validators('output')
-            if output_validators is False:
-                return
+        if not self.problem.validators(validate.OutputValidator):
+            return
 
-        bar = ProgressBar('Running ' + str(self.name), max_len=1, count=1)
+        bar = ProgressBar("Running " + str(self.name), max_len=1, count=1)
         bar.start()
         # print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
 
@@ -630,64 +623,73 @@ class Submission(program.Program):
         tc = 0
         while True:
             tc += 1
-            name = f'run {tc}'
+            name = f"run {tc}"
             bar.update(1, len(name))
             bar.start(name)
             # Reinitialize the underlying program, so that changed to the source
             # code can be picked up in build.
-            super().__init__(self.problem, self.path, skip_double_build_warning=True)
-            bar.log('from stdin' if is_tty else 'from file')
+            super().__init__(
+                self.problem,
+                self.path,
+                self.subdir,
+                limits=self.limits,
+                skip_double_build_warning=True,
+            )
+            bar.log("from stdin" if is_tty else "from file")
 
             # Launch a separate thread to pass stdin to a pipe.
             r, w = os.pipe()
-            ok = True
-            eof = False
 
-            TEE_CODE = R'''
+            TEE_CODE = R"""
 import sys
 while True:
     l = sys.stdin.read(1)
     if l=='': break
     sys.stdout.write(l)
     sys.stdout.flush()
-'''
+"""
             writer = None
 
             # Wait for first input
             try:
                 read = False
-                for l in sys.stdin:
+                for line in sys.stdin:
                     read = True
                     # Read the first line of input, and re-build the program if
                     # needed after the first line has been entered.
                     if not self.build(bar):
                         return
-                    os.write(w, bytes(l, 'utf8'))
+                    os.write(w, bytes(line, "utf8"))
                     break
                 if not read:
                     return
 
-                writer = subprocess.Popen(['python3', '-c', TEE_CODE], stdin=None, stdout=w)
+                writer = subprocess.Popen(["python3", "-c", TEE_CODE], stdin=None, stdout=w)
 
                 assert self.run_command is not None
-                result = exec_command(
-                    self.run_command, crop=False, stdin=r, stdout=None, stderr=None, timeout=None
+                result = self._exec_command(
+                    self.run_command,
+                    crop=False,
+                    stdin=r,
+                    stdout=None,
+                    stderr=None,
+                    timeout=None,  # no timeout since we wait for user input
                 )
 
                 assert result.err is None and result.out is None
-                if result.ok is not True:
+                if not result.status:
                     config.n_error += 1
                     status = None
                     print(
-                        f'{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.ok} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                 else:
-                    status = f'{Fore.GREEN}Done:'
+                    status = f"{Fore.GREEN}Done:"
 
                 if status:
                     print(
-                        f'{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}',
+                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
                         file=sys.stderr,
                     )
                 print(file=sys.stderr)
@@ -696,6 +698,7 @@ while True:
                 os.close(w)
                 if writer:
                     writer.kill()
+                    writer.wait()
             bar.done()
 
             if not is_tty:

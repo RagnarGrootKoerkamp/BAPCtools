@@ -1,8 +1,6 @@
 /*
  * Floods stdout and should fail with TIMELIMIT, since output is
  * automatically truncated at the filesize limit.
- *
- * @EXPECTED_RESULTS@: TIMELIMIT
  */
 
 #include <iostream>

@@ -1,0 +1,8 @@
+name: Setup BAPCtools
+runs:
+  using: composite
+  steps:
+    - name: update BAPCtools
+      run: |
+        git -C /opt/hostedtoolcache/BAPCtools pull --ff-only || git clone https://github.com/RagnarGrootKoerkamp/BAPCtools.git /opt/hostedtoolcache/BAPCtools
+        ln -s /opt/hostedtoolcache/BAPCtools/bin/tools.py bt

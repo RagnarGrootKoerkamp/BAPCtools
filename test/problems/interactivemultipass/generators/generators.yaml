@@ -1,0 +1,9 @@
+solution: /submissions/accepted/deterministic.py
+
+data:
+  sample:
+    data:
+      - "":
+          in: "-1"
+  secret:
+    data: []

@@ -1,7 +1,5 @@
 /*
  * This should give CORRECT on the problem 'fltcmp' (but WRONG ANSWER on 'hello').
- *
- * @EXPECTED_RESULTS@: CORRECT
  */
 
 #include <stdio.h>

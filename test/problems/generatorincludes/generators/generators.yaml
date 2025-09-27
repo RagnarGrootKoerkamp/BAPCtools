@@ -1,0 +1,37 @@
+solution: /submissions/accepted/th.py
+data:
+  sample:
+    data:
+      "1":
+        in: 1 2
+        ans: "3"
+      "2":
+        in: 1 -3
+  secret:
+    data:
+      - small:
+          test_group.yaml:
+            output_validator_args: [space_change_sensitive]
+            input_validator_args:
+              connected: [--small]
+              strongly-connected: [--small]
+          data:
+            - positive:
+                data:
+                  - sm-all-pos: stdout.py 4 6
+                  - sm-zero: stdout.py 4 1
+                include:
+                  - "1"
+            - general:
+                data:
+                  - sm-mixed: stdout.py 4 -6
+                  - sm-all-neg: stdout.py -4 -6
+                include:
+                  - "1"
+                  - "2"
+      - general:
+          data:
+            - lg: stdout.py 83413870413975664 -11
+          include:
+            - small
+            - sample

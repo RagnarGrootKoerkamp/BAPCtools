@@ -1,0 +1,13 @@
+\documentclass[rgb,dvipsnames,aspectratio=169,9pt,t,handout]{beamer}
+\input{solutions-base.tex}
+\begin{document}
+\begingroup\graphicspath{{{%problemdir%}/solution/}{{%problemdir%}/statement/}}
+	\renewcommand{\problemlabel}{{%problemlabel%}}
+	\renewcommand{\problemyamlname}{{%problemyamlname%}}
+	\renewcommand{\problemauthor}{{%problemauthor%}}
+	\renewcommand{\timelimit}{{%timelimit%}}
+	\input{{%builddir%}/constants.tex}
+	\input{{%problemdir%}/solution/solution.\lang.tex}
+	\renewcommand{\problemlabel}{}
+\endgroup
+\end{document}

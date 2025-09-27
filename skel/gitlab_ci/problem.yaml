@@ -1,21 +1,22 @@
 verify_{%problem%}:
   script:
-    - ./bt all --cp --error --no-bar --cleanup-generated --force --problem {%contest%}/{%problem%}
+    - ./bt all --cp --error --no-bar --force --jobs 0 --problem {%problem_path%}
   only:
-    refs:
-      - master
-      - merge_requests
     changes:
-      #- {%changesdir%}/problem_statement/**/*
-      - {%changesdir%}/problem.yaml
-      - {%changesdir%}/.timelimit
-      - {%changesdir%}/generators/**/*
-      - {%changesdir%}/data/**/*
-      - {%changesdir%}/input_validators/**/*
-      - {%changesdir%}/output_validators/**/*
-      - {%changesdir%}/submissions/**/*
-      #- {%changesdir%}/attachments/**/*
+      #- {%problem_path%}/statement/**/*
+      #- {%problem_path%}/solution/**/*
+      #- {%problem_path%}/problem_slide/**/*
+      - {%problem_path%}/problem.yaml
+      - {%problem_path%}/.timelimit
+      - {%problem_path%}/data/**/*
+      - {%problem_path%}/generators/**/*
+      - {%problem_path%}/input_validators/**/*
+      - {%problem_path%}/answer_validators/**/*
+      - {%problem_path%}/output_validators/**/*
+      - {%problem_path%}/submissions/**/*
+      - {%problem_path%}/visualizers/**/*
+      #- {%problem_path%}/attachments/**/*
   artifacts:
     expire_in: 1 week
     paths:
-      - {%contest%}/{%problem%}/problem.pdf
+      - {%problem_path%}/problem*.pdf

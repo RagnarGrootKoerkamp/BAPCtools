@@ -5,9 +5,9 @@
 id:                         {%dirname%}
 name:                       {%title%}
 #formal_name:                {%title%}
-start_time:                 2021-01-01T12:00:00Z
+start_time:                 2023-01-01T12:00:00Z
 duration:                   5:00:00
-#scoreboard_freeze_duration: 1:00:00
+scoreboard_freeze_duration: 1:00:00
 #penalty_time:               20
 
 # Latex fields:
@@ -15,15 +15,13 @@ title: {%title%}
 subtitle: {%subtitle%}
 year: {%year%}
 author: {%author%}
-testsession: {%testsession%}
-blank_page_text:
-print_timelimit: true
+test_session: {%test_session%}
+print_time_limit: True
 
 # problem.yaml defaults
 source_url: {%source_url%}
 license: {%license%}
-rights_owner: {%rights_owner%}
-
+{%rights_owner%}
 # CCS fields for integration
 # URL endpoint of the CCS, e.g. https://www.domjudge.org/demoweb.
 #api:

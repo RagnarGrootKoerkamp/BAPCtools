@@ -1,21 +1,33 @@
 #solution: /submissions/accepted/submission.py
-#visualizer: /visualizers/asy.sh {name}
-# By default, generated files are not ignored.
-#gitignore_generated: false
+version: 2025-08  # use this version of the generators framework
+
+{%test_group_yaml_comment%}test_group.yaml:
+  # One or more of:
+  # case_sensitive
+  # space_change_sensitive
+  # float_absolute_tolerance eps
+  # float_relative_tolerance eps
+  # float_tolerance eps
+  {%output_validator_args%}
 
 data:
   sample:
-    type: directory
-    # Uncomment to disable generating ans files for sample cases.
-    #solution:
-    data:
-      # Some small examples showing to help understanding of the problem
-      #'1':
-      #'2':
+    data: []
+      # Some small examples showing to help understanding of the problem.
+      #- '':
+      #    in: 1 2
+      #    ans: '3'
+      # Or to preserve newlines:
+      #- '':
+      #    in: |
+      #      1 2
+      #      3 4
+      #    ans: |
+      #      3
+      #      7
 
   secret:
-    type: directory
-    data:
+    data: []
       # You can re-use the input validator by symlinking it as `generator` in
       # this directory. Below is some inspiration for test cases.
       #
@@ -36,11 +48,11 @@ data:
       #- geometric: generator {seed} -n 100 -k 123 -ai geometric(0.1)
 
       # Manual cases can be added like this:
-      #- handcrafted: manual/handcrafted.in
+      #- copied:
+      #    copy: manual/testcase
       # They should be written to somewhere inside generators/ and will be
       # copied into data/.
-      # You can also dump them in data/secret and run `bt generate --add-manual`
-      # followed by `bt generate --move-manual`.
+      # You can also dump them in data/secret and run `bt generate --add-unlisted`.
 
       # Typically, small test cases are more likely to find bugs/edge cases.
       # When the limit on n is 1000, do something like:
@@ -55,3 +67,38 @@ data:
       #- large: generator {seed} -n 991
       #- large: generator {seed} -n 999
       #- large: generator {seed} -n 1000
+
+      # Many testcases with the same parameter can be generated like this:
+      #- large:
+      #    generate: generator {seed:1} -n 1000
+      #    count: 10
+
+  invalid_input:
+    # Add invalid test cases to ensure that input_validators correctly rejects them.
+    data: []
+      #invalid_test_case_input:
+      #  in: "<invalid input>"
+
+  invalid_answer:
+    # Add valid test cases with invalid answers to ensure that the answer_validators correctly rejects them.
+    # (The output validator is also called with these)
+    data: []
+      #invalid_test_case_answer:
+      #  in: "<valid input>"
+      #  ans: "<invalid answer>"
+
+  invalid_output:
+    # Add valid test cases with answer and invalid team output to ensure that the output_validator correctly rejects them.
+    data: []
+      #invalid_test_case_output:
+      #    in: "<valid input>"
+      #    ans: "<valid answer>"
+      #    out: "<invalid output>"
+
+  valid_output:
+    # Add valid test cases with answer and team output to ensure that the output_validator correctly accepts them.
+    data: []
+      #valid_test_case_output:
+      #    in: "<valid input>"
+      #    ans: "<valid answer>"
+      #    out: "<valid output>"

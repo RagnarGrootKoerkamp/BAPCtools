@@ -1,0 +1,105 @@
+\usepackage[T1, OT1]{fontenc}
+\DeclareTextSymbolDefault{\dh}{T1}
+\usepackage[english]{babel}
+\usepackage{lmodern}
+
+%-------------------------------------------------------------------------------
+% The following are required for most problems:
+%-------------------------------------------------------------------------------
+\usepackage{amsmath,amssymb}
+\usepackage{pgf,tikz}
+\usepackage{mathrsfs}
+\usetikzlibrary{arrows}
+\usetikzlibrary{shapes}
+\usetikzlibrary{backgrounds}
+\usetikzlibrary{patterns}
+\usetikzlibrary{positioning}
+\usepackage{pgfplots}
+\usepackage{pgfplotstable}
+\pgfplotsset{compat=1.15}
+\usepackage{graphicx}
+\usepackage{listings}
+%\usepackage{subcaption}
+\usepackage{algorithm}
+\usepackage[makeroom]{cancel}
+\usepackage[noend]{algpseudocode}
+\usepackage{standalone}
+\usepackage{ifthen}
+\usepackage{tcolorbox}
+\usepackage{upquote}          % For ' in samples
+\usepackage[autoplay,controls,loop,poster=last]{animate}
+
+\lstset{
+  backgroundcolor=\color{white},
+  tabsize=4,
+  language=python,
+  basicstyle=\footnotesize\ttfamily,
+  breaklines=true,
+  keywordstyle=\color[rgb]{0, 0, 1},
+  commentstyle=\color[rgb]{0, 0.5, 0},
+  stringstyle=\color{red}
+}
+
+\newcommand{\timelimit}{0}
+\newcommand{\problemlabel}{} % Empty to hide activity chart
+\newcommand{\problemauthor}{Problem author}
+\newcommand{\problembackground}{}
+\newcommand{\problemforeground}{}
+\newcommand{\problemborder}{}
+% TODO: Clean these up
+\newcommand{\problemyamlname}{Problem name}
+\newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
+\newcommand{\problemtitle}{\problemyamlname}
+
+\newcommand{\constant}[1]{%
+    \ifcsname constants_#1\endcsname%
+        \csname constants_#1\endcsname%
+    \else%
+        \PackageError{constants}{constant{#1} is not defined}{}%
+    \fi%
+}
+
+\usetheme[numbering=none,block=fill]{metropolis}
+
+\newcommand{\illustration}[3]{
+  \begin{column}[T]{#1\textwidth}
+    \includegraphics[width=\textwidth]{#2}
+    \ifstrempty{#3}{
+      \vspace{-5pt}
+    }{
+      \begin{flushright}
+        \vspace{-5pt}
+        \tiny #3
+      \end{flushright}
+    }
+  \end{column}
+}
+
+\setbeamertemplate{frametitle}{%
+    \nointerlineskip%
+    \vspace{1em}%
+    \begin{minipage}{0.06\paperwidth}%
+        \begin{tikzpicture}
+            \definecolor{problembackground}{HTML}{\problembackground}
+            \definecolor{problemforeground}{HTML}{\problemforeground}
+            \definecolor{problemborder}{HTML}{\problemborder}
+            % Hack: the square for problem label "M" would be too wide so use `\huge` instead of `\Huge`
+            \node[rectangle,rounded corners,thick,minimum size=2em,draw=problemborder,fill=problembackground,text=problemforeground] (0, 0) {\if M\problemlabel\huge\else\Huge\fi\problemlabel};
+        \end{tikzpicture}
+    \end{minipage}%
+    \begin{minipage}{0.8\paperwidth}%
+        \color{black}%
+        \ifdefempty{\problemlabel}{%
+            \insertframetitle\strut%
+        }{%
+            \problemtitle%
+            \\[0.3em]%
+            \tiny%
+            Time limit: \timelimit{}s%
+            \quad\quad%
+            Problem Author: \problemauthor%
+            \strut%
+        }%
+    \end{minipage}%
+    \hfill%
+}

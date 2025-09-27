@@ -1,0 +1,26 @@
+name: {%contest%} PDFs
+enable-email-notifications: true
+on:
+  push:
+    paths:
+      - {%contest_path%}/*/statement/**
+      - {%contest_path%}/*/solution/**
+jobs:
+  build_pdfs:
+    name: {%contest%} PDFs
+    runs-on: bapctools-docker
+    container:
+      image: ragnargrootkoerkamp/bapctools
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          bt pdf --cp --error --no-bar --contest {%contest_path%}
+          bt solutions --cp --error --no-bar --contest {%contest_path%}
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pdfs
+          path: |
+            {%contest_path%}/contest*.pdf
+            {%contest_path%}/solution*.pdf
+          retention-days: 7

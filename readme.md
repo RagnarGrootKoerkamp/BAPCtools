@@ -1,7 +1,7 @@
 # BAPCtools
 
 BAPCtools is a tool for creating and developing problems following the
-CLICS (DOMjudge/Kattis) problem format specified [here](https://clics.ecs.baylor.edu/index.php?title=Problem_format).
+CLICS (DOMjudge/Kattis) problem format specified [here](https://icpc.io/problem-package-format/).
 
 The aim of this tool is to run all necessary compilation, validation, and
 testing commands while working on an ICPC-style problem.
@@ -13,15 +13,23 @@ time since I'm not aware of usage outside of BAPC yet.
 
 ## Installation
 
-You can install the [bapctools-git AUR
-package](https://aur.archlinux.org/packages/bapctools-git/), mirrored
-[here](https://github.com/RagnarGrootKoerkamp/bapctools-git), or use the [Docker
-image](#Docker).
+> [!IMPORTANT]
+> The latest version of BAPCtools is only compatible with problem format version
+> [`2025-09`](https://icpc.io/problem-package-format/spec/2025-09.html).
+> The [`bt upgrade` command](https://github.com/RagnarGrootKoerkamp/BAPCtools/blob/HEAD/doc/commands.md#upgrade)
+> is a best-effort automated way to upgrade `legacy` problems to `2025-09`.
+> To use BAPCtools with `legacy` problems,
+> you can use the [`legacy` branch](https://github.com/RagnarGrootKoerkamp/BAPCtools/tree/legacy) of this repository,
+> which is no longer maintained.
+
+You can install the [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/),
+mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git),
+or use the [Docker image](#Docker).
 
 Otherwise, clone this repository and install the required dependencies manually.
 (If you know how to make a Debian package, feel free to help out.)
 
-- Python 3 (>= 3.6).
+- Python 3 (>= 3.10).
 - The [yaml library](https://pyyaml.org/wiki/PyYAMLDocumentation) via `pip install pyyaml` or the `python[3]-yaml` Arch Linux package.
 - The [colorama library](https://pypi.org/project/colorama/) via `pip install colorama` or the `python[3]-colorama` Arch Linux package.
 - The `argcomplete` library for command line argument completion. Install via
@@ -34,12 +42,16 @@ Otherwise, clone this repository and install the required dependencies manually.
 
 Optional dependencies, required for some subcommands:
 
-- The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python[3]-ruamel-yaml` Arch Linux package.
-  - This is only needed for commands that update `generators.yaml`.
+- The [ruamel.yaml library](https://pypi.org/project/ruamel.yaml/) via `pip install ruamel.yaml` or the `python-ruamel-yaml` Arch Linux package (`python3-ruamel.yaml` on Debian derivatives).
+  - This is only needed for commands that update `generators.yaml` and `bt upgrade`.
 - The `latexmk` and `pdflatex` commands, provided by `texlive-bin` on Arch Linux and
   potentially some specific LaTeX packages (like tikz) provided by
   `texlive-extra`.
   These are only needed for building `pdf` files, not for `run` and `validate` and such.
+- The [matplotlib library](https://pypi.org/project/matplotlib/) via `pip install matplotlib` or the `python[3]-matplotlib` Linux package.
+  - This is optional and only used by the `solve_stats` command.
+- The [requests library](https://pypi.org/project/requests/) via `pip install requests` or the `python[3]-requests` Linux package.
+  - This is optional and only used by the commands that call the DOMjudge API (`export`, `solutions --order-from-css`, and `solve_stats`) or the Slack API (`create_slack_channels` command).
 - The [questionary library](https://pypi.org/project/questionary/) via `pip install questionary`.
   - This is optional and only used by the `new_contest` and `new_problem` commands.
 
@@ -50,27 +62,34 @@ After cloning the repository, symlink [bin/tools.py](bin/tools.py) to somewhere 
 ```
 
 ### Windows
+For Windows, the preferred way to use BAPCtools is inside the Windows Subsystem for Linux (WSL).
 
-For Windows, you'll need the following in your
-`path`:
+Note that BAPCtools makes use of symlinks for building programs.
+By default, users are not allowed to create symlinks on Windows.
+This can be fixed by enabling Developer Mode on Windows (only since Windows 10 version 1703, or newer).<br>
+In case you're still having problems with symlinks in combination with Git after enabling this setting,
+please try the suggestions at https://stackoverflow.com/a/59761201.
+Specifically, `git config -g core.symlinks true` should do the trick,
+after which you can restore broken symlinks using `git checkout -- path/to/symlink`.
 
-- `Python` for Python 3
+### Native Windows
+If you cannot or do not want to use WSL, you'll need the following in your `%PATH%`:
+
+- `python` for Python 3
 - `g++` to compile C++
-- `javac` and `java` to compile and run `java`.
+- `javac` and `java` to compile and run Java.
 
-Resource limits (memory limit/hard cpu time limit) are also not supported.
-
-BAPCtools makes use of symlinks for building programs. By default users are not allowed to create symlinks on Windows.
-This can be fixed by enabling Developer Mode on Windows (Only works for Windows 10, version 1703 or newer).
-
-(TODO: Copy instead of symlink files when symlinking is not allowed.)
+Resource limits (memory limit/hard cpu time limit) are not supported.
 
 ### Docker
 
 A docker image containing this git repo and dependencies, together with commonly
 used languages, is provided at
-[ragnargrootkoerkamp/bacptools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
-This version may be somewhat outdated. Ping me if you'd like it to be updated.
+[ragnargrootkoerkamp/bapctools](https://hub.docker.com/r/ragnargrootkoerkamp/bapctools).
+This version may be somewhat outdated, but we intend to update it whenever dependencies change.
+Ping me if you'd like it to be updated.
+Alternatively, inside the Docker container, you can run `git -C /opt/BAPCtools pull` to update to the latest version of BAPCtools,
+and use `pacman -Sy <package>` to install potential missing dependencies.
 
 This image can be used for e.g.:
 
@@ -82,7 +101,7 @@ This image can be used for e.g.:
   docker run -v $PWD:/data --rm -it ragnargrootkoerkamp/bapctools <bt subcommands>
   ```
 
-To update the image:
+For maintainers, these are the steps to build and push an updated image:
 
 ```
 $ sudo systemctl start docker
@@ -90,7 +109,10 @@ $ docker pull archlinux:latest
 $ docker login
 $ docker build . -t ragnargrootkoerkamp/bapctools
 $ docker push ragnargrootkoerkamp/bapctools
+$ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools
 ```
+
+The last step is needed when your CI server is not automatically pulling the latest version.
 
 ## Usage
 
@@ -102,7 +124,7 @@ The most common commands and options to use on an existing repository are:
 - [`bt run [-v] [submissions [submissions ...]] [testcases [testcases ...]]`](#run)
 - [`bt test <submission> [--interactive | --samples | [testcases [testcases ...]]]`](#test)
 - [`bt generate [-v] [--jobs JOBS]`](#generate)
-- [`bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
+- [`bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
 - [`bt pdf [-v]`](#pdf)
 
 The list of all available commands and options is at [doc/commands.md#synopsis](doc/commands.md#synopsis),
@@ -115,7 +137,11 @@ and more information regarding the implementation is at [doc/implementation_note
 Without arguments, the `run` command runs all submissions against all testcases.
 Specify one or more submissions and one or more testcases to only run the given submissions against the given testcases.
 
-Before running the given submissions, this command first makes sure that all generated testcases are up to date (in case `generators/generators.yaml` was found).
+Before running the given submissions, this command first makes sure that all
+generated testcases are up to date (in case `generators/generators.yaml` was
+found). To disable automatically regenerating testcases, pass `-G`
+(`--no-generate`), or add `no_generate: true` to a `.bapctools.yaml` file in the
+problem or contest directory.
 
 ![run](doc/images/run.gif)
 
@@ -144,9 +170,9 @@ Use `-j 0` to disable running multiple jobs in parallel (the default is `4`).
 
 ### Validate
 
-- `bt validate [-v] [--remove | --move-to DIR] [testcases [testcases ...]]`
+- `bt validate [-v] [--input | --answer] [--remove | --move-to DIR] [testcases [testcases ...]]`
 
-Validate all the `.in` and `.ans` for all (given) testcases. It runs all validators from `input_validators` and `output_validators`.
+Validate all the `.in` and `.ans` for all (given) testcases. It runs all validators from `input_validators`, `answer_validators`, and `output_validators`.
 
 Validators can be one of
 
@@ -164,8 +190,8 @@ them to a separate directory.
 
 - `bt pdf [-v]`
 
-Use this command to compile the `problem.pdf` from the `problem_statement/problem.en.tex` LaTeX statement.
-`problem.pdf` is written to the problem directory itself.
+Use this command to compile the `problem.en.pdf` from the `statement/problem.en.tex` LaTeX statement.
+`problem.en.pdf` is written to the problem directory itself.
 
 This can also be used to create the contest pdf by running it from the contest directory.
 
@@ -173,7 +199,7 @@ This can also be used to create the contest pdf by running it from the contest d
 
 For some command-line flags, it is convenient if they are always set to the same value, which differs per user
 (e.g., `--username` or `--password` for commands that access a CCS like DOMjudge,
-or `--scoreboard-repo` for the `bt solvestats` command).
+or `--jobs` to limit parallel execution) or per contest (e.g., which statement languages are used).
 For this, you can create a configuration YAML file containing key-value pairs
 in one of the following locations, from low to high priority:
 
@@ -187,11 +213,14 @@ and any hyphens should be replaced with an underscore (e.g., `no_bar: True` rath
 
 ## Contributing / Style guide
 
-- The python code in the repository is formatted using [black](https://github.com/psf/black).
+- The python code in the repository is formatted using [Ruff](https://github.com/astral-sh/ruff)
+  and type-checked using [mypy](https://mypy-lang.org/).
   To enable the pre-commit hook, install [pre-commit](https://pre-commit.com/)
   with `pip` or your package manager (Arch: `python-pre-commit`) and run
-  `pre-commit install` from the repository root. All python code will now automatically be formatted
-  on each commit.
+  `pre-commit install` from the repository root.
+  All python code will now automatically be formatted on each commit.
+  If you want to run the hooks before creating a commit,
+  use `pre-commit run` (only staged files) or `pre-commit run -a` (all files).
 
 - Imports are usually ordered with system libraries first, followed by a
   newline, followed by local includes. Both groups are sorted alphabetically,

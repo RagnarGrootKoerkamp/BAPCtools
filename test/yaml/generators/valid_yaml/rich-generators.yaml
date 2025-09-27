@@ -1,0 +1,56 @@
+data:
+  sample: {}
+  secret:
+    data:
+      'nocount':
+        generate: my_generator {count}
+      'count-1':
+        generate: my_generator {count}
+        count: 1
+      'count-100':
+        generate: my_generator {count}
+        count: 100
+      'copied':
+        copy: ab
+        in: "1 2"
+        count: 100
+      'generage_and_copy':
+        generate: my_generator
+        copy: ab
+        in: "1 2"
+      'explicit':
+        in: "-1 2"
+        ans: "1"
+        yaml:
+          description: "Negative numbers"
+          hint: "Remember that a can be negative"
+      'curlies': my_generator {seed:1} --name {name}
+      'morecurlies':
+        generate: my_generator {seed:1} --name {name} --ctr {count} --arg {count}
+        count: 5
+      'group_with_test_group_yaml':
+        test_group.yaml:
+          input_validator_args: [--connected, --max_n, "2000"]
+        data:
+          'a': my_generator
+          # A test case may not be called 'test_group', but it may appear as part of the name.
+          'test_group_': my_generator
+      'group_with_numbers':
+        data:
+          # A numbered test case may be called 'X-test-group'.
+          - 'test_group': my_generator
+  invalid_input:
+    data:
+    - '':
+        in: "1 2 3"
+  invalid_answer:
+    data:
+    - '':
+        in: "1 2 3"
+        ans: "foo"
+  invalid_output:
+    data:
+    - '':
+        in: "1 2 3"
+        ans: "6"
+        out: "7"

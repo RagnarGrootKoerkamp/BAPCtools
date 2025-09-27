@@ -5,13 +5,15 @@ This document explains some miscellaneous parts of the implementation of BAPCtoo
 # Extensions of problem format
 
 ## `@EXPECTED_RESULTS@: `
-Submissions may contain the string `@EXPECTED_RESULTS@: ` anywhere in their source to indicate which verdicts are allowed for this submission.
+
+Submissions with more than one allowed verdict must contain the string `@EXPECTED_RESULTS@: ` anywhere in their source to indicate which verdicts are allowed for this submission.
 
 - The final verdict of the submission must be in this list.
-- Each testcase must either be accepted or have a verdict in this list. (This is to prevent issues with lazy judging/changing verdict priorities where the first non accepted testcase will be the final verdict.)
+- Each testcase must either be accepted or have a verdict in this list. (This is to prevent issues with lazy judging/changing verdict priorities where the first non-accepted testcase will be the final verdict.)
 
+A submission with an `@EXPECTED_RESULTS@: ` tag should not be placed in one of the four [standard](https://icpc.io/problem-package-format/#submissions-correct-and-incorrect) submission directories, because [DOMjudge will ignore the tag](https://github.com/DOMjudge/domjudge/issues/1861) in this case. Directory names like `mixed/` or `rejected/` are typically used in this case.
 
-The `@EXPECTED_RESULTS@: ` tag should be followed by a comma separated list of verdicts from
+The `@EXPECTED_RESULTS@: ` tag should be followed by a comma-separated list of verdicts from
 
 - `ACCEPTED`,
 - `WRONG_ANSWER`,
@@ -19,6 +21,7 @@ The `@EXPECTED_RESULTS@: ` tag should be followed by a comma separated list of v
 - `RUN_TIME_ERROR`.
 
 Additionally, the following DOMjudge equivalents may be used:
+
 - `CORRECT`,
 - `WRONG-ANSWER` / `NO-OUTPUT`,
 - `TIMELIMIT`,
@@ -26,22 +29,17 @@ Additionally, the following DOMjudge equivalents may be used:
 - `CHECK-MANUALLY`: this is not supported and will be ignored,
 - `COMPILER-ERROR`: this is not supported and will be ignored.
 
+Matching is case-insensitive and extra white space is allowed. Examples:
 
-Matching is case insensitive and extra white space is allowed. Examples:
 - `// @EXPECTED_RESULTS@: WRONG_ANSWER`
-- `# @expected_results@: accepted,time_limit_exceeded, no-output`
-
-## Non-standard `generators.yaml` keys
-
-The following non-standard top-level `generators/generators.yaml` keys are supported:
-- `gitignore_generatred` (default `False`): Can be used to automatically write a `data/.gitignore` containing a single gitignore line like `secret/testcase.*` for each generated testcase.
-  This file should not be modified manually as it will be overwritten each time testcases are regenerated.
+- `# @expected_results@:  accepted,time_limit_exceeded, no-output`
 
 # Building and running in tmpfs
 
 For efficiency, BAPCtools tries to minimize the number of disk writes. This means that it will do as many things as possible in RAM. In practice, `tmpfs` (temporary file system in RAM) is used for this.
-* On Linux, this is typically `/tmp/bapctools_6dhash/`, with one temporary directory per contest.
-* On Windows, this may be `c:\temp\bapctools_6dhash\`.
+
+- On Linux, this is typically `/tmp/bapctools_6dhash/`, with one temporary directory per contest.
+- On Windows, this may be `c:\temp\bapctools_6dhash\`.
 
 From here on, let `~tmp` be the root temporary directory, e.g. `/tmp/bapctools_6dhash/`.
 `~tmp` contains a directory structure that tries to mirror the directory structure of the problem archive itself.
@@ -73,110 +71,161 @@ Each program (submission/validator/generator/visualizer) is build in its own dir
 Testcases are generated inside `~tmp/<problemname>/data/(<group>/)*<testcase>/` (from now on `~testcase`).
 Testcases are only re-generated when changes were made. This is done with the following steps:
 
-1. Check if the current data in `~testcase/meta_.yaml` is up to date. A testcase is up to date when all of the following hold:
-    - `~testcase/meta_.yaml` must exist
-    - `testcase.in` and `testcase.ans` must exist.
-    - `~testcase/meta_.yaml` must be newer than the last modification to
-        - the generator (or testcase source for manual cases)
-        - the solution
-        - the visualizer
-        - the `testcase.in` file
-        - the `testcase.ans` file.
-    - the current generator invocation, solution invocation, and visualizer invocation must match the invocations stored in `~testcase/meta_.yaml`.
-1. For manual testcases, symlink the given file to `~testcase/<testcase>.in`
-1. For other cases, run the given generator with current working directory `~testcase`.
+1. Check if the current data in `~testcase/meta_.yaml` is up to date.
+1. Run the given generator with current working directory `~testcase/`.
+1. For copied testcases, copy files to `~testcase/`
+1. Write hardcoded files to`~testcase/`.
 1. Validate the generated `~testcase/<testcase>.in` file.
 1. If `~testcase/<testcase>.ans` was not generated and a solution was provided, run the solution with working directory `~testcase` to generate `~testcase/<testcase>.ans`.
-    - For interactive problems, create an empty `~testcase/<testcase>.ans` and run the given submission to create a `~testcase/<testcase>.interaction`.
+   - For interactive problems, create an empty `~testcase/<testcase>.ans` and run the given submission to create a `~testcase/<testcase>.interaction`.
 1. Validate the generated `~testcase/<testcase>.ans` file.
-1. If provided, run the visualizer with working directory `~testcase`.
+1. If provided, run the visualizer with working directory `~testcase/`.
 1. Copy generated files to the `data/` directory. For changed files, `--force` is needed to overwrite them.
-1. Update the `~testcase/meta_.yaml` file with the invocations of the generator, solution, and visualizer.
+1. Update the `~testcase/meta_.yaml` file with the invocations of the generator,
+   solution, and visualizer and hash of the `.in` file.
 
 # Building LaTeX files
+
+BAPCtools comes with a set of latex classes/headers to automatically render
+problem, contest, and solution PDFs. These files are available in [`/latex/`](../latex).
+
+To customize the style, you can provide your own modified copy of any of the
+header files in `<contestdirectory>/` and they will be used instead of the
+BACPtools provided files. For example, you can provide your own
+`<contestdirectory>/contest.tex` as replacement entrypoint for building contest
+PDFs. You can either manually include problems there, or use
+`\input{./contest-problems.tex}` to include the automatically generated content.
+This will instantiate the [`contest-problem.tex`](../latex/contest-problem.tex)
+template once for each problem in the contest. This template itself can also be
+modified if desired.
+
+See also the docs on using multiple languages [here](./multiple_languages.md).
 
 ## Problem statement pdfs
 
 ### Per-problem pdf
 
-The per-problem pdfs are created inside `<tmpdir>/<problemname>`:
+The per-problem pdfs are created inside `<tmpdir>/<problemname>/latex/<language>`:
 
-* `~tmp/<problemname>/problem_statement/`: a symlink to the `problem_statement/` directory.
-* `~tmp/<problemname>/samples.tex`: a generated table containing the sample cases.
-* `~tmp/<problemname>/bapc.cls`: a symlink to the latex class.
-* `~tmp/<problemname>/problem.tex`: a wrapper to compile the problem statement and samples into a pdf.
+- `~tmp/<problemname>/latex/<language>/samples.tex`: a generated table containing the sample cases.
+- `~tmp/<problemname>/latex/<language>/problem.tex`: a wrapper to compile the problem statement and samples into a pdf.
 
 The statement is compiled using:
+
 ```
-latexmk -cd -g -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error' [-pvc] [-e $max_repeat=1] -output-directory=~tmpdir/<problemname> ~tmpdir/<problemname>/problem.tex
+export TEXINPUTS=.;./solve_stats;./solve_stats/activity;~bapctools/latex;
+latexmk -cd -g -usepretex="\newcommand\lang{<language>}" -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error %O %P' [-pvc -view=none] [-e $max_repeat=1] ~tmpdir/<problemname>/latex/<language>/problem.tex
 ```
 
 The `-pvc` option is only passed to `latexmk` when `--watch` is passed to BAPCtools.
 The `-e $max_repeat=1` option is only passed to `latexmk` when `-1` is passed to BAPCtools.
+The `\lang` macro can be used in any place to obtain the used language
+
+The following placeholders are automatically substituted in the `problem.tex`:
+```
+{%problemlabel%}
+{%problemyamlname%}
+{%problemauthor%}
+{%timelimit%}
+{%problemdir%}
+{%problemdirname%}
+{%builddir%}
+```
 
 ### Full contest pdf
 
 After creating the `samples.tex` for each problem, the contest pdf is created in `~tmpdir/<contestname>` like this:
 
-* `~tmp/<contestname>/contest_data.tex`: a filled in copy of [contest_data.tex](../latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
-* `~tmp/<contestname>/bapc.cls`: a symlink to the latex class.
-* `~tmp/<contestname>/logo.{pdf,png,jpg}`: a symlink to the contest logo provided in the contest directory or the one above.
-* `~tmp/<contestname>/contest-problems.tex`: filled in copies of [contest-problem.tex](../latex/contest-problem.tex) containing the files to include for each problem.
-* `~tmp/<contestname>/contest[-web].tex`: a wrapper to compile the contest. This includes `contest_data.tex` and `contest-problems.tex`.
+- `~tmp/<contestname>/latex/<language>/contest_data.tex`: a filled in copy of [contest_data.tex](../latex/contest-data.tex) containing the name, subtitle, year, and authors of the contest.
+- `~tmp/<contestname>/latex/<language>/contest-problems.tex`: filled in copies of [contest-problem.tex](../latex/contest-problem.tex) containing the files to include for each problem.
 
 The statement is compiled using:
 
 ```
-latexmk -cd -g -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error' [-pvc] [-e $max_repeat=1] -output-directory=~tmpdir/<contestname> ~tmpdir/<problemname>/contest[-web].tex
+export TEXINPUTS=.;./solve_stats;./solve_stats/activity;~bapctools/latex;
+latexmk -cd -g -usepretex="\newcommand\lang{<language>}" -pdf -pdflatex='pdflatex -interaction=nonstopmode -halt-on-error %O %P' [-pvc -view=none] [-e $max_repeat=1] ~tmpdir/<contestname>/latex/<language>/contest[-web].tex
+```
+
+The `\lang` macro can be used in any place to obtain the used language
+
+The following placeholders are automatically substituted in the `contest_data.tex`:
+```
+{%title%}
+{%subtitle%}
+{%year%}
+{%author%}
+{%test_session%}
+{%logofile%}
+...
+<any entry in the contest.yaml>
 ```
 
 ## Solution slides
 
-Solutions are rendered in a similar way to the contest pdf. It uses the `problem_statement/solution.tex` files as inputs. The main difference is the additional inclusion of
+Solutions are rendered in a similar way to the contest pdf. It uses the
+`solution/solution.<lang>.tex` files as inputs. The main difference is that
+you can provide additional files in `<contestdirectory>/`:
 
-- `solutions_header.tex`: slides prepended to the first problem.
-- `solutions_footer.tex`: slides appended after the last problem.
+- `solutions_header.<lang>.tex`: slides prepended to the first problem, for the
+  current language.
+- `solutions_footer.<lang>.tex`: slides appended after the last problem, for the
+  current language.
+
+The following placeholders are automatically substituted in the `solution.<lang>.tex`:
+```
+{%problemlabel%}
+{%problemyamlname%}
+{%problemauthor%}
+{%timelimit%}
+{%problemdir%}
+{%problemdirname%}
+{%builddir%}
+```
 
 ### Solve stats
 
-There is some special support for handling _solve stats_: after contest data on how often each problem was solved. To use this, create the following directory layout in your contest directory.
+There is some special support for handling _solve stats_: post-contest data on how often each problem was solved. To use this, create the following directory layout in your contest directory.
 
 - `<contest>/solve_stats/problem_stats.tex`: Contains one line for each problem label:
   ```
   \newcommand{\solvestatsA}{\printsolvestats{<number submissions>}{<number accepted>}{<number unknown>}}
   ```
-  When this file is present, each `problem_statement/solution.tex` may use `\solvestats` to print a line like:
+  When this file is present, each `solution/solution.<lang>.tex` may use `\solvestats` to print a line like:
   ```
   Statistics: 15 submissions, 3 accepted, 8 unknown
   ```
-- `<contest>/solve_stats/languages.tex`: a (standalone) plot of the language distribution of all submission. This may be included directly by the `solution_header.tex` or `solution_footer.tex`. (BAPCtools doesn't do anything special here.)
+- `<contest>/solve_stats/language_stats.pdf`: a plot of the language distribution of all submissions. This may be included directly by the `solution_header.tex` or `solution_footer.tex`. (BAPCtools doesn't do anything special here.)
 
-- `<contest>/solve_stats/activity/<label>.tex`: One file per problem, containing a (standalone) plot of the submissions over time. These will automatically be included on the solution slides for each problem when available.
+- `<contest>/solve_stats/activity/<label>.pdf`: One file per problem, containing a plot of the submissions over time. These will automatically be included on the solution slides for each problem when available.
 
-All the files in the `<contest>/solve_stats` directory can be generated using https://github.com/hex539/scoreboard. See also [this issue](https://github.com/hex539/scoreboard/issues/7).
+All the files in the `<contest>/solve_stats` directory can be generated using `bt solve_stats`. More details [here](commands.md#solve_stats).
 
 # Constraints checking
 
-Validators based on [headers/validation.h](../headers/validation.h) can take a `--constraints_file <file_path>` flag.
-After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output. Each line in the output file will look like:
+For constraints checking, BAPCtools passes the flag `--constraints_file <file_path>` to input, answer, and output validators.
+After validation is done, the validator will write a file to the given path containing the minimum and maximum values seen for all numbers read in the input or output.
+Each line in the output file will look like:
+
 ```
-<source_location> <bool reached minimum> <bool reached maximum> <minimum allowed> <maximum allowed> <minimum seen> <maximum seen>
+<string name> <string name> <bool reached minimum> <bool reached maximum> <minimum allowed> <maximum allowed> <minimum seen> <maximum seen>
 ```
 
 For example, the code `v.read_integer("a", 1, 1000)` on line `7` could generate the line:
+
 ```
-/tmp/bapctools_abcdef/findmyfamily/input_validators/input_validator/input_validator.cpp:7 0 0 999 999 1 1000
+a a 0 0 999 999 1 1000
 ```
 
-Everything up to and including `:7` is the file and line of the `read_integer` statement. The two zeros indicate that the minimum and maximum value were not reached (i.e. boolean false). The `999 999` indicate that `a` was read, and the smallest and largest value of `a` we encountered was `999`. The final `1 1000` indicate the valid range of `a`.
+The two zeros indicate that the minimum and maximum value were not reached (i.e. boolean false). The `999 999` indicate that `a` was read, and the smallest and largest value of `a` we encountered was `999`. The final `1 1000` indicate the valid range of `a`.
 
 BAPCtools will accumulate these values over all testcases, and print a warning when the minimum or maximum value of a `read` statement was never reached.
 
-This system works for any validator that accepts the `--constraints_file` flag. This is determined by searching all sources for `constraints_file`.
-
-Note: `validation.h` requires `std::source_location`, which is available since C++20. BAPCtools will automatically add this as an additional C++ flag when needed. This may not work on systems not supporting C++20.
+This system works for any validator that accepts the `--constraints_file` flag.
+This is determined by searching all sources for the string `constraints_file`.
+Validators based on [headers/validation.h](../headers/validation.h) accept this flag.
 
 The following regexes are used to extract bounds from the problem statement:
+
 - `{\\(\w+)}{(.*)}`: `\newcommand{\maxa}{1000}`
 - `([0-9-e,.^]+)\s*(?:\\leq|\\geq|\\le|\\ge|<|>|=)\s*(\w*)`: `0 \leq a`
 - `(\w*)\s*(?:\\leq|\\geq|\\le|\\ge|<|>|=)\s*([0-9-e,.^]+)`: `a < 10^9`

@@ -1,4 +1,10 @@
+problem_format_version: 2025-09
+name:
+  en: Hello World!
+  sv: Hej Världen!
+
 source: Kattis
+uuid: 2116c8d6-814f-427c-af45-a51bc735840c
 license: public domain
 
 # Fix memory limit at 512 MB.  (Note that for most problems, this
@@ -6,3 +12,4 @@ license: public domain
 # a test submission that goes over this limit.)
 limits:
   memory: 512
+  time_limit: 2.0
