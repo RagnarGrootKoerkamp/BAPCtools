@@ -1418,7 +1418,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
 
 # Takes command line arguments
-def main():
+def main() -> None:
     def interrupt_handler(sig: Any, frame: Any) -> None:
         fatal("Running interrupted")
 
@@ -1435,7 +1435,7 @@ if __name__ == "__main__":
     main()
 
 
-def test(args):
+def test(args: list[str]) -> None:
     config.RUNNING_TEST = True
 
     # Make sure to cd back to the original directory before returning.
@@ -1447,7 +1447,7 @@ def test(args):
     contest._problems_yaml = None
     try:
         parser = build_parser()
-        run_parsed_arguments(parser.parse_args(), personal_config=False)
+        run_parsed_arguments(parser.parse_args(args), personal_config=False)
     finally:
         os.chdir(original_directory)
         ProgressBar.current_bar = None
