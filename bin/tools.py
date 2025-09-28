@@ -1045,6 +1045,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     missing_args = config.set_default_args()
 
     # cd to contest directory
+    call_cwd = Path().cwd()
     problem_dir = change_directory()
     level = config.level
     contest_name = Path().cwd().name
@@ -1064,12 +1065,12 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
     # Skel commands.
     if action == "new_contest":
-        os.chdir(config.current_working_directory)
+        os.chdir(call_cwd)
         skel.new_contest()
         return
 
     if action == "new_problem":
-        os.chdir(config.current_working_directory)
+        os.chdir(call_cwd)
         skel.new_problem()
         return
 
