@@ -75,11 +75,6 @@ if sys.version_info < (3, 10):
     fatal("BAPCtools requires at least Python 3.10.")
 
 
-# A path is a problem directory if it contains a `problem.yaml` file.
-def is_problem_directory(path: Path) -> bool:
-    return (path / "problem.yaml").is_file()
-
-
 # Changes the working directory to the root of the contest.
 # Returns the "level" of the current command (either 'problem' or 'problemset')
 # and, if `level == 'problem'`, the directory of the problem.
@@ -160,7 +155,8 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                 if path.name == problem_dir.name:
                     found_label = label
             problems = [Problem(Path(problem_dir.name), tmpdir, found_label)]
-    else:  # config.level == 'problemset'
+    else:
+        assert config.level == "problemset"
         # If problems.yaml is available, use it.
         problemsyaml = problems_yaml()
         if problemsyaml:
@@ -1005,12 +1001,80 @@ Run this from one of:
     return parser
 
 
-def run_parsed_arguments(args: argparse.Namespace) -> None:
+def find_personal_config() -> Optional[Path]:
+    if is_windows():
+        app_data = os.getenv("AppData")
+        return Path(app_data) if app_data else None
+    else:
+        home = os.getenv("HOME")
+        xdg_config_home = os.getenv("XDG_CONFIG_HOME")
+        return (
+            Path(xdg_config_home) if xdg_config_home else Path(home) / ".config" if home else None
+        )
+
+
+def read_personal_config() -> dict[str, Any]:
+    args = {}
+    home_config = find_personal_config()
+
+    for config_file in [
+        # Highest prio: contest directory
+        Path() / ".bapctools.yaml",
+        Path() / ".." / ".bapctools.yaml",
+    ] + (
+        # Lowest prio: user config directory
+        [home_config / "bapctools" / "config.yaml"] if home_config else []
+    ):
+        if not config_file.is_file():
+            continue
+        config_data = read_yaml(config_file) or {}
+        for arg, value in config_data.items():
+            if arg not in args:
+                args[arg] = value
+
+    return args
+
+
+def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True) -> None:
+    # Don't zero newly allocated memory for this and any subprocess
+    # Will likely only have an effect on linux
+    os.environ["MALLOC_PERTURB_"] = str(0b01011001)
+
     # Process arguments
     config.args = args
-    config.set_default_args()
+    missing_args = config.set_default_args()
+
+    # cd to contest directory
+    problem_dir = change_directory()
+    level = config.level
+    contest_name = Path().cwd().name
+
+    if personal_config:
+        personal_args = read_personal_config()
+        for arg in missing_args:
+            if arg in personal_args:
+                setattr(config.args, arg, personal_args[arg])
 
     action = config.args.action
+
+    # upgrade commands.
+    if action == "upgrade":
+        upgrade.upgrade(problem_dir)
+        return
+
+    # Skel commands.
+    if action == "new_contest":
+        os.chdir(config.current_working_directory)
+        skel.new_contest()
+        return
+
+    if action == "new_problem":
+        os.chdir(config.current_working_directory)
+        skel.new_problem()
+        return
+
+    # get problems list
+    problems, tmpdir = get_problems(problem_dir)
 
     # Split submissions and testcases when needed.
     if action in ["run", "fuzz", "time_limit"]:
@@ -1020,26 +1084,6 @@ def run_parsed_arguments(args: argparse.Namespace) -> None:
             )
         else:
             config.args.testcases = []
-
-    # upgrade commands.
-    if action == "upgrade":
-        upgrade.upgrade()
-        return
-
-    # Skel commands.
-    if action == "new_contest":
-        skel.new_contest()
-        return
-
-    if action == "new_problem":
-        skel.new_problem()
-        return
-
-    # Get problems list and cd to contest directory
-    problem_dir = change_directory()
-    level = config.level
-    contest_name = Path().cwd().name
-    problems, tmpdir = get_problems(problem_dir)
 
     # Check non unique uuid
     # TODO: check this even more globally?
@@ -1373,40 +1417,6 @@ def run_parsed_arguments(args: argparse.Namespace) -> None:
         sys.exit(1)
 
 
-def find_personal_config() -> Optional[Path]:
-    if is_windows():
-        app_data = os.getenv("AppData")
-        return Path(app_data) if app_data else None
-    else:
-        home = os.getenv("HOME")
-        xdg_config_home = os.getenv("XDG_CONFIG_HOME")
-        return (
-            Path(xdg_config_home) if xdg_config_home else Path(home) / ".config" if home else None
-        )
-
-
-def read_personal_config():
-    args = {}
-    home_config = find_personal_config()
-
-    for config_file in [
-        # Highest prio: contest directory
-        Path() / ".bapctools.yaml",
-        Path() / ".." / ".bapctools.yaml",
-    ] + (
-        # Lowest prio: user config directory
-        [home_config / "bapctools" / "config.yaml"] if home_config else []
-    ):
-        if not config_file.is_file():
-            continue
-        config_data = read_yaml(config_file) or {}
-        for arg, value in config_data.items():
-            if arg not in args:
-                args[arg] = value
-
-    return args
-
-
 # Takes command line arguments
 def main():
     def interrupt_handler(sig: Any, frame: Any) -> None:
@@ -1414,13 +1424,8 @@ def main():
 
     signal.signal(signal.SIGINT, interrupt_handler)
 
-    # Don't zero newly allocated memory for this and any subprocess
-    # Will likely only work on linux
-    os.environ["MALLOC_PERTURB_"] = str(0b01011001)
-
     try:
         parser = build_parser()
-        parser.set_defaults(**read_personal_config())
         run_parsed_arguments(parser.parse_args())
     except AbortException:
         fatal("Running interrupted")
@@ -1442,7 +1447,7 @@ def test(args):
     contest._problems_yaml = None
     try:
         parser = build_parser()
-        run_parsed_arguments(parser.parse_args(args))
+        run_parsed_arguments(parser.parse_args(), personal_config=False)
     finally:
         os.chdir(original_directory)
         ProgressBar.current_bar = None

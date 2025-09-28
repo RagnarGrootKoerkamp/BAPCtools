@@ -1461,6 +1461,11 @@ def inc_label(label: str) -> str:
     return "A" + label
 
 
+# A path is a problem directory if it contains a `problem.yaml` file.
+def is_problem_directory(path: Path) -> bool:
+    return (path / "problem.yaml").is_file()
+
+
 def combine_hashes(values: Sequence[str]) -> str:
     hasher = hashlib.sha512(usedforsecurity=False)
     for item in sorted(values):
