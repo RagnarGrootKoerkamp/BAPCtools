@@ -125,14 +125,18 @@ ARGS_LIST: Final[Sequence[str]] = ["1", "add", "all", "answer", "api", "author",
 # fmt: on
 
 
-def set_default_args() -> None:
+def set_default_args() -> list[str]:
     # Set default argument values.
+    missing = []
     for arg in ARGS_LIST:
         if not hasattr(args, arg):
             setattr(args, arg, None)
+            missing.append(arg)
     for arg, value in DEFAULT_ARGS.items():
         if not hasattr(args, arg):
             setattr(args, arg, value)
+            missing.append(arg)
+    return missing
 
 
 level: Optional[Literal["problem", "problemset"]] = None
