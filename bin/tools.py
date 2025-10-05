@@ -1013,18 +1013,18 @@ def find_personal_config() -> Optional[Path]:
         )
 
 
-def read_personal_config() -> dict[str, Any]:
+def read_personal_config(problem_dir: Optional[Path]) -> dict[str, Any]:
     args = {}
     home_config = find_personal_config()
+    # possible config files, sorted by priority
+    config_files = []
+    if problem_dir:
+        config_files.append(problem_dir / ".bapctools.yaml")
+    config_files.append(Path().cwd() / ".bapctools.yaml")
+    if home_config:
+        config_files.append(home_config / "bapctools" / "config.yaml")
 
-    for config_file in [
-        # Highest prio: contest directory
-        Path() / ".bapctools.yaml",
-        Path() / ".." / ".bapctools.yaml",
-    ] + (
-        # Lowest prio: user config directory
-        [home_config / "bapctools" / "config.yaml"] if home_config else []
-    ):
+    for config_file in config_files:
         if not config_file.is_file():
             continue
         config_data = read_yaml(config_file) or {}
@@ -1051,7 +1051,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     contest_name = Path().cwd().name
 
     if personal_config:
-        personal_args = read_personal_config()
+        personal_args = read_personal_config(problem_dir)
         for arg in missing_args:
             if arg in personal_args:
                 setattr(config.args, arg, personal_args[arg])
