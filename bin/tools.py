@@ -284,17 +284,19 @@ def print_sorted(problems: list[Problem]) -> None:
 
 
 def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Path]]:
-    # Everything containing data/, .in, or .ans goes into testcases.
+    # We try to identify testcases by common directory names and common suffixes
     submissions = []
     testcases = []
     for p in s:
-        ps = str(p)
-        if "data" in ps or "sample" in ps or "secret" in ps or ".in" in ps or ".ans" in ps:
-            # Strip potential .ans and .in
-            if p.suffix in [".ans", ".in"]:
-                testcases.append(p.with_suffix(""))
-            else:
-                testcases.append(p)
+        testcase_dirs = ["data", "sample", "secret", "fuzz"]
+        if (
+            any(part in testcase_dirs for part in p.parts)
+            or p.suffix in config.KNOWN_DATA_EXTENSIONS
+        ):
+            # Strip potential suffix
+            if p.suffix in config.KNOWN_DATA_EXTENSIONS:
+                p = p.with_suffix("")
+            testcases.append(p)
         else:
             submissions.append(p)
     return (submissions, testcases)
