@@ -5,7 +5,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from pathlib import Path
-from typing import cast, Literal, Optional, Sequence
+from typing import Any, cast, Literal, Optional, Sequence
 
 from colorama import ansi, Fore, Style
 
@@ -17,7 +17,10 @@ import validate
 from problem import Problem
 from util import error, exec_command, glob, warn
 
-Selector = str | Callable | list[str] | list[Callable]
+Selector = (
+    str | Callable[[Problem], int | float] | list[str] | list[Callable[[set[Path]], set[str]]]
+)
+Stat = tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, int, int]
 
 
 def stats(problems: list[Problem]) -> None:
@@ -28,7 +31,11 @@ def stats(problems: list[Problem]) -> None:
 
 # This prints the number belonging to the count.
 # This can be a red/white colored number, or Y/N
-def _get_stat(count, threshold=True, upper_bound=None) -> str:
+def _get_stat(
+    count: Optional[int | float],
+    threshold: Literal[True] | int = True,
+    upper_bound: Optional[int] = None,
+) -> str:
     if threshold is True:
         if count is None:
             return Fore.WHITE + " " + Style.RESET_ALL
@@ -37,17 +44,17 @@ def _get_stat(count, threshold=True, upper_bound=None) -> str:
         else:
             return Fore.RED + "N" + Style.RESET_ALL
     color = Fore.WHITE
+    assert count is not None
     if upper_bound is not None and count > upper_bound:
         color = Fore.YELLOW
     if count < threshold:
         color = Fore.RED
-    return color + str(count) + Style.RESET_ALL
+    count_str = f"{count:.1f}" if isinstance(count, float) else str(count)
+    return f"{color}{count_str}{Style.RESET_ALL}"
 
 
 def problem_stats(problems: list[Problem]) -> None:
-    stats: list[
-        tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, int, int]
-    ] = [
+    stats: list[Stat] = [
         # Roughly in order of importance
         ("  time", lambda p: p.limits.time_limit, 0),
         ("yaml", "problem.yaml"),
@@ -112,7 +119,7 @@ def problem_stats(problems: list[Problem]) -> None:
             )
 
     headers = ["problem", *(h[0] for h in stats), "   comment"]
-    cumulative = [0] * (len(stats))
+    cumulative: list[int | float] = [0] * (len(stats))
 
     header_string = ""
     format_string = ""
@@ -137,11 +144,18 @@ def problem_stats(problems: list[Problem]) -> None:
     for problem in problems:
         generated_testcases = generate.testcases(problem)
 
-        def count(path):
+        def count(
+            path: str
+            | list[str]
+            | list[Callable[[set[Path]], set[str]]]
+            | Callable[[set[Path]], set[str]],
+        ) -> set[Any]:
             if isinstance(path, list):
                 return set.union(*(count(p) for p in path))
             if callable(path):
-                return path(generated_testcases)
+                testcases = path(generated_testcases)
+                assert isinstance(testcases, set)
+                return testcases
             results: set[str | Path] = set()
             for p in glob(problem.path, path):
                 if p.is_file():
@@ -172,13 +186,15 @@ def problem_stats(problems: list[Problem]) -> None:
 
             return results
 
-        def value(x):
+        def value(x: Stat) -> Optional[int | float]:
             if x[0] == "  time" or x[0] == "subs":
+                assert callable(x[1])
                 return x[1](problem)
             if x[0] == "A" and problem.interactive:
                 return None  # Do not show an entry for the answer validator if it is not required
             if x[0] == "O" and not problem.custom_output:
                 return None  # Do not show an entry for the output validator if it is not required
+            assert not callable(x[1])
             return len(count(x[1]))
 
         counts = [value(s) for s in stats]
