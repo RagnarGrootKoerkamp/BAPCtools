@@ -526,10 +526,10 @@ class VerdictTable:
                 for child in reversed(self.results[-1].children[node]):
                     if self.results[-1].is_test_group(child):
                         if first:
-                            stack.append((child, indent + pipe + " ", "└─", True))
+                            stack.append((child, indent + pipe + " ", "└╴", True))
                             first = False
                         else:
-                            stack.append((child, indent + pipe + " ", "├─", False))
+                            stack.append((child, indent + pipe + " ", "├╴", False))
                     else:
                         verdicts.append(self._get_verdict(len(self.results) - 1, child, False))
                 if verdicts:
@@ -544,7 +544,7 @@ class VerdictTable:
                         grouped[-1].length += 1
                         grouped[-1].text += v
 
-                    printed_text.append(f"{Style.DIM}{indent}{pipe} {edge}─{Style.RESET_ALL}")
+                    printed_text.append(f"{Style.DIM}{indent}{pipe} {edge}╴{Style.RESET_ALL}")
                     pref_len = len(indent) + len(pipe) + 1 + len(edge) + 1
                     printed = pref_len
 

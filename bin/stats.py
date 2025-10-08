@@ -5,7 +5,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from pathlib import Path
-from typing import Literal, Any
+from typing import cast, Literal, Optional, Sequence
 
 from colorama import ansi, Fore, Style
 
@@ -14,12 +14,13 @@ import generate
 import latex
 import program
 import validate
+from problem import Problem
 from util import error, exec_command, glob, warn
 
 Selector = str | Callable | list[str] | list[Callable]
 
 
-def stats(problems):
+def stats(problems: list[Problem]) -> None:
     problem_stats(problems)
     if config.args.more:
         more_stats(problems)
@@ -27,7 +28,7 @@ def stats(problems):
 
 # This prints the number belonging to the count.
 # This can be a red/white colored number, or Y/N
-def _get_stat(count, threshold=True, upper_bound=None):
+def _get_stat(count, threshold=True, upper_bound=None) -> str:
     if threshold is True:
         if count is None:
             return Fore.WHITE + " " + Style.RESET_ALL
@@ -43,7 +44,7 @@ def _get_stat(count, threshold=True, upper_bound=None):
     return color + str(count) + Style.RESET_ALL
 
 
-def problem_stats(problems):
+def problem_stats(problems: list[Problem]) -> None:
     stats: list[
         tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, int, int]
     ] = [
@@ -119,7 +120,7 @@ def problem_stats(problems):
         if header == "problem":
             width = len(header)
             for problem in problems:
-                width = max(width, len(problem.label + " " + problem.name))
+                width = max(width, len(f"{problem.label} {problem.name}"))
             header_string += "{:<" + str(width) + "}"
             format_string += "{:<" + str(width) + "}"
         elif header == "  comment":
@@ -196,7 +197,7 @@ def problem_stats(problems):
 
         print(
             format_string.format(
-                problem.label + " " + problem.name,
+                f"{problem.label} {problem.name}",
                 *[
                     _get_stat(
                         counts[i],
@@ -230,7 +231,7 @@ except Exception:
     has_pygments = False
 
 
-def _is_code(language, type, text):
+def _is_code(language: str, type, text) -> bool:
     if type in pygments.token.Comment and type not in (
         pygments.token.Comment.Preproc,  # pygments treats preprocessor statements as comments
         pygments.token.Comment.PreprocFile,
@@ -252,7 +253,7 @@ def _is_code(language, type, text):
         return True
 
 
-def loc(file):
+def loc(file: Path) -> Optional[int]:
     if file not in loc_cache:
         try:
             content = file.read_text()
@@ -281,7 +282,7 @@ def loc(file):
     return loc_cache[file]
 
 
-def more_stats(problems):
+def more_stats(problems: list[Problem]) -> None:
     if not has_pygments:
         error("stats --more needs pygments. Install python[3]-pygments.")
         return
@@ -292,9 +293,9 @@ def more_stats(problems):
     # solution stats
     columns = [p.label for p in problems] + ["sum", "min", "avg", "max"]
 
-    def get_stats(values, missing="-"):
+    def get_stats(values: Sequence[float | int]) -> list[Optional[float | int]]:
         if not values:
-            return [missing] * 4
+            return [None] * 4
         return [sum(values), min(values), statistics.mean(values), max(values)]
 
     header_string = f"{{:<{stat_name_len}}}" + f" {{:>{stat_len}}}" * len(columns)
@@ -308,27 +309,29 @@ def more_stats(problems):
     print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
     print("-" * len(header), file=sys.stderr)
 
-    def format_row(*values):
-        printable = []
-        for value in values:
-            if isinstance(value, float):
-                value = f"{value:.1f}"
-            elif isinstance(value, timedelta):
-                hours = int(value.total_seconds()) // (60 * 60)
-                days = int(value.total_seconds()) // (60 * 60 * 24)
-                weeks = int(value.total_seconds()) // (60 * 60 * 24 * 7)
-                if hours < 3 * 24:
-                    value = f"{hours}h"
-                elif days < 4 * 7:
-                    value = f"{days}d"
-                else:
-                    value = f"{weeks}w"
-            elif not isinstance(value, str):
-                value = str(value)
-            if not value.startswith(ansi.CSI):
-                value = f"{Fore.WHITE}{value}"
-            printable.append(value)
-        return format_string.format(*printable)
+    def format_value(
+        value: Optional[str | float | int | timedelta], default_color: str = Fore.WHITE
+    ) -> str:
+        if value is None:
+            str_value = "-"
+        elif isinstance(value, float):
+            str_value = f"{value:.1f}"
+        elif isinstance(value, timedelta):
+            hours = int(value.total_seconds()) // (60 * 60)
+            days = int(value.total_seconds()) // (60 * 60 * 24)
+            weeks = int(value.total_seconds()) // (60 * 60 * 24 * 7)
+            if hours < 3 * 24:
+                str_value = f"{hours}h"
+            elif days < 4 * 7:
+                str_value = f"{days}d"
+            else:
+                str_value = f"{weeks}w"
+        else:
+            str_value = str(value)
+        return str_value if str_value.startswith(ansi.CSI) else f"{default_color}{str_value}"
+
+    def format_row(*values: Optional[str | float | int | timedelta]) -> str:
+        return format_string.format(*[format_value(value) for value in values])
 
     languages: dict[str, list[str] | Literal[True]] = {
         "C(++)": ["C", "C++"],
@@ -337,90 +340,118 @@ def more_stats(problems):
         "Kotlin": ["Kotlin"],
     }
 
-    def get_submissions_row(display_name, names):
+    def get_submissions_row(
+        display_name: str, names: bool | list[str], team_submissions: bool
+    ) -> list[str | float | int]:
         paths = []
         if names is True:
-            paths.append("submissions/accepted/*")
+            paths.append("accepted/*")
         else:
             assert isinstance(names, list)
             for config in program.languages().values():
                 if config["name"] in names:
                     globs = config["files"].split() or []
-                    paths += [f"submissions/accepted/{glob}" for glob in globs]
+                    paths += [f"accepted/{glob}" for glob in globs]
             paths = list(set(paths))
 
-        lines = [display_name]
+        lines: list[str | float | int] = []
         values = []
         for problem in problems:
-            files = {file for path in paths for file in glob(problem.path, path)}
+            directory = (
+                Path().cwd() / "submissions" / problem.name
+                if team_submissions
+                else problem.path / "submissions"
+            )
+            files = {file for path in paths for file in glob(directory, path)}
             cur_lines = [loc(file) for file in files]
-            cur_lines = [x for x in cur_lines if x is not None]
-            if cur_lines:
-                best = min(cur_lines)
+            cur_lines_filtered = [x for x in cur_lines if x is not None]
+            if cur_lines_filtered:
+                best = min(cur_lines_filtered)
                 values.append(best)
                 lines.append(best)
             else:
-                lines.append(f"{Fore.RED}-")
-        lines += get_stats(values)
-        return lines
+                lines.append("-" if team_submissions else f"{Fore.RED}-")
+        if len(lines) == len(values):
+            stats = [format_value(value) for value in get_stats(values)]
+        else:
+            color = Fore.YELLOW if team_submissions else Fore.RED
+            stats = [format_value(value, color) for value in get_stats(values)]
+        return [display_name, *lines, *stats]
 
-    best = get_submissions_row("Solution", True)
-    print(format_row(*best), file=sys.stderr)
+    # handle jury solutions
+    best_jury = get_submissions_row("Jury", True, False)
+    print(format_row(*best_jury), file=sys.stderr)
     for display_name, names in languages.items():
-        values = get_submissions_row(display_name, names)
+        values = get_submissions_row(display_name, names, False)
         for i in range(1, 1 + len(problems)):
-            if values[i] == best[i]:
-                values[i] = f"{Fore.CYAN}{values[i]}"
+            if values[i] == best_jury[i]:
+                values[i] = format_value(values[i], Fore.CYAN)
         print(format_row(*values), file=sys.stderr)
 
-    # TODO: analyze team submissions?
+    # handle team submissions
+    if Path("submissions").is_dir():
+        print("-" * len(header), file=sys.stderr)
+        best_team = get_submissions_row("Teams", True, True)
+        print(format_row(*best_team), file=sys.stderr)
+        for display_name, names in languages.items():
+            values = get_submissions_row(display_name, names, True)
+            for i in range(1, 1 + len(problems)):
+                leq_jury = False
+                if not isinstance(best_jury[i], (int, float)):
+                    leq_jury = True
+                elif isinstance(values[i], (int, float)):
+                    if cast(int | float, values[i]) <= cast(int | float, best_jury[i]):
+                        leq_jury = True
+                if values[i] == best_team[i] and leq_jury:
+                    values[i] = format_value(values[i], Fore.CYAN)
+            print(format_row(*values), file=sys.stderr)
 
     # git stats
     if shutil.which("git") is None:
         error("git command not found!")
         return
 
-    def git(*args):
+    def git(*args: str | Path) -> str:
         res = exec_command(
             ["git", *args],
             crop=False,
             preexec_fn=False,
             timeout=None,
         )
-        return res.out if res else ""
+        return res.out if res and res.out else ""
 
     if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
         error("not inside git")
         return
 
-    def parse_time(date: str):
+    def parse_time(date: str) -> Optional[datetime]:
         return parser.parse(date) if date else None
 
     print("-" * len(header), file=sys.stderr)
     testcases = [len(generate.testcases(p)) for p in problems]
-    testcases += get_stats(testcases)
-    print(format_row("Testcases", *testcases), file=sys.stderr)
-    changed: list[Any] = []
+    testcase_stats = get_stats(testcases)
+    print(format_row("Testcases", *testcases, *testcase_stats), file=sys.stderr)
+    changed: list[Optional[float | int]] = []
     for p in problems:
         times = [
             parse_time(git("log", "--format=%cI", "-1", "--", p.path / path))
             for path in ["generators", "data"]
         ]
-        times = [t for t in times if t]
-        if times:
-            time = max(times)
+        valid_times = [t for t in times if t]
+        if valid_times:
+            time = max(valid_times)
             duration = datetime.now(timezone.utc) - time
             changed.append(duration.total_seconds())
         else:
             changed.append(None)
-    changed += get_stats(changed)
-    changed = [timedelta(seconds=s) for s in changed]
-    changed[-4] = "-"  # sum of last changed is meaningless...
-    print(format_row("└─changed", *changed), file=sys.stderr)
+    changed += get_stats([c for c in changed if c is not None])
+    changed[-4] = None  # sum of last changed is meaningless...
+    changed_times = [timedelta(seconds=s) if s is not None else None for s in changed]
+    print(format_row("└╴changed", *changed_times), file=sys.stderr)
 
     # this is hacky and does not handle all renames properly...
     # for example: if A is renamed to C and B is renamed to A this will break
-    def countCommits(problem):
+    def countCommits(problem: Problem) -> int:
         yaml_path = problem.path / "problem.yaml"
         paths = git(
             "log",
@@ -436,9 +467,9 @@ def more_stats(problems):
         return int(git("rev-list", "--all", "--count", "--", *names))
 
     commits = [countCommits(p) for p in problems]
-    commits += get_stats(commits, "-")
-    commits[-4] = "-"  # one commit can change multiple problems so the sum is meaningless...
-    print(format_row("Commits", *commits), file=sys.stderr)
+    commit_stats = get_stats(commits)
+    commit_stats[-4] = None  # one commit can change multiple problems so the sum is meaningless...
+    print(format_row("Commits", *commits, *commit_stats), file=sys.stderr)
     print(file=sys.stderr)
     print(
         f"{Fore.CYAN}Total Commits{Style.RESET_ALL}:",
