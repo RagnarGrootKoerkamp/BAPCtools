@@ -15,7 +15,7 @@ import latex
 import program
 import validate
 from problem import Problem
-from util import error, exec_command, glob, warn
+from util import error, exec_command, glob, log, warn
 
 Selector = (
     str | Callable[[Problem], int | float] | list[str] | list[Callable[[set[Path]], set[str]]]
@@ -302,6 +302,12 @@ def more_stats(problems: list[Problem]) -> None:
     if not has_pygments:
         error("stats --more needs pygments. Install python[3]-pygments.")
         return
+
+    if not Path("submissions").is_dir():
+        print(file=sys.stderr)
+        log(
+            "No team submissions found, try running 'bt download_submissions' to get stats for team submissions."
+        )
 
     stat_name_len = 10
     stat_len = 5
