@@ -256,6 +256,8 @@ problem               time yaml tex sol   val: I A O    sample secret bad    AC 
 A appealtotheaudience  1.0    Y   Y   N        Y Y           2     30   0     4   4   2   10     2  1    1  0
 ```
 
+`bt stats --all` additionally prints statistics about submissions, testcases, and git usage.
+
 ## `fuzz`
 
 Use the `fuzz` command to test all accepted submissions against random test
