@@ -588,7 +588,14 @@ Run this from one of:
     statsparser = subparsers.add_parser(
         "stats", parents=[global_parser], help="show statistics for contest/problem"
     )
-    statsparser.add_argument("--more", action="store_true", help="Print more stats.")
+    all_stats_group = statsparser.add_mutually_exclusive_group()
+    all_stats_group.add_argument("--more", action="store_true", help="DEPRECATED! Use --all.")
+    all_stats_group.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        help="Print all stats",
+    )
 
     # Generate Testcases
     genparser = subparsers.add_parser(
