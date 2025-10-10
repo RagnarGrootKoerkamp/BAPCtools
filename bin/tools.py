@@ -76,8 +76,8 @@ if sys.version_info < (3, 10):
 
 
 # Changes the working directory to the root of the contest.
-# Returns the "level" of the current command (either 'problem' or 'problemset')
-# and, if `level == 'problem'`, the directory of the problem.
+# sets the "level" of the current command (either 'problem' or 'problemset')
+# and, if `level == 'problem'` returns the directory of the problem.
 def change_directory() -> Optional[Path]:
     problem_dir: Optional[Path] = None
     config.level = "problemset"
@@ -1047,7 +1047,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     missing_args = config.set_default_args()
 
     # cd to contest directory
-    call_cwd = Path().cwd()
+    call_cwd = Path().cwd().absolute()
     problem_dir = change_directory()
     level = config.level
     contest_name = Path().cwd().name
