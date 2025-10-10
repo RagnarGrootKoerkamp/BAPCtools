@@ -609,26 +609,27 @@ def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
     bar.done()
 
 
-def upgrade() -> None:
+def upgrade(problem_dir: Optional[Path]) -> None:
     if not has_ryaml:
         error("upgrade needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
         return
-    cwd = Path().cwd()
 
-    def is_problem_directory(path: Path) -> bool:
-        return (path / "problem.yaml").is_file()
-
-    if is_problem_directory(cwd):
-        paths = [cwd]
+    if config.level == "problem":
+        assert problem_dir
+        if not is_problem_directory(problem_dir):
+            fatal(f"{problem_dir} does not contain a problem.yaml")
+        paths = [problem_dir]
+        bar = ProgressBar("upgrade", items=paths)
     else:
-        paths = [p for p in cwd.iterdir() if is_problem_directory(p)]
+        assert config.level == "problemset"
+        contest_dir = Path.cwd()
+        paths = [p for p in contest_dir.iterdir() if is_problem_directory(p)]
+        bar = ProgressBar("upgrade", items=["contest.yaml", *paths])
 
-    bar = ProgressBar("upgrade", items=["contest.yaml", *paths])
-
-    bar.start("contest.yaml")
-    if (cwd / "contest.yaml").is_file():
-        upgrade_contest_yaml(cwd / "contest.yaml", bar)
-    bar.done()
+        bar.start("contest.yaml")
+        if (contest_dir / "contest.yaml").is_file():
+            upgrade_contest_yaml(contest_dir / "contest.yaml", bar)
+        bar.done()
 
     for path in paths:
         _upgrade(path, bar)
