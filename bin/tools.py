@@ -88,8 +88,8 @@ def change_directory() -> Optional[Path]:
     if config.args.problem:
         # TODO #102: replace cast with typed Namespace field
         problem_dir = cast(Path, config.args.problem).absolute()
-    elif is_problem_directory(Path().cwd()):
-        problem_dir = Path().cwd().absolute()
+    elif is_problem_directory(Path.cwd()):
+        problem_dir = Path.cwd().absolute()
     if problem_dir is not None:
         config.level = "problem"
         os.chdir(problem_dir.parent)
@@ -101,7 +101,7 @@ def change_directory() -> Optional[Path]:
 # or check the existence of problem.yaml and sort by shortname.
 def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
     # We create one tmpdir per contest.
-    h = hashlib.sha256(bytes(Path().cwd())).hexdigest()[-6:]
+    h = hashlib.sha256(bytes(Path.cwd())).hexdigest()[-6:]
     tmpdir = Path(tempfile.gettempdir()) / ("bapctools_" + h)
     tmpdir.mkdir(parents=True, exist_ok=True)
 
@@ -1022,7 +1022,7 @@ def read_personal_config(problem_dir: Optional[Path]) -> dict[str, Any]:
     config_files = []
     if problem_dir:
         config_files.append(problem_dir / ".bapctools.yaml")
-    config_files.append(Path().cwd() / ".bapctools.yaml")
+    config_files.append(Path.cwd() / ".bapctools.yaml")
     if home_config:
         config_files.append(home_config / "bapctools" / "config.yaml")
 
@@ -1047,10 +1047,10 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     missing_args = config.set_default_args()
 
     # cd to contest directory
-    call_cwd = Path().cwd().absolute()
+    call_cwd = Path.cwd().absolute()
     problem_dir = change_directory()
     level = config.level
-    contest_name = Path().cwd().name
+    contest_name = Path.cwd().name
 
     if personal_config:
         personal_args = read_personal_config(problem_dir)
@@ -1443,7 +1443,7 @@ def test(args: list[str]) -> None:
 
     # Make sure to cd back to the original directory before returning.
     # Needed to stay in the same directory in tests.
-    original_directory = Path().cwd()
+    original_directory = Path.cwd()
     config.n_warn = 0
     config.n_error = 0
     contest._contest_yaml = None

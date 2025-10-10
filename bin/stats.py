@@ -380,7 +380,7 @@ def more_stats(problems: list[Problem]) -> None:
         values = []
         for problem in problems:
             directory = (
-                Path().cwd() / "submissions" / problem.name
+                Path.cwd() / "submissions" / problem.name
                 if team_submissions
                 else problem.path / "submissions"
             )

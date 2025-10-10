@@ -622,7 +622,7 @@ def upgrade(problem_dir: Optional[Path]) -> None:
         bar = ProgressBar("upgrade", items=paths)
     else:
         assert config.level == "problemset"
-        contest_dir = Path().cwd()
+        contest_dir = Path.cwd()
         paths = [p for p in contest_dir.iterdir() if is_problem_directory(p)]
         bar = ProgressBar("upgrade", items=["contest.yaml", *paths])
 
