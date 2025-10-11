@@ -17,7 +17,7 @@ import math
 import parallel
 import run
 import testcase
-import testing_tool
+import run_testing_tool
 import validate
 import validator_tests
 import verdicts
@@ -630,11 +630,11 @@ class Problem:
         mode: Optional[validate.Mode] = None,
         needans=True,
         only_samples=False,
-        testing_tool=False,
+        testing_tool_test=False,
     ) -> Sequence[testcase.Testcase]:
         only_samples = config.args.samples or only_samples
 
-        key = (mode, needans, only_samples, testing_tool)
+        key = (mode, needans, only_samples, testing_tool_test)
         if key in p._testcases is not None:
             return p._testcases[key]
 
@@ -656,7 +656,7 @@ class Problem:
             in_paths = list(set(in_paths))
         elif mode is not None:
             assert not only_samples
-            assert not testing_tool
+            assert not testing_tool_test
             assert needans
             in_paths = []
             for prefix in {
@@ -666,7 +666,7 @@ class Problem:
                 validate.Mode.VALID_OUTPUT: ["secret", "sample", "valid_output"],
             }[mode]:
                 in_paths += glob(p.path, f"data/{prefix}/**/*.in")
-        elif testing_tool:
+        elif testing_tool_test:
             in_paths = list(glob(p.path, "data/testing_tool_test/**/*.in"))
         else:
             in_paths = list(glob(p.path, "data/sample/**/*.in"))
@@ -707,7 +707,7 @@ class Problem:
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
-        if len(testcases) == 0 and not testing_tool:
+        if len(testcases) == 0 and not testing_tool_test:
             ans = (
                 " with answer"
                 if needans and mode not in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
@@ -1227,12 +1227,14 @@ class Problem:
 
     # called by bt run_testing_tool
     def run_testing_tool(problem) -> bool:
-        testcases = problem.testcases(needans=False, testing_tool=True)
-        testinputs = [testing_tool.TestInput(problem, t.in_path, t.short_path) for t in testcases]
+        testcases = problem.testcases(needans=False, testing_tool_test=True)
+        testinputs = [
+            run_testing_tool.TestInput(problem, t.in_path, t.short_path) for t in testcases
+        ]
         if not config.args.testcases:
             sampleinputs = []
             for in_path, _ in problem.download_samples():
-                sample = testing_tool.TestInput(
+                sample = run_testing_tool.TestInput(
                     problem, in_path, in_path.relative_to(problem.path / "data")
                 )
                 if sample not in testinputs:
@@ -1246,7 +1248,7 @@ class Problem:
         submissions = problem.selected_or_accepted_submissions()
         if not submissions:
             return False
-        return testing_tool.run(problem, testinputs, submissions)
+        return run_testing_tool.run(problem, testinputs, submissions)
 
     def reset_testcase_hashes(self) -> None:
         self._testcase_hashes: dict[str, testcase.Testcase] = {}
