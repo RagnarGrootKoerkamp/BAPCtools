@@ -4,7 +4,7 @@ import sys
 import threading
 from enum import Enum
 from pathlib import Path
-from typing import Literal, TYPE_CHECKING
+from typing import Literal, Sequence, TYPE_CHECKING
 
 from colorama import Fore, Style
 
@@ -168,7 +168,7 @@ class Verdicts:
 
     def __init__(
         self,
-        test_cases_list: list[testcase.Testcase],
+        test_cases_list: Sequence[testcase.Testcase],
         timeout: int,
         run_until: RunUntil = RunUntil.FIRST_ERROR,
     ):
@@ -380,7 +380,7 @@ class VerdictTable:
     def __init__(
         self,
         submissions,
-        test_cases: list[testcase.Testcase],
+        test_cases: Sequence[testcase.Testcase],
         width: int = ProgressBar.columns,
         height: int = shutil.get_terminal_size().lines,
         max_name_width: int = 50,

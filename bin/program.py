@@ -106,7 +106,7 @@ def sanitizer():
 # After build() has been called, the following are available:
 # - run_command:    command to be executed. E.g. ['/path/to/run'] or ['python3', '/path/to/main.py']. `None` if something failed.
 #
-# build() will return the (run_command, message) pair.
+# build() will return the true if building was successfull.
 class Program:
     input_files: list[Path]  # Populated in Program.build
 
@@ -181,18 +181,18 @@ class Program:
 
     # is file at path executable
     @staticmethod
-    def _is_executable(path):
-        return path.is_file() and (
-            path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    def _is_executable(path: Path) -> bool:
+        return bool(
+            path.is_file() and (path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH))
         )
 
     # Returns true when file f matches the given shebang regex.
     @staticmethod
-    def _matches_shebang(f, shebang):
+    def _matches_shebang(f: Path, shebang: Optional[re.Pattern]) -> bool:
         if shebang is None:
             return True
         with f.open() as o:
-            return shebang.search(o.readline())
+            return shebang.search(o.readline()) is not None
 
     # Do not warn for the same fallback language multiple times.
     warn_cache: set[str] = set()
@@ -200,7 +200,7 @@ class Program:
     language: Optional[str]
 
     # Sets self.language and self.env['mainfile']
-    def _get_language(self, bar: ProgressBar):
+    def _get_language(self, bar: ProgressBar) -> bool:
         fallback = False
         candidates = []
         for lang in languages():
@@ -300,7 +300,7 @@ class Program:
         bar.error(f"No language detected for {self.path}.")
         return False
 
-    def _checks(self, bar: ProgressBar):
+    def _checks(self, bar: ProgressBar) -> None:
         for f in self.source_files:
             if f.stat().st_size >= config.ICPC_FILE_LIMIT * 1024**2:
                 bar.warn(
@@ -367,7 +367,7 @@ class Program:
                         pass
 
     # Return True on success.
-    def _compile(self, bar: ProgressBar):
+    def _compile(self, bar: ProgressBar) -> bool:
         meta_path = self.tmpdir / "meta_.yaml"
 
         # Remove all non-source files.
@@ -415,7 +415,7 @@ class Program:
         return True
 
     # Return True on success, False on failure.
-    def build(self, bar: ProgressBar):
+    def build(self, bar: ProgressBar) -> bool:
         assert not self.built
         self.built = True
 
@@ -527,7 +527,7 @@ class Program:
         return exec_command(*args, **kwargs)
 
     @staticmethod
-    def add_callback(problem, path, c):
+    def add_callback(problem: "Problem", path: Path, c: Callable[["Program"], Any]):
         if path not in problem._program_callbacks:
             problem._program_callbacks[path] = []
         problem._program_callbacks[path].append(c)
@@ -547,7 +547,7 @@ class Generator(Program):
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns ExecResult. Success when result.status == ExecStatus.ACCEPTED.
-    def run(self, bar, cwd, name, args=[]):
+    def run(self, bar: ProgressBar, cwd: Path, name: str, args: list[str] = []) -> ExecResult:
         assert self.run_command is not None
 
         in_path = cwd / (name + ".in")

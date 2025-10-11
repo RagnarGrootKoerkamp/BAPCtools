@@ -483,10 +483,7 @@ class Submission(program.Program):
             localbar.item_width = padding_len
             localbar.done(got_expected, message, data, print_item=False)
 
-        p = parallel.new_queue(process_run, pin=True)
-        for run in runs:
-            p.put(run)
-        p.done()
+        parallel.run_tasks(process_run, runs, pin=True)
 
         self.verdict = verdicts["."]
         assert isinstance(self.verdict, Verdict), "Verdict of root must not be empty"
