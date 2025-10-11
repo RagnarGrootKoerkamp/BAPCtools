@@ -288,7 +288,7 @@ def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Pat
     submissions = []
     testcases = []
     for p in s:
-        testcase_dirs = ["data", "sample", "secret", "fuzz"]
+        testcase_dirs = ["data", "sample", "secret", "fuzz", "testing_tool_cases"]
         if (
             any(part in testcase_dirs for part in p.parts)
             or p.suffix in config.KNOWN_DATA_EXTENSIONS
@@ -817,6 +817,35 @@ Run this from one of:
         help="Override the default timeout. Default: 1.5 * time_limit + 1.",
     )
 
+    runtestingtool = subparsers.add_parser(
+        "run_testing_tool",
+        parents=[global_parser],
+        help="Run testing_tool against some or all accepted submissions.",
+    )
+    runtestingtool.add_argument(
+        "submissions",
+        nargs="*",
+        type=Path,
+        help="optionally supply a list of programs and testcases to run",
+    )
+    runtestingtool.add_argument(
+        "--no-generate",
+        "-G",
+        action="store_true",
+        help="Do not run `generate` before running submissions.",
+    )
+    runtestingtool.add_argument(
+        "--timeout",
+        type=int,
+        help="Override the default timeout. Default: 1.5 * time_limit + 1.",
+    )
+    runtestingtool.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        help="Run all testcases and don't stop on error.",
+    )
+
     # Sort
     subparsers.add_parser(
         "sort", parents=[global_parser], help="sort the problems for a contest by name"
@@ -1087,7 +1116,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     problems, tmpdir = get_problems(problem_dir)
 
     # Split submissions and testcases when needed.
-    if action in ["run", "fuzz", "time_limit"]:
+    if action in ["run", "fuzz", "time_limit", "run_testing_tool"]:
         if config.args.submissions:
             config.args.submissions, config.args.testcases = split_submissions_and_testcases(
                 config.args.submissions
@@ -1234,7 +1263,10 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
         if action in ["generate"]:
             success &= generate.generate(problem)
-        if action in ["all", "constraints", "run", "time_limit"] and not config.args.no_generate:
+        if (
+            action in ["all", "constraints", "run", "time_limit", "run_testing_tool"]
+            and not config.args.no_generate
+        ):
             # Call `generate` with modified arguments.
             old_args = argparse.Namespace(**vars(config.args))
             config.args.jobs = (os.cpu_count() or 1) // 2
@@ -1295,6 +1327,8 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             success &= problem.test_submissions()
         if action in ["constraints"]:
             success &= constraints.check_constraints(problem)
+        if action in ["run_testing_tool"]:
+            problem.run_testing_tool()
         if action in ["time_limit"]:
             success &= problem.determine_time_limit()
         if action in ["zip"]:

@@ -705,7 +705,7 @@ class TestcaseRule(Rule):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
-        if testcase.root == "invalid_input":
+        if testcase.root in ["invalid_input", "testing_tool_test"]:
             return True
 
         ansfile = infile.with_suffix(".ans")
@@ -939,7 +939,11 @@ class TestcaseRule(Rule):
         def generate_from_solution(testcase: Testcase, bar: ProgressBar):
             nonlocal meta_yaml
 
-            if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
+            if testcase.root in [
+                *config.INVALID_CASE_DIRECTORIES,
+                "valid_output",
+                "testing_tool_test",
+            ]:
                 return True
             if config.args.no_solution:
                 return True
@@ -1020,6 +1024,8 @@ class TestcaseRule(Rule):
             nonlocal meta_yaml
 
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
+                return True
+            if testcase.root == "testing_tool_test":
                 return True
             if config.args.no_visualizer:
                 return True
@@ -1182,6 +1188,7 @@ class TestcaseRule(Rule):
 
             # consider specific files for the uniqueness of this testcase
             relevant_files = {
+                "testing_tool_test": [".in"],
                 "invalid_input": [".in"],
                 "invalid_answer": [".in", ".ans"],
                 "invalid_output": [".in", ".ans", ".out"],
@@ -1747,6 +1754,7 @@ class GeneratorConfig:
                         "invalid_answer",
                         "invalid_input",
                         "valid_output",
+                        "testing_tool_test",
                     ]
                     keys = dictionary.keys()
                     if isinstance(parent, RootDirectory):
@@ -2155,6 +2163,8 @@ data/*
                 warn(f"{d} is used for invalid test data. Skipping.")
             elif parts[0] == "valid_output":
                 warn(f"{d} is used for valid test data. Skipping.")
+            elif parts[0] == "testing_tool_test":
+                warn(f"{d} is used to test the testing tool. Skipping.")
             elif path not in self.known_directories:
                 warn(f"{d} is not a generated directory. Skipping.")
             elif not self.known_directories[path].numbered:
