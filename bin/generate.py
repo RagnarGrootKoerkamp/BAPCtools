@@ -661,6 +661,9 @@ class TestcaseRule(Rule):
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
+        if testcase.root == "testing_tool_test":
+            return True
+
         input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
         if all(h in meta_yaml["input_validator_hashes"] for h in input_validator_hashes):
             return True
