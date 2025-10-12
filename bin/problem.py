@@ -980,7 +980,7 @@ class Problem:
         if print_warn:
             key = (cls, check_constraints)
             if key not in problem._validators_warn_cache:
-                constraints_msg = " for constraints cecking" if check_constraints else ""
+                constraints_msg = " for constraints checking" if check_constraints else ""
                 problem._validators_warn_cache.add(key)
                 if cls == validate.InputValidator and not validators:
                     warn(f"No input validators{constraints_msg} found.")
