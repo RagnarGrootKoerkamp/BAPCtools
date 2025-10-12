@@ -153,7 +153,7 @@ class TestingTool(Program):
     def run(self, in_path: Path, submission: WrappedSubmission) -> ExecResult:
         assert self.run_command is not None
         assert submission.run_command is not None
-        exec_res = exec_command(
+        exec_res = self._exec_command(
             [*self.run_command, "-f", in_path, *submission.run_command],
             cwd=in_path.parent,
             crop=True,
