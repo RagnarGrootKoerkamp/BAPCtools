@@ -1353,7 +1353,7 @@ def exec_command(
     command: Sequence[str | Path],
     exec_code_map: Callable[[int], ExecStatus] = default_exec_code_map,
     crop: bool = True,
-    preexec_fn: bool | Callable[[], None] = True,
+    preexec_fn: bool = True,
     **kwargs: Any,
 ) -> ExecResult:
     # By default: discard stdout, return stderr
@@ -1408,7 +1408,7 @@ def exec_command(
     tstart = time.monotonic()
 
     try:
-        if not is_windows() and preexec_fn not in [False, None]:
+        if not is_windows() and preexec_fn is not False:
             process = ResourcePopen(
                 command,
                 preexec_fn=limit_setter(command, timeout, memory),
