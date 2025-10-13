@@ -144,10 +144,7 @@ class TestingTool(Program):
             problem,
             path,
             "testing_tool",
-            limits={
-                "timeout": problem.limits.timeout,
-                "memory": problem.limits.memory,
-            },
+            limits={"timeout": problem.limits.timeout},
         )
 
     def run(self, in_path: Path, submission: WrappedSubmission) -> ExecResult:
