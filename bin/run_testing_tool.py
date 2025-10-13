@@ -43,6 +43,10 @@ class WrappedSubmission:
         self.tmpdir.mkdir(parents=True, exist_ok=True)
         self.run_command: Optional[list[Path | str]] = None
 
+    def jvm(self) -> bool:
+        assert self.submission.run_command is not None
+        return Path(self.submission.run_command[0]).name in ["java", "javac", "kotlin", "kotlinc"]
+
     def _wrapper_script(self) -> str:
         assert self.submission.run_command is not None
         args = ", ".join(map(repr, self.submission.run_command))
@@ -144,7 +148,10 @@ class TestingTool(Program):
             problem,
             path,
             "testing_tool",
-            limits={"timeout": problem.limits.timeout},
+            limits={
+                "timeout": problem.limits.timeout,
+                "memory": problem.limits.memory,
+            },
         )
 
     def run(self, in_path: Path, submission: WrappedSubmission) -> ExecResult:
@@ -154,6 +161,7 @@ class TestingTool(Program):
             [*self.run_command, "-f", in_path, *submission.run_command],
             cwd=in_path.parent,
             crop=True,
+            memory=None if submission.jvm() else self.limits["memory"],
         )
         return exec_res
 
