@@ -1245,9 +1245,10 @@ def limit_setter(
     # perform all syscalls / things that could fail in the current context, i.e., outside of the preexec_fn
     disable_stack_limit = not is_bsd()
 
+    if config.args.memory:
+        memory_limit = config.args.memory
     if memory_limit:
         memory_limit *= 1024**2
-
         assert command is not None
         if Path(command[0]).name in ["java", "javac", "kotlin", "kotlinc"]:
             memory_limit = None
@@ -1264,7 +1265,7 @@ def limit_setter(
     # actual preexec_fn called in the context of the new process
     # this should only do resource and os calls to stay safe
     def setlimits() -> None:
-        if timeout:
+        if timeout is not None:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
 
         # Increase the max stack size from default to the max available.
@@ -1273,7 +1274,7 @@ def limit_setter(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
 
-        if memory_limit:
+        if memory_limit is not None:
             resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
         if group is not None:
@@ -1377,19 +1378,13 @@ def exec_command(
 
     timeout: Optional[int] = None
     if "timeout" in kwargs:
-        if kwargs["timeout"] is None:
-            timeout = None
-        elif kwargs["timeout"]:
-            timeout = kwargs["timeout"]
+        timeout = kwargs["timeout"]
         kwargs.pop("timeout")
 
     memory: Optional[int] = None
     if "memory" in kwargs:
-        if kwargs["memory"] is not None:
-            memory = kwargs["memory"]
+        memory = kwargs["memory"]
         kwargs.pop("memory")
-    if config.args.memory:
-        memory = config.args.memory
 
     process: Optional[ResourcePopen] = None
     old_handler = None
