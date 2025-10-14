@@ -215,7 +215,7 @@ class ProblemLimits:
         if config.args.timeout:
             self.validation_time = self.generator_time = self.visualizer_time = config.args.timeout
         if config.args.memory:
-            self.memory = self.validation_memory = config.args.memory
+            self.memory = self.compilation_memory = self.validation_memory = config.args.memory
 
 
 class ProblemSettings:
