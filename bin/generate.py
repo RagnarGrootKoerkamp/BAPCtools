@@ -1757,7 +1757,6 @@ class GeneratorConfig:
                         "invalid_answer",
                         "invalid_input",
                         "valid_output",
-                        "testing_tool_test",
                     ]
                     keys = dictionary.keys()
                     if isinstance(parent, RootDirectory):
