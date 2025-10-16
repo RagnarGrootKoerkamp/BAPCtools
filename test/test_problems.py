@@ -21,6 +21,7 @@ PROBLEMS = [
     "interactivemultipass",
     "multipass",
     "constants",
+    "alternativeencryption",
 ] + ["hellounix" if not util.is_mac() and not util.is_windows() else []]
 
 RUN_DIR = Path.cwd().absolute()
@@ -40,6 +41,24 @@ def setup_problem(request):
 class TestProblem:
     def test_problem(self):
         tools.test(["run"])
+
+
+@pytest.fixture(scope="class")
+def setup_alternativeencryption_problem(request):
+    problem_dir = RUN_DIR / "test/problems/alternativeencryption"
+    os.chdir(problem_dir)
+    try:
+        tools.test(["tmp", "--clean"])
+        yield
+    finally:
+        tools.test(["tmp", "--clean"])
+        os.chdir(RUN_DIR)
+
+
+@pytest.mark.usefixtures("setup_alternativeencryption_problem")
+class TestAlternativeencryptionProblem:
+    def test_run_testing_tool(self):
+        tools.test(["run_testing_tool"])
 
 
 @pytest.fixture(scope="class")
