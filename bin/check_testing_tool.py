@@ -44,8 +44,11 @@ class WrappedSubmission:
         self.run_command: Optional[list[Path | str]] = None
 
     def supports_memory_limit(self) -> bool:
+        assert self.run_command is not None
         assert self.submission.run_command is not None
-        return command_supports_memory_limit(self.submission.run_command)
+        return command_supports_memory_limit(self.run_command) and command_supports_memory_limit(
+            self.submission.run_command
+        )
 
     def _wrapper_script(self) -> str:
         assert self.submission.run_command is not None
