@@ -17,7 +17,7 @@ import math
 import parallel
 import run
 import testcase
-import run_testing_tool
+import check_testing_tool
 import validate
 import validator_tests
 import verdicts
@@ -1238,16 +1238,16 @@ class Problem:
                 print(str.format("(Type {})", resultant_id[resultant]), end="", file=sys.stderr)
             print(end="\n", file=sys.stderr)
 
-    # called by bt run_testing_tool
-    def run_testing_tool(problem) -> bool:
+    # called by bt check_testing_tool
+    def check_testing_tool(problem) -> bool:
         testcases = problem.testcases(needans=False, testing_tool_test=True)
         testinputs = [
-            run_testing_tool.TestInput(problem, t.in_path, t.short_path) for t in testcases
+            check_testing_tool.TestInput(problem, t.in_path, t.short_path) for t in testcases
         ]
         if not config.args.testcases:
             sampleinputs = []
             for in_path, _ in problem.download_samples():
-                sample = run_testing_tool.TestInput(
+                sample = check_testing_tool.TestInput(
                     problem, in_path, in_path.relative_to(problem.path / "data")
                 )
                 if sample not in testinputs:
@@ -1261,7 +1261,7 @@ class Problem:
         submissions = problem.selected_or_accepted_submissions()
         if not submissions:
             return False
-        return run_testing_tool.run(problem, testinputs, submissions)
+        return check_testing_tool.run(problem, testinputs, submissions)
 
     def reset_testcase_hashes(self) -> None:
         self._testcase_hashes: dict[str, testcase.Testcase] = {}

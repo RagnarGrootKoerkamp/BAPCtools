@@ -57,8 +57,12 @@ def setup_alternativeencryption_problem(request):
 
 @pytest.mark.usefixtures("setup_alternativeencryption_problem")
 class TestAlternativeencryptionProblem:
-    def test_run_testing_tool(self):
-        tools.test(["run_testing_tool"])
+    def test_check_testing_tool(self):
+        tools.test(["check_testing_tool"])
+
+    def test_bad_check_testing_tool(self):
+        with pytest.raises(SystemExit):
+            tools.test(["check_testing_tool", "submissions/wrong_answer/no-change.py"])
 
 
 @pytest.fixture(scope="class")
