@@ -1235,6 +1235,11 @@ class ExecResult:
         self.pass_id = pass_id
 
 
+def command_supports_memory_limit(command: Sequence[str | Path]) -> bool:
+    # https://bugs.openjdk.org/browse/JDK-8071445
+    return Path(command[0]).name not in ["java", "javac", "kotlin", "kotlinc", "sbcl"]
+
+
 def limit_setter(
     command: Optional[Sequence[str | Path]],
     timeout: Optional[int],
@@ -1250,7 +1255,7 @@ def limit_setter(
     if memory_limit:
         memory_limit *= 1024**2
         assert command is not None
-        if Path(command[0]).name in ["java", "javac", "kotlin", "kotlinc"]:
+        if not command_supports_memory_limit(command):
             memory_limit = None
     if config.args.sanitizer or is_bsd() or is_windows():
         memory_limit = None

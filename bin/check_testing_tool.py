@@ -43,9 +43,9 @@ class WrappedSubmission:
         self.tmpdir.mkdir(parents=True, exist_ok=True)
         self.run_command: Optional[list[Path | str]] = None
 
-    def jvm(self) -> bool:
+    def supports_memory_limit(self) -> bool:
         assert self.submission.run_command is not None
-        return Path(self.submission.run_command[0]).name in ["java", "javac", "kotlin", "kotlinc"]
+        return command_supports_memory_limit(self.submission.run_command)
 
     def _wrapper_script(self) -> str:
         assert self.submission.run_command is not None
@@ -161,7 +161,7 @@ class TestingTool(Program):
             [*self.run_command, "-f", in_path, *submission.run_command],
             cwd=in_path.parent,
             crop=True,
-            memory=None if submission.jvm() else self.limits["memory"],
+            memory=self.limits["memory"] if submission.supports_memory_limit() else None,
         )
         return exec_res
 
