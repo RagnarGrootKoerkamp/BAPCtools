@@ -187,7 +187,7 @@ def prepare_problem(problem: "Problem", language: str):
 
 
 def get_tl(problem: "Problem"):
-    tl = problem.limits.time_limit
+    tl = problem.limits.raw_time_limit
     tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
 
     if "print_time_limit" in contest_yaml():

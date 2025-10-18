@@ -111,6 +111,7 @@ DEFAULT_ARGS: Final[Mapping[str, Any]] = {
     "verbose": 0,
     "action": None,
     "no_visualizer": True,
+    "local_time_multiplier": 2,
 }
 
 
