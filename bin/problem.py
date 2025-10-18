@@ -45,6 +45,9 @@ class Person:
             self.name = (match[1] if match else yaml_data).strip()
             self.email = match[2].strip() if match else None
             self.kattis = self.orcid = None
+        for token in [",", " and ", "&"]:
+            if token in self.name:
+                warn(f"found suspicious token '{token.strip()}' in name: {self.name}")
 
 
 class ProblemCredits:
@@ -322,6 +325,16 @@ class ProblemSettings:
         if self.license not in config.KNOWN_LICENSES:
             warn(f"invalid license: {self.license}")
             self.license = "unknown"
+        if self.license == "public domain":
+            if self.rights_owner is not None:
+                warn(
+                    f"problem cannot be in 'public domain' and have a rights owner: {self.rights_owner}"
+                )
+        elif self.license != "unknown":
+            if self.rights_owner is None and not self.credits.authors and not self.source:
+                warn(
+                    f"problem with license '{self.license}' needs a rights owner, author, or source."
+                )
 
     def type_name(self) -> str:
         parts: list[str] = []
