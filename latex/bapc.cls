@@ -304,6 +304,7 @@
 \newcommand{\SampleNoHeading}[2]{
 	\savebox{\PS@inputbox}{\SampleListing{#1}}
 	\savebox{\PS@outputbox}{\SampleListing{#2}}
+	\setlength{\PS@idealwidth}{\dimeval{0.5\textwidth - 2\arraycolsep}}
 	\settowidth{\PS@inputwidth}{\usebox{\PS@inputbox}}
 	\settowidth{\PS@outputwidth}{\usebox{\PS@outputbox}}
 	% Check if too wide for side-by-side
