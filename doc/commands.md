@@ -36,7 +36,7 @@ This lists all subcommands and their most important options.
   - [`bt github_actions`](#github_actions)
 - Exporting
   - [`bt samplezip`](#samplezip)
-  - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
+  - [`bt zip [--skip] [--force] [--no-generate] [--kattis] [--no-solutions]`](#zip)
   - [`bt export`](#export)
 - Misc
   - [`bt all [-v] [--cp] [--no-time-limit] [--check-deterministic]`](#all)
@@ -569,6 +569,7 @@ When run for a contest:
 
 - `--skip`: Do not rebuild problem zips when building a contest zip.
 - `--force`/`-f`: Skip validating input and output. This is useful to speed up regenerating the zip with only minimal changes.
+- `--no-generate`/`-G`: Skip generation of testcases. This usually won't be needed since checking that generated testcases are up to date is fast.
 - `--no-solutions`: Do not build solution slides for the contest zip.
 - `--kattis`: Differences for Kattis export are:
   - Problems zips are written to `<shortname>.zip` instead of `<problemlabel>.zip`.

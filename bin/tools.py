@@ -579,7 +579,6 @@ Run this from one of:
         parents=[global_parser],
         help="prints all the constraints found in problemset and validators",
     )
-
     constraintsparser.add_argument(
         "--no-generate", "-G", action="store_true", help="Do not run `generate`."
     )
@@ -861,6 +860,9 @@ Run this from one of:
         "-f",
         action="store_true",
         help="Skip validation of input and answers.",
+    )
+    zipparser.add_argument(
+        "--no-generate", "-G", action="store_true", help="Skip generation of test cases."
     )
     zipparser.add_argument(
         "--kattis",
@@ -1302,15 +1304,16 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
             problem_zips.append(output)
             if not config.args.skip:
-                # Set up arguments for generate.
-                old_args = argparse.Namespace(**vars(config.args))
-                config.args.check_deterministic = not config.args.force
-                config.args.add = None
-                config.args.verbose = 0
-                config.args.testcases = None
-                config.args.force = False
-                success &= generate.generate(problem)
-                config.args = old_args
+                if not config.args.no_generate:
+                    # Set up arguments for generate.
+                    old_args = argparse.Namespace(**vars(config.args))
+                    config.args.check_deterministic = not config.args.force
+                    config.args.add = None
+                    config.args.verbose = 0
+                    config.args.testcases = None
+                    config.args.force = False
+                    success &= generate.generate(problem)
+                    config.args = old_args
 
                 if not config.args.kattis:
                     success &= latex.build_problem_pdfs(problem)
