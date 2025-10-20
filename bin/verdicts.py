@@ -4,16 +4,16 @@ import sys
 import threading
 from enum import Enum
 from pathlib import Path
-from typing import Literal, TYPE_CHECKING
+from typing import Any, Literal, Optional, Sequence, TextIO, TYPE_CHECKING
 
 from colorama import Fore, Style
 
 import config
 import testcase
-from util import ProgressBar
+from util import ITEM_TYPE, ProgressBar
 
 if TYPE_CHECKING:
-    import run
+    pass
 
 
 class Verdict(Enum):
@@ -26,7 +26,7 @@ class Verdict(Enum):
     VALIDATOR_CRASH = 5
     COMPILER_ERROR = 6
 
-    def __str__(self):
+    def __str__(self) -> str:
         return {
             Verdict.ACCEPTED: "ACCEPTED",
             Verdict.WRONG_ANSWER: "WRONG ANSWER",
@@ -36,10 +36,10 @@ class Verdict(Enum):
             Verdict.COMPILER_ERROR: "COMPILER ERROR",
         }[self]
 
-    def __lt__(self, other):
+    def __lt__(self, other: "Verdict") -> bool:
         return self.value < other.value
 
-    def short(self):
+    def short(self) -> str:
         return {
             Verdict.ACCEPTED: "AC",
             Verdict.WRONG_ANSWER: "WA",
@@ -49,7 +49,7 @@ class Verdict(Enum):
             Verdict.COMPILER_ERROR: "CE",
         }[self]
 
-    def color(self):
+    def color(self) -> str:
         return {
             Verdict.ACCEPTED: Fore.GREEN,
             Verdict.WRONG_ANSWER: Fore.RED,
@@ -78,7 +78,7 @@ class RunUntil(Enum):
     ALL = 3
 
 
-def to_char(v: Verdict | None | Literal[False], lower: bool = False):
+def to_char(v: Verdict | None | Literal[False], lower: bool = False) -> str:
     if v is None or v is False:
         return f"{Fore.BLUE}?{Style.RESET_ALL}"
     else:
@@ -86,7 +86,7 @@ def to_char(v: Verdict | None | Literal[False], lower: bool = False):
         return f"{v.color()}{char}{Style.RESET_ALL}"
 
 
-def to_string(v: Verdict | None | Literal[False]):
+def to_string(v: Verdict | None | Literal[False]) -> str:
     if v is None or v is False:
         return to_char(v)
     else:
@@ -199,10 +199,10 @@ class Verdicts:
             self.children[tg] = sorted(self.children[tg])
 
     # Allow `with self` to lock.
-    def __enter__(self):
+    def __enter__(self) -> None:
         self.lock.__enter__()
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         self.lock.__exit__(*args)
 
     def is_test_group(self, node: str) -> bool:
@@ -217,7 +217,7 @@ class Verdicts:
         """
         return node not in self.children
 
-    def set(self, test_case: str, verdict: str | Verdict, duration: float):
+    def set(self, test_case: str, verdict: str | Verdict, duration: float) -> None:
         """Set the verdict and duration of the given test case (implying possibly others)
 
         verdict can be given as a Verdict or as a string using either long or
@@ -229,7 +229,7 @@ class Verdicts:
             self.duration[test_case] = duration
             self._set_verdict_for_node(test_case, verdict, duration >= self.timeout)
 
-    def __getitem__(self, test_node) -> Verdict | None | Literal[False]:
+    def __getitem__(self, test_node: str) -> Verdict | None | Literal[False]:
         with self:
             return self.verdict[test_node]
 
@@ -297,7 +297,7 @@ class Verdicts:
                 assert first_error is not False
                 return first_error
 
-    def _set_verdict_for_node(self, test_node: str, verdict: Verdict, timeout: bool):
+    def _set_verdict_for_node(self, test_node: str, verdict: Verdict, timeout: bool) -> None:
         # This assumes self.lock is already held.
         if timeout:
             assert verdict != Verdict.ACCEPTED
@@ -374,8 +374,8 @@ class VerdictTable:
             self.length = length
             self.text = text
 
-        def __iter__(self):
-            yield from [self.length, self.text]
+        def tuple(self) -> tuple[int, str]:
+            return (self.length, self.text)
 
     def __init__(
         self,
@@ -420,7 +420,8 @@ class VerdictTable:
                     verdicts[-1].text += "s" if test_case in self.samples else "-"
 
                 printed = self.name_width + 1
-                for length, tmp in verdicts:
+                for verdict_value in verdicts:
+                    length, tmp = verdict_value.tuple()
                     if printed + 1 + length > self.width:
                         lines.append(f"{str():{self.name_width + 1}}")
                         printed = self.name_width + 1
@@ -443,18 +444,18 @@ class VerdictTable:
                         file=sys.stderr,
                     )
 
-    def next_submission(self, verdicts: Verdicts):
+    def next_submission(self, verdicts: Verdicts) -> None:
         self.results.append(verdicts)
         self.current_test_cases = set()
 
-    def add_test_case(self, test_case: str):
+    def add_test_case(self, test_case: str) -> None:
         self.current_test_cases.add(test_case)
 
-    def update_verdicts(self, test_case: str, verdict: str | Verdict, duration: float):
+    def update_verdicts(self, test_case: str, verdict: str | Verdict, duration: float) -> None:
         self.results[-1].set(test_case, verdict, duration)
         self.current_test_cases.discard(test_case)
 
-    def _clear(self, *, force: bool = True):
+    def _clear(self, *, force: bool = True) -> None:
         if force or self.print_without_force:
             if self.last_printed:
                 actual_width = ProgressBar.columns
@@ -480,7 +481,7 @@ class VerdictTable:
             res = Style.DIM + to_char(None)
         return res
 
-    def print(self, **kwargs):
+    def print(self, **kwargs: Any) -> None:
         if config.args.tree:
             self._print_tree(**kwargs)
         else:
@@ -492,7 +493,7 @@ class VerdictTable:
         force: bool = True,
         new_lines: int = 1,
         printed_lengths: list[int] | None = None,
-    ):
+    ) -> None:
         if printed_lengths is None:
             printed_lengths = []
         if force or self.print_without_force:
@@ -551,7 +552,8 @@ class VerdictTable:
                     width = -1 if ProgressBar.columns - pref_len < 10 else self.width
                     space = ""
 
-                    for length, group in grouped:
+                    for grouped_value in grouped:
+                        length, group = grouped_value.tuple()
                         if width >= 0 and printed + 1 + length > width:
                             printed_text.append(
                                 f"\n{Style.DIM}{indent}{pipe} {pipe2} {Style.RESET_ALL}"
@@ -592,7 +594,7 @@ class VerdictTable:
         force: bool = True,
         new_lines: int = 2,
         printed_lengths: list[int] | None = None,
-    ):
+    ) -> None:
         if printed_lengths is None:
             printed_lengths = []
         if force or self.print_without_force:
@@ -615,7 +617,8 @@ class VerdictTable:
                     verdicts[-1].length += 1
                     verdicts[-1].text += self._get_verdict(s, test_case)
 
-                for length, tmp in verdicts:
+                for verdict_value in verdicts:
+                    length, tmp = verdict_value.tuple()
                     if self.width >= 0 and printed + 1 + length > self.width:
                         printed_text.append(f"\n{str():{self.name_width + 1}}")
                         printed_lengths.append(printed)
@@ -632,12 +635,12 @@ class VerdictTable:
 
     def ProgressBar(
         self,
-        prefix,
-        max_len=None,
-        count=None,
+        prefix: str,
+        max_len: Optional[int] = None,
+        count: Optional[int] = None,
         *,
-        items=None,
-        needs_leading_newline=False,
+        items: Optional[Sequence[ITEM_TYPE]] = None,
+        needs_leading_newline: bool = False,
     ) -> "TableProgressBar":
         return TableProgressBar(
             self,
@@ -650,7 +653,16 @@ class VerdictTable:
 
 
 class TableProgressBar(ProgressBar):
-    def __init__(self, table, prefix, max_len, count, *, items, needs_leading_newline):
+    def __init__(
+        self,
+        table: VerdictTable,
+        prefix: str,
+        max_len: Optional[int],
+        count: Optional[int],
+        *,
+        items: Optional[Sequence[ITEM_TYPE]],
+        needs_leading_newline: bool,
+    ):
         super().__init__(
             prefix,
             max_len,
@@ -661,7 +673,7 @@ class TableProgressBar(ProgressBar):
         self.table = table
 
     # at the begin of any IO the progress bar locks so we can clear the table at this point
-    def __enter__(self):
+    def __enter__(self) -> None:
         super().__enter__()
         if ProgressBar.lock_depth == 1:
             if isinstance(sys.stderr, io.TextIOWrapper):
@@ -670,7 +682,7 @@ class TableProgressBar(ProgressBar):
             self.table._clear(force=False)
 
     # at the end of any IO the progress bar unlocks so we can reprint the table at this point
-    def __exit__(self, *args):
+    def __exit__(self, *args: Any) -> None:
         if ProgressBar.lock_depth == 1:
             # ProgressBar.columns is just an educated guess for the number of printed chars
             # in the ProgressBar
@@ -680,20 +692,43 @@ class TableProgressBar(ProgressBar):
             print(end="", flush=True, file=sys.stderr)
         super().__exit__(*args)
 
-    def _print(self, *objects, sep="", end="\n", file=sys.stderr, flush=True):
+    def _print(
+        self,
+        *objects: Any,
+        sep: str = "",
+        end: str = "\n",
+        file: TextIO = sys.stderr,
+        flush: bool = True,
+    ) -> None:
         assert self._is_locked()
         # drop all flushes...
         print(*objects, sep=sep, end=end, file=file, flush=False)
 
-    # TODO #102: item has type `str` in the base class, but type `run.Run` here.
-    def start(self, item: "run.Run"):  # type: ignore[override]
+    def start(self, item: ITEM_TYPE = "") -> "TableProgressBar":
+        from run import Run
+
+        assert isinstance(item, Run)
         self.table.add_test_case(item.testcase.name)
-        return super().start(item)
+        copy = super().start(item)
+        assert isinstance(copy, TableProgressBar)
+        return copy
 
-    def done(self, success=True, message="", data="", print_item=True):
-        return super().done(success, message, data, print_item)
+    def done(
+        self,
+        success: bool = True,
+        message: str = "",
+        data: Optional[str] = None,
+        print_item: bool = True,
+    ) -> None:
+        super().done(success, message, data, print_item)
 
-    def finalize(self, *, print_done=True, message=None, suppress_newline=False):
+    def finalize(
+        self,
+        *,
+        print_done: bool = True,
+        message: Optional[str] = None,
+        suppress_newline: bool = False,
+    ) -> bool:
         with self:
             res = super().finalize(
                 print_done=print_done,
