@@ -189,7 +189,7 @@ SANITIZER_FLAGS: Final[Mapping[str, Mapping[str, str]]] = {
 # After build() has been called, the following are available:
 # - run_command:    command to be executed. E.g. ['/path/to/run'] or ['python3', '/path/to/main.py']. `None` if something failed.
 #
-# build() will return the (run_command, message) pair.
+# build() will return the true if building was successfull.
 class Program:
     def __init__(
         self,

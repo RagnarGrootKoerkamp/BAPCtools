@@ -1180,6 +1180,11 @@ class ExecResult:
         self.pass_id = pass_id
 
 
+def command_supports_memory_limit(command: Sequence[str | Path]) -> bool:
+    # https://bugs.openjdk.org/browse/JDK-8071445
+    return Path(command[0]).name not in ["java", "javac", "kotlin", "kotlinc", "sbcl"]
+
+
 def limit_setter(
     command: Optional[Sequence[str | Path]],
     timeout: Optional[int],
@@ -1187,35 +1192,45 @@ def limit_setter(
     group: Optional[int] = None,
     cores: Literal[False] | list[int] = False,
 ) -> Callable[[], None]:
+    # perform all syscalls / things that could fail in the current context, i.e., outside of the preexec_fn
+    disable_stack_limit = not is_bsd()
+
+    if config.args.memory:
+        memory_limit = config.args.memory
     if memory_limit:
+        memory_limit *= 1024**2
         assert command is not None
-        jvm = Path(command[0]).name in ["java", "javac", "kotlin", "kotlinc"]
+        if not command_supports_memory_limit(command):
+            memory_limit = None
+    if config.args.sanitizer or is_bsd() or is_windows():
+        memory_limit = None
 
     if group is not None:
         assert not is_windows()
         assert not is_mac()
 
+    if not is_windows() and not is_bsd():
+        cores = False
+
+    # actual preexec_fn called in the context of the new process
+    # this should only do resource and os calls to stay safe
     def setlimits() -> None:
-        if timeout:
+        if timeout is not None:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
 
         # Increase the max stack size from default to the max available.
-        if not is_bsd():
+        if disable_stack_limit:
             resource.setrlimit(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
 
-        if memory_limit and not jvm and not is_bsd():
-            resource.setrlimit(
-                resource.RLIMIT_AS,
-                (memory_limit * 1024**2, memory_limit * 1024**2),
-            )
+        if memory_limit is not None:
+            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
-        # TODO: with python 3.11 it is better to use Popen(process_group=group)
         if group is not None:
             os.setpgid(0, group)
 
-        if cores is not False and not is_windows() and not is_bsd():
+        if cores is not False:
             os.sched_setaffinity(0, cores)
 
         # Disable coredumps.
@@ -1289,7 +1304,7 @@ def exec_command(
     command: Sequence[str | Path],
     exec_code_map: Callable[[int], ExecStatus] = default_exec_code_map,
     crop: bool = True,
-    preexec_fn: bool | Callable[[], None] = True,
+    preexec_fn: bool = True,
     **kwargs: Any,
 ) -> ExecResult:
     # By default: discard stdout, return stderr
@@ -1313,21 +1328,13 @@ def exec_command(
 
     timeout: Optional[int] = None
     if "timeout" in kwargs:
-        if kwargs["timeout"] is None:
-            timeout = None
-        elif kwargs["timeout"]:
-            timeout = kwargs["timeout"]
+        timeout = kwargs["timeout"]
         kwargs.pop("timeout")
 
     memory: Optional[int] = None
     if "memory" in kwargs:
-        if kwargs["memory"] is not None:
-            memory = kwargs["memory"]
+        memory = kwargs["memory"]
         kwargs.pop("memory")
-    if config.args.memory:
-        memory = config.args.memory
-    if is_windows() or config.args.sanitizer:
-        memory = None
 
     process: Optional[ResourcePopen] = None
     old_handler = None
@@ -1346,7 +1353,7 @@ def exec_command(
     tstart = time.monotonic()
 
     try:
-        if not is_windows() and preexec_fn not in [False, None]:
+        if not is_windows() and preexec_fn is not False:
             process = ResourcePopen(
                 command,
                 preexec_fn=limit_setter(command, timeout, memory),

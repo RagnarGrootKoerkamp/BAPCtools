@@ -276,7 +276,7 @@ def loc(file: Path) -> Optional[int]:
             content = file.read_text()
             lexer = lexers.guess_lexer_for_filename(file, content)
             assert isinstance(lexer, pygments.lexer.Lexer)
-            language = lexer.name.lower()
+            language = getattr(lexer, "name").lower()
             tokens = lexer.get_tokens(content)
 
             count = 0

@@ -17,6 +17,7 @@ import math
 import parallel
 import run
 import testcase
+import check_testing_tool
 import validate
 import validator_tests
 import verdicts
@@ -277,7 +278,7 @@ class ProblemLimits:
         if config.args.timeout:
             self.validation_time = self.generator_time = self.visualizer_time = config.args.timeout
         if config.args.memory:
-            self.memory = self.validation_memory = config.args.memory
+            self.memory = self.compilation_memory = self.validation_memory = config.args.memory
 
 
 class ProblemSettings:
@@ -424,7 +425,7 @@ class Problem:
 
         # Some caches.
         self._testcases = dict[
-            tuple[Optional[validate.Mode], bool, bool], list[testcase.Testcase]
+            tuple[Optional[validate.Mode], bool, bool, bool], list[testcase.Testcase]
         ]()
         self._submissions: Optional[list[run.Submission] | Literal[False]] = None
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
@@ -702,17 +703,17 @@ class Problem:
         mode: Optional[validate.Mode] = None,
         needans=True,
         only_samples=False,
+        testing_tool_test=False,
     ) -> Sequence[testcase.Testcase]:
         only_samples = config.args.samples or only_samples
 
-        key = (mode, needans, only_samples)
+        key = (mode, needans, only_samples, testing_tool_test)
         if key in p._testcases is not None:
             return p._testcases[key]
 
         in_paths = None
         if config.args.testcases:
-            if only_samples:
-                assert False
+            assert not only_samples
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
             for t in config.args.testcases:
@@ -727,6 +728,8 @@ class Problem:
 
             in_paths = list(set(in_paths))
         elif mode is not None:
+            assert not only_samples
+            assert not testing_tool_test
             assert needans
             in_paths = []
             for prefix in {
@@ -736,6 +739,8 @@ class Problem:
                 validate.Mode.VALID_OUTPUT: ["secret", "sample", "valid_output"],
             }[mode]:
                 in_paths += glob(p.path, f"data/{prefix}/**/*.in")
+        elif testing_tool_test:
+            in_paths = list(glob(p.path, "data/testing_tool_test/**/*.in"))
         else:
             in_paths = list(glob(p.path, "data/sample/**/*.in"))
             if not only_samples:
@@ -775,7 +780,7 @@ class Problem:
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
-        if len(testcases) == 0:
+        if len(testcases) == 0 and not testing_tool_test:
             ans = (
                 " with answer"
                 if needans and mode not in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
@@ -1083,7 +1088,7 @@ class Problem:
             paths = list(glob(problem.path / cls.source_dir, "*"))
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
-        def has_constraints_checking(f):
+        def has_constraints_checking(f: Path) -> bool:
             if not f.is_file():
                 return False
             try:
@@ -1115,7 +1120,7 @@ class Problem:
         ]
         bar = ProgressBar(f"Building {cls.validator_type} validator", items=validators)
 
-        def build_program(p):
+        def build_program(p: "Program") -> None:
             localbar = bar.start(p)
             p.build(localbar)
             localbar.done()
@@ -1127,7 +1132,9 @@ class Problem:
         return validators
 
     # get all testcases and submissions and prepare the output validator and visualizer
-    def prepare_run(problem):
+    def prepare_run(
+        problem,
+    ) -> Literal[False] | tuple[Sequence[testcase.Testcase], Sequence[run.Submission]]:
         testcases = problem.testcases()
         if not testcases:
             return False
@@ -1147,7 +1154,9 @@ class Problem:
         return testcases, submissions
 
     @staticmethod
-    def run_some(testcases, submissions):
+    def run_some(
+        testcases: Sequence[testcase.Testcase], submissions: Sequence[run.Submission]
+    ) -> tuple[bool, verdicts.VerdictTable]:
         max_submission_len = max([len(x.name) for x in submissions])
 
         ok = True
@@ -1166,7 +1175,7 @@ class Problem:
         return ok, verdict_table
 
     # called by bt run
-    def run_submissions(problem):
+    def run_submissions(problem) -> bool:
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
@@ -1192,7 +1201,7 @@ class Problem:
     # Instead of validating the output, this function just prints all output to the
     # terminal.
     # Note: The CLI only accepts one submission.
-    def test_submissions(problem):
+    def test_submissions(problem) -> bool:
         submissions = problem.submissions()
         if submissions is False:
             return False
@@ -1205,16 +1214,18 @@ class Problem:
         return True
 
     @staticmethod
-    def _print_table(verdict_table, testcases):
+    def _print_table(
+        verdict_table: Sequence[verdicts.Verdicts], testcases: Sequence[testcase.Testcase]
+    ) -> None:
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
-        def single_verdict(row, testcase):
+        def single_verdict(row: verdicts.Verdicts, testcase: testcase.Testcase) -> str:
             assert row[testcase.name] is not None
             if row[testcase.name] is not False:
                 return verdicts.to_char(row[testcase.name])
             else:
                 return f"{Style.DIM}-{Style.RESET_ALL}"
 
-        def make_verdict(tc):
+        def make_verdict(tc: testcase.Testcase) -> str:
             return "".join(map(lambda row: single_verdict(row, tc), verdict_table))
 
         resultant_count, resultant_id = dict[str, int](), dict[str, int]()
@@ -1287,11 +1298,36 @@ class Problem:
                 print(str.format("(Type {})", resultant_id[resultant]), end="", file=sys.stderr)
             print(end="\n", file=sys.stderr)
 
-    def reset_testcase_hashes(self):
-        self._testcase_hashes = {}
+    # called by bt check_testing_tool
+    def check_testing_tool(problem) -> bool:
+        testcases = problem.testcases(needans=False, testing_tool_test=True)
+        testinputs = [
+            check_testing_tool.TestInput(problem, t.in_path, t.short_path) for t in testcases
+        ]
+        if not config.args.testcases:
+            sampleinputs = []
+            for in_path, _ in problem.download_samples():
+                sample = check_testing_tool.TestInput(
+                    problem, in_path, in_path.relative_to(problem.path / "data")
+                )
+                if sample not in testinputs:
+                    sampleinputs.append(sample)
+            testinputs = sampleinputs + testinputs
+        if not testinputs:
+            warn(
+                f"Didn't find any testcases to run the testing tool in problem {problem.name}. Skipping."
+            )
+            return False
+        submissions = problem.selected_or_accepted_submissions()
+        if not submissions:
+            return False
+        return check_testing_tool.run(problem, testinputs, submissions)
+
+    def reset_testcase_hashes(self) -> None:
+        self._testcase_hashes: dict[str, testcase.Testcase] = {}
 
     # Returns None for new testcases or the Testcase object it equals.
-    def matches_existing_testcase(self, t):
+    def matches_existing_testcase(self, t: testcase.Testcase) -> Optional[testcase.Testcase]:
         hashes = {}
         relevant_files = {
             "invalid_input": ["in"],
@@ -1620,7 +1656,7 @@ class Problem:
                 limits["time_limit"] = problem.limits.time_limit
                 write_yaml(problem_yaml, problem.path / "problem.yaml")
 
-        print()
+        print(file=sys.stderr)
         message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
         message(
             f"{problem.limits.time_limit}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
@@ -1634,13 +1670,13 @@ class Problem:
             f"{problem.limits.timeout}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}²",
             "timeout",
         )
-        print()
+        print(file=sys.stderr)
 
         submission, testcase, duration = run_all(
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
         )
         if submission is not None:
-            print()
+            print(file=sys.stderr)
             message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
             if duration <= problem.limits.time_limit:
                 error("TLE submission runs within time limit")
@@ -1648,7 +1684,7 @@ class Problem:
                 warn("TLE submission runs within safety margin")
             elif duration >= problem.limits.timeout:
                 log(f"No TLE submission finished within {problem.limits.timeout}s")
-            print()
+            print(file=sys.stderr)
         else:
             log("No TLE submissions found")
 
