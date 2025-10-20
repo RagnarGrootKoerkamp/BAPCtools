@@ -1,11 +1,12 @@
 import re
 import shutil
 import stat
+import shlex
 import subprocess
 import threading
 from colorama import Fore
 from pathlib import Path
-from typing import Final, Optional, TYPE_CHECKING
+from typing import Any, Final, Mapping, Optional, Sequence, TYPE_CHECKING
 
 import config
 from util import *
@@ -13,68 +14,145 @@ from util import *
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
 
-EXTRA_LANGUAGES: Final[str] = """
-checktestdata:
-    name: 'Checktestdata'
-    priority: 1
-    files: '*.ctd'
-    run: 'checktestdata {mainfile}'
 
-viva:
-    name: 'Viva'
-    priority: 2
-    files: '*.viva'
-    run: 'java -jar {viva_jar} {mainfile}'
+class Language:
+    def __init__(self, lang_id: str, conf: dict[str, Any]):
+        self.ok = True
 
-manual:
-    name: 'manual'
-    priority: 9999
-    files: 'build run'
-    compile: '{build}'
-    run: '{run}'
-"""
+        def get_optional_value(key: str, t: type[T]) -> Optional[T]:
+            if key in conf:
+                value = conf.pop(key)
+                if isinstance(value, t):
+                    return value
+                warn(
+                    f"incompatible value for key '{key}' in languages.yaml for '{lang_id}'. SKIPPED."
+                )
+            return None
 
-SANITIZER_FLAGS: Final[str] = """
-cpp:
-    compile: -fsanitize=undefined,address
-"""
+        def get_value(key: str, t: type[T]) -> T:
+            if key in conf:
+                value = conf.pop(key)
+                if isinstance(value, t):
+                    return value
+                error(f"incompatible value for key '{key}' in languages.yaml for '{lang_id}'")
+            else:
+                error(f"missing key '{key}' in languages.yaml for '{lang_id}'")
+            self.ok = False
+            return t()
+
+        self.id = lang_id
+        self.name = get_value("name", str)
+        self.priority = get_value("priority", int)
+        self.files = (get_optional_value("files", str) or "").split()
+        self.shebang = None
+        shebang = get_optional_value("shebang", str)
+        if shebang is not None:
+            try:
+                self.shebang = re.compile(shebang)
+            except re.error:
+                warn(f"invalid shebang in languages.yaml for '{lang_id}'. SKIPPED.")
+        self.compile = get_optional_value("compile", str)
+        self.run = get_value("run", str)
+
+        def get_exe(command: str) -> str:
+            try:
+                return shlex.split(command)[0]
+            except (IndexError, ValueError) as e:
+                print(e)
+                self.ok = False
+            return ""
+
+        self.compile_exe = get_exe(self.compile) if self.compile is not None else None
+        self.run_exe = get_exe(self.run)
+
+        for key in conf:
+            assert isinstance(key, str)
+            warn(f"found unknown languages.yaml key: '{key}' for '{lang_id}'")
+
+    # Returns true when file f matches the shebang regex.
+    def matches_shebang(self, f: Path) -> bool:
+        if self.shebang is None:
+            return True
+        with f.open() as o:
+            return self.shebang.search(o.readline()) is not None
+
+    @staticmethod
+    def command_is_exe(command: Optional[str]) -> bool:
+        return bool(command and command[0] != "{")
+
+
+EXTRA_LANGUAGES: Final[Sequence[Language]] = [
+    Language(
+        "BAPCtools:checktestdata",
+        {
+            "name": "Checktestdata",
+            "priority": 1,
+            "files": "*.ctd",
+            "run": "checktestdata {mainfile}",
+        },
+    ),
+    Language(
+        "BAPCtools:viva",
+        {
+            "name": "Viva",
+            "priority": 2,
+            "files": "*.viva",
+            "run": "java -jar {viva_jar} {mainfile}",
+        },
+    ),
+    Language(
+        "BAPCtools:manual",
+        {
+            "name": "manual",
+            "priority": 9999,
+            "files": "build run",
+            "compile": "{build}",
+            "run": "{run}",
+        },
+    ),
+]
 
 # The cached languages.yaml for the current contest.
-_languages = None
-_sanitizer = None
+_languages: Optional[list[Language]] = None
 _program_config_lock = threading.Lock()
 
 
-def languages():
+def languages() -> Sequence[Language]:
     global _languages, _program_config_lock
     with _program_config_lock:
         if _languages is not None:
             return _languages
 
         if Path("languages.yaml").is_file():
-            _languages = read_yaml(Path("languages.yaml"))
+            raw_languages = read_yaml(Path("languages.yaml"))
         else:
-            _languages = read_yaml(config.TOOLS_ROOT / "config/languages.yaml")
+            raw_languages = read_yaml(config.TOOLS_ROOT / "config/languages.yaml")
+        if not isinstance(raw_languages, dict):
+            fatal("could not parse languages.yaml.")
 
-        # Add custom languages.
-        extra_langs = parse_yaml(EXTRA_LANGUAGES)
-        for lang in extra_langs:
-            assert lang not in _languages
-            _languages[lang] = extra_langs[lang]
+        languages = [Language(lang_id, lang_conf) for lang_id, lang_conf in raw_languages.items()]
+        priorities: dict[int, str] = {}
+        _languages = []
+        for lang in languages:
+            if not lang.ok:
+                continue
+            if lang.priority in priorities:
+                warn(
+                    f"'{lang.id}' and '{priorities[lang.priority]}' have the same priority in languages.yaml."
+                )
+            _languages.append(lang)
+            priorities[lang.priority] = lang.id
+
+        for lang in EXTRA_LANGUAGES:
+            assert lang.ok
+            _languages.append(lang)
 
         return _languages
 
 
-def sanitizer():
-    global _sanitizer, _program_config_lock
-    with _program_config_lock:
-        if _sanitizer is not None:
-            return _sanitizer
-
-        # Read sanitizer extra flags
-        _sanitizer = parse_yaml(SANITIZER_FLAGS)
-
-        return _sanitizer
+SANITIZER_FLAGS: Final[Mapping[str, Mapping[str, str]]] = {
+    "c++": {"compile": "-fsanitize=undefined,address"},
+}
 
 
 # A Program is class that wraps a program (file/directory) on disk. A program is usually one of:
@@ -108,8 +186,6 @@ def sanitizer():
 #
 # build() will return the (run_command, message) pair.
 class Program:
-    input_files: list[Path]  # Populated in Program.build
-
     def __init__(
         self,
         problem: "Problem",
@@ -127,6 +203,9 @@ class Program:
             assert len(deps) > 0
 
         assert self.__class__ is not Program  # Program is abstract and may not be instantiated
+
+        # read and parse languages.yaml
+        languages()
 
         # Make sure we never try to build the same program twice. That'd be stupid.
         if not skip_double_build_warning:
@@ -179,82 +258,65 @@ class Program:
                 self.source_files = []
             self.has_deps = False
 
+        self.input_files: list[Path]  # Populated in Program.build
+        self.language: Language  # Populated in Program.build
+
     # is file at path executable
     @staticmethod
-    def _is_executable(path):
-        return path.is_file() and (
+    def _is_executable(path: Path) -> bool:
+        return path.is_file() and bool(
             path.stat().st_mode & (stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
         )
 
-    # Returns true when file f matches the given shebang regex.
-    @staticmethod
-    def _matches_shebang(f, shebang):
-        if shebang is None:
-            return True
-        with f.open() as o:
-            return shebang.search(o.readline())
-
     # Do not warn for the same fallback language multiple times.
     warn_cache: set[str] = set()
-
-    language: Optional[str]
 
     # Sets self.language and self.env['mainfile']
     def _get_language(self, bar: ProgressBar):
         fallback = False
         candidates = []
         for lang in languages():
-            lang_conf = languages()[lang]
-            globs = lang_conf["files"].split() or []
-            shebang = re.compile(lang_conf["shebang"]) if lang_conf.get("shebang") else None
-            priority = int(lang_conf["priority"])
-
             matching_files = []
             for f in self.input_files:
-                if any(f.match(glob) for glob in globs) and Program._matches_shebang(f, shebang):
+                if any(f.match(glob) for glob in lang.files) and lang.matches_shebang(f):
                     matching_files.append(f)
 
             if len(matching_files) == 0:
                 continue
 
             candidates.append(
-                (priority // 1000, len(matching_files), priority, lang, matching_files)
+                ((lang.priority // 1000, len(matching_files), lang.priority), lang, matching_files)
             )
         candidates.sort(reverse=True)
 
-        for _, _, priority, lang, files in candidates:
-            lang_conf = languages()[lang]
-            name = lang_conf["name"]
-
-            # Make sure we can run programs for this language.
-            if "compile" in lang_conf:
-                exe = lang_conf["compile"].split()[0]
-                if exe[0] != "{" and shutil.which(exe) is None:
+        for _, lang, files in candidates:
+            name = lang.name
+            # Make sure we can compile programs for this language.
+            if lang.compile_exe is not None:
+                exe = lang.compile_exe
+                if Language.command_is_exe(exe) and shutil.which(exe) is None:
                     fallback = True
-                    if exe not in Program.warn_cache:
-                        if config.args.verbose:
-                            bar.debug(
-                                f"Compile program {exe} not found for language {name}. Falling back to lower priority languages."
-                            )
-                            Program.warn_cache.add(exe)
-                    continue
-            assert "run" in lang_conf
-            exe = lang_conf["run"].split()[0]
-            if exe[0] != "{" and shutil.which(exe) is None:
-                fallback = True
-                if exe not in Program.warn_cache:
-                    if config.args.verbose:
+                    if exe not in Program.warn_cache and config.args.verbose:
                         Program.warn_cache.add(exe)
                         bar.debug(
-                            f"Run program {exe} not found for language {name}. Falling back to lower priority languages."
+                            f"Compile program {exe} not found for language {name}. Falling back to lower priority languages."
                         )
+                    continue
+            exe = lang.run_exe
+            # Make sure we can compile programs for this language.
+            if Language.command_is_exe(exe) and shutil.which(exe) is None:
+                fallback = True
+                if exe not in Program.warn_cache and config.args.verbose:
+                    Program.warn_cache.add(exe)
+                    bar.debug(
+                        f"Run program {exe} not found for language {name}. Falling back to lower priority languages."
+                    )
                 continue
 
             if fallback:
-                if lang not in Program.warn_cache:
-                    if config.args.verbose:
-                        Program.warn_cache.add(lang)
-                        bar.debug(f"Falling back to {languages()[lang]['name']}.")
+                if lang.id not in Program.warn_cache and config.args.verbose:
+                    Program.warn_cache.add(lang.id)
+                    bar.debug(f"Falling back to {name}.")
 
             if len(files) == 0:
                 self.ok = False
@@ -308,7 +370,7 @@ class Program:
                 )
 
         # Make sure C++ does not depend on stdc++.h, because it's not portable.
-        if self.language == "cpp":
+        if "c++" in self.language.name.lower():
             for f in self.source_files:
                 try:
                     if f.read_text().find("bits/stdc++.h") != -1:
@@ -324,7 +386,7 @@ class Program:
         from validate import Validator
 
         if isinstance(self, Generator) or isinstance(self, Validator):
-            if self.language == "cpp":
+            if "c++" in self.language.name.lower():
                 for f in self.source_files:
                     try:
                         text = f.read_text()
@@ -354,7 +416,7 @@ class Program:
                             )
                     except UnicodeDecodeError:
                         pass
-            if self.language and "py" in self.language:
+            if "python" in self.language.name.lower():
                 for f in self.source_files:
                     try:
                         text = f.read_text()
@@ -475,21 +537,19 @@ class Program:
         # A file containing the compile command and hash.
         meta_path = self.tmpdir / "meta_.yaml"
 
-        lang_config = languages()[self.language]
-        sanitizer_config = sanitizer()
-
-        compile_command = lang_config["compile"] if "compile" in lang_config else ""
-        run_command = lang_config["run"]
+        compile_command = self.language.compile or ""
+        run_command = self.language.run
 
         if (
             self.subdir == "submissions"
             and config.args.sanitizer
-            and self.language in sanitizer_config
+            and self.language.name in SANITIZER_FLAGS
         ):
-            if "compile" in sanitizer_config[self.language]:
-                compile_command += " " + sanitizer_config[self.language]["compile"]
-            if "run" in sanitizer_config[self.language]:
-                run_command += " " + sanitizer_config[self.language]["run"]
+            sanitizer = SANITIZER_FLAGS[self.language.name]
+            if "compile" in sanitizer:
+                compile_command += " " + sanitizer["compile"]
+            if "run" in sanitizer:
+                run_command += " " + sanitizer["run"]
 
         self.compile_command = compile_command.format(**self.env).split()
         self.run_command = run_command.format(**self.env).split()
