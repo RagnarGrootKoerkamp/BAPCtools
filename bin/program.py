@@ -83,7 +83,7 @@ class Language:
 
 EXTRA_LANGUAGES: Final[Sequence[Language]] = [
     Language(
-        "BAPCtools:checktestdata",
+        "checktestdata",
         {
             "name": "Checktestdata",
             "priority": 1,
@@ -92,7 +92,7 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = [
         },
     ),
     Language(
-        "BAPCtools:viva",
+        "viva",
         {
             "name": "Viva",
             "priority": 2,
@@ -101,7 +101,7 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = [
         },
     ),
     Language(
-        "BAPCtools:manual",
+        "manual",
         {
             "name": "manual",
             "priority": 9999,
