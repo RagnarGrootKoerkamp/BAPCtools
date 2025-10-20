@@ -88,7 +88,10 @@ class Validator(program.Program):
         ExecResult.status == ExecStatus.REJECTED if the validator rejected.
     """
 
-    FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[str]] = ["checktestdata", "viva"]
+    FORMAT_VALIDATOR_LANGUAGES: Final[Sequence[program.Language]] = [
+        program.CHECKTESTDATA,
+        program.VIVA,
+    ]
 
     def __repr__(self):
         return type(self).__name__ + ": " + str(self.path)
@@ -173,7 +176,7 @@ class Validator(program.Program):
                 return ExecStatus.TIMEOUT
             return ExecStatus.ERROR
 
-        if self.language == "checktestdata":
+        if self.language == program.CHECKTESTDATA:
             with main_path.open("rb") as main_file:
                 return self._exec_command(
                     self.run_command,
@@ -182,7 +185,7 @@ class Validator(program.Program):
                     cwd=cwd,
                 )
 
-        if self.language == "viva":
+        if self.language == program.VIVA:
             # Called as `viva validator.viva testcase.in`.
             result = self._exec_command(
                 self.run_command + [main_path.absolute()],

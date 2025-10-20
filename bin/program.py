@@ -69,6 +69,9 @@ class Language:
             assert isinstance(key, str)
             warn(f"found unknown languages.yaml key: '{key}' for '{lang_id}'")
 
+    def __lt__(self, other: "Language") -> bool:
+        return self.id > other.id
+
     # Returns true when file f matches the shebang regex.
     def matches_shebang(self, f: Path) -> bool:
         if self.shebang is None:
@@ -81,25 +84,27 @@ class Language:
         return bool(command and command[0] != "{")
 
 
+CHECKTESTDATA: Final[Language] = Language(
+    "BAPCtools:checktestdata",
+    {
+        "name": "Checktestdata",
+        "priority": 1,
+        "files": "*.ctd",
+        "run": "checktestdata {mainfile}",
+    },
+)
+VIVA: Final[Language] = Language(
+    "BAPCtools:checktestdata",
+    {
+        "name": "Checktestdata",
+        "priority": 1,
+        "files": "*.ctd",
+        "run": "checktestdata {mainfile}",
+    },
+)
 EXTRA_LANGUAGES: Final[Sequence[Language]] = [
-    Language(
-        "checktestdata",
-        {
-            "name": "Checktestdata",
-            "priority": 1,
-            "files": "*.ctd",
-            "run": "checktestdata {mainfile}",
-        },
-    ),
-    Language(
-        "viva",
-        {
-            "name": "Viva",
-            "priority": 2,
-            "files": "*.viva",
-            "run": "java -jar {viva_jar} {mainfile}",
-        },
-    ),
+    CHECKTESTDATA,
+    VIVA,
     Language(
         "manual",
         {
