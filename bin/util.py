@@ -840,9 +840,14 @@ def parse_setting(
 ) -> T:
     value = parse_optional_setting(yaml_data, key, type(default))
     result = default if value is None else value
-    if constraint and not eval(f"{result} {constraint}"):
-        warn(f"value for '{key}' in problem.yaml should be {constraint} but is {value}. SKIPPED.")
-        return default
+    if constraint:
+        assert isinstance(result, (float, int))
+        assert eval(f"{default} {constraint}")
+        if not eval(f"{result} {constraint}"):
+            warn(
+                f"value for '{key}' in problem.yaml should be {constraint} but is {result}. SKIPPED."
+            )
+            return default
     return result
 
 
