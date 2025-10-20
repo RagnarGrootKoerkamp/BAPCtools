@@ -56,16 +56,23 @@ class Language:
         self.compile = get_optional_value("compile", str)
         self.run = get_value("run", str)
 
-        def get_exe(command: str) -> str:
+        def get_exe(key: str, command: str, optional: bool = True) -> Optional[str]:
             try:
-                return shlex.split(command)[0]
-            except (IndexError, ValueError) as e:
-                print(e)
-                self.ok = False
-            return ""
+                exe = shlex.split(command)[0]
+                if exe and exe[0] != "{":
+                    return exe
+                if optional:
+                    return None
+            except (IndexError, ValueError):
+                pass
+            error(f"invalid value for key '{key}' in languages.yaml for '{lang_id}'")
+            self.ok = False
+            return None
 
-        self.compile_exe = get_exe(self.compile) if self.compile is not None else None
-        self.run_exe = get_exe(self.run)
+        self.compile_exe = get_exe("compile", self.compile) if self.compile is not None else None
+        run_exe = get_exe("run", self.run, optional=False)
+        assert run_exe is not None
+        self.run_exe = run_exe
 
         for key in conf:
             assert isinstance(key, str)
@@ -80,10 +87,6 @@ class Language:
             return True
         with f.open() as o:
             return self.shebang.search(o.readline()) is not None
-
-    @staticmethod
-    def command_is_exe(command: Optional[str]) -> bool:
-        return bool(command and command[0] != "{")
 
 
 CHECKTESTDATA: Final[Language] = Language(
@@ -299,24 +302,21 @@ class Program:
         for _, lang, files in candidates:
             name = lang.name
             # Make sure we can compile programs for this language.
-            if lang.compile_exe is not None:
-                exe = lang.compile_exe
-                if Language.command_is_exe(exe) and shutil.which(exe) is None:
-                    fallback = True
-                    if exe not in Program.warn_cache and config.args.verbose:
-                        Program.warn_cache.add(exe)
-                        bar.debug(
-                            f"Compile program {exe} not found for language {name}. Falling back to lower priority languages."
-                        )
-                    continue
-            exe = lang.run_exe
-            # Make sure we can compile programs for this language.
-            if Language.command_is_exe(exe) and shutil.which(exe) is None:
+            if lang.compile_exe is not None and shutil.which(lang.compile_exe) is None:
                 fallback = True
-                if exe not in Program.warn_cache and config.args.verbose:
-                    Program.warn_cache.add(exe)
+                if lang.compile_exe not in Program.warn_cache and config.args.verbose:
+                    Program.warn_cache.add(lang.compile_exe)
                     bar.debug(
-                        f"Run program {exe} not found for language {name}. Falling back to lower priority languages."
+                        f"Compile program {lang.compile_exe} not found for language {name}. Falling back to lower priority languages."
+                    )
+                continue
+            # Make sure we can run programs for this language.
+            if shutil.which(lang.run_exe) is None:
+                fallback = True
+                if lang.run_exe not in Program.warn_cache and config.args.verbose:
+                    Program.warn_cache.add(lang.run_exe)
+                    bar.debug(
+                        f"Run program {lang.run_exe} not found for language {name}. Falling back to lower priority languages."
                     )
                 continue
 
