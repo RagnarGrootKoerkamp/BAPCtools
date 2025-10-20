@@ -307,7 +307,7 @@ def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Pat
 # If we would not do this, it would not be possible to check which keys are explicitly set from the command line.
 # This check is necessary when loading the personal config file in `read_personal_config`.
 class SuppressingParser(argparse.ArgumentParser):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any):
         super(SuppressingParser, self).__init__(**kwargs, argument_default=argparse.SUPPRESS)
 
 
