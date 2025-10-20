@@ -3,6 +3,7 @@ import shutil
 import subprocess
 import sys
 
+from collections.abc import Sequence
 from colorama import Fore, Style
 from contextlib import nullcontext
 from pathlib import Path
@@ -29,7 +30,7 @@ from util import (
     shorten_path,
     warn,
 )
-from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdicts
+from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdicts, VerdictTable
 
 
 class Run:
@@ -60,7 +61,13 @@ class Run:
         ensure_symlink(self.in_path, self.testcase.in_path)
 
     # Return an ExecResult object amended with verdict.
-    def run(self, bar, *, interaction=None, submission_args=None):
+    def run(
+        self,
+        bar: ProgressBar,
+        *,
+        interaction: Optional[bool | Path] = None,
+        submission_args: Optional[Sequence[str | Path]] = None,
+    ) -> ExecResult:
         if self.problem.interactive:
             result = interactive.run_interactive_testcase(
                 self, interaction=interaction, submission_args=submission_args, bar=bar
@@ -80,12 +87,13 @@ class Run:
                     Verdict.VALIDATOR_CRASH,
                 )
         else:
+            assert interaction is not True
             if interaction:
                 assert not interaction.is_relative_to(self.tmpdir)
             with interaction.open("a") if interaction else nullcontext(None) as interaction_file:
                 nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else None
                 pass_id = 0
-                max_duration = 0
+                max_duration = 0.0
                 tle_result = None
                 while True:
                     pass_id += 1
@@ -194,7 +202,7 @@ class Run:
         return result
 
     # check if we should continue after tle
-    def _continue_with_tle(self, verdict, timeout_expired):
+    def _continue_with_tle(self, verdict: Verdict, timeout_expired: bool) -> bool:
         if not self.problem.multi_pass:
             return False
         if config.args.all == 2 or config.args.reorder:
@@ -206,7 +214,7 @@ class Run:
         return config.args.verbose or config.args.all or config.args.action in ["all", "time_limit"]
 
     # prepare next pass
-    def _prepare_nextpass(self, nextpass):
+    def _prepare_nextpass(self, nextpass: Optional[Path]) -> bool:
         if not nextpass or not nextpass.is_file():
             return False
         # clear all files outside of feedbackdir
@@ -221,7 +229,7 @@ class Run:
         shutil.move(nextpass, self.in_path)
         return True
 
-    def _validate_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
+    def _validate_output(self, bar: ProgressBar) -> Optional[ExecResult]:
         output_validators = self.problem.validators(validate.OutputValidator)
         if not output_validators:
             return None
@@ -249,7 +257,9 @@ class Run:
 
 
 class Submission(program.Program):
-    def __init__(self, problem, path, skip_double_build_warning=False):
+    def __init__(
+        self, problem: "problem.Problem", path: Path, skip_double_build_warning: bool = False
+    ):
         super().__init__(
             problem,
             path,
@@ -263,7 +273,7 @@ class Submission(program.Program):
             skip_double_build_warning=skip_double_build_warning,
         )
 
-        self.verdict = None
+        self.verdict: Optional[Verdict] = None
         self.duration = None
 
         # The first element will match the directory the file is in, if possible.
@@ -345,7 +355,15 @@ class Submission(program.Program):
     # Returns ExecResult
     # The `generator_timeout` argument is used when a submission is run as a solution when
     # generating testcases.
-    def run(self, in_path, out_path, crop=True, args=[], cwd=None, generator_timeout=False):
+    def run(
+        self,
+        in_path: Path,
+        out_path: Path,
+        crop: bool = True,
+        args: Sequence[str | Path] = [],
+        cwd: Optional[Path] = None,
+        generator_timeout: bool = False,
+    ) -> ExecResult:
         assert self.run_command is not None
         # Just for safety reasons, change the cwd.
         if cwd is None:
@@ -356,7 +374,7 @@ class Submission(program.Program):
         ):
             # Print stderr to terminal is stdout is None, otherwise return its value.
             result = self._exec_command(
-                self.run_command + args,
+                [*self.run_command, *args],
                 crop=crop,
                 stdin=in_file,
                 stdout=out_file,
@@ -375,10 +393,10 @@ class Submission(program.Program):
     def run_testcases(
         self,
         max_submission_name_len: int,
-        verdict_table,
-        testcases,
+        verdict_table: VerdictTable,
+        testcases: Sequence[Testcase],
         *,
-        needs_leading_newline,
+        needs_leading_newline: bool,
     ):
         runs = [Run(self.problem, self, testcase) for testcase in testcases]
         max_testcase_len = max(len(run.name) for run in runs)
@@ -411,13 +429,14 @@ class Submission(program.Program):
             needs_leading_newline=needs_leading_newline,
         )
 
-        def process_run(run: Run):
+        def process_run(run: Run) -> None:
             if not verdicts.run_is_needed(run.name):
                 bar.skip()
                 return
 
             localbar = bar.start(run)
             result = run.run(localbar)
+            assert result.verdict is not None
 
             verdict_table.update_verdicts(run.name, result.verdict, result.duration)
 
@@ -485,8 +504,9 @@ class Submission(program.Program):
 
         parallel.run_tasks(process_run, runs, pin=True)
 
-        self.verdict = verdicts["."]
-        assert isinstance(self.verdict, Verdict), "Verdict of root must not be empty"
+        verdict = verdicts["."]
+        assert isinstance(verdict, Verdict), "Verdict of root must not be empty"
+        self.verdict = verdict
 
         # Use a bold summary line if things were printed before.
         if bar.logged:
@@ -538,7 +558,7 @@ class Submission(program.Program):
 
         return self.verdict in self.expected_verdicts, printed_newline
 
-    def test(self):
+    def test(self) -> None:
         print(ProgressBar.action("Running", str(self.name)), file=sys.stderr)
 
         testcases = self.problem.testcases(needans=False)
@@ -591,9 +611,17 @@ class Submission(program.Program):
             else:
                 # Interactive problem.
                 run = Run(self.problem, self, testcase)
-                result = interactive.run_interactive_testcase(
+                optional_result = interactive.run_interactive_testcase(
                     run, interaction=True, validator_error=None, team_error=None
                 )
+                if optional_result is None:
+                    config.n_error += 1
+                    print(
+                        f"{Fore.RED}No output validator found for testcase {testcase.name}{Style.RESET_ALL}",
+                        file=sys.stderr,
+                    )
+                    continue
+                result = optional_result
                 if result.verdict != Verdict.ACCEPTED:
                     config.n_error += 1
                     print(
@@ -607,7 +635,7 @@ class Submission(program.Program):
                     )
 
     # Run the submission using stdin as input.
-    def test_interactive(self):
+    def test_interactive(self) -> None:
         if not self.problem.validators(validate.OutputValidator):
             return
 

@@ -777,10 +777,15 @@ if has_ryaml:
 write_yaml_lock = threading.Lock()
 
 
+# The @overload definitions are purely here for static typing reasons.
+@overload
+def write_yaml(data: Any, path: None = None, allow_yamllib: bool = False) -> str: ...
+@overload
+def write_yaml(data: Any, path: Path, allow_yamllib: bool = False) -> None: ...
+
+
 # Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
-def write_yaml(
-    data: Any, path: Optional[Path] = None, allow_yamllib: bool = False
-) -> Optional[str]:
+def write_yaml(data, path=None, allow_yamllib=False):
     if not has_ryaml:
         if not allow_yamllib:
             error(

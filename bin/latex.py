@@ -6,7 +6,7 @@ import shutil
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Optional, TYPE_CHECKING
+from typing import Optional, TextIO, TYPE_CHECKING
 
 from colorama import Fore, Style
 
@@ -15,6 +15,7 @@ from contest import contest_yaml, problems_yaml
 from util import (
     copy_and_substitute,
     ensure_symlink,
+    ExecResult,
     exec_command,
     fatal,
     message,
@@ -59,7 +60,7 @@ def create_samples_file(problem: "Problem", language: str) -> None:
         samples_file_path.write_text("")
         return
 
-    def build_sample_command(content):
+    def build_sample_command(content: str) -> str:
         return f"\\expandafter\\def\\csname Sample{i + 1}\\endcsname{{{content}}}\n"
 
     samples_data = []
@@ -83,7 +84,7 @@ def create_samples_file(problem: "Problem", language: str) -> None:
                 interaction_id = 0
                 pass_id = 1
 
-                def flush():
+                def flush() -> None:
                     assert last in "<>"
                     nonlocal current_sample, interaction_id
 
@@ -124,7 +125,7 @@ def create_samples_file(problem: "Problem", language: str) -> None:
 
                 current_sample.append("\\MultipassSampleHeading{}\n")
 
-                def flush():
+                def flush() -> None:
                     nonlocal current_sample
 
                     in_path = multi_pass_dir / f"{sample_name}-{pass_id:02}.in"
@@ -181,15 +182,12 @@ def create_constants_file(problem: "Problem", language: str) -> None:
 
 
 # Steps needed for both problem and contest compilation.
-def prepare_problem(problem: "Problem", language: str):
+def prepare_problem(problem: "Problem", language: str) -> None:
     create_samples_file(problem, language)
     create_constants_file(problem, language)
 
 
-def get_tl(problem: "Problem"):
-    tl = problem.limits.time_limit
-    tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
-
+def get_tl(problem: "Problem") -> str:
     if "print_time_limit" in contest_yaml():
         print_tl = contest_yaml()["print_time_limit"]
     elif "print_timelimit" in contest_yaml():  # TODO remove legacy at some point
@@ -197,10 +195,14 @@ def get_tl(problem: "Problem"):
     else:
         print_tl = not config.args.no_time_limit
 
-    return tl if print_tl else ""
+    if not print_tl:
+        return ""
+    tl = problem.limits.time_limit
+    tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
+    return str(tl)
 
 
-def problem_data(problem: "Problem", language: str):
+def problem_data(problem: "Problem", language: str) -> dict[str, Optional[str]]:
     background = next(
         (
             p["rgb"][1:]
@@ -254,7 +256,7 @@ def build_latex_pdf(
     language: str,
     bar: PrintBar,
     problem_path: Optional[Path] = None,
-):
+) -> bool:
     env = make_environment()
 
     if shutil.which("latexmk") is None:
@@ -311,7 +313,7 @@ def build_latex_pdf(
 
     latexmk_command.append(tex_path.absolute())
 
-    def run_latexmk(stdout, stderr):
+    def run_latexmk(stdout: Optional[TextIO], stderr: Optional[TextIO]) -> ExecResult:
         logfile.unlink(True)
         return exec_command(
             latexmk_command,
@@ -363,7 +365,9 @@ def build_latex_pdf(
 #    substituting variables.
 # 2. Create tmpdir/<problem>/latex/<language>/{samples,constants}.tex.
 # 3. Run latexmk and link the resulting <build_type>.<language>.pdf into the problem directory.
-def build_problem_pdf(problem: "Problem", language: str, build_type=PdfType.PROBLEM, web=False):
+def build_problem_pdf(
+    problem: "Problem", language: str, build_type: PdfType = PdfType.PROBLEM, web: bool = False
+) -> bool:
     """
     Arguments:
     -- language: str, the two-letter language code appearing the file name, such as problem.en.tex
@@ -388,7 +392,9 @@ def build_problem_pdf(problem: "Problem", language: str, build_type=PdfType.PROB
     return build_latex_pdf(builddir, builddir / main_file, language, bar, problem.path)
 
 
-def build_problem_pdfs(problem: "Problem", build_type=PdfType.PROBLEM, web=False):
+def build_problem_pdfs(
+    problem: "Problem", build_type: PdfType = PdfType.PROBLEM, web: bool = False
+) -> bool:
     """Build PDFs for various languages. If list of languages is specified,
     (either via config files or --lang arguments), build those. Otherwise
     build all languages for which there is a statement latex source.
@@ -436,8 +442,8 @@ def build_contest_pdf(
     problems: list["Problem"],
     tmpdir: Path,
     language: str,
-    build_type=PdfType.PROBLEM,
-    web=False,
+    build_type: PdfType = PdfType.PROBLEM,
+    web: bool = False,
 ) -> bool:
     builddir = tmpdir / contest / "latex" / language
     builddir.mkdir(parents=True, exist_ok=True)
@@ -535,7 +541,14 @@ def build_contest_pdf(
     return build_latex_pdf(builddir, Path(main_file), language, bar)
 
 
-def build_contest_pdfs(contest, problems, tmpdir, lang=None, build_type=PdfType.PROBLEM, web=False):
+def build_contest_pdfs(
+    contest: str,
+    problems: list["Problem"],
+    tmpdir: Path,
+    lang: Optional[str] = None,
+    build_type: PdfType = PdfType.PROBLEM,
+    web: bool = False,
+) -> bool:
     if lang:
         return build_contest_pdf(contest, problems, tmpdir, lang, build_type, web)
 
@@ -566,7 +579,7 @@ def build_contest_pdfs(contest, problems, tmpdir, lang=None, build_type=PdfType.
     )
 
 
-def get_argument_for_command(texfile, command):
+def get_argument_for_command(texfile: TextIO, command: str) -> Optional[str]:
     """Return the (whitespace-normalised) argument for the given command in the given texfile.
     If texfile contains `\foo{bar  baz }`, returns the string 'bar baz'.
     The command is given without backslash.

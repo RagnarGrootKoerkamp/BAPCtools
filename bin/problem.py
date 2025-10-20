@@ -28,7 +28,7 @@ from colorama import Fore, Style
 
 # The parse_* functions will remove (.pop()) keys from the yaml data during parsing.
 # We will warn for any unknown keys that remain after this process.
-def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None):
+def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None) -> None:
     for key in yaml_data:
         assert isinstance(key, str)
         warn(f"found unknown problem.yaml key: {key} in {f'`{sub_key}`' if sub_key else 'root'}")
@@ -458,7 +458,7 @@ class Problem:
             if (self.path / "data" / d).is_dir():
                 warn(f"Found directory: data/{d}, should be: data/{d[:-1]} (singular form).")
 
-    def _determine_statement_languages(self):
+    def _determine_statement_languages(self) -> list[str]:
         """Determine the languages that are both mentioned in the problem.yaml under name
         and have a corresponding problem statement.
 
@@ -505,7 +505,7 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
-    def _read_settings(self):
+    def _read_settings(self) -> None:
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
         if has_ryaml:
@@ -534,7 +534,7 @@ class Problem:
         self.custom_output: bool = self.settings.custom_output
 
     # TODO #102 move to a new TestGroup class
-    def _parse_test_case_and_groups_yaml(p, path: Path, bar: BAR_TYPE):
+    def _parse_test_case_and_groups_yaml(p, path: Path, bar: BAR_TYPE) -> None:
         assert path.is_relative_to(p.path / "data"), f"{path} is not in data"
         for f in [path] + list(path.parents):
             # Do not go above the data directory.
@@ -692,7 +692,7 @@ class Problem:
     # this cache makes sure that some warnings (like malformed test case names) only appear once.
     _warned_for_test_case = set[str]()
 
-    def _warn_once(p, test_name, msg):
+    def _warn_once(p, test_name: str, msg: str) -> None:
         if test_name not in p._warned_for_test_case:
             p._warned_for_test_case.add(test_name)
             warn(msg)
@@ -934,7 +934,7 @@ class Problem:
         paths = []
         if config.args.submissions:
 
-            def add(s):
+            def add(s: Path) -> None:
                 if s in paths:
                     warn(f"Ignoring duplicate submission: {s}")
                     return
@@ -970,21 +970,21 @@ class Problem:
 
         programs = [run.Submission(problem, path) for path in paths]
 
-        # - first all submission with just one verdict (sorted by that verdict)
+        # - first all submission with just one verdict (grouped by that verdict and sorted by the path)
         # - then by subdir
         # - then by list of verdicts
         # - then by name
-        def submissions_key(x):
-            if len(x.expected_verdicts) == 1:
-                return (1, x.expected_verdicts[0], x.name)
-            else:
-                return (len(x.expected_verdicts), x.subdir, x.expected_verdicts, x.name)
+        def submissions_key(
+            x: run.Submission,
+        ) -> tuple[int, str, Sequence[verdicts.Verdict], str, str]:
+            group = "" if len(x.expected_verdicts) == 1 else x.subdir
+            return (len(x.expected_verdicts), group, x.expected_verdicts, x.subdir, x.name)
 
         programs.sort(key=submissions_key)
 
         bar = ProgressBar("Build submissions", items=programs)
 
-        def build_program(p):
+        def build_program(p: run.Submission) -> None:
             localbar = bar.start(p)
             p.build(localbar)
             localbar.done()
@@ -1554,7 +1554,7 @@ class Problem:
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
 
-        def process_testcase(testcase: testcase.Testcase):
+        def process_testcase(testcase: testcase.Testcase) -> None:
             nonlocal success
 
             localbar = bar.start(testcase.name)
@@ -1596,7 +1596,7 @@ class Problem:
 
         return success
 
-    def determine_time_limit(problem):
+    def determine_time_limit(problem) -> bool:
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
@@ -1607,7 +1607,10 @@ class Problem:
         problem.limits.time_limit_is_default = False
         problem.limits.timeout = problem.limits.time_limit + 1
 
-        def run_all(select_verdict, select):
+        def run_all(
+            select_verdict: Callable[[Sequence[verdicts.Verdict]], bool],
+            select: Callable[[Sequence[float]], float],
+        ):
             nonlocal ok
 
             cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
@@ -1620,7 +1623,7 @@ class Problem:
                 ok = False
                 return None, None, None
 
-            def get_slowest(result):
+            def get_slowest(result: verdicts.Verdicts) -> tuple[str, float]:
                 slowest_pair = result.slowest_test_case()
                 assert slowest_pair is not None
                 return slowest_pair
