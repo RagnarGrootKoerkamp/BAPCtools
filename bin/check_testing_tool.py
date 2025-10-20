@@ -12,6 +12,20 @@ from util import *
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
 
+"""DISCLAIMER:
+
+  This tool was only made to check testing tools faster.
+  You should still carefully review the code of the testing tool.
+
+  For this tool to work the following things must hold:
+   - the testing tool must be found under `attachments/testing_tool.<ext>`
+   - the testing tool must be callable as `{program} -f {in_path} {submission program}`
+   - the testing tool must accept the downloadable samples as well as those found under
+     `data/testing_tool_test/` as input files
+   - the testing tool must exits with a non zero exit code if something goes wrong
+   - the testing tool must not change the working directory
+"""
+
 
 class TestInput:
     def __init__(self, problem: "Problem", in_path: Path, short_path: Path):
@@ -26,10 +40,6 @@ class TestInput:
             self.name = str(name.with_suffix(ext))
         else:
             self.name = str(self.short_path.with_suffix(""))
-
-
-# TODO:
-# - generators.yaml add special directory for tests
 
 
 class WrappedSubmission:
