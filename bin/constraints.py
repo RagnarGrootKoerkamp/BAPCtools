@@ -1,4 +1,5 @@
 import re
+import sys
 from collections import defaultdict
 from typing import Optional
 
@@ -29,7 +30,7 @@ def check_validators(
     problem.validate_data(validate.Mode.ANSWER, constraints=ans_constraints)
     if not problem.settings.ans_is_output and not ans_constraints:
         log("No constraint validation of answer values found in answer or output validators.")
-    print()
+    print(file=sys.stderr)
 
     validator_values: set[int | float] = set()
     validator_defs: list[str | tuple[int | float, str, int | float]] = []
@@ -275,6 +276,7 @@ def check_constraints(problem: Problem) -> bool:
     print(
         "{:^{width}}|{:^40}".format("VALIDATORS", "PROBLEM STATEMENT", width=left_width),
         sep="",
+        file=sys.stderr,
     )
 
     while statement_defs or validator_defs:
@@ -292,7 +294,7 @@ def check_constraints(problem: Problem) -> bool:
         if val is not None:
             validator_defs.remove(val)
             if isinstance(val, str):
-                print("{:^{width}}".format(val, width=left_width), sep="", end="")
+                print("{:^{width}}".format(val, width=left_width), sep="", end="", file=sys.stderr)
             else:
                 print(
                     "{:>{value_len}_} <= {:^{name_len}} <= {:<{value_len}_}".format(
@@ -300,20 +302,21 @@ def check_constraints(problem: Problem) -> bool:
                     ),
                     sep="",
                     end="",
+                    file=sys.stderr,
                 )
         else:
-            print("{:^{width}}".format("", width=left_width), sep="", end="")
-        print("|", end="")
+            print("{:^{width}}".format("", width=left_width), sep="", end="", file=sys.stderr)
+        print("|", end="", file=sys.stderr)
         if st is not None:
             languages = ",".join(statement_defs[st])
-            print("{:^40} {}".format(st, languages), sep="", end="")
+            print("{:^40} {}".format(st, languages), sep="", end="", file=sys.stderr)
         else:
-            print("{:^40}".format(""), sep="", end="")
-        print()
+            print("{:^40}".format(""), sep="", end="", file=sys.stderr)
+        print(file=sys.stderr)
         if st is not None:
             statement_defs.pop(st)
 
-    print()
+    print(file=sys.stderr)
 
     warned = False
     for value in validator_values:
@@ -323,7 +326,11 @@ def check_constraints(problem: Problem) -> bool:
             if not warned:
                 warned = True
                 warn("Values in validators but missing in some statement:")
-            print(f"{Fore.YELLOW}{value}{Style.RESET_ALL} missing in", ",".join(missing))
+            print(
+                f"{Fore.YELLOW}{value}{Style.RESET_ALL} missing in",
+                ",".join(missing),
+                file=sys.stderr,
+            )
 
     extra_in_statement = set(statement_values.keys()).difference(validator_values)
     if extra_in_statement:
@@ -332,6 +339,7 @@ def check_constraints(problem: Problem) -> bool:
             print(
                 f"{Fore.YELLOW}{value}{Style.RESET_ALL} in",
                 ",".join(sorted(statement_values[value])),
+                file=sys.stderr,
             )
 
     return True
