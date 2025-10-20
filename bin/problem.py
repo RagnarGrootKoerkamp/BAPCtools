@@ -210,11 +210,15 @@ class ProblemLimits:
 
         check_unknown_keys(yaml_data, "limits")
 
-        # Override limmits by command line arguments.
-        self.raw_time_limit = config.args.time_limit or self.raw_time_limit
+        # adjust actual time_limit based on local_time_multiplier
         self.time_limit: float = self.raw_time_limit
         if config.args.local_time_multiplier is not None:
             self.time_limit *= config.args.local_time_multiplier
+
+        # Override limmits by command line arguments.
+        if config.args.time_limit:
+            self.time_limit = config.args.time_limit
+            self.raw_time_limit = config.args.time_limit
         self.timeout: int = int(config.args.timeout or self.time_limit_to_tle * self.time_limit + 1)
         if config.args.timeout:
             self.validation_time = self.generator_time = self.visualizer_time = config.args.timeout
