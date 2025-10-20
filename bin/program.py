@@ -279,7 +279,7 @@ class Program:
     warn_cache: set[str] = set()
 
     # Sets self.language and self.env['mainfile']
-    def _get_language(self, bar: ProgressBar):
+    def _get_language(self, bar: ProgressBar) -> bool:
         fallback = False
         candidates = []
         for lang in languages():
@@ -369,7 +369,7 @@ class Program:
         bar.error(f"No language detected for {self.path}.")
         return False
 
-    def _checks(self, bar: ProgressBar):
+    def _checks(self, bar: ProgressBar) -> None:
         for f in self.source_files:
             if f.stat().st_size >= config.ICPC_FILE_LIMIT * 1024**2:
                 bar.warn(
@@ -436,7 +436,7 @@ class Program:
                         pass
 
     # Return True on success.
-    def _compile(self, bar: ProgressBar):
+    def _compile(self, bar: ProgressBar) -> bool:
         meta_path = self.tmpdir / "meta_.yaml"
 
         # Remove all non-source files.
@@ -484,7 +484,7 @@ class Program:
         return True
 
     # Return True on success, False on failure.
-    def build(self, bar: ProgressBar):
+    def build(self, bar: ProgressBar) -> bool:
         assert not self.built
         self.built = True
 
@@ -586,7 +586,7 @@ class Program:
 
         return True
 
-    def _exec_command(self, *args, **kwargs) -> ExecResult:
+    def _exec_command(self, *args: Any, **kwargs: Any) -> ExecResult:
         if "timeout" not in kwargs and "timeout" in self.limits:
             kwargs["timeout"] = self.limits["timeout"]
         if "memory" not in kwargs and "memory" in self.limits:
@@ -594,14 +594,14 @@ class Program:
         return exec_command(*args, **kwargs)
 
     @staticmethod
-    def add_callback(problem, path, c):
+    def add_callback(problem: "Problem", path: Path, c: Callable[["Program"], None]) -> None:
         if path not in problem._program_callbacks:
             problem._program_callbacks[path] = []
         problem._program_callbacks[path].append(c)
 
 
 class Generator(Program):
-    def __init__(self, problem: "Problem", path: Path, **kwargs):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
         super().__init__(
             problem,
             path,
@@ -614,7 +614,9 @@ class Generator(Program):
     # Run the generator in the given working directory.
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns ExecResult. Success when result.status == ExecStatus.ACCEPTED.
-    def run(self, bar, cwd, name, args=[]):
+    def run(
+        self, bar: ProgressBar, cwd: Path, name: str, args: list[str | Path] = []
+    ) -> ExecResult:
         assert self.run_command is not None
 
         in_path = cwd / (name + ".in")
