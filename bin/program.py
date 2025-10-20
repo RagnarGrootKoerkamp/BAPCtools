@@ -6,7 +6,7 @@ import subprocess
 import threading
 from colorama import Fore
 from pathlib import Path
-from typing import Any, Final, Mapping, Optional, Sequence, TYPE_CHECKING
+from typing import Any, Final, Mapping, Optional, Sequence, TypeVar, TYPE_CHECKING
 
 import config
 from util import *
@@ -18,6 +18,9 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 class Language:
     def __init__(self, lang_id: str, conf: dict[str, Any]):
         self.ok = True
+        self.id = lang_id
+
+        T = TypeVar("T")
 
         def get_optional_value(key: str, t: type[T]) -> Optional[T]:
             if key in conf:
@@ -40,7 +43,6 @@ class Language:
             self.ok = False
             return t()
 
-        self.id = lang_id
         self.name = get_value("name", str)
         self.priority = get_value("priority", int)
         self.files = (get_optional_value("files", str) or "").split()
@@ -106,7 +108,7 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = [
     CHECKTESTDATA,
     VIVA,
     Language(
-        "manual",
+        "BAPCtools:manual",
         {
             "name": "manual",
             "priority": 9999,
