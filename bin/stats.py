@@ -94,25 +94,23 @@ def problem_stats(problems: list[Problem]) -> None:
         ("subs", lambda p: len(glob(p.path, "submissions/*/*")), 6),
     ]
     languages = {
-        "  c(++)": ["C", "C++"],
-        "py": ["Python 2", "Python 3", "CPython 2", "CPython 3"],
-        "java": ["Java"],
-        "kt": ["Kotlin"],
+        "  c(++)": ["c", "c++"],
+        "py": ["python 2", "python 3", "cpython 2", "cpython 3"],
+        "java": ["java"],
+        "kt": ["kotlin"],
     }
     for column, lang_names in languages.items():
         paths = []
         lang_defined = False
-        for lang_id, lang_definition in program.languages().items():
-            if lang_definition["name"] in lang_names:
+        for lang in program.languages():
+            if lang.name.lower() in lang_names:
                 lang_defined = True
-                # dict.get() returns None if key 'files' is not declared
-                lang_globs = lang_definition.get("files")
+                lang_globs = lang.files
                 if lang_globs:
-                    paths += [f"submissions/accepted/{glob}" for glob in lang_globs.split()]
+                    paths += [f"submissions/accepted/{glob}" for glob in lang_globs]
                 else:
                     warn(
-                        f"Language {lang_id} ('{lang_definition['name']}') "
-                        "does not define `files:` in languages.yaml"
+                        f"Language {lang.id} ('{lang.name}') does not define `files:` in languages.yaml"
                     )
         if paths:
             stats.append((column, list(set(paths)), 1))
@@ -358,11 +356,11 @@ def more_stats(problems: list[Problem]) -> None:
     def format_row(*values: Optional[str | float | int | timedelta]) -> str:
         return format_string.format(*[format_value(value) for value in values])
 
-    languages: dict[str, list[str] | Literal[True]] = {
-        "C(++)": ["C", "C++"],
-        "Python": ["Python 2", "Python 3", "CPython 2", "CPython 3"],
-        "Java": ["Java"],
-        "Kotlin": ["Kotlin"],
+    languages = {
+        "C(++)": ["c", "c++"],
+        "Python": ["python 2", "python 3", "cpython 2", "cpython 3"],
+        "Java": ["java"],
+        "Kotlin": ["kotlin"],
     }
 
     def get_submissions_row(
@@ -373,9 +371,9 @@ def more_stats(problems: list[Problem]) -> None:
             paths.append("accepted/*")
         else:
             assert isinstance(names, list)
-            for config in program.languages().values():
-                if config["name"] in names:
-                    globs = config["files"].split() or []
+            for config in program.languages():
+                if config.name.lower() in names:
+                    globs = config.files
                     paths += [f"accepted/{glob}" for glob in globs]
             paths = list(set(paths))
 
