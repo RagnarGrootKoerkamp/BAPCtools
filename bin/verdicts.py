@@ -2,9 +2,10 @@ import io
 import shutil
 import sys
 import threading
+from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, Optional, Sequence, TextIO, TYPE_CHECKING
+from typing import Any, Literal, Optional, TextIO, TYPE_CHECKING
 
 from colorama import Fore, Style
 

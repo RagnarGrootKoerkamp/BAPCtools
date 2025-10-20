@@ -3,7 +3,7 @@ from util import *
 from enum import Enum
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Final, Optional, TYPE_CHECKING
+from typing import Any, Final, Optional, TYPE_CHECKING
 
 import config
 import program
@@ -11,6 +11,7 @@ import program
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     import run
     import testcase
+    from problem import Problem
 
 
 class Mode(Enum):
@@ -21,7 +22,7 @@ class Mode(Enum):
     INVALID = 3
     VALID_OUTPUT = 4
 
-    def __str__(self):
+    def __str__(self) -> str:
         return {
             Mode.INPUT: "input",
             Mode.ANSWER: "answer",
@@ -43,7 +44,7 @@ def _to_number(s: str) -> int | float:
         return float(s)
 
 
-def _merge_constraints(constraints_path: Path, constraints: ConstraintsDict):
+def _merge_constraints(constraints_path: Path, constraints: ConstraintsDict) -> None:
     # Merge with previous constraints.
     if constraints_path.is_file():
         for line in constraints_path.read_text().splitlines():
@@ -93,16 +94,16 @@ class Validator(program.Program):
         program.VIVA,
     ]
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return type(self).__name__ + ": " + str(self.path)
 
     def __init__(
         self,
-        problem,
-        path,
-        subdir,
-        skip_double_build_warning=False,
-        check_constraints=False,
+        problem: "Problem",
+        path: Path,
+        subdir: str,
+        skip_double_build_warning: bool = False,
+        check_constraints: bool = False,
     ):
         super().__init__(
             problem,
@@ -121,7 +122,12 @@ class Validator(program.Program):
             self.tmpdir: Path = self.tmpdir.parent / (self.tmpdir.name + "_check_constraints")
         self.check_constraints = check_constraints
 
-    def _run_helper(self, testcase, constraints, args):
+    def _run_helper(
+        self,
+        testcase: "testcase.Testcase",
+        constraints: Optional[ConstraintsDict],
+        args: Optional[Sequence[str | Path]],
+    ) -> tuple[Path, Optional[Path], Sequence[str | Path]]:
         """Helper method for the run method in subclasses.
         Return:
             cwd: a current working directory for this testcase
@@ -156,7 +162,7 @@ class Validator(program.Program):
 
     # .ctd, .viva, or otherwise called as: ./validator [arguments] < inputfile.
     # It may not read/write files.
-    def _run_format_validator(self, testcase, cwd):
+    def _run_format_validator(self, testcase: "testcase.Testcase", cwd: Path) -> ExecResult:
         assert self.language in Validator.FORMAT_VALIDATOR_LANGUAGES
         assert self.run_command is not None, "Validator should be built before running it"
 
@@ -187,14 +193,15 @@ class Validator(program.Program):
 
         if self.language == program.VIVA:
             # Called as `viva validator.viva testcase.in`.
-            result = self._exec_command(
-                self.run_command + [main_path.absolute()],
+            return self._exec_command(
+                [*self.run_command, main_path.absolute()],
                 exec_code_map=format_exec_code_map,
                 cwd=cwd,
             )
-            return result
 
-    def _exec_helper(self, *args, cwd, **kwargs):
+        assert False
+
+    def _exec_helper(self, *args: Any, cwd: Path, **kwargs: Any) -> ExecResult:
         ret = self._exec_command(*args, **kwargs)
         judgemessage = cwd / "judgemessage.txt"
         judgeerror = cwd / "judgeerror.txt"
@@ -215,7 +222,7 @@ class Validator(program.Program):
         testcase: "testcase.Testcase",
         mode: Mode,
         constraints: Optional[ConstraintsDict] = None,
-        args: Optional[list[str]] = None,
+        args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
         raise Exception("Abstract method")
 
@@ -235,7 +242,7 @@ class InputValidator(Validator):
 
     args_key: Final[str] = "input_validator_args"
 
-    def __init__(self, problem, path, **kwargs):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
         super().__init__(problem, path, InputValidator.source_dir, **kwargs)
 
     def run(
@@ -243,7 +250,7 @@ class InputValidator(Validator):
         testcase: "testcase.Testcase",
         mode: Mode = Mode.INPUT,
         constraints: Optional[ConstraintsDict] = None,
-        args: Optional[list[str]] = None,
+        args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
         """
         Arguments
@@ -266,17 +273,16 @@ class InputValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
 
-        invocation = self.run_command.copy()
-
         with testcase.in_path.open("rb") as in_file:
             ret = self._exec_helper(
-                invocation + arglist,
+                [*self.run_command, *arglist],
                 exec_code_map=validator_exec_code_map,
                 stdin=in_file,
                 cwd=cwd,
             )
 
         if constraints is not None:
+            assert constraints_path is not None
             _merge_constraints(constraints_path, constraints)
 
         return ret
@@ -298,7 +304,7 @@ class AnswerValidator(Validator):
     # use output_validator_args as well
     args_key: Final[str] = "output_validator_args"
 
-    def __init__(self, problem, path, **kwargs):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
         super().__init__(problem, path, AnswerValidator.source_dir, **kwargs)
 
     def run(
@@ -306,7 +312,7 @@ class AnswerValidator(Validator):
         testcase: "testcase.Testcase",
         mode: Mode = Mode.ANSWER,
         constraints: Optional[ConstraintsDict] = None,
-        args: Optional[list[str]] = None,
+        args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
         assert self.run_command is not None, "Validator should be built before running it"
 
@@ -322,17 +328,16 @@ class AnswerValidator(Validator):
         if self.language in Validator.FORMAT_VALIDATOR_LANGUAGES:
             return Validator._run_format_validator(self, testcase, cwd)
 
-        invocation = self.run_command + [testcase.in_path.absolute()]
-
         with testcase.ans_path.open("rb") as ans_file:
             ret = self._exec_helper(
-                invocation + arglist,
+                [*self.run_command, testcase.in_path.absolute(), *arglist],
                 exec_code_map=validator_exec_code_map,
                 stdin=ans_file,
                 cwd=cwd,
             )
 
         if constraints is not None:
+            assert constraints_path is not None
             _merge_constraints(constraints_path, constraints)
 
         return ret
@@ -351,7 +356,7 @@ class OutputValidator(Validator):
 
     args_key: Final[str] = "output_validator_args"
 
-    def __init__(self, problem, path, **kwargs):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
         super().__init__(problem, path, OutputValidator.source_dir, **kwargs)
 
     def run(
@@ -359,7 +364,7 @@ class OutputValidator(Validator):
         testcase: "testcase.Testcase",
         mode: "Mode | run.Run",
         constraints: Optional[ConstraintsDict] = None,
-        args: Optional[list[str]] = None,
+        args: Optional[Sequence[str | Path]] = None,
     ) -> ExecResult:
         """
         Run this validator on the given testcase.
@@ -406,17 +411,17 @@ class OutputValidator(Validator):
         cwd, constraints_path, arglist = self._run_helper(testcase, constraints, args)
         if not isinstance(mode, Mode):
             cwd = mode.feedbackdir
-        invocation = self.run_command + [in_path, ans_path, cwd]
 
         with path.open("rb") as file:
             ret = self._exec_helper(
-                invocation + arglist,
+                [*self.run_command, in_path, ans_path, cwd, *arglist],
                 exec_code_map=validator_exec_code_map,
                 stdin=file,
                 cwd=cwd,
             )
 
         if constraints is not None:
+            assert constraints_path is not None
             _merge_constraints(constraints_path, constraints)
 
         return ret
@@ -430,7 +435,7 @@ INVALID_BYTES_WITH_OTHER: Final[re.Pattern[bytes]] = re.compile(b"[^\t\r\v\f\n\x
 INVALID_BYTES: Final[re.Pattern[bytes]] = re.compile(b"[^\n\x20-\x7e]")
 
 
-def _has_invalid_byte(bytes, *, other_whitespaces=False):
+def _has_invalid_byte(bytes: bytes, *, other_whitespaces: bool = False) -> bool:
     if other_whitespaces:
         return INVALID_BYTES_WITH_OTHER.search(bytes) is not None
     else:
@@ -439,14 +444,16 @@ def _has_invalid_byte(bytes, *, other_whitespaces=False):
 
 # assumes that the only possible whitespaces are space and newline
 # allows \n\n
-def _has_consecutive_whitespaces(bytes):
+def _has_consecutive_whitespaces(bytes: bytes) -> bool:
     for bad in [b" \n", b"  ", b"\n "]:
         if bytes.find(bad) >= 0:
             return True
     return False
 
 
-def sanity_check(problem, path, bar, strict_whitespace=True):
+def sanity_check(
+    problem: "Problem", path: Path, bar: ProgressBar, strict_whitespace: bool = True
+) -> None:
     """
     Does some generic checks on input, answer, or output files of a testcase, including
 

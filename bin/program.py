@@ -4,9 +4,10 @@ import stat
 import shlex
 import subprocess
 import threading
+from collections.abc import Mapping, Sequence
 from colorama import Fore
 from pathlib import Path
-from typing import Any, Final, Mapping, Optional, Sequence, TypeVar, TYPE_CHECKING
+from typing import Any, Final, Optional, TypeVar, TYPE_CHECKING
 
 import config
 from util import *
@@ -610,7 +611,7 @@ class Generator(Program):
     # May write files in |cwd| and stdout is piped to {name}.in if it's not written already.
     # Returns ExecResult. Success when result.status == ExecStatus.ACCEPTED.
     def run(
-        self, bar: ProgressBar, cwd: Path, name: str, args: list[str | Path] = []
+        self, bar: ProgressBar, cwd: Path, name: str, args: Sequence[str | Path] = []
     ) -> ExecResult:
         assert self.run_command is not None
 
@@ -630,7 +631,7 @@ class Generator(Program):
 
         with stdout_path.open("w") as stdout_file:
             result = self._exec_command(
-                self.run_command + args,
+                [*self.run_command, *args],
                 stdout=stdout_file,
                 cwd=cwd,
             )
