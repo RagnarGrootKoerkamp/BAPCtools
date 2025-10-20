@@ -1596,7 +1596,7 @@ class Problem:
                 limits["time_limit"] = problem.limits.time_limit
                 write_yaml(problem_yaml, problem.path / "problem.yaml")
 
-        print()
+        print(file=sys.stderr)
         message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
         message(
             f"{problem.limits.time_limit}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
@@ -1610,13 +1610,13 @@ class Problem:
             f"{problem.limits.timeout}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}²",
             "timeout",
         )
-        print()
+        print(file=sys.stderr)
 
         submission, testcase, duration = run_all(
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
         )
         if submission is not None:
-            print()
+            print(file=sys.stderr)
             message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
             if duration <= problem.limits.time_limit:
                 error("TLE submission runs within time limit")
@@ -1624,7 +1624,7 @@ class Problem:
                 warn("TLE submission runs within safety margin")
             elif duration >= problem.limits.timeout:
                 log(f"No TLE submission finished within {problem.limits.timeout}s")
-            print()
+            print(file=sys.stderr)
         else:
             log("No TLE submissions found")
 
