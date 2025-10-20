@@ -56,23 +56,18 @@ class Language:
         self.compile = get_optional_value("compile", str)
         self.run = get_value("run", str)
 
-        def get_exe(key: str, command: str, optional: bool = True) -> Optional[str]:
+        def get_exe(key: str, command: str) -> Optional[str]:
             try:
                 exe = shlex.split(command)[0]
                 if exe and exe[0] != "{":
                     return exe
-                if optional:
-                    return None
             except (IndexError, ValueError):
-                pass
-            error(f"invalid value for key '{key}' in languages.yaml for '{lang_id}'")
-            self.ok = False
+                error(f"invalid value for key '{key}' in languages.yaml for '{lang_id}'")
+                self.ok = False
             return None
 
-        self.compile_exe = get_exe("compile", self.compile) if self.compile is not None else None
-        run_exe = get_exe("run", self.run, optional=False)
-        assert run_exe is not None
-        self.run_exe = run_exe
+        self.compile_exe = get_exe("compile", self.compile) if self.compile else None
+        self.run_exe = get_exe("run", self.run)
 
         for key in conf:
             assert isinstance(key, str)
@@ -311,7 +306,7 @@ class Program:
                     )
                 continue
             # Make sure we can run programs for this language.
-            if shutil.which(lang.run_exe) is None:
+            if lang.run_exe is not None and shutil.which(lang.run_exe) is None:
                 fallback = True
                 if lang.run_exe not in Program.warn_cache and config.args.verbose:
                     Program.warn_cache.add(lang.run_exe)
@@ -558,8 +553,8 @@ class Program:
             if "run" in sanitizer:
                 run_command += " " + sanitizer["run"]
 
-        self.compile_command = compile_command.format(**self.env).split()
-        self.run_command = run_command.format(**self.env).split()
+        self.compile_command = shlex.split(compile_command.format(**self.env))
+        self.run_command = shlex.split(run_command.format(**self.env))
 
         # Compare the hash to the last build.
         up_to_date = False
