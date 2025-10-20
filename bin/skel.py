@@ -277,14 +277,14 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
         error("git command not found!")
         return
 
-    def git(*args):
+    def git(*args: str | Path) -> str:
         res = exec_command(
             ["git", *args],
             crop=False,
             preexec_fn=False,
             timeout=None,
         )
-        return res.out if res else ""
+        return res.out if res and res.out else ""
 
     if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
         error("not inside git")
