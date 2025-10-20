@@ -94,12 +94,12 @@ CHECKTESTDATA: Final[Language] = Language(
     },
 )
 VIVA: Final[Language] = Language(
-    "BAPCtools:checktestdata",
+    "BAPCtools:viva",
     {
-        "name": "Checktestdata",
-        "priority": 1,
-        "files": "*.ctd",
-        "run": "checktestdata {mainfile}",
+        "name": "Viva",
+        "priority": 2,
+        "files": "*.viva",
+        "run": "java -jar {viva_jar} {mainfile}",
     },
 )
 EXTRA_LANGUAGES: Final[Sequence[Language]] = [
