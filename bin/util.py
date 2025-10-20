@@ -818,61 +818,6 @@ def write_yaml(
     return None
 
 
-T = TypeVar("T")
-
-
-def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
-    if key in yaml_data:
-        value = yaml_data.pop(key)
-        if isinstance(value, int) and t is float:
-            value = float(value)
-        if isinstance(value, t):
-            return value
-        if value == "" and (t is list or t is dict):
-            # handle empty yaml keys
-            return t()
-        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
-    return None
-
-
-def parse_setting(
-    yaml_data: dict[str, Any], key: str, default: T, constraint: Optional[str] = None
-) -> T:
-    value = parse_optional_setting(yaml_data, key, type(default))
-    result = default if value is None else value
-    if constraint and not eval(f"{result} {constraint}"):
-        warn(f"value for '{key}' in problem.yaml should be {constraint} but is {value}. SKIPPED.")
-        return default
-    return result
-
-
-def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> list[T]:
-    if key in yaml_data:
-        value = yaml_data.pop(key)
-        if isinstance(value, t):
-            return [value]
-        if isinstance(value, list):
-            if not all(isinstance(v, t) for v in value):
-                warn(
-                    f"some values for key '{key}' in problem.yaml do not have type {t.__name__}. SKIPPED."
-                )
-                return []
-            if not value:
-                warn(f"value for '{key}' in problem.yaml should not be an empty list.")
-            return value
-        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
-    return []
-
-
-def parse_deprecated_setting(
-    yaml_data: dict[str, Any], key: str, new: Optional[str] = None
-) -> None:
-    if key in yaml_data:
-        use = f", use '{new}' instead" if new else ""
-        warn(f"key '{key}' is deprecated{use}. SKIPPED.")
-        yaml_data.pop(key)
-
-
 def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
     if config.args.defaults:
         if not default and not allow_empty:
