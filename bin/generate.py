@@ -2255,7 +2255,7 @@ data/*
             others = [e for e in d.yaml["data"] if id(next(iter(e.values()))) not in test_nodes]
 
             class TestcaseResult:
-                def __init__(self, yaml):
+                def __init__(self, yaml: dict[str, Any]):
                     self.yaml = yaml
                     self.test_node = test_nodes[id(next(iter(yaml.values())))]
                     self.scores = []
@@ -2272,13 +2272,13 @@ data/*
                             self.scores.append((i, 3))
                         self.result.append(verdict_table._get_verdict(i, self.test_node))
 
-                def __str__(self):
+                def __str__(self) -> str:
                     return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.test_node:<{max_testcase_len}} {''.join(self.result)}"
 
-                def score(self, weights):
+                def score(self, weights: list[int]) -> int:
                     return sum(weights[i] * x for i, x in self.scores)
 
-                def update(self, weights):
+                def update(self, weights: list[int]) -> list[int]:
                     # the weights for each submission that did not fail on this testcase get doubled
                     # up to a limit of 2**16. (The same as halving the weight of all submission that failed)
                     weights = [x * 2 for x in weights]
