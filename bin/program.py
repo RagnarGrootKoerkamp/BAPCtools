@@ -237,8 +237,8 @@ class Program:
         self.name: str = str(relpath)
         self.tmpdir = problem.tmpdir / self.subdir / self.name
 
-        self.compile_command: Optional[list[str]] = None
-        self.run_command: Optional[list[str]] = None
+        self.compile_command: Optional[Sequence[str | Path]] = None
+        self.run_command: Optional[Sequence[str | Path]] = None
         self.hash: Optional[str] = None
         self.env: dict[str, int | str | Path] = {}
         self.limits: dict[str, int] = limits

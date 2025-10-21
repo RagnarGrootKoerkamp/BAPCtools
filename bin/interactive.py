@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 
+from collections.abc import Sequence
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Final, Literal, Optional, TYPE_CHECKING
@@ -32,7 +33,7 @@ def run_interactive_testcase(
     # True: stderr
     # else: path
     interaction: Optional[bool | Path] = False,
-    submission_args: Optional[list[str]] = None,
+    submission_args: Optional[Sequence[str | Path]] = None,
     bar: Optional[ProgressBar] = None,
 ):
     output_validators = run.problem.validators(validate.OutputValidator)
@@ -51,23 +52,21 @@ def run_interactive_testcase(
     # Validator command
     def get_validator_command():
         assert output_validator.run_command, "Output validator must be built"
-        return (
-            output_validator.run_command
-            + [
-                run.in_path.absolute(),
-                run.testcase.ans_path.absolute(),
-                run.feedbackdir.absolute(),
-            ]
-            + run.testcase.test_case_yaml_args(
+        return [
+            *output_validator.run_command,
+            run.in_path.absolute(),
+            run.testcase.ans_path.absolute(),
+            run.feedbackdir.absolute(),
+            *run.testcase.test_case_yaml_args(
                 output_validator,
                 bar or PrintBar("Run interactive test case"),
-            )
-        )
+            ),
+        ]
 
     assert run.submission.run_command, "Submission must be built"
     submission_command = run.submission.run_command
     if submission_args:
-        submission_command += submission_args
+        submission_command = [*submission_command, *submission_args]
 
     # Both validator and submission run in their own directory.
     validator_dir = output_validator.tmpdir
