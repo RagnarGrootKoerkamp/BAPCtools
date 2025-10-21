@@ -165,6 +165,7 @@ class SubmissionTask:
         r = Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
         localbar = bar.start(f"{self.generator_task.i}: {self.submission.name}")
         result = r.run(localbar)
+        assert result.verdict is not None
         self.generator_task.fuzz.queue.ensure_alive()
         if result.verdict != Verdict.ACCEPTED:
             self.generator_task.save_test(bar, self.submission, result.verdict)
