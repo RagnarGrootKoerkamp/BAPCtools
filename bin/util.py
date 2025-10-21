@@ -97,6 +97,13 @@ def is_bsd() -> bool:
 if not is_windows():
     import resource
 
+    RUSAGE: TypeAlias = Optional[resource.struct_rusage]
+elif not TYPE_CHECKING:
+    RUSAGE: TypeAlias = None
+
+
+Bob: TypeAlias = None
+
 
 def exit1(force: bool = False) -> NoReturn:
     if force:
@@ -1246,7 +1253,7 @@ def limit_setter(
 
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen[bytes]):
-    rusage: Any  # TODO #102: use stricter type than `Any`
+    rusage: RUSAGE
 
     # If wait4 is available, store resource usage information.
     if "wait4" in dir(os):
@@ -1397,7 +1404,7 @@ def exec_command(
     err = maybe_crop(stderr.decode("utf-8", "replace")) if stderr is not None else None
     out = maybe_crop(stdout.decode("utf-8", "replace")) if stdout is not None else None
 
-    if hasattr(process, "rusage"):
+    if hasattr(process, "rusage") and process.rusage:
         duration = process.rusage.ru_utime + process.rusage.ru_stime
         # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
         # To prevent under-reporting the duration, we take the max with wall time in this case.
