@@ -426,8 +426,8 @@ class TestcaseRule(Rule):
         key: str,
         name: str,
         yaml: YAML_TYPE,
-        parent,
-        count_index,
+        parent: "AnyDirectory",
+        count_index: int,
     ):
         assert is_testcase(yaml)
 
@@ -652,7 +652,9 @@ class TestcaseRule(Rule):
                 return True
         return False
 
-    def link(t, problem, generator_config, bar, dst):
+    def link(
+        t, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar, dst: Path
+    ) -> None:
         src_dir = problem.path / "data" / t.path.parent
         src = src_dir / (t.name + ".in")
 
@@ -683,7 +685,9 @@ class TestcaseRule(Rule):
                 # both source and target do not exist
                 pass
 
-    def validate_in(t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar):
+    def validate_in(
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict[str, Any], bar: ProgressBar
+    ) -> bool:
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
@@ -729,8 +733,8 @@ class TestcaseRule(Rule):
         return True
 
     def validate_ans_and_out(
-        t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
-    ):
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict[str, Any], bar: ProgressBar
+    ) -> bool:
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
@@ -783,7 +787,9 @@ class TestcaseRule(Rule):
             )
         return True
 
-    def generate(t, problem: Problem, generator_config, parent_bar):
+    def generate(
+        t, problem: Problem, generator_config: "GeneratorConfig", parent_bar: ProgressBar
+    ) -> None:
         bar = parent_bar.start(str(t.path))
 
         t.generate_success = False
@@ -819,7 +825,7 @@ class TestcaseRule(Rule):
         ansfile = cwd / "testcase.ans"
         meta_path = cwd / "meta_.yaml"
 
-        def init_meta():
+        def init_meta() -> dict[str, Any]:
             meta_yaml = read_yaml(meta_path) if meta_path.is_file() else None
             if meta_yaml is None:
                 meta_yaml = {
@@ -836,7 +842,7 @@ class TestcaseRule(Rule):
 
         meta_yaml = init_meta()
 
-        def _check_deterministic(tmp, tmp_infile):
+        def _check_deterministic(tmp: Path, tmp_infile: Path) -> None:
             assert t.generator is not None
             result = t.generator.run(bar, tmp, tmp_infile.stem, t.seed, t.config.retries)
             if not result.status:
@@ -881,7 +887,7 @@ class TestcaseRule(Rule):
         # which is also set to True when running `bt all`.
         # This doesn't do anything for non-generated cases.
         # It also checks that the input changes when the seed changes.
-        def check_deterministic(force=False):
+        def check_deterministic(force: bool = False) -> None:
             if not force and not config.args.check_deterministic:
                 return
             if t.generator is None:
@@ -897,7 +903,7 @@ class TestcaseRule(Rule):
             # clean up
             shutil.rmtree(tmp)
 
-        def generate_from_rule():
+        def generate_from_rule() -> bool:
             nonlocal meta_yaml
 
             # create expected cache entry for generate
@@ -965,7 +971,7 @@ class TestcaseRule(Rule):
             assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
-        def generate_from_solution(testcase: Testcase, bar: ProgressBar):
+        def generate_from_solution(testcase: Testcase, bar: ProgressBar) -> bool:
             nonlocal meta_yaml
 
             if testcase.root in [
@@ -988,7 +994,9 @@ class TestcaseRule(Rule):
                     "solution": None,
                 }
 
-            def needed(ext, interactor_hash=None):
+            def needed(
+                ext: str, interactor_hash: Optional[dict[str, dict[str, str]]] = None
+            ) -> bool:
                 if ext in meta_yaml["generated_extensions"]:
                     return False
                 if not infile.with_suffix(ext).is_file():
@@ -1049,7 +1057,7 @@ class TestcaseRule(Rule):
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
             return True
 
-        def generate_visualization(testcase: Testcase, bar: ProgressBar):
+        def generate_visualization(testcase: Testcase, bar: ProgressBar) -> bool:
             nonlocal meta_yaml
 
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
@@ -1923,7 +1931,7 @@ class GeneratorConfig:
 
         # Collect all programs that need building.
         # Also, convert the default submission into an actual Invocation.
-        default_solution = None
+        default_solution: Optional[DefaultSolutionInvocation] = None
 
         def collect_programs(t):
             if isinstance(t, TestcaseRule):
@@ -2017,12 +2025,13 @@ class GeneratorConfig:
         #    included testcases.
 
         # 1
-        def runner(t: TestcaseRule) -> Any:
-            return t.copy_of is None and t.generate(self.problem, self, bar)
+        def runner(t: TestcaseRule) -> None:
+            if t.copy_of is None:
+                t.generate(self.problem, self, bar)
 
         p = parallel.new_queue(runner)
 
-        def generate_dir(d):
+        def generate_dir(d: Directory) -> None:
             p.join()
             d.generate(self.problem, self, bar)
 
@@ -2030,12 +2039,13 @@ class GeneratorConfig:
         p.done()
 
         # 2
-        def runner_copies(t: TestcaseRule):
-            return t.copy_of is not None and t.generate(self.problem, self, bar)
+        def runner_copies(t: TestcaseRule) -> None:
+            if t.copy_of is not None:
+                t.generate(self.problem, self, bar)
 
         p = parallel.new_queue(runner_copies)
 
-        def generate_copies_and_includes(d):
+        def generate_copies_and_includes(d: Directory) -> None:
             p.join()
             d.generate_includes(self.problem, self, bar)
 
