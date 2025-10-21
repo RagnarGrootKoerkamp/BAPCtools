@@ -102,9 +102,6 @@ elif not TYPE_CHECKING:
     RUSAGE: TypeAlias = None
 
 
-Bob: TypeAlias = None
-
-
 def exit1(force: bool = False) -> NoReturn:
     if force:
         sys.stdout.close()
