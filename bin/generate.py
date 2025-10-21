@@ -2,6 +2,7 @@ import collections
 import random
 import re
 import secrets
+import shlex
 import shutil
 import sys
 import time
@@ -22,6 +23,9 @@ from verdicts import Verdict
 from problem import Problem
 
 from util import *
+
+
+YAML_TYPE = Optional[str | dict[str, Any]]
 
 
 class ParseException(Exception):
@@ -53,7 +57,7 @@ UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = [
 ] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
 
 
-def is_testcase(yaml: Optional[str | dict[str, Any]]) -> bool:
+def is_testcase(yaml: YAML_TYPE) -> bool:
     return (
         yaml is None
         or isinstance(yaml, str)
@@ -61,16 +65,16 @@ def is_testcase(yaml: Optional[str | dict[str, Any]]) -> bool:
     )
 
 
-def is_directory(yaml: Optional[str | dict[str, Any]]) -> bool:
+def is_directory(yaml: YAML_TYPE) -> bool:
     return isinstance(yaml, dict) and not is_testcase(yaml)
 
 
-def has_count(yaml: Optional[str | dict[str, Any]]) -> bool:
+def has_count(yaml: YAML_TYPE) -> bool:
     return isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], int)
 
 
 # Returns the given path relative to the problem root.
-def resolve_path(path_str: str, *, allow_absolute: bool, allow_relative: bool):
+def resolve_path(path_str: str, *, allow_absolute: bool, allow_relative: bool) -> Path:
     assert isinstance(path_str, str)
     path = PurePosixPath(path_str)
     if not allow_absolute:
@@ -97,9 +101,10 @@ class Invocation:
 
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
-    def __init__(self, problem: Problem, string: str, *, allow_absolute: bool, allow_relative=True):
-        string = str(string)
-        commands = string.split()
+    def __init__(
+        self, problem: Problem, string: str, *, allow_absolute: bool, allow_relative: bool = True
+    ):
+        commands = shlex.split(string)
         command = commands[0]
         self.args = commands[1:]
         self.problem = problem
@@ -133,13 +138,13 @@ class Invocation:
 
     # Return the form of the command used for caching.
     # This is independent of {name} and the actual run_command.
-    def cache_command(self, seed=None) -> str:
+    def cache_command(self, seed: Optional[int] = None) -> str:
         command_string = self.command_string
         if seed:
             command_string = self.SEED_REGEX.sub(str(seed), command_string)
         return command_string
 
-    def hash(self, seed=None) -> str:
+    def hash(self, seed: Optional[int] = None) -> str:
         list = []
         if self.program is not None:
             assert self.program.hash is not None
@@ -148,7 +153,7 @@ class Invocation:
         return combine_hashes(list)
 
     # Return the full command to be executed.
-    def _sub_args(self, *, seed=None):
+    def _sub_args(self, *, seed: Optional[int] = None) -> Sequence[str]:
         if self.uses_seed:
             assert seed is not None
 
@@ -162,11 +167,13 @@ class Invocation:
 
 
 class GeneratorInvocation(Invocation):
-    def __init__(self, problem, string):
+    def __init__(self, problem: Problem, string: str):
         super().__init__(problem, string, allow_absolute=False)
 
     # Try running the generator |retries| times, incrementing seed by 1 each time.
-    def run(self, bar, cwd, name, seed, retries=1):
+    def run(
+        self, bar: ProgressBar, cwd: Path, name: str, seed: int, retries: int = 1
+    ) -> ExecResult:
         assert isinstance(self.program, program.Generator), "Generator program must be built!"
 
         for retry in range(retries):
@@ -193,12 +200,12 @@ class GeneratorInvocation(Invocation):
 
 
 class SolutionInvocation(Invocation):
-    def __init__(self, problem, string):
+    def __init__(self, problem: Problem, string: str):
         super().__init__(problem, string, allow_absolute=True, allow_relative=False)
 
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
     # If the .ans already exists, nothing is done
-    def run(self, bar, cwd):
+    def run(self, bar: ProgressBar, cwd: Path) -> ExecResult:
         assert isinstance(self.program, run.Submission), "Submission program must be built!"
 
         in_path = cwd / "testcase.in"
@@ -220,7 +227,7 @@ class SolutionInvocation(Invocation):
             bar.log("stderr", result.err)
         return result
 
-    def generate_interaction(self, bar, cwd, t):
+    def generate_interaction(self, bar: ProgressBar, cwd: Path, t: "TestcaseRule") -> bool:
         in_path = cwd / "testcase.in"
         interaction_path = cwd / "testcase.interaction"
         interaction_path.unlink(missing_ok=True)
@@ -230,9 +237,9 @@ class SolutionInvocation(Invocation):
         r = run.Run(self.problem, self.program, testcase)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        ret = r.run(bar, interaction=interaction_path, submission_args=self.args)
-        if ret.verdict != Verdict.ACCEPTED:
-            bar.error(ret.verdict)
+        result = r.run(bar, interaction=interaction_path, submission_args=self.args)
+        if result.verdict != Verdict.ACCEPTED:
+            bar.error(f"could not generate .interaction, submission got {result.verdict}")
             return False
 
         return True
@@ -241,7 +248,7 @@ class SolutionInvocation(Invocation):
 # Return absolute path to default submission, starting from the submissions directory.
 # This function will always prints a message.
 # Which submission is used is implementation defined, unless one is explicitly given on the command line.
-def default_solution_path(generator_config):
+def default_solution_path(generator_config: "GeneratorConfig") -> Path:
     problem = generator_config.problem
     solution = None
     stored_solution = problem.tmpdir / ".default_solution"
@@ -296,8 +303,8 @@ to use a specific solution."""
 # usage.  This is to prevent instantiating the default solution when it's not
 # actually needed.
 class DefaultSolutionInvocation(SolutionInvocation):
-    def __init__(self, generator_config):
-        super().__init__(generator_config.problem, default_solution_path(generator_config))
+    def __init__(self, generator_config: "GeneratorConfig"):
+        super().__init__(generator_config.problem, str(default_solution_path(generator_config)))
 
 
 KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
@@ -331,14 +338,14 @@ class Config:
     # Used at each directory or testcase level.
 
     @staticmethod
-    def parse_solution(p, x, path):
+    def parse_solution(p: Problem, x: Optional[str], path: Path) -> Optional[SolutionInvocation]:
         assert_type("Solution", x, [type(None), str], path)
         if x is None:
             return None
         return SolutionInvocation(p, x)
 
     @staticmethod
-    def parse_random_salt(p, x, path):
+    def parse_random_salt(p: Problem, x: str, path: Path) -> str:
         assert_type("Random_salt", x, [type(None), str], path)
         if x is None:
             return ""
@@ -354,11 +361,13 @@ class Config:
         ("retries", 1, lambda p, x, path: int(x)),
     ]
 
-    solution: SolutionInvocation
-    random_salt: str
-    retries: int
-
-    def __init__(self, problem, path, yaml=None, parent_config=None):
+    def __init__(
+        self,
+        problem: Problem,
+        path: Path,
+        yaml: YAML_TYPE = None,
+        parent_config: Optional["Config"] = None,
+    ):
         assert not yaml or isinstance(yaml, dict)
 
         for key, default, func in Config.INHERITABLE_KEYS:
@@ -371,24 +380,38 @@ class Config:
             else:
                 setattr(self, key, default)
 
+        self.solution: SolutionInvocation
+        self.random_salt: str
+        self.retries: int
+
 
 class Rule:
     # key: the dictionary key in the yaml file, i.e. `testcase`
     # name: the numbered testcase name, i.e. `01-testcase`
-    def __init__(self, problem, key, name, yaml, parent):
+    def __init__(
+        self,
+        problem: Problem,
+        key: str,
+        name: str,
+        yaml: YAML_TYPE,
+        parent: "AnyDirectory",
+    ):
         assert parent is not None
 
         self.parent = parent
 
         if isinstance(yaml, dict):
-            self.config = Config(problem, parent.path / name, yaml, parent_config=parent.config)
+            self.config: "Config" = Config(
+                problem, parent.path / name, yaml, parent_config=parent.config
+            )
         else:
+            assert parent.config is not None
             self.config = parent.config
 
         # Yaml key of the current directory/testcase.
         self.key = key
         # Filename of the current directory/testcase.
-        self.name = name
+        self.name: str = name
         # Path of the current directory/testcase relative to data/.
         self.path: Path = parent.path / self.name
         # store Yaml
@@ -399,10 +422,10 @@ class TestcaseRule(Rule):
     def __init__(
         self,
         problem: Problem,
-        generator_config,
-        key,
+        generator_config: "GeneratorConfig",
+        key: str,
         name: str,
-        yaml: dict[str, Any],
+        yaml: YAML_TYPE,
         parent,
         count_index,
     ):
@@ -1282,7 +1305,7 @@ class Directory(Rule):
         problem: Problem,
         key: str,
         name: str,
-        yaml: dict,
+        yaml: dict[str, Any],
         parent: "AnyDirectory",
     ):
         assert is_directory(yaml)
@@ -1689,7 +1712,7 @@ class GeneratorConfig:
         # key: the yaml key e.g. 'testcase'
         # name_gen: each call should result in the next (possibly numbered) name e.g. '01-testcase'
         # Returns either a single Rule or a list of Rules
-        def parse(key: str, name_gen: Callable[[], str], yaml: dict, parent: AnyDirectory):
+        def parse(key: str, name_gen: Callable[[], str], yaml: YAML_TYPE, parent: AnyDirectory):
             name = name_gen()
             assert_type("Testcase/directory", yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
@@ -1727,6 +1750,7 @@ class GeneratorConfig:
                 return ts
 
             assert is_directory(yaml)
+            assert isinstance(yaml, dict)
 
             d = Directory(self.problem, key, name, yaml, parent)
             if d.path in self.known_cases or d.path in self.known_directories:
