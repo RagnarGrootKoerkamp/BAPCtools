@@ -2,7 +2,7 @@ import config
 from problem import Problem
 from util import *
 
-if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+if TYPE_CHECKING:
     import requests
 
 # Perform slack actions for the selected problems (all, or the selected/current one).

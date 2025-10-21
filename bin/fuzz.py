@@ -181,7 +181,7 @@ class FuzzProgressBar(ProgressBar):
 
     def _print(
         self,
-        *objects,
+        *objects: Any,
         sep: str = "",
         end: str = "\n",
         file: TextIO = sys.stderr,
