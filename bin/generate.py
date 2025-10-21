@@ -1570,7 +1570,7 @@ class GeneratorConfig:
     generators: dict[Path, list[Path]]
 
     # Parse generators.yaml.
-    def __init__(self, problem, restriction=None):
+    def __init__(self, problem: Problem, restriction=None):
         self.problem = problem
         yaml_path = self.problem.path / "generators" / "generators.yaml"
         self.n_parse_error = 0
@@ -1578,24 +1578,24 @@ class GeneratorConfig:
         # A map of paths `secret/test_group/test_case` to their canonical TestcaseRule.
         # For generated cases this is the rule itself.
         # For included cases, this is the 'resolved' location of the test case that is included.
-        self.known_cases = dict()
+        self.known_cases = dict[Path, TestcaseRule]()
         # A map of paths `secret/test_group` to Directory rules.
-        self.known_directories = dict()
+        self.known_directories = dict[Path, Directory]()
         # Used for cleanup
-        self.known_files = set()
+        self.known_files = set[Path]()
         # A map from key to (is_included, list of test cases and directories),
         # used for `include` statements.
         self.known_keys = collections.defaultdict[str, tuple[bool, list[TestcaseRule | Directory]]](
             lambda: (False, [])
         )
         # A set of testcase rules, including seeds.
-        self.rules_cache = dict()
+        self.rules_cache = dict[str, TestcaseRule]()
         # The set of generated test cases keyed by hash(test_case).
-        self.generated_test_cases = dict()
+        self.generated_test_cases = dict[str, TestcaseRule]()
         # Path to the trash directory for this run
         self.trash_dir: Optional[Path] = None
         # Set of hash(.in) for all generated testcases
-        self.hashed_in = set()
+        self.hashed_in = set[str]()
         # Files that should be processed
         self.restriction = restriction
 
@@ -2336,21 +2336,21 @@ data/*
 
 # Delete files in the tmpdir trash directory. By default all files older than 10min are removed
 # and additionally the oldest files are removed until the trash is less than 1 GiB
-def clean_trash(problem, time_limit=10 * 60, size_lim=1024**3):
+def clean_trash(problem: Problem, time_limit: int = 10 * 60, size_lim: int = 1024**3) -> None:
     trashdir = problem.tmpdir / "trash"
     if trashdir.exists():
         dirs = [(d, path_size(d)) for d in trashdir.iterdir()]
         dirs.sort(key=lambda d: d[0].stat().st_mtime)
         total_size = sum(x for d, x in dirs)
-        time_limit = time.time() - time_limit
+        begin = time.time() - time_limit
         for d, x in dirs:
-            if x == 0 or total_size > size_lim or d.stat().st_mtime < time_limit:
+            if x == 0 or total_size > size_lim or d.stat().st_mtime < begin:
                 total_size -= x
                 shutil.rmtree(d)
 
 
 # Clean data/ and tmpdir/data/
-def clean_data(problem, data=True, cache=True):
+def clean_data(problem: Problem, data: bool = True, cache: bool = True) -> None:
     dirs = [
         problem.path / "data" if data else None,
         problem.tmpdir / "data" if cache else None,
@@ -2360,7 +2360,7 @@ def clean_data(problem, data=True, cache=True):
             shutil.rmtree(d)
 
 
-def generate(problem):
+def generate(problem: Problem) -> bool:
     clean_trash(problem)
 
     if config.args.clean:
@@ -2388,7 +2388,7 @@ def generate(problem):
     return True
 
 
-def testcases(problem):
+def testcases(problem: Problem) -> set[Path]:
     gen_config = GeneratorConfig(problem)
     if gen_config.has_yaml:
         return {
