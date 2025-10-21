@@ -1160,7 +1160,7 @@ class TestcaseRule(Rule):
             # errors in the visualizer are not critical
             return True
 
-        def generate_empty_interactive_sample_ans():
+        def generate_empty_interactive_sample_ans() -> bool:
             if not t.sample:
                 return True
             if not problem.interactive and not problem.multi_pass:
@@ -1174,7 +1174,7 @@ class TestcaseRule(Rule):
                     return True
             return True
 
-        def copy_generated():
+        def copy_generated() -> None:
             identical_exts = set()
 
             for ext in config.KNOWN_DATA_EXTENSIONS:
@@ -1216,7 +1216,7 @@ class TestcaseRule(Rule):
                     # both source and target do not exist
                     pass
 
-        def add_test_case_to_cache():
+        def add_test_case_to_cache() -> None:
             # Used to identify generated test cases
             generator_config.hashed_in.add(hash_file_content(infile))
 
@@ -1405,9 +1405,7 @@ class Directory(Rule):
     def walk(
         self,
         testcase_f: Optional[Callable[["TestcaseRule | Directory"], Any]],
-        *,
-        dir_last=False,
-    ): ...
+    ) -> None: ...
 
     # This overload takes one function for test cases and a separate function for directories.
     @overload
@@ -1415,35 +1413,31 @@ class Directory(Rule):
         self,
         testcase_f: Optional[Callable[[TestcaseRule], Any]],
         dir_f: Optional[Callable[["Directory"], Any]],
-        *,
-        dir_last=False,
-    ): ...
+    ) -> None: ...
 
     # Below is the actual implementation of `walk`,
     # no parameter types are needed here because they are already defined by the @overloads.
 
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
-    def walk(self, testcase_f=None, dir_f=True, *, dir_last=False):
+    def walk(self, testcase_f=None, dir_f=True):
         if dir_f is True:
             dir_f = testcase_f
-
-        if not dir_last and dir_f:
+        if dir_f:
             dir_f(self)
 
         for d in self.data:
             if isinstance(d, Directory):
-                d.walk(testcase_f, dir_f, dir_last=dir_last)
+                d.walk(testcase_f, dir_f)
             elif isinstance(d, TestcaseRule):
                 if testcase_f:
                     testcase_f(d)
             else:
                 assert False
 
-        if dir_last and dir_f:
-            dir_f(self)
-
-    def generate(d, problem, generator_config, bar):
+    def generate(
+        d, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
+    ) -> None:
         # Generate the current directory:
         # - Create the directory.
         # - Write test_group.yaml.
@@ -1481,7 +1475,9 @@ class Directory(Rule):
             bar.log("REMOVED: test_group.yaml")
         bar.done()
 
-    def generate_includes(d, problem, generator_config, bar):
+    def generate_includes(
+        d, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
+    ) -> None:
         for key in d.includes:
             t = d.includes[key]
             target = t.path
@@ -1528,7 +1524,7 @@ class Directory(Rule):
 
 
 # Returns the numbered name
-def numbered_test_case_name(base_name, i, n):
+def numbered_test_case_name(base_name: str, i: int, n: int) -> str:
     width = len(str(n))
     number_prefix = f"{i:0{width}}"
     if base_name:
