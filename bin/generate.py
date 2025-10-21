@@ -1539,10 +1539,10 @@ AnyDirectory = RootDirectory | Directory
 
 class GeneratorConfig:
     @staticmethod
-    def parse_generators(generators_yaml):
+    def parse_generators(generators_yaml: Any):
         assert_type("Generators", generators_yaml, dict)
         generators = {}
-        for gen in generators_yaml:
+        for gen, deps in generators_yaml.items():
             if (
                 gen.startswith("/")
                 or Path(gen).is_absolute()
@@ -1552,7 +1552,6 @@ class GeneratorConfig:
 
             path = Path("generators") / gen
 
-            deps = generators_yaml[gen]
             assert_type("Generator dependencies", deps, list)
             if len(deps) == 0:
                 raise ParseException("Generator dependencies must not be empty.", path)
@@ -1566,8 +1565,6 @@ class GeneratorConfig:
     ROOT_KEYS: Final[Sequence] = [
         ("generators", dict[Path, list[Path]](), parse_generators),
     ]
-
-    generators: dict[Path, list[Path]]
 
     # Parse generators.yaml.
     def __init__(self, problem: Problem, restriction=None):
@@ -1598,6 +1595,8 @@ class GeneratorConfig:
         self.hashed_in = set[str]()
         # Files that should be processed
         self.restriction = restriction
+        # replaced during parse_yaml
+        self.generators = dict[Path, list[Path]]()
 
         if yaml_path.is_file():
             self.yaml = read_yaml(yaml_path)
@@ -1614,7 +1613,7 @@ class GeneratorConfig:
             exit()
 
     # testcase_short_path: secret/1.in
-    def process_testcase(self, relative_testcase_path):
+    def process_testcase(self, relative_testcase_path: Path) -> bool:
         if not self.restriction:
             return True
         absolute_testcase_path = self.problem.path / "data" / relative_testcase_path.with_suffix("")
@@ -1624,7 +1623,7 @@ class GeneratorConfig:
                     return True
         return False
 
-    def parse_yaml(self, yaml):
+    def parse_yaml(self, yaml: YAML_TYPE) -> None:
         assert_type("Root yaml", yaml, [type(None), dict])
         if yaml is None:
             yaml = dict()
