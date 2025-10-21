@@ -380,7 +380,7 @@ class VerdictTable:
 
     def __init__(
         self,
-        submissions: Sequence[run.Submission],
+        submissions: Sequence["run.Submission"],
         test_cases: Sequence[testcase.Testcase],
         width: int = ProgressBar.columns,
         height: int = shutil.get_terminal_size().lines,
