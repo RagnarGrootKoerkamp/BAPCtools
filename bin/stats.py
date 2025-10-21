@@ -248,7 +248,7 @@ except Exception:
     has_pygments = False
 
 
-def _is_code(language: str, type, text) -> bool:
+def _is_code(language: str, type: Any, text: str) -> bool:
     if type in pygments.token.Comment and type not in (
         pygments.token.Comment.Preproc,  # pygments treats preprocessor statements as comments
         pygments.token.Comment.PreprocFile,

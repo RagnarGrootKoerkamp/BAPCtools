@@ -397,7 +397,7 @@ class Submission(program.Program):
         testcases: Sequence[Testcase],
         *,
         needs_leading_newline: bool,
-    ):
+    ) -> tuple[bool, bool]:
         runs = [Run(self.problem, self, testcase) for testcase in testcases]
         max_testcase_len = max(len(run.name) for run in runs)
         if self.problem.multi_pass:

@@ -18,6 +18,9 @@ from testcase import Testcase
 from validate import OutputValidator, Mode
 from verdicts import Verdict
 
+if has_ryaml:
+    from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
 # STEPS:
 # 1. Find generator invocations depending on {seed}.
 # 2. Generate a testcase + .ans using the rule using a random seed.
@@ -175,7 +178,12 @@ class SubmissionTask:
 
 
 class FuzzProgressBar(ProgressBar):
-    def __init__(self, queue: parallel.AbstractQueue, prefix: str, max_len: int):
+    def __init__(
+        self,
+        queue: parallel.AbstractQueue[GeneratorTask | SubmissionTask],
+        prefix: str,
+        max_len: int,
+    ):
         super().__init__(prefix, max_len)
         self.queue = queue
 
@@ -186,7 +194,7 @@ class FuzzProgressBar(ProgressBar):
         end: str = "\n",
         file: TextIO = sys.stderr,
         flush: bool = True,
-    ):
+    ) -> None:
         self.queue.ensure_alive()
         super()._print(*objects, sep=sep, end=end, file=file, flush=flush)
 
@@ -356,13 +364,13 @@ class Fuzz:
             if generators_yaml.is_file():
                 data = read_yaml(generators_yaml)
             if data is None:
-                data = ruamel.yaml.comments.CommentedMap()
+                data = CommentedMap()
 
             parent = ryaml_get_or_add(data, "data")
             parent = ryaml_get_or_add(parent, "fuzz")
-            entry = ryaml_get_or_add(parent, "data", ruamel.yaml.comments.CommentedSeq)
+            entry = ryaml_get_or_add(parent, "data", CommentedSeq)
 
-            entry.append(ruamel.yaml.comments.CommentedMap())
+            entry.append(CommentedMap())
             entry[-1][""] = command
 
             # Overwrite generators.yaml.

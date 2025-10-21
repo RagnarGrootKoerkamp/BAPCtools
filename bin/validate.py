@@ -173,7 +173,7 @@ class Validator(program.Program):
         else:
             assert False  # now also catches OutputValidator
 
-        def format_exec_code_map(returncode):
+        def format_exec_code_map(returncode: int) -> ExecStatus:
             if returncode == 0:
                 return ExecStatus.ACCEPTED
             if returncode == 1:
@@ -400,7 +400,6 @@ class OutputValidator(Validator):
             assert testcase.out_path is not None
             path = testcase.out_path.absolute()
         else:
-            assert mode != Mode.INPUT
             # mode is actually a Run
             path = mode.out_path
             in_path = mode.in_path  # relevant for multipass

@@ -157,7 +157,7 @@ class Invocation:
         if self.uses_seed:
             assert seed is not None
 
-        def sub(arg):
+        def sub(arg: str) -> str:
             arg = self.NAME_REGEX.sub("testcase", arg)
             if self.uses_seed:
                 arg = self.SEED_REGEX.sub(str(seed), arg)
@@ -1542,7 +1542,7 @@ AnyDirectory = RootDirectory | Directory
 
 class GeneratorConfig:
     @staticmethod
-    def parse_generators(generators_yaml: YAML_TYPE):
+    def parse_generators(generators_yaml: YAML_TYPE) -> dict[Path, list[Path]]:
         assert_type("Generators", generators_yaml, dict)
         assert isinstance(generators_yaml, dict)
         generators = {}
@@ -1667,6 +1667,7 @@ class GeneratorConfig:
                 return 1
             assert isinstance(yaml, dict)
             count = yaml["count"]
+            assert isinstance(count, int)
             if count < 1:
                 if warn_for is not None:
                     message(
@@ -2017,7 +2018,7 @@ class GeneratorConfig:
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
 
-        def count_dir(d):
+        def count_dir(d: Directory) -> None:
             for name in d.includes:
                 item_names.append(d.path / name)
 
@@ -2254,6 +2255,7 @@ data/*
             print(f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}", file=sys.stderr)
 
             # directory must be numbered
+            assert isinstance(d.yaml, dict)
             assert "data" in d.yaml
             assert isinstance(d.yaml["data"], list)
 

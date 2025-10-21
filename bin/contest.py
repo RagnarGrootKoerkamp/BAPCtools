@@ -88,6 +88,7 @@ def get_contest_id() -> str:
         )
     else:
         assert len(contests) == 1
+        assert isinstance(contests[0]["id"], str)
         log(f"The only active contest has id {contests[0]['id']}")
         return contests[0]["id"]
 

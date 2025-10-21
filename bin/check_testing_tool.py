@@ -2,7 +2,7 @@ import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import config
 import parallel

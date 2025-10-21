@@ -4,7 +4,7 @@ import stat
 import shlex
 import subprocess
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from colorama import Fore
 from pathlib import Path
 from typing import Any, Final, Optional, TypeVar, TYPE_CHECKING

@@ -14,7 +14,7 @@ import testcase
 from util import ITEM_TYPE, ProgressBar
 
 if TYPE_CHECKING:
-    pass
+    import run
 
 
 class Verdict(Enum):
@@ -203,7 +203,7 @@ class Verdicts:
     def __enter__(self) -> None:
         self.lock.__enter__()
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: Any) -> None:
         self.lock.__exit__(*args)
 
     def is_test_group(self, node: str) -> bool:
@@ -380,7 +380,7 @@ class VerdictTable:
 
     def __init__(
         self,
-        submissions,
+        submissions: Sequence[run.Submission],
         test_cases: Sequence[testcase.Testcase],
         width: int = ProgressBar.columns,
         height: int = shutil.get_terminal_size().lines,
