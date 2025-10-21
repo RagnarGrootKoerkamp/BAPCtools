@@ -31,7 +31,7 @@ if has_ryaml:
 
 
 class GeneratorTask:
-    def __init__(self, fuzz: "Fuzz", t: generate.TestcaseRule, i: int, tmp_id: int):
+    def __init__(self, fuzz: "Fuzz", t: generate.TestcaseRule, i: int, tmp_id: int) -> None:
         self.fuzz = fuzz
         self.rule = t
         generator = t.generator
@@ -154,7 +154,7 @@ class SubmissionTask:
         submission: Submission,
         testcase: Testcase,
         tmp_id: int,
-    ):
+    ) -> None:
         self.generator_task = generator_task
         self.submission = submission
         self.testcase = testcase
@@ -183,7 +183,7 @@ class FuzzProgressBar(ProgressBar):
         queue: parallel.AbstractQueue[GeneratorTask | SubmissionTask],
         prefix: str,
         max_len: int,
-    ):
+    ) -> None:
         super().__init__(prefix, max_len)
         self.queue = queue
 
@@ -200,7 +200,7 @@ class FuzzProgressBar(ProgressBar):
 
 
 class Fuzz:
-    def __init__(self, problem: problem.Problem):
+    def __init__(self, problem: problem.Problem) -> None:
         self.generators_yaml_mutex = threading.Lock()
         self.problem = problem
         self.summary: dict[Submission, set[Verdict]] = {}

@@ -26,6 +26,10 @@ from util import *
 from colorama import Fore, Style
 
 
+if has_ryaml:
+    import ruamel.yaml
+
+
 # The parse_* functions will remove (.pop()) keys from the yaml data during parsing.
 # We will warn for any unknown keys that remain after this process.
 def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None) -> None:

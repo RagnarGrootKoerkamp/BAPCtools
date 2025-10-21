@@ -104,7 +104,7 @@ class Validator(program.Program):
         subdir: str,
         skip_double_build_warning: bool = False,
         check_constraints: bool = False,
-    ):
+    ) -> None:
         super().__init__(
             problem,
             path,
@@ -242,7 +242,7 @@ class InputValidator(Validator):
 
     args_key: Final[str] = "input_validator_args"
 
-    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(problem, path, InputValidator.source_dir, **kwargs)
 
     def run(
@@ -304,7 +304,7 @@ class AnswerValidator(Validator):
     # use output_validator_args as well
     args_key: Final[str] = "output_validator_args"
 
-    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(problem, path, AnswerValidator.source_dir, **kwargs)
 
     def run(
@@ -356,7 +356,7 @@ class OutputValidator(Validator):
 
     args_key: Final[str] = "output_validator_args"
 
-    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(problem, path, OutputValidator.source_dir, **kwargs)
 
     def run(

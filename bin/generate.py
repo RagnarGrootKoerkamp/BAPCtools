@@ -25,11 +25,15 @@ from problem import Problem
 from util import *
 
 
+if has_ryaml:
+    import ruamel.yaml
+
+
 YAML_TYPE = Optional[str | dict[str, Any]]
 
 
 class ParseException(Exception):
-    def __init__(self, message: Optional[str] = None, path: Optional[Path | str] = None):
+    def __init__(self, message: Optional[str] = None, path: Optional[Path | str] = None) -> None:
         super().__init__(message, path)
         self.message = message
         self.path = path
@@ -103,7 +107,7 @@ class Invocation:
     # A direct path may also be given.
     def __init__(
         self, problem: Problem, string: str, *, allow_absolute: bool, allow_relative: bool = True
-    ):
+    ) -> None:
         commands = shlex.split(string)
         command = commands[0]
         self.args = commands[1:]
@@ -167,7 +171,7 @@ class Invocation:
 
 
 class GeneratorInvocation(Invocation):
-    def __init__(self, problem: Problem, string: str):
+    def __init__(self, problem: Problem, string: str) -> None:
         super().__init__(problem, string, allow_absolute=False)
 
     # Try running the generator |retries| times, incrementing seed by 1 each time.
@@ -200,7 +204,7 @@ class GeneratorInvocation(Invocation):
 
 
 class SolutionInvocation(Invocation):
-    def __init__(self, problem: Problem, string: str):
+    def __init__(self, problem: Problem, string: str) -> None:
         super().__init__(problem, string, allow_absolute=True, allow_relative=False)
 
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
@@ -303,7 +307,7 @@ to use a specific solution."""
 # usage.  This is to prevent instantiating the default solution when it's not
 # actually needed.
 class DefaultSolutionInvocation(SolutionInvocation):
-    def __init__(self, generator_config: "GeneratorConfig"):
+    def __init__(self, generator_config: "GeneratorConfig") -> None:
         super().__init__(generator_config.problem, str(default_solution_path(generator_config)))
 
 
@@ -367,7 +371,7 @@ class Config:
         path: Path,
         yaml: YAML_TYPE = None,
         parent_config: Optional["Config"] = None,
-    ):
+    ) -> None:
         assert not yaml or isinstance(yaml, dict)
 
         self.needs_default_solution = False
@@ -398,7 +402,7 @@ class Rule:
         name: str,
         yaml: YAML_TYPE,
         parent: "AnyDirectory",
-    ):
+    ) -> None:
         assert parent is not None
 
         self.parent = parent
@@ -431,7 +435,7 @@ class TestcaseRule(Rule):
         yaml: YAML_TYPE,
         parent: "AnyDirectory",
         count_index: int,
-    ):
+    ) -> None:
         assert is_testcase(yaml)
 
         # if not None rule will be skipped during generation
@@ -1318,7 +1322,7 @@ class Directory(Rule):
         name: str,
         yaml: dict[str, Any],
         parent: "AnyDirectory",
-    ):
+    ) -> None:
         assert is_directory(yaml)
 
         # The root Directory object has name ''.
@@ -1571,7 +1575,7 @@ class GeneratorConfig:
     ]
 
     # Parse generators.yaml.
-    def __init__(self, problem: Problem, restriction: Optional[Sequence[Path]] = None):
+    def __init__(self, problem: Problem, restriction: Optional[Sequence[Path]] = None) -> None:
         self.problem = problem
         yaml_path = self.problem.path / "generators" / "generators.yaml"
         self.n_parse_error = 0
@@ -2268,7 +2272,7 @@ data/*
             others = [e for e in d.yaml["data"] if id(next(iter(e.values()))) not in test_nodes]
 
             class TestcaseResult:
-                def __init__(self, yaml: dict[str, Any]):
+                def __init__(self, yaml: dict[str, Any]) -> None:
                     self.yaml = yaml
                     self.test_node = test_nodes[id(next(iter(yaml.values())))]
                     self.scores = []

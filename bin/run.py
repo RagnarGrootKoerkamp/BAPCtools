@@ -34,7 +34,9 @@ from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdi
 
 
 class Run:
-    def __init__(self, problem: "problem.Problem", submission: "Submission", testcase: Testcase):
+    def __init__(
+        self, problem: "problem.Problem", submission: "Submission", testcase: Testcase
+    ) -> None:
         self.problem = problem
         self.submission = submission
         self.testcase = testcase
@@ -259,7 +261,7 @@ class Run:
 class Submission(program.Program):
     def __init__(
         self, problem: "problem.Problem", path: Path, skip_double_build_warning: bool = False
-    ):
+    ) -> None:
         super().__init__(
             problem,
             path,

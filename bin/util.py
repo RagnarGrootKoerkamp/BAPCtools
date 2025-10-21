@@ -186,7 +186,7 @@ def message(
 
 # A simple bar that only holds a task prefix
 class PrintBar:
-    def __init__(self, task: Optional[str | Path] = None):
+    def __init__(self, task: Optional[str | Path] = None) -> None:
         self.task = task
 
     def log(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
@@ -246,7 +246,7 @@ class ProgressBar:
         *,
         items: Optional[Sequence[ITEM_TYPE]] = None,
         needs_leading_newline: bool = False,
-    ):
+    ) -> None:
         assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix
         ProgressBar.current_bar = self
 
@@ -1176,7 +1176,7 @@ class ExecResult:
         out: Optional[str],
         verdict: Optional["Verdict"] = None,
         pass_id: Optional[int] = None,
-    ):
+    ) -> None:
         self.returncode = returncode
         self.status = status
         self.duration = duration
