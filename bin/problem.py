@@ -970,12 +970,15 @@ class Problem:
 
         programs = [run.Submission(problem, path) for path in paths]
 
-        # - first all submission with just one verdict (sorted by that verdict)
+        # - first all submission with just one verdict (grouped by that verdict and sorted by the path)
         # - then by subdir
         # - then by list of verdicts
         # - then by name
-        def submissions_key(x: run.Submission) -> tuple[int, str, Sequence[verdicts.Verdict], str]:
-            return (len(x.expected_verdicts), x.subdir, x.expected_verdicts, x.name)
+        def submissions_key(
+            x: run.Submission,
+        ) -> tuple[int, str, Sequence[verdicts.Verdict], str, str]:
+            group = "" if len(x.expected_verdicts) == 1 else x.subdir
+            return (len(x.expected_verdicts), group, x.expected_verdicts, x.subdir, x.name)
 
         programs.sort(key=submissions_key)
 
