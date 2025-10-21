@@ -224,9 +224,9 @@ def problem_data(problem: "Problem", language: str) -> dict[str, Optional[str]]:
         "problemforeground": foreground,
         "problemborder": border,
         "timelimit": get_tl(problem),
-        "problemdir": str(problem.path.absolute().as_posix()),
+        "problemdir": problem.path.absolute().as_posix(),
         "problemdirname": problem.name,
-        "builddir": str(latex_builddir(problem, language).as_posix()),
+        "builddir": latex_builddir(problem, language).as_posix(),
     }
 
 
