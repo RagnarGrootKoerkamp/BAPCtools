@@ -93,7 +93,7 @@ class Run:
             with interaction.open("a") if interaction else nullcontext(None) as interaction_file:
                 nextpass = self.feedbackdir / "nextpass.in" if self.problem.multi_pass else None
                 pass_id = 0
-                max_duration = 0
+                max_duration = 0.0
                 tle_result = None
                 while True:
                     pass_id += 1
@@ -611,9 +611,17 @@ class Submission(program.Program):
             else:
                 # Interactive problem.
                 run = Run(self.problem, self, testcase)
-                result = interactive.run_interactive_testcase(
+                optional_result = interactive.run_interactive_testcase(
                     run, interaction=True, validator_error=None, team_error=None
                 )
+                if optional_result is None:
+                    config.n_error += 1
+                    print(
+                        f"{Fore.RED}No output validator found for testcase {testcase.name}{Style.RESET_ALL}",
+                        file=sys.stderr,
+                    )
+                    continue
+                result = optional_result
                 if result.verdict != Verdict.ACCEPTED:
                     config.n_error += 1
                     print(
