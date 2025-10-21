@@ -370,9 +370,12 @@ class Config:
     ):
         assert not yaml or isinstance(yaml, dict)
 
+        self.needs_default_solution = False
+        self.solution: Optional[SolutionInvocation]
+        self.random_salt: str
+        self.retries: int
+
         for key, default, func in Config.INHERITABLE_KEYS:
-            if func is None:
-                func = lambda p, x, path: x  # noqa: E731  # TODO this can probably be prettier
             if yaml and key in yaml:
                 setattr(self, key, func(problem, yaml[key], path))
             elif parent_config is not None:
@@ -380,9 +383,9 @@ class Config:
             else:
                 setattr(self, key, default)
 
-        self.solution: Literal[True] | Optional[SolutionInvocation]
-        self.random_salt: str
-        self.retries: int
+        if self.solution is True:
+            self.needs_default_solution = True
+            self.solution = None
 
 
 class Rule:
@@ -983,7 +986,6 @@ class TestcaseRule(Rule):
             if config.args.no_solution:
                 return True
 
-            assert t.config.solution is not True
             if t.config.solution is not None:
                 solution_hash: dict[str, Optional[str]] = {
                     "solution_hash": t.config.solution.hash(),
@@ -1936,24 +1938,23 @@ class GeneratorConfig:
         solutions_used: set[Path] = set()
 
         # Collect all programs that need building.
-        # Also, convert the default submission into an actual Invocation.
+        # Also, set the default submission if needed.
         default_solution: Optional[DefaultSolutionInvocation] = None
 
         def collect_programs(t: TestcaseRule) -> None:
             if isinstance(t, TestcaseRule):
                 if t.generator:
                     generators_used.add(t.generator.program_path)
+            if config.args.no_solution:
+                t.config.solution = None
+            elif t.config.needs_default_solution:
+                # Initialize the default solution if needed.
+                nonlocal default_solution
+                if default_solution is None:
+                    default_solution = DefaultSolutionInvocation(self)
+                t.config.solution = default_solution
             if t.config.solution:
-                if config.args.no_solution:
-                    t.config.solution = None
-                else:
-                    # Initialize the default solution if needed.
-                    if t.config.solution is True:
-                        nonlocal default_solution
-                        if default_solution is None:
-                            default_solution = DefaultSolutionInvocation(self)
-                        t.config.solution = default_solution
-                    solutions_used.add(t.config.solution.program_path)
+                solutions_used.add(t.config.solution.program_path)
 
         self.root_dir.walk(collect_programs, dir_f=None)
 
@@ -2004,7 +2005,6 @@ class GeneratorConfig:
         self.problem.validators(validate.OutputValidator)
 
         def cleanup_build_failures(t: TestcaseRule) -> None:
-            assert t.config.solution is not True
             if t.config.solution and t.config.solution.program is None:
                 t.config.solution = None
 
