@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Any, Final, Iterable, Optional, overload
+from typing import Any, Final, Iterable, Optional, overload, Type
 
 import config
 import parallel
@@ -25,13 +25,15 @@ from util import *
 
 
 class ParseException(Exception):
-    def __init__(self, message=None, path=None):
+    def __init__(self, message: Optional[str] = None, path: Optional[Path | str] = None):
         super().__init__(message, path)
         self.message = message
         self.path = path
 
 
-def assert_type(name, obj, types, path=None):
+def assert_type(
+    name: str, obj: Any, types: list[Type[Any]] | Type[Any], path: Optional[Path] = None
+) -> None:
     if not isinstance(types, list):
         types = [types]
     if any(isinstance(obj, t) for t in types):
@@ -51,7 +53,7 @@ UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = [
 ] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
 
 
-def is_testcase(yaml):
+def is_testcase(yaml: Optional[str | dict[str, Any]]) -> bool:
     return (
         yaml is None
         or isinstance(yaml, str)
@@ -59,18 +61,18 @@ def is_testcase(yaml):
     )
 
 
-def is_directory(yaml):
+def is_directory(yaml: Optional[str | dict[str, Any]]) -> bool:
     return isinstance(yaml, dict) and not is_testcase(yaml)
 
 
-def has_count(yaml):
+def has_count(yaml: Optional[str | dict[str, Any]]) -> bool:
     return isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], int)
 
 
 # Returns the given path relative to the problem root.
-def resolve_path(path, *, allow_absolute, allow_relative):
-    assert isinstance(path, str)
-    path = PurePosixPath(path)
+def resolve_path(path_str: str, *, allow_absolute: bool, allow_relative: bool):
+    assert isinstance(path_str, str)
+    path = PurePosixPath(path_str)
     if not allow_absolute:
         if path.is_absolute():
             raise ParseException(f"Path must not be absolute: {path}")
@@ -123,8 +125,9 @@ class Invocation:
         # Automatically set self.program when that program has been built.
         self.program: Optional[program.Generator | run.Submission] = None
 
-        def callback(program):
-            self.program = program
+        def callback(prog: program.Program) -> None:
+            assert isinstance(prog, (program.Generator, run.Submission))
+            self.program = prog
 
         program.Program.add_callback(problem, problem.path / self.program_path, callback)
 
@@ -136,7 +139,7 @@ class Invocation:
             command_string = self.SEED_REGEX.sub(str(seed), command_string)
         return command_string
 
-    def hash(self, seed=None):
+    def hash(self, seed=None) -> str:
         list = []
         if self.program is not None:
             assert self.program.hash is not None
