@@ -1,7 +1,7 @@
 from os import makedirs
 from multiprocessing import Pool
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import config
 import parallel
@@ -22,7 +22,7 @@ judgement_colors = {"AC": "lime", "WA": "red", "TLE": "#c0f", "RTE": "orange", "
 
 
 # Turns an endpoint list result into an object, mapped by 'id'
-def get_json_assoc(url: str) -> dict[str, dict]:
+def get_json_assoc(url: str) -> dict[str, dict[str, Any]]:
     return {o["id"]: o for o in call_api_get_json(url)}
 
 
@@ -34,7 +34,7 @@ def time_string_to_minutes(time_string: str) -> float:
 def plot_problem(
     minutes: list[dict[str, int]],
     label: str,
-    judgement_types: dict[str, dict],
+    judgement_types: dict[str, dict[str, Any]],
 ) -> None:
     import matplotlib.pyplot as plt  # Have to import it separately in multiprocessing worker.
 
@@ -92,7 +92,7 @@ def generate_solve_stats(post_freeze: bool) -> None:
         data[i] = get_json_assoc(url_prefix + endpoint)
 
     bar.start("Contest data")
-    data: list[Optional[dict]] = [None] * 5
+    data: list[Optional[dict[str, Any]]] = [None] * 5
     parallel.run_tasks(
         get_contest_data,
         list(

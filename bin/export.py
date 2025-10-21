@@ -704,7 +704,7 @@ def export_contest_and_problems(problems: list[Problem], languages: list[str]) -
         nonlocal ccs_problems
         for p in ccs_problems:
             if problem.name in [p.get("short_name"), p.get("id"), p.get("externalid")]:
-                return p["id"]
+                return p.get("id")
         return None
 
     for problem in problems:

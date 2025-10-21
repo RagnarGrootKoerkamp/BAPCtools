@@ -200,7 +200,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
             if config.args.order_from_ccs:
                 # Sort by increasing difficulty, extracted from the CCS api.
                 class ProblemStat:
-                    def __init__(self):
+                    def __init__(self) -> None:
                         self.solved = 0
                         self.submissions = 0
                         self.pending = 0
@@ -307,7 +307,7 @@ def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Pat
 # If we would not do this, it would not be possible to check which keys are explicitly set from the command line.
 # This check is necessary when loading the personal config file in `read_personal_config`.
 class SuppressingParser(argparse.ArgumentParser):
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **kwargs: Any) -> None:
         super(SuppressingParser, self).__init__(**kwargs, argument_default=argparse.SUPPRESS)
 
 

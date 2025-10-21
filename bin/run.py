@@ -34,7 +34,9 @@ from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdi
 
 
 class Run:
-    def __init__(self, problem: "problem.Problem", submission: "Submission", testcase: Testcase):
+    def __init__(
+        self, problem: "problem.Problem", submission: "Submission", testcase: Testcase
+    ) -> None:
         self.problem = problem
         self.submission = submission
         self.testcase = testcase
@@ -259,7 +261,7 @@ class Run:
 class Submission(program.Program):
     def __init__(
         self, problem: "problem.Problem", path: Path, skip_double_build_warning: bool = False
-    ):
+    ) -> None:
         super().__init__(
             problem,
             path,
@@ -397,7 +399,7 @@ class Submission(program.Program):
         testcases: Sequence[Testcase],
         *,
         needs_leading_newline: bool,
-    ):
+    ) -> tuple[bool, bool]:
         runs = [Run(self.problem, self, testcase) for testcase in testcases]
         max_testcase_len = max(len(run.name) for run in runs)
         if self.problem.multi_pass:

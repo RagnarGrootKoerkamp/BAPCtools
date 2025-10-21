@@ -1,8 +1,9 @@
 import config
 from problem import Problem
+from typing import Any, TYPE_CHECKING
 from util import *
 
-if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+if TYPE_CHECKING:
     import requests
 
 # Perform slack actions for the selected problems (all, or the selected/current one).
@@ -15,7 +16,7 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 # It can be passed as `--token <token>` or stored in `.bapctools.yaml` as `token: <token>`.
 
 
-def call_slack_api(path, **kwargs: Any) -> "requests.Response":
+def call_slack_api(path: str, **kwargs: Any) -> "requests.Response":
     import requests  # Slow import, so only import it inside this function.
 
     verbose(f"Calling slack api {path}")
@@ -48,6 +49,7 @@ def get_user_id(username: str) -> str:
     members = r["members"]
     for m in members:
         if m["profile"]["real_name"] == username or m["profile"]["display_name"] == username:
+            assert isinstance(m["id"], str)
             return m["id"]
     fatal(f"User {username} not found")
 
@@ -78,7 +80,7 @@ def join_slack_channels(problems: list[Problem], username: str) -> None:
         join_slack_channel(p.name, channel_ids[p.name], username, userid)
 
 
-def join_slack_channel(channel_name: str, channel_id, username: str, userid) -> None:
+def join_slack_channel(channel_name: str, channel_id: str, username: str, userid: str) -> None:
     # The bot account invites the user to the channel.
     r = call_slack_api("conversations.invite", channel=channel_id, users=userid)
     if not r.ok:
