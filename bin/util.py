@@ -97,10 +97,6 @@ def is_bsd() -> bool:
 if not is_windows():
     import resource
 
-    RUSAGE: TypeAlias = Optional[resource.struct_rusage]
-elif not TYPE_CHECKING:
-    RUSAGE: TypeAlias = None
-
 
 def exit1(force: bool = False) -> NoReturn:
     if force:
@@ -1252,7 +1248,7 @@ def limit_setter(
 
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen[bytes]):
-    rusage: RUSAGE
+    rusage: "Optional[resource.struct_rusage]"
 
     # If wait4 is available, store resource usage information.
     if "wait4" in dir(os):
