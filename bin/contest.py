@@ -2,9 +2,12 @@ import config
 import sys
 
 from pathlib import Path
-from typing import cast, Any, Optional
+from typing import cast, Any, Optional, TYPE_CHECKING
 
 from util import *
+
+if TYPE_CHECKING:
+    import requests
 
 # Read the contest.yaml, if available
 _contest_yaml: Optional[dict[str, Any]] = None
@@ -59,7 +62,7 @@ def get_api() -> str:
     return api
 
 
-def get_contest_id():
+def get_contest_id() -> str:
     contest_id = (
         config.args.contest_id
         if config.args.contest_id
@@ -75,24 +78,28 @@ def get_contest_id():
             fatal(f"Contest {contest_id} not found.")
         else:
             return contest_id
-    if len(contests) > 1:
+    if not contests:
+        fatal("Server has no active contests.")
+    elif len(contests) > 1:
         for contest in contests:
             log(f"{contest['id']}: {contest['name']}")
         fatal(
             "Server has multiple active contests. Pass --contest-id <cid> or set it in contest.yaml."
         )
-    if len(contests) == 1:
+    else:
+        assert len(contests) == 1
+        assert isinstance(contests[0]["id"], str)
         log(f"The only active contest has id {contests[0]['id']}")
         return contests[0]["id"]
 
 
-def get_contests():
+def get_contests() -> list[dict[str, Any]]:
     contests = call_api_get_json("/contests")
     assert isinstance(contests, list)
     return contests
 
 
-def call_api(method, endpoint, **kwargs):
+def call_api(method: str, endpoint: str, **kwargs: Any) -> "requests.Response":
     import requests  # Slow import, so only import it inside this function.
 
     assert endpoint.startswith("/")
@@ -110,10 +117,10 @@ def call_api(method, endpoint, **kwargs):
     return r
 
 
-def call_api_get_json(url: str):
+def call_api_get_json(url: str) -> Any:
     r = call_api("GET", url)
     r.raise_for_status()
     try:
         return r.json()
     except Exception as e:
-        print(f"\nError in decoding JSON:\n{e}\n{r.text()}", file=sys.stderr)
+        print(f"\nError in decoding JSON:\n{e}\n{r.text}", file=sys.stderr)

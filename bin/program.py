@@ -4,7 +4,7 @@ import stat
 import shlex
 import subprocess
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from colorama import Fore
 from pathlib import Path
 from typing import Any, Final, Optional, TypeVar, TYPE_CHECKING
@@ -17,7 +17,7 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 
 class Language:
-    def __init__(self, lang_id: str, conf: dict[str, Any]):
+    def __init__(self, lang_id: str, conf: dict[str, Any]) -> None:
         self.ok = True
         self.id = lang_id
 
@@ -202,7 +202,7 @@ class Program:
         skip_double_build_warning: bool = False,
         limits: dict[str, int] = {},
         substitute_constants: bool = False,
-    ):
+    ) -> None:
         if deps is not None:
             assert isinstance(self, Generator)
             assert isinstance(deps, list)
@@ -597,7 +597,7 @@ class Program:
 
 
 class Generator(Program):
-    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(
             problem,
             path,

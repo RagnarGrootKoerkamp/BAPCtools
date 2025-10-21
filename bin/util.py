@@ -186,7 +186,7 @@ def message(
 
 # A simple bar that only holds a task prefix
 class PrintBar:
-    def __init__(self, task: Optional[str | Path] = None):
+    def __init__(self, task: Optional[str | Path] = None) -> None:
         self.task = task
 
     def log(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
@@ -246,7 +246,7 @@ class ProgressBar:
         *,
         items: Optional[Sequence[ITEM_TYPE]] = None,
         needs_leading_newline: bool = False,
-    ):
+    ) -> None:
         assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix
         ProgressBar.current_bar = self
 
@@ -785,7 +785,9 @@ def write_yaml(data: Any, path: Path, allow_yamllib: bool = False) -> None: ...
 
 
 # Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
-def write_yaml(data, path=None, allow_yamllib=False):
+def write_yaml(
+    data: Any, path: Optional[Path] = None, allow_yamllib: bool = False
+) -> Optional[str]:
     if not has_ryaml:
         if not allow_yamllib:
             error(
@@ -1174,7 +1176,7 @@ class ExecResult:
         out: Optional[str],
         verdict: Optional["Verdict"] = None,
         pass_id: Optional[int] = None,
-    ):
+    ) -> None:
         self.returncode = returncode
         self.status = status
         self.duration = duration
@@ -1246,7 +1248,7 @@ def limit_setter(
 
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen[bytes]):
-    rusage: Any  # TODO #102: use stricter type than `Any`
+    rusage: "Optional[resource.struct_rusage]"
 
     # If wait4 is available, store resource usage information.
     if "wait4" in dir(os):
@@ -1397,7 +1399,7 @@ def exec_command(
     err = maybe_crop(stderr.decode("utf-8", "replace")) if stderr is not None else None
     out = maybe_crop(stdout.decode("utf-8", "replace")) if stdout is not None else None
 
-    if hasattr(process, "rusage"):
+    if hasattr(process, "rusage") and process.rusage:
         duration = process.rusage.ru_utime + process.rusage.ru_stime
         # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
         # To prevent under-reporting the duration, we take the max with wall time in this case.

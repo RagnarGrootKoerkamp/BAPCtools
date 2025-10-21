@@ -14,7 +14,7 @@ import testcase
 from util import ITEM_TYPE, ProgressBar
 
 if TYPE_CHECKING:
-    pass
+    import run
 
 
 class Verdict(Enum):
@@ -172,7 +172,7 @@ class Verdicts:
         test_cases_list: Sequence[testcase.Testcase],
         timeout: int,
         run_until: RunUntil = RunUntil.FIRST_ERROR,
-    ):
+    ) -> None:
         test_cases: set[str] = set(t.name for t in test_cases_list)
         test_groups: set[str] = set(str(path) for tc in test_cases for path in Path(tc).parents)
 
@@ -203,7 +203,7 @@ class Verdicts:
     def __enter__(self) -> None:
         self.lock.__enter__()
 
-    def __exit__(self, *args) -> None:
+    def __exit__(self, *args: Any) -> None:
         self.lock.__exit__(*args)
 
     def is_test_group(self, node: str) -> bool:
@@ -371,7 +371,7 @@ class Verdicts:
 
 class VerdictTable:
     class Group:
-        def __init__(self, length: int, text: str):
+        def __init__(self, length: int, text: str) -> None:
             self.length = length
             self.text = text
 
@@ -380,12 +380,12 @@ class VerdictTable:
 
     def __init__(
         self,
-        submissions,
+        submissions: Sequence["run.Submission"],
         test_cases: Sequence[testcase.Testcase],
         width: int = ProgressBar.columns,
         height: int = shutil.get_terminal_size().lines,
         max_name_width: int = 50,
-    ):
+    ) -> None:
         self.submissions: list[str] = [s.name for s in submissions]
         self.test_cases: list[str] = [t.name for t in test_cases]
         self.samples: set[str] = set(t.name for t in test_cases if t.root == "sample")
@@ -663,7 +663,7 @@ class TableProgressBar(ProgressBar):
         *,
         items: Optional[Sequence[ITEM_TYPE]],
         needs_leading_newline: bool,
-    ):
+    ) -> None:
         super().__init__(
             prefix,
             max_len,

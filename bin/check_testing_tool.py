@@ -2,7 +2,7 @@ import shutil
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import config
 import parallel
@@ -29,7 +29,7 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 
 class TestInput:
-    def __init__(self, problem: "Problem", in_path: Path, short_path: Path):
+    def __init__(self, problem: "Problem", in_path: Path, short_path: Path) -> None:
         assert in_path.suffix in [".in", ".download", ".statement"]
         self.problem = problem
         self.in_path = in_path
@@ -44,7 +44,7 @@ class TestInput:
 
 
 class WrappedSubmission:
-    def __init__(self, problem: "Problem", submission: Submission):
+    def __init__(self, problem: "Problem", submission: Submission) -> None:
         self.problem = problem
         self.submission = submission
         self.name = submission.name
@@ -157,7 +157,7 @@ sys.exit(result.returncode)
 
 
 class TestingTool(Program):
-    def __init__(self, problem: "Problem", path: Path):
+    def __init__(self, problem: "Problem", path: Path) -> None:
         super().__init__(
             problem,
             path,

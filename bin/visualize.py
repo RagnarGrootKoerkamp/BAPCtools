@@ -24,7 +24,7 @@ class InputVisualizer(program.Program):
 
     args_key: Final[str] = "input_visualizer_args"
 
-    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(
             problem,
             path,
@@ -60,7 +60,7 @@ class OutputVisualizer(program.Program):
 
     args_key: Final[str] = "output_visualizer_args"
 
-    def __init__(self, problem: "Problem", path: Path, **kwargs: Any):
+    def __init__(self, problem: "Problem", path: Path, **kwargs: Any) -> None:
         super().__init__(
             problem,
             path,

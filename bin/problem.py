@@ -26,6 +26,10 @@ from util import *
 from colorama import Fore, Style
 
 
+if has_ryaml:
+    import ruamel.yaml
+
+
 # The parse_* functions will remove (.pop()) keys from the yaml data during parsing.
 # We will warn for any unknown keys that remain after this process.
 def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None) -> None:
@@ -701,9 +705,9 @@ class Problem:
         p,
         *,
         mode: Optional[validate.Mode] = None,
-        needans=True,
-        only_samples=False,
-        testing_tool_test=False,
+        needans: bool = True,
+        only_samples: bool = False,
+        testing_tool_test: bool = False,
     ) -> Sequence[testcase.Testcase]:
         only_samples = config.args.samples or only_samples
 
@@ -1030,9 +1034,9 @@ class Problem:
     def validators(
         problem,
         cls: type[validate.AnyValidator],
-        check_constraints=False,
-        strict=False,
-        print_warn=True,
+        check_constraints: bool = False,
+        strict: bool = False,
+        print_warn: bool = True,
     ) -> Sequence[validate.AnyValidator]:
         """
         Gets the validators of the given class.
@@ -1073,7 +1077,7 @@ class Problem:
         return validators if build_ok else []
 
     def _validators(
-        problem, cls: type[validate.AnyValidator], check_constraints=False
+        problem, cls: type[validate.AnyValidator], check_constraints: bool = False
     ) -> list[validate.AnyValidator]:
         key = (cls, check_constraints)
         if key in problem._validators_cache:
@@ -1349,7 +1353,9 @@ class Problem:
         return None
 
     def validate_data(
-        problem, mode: validate.Mode, constraints: dict | Literal[True] | None = None
+        problem,
+        mode: validate.Mode,
+        constraints: validate.ConstraintsDict | Literal[True] | None = None,
     ) -> bool:
         """Validate aspects of the test data files.
 
@@ -1610,7 +1616,7 @@ class Problem:
         def run_all(
             select_verdict: Callable[[Sequence[verdicts.Verdict]], bool],
             select: Callable[[Sequence[float]], float],
-        ):
+        ) -> tuple[str, str, float] | tuple[None, None, None]:
             nonlocal ok
 
             cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
@@ -1640,6 +1646,8 @@ class Problem:
         if submission is None:
             error("No AC submissions found")
             return False
+        assert testcase is not None
+        assert duration is not None
 
         problem.limits.time_limit = problem.limits.time_resolution * math.ceil(
             duration * problem.limits.ac_to_time_limit / problem.limits.time_resolution
@@ -1679,6 +1687,8 @@ class Problem:
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
         )
         if submission is not None:
+            assert testcase is not None
+            assert duration is not None
             print(file=sys.stderr)
             message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
             if duration <= problem.limits.time_limit:
@@ -1698,6 +1708,8 @@ class Problem:
                 max,
             )
             if submission is not None:
+                assert testcase is not None
+                assert duration is not None
                 if duration > problem.limits.time_limit:
                     warn("Non TLE submission timed out")
                 else:
