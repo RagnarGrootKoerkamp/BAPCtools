@@ -380,7 +380,7 @@ class Config:
             else:
                 setattr(self, key, default)
 
-        self.solution: SolutionInvocation
+        self.solution: Literal[True] | Optional[SolutionInvocation]
         self.random_salt: str
         self.retries: int
 
@@ -983,8 +983,9 @@ class TestcaseRule(Rule):
             if config.args.no_solution:
                 return True
 
+            assert t.config.solution is not True
             if t.config.solution is not None:
-                solution_hash = {
+                solution_hash: dict[str, Optional[str]] = {
                     "solution_hash": t.config.solution.hash(),
                     "solution": t.config.solution.cache_command(),
                 }
@@ -1539,8 +1540,9 @@ AnyDirectory = RootDirectory | Directory
 
 class GeneratorConfig:
     @staticmethod
-    def parse_generators(generators_yaml: Any):
+    def parse_generators(generators_yaml: YAML_TYPE):
         assert_type("Generators", generators_yaml, dict)
+        assert isinstance(generators_yaml, dict)
         generators = {}
         for gen, deps in generators_yaml.items():
             if (
@@ -1567,7 +1569,7 @@ class GeneratorConfig:
     ]
 
     # Parse generators.yaml.
-    def __init__(self, problem: Problem, restriction=None):
+    def __init__(self, problem: Problem, restriction: Optional[Sequence[Path]] = None):
         self.problem = problem
         yaml_path = self.problem.path / "generators" / "generators.yaml"
         self.n_parse_error = 0
@@ -1635,7 +1637,7 @@ class GeneratorConfig:
             else:
                 setattr(self, key, default)
 
-        def add_known(obj):
+        def add_known(obj: TestcaseRule | Directory) -> None:
             path = obj.path
             name = path.name
             if isinstance(obj, TestcaseRule):
@@ -1658,9 +1660,10 @@ class GeneratorConfig:
         num_numbered_test_cases = 0
         test_case_id = 0
 
-        def parse_count(yaml, warn_for=None):
+        def parse_count(yaml: YAML_TYPE, warn_for: Optional[Path] = None) -> int:
             if not has_count(yaml):
                 return 1
+            assert isinstance(yaml, dict)
             count = yaml["count"]
             if count < 1:
                 if warn_for is not None:
@@ -1691,8 +1694,10 @@ class GeneratorConfig:
 
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
-        def count(yaml):
+        def count(yaml: YAML_TYPE) -> None:
             nonlocal num_numbered_test_cases
+            if not isinstance(yaml, dict):
+                return
             ds = yaml.get("data")
             if isinstance(ds, dict):
                 ds = [ds]
@@ -1715,7 +1720,9 @@ class GeneratorConfig:
         # key: the yaml key e.g. 'testcase'
         # name_gen: each call should result in the next (possibly numbered) name e.g. '01-testcase'
         # Returns either a single Rule or a list of Rules
-        def parse(key: str, name_gen: Callable[[], str], yaml: YAML_TYPE, parent: AnyDirectory):
+        def parse(
+            key: str, name_gen: Callable[[], str], yaml: YAML_TYPE, parent: AnyDirectory
+        ) -> Directory | list[TestcaseRule]:
             name = name_gen()
             assert_type("Testcase/directory", yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
@@ -1813,7 +1820,7 @@ class GeneratorConfig:
                         if d.numbered:
                             if is_directory(child_yaml):
 
-                                def next_test_group_name():
+                                def next_test_group_name() -> str:
                                     nonlocal test_group_id
                                     test_group_id += 1
                                     return numbered_test_case_name(
@@ -1823,7 +1830,7 @@ class GeneratorConfig:
                                 child_name = next_test_group_name
                             elif is_testcase(child_yaml):
 
-                                def next_test_case_name():
+                                def next_test_case_name() -> str:
                                     nonlocal test_case_id
                                     test_case_id += 1
                                     return numbered_test_case_name(
@@ -1849,7 +1856,7 @@ class GeneratorConfig:
                             d.data.append(c)
 
             # Include TestcaseRule t for the current directory.
-            def add_included_case(t: TestcaseRule):
+            def add_included_case(t: TestcaseRule) -> None:
                 target = t.path
                 name = target.name
                 p = d.path / name
@@ -1905,7 +1912,7 @@ class GeneratorConfig:
                         else:
                             obj.walk(
                                 add_included_case,
-                                lambda d: [add_included_case(t) for t in d.includes.values()],
+                                lambda d: [add_included_case(t) for t in d.includes.values()],  # type: ignore[func-returns-value]
                             )
                             pass
                     else:
@@ -1918,9 +1925,13 @@ class GeneratorConfig:
                         continue
             return d
 
-        self.root_dir = parse("", lambda: "", yaml, RootDirectory())
+        root_dir = parse("", lambda: "", yaml, RootDirectory())
+        assert isinstance(root_dir, Directory)
+        self.root_dir = root_dir
 
-    def build(self, build_visualizers=True, skip_double_build_warning=False):
+    def build(
+        self, build_visualizers: bool = True, skip_double_build_warning: bool = False
+    ) -> None:
         generators_used: set[Path] = set()
         solutions_used: set[Path] = set()
 
@@ -1928,7 +1939,7 @@ class GeneratorConfig:
         # Also, convert the default submission into an actual Invocation.
         default_solution: Optional[DefaultSolutionInvocation] = None
 
-        def collect_programs(t):
+        def collect_programs(t: TestcaseRule) -> None:
             if isinstance(t, TestcaseRule):
                 if t.generator:
                     generators_used.add(t.generator.program_path)
@@ -1949,7 +1960,7 @@ class GeneratorConfig:
         def build_programs(
             program_type: type[program.Generator | run.Submission],
             program_paths: Iterable[Path],
-        ):
+        ) -> None:
             programs = list[program.Generator | run.Submission]()
             for program_path in program_paths:
                 path = self.problem.path / program_path
@@ -1972,7 +1983,7 @@ class GeneratorConfig:
 
             bar = ProgressBar(f"Build {program_type.__name__.lower()}s", items=programs)
 
-            def build_program(p):
+            def build_program(p: program.Generator | run.Submission):
                 localbar = bar.start(p)
                 p.build(localbar)
                 localbar.done()

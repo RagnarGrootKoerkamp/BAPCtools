@@ -590,7 +590,7 @@ class Program:
         return exec_command(*args, **kwargs)
 
     @staticmethod
-    def add_callback(problem: "Problem", path: Path, c: Callable[["Program"], None]) -> None:
+    def add_callback(problem: "Problem", path: Path, c: Callable[["Program"], Any]) -> None:
         if path not in problem._program_callbacks:
             problem._program_callbacks[path] = []
         problem._program_callbacks[path].append(c)
