@@ -338,26 +338,27 @@ DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated", "visualizer
 # Holds all inheritable configuration options. Currently:
 # - config.solution
 # - config.random_salt
+# - config.retries
 class Config:
     # Used at each directory or testcase level.
 
     @staticmethod
-    def parse_solution(p: Problem, x: Any, path: Path) -> Optional[SolutionInvocation]:
-        assert_type("Solution", x, [type(None), str], path)
+    def _parse_solution(p: Problem, x: Any, path: Path) -> Optional[SolutionInvocation]:
+        assert_type("solution", x, [type(None), str], path)
         if x is None:
             return None
         return SolutionInvocation(p, x)
 
     @staticmethod
-    def parse_random_salt(p: Problem, x: Any, path: Path) -> str:
-        assert_type("Random_salt", x, [type(None), str], path)
+    def _parse_random_salt(x: Any, path: Path) -> str:
+        assert_type("random_salt", x, [type(None), str], path)
         if x is None:
             return ""
         return cast(str, x)
 
     @staticmethod
-    def parse_retries(p: Problem, x: Any, path: Path) -> int:
-        assert_type("Retries", x, [type(None), int], path)
+    def _parse_retries(x: Any, path: Path) -> int:
+        assert_type("retries", x, [type(None), int], path)
         if x is None:
             return 1
         return cast(int, x)
@@ -366,11 +367,9 @@ class Config:
         self,
         problem: Problem,
         path: Path,
-        yaml: YAML_TYPE = None,
+        yaml: Optional[dict[str, Any]] = None,
         parent_config: Optional["Config"] = None,
     ) -> None:
-        assert not yaml or isinstance(yaml, dict)
-
         if parent_config is None:
             self.needs_default_solution = True
             self.solution: Optional[SolutionInvocation] = None
@@ -382,16 +381,14 @@ class Config:
             self.random_salt = parent_config.random_salt
             self.retries = parent_config.retries
 
-        if yaml and "solution" in yaml:
-            self.needs_default_solution = False
-            self.solution = Config.parse_solution(problem, yaml["solution"], path)
-        if yaml and "random_salt" in yaml:
-            self.random_salt = Config.parse_random_salt(problem, yaml["random_salt"], path)
-        if yaml and "retries" in yaml:
-            # Non-portable keys only used by BAPCtools:
-            # The number of retries to run a generator when it fails, each time incrementing the {seed}
-            # by 1.
-            self.retries = Config.parse_retries(problem, yaml["retries"], path)
+        if yaml is not None:
+            if "solution" in yaml:
+                self.needs_default_solution = False
+                self.solution = Config._parse_solution(problem, yaml["solution"], path)
+            if "random_salt" in yaml:
+                self.random_salt = Config._parse_random_salt(yaml["random_salt"], path)
+            if "retries" in yaml:
+                self.retries = Config._parse_retries(yaml["retries"], path)
 
 
 class Rule:
@@ -405,17 +402,7 @@ class Rule:
         yaml: YAML_TYPE,
         parent: "AnyDirectory",
     ) -> None:
-        assert parent is not None
-
         self.parent = parent
-
-        if isinstance(yaml, dict):
-            self.config: "Config" = Config(
-                problem, parent.path / name, yaml, parent_config=parent.config
-            )
-        else:
-            assert parent.config is not None
-            self.config = parent.config
 
         # Yaml key of the current directory/testcase.
         self.key = key
@@ -425,6 +412,13 @@ class Rule:
         self.path: Path = parent.path / self.name
         # store Yaml
         self.yaml = yaml
+
+        if parent.config is not None:
+            self.config: Config = parent.config
+        else:
+            assert isinstance(yaml, dict)
+        if isinstance(yaml, dict):
+            self.config = Config(problem, parent.path / name, yaml, parent_config=parent.config)
 
 
 class TestcaseRule(Rule):
@@ -443,8 +437,10 @@ class TestcaseRule(Rule):
         # if not None rule will be skipped during generation
         self.parse_error: Optional[str] = None
 
+        # root in /data
+        self.root = parent.path.parts[0]
         # Whether this testcase is a sample.
-        self.sample: bool = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
+        self.sample: bool = self.root == "sample"
         # each test case needs some kind of input
         self.required_in: list[list[str]] = [[".in"]]
         if self.sample:
@@ -487,14 +483,11 @@ class TestcaseRule(Rule):
             )
             name = name[:-3]
 
-        super().__init__(problem, key, name, yaml, parent)
-
-        # root in /data
-        self.root = self.path.parts[0]
-
-        # files to consider for hashing
-        hashes = {}
         try:
+            super().__init__(problem, key, name, yaml, parent)
+
+            # files to consider for hashing
+            hashes = {}
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
                 raise ParseException("Test case does not have a valid name.")
 
@@ -1554,7 +1547,7 @@ AnyDirectory = RootDirectory | Directory
 
 class GeneratorConfig:
     @staticmethod
-    def parse_generators(generators_yaml: YAML_TYPE) -> dict[Path, list[Path]]:
+    def _parse_generators(generators_yaml: YAML_TYPE) -> dict[Path, list[Path]]:
         assert_type("Generators", generators_yaml, dict)
         assert isinstance(generators_yaml, dict)
         generators = {}
@@ -1642,7 +1635,7 @@ class GeneratorConfig:
 
         # Read root level configuration
         if "generators" in yaml:
-            self.generators = GeneratorConfig.parse_generators(yaml["generators"])
+            self.generators = self._parse_generators(yaml["generators"])
 
         def add_known(obj: TestcaseRule | Directory) -> None:
             path = obj.path
