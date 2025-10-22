@@ -24,9 +24,6 @@ Stat = tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, i
 
 
 def stats(problems: list[Problem]) -> None:
-    if config.args.more is not None:
-        config.args.all = config.args.more
-        warn("--more is deprecated, use --all instead!\n")
     problem_stats(problems)
     if config.args.all:
         more_stats(problems)
