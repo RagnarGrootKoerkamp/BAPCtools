@@ -100,6 +100,9 @@ def get_contests() -> list[dict[str, Any]]:
 
 
 def call_api(method: str, endpoint: str, **kwargs: Any) -> "requests.Response":
+    if config.args.username is None or config.args.password is None:
+        fatal("Username and Password are required to access CCS")
+
     import requests  # Slow import, so only import it inside this function.
 
     assert endpoint.startswith("/")
