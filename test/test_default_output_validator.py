@@ -17,7 +17,7 @@ DEFAULT_OUTPUT_VALIDATOR = ["default_output_validator.cpp"]
 
 config.args.verbose = 2
 config.args.error = True
-config.set_default_args()
+config.args.mark_set("verbose", "error")
 
 
 # return list of (flags, ans, out, expected result)

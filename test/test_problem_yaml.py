@@ -11,7 +11,7 @@ RUN_DIR = Path.cwd().absolute()
 
 config.args.verbose = 2
 config.args.error = True
-config.set_default_args()
+config.args.mark_set("verbose", "error")
 
 
 # return list of {yaml: {...}, ...} documents

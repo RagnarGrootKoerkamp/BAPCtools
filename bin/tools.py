@@ -1085,7 +1085,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     os.environ["MALLOC_PERTURB_"] = str(0b01011001)
 
     # Process arguments
-    config.args = config.ARGS("args", **vars(args))
+    config.args.update(config.ARGS("args", **vars(args)))
 
     # cd to contest directory
     call_cwd = Path.cwd().absolute()
