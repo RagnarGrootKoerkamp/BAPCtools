@@ -7,10 +7,10 @@ import shutil
 import sys
 import time
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Any, Final, Iterable, Optional, overload, Type
+from typing import Any, cast, Final, Literal, Optional, overload
 
 import config
 import parallel
@@ -40,7 +40,7 @@ class ParseException(Exception):
 
 
 def assert_type(
-    name: str, obj: Any, types: list[Type[Any]] | Type[Any], path: Optional[Path] = None
+    name: str, obj: Any, types: list[type[Any]] | type[Any], path: Optional[Path] = None
 ) -> None:
     if not isinstance(types, list):
         types = [types]
@@ -342,28 +342,25 @@ class Config:
     # Used at each directory or testcase level.
 
     @staticmethod
-    def parse_solution(p: Problem, x: Optional[str], path: Path) -> Optional[SolutionInvocation]:
+    def parse_solution(p: Problem, x: Any, path: Path) -> Optional[SolutionInvocation]:
         assert_type("Solution", x, [type(None), str], path)
         if x is None:
             return None
         return SolutionInvocation(p, x)
 
     @staticmethod
-    def parse_random_salt(p: Problem, x: str, path: Path) -> str:
+    def parse_random_salt(p: Problem, x: Any, path: Path) -> str:
         assert_type("Random_salt", x, [type(None), str], path)
         if x is None:
             return ""
-        return x
+        return cast(str, x)
 
-    INHERITABLE_KEYS: Final[Sequence] = [
-        # True: use an AC submission by default when the solution: key is not present.
-        ("solution", True, parse_solution),
-        ("random_salt", "", parse_random_salt),
-        # Non-portable keys only used by BAPCtools:
-        # The number of retries to run a generator when it fails, each time incrementing the {seed}
-        # by 1.
-        ("retries", 1, lambda p, x, path: int(x)),
-    ]
+    @staticmethod
+    def parse_retries(p: Problem, x: Any, path: Path) -> int:
+        assert_type("Retries", x, [type(None), int], path)
+        if x is None:
+            return 1
+        return cast(int, x)
 
     def __init__(
         self,
@@ -374,22 +371,27 @@ class Config:
     ) -> None:
         assert not yaml or isinstance(yaml, dict)
 
-        self.needs_default_solution = False
-        self.solution: Optional[SolutionInvocation]
-        self.random_salt: str
-        self.retries: int
-
-        for key, default, func in Config.INHERITABLE_KEYS:
-            if yaml and key in yaml:
-                setattr(self, key, func(problem, yaml[key], path))
-            elif parent_config is not None:
-                setattr(self, key, getattr(parent_config, key))
-            else:
-                setattr(self, key, default)
-
-        if self.solution is True:
+        if parent_config is None:
             self.needs_default_solution = True
-            self.solution = None
+            self.solution: Optional[SolutionInvocation] = None
+            self.random_salt: str = ""
+            self.retries: int = 1
+        else:
+            self.needs_default_solution = parent_config.needs_default_solution
+            self.solution = parent_config.solution
+            self.random_salt = parent_config.random_salt
+            self.retries = parent_config.retries
+
+        if yaml and "solution" in yaml:
+            self.needs_default_solution = False
+            self.solution = Config.parse_solution(problem, yaml["solution"], path)
+        if yaml and "random_salt" in yaml:
+            self.random_salt = Config.parse_random_salt(problem, yaml["random_salt"], path)
+        if yaml and "retries" in yaml:
+            # Non-portable keys only used by BAPCtools:
+            # The number of retries to run a generator when it fails, each time incrementing the {seed}
+            # by 1.
+            self.retries = Config.parse_retries(problem, yaml["retries"], path)
 
 
 class Rule:
@@ -1422,14 +1424,20 @@ class Directory(Rule):
         dir_f: Optional[Callable[["Directory"], Any]],
     ) -> None: ...
 
-    # Below is the actual implementation of `walk`,
-    # no parameter types are needed here because they are already defined by the @overloads.
-
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
-    def walk(self, testcase_f=None, dir_f=True):
+    def walk(
+        self,
+        testcase_f: Optional[
+            Callable[["TestcaseRule | Directory"], Any] | Callable[[TestcaseRule], Any]
+        ] = None,
+        dir_f: Literal[True]
+        | Optional[
+            Callable[["TestcaseRule | Directory"], Any] | Callable[["Directory"], Any]
+        ] = True,
+    ) -> None:
         if dir_f is True:
-            dir_f = testcase_f
+            dir_f = cast(Optional[Callable[["TestcaseRule | Directory"], Any]], testcase_f)
         if dir_f:
             dir_f(self)
 
@@ -1569,11 +1577,6 @@ class GeneratorConfig:
             generators[path] = [Path("generators") / d for d in deps]
         return generators
 
-    # Only used at the root directory level.
-    ROOT_KEYS: Final[Sequence] = [
-        ("generators", dict[Path, list[Path]](), parse_generators),
-    ]
-
     # Parse generators.yaml.
     def __init__(self, problem: Problem, restriction: Optional[Sequence[Path]] = None) -> None:
         self.problem = problem
@@ -1635,13 +1638,11 @@ class GeneratorConfig:
         assert_type("Root yaml", yaml, [type(None), dict])
         if yaml is None:
             yaml = dict()
+        assert isinstance(yaml, dict)
 
         # Read root level configuration
-        for key, default, func in GeneratorConfig.ROOT_KEYS:
-            if yaml and key in yaml:
-                setattr(self, key, func(yaml[key] if yaml[key] is not None else default))
-            else:
-                setattr(self, key, default)
+        if "generators" in yaml:
+            self.generators = GeneratorConfig.parse_generators(yaml["generators"])
 
         def add_known(obj: TestcaseRule | Directory) -> None:
             path = obj.path
@@ -2205,23 +2206,24 @@ data/*
             return False
 
         directory_rules = set()
-        for d in config.args.testcases:
-            path = d.relative_to("data")
+        assert config.args.testcases is not None  # set in tools.py
+        for t in config.args.testcases:
+            path = t.relative_to("data")
             parts = path.parts
             if not parts:
                 warn("Cannot reorder Root directory. Skipping.")
             elif parts[0] in config.INVALID_CASE_DIRECTORIES:
-                warn(f"{d} is used for invalid test data. Skipping.")
+                warn(f"{t} is used for invalid test data. Skipping.")
             elif parts[0] == "valid_output":
-                warn(f"{d} is used for valid test data. Skipping.")
+                warn(f"{t} is used for valid test data. Skipping.")
             elif parts[0] == "testing_tool_test":
-                warn(f"{d} is used to test the testing tool. Skipping.")
+                warn(f"{t} is used to test the testing tool. Skipping.")
             elif path not in self.known_directories:
-                warn(f"{d} is not a generated directory. Skipping.")
+                warn(f"{t} is not a generated directory. Skipping.")
             elif not self.known_directories[path].numbered:
-                warn(f"{d} is not numbered. Skipping.")
+                warn(f"{t} is not numbered. Skipping.")
             elif not self.known_directories[path].data:
-                warn(f"{d} is empty. Skipping.")
+                warn(f"{t} is empty. Skipping.")
             else:
                 directory_rules.add(self.known_directories[path])
 

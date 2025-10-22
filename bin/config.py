@@ -1,11 +1,17 @@
 # Global variables that are constant after the programs arguments have been parsed.
 
-import argparse
+import copy
 import os
 import re
+import sys
 from pathlib import Path
-from collections.abc import Mapping, Sequence
-from typing import Any, Final, Literal, Optional
+from collections.abc import Sequence
+from colorama import Fore, Style
+from typing import Any, Final, Literal, Optional, TypeVar
+
+# Randomly generated uuid4 for BAPCtools
+BAPC_UUID: Final[str] = "8ee7605a-d1ce-47b3-be37-15de5acd757e"
+BAPC_UUID_PREFIX: Final[int] = 8
 
 SPEC_VERSION: Final[str] = "2025-09"
 
@@ -103,42 +109,6 @@ os.environ["PATH"] += os.pathsep + str(TOOLS_ROOT / "third_party")
 
 # Below here is some global state that will be filled in main().
 
-args = argparse.Namespace()
-
-DEFAULT_ARGS: Final[Mapping[str, Any]] = {
-    "jobs": (os.cpu_count() or 1) // 2,
-    "time": 600,  # Used for `bt fuzz`
-    "verbose": 0,
-    "action": None,
-    "no_visualizer": True,
-}
-
-
-# The list of arguments below is generated using the following command:
-"""
-for cmd in $(bt --help | grep '^  {' | sed 's/  {//;s/}//;s/,/ /g') ; do bt $cmd --help ; done |& \
-grep '^  [^ ]' | sed 's/^  //' | cut -d ' ' -f 1 | sed -E 's/,//;s/^-?-?//;s/-/_/g' | sort -u | \
-grep -Ev '^(h|jobs|time|verbose)$' | sed 's/^/"/;s/$/",/' | tr '\n' ' ' | sed 's/^/ARGS_LIST: Final[Sequence[str]] = [/;s/, $/]\n/'
-"""
-# fmt: off
-ARGS_LIST: Final[Sequence[str]] = ["1", "add", "all", "answer", "api", "author", "check_deterministic", "clean", "colors", "contest", "contest_id", "contestname", "cp", "defaults", "default_solution", "depth", "directory", "error", "force", "force_build", "generic", "input", "interaction", "interactive", "invalid", "kattis", "lang", "latest_bt", "legacy", "memory", "more", "move_to", "no_bar", "no_generate", "no_solution", "no_solutions", "no_testcase_sanity_checks", "no_time_limit", "no_validators", "no_visualizer", "number", "open", "order", "order_from_ccs", "overview", "password", "post_freeze", "problem", "problemname", "remove", "reorder", "samples", "sanitizer", "skel", "skip", "sort", "submissions", "table", "testcases", "time_limit", "timeout", "token", "tree", "type", "username", "valid_output", "watch", "web", "write"]
-# fmt: on
-
-
-def set_default_args() -> list[str]:
-    # Set default argument values.
-    missing = []
-    for arg in ARGS_LIST:
-        if not hasattr(args, arg):
-            setattr(args, arg, None)
-            missing.append(arg)
-    for arg, value in DEFAULT_ARGS.items():
-        if not hasattr(args, arg):
-            setattr(args, arg, value)
-            missing.append(arg)
-    return missing
-
-
 level: Optional[Literal["problem", "problemset"]] = None
 
 # The number of warnings and errors encountered.
@@ -152,6 +122,163 @@ RUNNING_TEST: bool = False
 TEST_TLE_SUBMISSIONS: bool = False
 
 
-# Randomly generated uuid4 for BAPCtools
-BAPC_UUID: Final[str] = "8ee7605a-d1ce-47b3-be37-15de5acd757e"
-BAPC_UUID_PREFIX: Final[int] = 8
+class ARGS:
+    def __init__(self, source: str | Path, **kwargs: Any) -> None:
+        self._set = set[str]()
+        self._source = source
+
+        def warn(msg: Any) -> None:
+            global n_warn
+            print(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}", file=sys.stderr)
+            n_warn += 1
+
+        T = TypeVar("T")
+
+        def normalize_arg(value: Any, t: type[Any]) -> Any:
+            if isinstance(value, str) and t is Path:
+                value = Path(value)
+            if isinstance(value, int) and t is float:
+                value = float(value)
+            if isinstance(value, bool) and t is int:
+                value = bool(value)
+            if value == "" and (t is list or t is dict or t is set):
+                value = t()
+            return value
+
+        def get_optional_arg(key: str, t: type[T], constraint: Optional[str] = None) -> Optional[T]:
+            if key in kwargs:
+                value = normalize_arg(kwargs.pop(key), t)
+                if constraint:
+                    assert isinstance(value, (float, int))
+                    if not eval(f"{value} {constraint}"):
+                        warn(
+                            f"value for '{key}' in {source} should be {constraint} but is {value}. SKIPPED."
+                        )
+                        return None
+                if isinstance(value, t):
+                    self._set.add(key)
+                    return value
+                warn(f"incompatible value for key '{key}' in {source}. SKIPPED.")
+            return None
+
+        def get_list_arg(
+            key: str, t: type[T], constraint: Optional[str] = None
+        ) -> Optional[list[T]]:
+            values = get_optional_arg(key, list)
+            if values is None:
+                return None
+            checked = []
+            for value in values:
+                value = normalize_arg(value, t)
+                if constraint:
+                    assert isinstance(value, (float, int))
+                    if not eval(f"{value} {constraint}"):
+                        warn(
+                            f"value for '{key}' in {source} should be {constraint} but is {value}. SKIPPED."
+                        )
+                        continue
+                if not isinstance(value, t):
+                    warn(f"incompatible value for key '{key}' in {source}. SKIPPED.")
+                    continue
+                checked.append(value)
+            return checked
+
+        def get_arg(key: str, default: T, constraint: Optional[str] = None) -> T:
+            value = get_optional_arg(key, type(default), constraint)
+            result = default if value is None else value
+            return result
+
+        setattr(self, "1", get_arg("1", False))
+        self.action: Optional[str] = get_optional_arg("action", str)
+        self.add: Optional[list[Path]] = get_list_arg("add", Path)
+        self.all: int = get_arg("all", 0)
+        self.answer: bool = get_arg("answer", False)
+        self.api: Optional[str] = get_optional_arg("api", str)
+        self.author: Optional[str] = get_optional_arg("author", str)
+        self.check_deterministic: bool = get_arg("check_deterministic", False)
+        self.clean: bool = get_arg("clean", False)
+        self.colors: Optional[str] = get_optional_arg("colors", str)
+        self.contest: Optional[Path] = get_optional_arg("contest", Path)
+        self.contest_id: Optional[str] = get_optional_arg("contest_id", str)
+        self.contestname: Optional[str] = get_optional_arg("contestname", str)
+        self.cp: bool = get_arg("cp", False)
+        self.defaults: bool = get_arg("defaults", False)
+        self.default_solution: Optional[Path] = get_optional_arg("default_solution", Path)
+        self.depth: Optional[int] = get_optional_arg("depth", int, ">= 0")
+        self.directory: list[Path] = get_list_arg("directory", Path) or []
+        self.error: bool = get_arg("error", False)
+        self.force: bool = get_arg("force", False)
+        self.force_build: bool = get_arg("force_build", False)
+        self.generic: Optional[list[str]] = get_list_arg("generic", str)
+        self.input: bool = get_arg("input", False)
+        self.interaction: bool = get_arg("interaction", False)
+        self.interactive: bool = get_arg("interactive", False)
+        self.jobs: int = get_arg("jobs", (os.cpu_count() or 1) // 2, ">= 0")
+        self.invalid: bool = get_arg("invalid", False)
+        self.kattis: bool = get_arg("kattis", False)
+        self.lang: Optional[list[str]] = get_list_arg("lang", str)
+        self.latest_bt: bool = get_arg("latest_bt", False)
+        self.legacy: bool = get_arg("legacy", False)
+        self.memory: Optional[int] = get_optional_arg("legacy", int, "> 0")
+        self.more: bool = get_arg("more", False)
+        self.move_to: Optional[str] = get_optional_arg("colors", str)
+        self.no_bar: bool = get_arg("no_bar", False)
+        self.no_generate: bool = get_arg("no_generate", False)
+        self.no_solution: bool = get_arg("no_solution", False)
+        self.no_solutions: bool = get_arg("no_solutions", False)
+        self.no_testcase_sanity_checks: bool = get_arg("no_testcase_sanity_checks", False)
+        self.no_time_limit: bool = get_arg("no_time_limit", False)
+        self.no_validators: bool = get_arg("no_validators", False)
+        self.no_visualizer: bool = get_arg("no_visualizer", True, ">= 0")
+        self.number: Optional[str] = get_optional_arg("number", str)
+        self.open: Optional[Literal[True] | Path] = get_optional_arg("open", Path)
+        self.order: Optional[str] = get_optional_arg("order", str)
+        self.order_from_ccs: Optional[str] = get_optional_arg("order_from_ccs", str)
+        self.overview: bool = get_arg("overview", False)
+        self.password: Optional[str] = get_optional_arg("password", str)
+        self.post_freeze: bool = get_arg("post_freeze", False)
+        self.problem: Optional[Path] = get_optional_arg("problem", Path)
+        self.problemname: Optional[str] = get_optional_arg("problemname", str)
+        self.remove: bool = get_arg("remove", False)
+        self.reorder: bool = get_arg("reorder", False)
+        self.samples: bool = get_arg("samples", False)
+        self.sanitizer: bool = get_arg("sanitizer", False)
+        self.skel: Optional[str] = get_optional_arg("skel", str)
+        self.skip: bool = get_arg("skip", False)
+        self.sort: bool = get_arg("sort", False)
+        self.submissions: Optional[list[Path]] = get_list_arg("submissions", Path)
+        self.table: bool = get_arg("table", False)
+        self.testcases: Optional[list[Path]] = get_list_arg("testcases", Path)
+        self.time: int = get_arg("time", 600, "> 0")
+        self.time_limit: Optional[float] = get_optional_arg("time_limit", float, "> 0")
+        self.timeout: Optional[int] = get_optional_arg("timeout", int, "> 0")
+        self.token: Optional[str] = get_optional_arg("token", str)
+        self.tree: bool = get_arg("tree", False)
+        self.type: Optional[str] = get_optional_arg("type", str)
+        self.username: Optional[str] = get_optional_arg("username", str)
+        self.valid_output: bool = get_arg("valid_output", False)
+        self.verbose: int = get_arg("verbose", 0, ">= 0")
+        self.watch: bool = get_arg("watch", False)
+        self.web: bool = get_arg("web", False)
+        self.write: bool = get_arg("write", False)
+
+        for key in kwargs:
+            print(key, type(kwargs[key]))
+            warn(f"unknown key in {source}: '{key}'")
+
+    def update(self, args: "ARGS", replace: bool = False) -> None:
+        for key in args._set:
+            if key not in self._set or replace:
+                setattr(self, key, getattr(args, key))
+                self._set.add(key)
+
+    def mark_set(self, *keys: str) -> None:
+        self._set.update(list(keys))
+
+    def copy(self) -> "ARGS":
+        res = copy.copy(self)
+        res._set = copy.copy(res._set)
+        return res
+
+
+args = ARGS("config.py")

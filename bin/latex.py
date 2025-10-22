@@ -4,6 +4,7 @@ import os
 import re
 import shutil
 import sys
+from collections.abc import Collection
 from enum import Enum
 from pathlib import Path
 from typing import Optional, TextIO, TYPE_CHECKING
@@ -559,7 +560,7 @@ def build_contest_pdfs(
             "No statement language present in every problem.", contest, color_type=MessageType.FATAL
         )
     if config.args.lang is not None:
-        languages = config.args.lang
+        languages: Collection[str] = config.args.lang
         for lang in set(languages) - statement_languages:
             message(
                 f"Unable to build all statements for language {lang}",

@@ -1,13 +1,14 @@
-import config
 import datetime
 import re
 import shutil
 import sys
-import util
 import yaml
 import zipfile
 from pathlib import Path
 from typing import Any, Optional
+
+import config
+import util
 
 from contest import *
 from latex import PdfType
@@ -502,7 +503,9 @@ def export_contest(cid: Optional[str]) -> str:
         fatal(parse_yaml(r.text)["message"])
     r.raise_for_status()
 
-    new_cid = yaml.load(r.text, Loader=yaml.SafeLoader)
+    new_cid = util.normalize_yaml_value(yaml.load(r.text, Loader=yaml.SafeLoader), str)
+    assert isinstance(new_cid, str)
+
     log(f"Uploaded the contest to contest_id {new_cid}.")
     if new_cid != cid:
         if ask_variable_bool("Update contest_id in contest.yaml automatically"):
@@ -669,7 +672,8 @@ def export_contest_and_problems(problems: list[Problem], languages: list[str]) -
     if config.args.contest_id:
         cid = config.args.contest_id
     else:
-        cid = contest_yaml().get("contest_id")
+        cid = util.normalize_yaml_value(contest_yaml().get("contest_id"), str)
+        assert isinstance(cid, str)
         if cid is not None and cid != "":
             log(f"Reusing contest id {cid} from contest.yaml")
     if not any(contest["id"] == cid for contest in get_contests()):
@@ -704,7 +708,9 @@ def export_contest_and_problems(problems: list[Problem], languages: list[str]) -
         nonlocal ccs_problems
         for p in ccs_problems:
             if problem.name in [p.get("short_name"), p.get("id"), p.get("externalid")]:
-                return p.get("id")
+                pid = util.normalize_yaml_value(p.get("id"), str)
+                assert isinstance(pid, str)
+                return pid
         return None
 
     for problem in problems:
