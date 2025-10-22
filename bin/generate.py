@@ -338,30 +338,9 @@ DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated", "visualizer
 # Holds all inheritable configuration options. Currently:
 # - config.solution
 # - config.random_salt
+# - config.retries
 class Config:
     # Used at each directory or testcase level.
-
-    @staticmethod
-    def parse_solution(p: Problem, x: Any, path: Path) -> Optional[SolutionInvocation]:
-        assert_type("Solution", x, [type(None), str], path)
-        if x is None:
-            return None
-        return SolutionInvocation(p, x)
-
-    @staticmethod
-    def parse_random_salt(p: Problem, x: Any, path: Path) -> str:
-        assert_type("Random_salt", x, [type(None), str], path)
-        if x is None:
-            return ""
-        return cast(str, x)
-
-    @staticmethod
-    def parse_retries(p: Problem, x: Any, path: Path) -> int:
-        assert_type("Retries", x, [type(None), int], path)
-        if x is None:
-            return 1
-        return cast(int, x)
-
     def __init__(
         self,
         problem: Problem,
@@ -369,7 +348,7 @@ class Config:
         yaml: YAML_TYPE = None,
         parent_config: Optional["Config"] = None,
     ) -> None:
-        assert not yaml or isinstance(yaml, dict)
+        assert yaml is None or isinstance(yaml, dict)
 
         if parent_config is None:
             self.needs_default_solution = True
@@ -382,16 +361,45 @@ class Config:
             self.random_salt = parent_config.random_salt
             self.retries = parent_config.retries
 
-        if yaml and "solution" in yaml:
+        if yaml is not None:
+            self._parse_solution(problem, path, yaml)
+            self._parse_random_salt(problem, path, yaml)
+            self._parse_retries(problem, path, yaml)
+
+    def _parse_solution(self, p: Problem, path: Path, yaml: dict[str, Any]) -> None:
+        if "solution" not in yaml:
+            return
+        value = yaml["solution"]
+        if value is None:
             self.needs_default_solution = False
-            self.solution = Config.parse_solution(problem, yaml["solution"], path)
-        if yaml and "random_salt" in yaml:
-            self.random_salt = Config.parse_random_salt(problem, yaml["random_salt"], path)
-        if yaml and "retries" in yaml:
-            # Non-portable keys only used by BAPCtools:
-            # The number of retries to run a generator when it fails, each time incrementing the {seed}
-            # by 1.
-            self.retries = Config.parse_retries(problem, yaml["retries"], path)
+            self.solution = None
+        elif isinstance(value, str):
+            self.needs_default_solution = False
+            self.solution = SolutionInvocation(p, value)
+        else:
+            warn(f"{path}: solution must be None or of type str. SKIPPED.")
+
+    def _parse_random_salt(self, p: Problem, path: Path, yaml: dict[str, Any]) -> None:
+        if "random_salt" not in yaml:
+            return
+        value = yaml["random_salt"]
+        if value is None:
+            self.random_salt = ""
+        elif isinstance(value, str):
+            self.random_salt = value
+        else:
+            warn(f"{path}: random_salt must be None or of type str. SKIPPED.")
+
+    def _parse_retries(self, p: Problem, path: Path, yaml: dict[str, Any]) -> None:
+        if "retries" not in yaml:
+            return
+        value = yaml["retries"]
+        if value is None:
+            self.retries = 1
+        elif isinstance(value, int):
+            self.retries = value
+        else:
+            warn(f"{path}: retries must be None or of type int. SKIPPED.")
 
 
 class Rule:
