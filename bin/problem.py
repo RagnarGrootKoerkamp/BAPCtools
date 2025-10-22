@@ -678,12 +678,13 @@ class Problem:
                             return []
                         return args
                     elif name in args:
-                        if not isinstance(args[name], list) or any(
-                            not isinstance(arg, str) for arg in args[name]
+                        args = args[name]
+                        if not isinstance(args, list) or any(
+                            not isinstance(arg, str) for arg in args
                         ):
                             bar.error(f"{key} must be list of strings or map of lists")
                             return []
-                        return args[name]
+                        return args
                 elif key in known_args_keys:
                     if not isinstance(args, list) or any(not isinstance(arg, str) for arg in args):
                         bar.error(f"{key} must be a list of strings")
@@ -720,15 +721,15 @@ class Problem:
             assert not only_samples
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
-            for t in config.args.testcases:
-                t = resolve_path_argument(p, t, "data", suffixes=[".in"])
-                if t:
+            for path in config.args.testcases:
+                res_path = resolve_path_argument(p, path, "data", suffixes=[".in"])
+                if res_path:
                     # When running from contest level, the testcase must be inside the problem.
-                    if config.level != "problemset" or is_relative_to(p.path, t):
-                        if t.is_dir():
-                            in_paths += glob(t, "**/*.in")
+                    if config.level != "problemset" or is_relative_to(p.path, res_path):
+                        if res_path.is_dir():
+                            in_paths += glob(res_path, "**/*.in")
                         else:
-                            in_paths.append(t)
+                            in_paths.append(res_path)
 
             in_paths = list(set(in_paths))
         elif mode is not None:
@@ -1381,6 +1382,7 @@ class Problem:
         return problem._validate_data(mode, constraints, action, testcases)
 
     def validate_invalid_extra_data(p) -> bool:
+        assert config.args.generic is not None
         base_path = p.tmpdir / "invalid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
         # also add a dummy entry to always run generators that don't read or copy anything from a valid testcase
@@ -1460,6 +1462,7 @@ class Problem:
         )
 
     def validate_valid_extra_data(p) -> bool:
+        assert config.args.generic is not None
         if "valid_output" not in config.args.generic:
             return True
         if p.interactive or p.multi_pass:

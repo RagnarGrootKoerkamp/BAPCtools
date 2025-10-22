@@ -15,19 +15,19 @@ Bommel.
 """
 
 import argparse
+import colorama
 import hashlib
 import os
+import re
+import shutil
 import sys
 import tempfile
-import shutil
 
-import colorama
-import re
 
 from collections import Counter
 from colorama import Style
 from pathlib import Path
-from typing import Any, cast, Optional
+from typing import Any, Optional
 
 # Local imports
 import config
@@ -82,12 +82,10 @@ def change_directory() -> Optional[Path]:
     problem_dir: Optional[Path] = None
     config.level = "problemset"
     if config.args.contest:
-        # TODO #102: replace cast with typed Namespace field
-        contest_dir = cast(Path, config.args.contest).absolute()
+        contest_dir = config.args.contest.absolute()
         os.chdir(contest_dir)
     if config.args.problem:
-        # TODO #102: replace cast with typed Namespace field
-        problem_dir = cast(Path, config.args.problem).absolute()
+        problem_dir = config.args.problem.absolute()
     elif is_problem_directory(Path.cwd()):
         problem_dir = Path.cwd().absolute()
     if problem_dir is not None:
@@ -190,12 +188,12 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
 
                 # Sort by position of id in order
                 def get_pos(id: Optional[str]) -> int:
-                    if id in order:
+                    if id and id in order:
                         return order.index(id)
                     else:
                         return len(order)
 
-                problems.sort(key=lambda p: (get_pos(p.label), p.label))
+                problems.sort(key=lambda p: (get_pos(p.label), p.label, p.name))
 
             if config.args.order_from_ccs:
                 # Sort by increasing difficulty, extracted from the CCS api.
@@ -437,6 +435,7 @@ Run this from one of:
     skelparser.add_argument(
         "directory",
         nargs="+",
+        type=Path,
         help="Directories to copy from skel/problem/, relative to the problem directory.",
     )
     skelparser.add_argument("--skel", help="Skeleton problem directory to copy from.")
@@ -678,7 +677,7 @@ Run this from one of:
         help="Generate random testcases and search for inconsistencies in AC submissions.",
     )
     fuzzparser.add_argument("--time", type=int, help="Number of seconds to run for. Default: 600")
-    fuzzparser.add_argument("--time-limit", "-t", type=int, help="Time limit for submissions.")
+    fuzzparser.add_argument("--time-limit", "-t", type=float, help="Time limit for submissions.")
     fuzzparser.add_argument(
         "submissions",
         nargs="*",
@@ -746,7 +745,9 @@ Run this from one of:
         type=int,
         help="Override the default timeout. Default: 1.5 * time_limit + 1.",
     )
-    runparser.add_argument("--time-limit", "-t", type=int, help="Override the default time-limit.")
+    runparser.add_argument(
+        "--time-limit", "-t", type=float, help="Override the default time-limit."
+    )
     runparser.add_argument(
         "--no-testcase-sanity-checks",
         action="store_true",
@@ -989,6 +990,7 @@ Run this from one of:
     )
     tmpparser.add_argument(
         "--clean",
+        "-C",
         action="store_true",
         help="Delete the temporary cache directory for the current problem/contest.",
     )
@@ -1053,8 +1055,7 @@ def find_personal_config() -> Optional[Path]:
         )
 
 
-def read_personal_config(problem_dir: Optional[Path]) -> dict[str, Any]:
-    args = {}
+def read_personal_config(problem_dir: Optional[Path]) -> None:
     home_config = find_personal_config()
     # possible config files, sorted by priority
     config_files = []
@@ -1067,12 +1068,15 @@ def read_personal_config(problem_dir: Optional[Path]) -> dict[str, Any]:
     for config_file in config_files:
         if not config_file.is_file():
             continue
-        config_data = read_yaml(config_file) or {}
-        for arg, value in config_data.items():
-            if arg not in args:
-                args[arg] = value
 
-    return args
+        config_data = read_yaml(config_file)
+        if not config_data:
+            continue
+        if not isinstance(config_data, dict):
+            warn(f"invalid data in {config_data}. SKIPPED.")
+
+        tmp = config.ARGS(config_file, **config_data)
+        config.args.update(tmp)
 
 
 def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True) -> None:
@@ -1081,8 +1085,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     os.environ["MALLOC_PERTURB_"] = str(0b01011001)
 
     # Process arguments
-    config.args = args
-    missing_args = config.set_default_args()
+    config.args = config.ARGS("args", **vars(args))
 
     # cd to contest directory
     call_cwd = Path.cwd().absolute()
@@ -1091,10 +1094,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     contest_name = Path.cwd().name
 
     if personal_config:
-        personal_args = read_personal_config(problem_dir)
-        for arg in missing_args:
-            if arg in personal_args:
-                setattr(config.args, arg, personal_args[arg])
+        read_personal_config(problem_dir)
 
     action = config.args.action
 
@@ -1247,6 +1247,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
         return
 
     if action == "join_slack_channels":
+        assert config.args.username is not None
         slack.join_slack_channels(problems, config.args.username)
         return
 
@@ -1270,7 +1271,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             and not config.args.no_generate
         ):
             # Call `generate` with modified arguments.
-            old_args = argparse.Namespace(**vars(config.args))
+            old_args = config.args.copy()
             config.args.jobs = (os.cpu_count() or 1) // 2
             config.args.add = None
             config.args.verbose = 0
@@ -1307,7 +1308,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             if action == "all" or not specified or config.args.invalid:
                 success &= problem.validate_data(validate.Mode.INVALID)
             if action == "all" or not specified or config.args.generic is not None:
-                if not config.args.generic:
+                if config.args.generic is None:
                     config.args.generic = [
                         "invalid_input",
                         "invalid_answer",
@@ -1340,7 +1341,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             if not config.args.skip:
                 if not config.args.no_generate:
                     # Set up arguments for generate.
-                    old_args = argparse.Namespace(**vars(config.args))
+                    old_args = config.args.copy()
                     config.args.check_deterministic = not config.args.force
                     config.args.add = None
                     config.args.verbose = 0

@@ -213,7 +213,11 @@ class Run:
             return False
         if timeout_expired:
             return False
-        return config.args.verbose or config.args.all or config.args.action in ["all", "time_limit"]
+        return (
+            config.args.verbose > 0
+            or config.args.all > 0
+            or config.args.action in ["all", "time_limit"]
+        )
 
     # prepare next pass
     def _prepare_nextpass(self, nextpass: Optional[Path]) -> bool:

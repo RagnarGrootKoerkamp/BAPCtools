@@ -13,6 +13,7 @@ import sys
 import tempfile
 import threading
 import time
+import yaml as yamllib
 from enum import Enum
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -31,8 +32,6 @@ from typing import (
     TYPE_CHECKING,
 )
 from uuid import UUID
-
-import yaml as yamllib
 from colorama import Fore, Style
 from io import StringIO
 
@@ -710,6 +709,16 @@ def read_yaml_settings(path: Path) -> Any:
         for key, value in config.items():
             settings[key] = "" if value is None else value
     return settings
+
+
+def normalize_yaml_value(value: Any, t: type[Any]) -> Any:
+    if isinstance(value, str) and t is Path:
+        value = Path(value)
+    if isinstance(value, int) and t is float:
+        value = float(value)
+    if value == "" and (t is list or t is dict or t is set):
+        value = t()
+    return value
 
 
 if has_ryaml:
