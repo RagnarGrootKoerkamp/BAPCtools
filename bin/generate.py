@@ -384,7 +384,7 @@ class Config:
 
         if yaml and "solution" in yaml:
             self.needs_default_solution = False
-            self.solution = Config.parse_solution(problem, yaml["random_salt"], path)
+            self.solution = Config.parse_solution(problem, yaml["solution"], path)
         if yaml and "random_salt" in yaml:
             self.random_salt = Config.parse_random_salt(problem, yaml["random_salt"], path)
         if yaml and "retries" in yaml:
