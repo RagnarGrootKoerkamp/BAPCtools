@@ -1159,7 +1159,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                 checked_paths.append(path)
         config.args.add = checked_paths
 
-    if config.args.reorder is not None:
+    if config.args.reorder:
         # default to 'data/secret'
         if not config.args.testcases:
             config.args.testcases = [Path("data/secret")]
