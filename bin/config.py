@@ -220,7 +220,14 @@ class ARGS:
         self.latest_bt: bool = get_arg("latest_bt", False)
         self.legacy: bool = get_arg("legacy", False)
         self.memory: Optional[int] = get_optional_arg("legacy", int, "> 0")
-        self.more: bool = get_arg("more", False)
+
+        more: Optional[bool] = get_optional_arg("more", bool)
+        if more is not None:
+            self.all = int(more)
+            self._set.add("all")
+            self._set.discard("more")
+            warn("--more is deprecated, use --all instead!\n")
+
         self.move_to: Optional[str] = get_optional_arg("colors", str)
         self.no_bar: bool = get_arg("no_bar", False)
         self.no_generate: bool = get_arg("no_generate", False)
