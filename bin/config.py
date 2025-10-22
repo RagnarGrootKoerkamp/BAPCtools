@@ -269,7 +269,7 @@ class ARGS:
     def update(self, args: "ARGS", replace: bool = False) -> None:
         for key in args._set:
             if key not in self._set or replace:
-                setattr(self, key, getattr(self, key))
+                setattr(self, key, getattr(args, key))
                 self._set.add(key)
 
     def mark_set(self, *keys: str) -> None:
