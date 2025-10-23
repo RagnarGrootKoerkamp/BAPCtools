@@ -350,14 +350,14 @@ class Config:
         return SolutionInvocation(p, x)
 
     @staticmethod
-    def _parse_random_salt(p: Problem, x: Any, path: Path) -> str:
+    def _parse_random_salt(x: Any, path: Path) -> str:
         assert_type("random_salt", x, [type(None), str], path)
         if x is None:
             return ""
         return cast(str, x)
 
     @staticmethod
-    def _parse_retries(p: Problem, x: Any, path: Path) -> int:
+    def _parse_retries(x: Any, path: Path) -> int:
         assert_type("retries", x, [type(None), int], path)
         if x is None:
             return 1
@@ -386,9 +386,9 @@ class Config:
                 self.needs_default_solution = False
                 self.solution = Config._parse_solution(problem, yaml["solution"], path)
             if "random_salt" in yaml:
-                self.random_salt = Config._parse_random_salt(problem, yaml["random_salt"], path)
+                self.random_salt = Config._parse_random_salt(yaml["random_salt"], path)
             if "retries" in yaml:
-                self.retries = Config._parse_retries(problem, yaml["retries"], path)
+                self.retries = Config._parse_retries(yaml["retries"], path)
 
 
 class Rule:
@@ -414,7 +414,7 @@ class Rule:
         self.yaml = yaml
 
         if parent.config is not None:
-            self.config: "Config" = parent.config
+            self.config: Config = parent.config
         else:
             assert isinstance(yaml, dict)
         if isinstance(yaml, dict):
