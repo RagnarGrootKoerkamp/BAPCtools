@@ -22,7 +22,9 @@ PROBLEMS = [
     "multipass",
     "constants",
     "alternativeencryption",
-] + ["hellounix" if not util.is_mac() and not util.is_windows() else []]
+]
+if not util.is_mac() and not util.is_windows():
+    PROBLEMS += ["hellounix"]
 
 RUN_DIR = Path.cwd().absolute()
 
