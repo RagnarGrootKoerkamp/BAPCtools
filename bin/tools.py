@@ -379,9 +379,8 @@ Run this from one of:
     global_parser.add_argument("--lang", nargs="+", help="Languages to include.")
 
     subparsers = parser.add_subparsers(
-        title="actions", dest="action", parser_class=SuppressingParser
+        title="actions", dest="action", parser_class=SuppressingParser, required=True
     )
-    subparsers.required = True
 
     # upgrade
     subparsers.add_parser(
