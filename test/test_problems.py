@@ -39,7 +39,7 @@ def _setup_problem(problemname):
 
 @pytest.fixture(scope="class", params=PROBLEMS)
 def setup_problem(request):
-    _setup_problem(request.param)
+    yield from _setup_problem(request.param)
 
 
 @pytest.mark.usefixtures("setup_problem")
@@ -50,7 +50,7 @@ class TestProblem:
 
 @pytest.fixture(scope="class")
 def setup_alternativeencryption_problem(request):
-    _setup_problem("alternativeencryption")
+    yield from _setup_problem("alternativeencryption")
 
 
 @pytest.mark.usefixtures("setup_alternativeencryption_problem")
@@ -65,7 +65,7 @@ class TestAlternativeencryptionProblem:
 
 @pytest.fixture(scope="class")
 def setup_constants_problem(request):
-    _setup_problem("constants")
+    yield from _setup_problem("constants")
 
 
 @pytest.mark.usefixtures("setup_constants_problem")
@@ -92,7 +92,7 @@ class TestConstantsProblem:
 
 @pytest.fixture(scope="class")
 def setup_identity_problem(request):
-    _setup_problem("identity")
+    yield from _setup_problem("identity")
 
 
 @pytest.mark.usefixtures("setup_identity_problem")
