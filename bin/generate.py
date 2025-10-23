@@ -408,10 +408,7 @@ class Rule:
         if parent.config is not None:
             self.config: Config = parent.config
         else:
-            # this should only happen if parent is the root Directory
-            # however a testcase cannot be at the root so we know the
-            # yaml represents a directory and thus must be a dict
-            assert isinstance(yaml, dict)
+            self.config = Config(problem, parent.path / name)
         if isinstance(yaml, dict):
             self.config = Config(problem, parent.path / name, yaml, parent_config=parent.config)
 
@@ -433,7 +430,7 @@ class TestcaseRule(Rule):
         self.parse_error: Optional[str] = None
 
         # root in /data
-        self.root = parent.path.parts[0]
+        self.root = (parent.path / name).parts[0]
         # Whether this testcase is a sample.
         self.sample: bool = self.root == "sample"
         # each test case needs some kind of input
