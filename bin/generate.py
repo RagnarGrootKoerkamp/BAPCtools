@@ -1,4 +1,5 @@
 import collections
+import itertools
 import random
 import re
 import secrets
@@ -7,7 +8,7 @@ import shutil
 import sys
 import time
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
 from typing import Any, cast, Final, Literal, Optional, overload
@@ -1524,14 +1525,15 @@ class Directory(Rule):
 
 
 # Returns the numbered name
-def numbered_test_case_name(base_name: str, i: int, n: int) -> str:
+def next_numbered_name(base_name: str, i: Iterator[int], n: int) -> Iterator[str]:
     width = len(str(n))
-    number_prefix = f"{i:0{width}}"
-    if base_name:
-        return number_prefix + "-" + base_name
-    else:
-        assert base_name is None or base_name == ""
-        return number_prefix
+    while True:
+        number_prefix = f"{next(i):0{width}}"
+        if base_name:
+            yield f"{number_prefix}-{base_name}"
+        else:
+            assert base_name is None or base_name == ""
+            yield number_prefix
 
 
 AnyDirectory = RootDirectory | Directory
@@ -1650,7 +1652,7 @@ class GeneratorConfig:
                 )
 
         num_numbered_test_cases = 0
-        test_case_id = 0
+        next_test_case_id = itertools.count(1)
 
         def parse_count(yaml: YAML_TYPE, warn_for: Optional[Path] = None) -> int:
             if not has_count(yaml):
@@ -1714,9 +1716,9 @@ class GeneratorConfig:
         # name_gen: each call should result in the next (possibly numbered) name e.g. '01-testcase'
         # Returns either a single Rule or a list of Rules
         def parse(
-            key: str, name_gen: Callable[[], str], yaml: YAML_TYPE, parent: AnyDirectory
+            key: str, name_gen: Iterator[str], yaml: YAML_TYPE, parent: AnyDirectory
         ) -> Directory | list[TestcaseRule]:
-            name = name_gen()
+            name = next(name_gen)
             assert_type("Testcase/directory", yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
                 raise ParseException("not parsed as a testcase or directory.", parent.path / name)
@@ -1730,7 +1732,7 @@ class GeneratorConfig:
                 ts = []
                 for count_index in range(count):
                     if count_index > 0:
-                        name = name_gen()
+                        name = next(name_gen)
                     if has_count(yaml):
                         name += f"-{count_index + 1:0{len(str(count))}}"
 
@@ -1769,11 +1771,11 @@ class GeneratorConfig:
                     assert_type("Elements of data", dictionary, dict, d.path)
                     for key in dictionary.keys():
                         assert_type("Key of data", key, [type(None), str], d.path / str(key))
-                    for child_name, child_yaml in sorted(dictionary.items()):
+                    for _, child_yaml in sorted(dictionary.items()):
                         if is_directory(child_yaml):
                             num_test_groups += 1
 
-                test_group_id = 0
+                next_test_group_id = itertools.count(1)
                 for dictionary in data:
                     for key in dictionary:
                         assert_type("Test case/group name", key, [type(None), str], d.path)
@@ -1812,32 +1814,21 @@ class GeneratorConfig:
                         child_yaml = dictionary[child_key]
                         if d.numbered:
                             if is_directory(child_yaml):
-
-                                def next_test_group_name() -> str:
-                                    nonlocal test_group_id
-                                    test_group_id += 1
-                                    return numbered_test_case_name(
-                                        child_key, test_group_id, num_test_groups
-                                    )
-
-                                child_name = next_test_group_name
+                                child_name = next_numbered_name(
+                                    child_key, next_test_group_id, num_test_groups
+                                )
                             elif is_testcase(child_yaml):
-
-                                def next_test_case_name() -> str:
-                                    nonlocal test_case_id
-                                    test_case_id += 1
-                                    return numbered_test_case_name(
-                                        child_key, test_case_id, num_numbered_test_cases
-                                    )
-
-                                child_name = next_test_case_name
+                                child_name = next_numbered_name(
+                                    child_key, next_test_case_id, num_numbered_test_cases
+                                )
                             else:
                                 # Use error will be given inside parse(child).
-                                child_name = lambda: ""  # noqa: E731  # TODO this can probably be prettier
+                                child_name = itertools.repeat("")
 
                         else:
-                            child_name = lambda: child_key  # noqa: E731  # TODO this can probably be prettier
-                            if not child_name():
+                            assert isinstance(child_key, str)
+                            child_name = itertools.repeat(child_key)
+                            if not next(child_name):
                                 raise ParseException(
                                     "Unnumbered test cases must not have an empty key",
                                     d.path,
@@ -1918,7 +1909,7 @@ class GeneratorConfig:
                         continue
             return d
 
-        root_dir = parse("", lambda: "", yaml, RootDirectory())
+        root_dir = parse("", itertools.repeat(""), yaml, RootDirectory())
         assert isinstance(root_dir, Directory)
         self.root_dir = root_dir
 
