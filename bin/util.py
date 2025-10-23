@@ -716,8 +716,6 @@ def normalize_yaml_value(value: Any, t: type[Any]) -> Any:
         value = Path(value)
     if isinstance(value, int) and t is float:
         value = float(value)
-    if value == "" and (t is list or t is dict or t is set):
-        value = t()
     return value
 
 

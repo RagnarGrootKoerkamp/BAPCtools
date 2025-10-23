@@ -1320,7 +1320,7 @@ class Directory(Rule):
 
         super().__init__(problem, key, name, yaml, parent)
 
-        if name == "":
+        if isinstance(parent, RootDirectory):
             for key in yaml:
                 if key in RESERVED_DIRECTORY_KEYS:
                     raise ParseException(
@@ -1342,6 +1342,7 @@ class Directory(Rule):
                             color_type=MessageType.LOG,
                         )
         else:
+            assert name != ""
             for key in yaml:
                 if key in [*RESERVED_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
                     raise ParseException(
@@ -1369,8 +1370,6 @@ class Directory(Rule):
             return
         data = yaml["data"]
         if data is None:
-            return
-        if data == "":
             return
         assert_type("Data", data, [dict, list])
 
@@ -1470,7 +1469,7 @@ class Directory(Rule):
                 # new file -> create it
                 test_group_yaml_path.write_text(yaml_text)
                 bar.log("NEW: test_group.yaml")
-        elif d.test_group_yaml == "" and test_group_yaml_path.is_file():
+        elif d.test_group_yaml is None and test_group_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(test_group_yaml_path)
             bar.log("REMOVED: test_group.yaml")

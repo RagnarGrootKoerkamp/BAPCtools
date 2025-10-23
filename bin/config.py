@@ -141,8 +141,6 @@ class ARGS:
                 value = float(value)
             if isinstance(value, bool) and t is int:
                 value = bool(value)
-            if value == "" and (t is list or t is dict or t is set):
-                value = t()
             return value
 
         def get_optional_arg(key: str, t: type[T], constraint: Optional[str] = None) -> Optional[T]:
