@@ -367,7 +367,7 @@ class Config:
         self,
         problem: Problem,
         path: Path,
-        yaml: YAML_TYPE = None,
+        yaml: Optional[dict[str, Any]] = None,
         parent_config: Optional["Config"] = None,
     ) -> None:
         if parent_config is None:
@@ -381,7 +381,7 @@ class Config:
             self.random_salt = parent_config.random_salt
             self.retries = parent_config.retries
 
-        if isinstance(yaml, dict):
+        if yaml is not None:
             if "solution" in yaml:
                 self.needs_default_solution = False
                 self.solution = Config._parse_solution(problem, yaml["solution"], path)
@@ -402,8 +402,6 @@ class Rule:
         yaml: YAML_TYPE,
         parent: "AnyDirectory",
     ) -> None:
-        assert parent is not None
-
         self.parent = parent
 
         # Yaml key of the current directory/testcase.
@@ -415,9 +413,12 @@ class Rule:
         # store Yaml
         self.yaml = yaml
 
-        self.config: "Config" = Config(
-            problem, parent.path / name, yaml, parent_config=parent.config
-        )
+        if parent.config is not None:
+            self.config: "Config" = parent.config
+        else:
+            assert isinstance(yaml, dict)
+        if isinstance(yaml, dict):
+            self.config = Config(problem, parent.path / name, yaml, parent_config=parent.config)
 
 
 class TestcaseRule(Rule):
