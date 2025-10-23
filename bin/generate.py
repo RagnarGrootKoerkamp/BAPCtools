@@ -2255,11 +2255,11 @@ data/*
             class TestcaseResult:
                 def __init__(self, yaml: dict[str, Any]) -> None:
                     self.yaml = yaml
-                    self.test_node = test_nodes[id(next(iter(yaml.values())))]
+                    self.name = test_nodes[id(next(iter(yaml.values())))]
                     self.scores = []
                     self.result = []
                     for i in range(len(submissions)):
-                        verdict = verdict_table.results[i][self.test_node]
+                        verdict = verdict_table.results[i][self.name]
                         # moving TLE cases to the front is most important to save resources
                         # RTE are less reliable and therefore less important than WA
                         if verdict == Verdict.TIME_LIMIT_EXCEEDED:
@@ -2268,10 +2268,10 @@ data/*
                             self.scores.append((i, 4))
                         elif verdict == Verdict.RUNTIME_ERROR:
                             self.scores.append((i, 3))
-                        self.result.append(verdict_table._get_verdict(i, self.test_node))
+                        self.result.append(verdict_table._get_verdict(i, self.name))
 
                 def __str__(self) -> str:
-                    return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.test_node:<{max_testcase_len}} {''.join(self.result)}"
+                    return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.name:<{max_testcase_len}} {''.join(self.result)}"
 
                 def score(self, weights: list[int]) -> int:
                     return sum(weights[i] * x for i, x in self.scores)
@@ -2296,13 +2296,13 @@ data/*
                 if id(next(iter(e.values()))) in test_nodes
             ]
 
-            # TODO: ProgressBar?
             # Each submission is initially assigned a weight of one. The weight contributes to the score of a testcase if
             # the submission fails on this testcase. If a testcase is selected the weights for each submission that it fails
             # get halved (or all other get doubled) to encourage making the remaining submissions fail. We greedily pick the
             # submission that has the heighest score. Note that we additionally consider the type of failing (WA/TLE/RTE)
             # see class TestcaseResult.
             # Worstcase runtime testcases^2 * submissions
+            bar = ProgressBar("Reorder", items=todo)
             done = []
             weights = [1] * len(submissions)
             while todo:
@@ -2312,9 +2312,15 @@ data/*
                     break
                 index = scores.index(score)
                 result = todo.pop(index)
+                localbar = bar.start(result)
                 done.append(result.yaml)
                 weights = result.update(weights)
-                print(result, file=sys.stderr)
+                localbar.log("moved to front")
+                localbar.done()
+
+            for _ in todo:
+                bar.skip()
+            bar.finalize()
 
             # move all unknown subgroups/testcases to the end (keeping their relative order)
             d.yaml["data"].clear()
