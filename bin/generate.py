@@ -341,6 +341,28 @@ DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated", "visualizer
 # - config.retries
 class Config:
     # Used at each directory or testcase level.
+
+    @staticmethod
+    def _parse_solution(p: Problem, x: Any, path: Path) -> Optional[SolutionInvocation]:
+        assert_type("solution", x, [type(None), str], path)
+        if x is None:
+            return None
+        return SolutionInvocation(p, x)
+
+    @staticmethod
+    def _parse_random_salt(p: Problem, x: Any, path: Path) -> str:
+        assert_type("random_salt", x, [type(None), str], path)
+        if x is None:
+            return ""
+        return cast(str, x)
+
+    @staticmethod
+    def _parse_retries(p: Problem, x: Any, path: Path) -> int:
+        assert_type("retries", x, [type(None), int], path)
+        if x is None:
+            return 1
+        return cast(int, x)
+
     def __init__(
         self,
         problem: Problem,
@@ -348,8 +370,6 @@ class Config:
         yaml: YAML_TYPE = None,
         parent_config: Optional["Config"] = None,
     ) -> None:
-        assert yaml is None or isinstance(yaml, dict)
-
         if parent_config is None:
             self.needs_default_solution = True
             self.solution: Optional[SolutionInvocation] = None
@@ -361,45 +381,14 @@ class Config:
             self.random_salt = parent_config.random_salt
             self.retries = parent_config.retries
 
-        if yaml is not None:
-            self._parse_solution(problem, path, yaml)
-            self._parse_random_salt(problem, path, yaml)
-            self._parse_retries(problem, path, yaml)
-
-    def _parse_solution(self, p: Problem, path: Path, yaml: dict[str, Any]) -> None:
-        if "solution" not in yaml:
-            return
-        value = yaml["solution"]
-        if value is None:
-            self.needs_default_solution = False
-            self.solution = None
-        elif isinstance(value, str):
-            self.needs_default_solution = False
-            self.solution = SolutionInvocation(p, value)
-        else:
-            warn(f"{path}: solution must be None or of type str. SKIPPED.")
-
-    def _parse_random_salt(self, p: Problem, path: Path, yaml: dict[str, Any]) -> None:
-        if "random_salt" not in yaml:
-            return
-        value = yaml["random_salt"]
-        if value is None:
-            self.random_salt = ""
-        elif isinstance(value, str):
-            self.random_salt = value
-        else:
-            warn(f"{path}: random_salt must be None or of type str. SKIPPED.")
-
-    def _parse_retries(self, p: Problem, path: Path, yaml: dict[str, Any]) -> None:
-        if "retries" not in yaml:
-            return
-        value = yaml["retries"]
-        if value is None:
-            self.retries = 1
-        elif isinstance(value, int):
-            self.retries = value
-        else:
-            warn(f"{path}: retries must be None or of type int. SKIPPED.")
+        if isinstance(yaml, dict):
+            if "solution" in yaml:
+                self.needs_default_solution = False
+                self.solution = Config._parse_solution(problem, yaml["solution"], path)
+            if "random_salt" in yaml:
+                self.random_salt = Config._parse_random_salt(problem, yaml["random_salt"], path)
+            if "retries" in yaml:
+                self.retries = Config._parse_retries(problem, yaml["retries"], path)
 
 
 class Rule:
@@ -417,14 +406,6 @@ class Rule:
 
         self.parent = parent
 
-        if isinstance(yaml, dict):
-            self.config: "Config" = Config(
-                problem, parent.path / name, yaml, parent_config=parent.config
-            )
-        else:
-            assert parent.config is not None
-            self.config = parent.config
-
         # Yaml key of the current directory/testcase.
         self.key = key
         # Filename of the current directory/testcase.
@@ -433,6 +414,10 @@ class Rule:
         self.path: Path = parent.path / self.name
         # store Yaml
         self.yaml = yaml
+
+        self.config: "Config" = Config(
+            problem, parent.path / name, yaml, parent_config=parent.config
+        )
 
 
 class TestcaseRule(Rule):
@@ -451,8 +436,10 @@ class TestcaseRule(Rule):
         # if not None rule will be skipped during generation
         self.parse_error: Optional[str] = None
 
+        # root in /data
+        self.root = parent.path.parts[0]
         # Whether this testcase is a sample.
-        self.sample: bool = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
+        self.sample: bool = self.root == "sample"
         # each test case needs some kind of input
         self.required_in: list[list[str]] = [[".in"]]
         if self.sample:
@@ -495,14 +482,11 @@ class TestcaseRule(Rule):
             )
             name = name[:-3]
 
-        super().__init__(problem, key, name, yaml, parent)
-
-        # root in /data
-        self.root = self.path.parts[0]
-
-        # files to consider for hashing
-        hashes = {}
         try:
+            super().__init__(problem, key, name, yaml, parent)
+
+            # files to consider for hashing
+            hashes = {}
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
                 raise ParseException("Test case does not have a valid name.")
 
@@ -1562,7 +1546,7 @@ AnyDirectory = RootDirectory | Directory
 
 class GeneratorConfig:
     @staticmethod
-    def parse_generators(generators_yaml: YAML_TYPE) -> dict[Path, list[Path]]:
+    def _parse_generators(generators_yaml: YAML_TYPE) -> dict[Path, list[Path]]:
         assert_type("Generators", generators_yaml, dict)
         assert isinstance(generators_yaml, dict)
         generators = {}
@@ -1650,7 +1634,7 @@ class GeneratorConfig:
 
         # Read root level configuration
         if "generators" in yaml:
-            self.generators = GeneratorConfig.parse_generators(yaml["generators"])
+            self.generators = self._parse_generators(yaml["generators"])
 
         def add_known(obj: TestcaseRule | Directory) -> None:
             path = obj.path
