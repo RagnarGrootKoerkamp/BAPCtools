@@ -303,14 +303,6 @@ to use a specific solution."""
     return Path("/") / solution.relative_to(problem.path)
 
 
-# A wrapper that lazily initializes the underlying SolutionInvocation on first
-# usage.  This is to prevent instantiating the default solution when it's not
-# actually needed.
-class DefaultSolutionInvocation(SolutionInvocation):
-    def __init__(self, generator_config: "GeneratorConfig") -> None:
-        super().__init__(generator_config.problem, str(default_solution_path(generator_config)))
-
-
 KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
     "type",
     "generate",
@@ -416,6 +408,9 @@ class Rule:
         if parent.config is not None:
             self.config: Config = parent.config
         else:
+            # this should only happen if parent is the root Directory
+            # however a testcase cannot be at the root so we know the
+            # yaml represents a directory and thus must be a dict
             assert isinstance(yaml, dict)
         if isinstance(yaml, dict):
             self.config = Config(problem, parent.path / name, yaml, parent_config=parent.config)
@@ -1938,7 +1933,9 @@ class GeneratorConfig:
 
         # Collect all programs that need building.
         # Also, set the default submission if needed.
-        default_solution: Optional[DefaultSolutionInvocation] = None
+        # We only do this now to prevent instantiating
+        # the default solution when it's not actually needed.
+        default_solution: Optional[SolutionInvocation] = None
 
         def collect_programs(t: TestcaseRule) -> None:
             if isinstance(t, TestcaseRule):
@@ -1950,7 +1947,8 @@ class GeneratorConfig:
                 # Initialize the default solution if needed.
                 nonlocal default_solution
                 if default_solution is None:
-                    default_solution = DefaultSolutionInvocation(self)
+                    default_path = default_solution_path(self)
+                    default_solution = SolutionInvocation(self.problem, str(default_path))
                 t.config.solution = default_solution
             if t.config.solution:
                 solutions_used.add(t.config.solution.program_path)
