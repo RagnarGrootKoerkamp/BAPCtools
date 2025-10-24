@@ -197,15 +197,9 @@ class FuzzProgressBar(ProgressBar):
         super().__init__(prefix, max_len)
         self.queue = queue
 
-    def _print(
-        self,
-        *objects: Any,
-        sep: str = "",
-        end: str = "\n",
-        flush: bool = True,
-    ) -> None:
+    def _print(self, *args: Any, **kwargs: Any) -> None:
         self.queue.ensure_alive()
-        super()._print(*objects, sep=sep, end=end, flush=flush)
+        super()._print(*args, **kwargs)
 
 
 class Fuzz:
