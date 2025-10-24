@@ -12,7 +12,17 @@ from typing import Any, Final, Literal, Optional, IO, TYPE_CHECKING
 
 import config
 import validate
-from util import *
+from util import (
+    error,
+    ExecResult,
+    ExecStatus,
+    exec_command,
+    is_bsd,
+    is_windows,
+    limit_setter,
+    PrintBar,
+    ProgressBar,
+)
 from verdicts import Verdict
 
 if TYPE_CHECKING:

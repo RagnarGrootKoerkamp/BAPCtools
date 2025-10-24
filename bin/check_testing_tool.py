@@ -8,7 +8,15 @@ import config
 import parallel
 from program import Program
 from run import Submission
-from util import *
+from util import (
+    command_supports_memory_limit,
+    default_exec_code_map,
+    ensure_symlink,
+    error,
+    ExecResult,
+    ExecStatus,
+    ProgressBar,
+)
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from problem import Problem
