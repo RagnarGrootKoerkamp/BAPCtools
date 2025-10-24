@@ -1,7 +1,6 @@
 import datetime
 import re
 import shutil
-import sys
 import yaml
 import zipfile
 from pathlib import Path
@@ -16,6 +15,7 @@ from util import (
     ask_variable_bool,
     drop_suffix,
     ensure_symlink,
+    eprint,
     error,
     fatal,
     glob,
@@ -128,7 +128,7 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
             error(f"No attachments or samples found for problem {problem.name}.")
 
     zf.close()
-    print("Wrote zip to samples.zip", file=sys.stderr)
+    eprint("Wrote zip to samples.zip")
 
 
 def build_problem_zip(problem: Problem, output: Path) -> bool:
@@ -411,7 +411,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         # Done.
         zf.close()
         message("done", "Zip", color_type=MessageType.LOG)
-        print(file=sys.stderr)
+        eprint()
     except Exception:
         return False
 
@@ -430,7 +430,7 @@ def build_contest_zip(
         error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
         return
 
-    print(f"writing ZIP file {outfile}", file=sys.stderr)
+    eprint(f"writing ZIP file {outfile}")
 
     if not config.args.kattis:  # Kattis does not use problems.yaml.
         update_problems_yaml(problems)
@@ -470,8 +470,8 @@ def build_contest_zip(
         for fname in zipfiles:
             fname.unlink()
 
-    print("done", file=sys.stderr)
-    print(file=sys.stderr)
+    eprint("done")
+    eprint()
 
     zf.close()
 

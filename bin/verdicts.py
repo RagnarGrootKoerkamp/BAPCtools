@@ -11,7 +11,7 @@ from colorama import Fore, Style
 
 import config
 import testcase
-from util import ITEM_TYPE, ProgressBar
+from util import eprint, ITEM_TYPE, ProgressBar
 
 if TYPE_CHECKING:
     import run
@@ -432,17 +432,15 @@ class VerdictTable:
                 # dont print table if it fills too much of the screen
                 self.print_without_force = len(lines) * len(self.submissions) + 5 < height
                 if not self.print_without_force:
-                    print(
-                        f"{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}",
-                        file=sys.stderr,
+                    eprint(
+                        f"{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}"
                     )
-                    print(
+                    eprint(
                         *lines,
                         f"[times {len(self.submissions)}...]",
                         Style.RESET_ALL,
                         sep="\n",
                         end="\n",
-                        file=sys.stderr,
                     )
 
     def next_submission(self, verdicts: Verdicts) -> None:
@@ -465,11 +463,10 @@ class VerdictTable:
                     for printed in self.last_printed
                 )
 
-                print(
+                eprint(
                     f"\033[{lines - 1}A\r\033[0J",
                     end="",
                     flush=True,
-                    file=sys.stderr,
                 )
 
                 self.last_printed = []
@@ -577,16 +574,15 @@ class VerdictTable:
                     (w + ProgressBar.columns - 1) // ProgressBar.columns for w in printed_lengths
                 )
                 if self.checked_height < height + 5:
-                    print(
+                    eprint(
                         f"\033[0J{Fore.YELLOW}WARNING: Overview too large for terminal, skipping live updates{Style.RESET_ALL}\n",
-                        file=sys.stderr,
                     )
                     self.print_without_force = False
                 self.checked_height = True
                 if not force and not self.print_without_force:
                     return
 
-            print("".join(printed_text), end="", flush=True, file=sys.stderr)
+            eprint("".join(printed_text), end="", flush=True)
             self.last_printed = printed_lengths
 
     def _print_table(
@@ -631,7 +627,7 @@ class VerdictTable:
                 printed_lengths.append(printed)
                 printed_text.append("\n")
             self._clear(force=True)
-            print("".join(printed_text), end="", flush=True, file=sys.stderr)
+            eprint("".join(printed_text), end="", flush=True)
             self.last_printed = printed_lengths
 
     def ProgressBar(
@@ -690,7 +686,7 @@ class TableProgressBar(ProgressBar):
             self.table.print(force=False, printed_lengths=[ProgressBar.columns])
             if isinstance(sys.stderr, io.TextIOWrapper):
                 sys.stderr.reconfigure(line_buffering=self.reset_line_buffering)
-            print(end="", flush=True, file=sys.stderr)
+            eprint(end="", flush=True)
         super().__exit__(*args)
 
     def _print(

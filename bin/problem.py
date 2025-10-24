@@ -1,7 +1,6 @@
 import datetime
 import re
 import shutil
-import sys
 import threading
 
 from collections.abc import Callable, Sequence
@@ -27,6 +26,7 @@ from util import (
     BAR_TYPE,
     combine_hashes_dict,
     drop_suffix,
+    eprint,
     error,
     fatal,
     generate_problem_uuid,
@@ -1282,21 +1282,17 @@ class Problem:
                     scores[t.name] += 1.0 / failures
         scores_list = sorted(scores.values())
 
-        print(
+        eprint(
             "\nVerdict analysis table. Submissions are ordered per column as above. Higher "
-            "scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.",
-            file=sys.stderr,
+            "scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed."
         )
         fail = (
             verdicts.to_char(verdicts.Verdict.WRONG_ANSWER)
             + verdicts.to_char(verdicts.Verdict.TIME_LIMIT_EXCEEDED)
             + verdicts.to_char(verdicts.Verdict.RUNTIME_ERROR)
         )
-        print(f"{fail}: submission fails testcase", file=sys.stderr)
-        print(
-            f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n",
-            file=sys.stderr,
-        )
+        eprint(f"{fail}: submission fails testcase")
+        eprint(f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n")
 
         name_col_width = min(50, max([len(testcase.name) for testcase in testcases]))
 
@@ -1314,7 +1310,7 @@ class Problem:
             if len(name) > name_col_width:
                 name = "..." + name[-name_col_width + 3 :]
             padding = " " * (name_col_width - len(name))
-            print(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ", file=sys.stderr)
+            eprint(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ")
 
             color = Style.RESET_ALL
             if len(scores_list) > 6 and scores[case.name] >= scores_list[-6]:
@@ -1322,11 +1318,11 @@ class Problem:
             if len(scores_list) > 3 and scores[case.name] >= scores_list[-3]:
                 color = Fore.RED
             resultant = make_verdict(case)
-            print(resultant, end="  ", file=sys.stderr)
-            print(f"{color}{scores[case.name]:0.3f}{Style.RESET_ALL}  ", end="", file=sys.stderr)
+            eprint(resultant, end="  ")
+            eprint(f"{color}{scores[case.name]:0.3f}{Style.RESET_ALL}  ", end="")
             if resultant in resultant_id:
-                print(str.format("(Type {})", resultant_id[resultant]), end="", file=sys.stderr)
-            print(end="\n", file=sys.stderr)
+                eprint(f"(Type {resultant_id[resultant]})", end="")
+            eprint()
 
     # called by bt check_testing_tool
     def check_testing_tool(problem) -> bool:
@@ -1694,7 +1690,7 @@ class Problem:
                 limits["time_limit"] = problem.limits.time_limit
                 write_yaml(problem_yaml, problem.path / "problem.yaml")
 
-        print(file=sys.stderr)
+        eprint()
         message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
         message(
             f"{problem.limits.time_limit}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
@@ -1708,7 +1704,7 @@ class Problem:
             f"{problem.limits.timeout}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}²",
             "timeout",
         )
-        print(file=sys.stderr)
+        eprint()
 
         submission, testcase, duration = run_all(
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
@@ -1716,7 +1712,7 @@ class Problem:
         if submission is not None:
             assert testcase is not None
             assert duration is not None
-            print(file=sys.stderr)
+            eprint()
             message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
             if duration <= problem.limits.time_limit:
                 error("TLE submission runs within time limit")
@@ -1724,7 +1720,7 @@ class Problem:
                 warn("TLE submission runs within safety margin")
             elif duration >= problem.limits.timeout:
                 log(f"No TLE submission finished within {problem.limits.timeout}s")
-            print(file=sys.stderr)
+            eprint()
         else:
             log("No TLE submissions found")
 

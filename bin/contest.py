@@ -1,10 +1,9 @@
 import config
-import sys
 
 from pathlib import Path
 from typing import cast, Any, Optional, TYPE_CHECKING
 
-from util import error, fatal, log, read_yaml, read_yaml_settings, verbose
+from util import eprint, error, fatal, log, read_yaml, read_yaml_settings, verbose
 
 if TYPE_CHECKING:
     import requests
@@ -126,4 +125,4 @@ def call_api_get_json(url: str) -> Any:
     try:
         return r.json()
     except Exception as e:
-        print(f"\nError in decoding JSON:\n{e}\n{r.text}", file=sys.stderr)
+        eprint(f"\nError in decoding JSON:\n{e}\n{r.text}")

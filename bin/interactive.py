@@ -13,6 +13,7 @@ from typing import Any, Final, Literal, Optional, IO, TYPE_CHECKING
 import config
 import validate
 from util import (
+    eprint,
     error,
     ExecResult,
     ExecStatus,
@@ -85,8 +86,8 @@ def run_interactive_testcase(
     nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else None
 
     if config.args.verbose >= 2:
-        print("Validator:  ", *get_validator_command(), file=sys.stderr)
-        print("Submission: ", *submission_command, file=sys.stderr)
+        eprint("Validator:  ", *get_validator_command())
+        eprint("Submission: ", *submission_command)
 
     # On Windows:
     # - Start the validator
