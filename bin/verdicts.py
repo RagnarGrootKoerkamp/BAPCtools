@@ -582,7 +582,7 @@ class VerdictTable:
                 if not force and not self.print_without_force:
                     return
 
-            eprint("".join(printed_text), end="", flush=True)
+            eprint(*printed_text, "\033[0J", sep="", end="", flush=True)
             self.last_printed = printed_lengths
 
     def _print_table(
@@ -627,7 +627,7 @@ class VerdictTable:
                 printed_lengths.append(printed)
                 printed_text.append("\n\033[K")
             self._clear(force=True)
-            eprint("".join(printed_text), end="", flush=True)
+            eprint(*printed_text, "\033[0J", sep="", end="", flush=True)
             self.last_printed = printed_lengths
 
     def ProgressBar(
@@ -727,5 +727,4 @@ class TableProgressBar(ProgressBar):
                 suppress_newline=suppress_newline,
             )
             self.table._clear(force=True)
-            self._print("\033[0J", end="")
             return res
