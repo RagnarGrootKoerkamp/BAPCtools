@@ -215,12 +215,10 @@ def problem_stats(problems: list[Problem]) -> None:
                 *[
                     _get_stat(
                         counts[i],
-                        # mypy does not support variable-length tuples very well:
-                        # https://github.com/python/mypy/pull/16237#:~:text=indirect%20comparisons
-                        True if len(stats[i]) <= 2 else stats[i][2],  # type: ignore[misc]
-                        None if len(stats[i]) <= 3 else stats[i][3],  # type: ignore[misc]
+                        True if len(stat) <= 2 else stat[2],
+                        None if len(stat) <= 3 else stat[3],
                     )
-                    for i in range(len(stats))
+                    for i, stat in enumerate(stats)
                 ],
                 comment,
             ),
