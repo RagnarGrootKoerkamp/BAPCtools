@@ -288,14 +288,10 @@ class ProgressBar:
         ProgressBar.lock_depth -= 1
         ProgressBar.lock.__exit__(*args)
 
-    def _print(
-        self,
-        *objects: Any,
-        sep: str = "",
-        end: str = "\n",
-        flush: bool = True,
-    ) -> None:
-        eprint(*objects, sep=sep, end=end, flush=flush)
+    def _print(self, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("sep", "")
+        kwargs.setdefault("flush", True)
+        eprint(*args, **kwargs)
 
     def total_width(self) -> int:
         cols = ProgressBar.columns

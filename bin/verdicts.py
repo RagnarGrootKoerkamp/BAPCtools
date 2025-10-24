@@ -689,16 +689,11 @@ class TableProgressBar(ProgressBar):
             eprint(end="", flush=True)
         super().__exit__(*args)
 
-    def _print(
-        self,
-        *objects: Any,
-        sep: str = "",
-        end: str = "\n",
-        flush: bool = True,
-    ) -> None:
+    def _print(self, *args: Any, **kwargs: Any) -> None:
         assert self._is_locked()
-        # drop all flushes...
-        print(*objects, sep=sep, end=end, flush=False)
+        kwargs.setdefault("sep", "")
+        kwargs["flush"] = False  # drop all flushes...
+        eprint(*args, **kwargs)
 
     def start(self, item: ITEM_TYPE = "") -> "TableProgressBar":
         from run import Run
