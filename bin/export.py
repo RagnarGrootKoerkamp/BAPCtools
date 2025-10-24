@@ -83,6 +83,8 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
                 if f.is_dir():
                     util.error(f"{f} directory attachments are not yet supported.")
                 elif f.is_file() and f.exists():
+                    if f.name.startswith("."):
+                        continue  # Skip dotfiles
                     destination = outputdir / f.name
                     if destination in contents:
                         util.error(
@@ -165,11 +167,11 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     # Include all files beside testcases
     for pattern, required in files:
         # Only include hidden files if the pattern starts with a '.'.
-        paths = list(util.glob(problem.path, pattern, include_hidden=pattern[0] == "."))
+        paths = list(util.glob(problem.path, pattern, include_hidden=True))
         if required and len(paths) == 0:
             util.error(f"No matches for required path {pattern}.")
         for f in paths:
-            if f.is_file():
+            if f.is_file() and not f.name.startswith("."):
                 add_file(f.relative_to(problem.path), f)
 
     def add_testcase(in_file: Path) -> None:
@@ -310,6 +312,14 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         )
         if validator_flags:
             yaml_data["validator_flags"] = validator_flags
+
+        # The downloadable samples should be copied to attachments/.
+        samples = problem.download_samples()
+        for i, (in_file, ans_file) in enumerate(samples):
+            base_name = export_dir / "attachments" / str(i + 1)
+            add_file(base_name.with_suffix(".in"), in_file)
+            if ans_file.stat().st_size > 0:
+                add_file(base_name.with_suffix(".ans"), ans_file)
 
         # handle time limit
         if not config.args.kattis:
