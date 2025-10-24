@@ -4,12 +4,6 @@ line-length = 100
 # Assume Python 3.10
 target-version = "py310"
 
-[tool.ruff.lint]
-# Ignore star-imports
-# TODO #102: This is definitely fixable, but for now, postponing the clean-up of all imports
-ignore = ["F403", "F405"]
-
-
 [tool.pyright]
 include = ["bin"]
 exclude = ["bin/misc"]
