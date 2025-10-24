@@ -13,6 +13,7 @@ import sys
 import tempfile
 import threading
 import time
+import yaml as yamllib
 from enum import Enum
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
@@ -31,8 +32,6 @@ from typing import (
     TYPE_CHECKING,
 )
 from uuid import UUID
-
-import yaml as yamllib
 from colorama import Fore, Style
 from io import StringIO
 
@@ -108,37 +107,43 @@ def exit1(force: bool = False) -> NoReturn:
         sys.exit(1)
 
 
+# we almost always want to print to stderr
+def eprint(*args: Any, **kwargs: Any) -> None:
+    kwargs.setdefault("file", sys.stderr)
+    print(*args, **kwargs)
+
+
 def debug(*msg: Any) -> None:
-    print(Fore.CYAN, end="", file=sys.stderr)
-    print("DEBUG:", *msg, end="", file=sys.stderr)
-    print(Style.RESET_ALL, file=sys.stderr)
+    eprint(Fore.CYAN, end="")
+    eprint("DEBUG:", *msg, end="")
+    eprint(Style.RESET_ALL)
 
 
 def log(msg: Any) -> None:
-    print(f"{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}")
 
 
 def verbose(msg: Any) -> None:
     if config.args.verbose >= 1:
-        print(f"{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}", file=sys.stderr)
+        eprint(f"{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}")
 
 
 def warn(msg: Any) -> None:
-    print(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
     config.n_warn += 1
 
 
 def error(msg: Any) -> None:
     if config.RUNNING_TEST:
         fatal(msg)
-    print(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
     config.n_error += 1
 
 
 def fatal(msg: Any, *, force: Optional[bool] = None) -> NoReturn:
     if force is None:
         force = threading.active_count() > 1
-    print(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}")
     exit1(force)
 
 
@@ -172,10 +177,10 @@ def message(
     color_type: Any = "",
 ) -> None:
     if task is not None:
-        print(f"{Fore.CYAN}{task}{Style.RESET_ALL}: ", end="", file=sys.stderr)
+        eprint(f"{Fore.CYAN}{task}{Style.RESET_ALL}: ", end="")
     if item is not None:
-        print(item, end="   ", file=sys.stderr)
-    print(f"{color_type}{msg}{Style.RESET_ALL}", file=sys.stderr)
+        eprint(item, end="   ")
+    eprint(f"{color_type}{msg}{Style.RESET_ALL}")
     if color_type == MessageType.WARN:
         config.n_warn += 1
     if color_type == MessageType.ERROR:
@@ -186,7 +191,7 @@ def message(
 
 # A simple bar that only holds a task prefix
 class PrintBar:
-    def __init__(self, task: Optional[str | Path] = None):
+    def __init__(self, task: Optional[str | Path] = None) -> None:
         self.task = task
 
     def log(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
@@ -246,7 +251,7 @@ class ProgressBar:
         *,
         items: Optional[Sequence[ITEM_TYPE]] = None,
         needs_leading_newline: bool = False,
-    ):
+    ) -> None:
         assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix
         ProgressBar.current_bar = self
 
@@ -689,7 +694,7 @@ def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> A
 
             return yaml.safe_load(data)
         except Exception as e:
-            print(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="", file=sys.stderr)
+            eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
             fatal(f"Failed to parse {path}.")
 
 
@@ -712,6 +717,14 @@ def read_yaml_settings(path: Path) -> Any:
     return settings
 
 
+def normalize_yaml_value(value: Any, t: type[Any]) -> Any:
+    if isinstance(value, str) and t is Path:
+        value = Path(value)
+    if isinstance(value, int) and t is float:
+        value = float(value)
+    return value
+
+
 if has_ryaml:
     U = TypeVar("U")
 
@@ -731,7 +744,7 @@ if has_ryaml:
             yaml[key] = t()
         value = yaml[key]
         assert isinstance(value, t)
-        return value  # type: ignore
+        return cast(ruamel.yaml.comments.CommentedMap | U, value)
 
     # This tries to preserve the correct comments.
     def ryaml_filter(data: Any, remove: str) -> Any:
@@ -775,6 +788,13 @@ if has_ryaml:
 
 # Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
 write_yaml_lock = threading.Lock()
+
+
+# The @overload definitions are purely here for static typing reasons.
+@overload
+def write_yaml(data: Any, path: None = None, allow_yamllib: bool = False) -> str: ...
+@overload
+def write_yaml(data: Any, path: Path, allow_yamllib: bool = False) -> None: ...
 
 
 # Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
@@ -1169,7 +1189,7 @@ class ExecResult:
         out: Optional[str],
         verdict: Optional["Verdict"] = None,
         pass_id: Optional[int] = None,
-    ):
+    ) -> None:
         self.returncode = returncode
         self.status = status
         self.duration = duration
@@ -1241,7 +1261,7 @@ def limit_setter(
 
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen[bytes]):
-    rusage: Any  # TODO #102: use stricter type than `Any`
+    rusage: "Optional[resource.struct_rusage]"
 
     # If wait4 is available, store resource usage information.
     if "wait4" in dir(os):
@@ -1318,13 +1338,13 @@ def exec_command(
 
     if config.args.verbose >= 2:
         if "cwd" in kwargs:
-            print("cd", kwargs["cwd"], "; ", end="", file=sys.stderr)
+            eprint("cd", kwargs["cwd"], "; ", end="")
         else:
-            print("cd", Path.cwd(), "; ", end="", file=sys.stderr)
-        print(*command, end="", file=sys.stderr)
+            eprint("cd", Path.cwd(), "; ", end="")
+        eprint(*command, end="")
         if "stdin" in kwargs:
-            print(" < ", kwargs["stdin"].name, end="", file=sys.stderr)
-        print(file=sys.stderr)
+            eprint(" < ", kwargs["stdin"].name, end="")
+        eprint()
 
     timeout: Optional[int] = None
     if "timeout" in kwargs:
@@ -1392,7 +1412,7 @@ def exec_command(
     err = maybe_crop(stderr.decode("utf-8", "replace")) if stderr is not None else None
     out = maybe_crop(stdout.decode("utf-8", "replace")) if stdout is not None else None
 
-    if hasattr(process, "rusage"):
+    if hasattr(process, "rusage") and process.rusage:
         duration = process.rusage.ru_utime + process.rusage.ru_stime
         # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
         # To prevent under-reporting the duration, we take the max with wall time in this case.

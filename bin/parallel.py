@@ -12,7 +12,7 @@ T = TypeVar("T")
 
 
 class QueueItem(Generic[T]):
-    def __init__(self, task: T, priority: int, index: int):
+    def __init__(self, task: T, priority: int, index: int) -> None:
         self.task = task
         self.priority = priority
         self.index = index
@@ -29,7 +29,7 @@ class QueueItem(Generic[T]):
 
 
 class AbstractQueue(Generic[T]):
-    def __init__(self, f: Callable[[T], Any], pin: bool):
+    def __init__(self, f: Callable[[T], Any], pin: bool) -> None:
         self.f = f
         self.pin = pin
         self.num_threads = 1
@@ -70,7 +70,7 @@ class AbstractQueue(Generic[T]):
 
 
 class SequentialQueue(AbstractQueue[T]):
-    def __init__(self, f: Callable[[T], Any], pin: bool):
+    def __init__(self, f: Callable[[T], Any], pin: bool) -> None:
         super().__init__(f, pin)
 
     # Add one task. Higher priority => done first
@@ -101,7 +101,7 @@ class SequentialQueue(AbstractQueue[T]):
 
 
 class ParallelQueue(AbstractQueue[T]):
-    def __init__(self, f: Callable[[T], Any], pin: bool, num_threads: int):
+    def __init__(self, f: Callable[[T], Any], pin: bool, num_threads: int) -> None:
         super().__init__(f, pin)
 
         assert num_threads and type(num_threads) is int

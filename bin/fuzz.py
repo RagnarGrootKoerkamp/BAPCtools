@@ -12,11 +12,25 @@ from pathlib import Path
 from typing import Any, Optional, TextIO
 
 import parallel
-from util import *
+from util import (
+    eprint,
+    error,
+    fatal,
+    has_ryaml,
+    message,
+    MessageType,
+    ProgressBar,
+    read_yaml,
+    ryaml_get_or_add,
+    write_yaml,
+)
 from run import Run, Submission
 from testcase import Testcase
 from validate import OutputValidator, Mode
 from verdicts import Verdict
+
+if has_ryaml:
+    from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 # STEPS:
 # 1. Find generator invocations depending on {seed}.
@@ -28,7 +42,7 @@ from verdicts import Verdict
 
 
 class GeneratorTask:
-    def __init__(self, fuzz: "Fuzz", t: generate.TestcaseRule, i: int, tmp_id: int):
+    def __init__(self, fuzz: "Fuzz", t: generate.TestcaseRule, i: int, tmp_id: int) -> None:
         self.fuzz = fuzz
         self.rule = t
         generator = t.generator
@@ -151,7 +165,7 @@ class SubmissionTask:
         submission: Submission,
         testcase: Testcase,
         tmp_id: int,
-    ):
+    ) -> None:
         self.generator_task = generator_task
         self.submission = submission
         self.testcase = testcase
@@ -165,6 +179,7 @@ class SubmissionTask:
         r = Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
         localbar = bar.start(f"{self.generator_task.i}: {self.submission.name}")
         result = r.run(localbar)
+        assert result.verdict is not None
         self.generator_task.fuzz.queue.ensure_alive()
         if result.verdict != Verdict.ACCEPTED:
             self.generator_task.save_test(bar, self.submission, result.verdict)
@@ -174,24 +189,29 @@ class SubmissionTask:
 
 
 class FuzzProgressBar(ProgressBar):
-    def __init__(self, queue: parallel.AbstractQueue, prefix: str, max_len: int):
+    def __init__(
+        self,
+        queue: parallel.AbstractQueue[GeneratorTask | SubmissionTask],
+        prefix: str,
+        max_len: int,
+    ) -> None:
         super().__init__(prefix, max_len)
         self.queue = queue
 
     def _print(
         self,
-        *objects,
+        *objects: Any,
         sep: str = "",
         end: str = "\n",
         file: TextIO = sys.stderr,
         flush: bool = True,
-    ):
+    ) -> None:
         self.queue.ensure_alive()
         super()._print(*objects, sep=sep, end=end, file=file, flush=flush)
 
 
 class Fuzz:
-    def __init__(self, problem: problem.Problem):
+    def __init__(self, problem: problem.Problem) -> None:
         self.generators_yaml_mutex = threading.Lock()
         self.problem = problem
         self.summary: dict[Submission, set[Verdict]] = {}
@@ -282,7 +302,7 @@ class Fuzz:
             else:
                 self.queue.abort()
                 with bar:
-                    print(bar.carriage_return, file=sys.stderr)
+                    eprint(bar.carriage_return)
                     message(
                         "Running interrupted (waiting on remaining tasks)\n",
                         "\nFuzz",
@@ -355,13 +375,13 @@ class Fuzz:
             if generators_yaml.is_file():
                 data = read_yaml(generators_yaml)
             if data is None:
-                data = ruamel.yaml.comments.CommentedMap()
+                data = CommentedMap()
 
             parent = ryaml_get_or_add(data, "data")
             parent = ryaml_get_or_add(parent, "fuzz")
-            entry = ryaml_get_or_add(parent, "data", ruamel.yaml.comments.CommentedSeq)
+            entry = ryaml_get_or_add(parent, "data", CommentedSeq)
 
-            entry.append(ruamel.yaml.comments.CommentedMap())
+            entry.append(CommentedMap())
             entry[-1][""] = command
 
             # Overwrite generators.yaml.

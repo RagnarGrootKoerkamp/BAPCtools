@@ -1,10 +1,10 @@
 import datetime
 import re
 import shutil
-import sys
 import threading
 
 from collections.abc import Callable, Sequence
+from colorama import Fore, Style
 from pathlib import Path
 from typing import Any, Final, Literal, Optional, overload, TypeVar, TYPE_CHECKING
 
@@ -22,13 +22,42 @@ import validate
 import validator_tests
 import verdicts
 import visualize
-from util import *
-from colorama import Fore, Style
+from util import (
+    BAR_TYPE,
+    combine_hashes_dict,
+    drop_suffix,
+    eprint,
+    error,
+    fatal,
+    generate_problem_uuid,
+    glob,
+    hash_file_content,
+    has_ryaml,
+    is_relative_to,
+    is_uuid,
+    log,
+    message,
+    parse_yaml,
+    PrintBar,
+    ProgressBar,
+    read_yaml,
+    read_yaml_settings,
+    resolve_path_argument,
+    ryaml_get_or_add,
+    substitute,
+    verbose,
+    warn,
+    write_yaml,
+)
+
+
+if has_ryaml:
+    import ruamel.yaml
 
 
 # The parse_* functions will remove (.pop()) keys from the yaml data during parsing.
 # We will warn for any unknown keys that remain after this process.
-def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None):
+def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None) -> None:
     for key in yaml_data:
         assert isinstance(key, str)
         warn(f"found unknown problem.yaml key: {key} in {f'`{sub_key}`' if sub_key else 'root'}")
@@ -458,7 +487,7 @@ class Problem:
             if (self.path / "data" / d).is_dir():
                 warn(f"Found directory: data/{d}, should be: data/{d[:-1]} (singular form).")
 
-    def _determine_statement_languages(self):
+    def _determine_statement_languages(self) -> list[str]:
         """Determine the languages that are both mentioned in the problem.yaml under name
         and have a corresponding problem statement.
 
@@ -505,7 +534,7 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
-    def _read_settings(self):
+    def _read_settings(self) -> None:
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
         if has_ryaml:
@@ -534,7 +563,7 @@ class Problem:
         self.custom_output: bool = self.settings.custom_output
 
     # TODO #102 move to a new TestGroup class
-    def _parse_test_case_and_groups_yaml(p, path: Path, bar: BAR_TYPE):
+    def _parse_test_case_and_groups_yaml(p, path: Path, bar: BAR_TYPE) -> None:
         assert path.is_relative_to(p.path / "data"), f"{path} is not in data"
         for f in [path] + list(path.parents):
             # Do not go above the data directory.
@@ -674,12 +703,13 @@ class Problem:
                             return []
                         return args
                     elif name in args:
-                        if not isinstance(args[name], list) or any(
-                            not isinstance(arg, str) for arg in args[name]
+                        args = args[name]
+                        if not isinstance(args, list) or any(
+                            not isinstance(arg, str) for arg in args
                         ):
                             bar.error(f"{key} must be list of strings or map of lists")
                             return []
-                        return args[name]
+                        return args
                 elif key in known_args_keys:
                     if not isinstance(args, list) or any(not isinstance(arg, str) for arg in args):
                         bar.error(f"{key} must be a list of strings")
@@ -692,7 +722,7 @@ class Problem:
     # this cache makes sure that some warnings (like malformed test case names) only appear once.
     _warned_for_test_case = set[str]()
 
-    def _warn_once(p, test_name, msg):
+    def _warn_once(p, test_name: str, msg: str) -> None:
         if test_name not in p._warned_for_test_case:
             p._warned_for_test_case.add(test_name)
             warn(msg)
@@ -701,9 +731,9 @@ class Problem:
         p,
         *,
         mode: Optional[validate.Mode] = None,
-        needans=True,
-        only_samples=False,
-        testing_tool_test=False,
+        needans: bool = True,
+        only_samples: bool = False,
+        testing_tool_test: bool = False,
     ) -> Sequence[testcase.Testcase]:
         only_samples = config.args.samples or only_samples
 
@@ -716,15 +746,15 @@ class Problem:
             assert not only_samples
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
-            for t in config.args.testcases:
-                t = resolve_path_argument(p, t, "data", suffixes=[".in"])
-                if t:
+            for path in config.args.testcases:
+                res_path = resolve_path_argument(p, path, "data", suffixes=[".in"])
+                if res_path:
                     # When running from contest level, the testcase must be inside the problem.
-                    if config.level != "problemset" or is_relative_to(p.path, t):
-                        if t.is_dir():
-                            in_paths += glob(t, "**/*.in")
+                    if config.level != "problemset" or is_relative_to(p.path, res_path):
+                        if res_path.is_dir():
+                            in_paths += glob(res_path, "**/*.in")
                         else:
-                            in_paths.append(t)
+                            in_paths.append(res_path)
 
             in_paths = list(set(in_paths))
         elif mode is not None:
@@ -934,7 +964,7 @@ class Problem:
         paths = []
         if config.args.submissions:
 
-            def add(s):
+            def add(s: Path) -> None:
                 if s in paths:
                     warn(f"Ignoring duplicate submission: {s}")
                     return
@@ -970,21 +1000,21 @@ class Problem:
 
         programs = [run.Submission(problem, path) for path in paths]
 
-        # - first all submission with just one verdict (sorted by that verdict)
+        # - first all submission with just one verdict (grouped by that verdict and sorted by the path)
         # - then by subdir
         # - then by list of verdicts
         # - then by name
-        def submissions_key(x):
-            if len(x.expected_verdicts) == 1:
-                return (1, x.expected_verdicts[0], x.name)
-            else:
-                return (len(x.expected_verdicts), x.subdir, x.expected_verdicts, x.name)
+        def submissions_key(
+            x: run.Submission,
+        ) -> tuple[int, str, Sequence[verdicts.Verdict], str, str]:
+            group = "" if len(x.expected_verdicts) == 1 else x.subdir
+            return (len(x.expected_verdicts), group, x.expected_verdicts, x.subdir, x.name)
 
         programs.sort(key=submissions_key)
 
         bar = ProgressBar("Build submissions", items=programs)
 
-        def build_program(p):
+        def build_program(p: run.Submission) -> None:
             localbar = bar.start(p)
             p.build(localbar)
             localbar.done()
@@ -1030,9 +1060,9 @@ class Problem:
     def validators(
         problem,
         cls: type[validate.AnyValidator],
-        check_constraints=False,
-        strict=False,
-        print_warn=True,
+        check_constraints: bool = False,
+        strict: bool = False,
+        print_warn: bool = True,
     ) -> Sequence[validate.AnyValidator]:
         """
         Gets the validators of the given class.
@@ -1073,7 +1103,7 @@ class Problem:
         return validators if build_ok else []
 
     def _validators(
-        problem, cls: type[validate.AnyValidator], check_constraints=False
+        problem, cls: type[validate.AnyValidator], check_constraints: bool = False
     ) -> list[validate.AnyValidator]:
         key = (cls, check_constraints)
         if key in problem._validators_cache:
@@ -1252,21 +1282,17 @@ class Problem:
                     scores[t.name] += 1.0 / failures
         scores_list = sorted(scores.values())
 
-        print(
+        eprint(
             "\nVerdict analysis table. Submissions are ordered per column as above. Higher "
-            "scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.",
-            file=sys.stderr,
+            "scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed."
         )
         fail = (
             verdicts.to_char(verdicts.Verdict.WRONG_ANSWER)
             + verdicts.to_char(verdicts.Verdict.TIME_LIMIT_EXCEEDED)
             + verdicts.to_char(verdicts.Verdict.RUNTIME_ERROR)
         )
-        print(f"{fail}: submission fails testcase", file=sys.stderr)
-        print(
-            f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n",
-            file=sys.stderr,
-        )
+        eprint(f"{fail}: submission fails testcase")
+        eprint(f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n")
 
         name_col_width = min(50, max([len(testcase.name) for testcase in testcases]))
 
@@ -1284,7 +1310,7 @@ class Problem:
             if len(name) > name_col_width:
                 name = "..." + name[-name_col_width + 3 :]
             padding = " " * (name_col_width - len(name))
-            print(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ", file=sys.stderr)
+            eprint(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ")
 
             color = Style.RESET_ALL
             if len(scores_list) > 6 and scores[case.name] >= scores_list[-6]:
@@ -1292,11 +1318,11 @@ class Problem:
             if len(scores_list) > 3 and scores[case.name] >= scores_list[-3]:
                 color = Fore.RED
             resultant = make_verdict(case)
-            print(resultant, end="  ", file=sys.stderr)
-            print(f"{color}{scores[case.name]:0.3f}{Style.RESET_ALL}  ", end="", file=sys.stderr)
+            eprint(resultant, end="  ")
+            eprint(f"{color}{scores[case.name]:0.3f}{Style.RESET_ALL}  ", end="")
             if resultant in resultant_id:
-                print(str.format("(Type {})", resultant_id[resultant]), end="", file=sys.stderr)
-            print(end="\n", file=sys.stderr)
+                eprint(f"(Type {resultant_id[resultant]})", end="")
+            eprint()
 
     # called by bt check_testing_tool
     def check_testing_tool(problem) -> bool:
@@ -1349,14 +1375,15 @@ class Problem:
         return None
 
     def validate_data(
-        problem, mode: validate.Mode, constraints: dict | Literal[True] | None = None
+        problem,
+        mode: validate.Mode,
+        constraints: validate.ConstraintsDict | Literal[True] | None = None,
     ) -> bool:
         """Validate aspects of the test data files.
 
         Arguments:
             mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID | validate.Mode.VALID_OUTPUT
             constraints: True | dict | None. True means "do check constraints but discard the result."
-                False: TODO is this ever used?
         Return:
             True if all validation was successful. Successful validation includes, e.g.,
             correctly rejecting invalid inputs.
@@ -1375,6 +1402,7 @@ class Problem:
         return problem._validate_data(mode, constraints, action, testcases)
 
     def validate_invalid_extra_data(p) -> bool:
+        assert config.args.generic is not None
         base_path = p.tmpdir / "invalid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
         # also add a dummy entry to always run generators that don't read or copy anything from a valid testcase
@@ -1454,6 +1482,7 @@ class Problem:
         )
 
     def validate_valid_extra_data(p) -> bool:
+        assert config.args.generic is not None
         if "valid_output" not in config.args.generic:
             return True
         if p.interactive or p.multi_pass:
@@ -1554,7 +1583,7 @@ class Problem:
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
 
-        def process_testcase(testcase: testcase.Testcase):
+        def process_testcase(testcase: testcase.Testcase) -> None:
             nonlocal success
 
             localbar = bar.start(testcase.name)
@@ -1596,7 +1625,7 @@ class Problem:
 
         return success
 
-    def determine_time_limit(problem):
+    def determine_time_limit(problem) -> bool:
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
@@ -1607,7 +1636,10 @@ class Problem:
         problem.limits.time_limit_is_default = False
         problem.limits.timeout = problem.limits.time_limit + 1
 
-        def run_all(select_verdict, select):
+        def run_all(
+            select_verdict: Callable[[Sequence[verdicts.Verdict]], bool],
+            select: Callable[[Sequence[float]], float],
+        ) -> tuple[str, str, float] | tuple[None, None, None]:
             nonlocal ok
 
             cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
@@ -1620,7 +1652,7 @@ class Problem:
                 ok = False
                 return None, None, None
 
-            def get_slowest(result):
+            def get_slowest(result: verdicts.Verdicts) -> tuple[str, float]:
                 slowest_pair = result.slowest_test_case()
                 assert slowest_pair is not None
                 return slowest_pair
@@ -1637,6 +1669,8 @@ class Problem:
         if submission is None:
             error("No AC submissions found")
             return False
+        assert testcase is not None
+        assert duration is not None
 
         problem.limits.time_limit = problem.limits.time_resolution * math.ceil(
             duration * problem.limits.ac_to_time_limit / problem.limits.time_resolution
@@ -1656,7 +1690,7 @@ class Problem:
                 limits["time_limit"] = problem.limits.time_limit
                 write_yaml(problem_yaml, problem.path / "problem.yaml")
 
-        print(file=sys.stderr)
+        eprint()
         message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
         message(
             f"{problem.limits.time_limit}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
@@ -1670,13 +1704,15 @@ class Problem:
             f"{problem.limits.timeout}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}²",
             "timeout",
         )
-        print(file=sys.stderr)
+        eprint()
 
         submission, testcase, duration = run_all(
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
         )
         if submission is not None:
-            print(file=sys.stderr)
+            assert testcase is not None
+            assert duration is not None
+            eprint()
             message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
             if duration <= problem.limits.time_limit:
                 error("TLE submission runs within time limit")
@@ -1684,7 +1720,7 @@ class Problem:
                 warn("TLE submission runs within safety margin")
             elif duration >= problem.limits.timeout:
                 log(f"No TLE submission finished within {problem.limits.timeout}s")
-            print(file=sys.stderr)
+            eprint()
         else:
             log("No TLE submissions found")
 
@@ -1695,6 +1731,8 @@ class Problem:
                 max,
             )
             if submission is not None:
+                assert testcase is not None
+                assert duration is not None
                 if duration > problem.limits.time_limit:
                     warn("Non TLE submission timed out")
                 else:
