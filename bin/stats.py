@@ -224,7 +224,7 @@ def problem_stats(problems: list[Problem]) -> None:
                     _get_stat(
                         counts[i],
                         getThirdStat(*stats[i], True),
-                        getFourthStat(*stats[i], None),
+                        getFourthStat(*stats[i], None, None),
                     )
                     for i in range(len(stats))
                 ],
