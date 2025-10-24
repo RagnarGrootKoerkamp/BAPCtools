@@ -21,6 +21,7 @@ from util import (
     BAR_TYPE,
     crop_output,
     ensure_symlink,
+    eprint,
     error,
     ExecResult,
     ExecStatus,
@@ -559,13 +560,13 @@ class Submission(program.Program):
         if config.args.tree:
             verdict_table.print(force=True, new_lines=0)
             verdict_table.last_printed = []
-            print(file=sys.stderr)
+            eprint()
             printed_newline = True
 
         return self.verdict in self.expected_verdicts, printed_newline
 
     def test(self) -> None:
-        print(ProgressBar.action("Running", str(self.name)), file=sys.stderr)
+        eprint(ProgressBar.action("Running", str(self.name)))
 
         testcases = self.problem.testcases(needans=False)
 
@@ -574,7 +575,7 @@ class Submission(program.Program):
 
         for testcase in testcases:
             header = ProgressBar.action("Running " + str(self.name), testcase.name)
-            print(header, file=sys.stderr)
+            eprint(header)
 
             if not self.problem.interactive:
                 assert self.run_command is not None
@@ -594,9 +595,8 @@ class Submission(program.Program):
                 elif not result.status and result.status != ExecStatus.TIMEOUT:
                     config.n_error += 1
                     status = None
-                    print(
-                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
-                        file=sys.stderr,
+                    eprint(
+                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                     )
                 elif (
                     result.duration > self.problem.limits.time_limit
@@ -608,11 +608,10 @@ class Submission(program.Program):
                     status = f"{Fore.GREEN}Done:"
 
                 if status:
-                    print(
-                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
-                        file=sys.stderr,
+                    eprint(
+                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                     )
-                print(file=sys.stderr)
+                eprint()
 
             else:
                 # Interactive problem.
@@ -622,22 +621,19 @@ class Submission(program.Program):
                 )
                 if optional_result is None:
                     config.n_error += 1
-                    print(
-                        f"{Fore.RED}No output validator found for testcase {testcase.name}{Style.RESET_ALL}",
-                        file=sys.stderr,
+                    eprint(
+                        f"{Fore.RED}No output validator found for testcase {testcase.name}{Style.RESET_ALL}"
                     )
                     continue
                 result = optional_result
                 if result.verdict != Verdict.ACCEPTED:
                     config.n_error += 1
-                    print(
-                        f"{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
-                        file=sys.stderr,
+                    eprint(
+                        f"{Fore.RED}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                     )
                 else:
-                    print(
-                        f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
-                        file=sys.stderr,
+                    eprint(
+                        f"{Fore.GREEN}{result.verdict}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                     )
 
     # Run the submission using stdin as input.
@@ -647,7 +643,6 @@ class Submission(program.Program):
 
         bar = ProgressBar("Running " + str(self.name), max_len=1, count=1)
         bar.start()
-        # print(ProgressBar.action('Running', str(self.name)), file=sys.stderr)
 
         is_tty = sys.stdin.isatty()
 
@@ -711,19 +706,17 @@ while True:
                 if not result.status:
                     config.n_error += 1
                     status = None
-                    print(
-                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
-                        file=sys.stderr,
+                    eprint(
+                        f"{Fore.RED}Run time error!{Style.RESET_ALL} exit code {result.returncode} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                     )
                 else:
                     status = f"{Fore.GREEN}Done:"
 
                 if status:
-                    print(
-                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}",
-                        file=sys.stderr,
+                    eprint(
+                        f"{status}{Style.RESET_ALL} {Style.BRIGHT}{result.duration:6.3f}s{Style.RESET_ALL}"
                     )
-                print(file=sys.stderr)
+                eprint()
             finally:
                 os.close(r)
                 os.close(w)

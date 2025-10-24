@@ -51,6 +51,7 @@ from problem import Problem
 from util import (
     AbortException,
     ask_variable_bool,
+    eprint,
     error,
     fatal,
     glob,
@@ -1204,7 +1205,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             if level_tmpdir.is_file():
                 level_tmpdir.unlink()
         else:
-            print(level_tmpdir)
+            eprint(level_tmpdir)
 
         return
 
@@ -1279,7 +1280,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             and not config.args.all
         ):
             continue
-        print(Style.BRIGHT, "PROBLEM ", problem.name, Style.RESET_ALL, sep="", file=sys.stderr)
+        eprint(Style.BRIGHT, "PROBLEM ", problem.name, Style.RESET_ALL, sep="")
 
         if action in ["generate"]:
             success &= generate.generate(problem)
@@ -1388,14 +1389,14 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                 success &= export.build_problem_zip(problem, output)
 
         if len(problems) > 1:
-            print(file=sys.stderr)
+            eprint()
 
     if action in ["export"]:
         languages = export.select_languages(problems)
         export.export_contest_and_problems(problems, languages)
 
     if level == "problemset":
-        print(f"{Style.BRIGHT}CONTEST {contest_name}{Style.RESET_ALL}", file=sys.stderr)
+        eprint(f"{Style.BRIGHT}CONTEST {contest_name}{Style.RESET_ALL}")
 
         # build pdf for the entire contest
         if action in ["pdf"]:

@@ -5,7 +5,6 @@ import re
 import secrets
 import shlex
 import shutil
-import sys
 import time
 
 from collections.abc import Callable, Iterable, Iterator, Sequence
@@ -27,6 +26,7 @@ from util import (
     combine_hashes,
     combine_hashes_dict,
     ensure_symlink,
+    eprint,
     error,
     ExecResult,
     ExecStatus,
@@ -2260,8 +2260,8 @@ data/*
         testcase_paths = {t.in_path.relative_to(data).with_suffix("") for t in testcases}
         max_testcase_len = max([len(str(t)) for t in testcase_paths])
         for d in directory_rules:
-            print(file=sys.stderr)
-            print(f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}", file=sys.stderr)
+            eprint()
+            eprint(f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}")
 
             # directory must be numbered
             assert isinstance(d.yaml, dict)
@@ -2354,7 +2354,7 @@ data/*
         write_yaml(self.yaml, generators_yaml)
 
         # regenerate cases
-        print(file=sys.stderr)
+        eprint()
         new_config = GeneratorConfig(self.problem, config.args.testcases)
         new_config.build(skip_double_build_warning=True)
         new_config.run()

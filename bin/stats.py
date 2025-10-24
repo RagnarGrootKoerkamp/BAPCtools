@@ -1,6 +1,5 @@
 import shutil
 import statistics
-import sys
 from collections.abc import Callable, Sequence
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
@@ -15,7 +14,7 @@ import latex
 import program
 import validate
 from problem import Problem
-from util import error, exec_command, glob, log, warn
+from util import eprint, error, exec_command, glob, log, warn
 
 Selector = (
     str | Callable[[Problem], int | float] | list[str] | list[Callable[[set[Path]], set[str]]]
@@ -137,7 +136,7 @@ def problem_stats(problems: list[Problem]) -> None:
             format_string += " {:>" + str(width + len(Fore.WHITE) + len(Style.RESET_ALL)) + "}"
 
     header = header_string.format(*headers)
-    print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
+    eprint(Style.BRIGHT + header + Style.RESET_ALL)
 
     for problem in problems:
         generated_testcases = generate.testcases(problem)
@@ -209,7 +208,7 @@ def problem_stats(problems: list[Problem]) -> None:
         else:
             comment = Fore.YELLOW + comment + Style.RESET_ALL
 
-        print(
+        eprint(
             format_string.format(
                 f"{problem.label} {problem.name}",
                 *[
@@ -222,15 +221,11 @@ def problem_stats(problems: list[Problem]) -> None:
                 ],
                 comment,
             ),
-            file=sys.stderr,
         )
 
     # print the cumulative count
-    print("-" * len(header), file=sys.stderr)
-    print(
-        format_string.format("TOTAL", *(_get_stat(x, False) for x in cumulative), ""),
-        file=sys.stderr,
-    )
+    eprint("-" * len(header))
+    eprint(format_string.format("TOTAL", *(_get_stat(x, False) for x in cumulative), ""))
 
 
 try:
@@ -300,7 +295,7 @@ def more_stats(problems: list[Problem]) -> None:
         return
 
     if not Path("submissions").is_dir():
-        print(file=sys.stderr)
+        eprint()
         log(
             "No team submissions found, try running 'bt download_submissions' to get stats for team submissions."
         )
@@ -322,10 +317,10 @@ def more_stats(problems: list[Problem]) -> None:
         + f" {{:>{stat_len + len(Fore.WHITE)}}}{Style.RESET_ALL}" * len(columns)
     )
 
-    print(file=sys.stderr)
+    eprint()
     header = header_string.format("", *columns)
-    print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
-    print("-" * len(header), file=sys.stderr)
+    eprint(Style.BRIGHT + header + Style.RESET_ALL)
+    eprint("-" * len(header))
 
     def format_value(
         value: Optional[str | float | int | timedelta], default_color: str = Fore.WHITE
@@ -398,19 +393,19 @@ def more_stats(problems: list[Problem]) -> None:
 
     # handle jury solutions
     best_jury = get_submissions_row("Jury", True, False)
-    print(format_row(*best_jury), file=sys.stderr)
+    eprint(format_row(*best_jury))
     for display_name, names in languages.items():
         values = get_submissions_row(display_name, names, False)
         for i in range(1, 1 + len(problems)):
             if values[i] == best_jury[i]:
                 values[i] = format_value(values[i], Fore.CYAN)
-        print(format_row(*values), file=sys.stderr)
+        eprint(format_row(*values))
 
     # handle team submissions
     if Path("submissions").is_dir():
-        print("-" * len(header), file=sys.stderr)
+        eprint("-" * len(header))
         best_team = get_submissions_row("Teams", True, True)
-        print(format_row(*best_team), file=sys.stderr)
+        eprint(format_row(*best_team))
         for display_name, names in languages.items():
             values = get_submissions_row(display_name, names, True)
             for i in range(1, 1 + len(problems)):
@@ -422,7 +417,7 @@ def more_stats(problems: list[Problem]) -> None:
                         leq_jury = True
                 if values[i] == best_team[i] and leq_jury:
                     values[i] = format_value(values[i], Fore.CYAN)
-            print(format_row(*values), file=sys.stderr)
+            eprint(format_row(*values))
 
     # git stats
     if shutil.which("git") is None:
@@ -445,10 +440,10 @@ def more_stats(problems: list[Problem]) -> None:
     def parse_time(date: str) -> Optional[datetime]:
         return parser.parse(date) if date else None
 
-    print("-" * len(header), file=sys.stderr)
+    eprint("-" * len(header))
     testcases = [len(generate.testcases(p)) for p in problems]
     testcase_stats = get_stats(testcases)
-    print(format_row("Testcases", *testcases, *testcase_stats), file=sys.stderr)
+    eprint(format_row("Testcases", *testcases, *testcase_stats))
     changed: list[Optional[float | int]] = []
     for p in problems:
         times = [
@@ -465,7 +460,7 @@ def more_stats(problems: list[Problem]) -> None:
     changed += get_stats([c for c in changed if c is not None])
     changed[-4] = None  # sum of last changed is meaningless...
     changed_times = [timedelta(seconds=s) if s is not None else None for s in changed]
-    print(format_row("└╴changed", *changed_times), file=sys.stderr)
+    eprint(format_row("└╴changed", *changed_times))
 
     # this is hacky and does not handle all renames properly...
     # for example: if A is renamed to C and B is renamed to A this will break
@@ -487,22 +482,19 @@ def more_stats(problems: list[Problem]) -> None:
     commits = [countCommits(p) for p in problems]
     commit_stats = get_stats(commits)
     commit_stats[-4] = None  # one commit can change multiple problems so the sum is meaningless...
-    print(format_row("Commits", *commits, *commit_stats), file=sys.stderr)
-    print(file=sys.stderr)
-    print(
+    eprint(format_row("Commits", *commits, *commit_stats))
+    eprint()
+    eprint(
         f"{Fore.CYAN}Total Commits{Style.RESET_ALL}:",
         int(git("rev-list", "--all", "--count")),
-        file=sys.stderr,
     )
-    print(
+    eprint(
         f"{Fore.CYAN}Total Authors{Style.RESET_ALL}:",
         git("shortlog", "--group=%ae", "-s").count("\n"),
-        file=sys.stderr,
     )
     duration = datetime.now(timezone.utc) - parser.parse(
         git("log", "--reverse", "--format=%cI").partition("\n")[0]
     )
-    print(
-        f"{Fore.CYAN}Preparation{Style.RESET_ALL}: {duration.days}d, {duration.seconds // 3600}h",
-        file=sys.stderr,
+    eprint(
+        f"{Fore.CYAN}Preparation{Style.RESET_ALL}: {duration.days}d, {duration.seconds // 3600}h"
     )
