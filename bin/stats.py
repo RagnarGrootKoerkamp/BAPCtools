@@ -209,16 +209,22 @@ def problem_stats(problems: list[Problem]) -> None:
         else:
             comment = Fore.YELLOW + comment + Style.RESET_ALL
 
+        # mypy does not support variable-length tuples very well:
+        # https://github.com/python/mypy/pull/16237#:~:text=indirect%20comparisons
+        def getThird(a: Any, b: Any, c: int | bool, *other: Any) -> int | bool:
+            return c
+
+        def getFourth(a: Any, b: Any, c: Any, d: Optional[int], *other: Any) -> Optional[int]:
+            return d
+
         print(
             format_string.format(
                 f"{problem.label} {problem.name}",
                 *[
                     _get_stat(
                         counts[i],
-                        # mypy does not support variable-length tuples very well:
-                        # https://github.com/python/mypy/pull/16237#:~:text=indirect%20comparisons
-                        True if len(stats[i]) <= 2 else stats[i][2],  # type: ignore[misc]
-                        None if len(stats[i]) <= 3 else stats[i][3],  # type: ignore[misc]
+                        getThird(*stats[i], True),
+                        getFourth(*stats[i], None),
                     )
                     for i in range(len(stats))
                 ],
