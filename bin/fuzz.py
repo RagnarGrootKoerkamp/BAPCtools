@@ -4,12 +4,11 @@ import random
 import generate
 import shutil
 import signal
-import sys
 import time
 import threading
 from colorama import Style
 from pathlib import Path
-from typing import Any, Optional, TextIO
+from typing import Any, Optional
 
 import parallel
 from util import (
@@ -203,11 +202,10 @@ class FuzzProgressBar(ProgressBar):
         *objects: Any,
         sep: str = "",
         end: str = "\n",
-        file: TextIO = sys.stderr,
         flush: bool = True,
     ) -> None:
         self.queue.ensure_alive()
-        super()._print(*objects, sep=sep, end=end, file=file, flush=flush)
+        super()._print(*objects, sep=sep, end=end, flush=flush)
 
 
 class Fuzz:

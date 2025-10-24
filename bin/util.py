@@ -26,7 +26,6 @@ from typing import (
     Optional,
     overload,
     Protocol,
-    TextIO,
     TypeAlias,
     TypeVar,
     TYPE_CHECKING,
@@ -294,10 +293,9 @@ class ProgressBar:
         *objects: Any,
         sep: str = "",
         end: str = "\n",
-        file: TextIO = sys.stderr,
         flush: bool = True,
     ) -> None:
-        print(*objects, sep=sep, end=end, file=file, flush=flush)
+        eprint(*objects, sep=sep, end=end, flush=flush)
 
     def total_width(self) -> int:
         cols = ProgressBar.columns
