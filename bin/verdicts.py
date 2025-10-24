@@ -464,7 +464,7 @@ class VerdictTable:
                 )
 
                 eprint(
-                    f"\033[{lines - 1}A\r\033[0J",
+                    f"\033[{lines - 1}A\r",
                     end="",
                     flush=True,
                 )
@@ -495,7 +495,7 @@ class VerdictTable:
         if printed_lengths is None:
             printed_lengths = []
         if force or self.print_without_force:
-            printed_text = ["\n" * new_lines]
+            printed_text = ["\n\033[2K" * new_lines]
             printed_lengths += [0] * new_lines
 
             max_depth = None
@@ -514,7 +514,7 @@ class VerdictTable:
                     )
                     verdict_len = 1 if verdict in [None, False] else len(str(verdict))
                     printed_text.append(
-                        f"{Style.DIM}{indent}{prefix}{Style.RESET_ALL}{name}: {verdict_str}\n"
+                        f"{Style.DIM}{indent}{prefix}{Style.RESET_ALL}{name}: {verdict_str}\n\033[K"
                     )
                     printed_lengths.append(len(indent) + len(prefix) + len(name) + 2 + verdict_len)
                 if max_depth is not None and len(indent) >= 2 * max_depth:
@@ -554,7 +554,7 @@ class VerdictTable:
                         length, group = grouped_value.tuple()
                         if width >= 0 and printed + 1 + length > width:
                             printed_text.append(
-                                f"\n{Style.DIM}{indent}{pipe} {pipe2} {Style.RESET_ALL}"
+                                f"\n\033[K{Style.DIM}{indent}{pipe} {pipe2} {Style.RESET_ALL}"
                             )
                             printed_lengths.append(printed)
                             printed = pref_len
@@ -565,7 +565,7 @@ class VerdictTable:
                         space = " "
 
                     printed_lengths.append(printed)
-                    printed_text.append("\n")
+                    printed_text.append("\n\033[K")
 
             self._clear(force=True)
 
@@ -582,7 +582,7 @@ class VerdictTable:
                 if not force and not self.print_without_force:
                     return
 
-            eprint("".join(printed_text), end="", flush=True)
+            eprint(*printed_text, "\033[0J", sep="", end="", flush=True)
             self.last_printed = printed_lengths
 
     def _print_table(
@@ -595,7 +595,7 @@ class VerdictTable:
         if printed_lengths is None:
             printed_lengths = []
         if force or self.print_without_force:
-            printed_text = ["\n" * new_lines]
+            printed_text = ["\n\033[2K" * new_lines]
             printed_lengths += [0] * new_lines
             for s, submission in enumerate(self.submissions):
                 # pad/truncate submission names to not break table layout
@@ -617,7 +617,7 @@ class VerdictTable:
                 for verdict_value in verdicts:
                     length, tmp = verdict_value.tuple()
                     if self.width >= 0 and printed + 1 + length > self.width:
-                        printed_text.append(f"\n{str():{self.name_width + 1}}")
+                        printed_text.append(f"\n\033[K{str():{self.name_width + 1}}")
                         printed_lengths.append(printed)
                         printed = self.name_width + 1
 
@@ -625,9 +625,9 @@ class VerdictTable:
                     printed += length + 1
 
                 printed_lengths.append(printed)
-                printed_text.append("\n")
+                printed_text.append("\n\033[K")
             self._clear(force=True)
-            eprint("".join(printed_text), end="", flush=True)
+            eprint(*printed_text, "\033[0J", sep="", end="", flush=True)
             self.last_printed = printed_lengths
 
     def ProgressBar(
