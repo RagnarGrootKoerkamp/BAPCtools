@@ -8,11 +8,33 @@ from pathlib import Path
 from typing import Any, Optional
 
 import config
-import util
 
-from contest import *
+from contest import call_api, call_api_get_json, contest_yaml, get_contests
 from latex import PdfType
 from problem import Problem
+from util import (
+    ask_variable_bool,
+    drop_suffix,
+    ensure_symlink,
+    error,
+    fatal,
+    glob,
+    has_ryaml,
+    has_substitute,
+    inc_label,
+    log,
+    message,
+    MessageType,
+    normalize_yaml_value,
+    parse_yaml,
+    PrintBar,
+    read_yaml,
+    ryaml_filter,
+    substitute,
+    verbose,
+    warn,
+    write_yaml,
+)
 from validate import InputValidator, AnswerValidator, OutputValidator
 from visualize import InputVisualizer, OutputVisualizer
 
@@ -63,7 +85,7 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
 
         attachments_dir = problem.path / "attachments"
         if (problem.interactive or problem.multi_pass) and not attachments_dir.is_dir():
-            util.error(
+            error(
                 f"{problem.settings.type_name()} problem {problem.name} does not have an attachments/ directory."
             )
             continue
@@ -82,13 +104,13 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
         if attachments_dir.is_dir():
             for f in attachments_dir.iterdir():
                 if f.is_dir():
-                    util.error(f"{f} directory attachments are not yet supported.")
+                    error(f"{f} directory attachments are not yet supported.")
                 elif f.is_file() and f.exists():
                     if f.name.startswith("."):
                         continue  # Skip dotfiles
                     destination = outputdir / f.name
                     if destination in contents:
-                        util.error(
+                        error(
                             f"Cannot overwrite {destination} from attachments/"
                             + f" (sourced from {contents[destination]})."
                             + "\n\tDo not include samples in attachments/,"
@@ -97,13 +119,13 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
                     else:
                         contents[destination] = f
                 else:
-                    util.error(f"Cannot include broken file {f}.")
+                    error(f"Cannot include broken file {f}.")
 
         if contents:
             for destination, source in contents.items():
                 zf.write(source, destination)
         else:
-            util.error(f"No attachments or samples found for problem {problem.name}.")
+            error(f"No attachments or samples found for problem {problem.name}.")
 
     zf.close()
     print("Wrote zip to samples.zip", file=sys.stderr)
@@ -158,9 +180,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 
     def add_file(path: Path, source: Path) -> None:
         if source.stat().st_size >= config.ICPC_FILE_LIMIT * 1024**2:
-            util.warn(
-                f"{path} is too large for the ICPC Archive (limit {config.ICPC_FILE_LIMIT}MiB)!"
-            )
+            warn(f"{path} is too large for the ICPC Archive (limit {config.ICPC_FILE_LIMIT}MiB)!")
         path = export_dir / path
         path.parent.mkdir(parents=True, exist_ok=True)
         ensure_symlink(path, source)
@@ -168,15 +188,15 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     # Include all files beside testcases
     for pattern, required in files:
         # Only include hidden files if the pattern starts with a '.'.
-        paths = list(util.glob(problem.path, pattern, include_hidden=True))
+        paths = list(glob(problem.path, pattern, include_hidden=True))
         if required and len(paths) == 0:
-            util.error(f"No matches for required path {pattern}.")
+            error(f"No matches for required path {pattern}.")
         for f in paths:
             if f.is_file() and not f.name.startswith("."):
                 add_file(f.relative_to(problem.path), f)
 
     def add_testcase(in_file: Path) -> None:
-        base_name = util.drop_suffix(in_file, [".in", ".in.statement", ".in.download"])
+        base_name = drop_suffix(in_file, [".in", ".in.statement", ".in.download"])
         for ext in config.KNOWN_DATA_EXTENSIONS:
             f = base_name.with_suffix(ext)
             if f.is_file():
@@ -185,21 +205,21 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     # Include all sample test cases and copy all related files.
     samples = problem.download_samples()
     if len(samples) == 0:
-        util.error("No samples found.")
+        error("No samples found.")
     for in_file, _ in samples:
         add_testcase(in_file)
 
     # Include all secret test cases and copy all related files.
     pattern = "data/secret/**/*.in"
-    paths = util.glob(problem.path, pattern)
+    paths = glob(problem.path, pattern)
     if len(paths) == 0:
-        util.error(f"No secret test cases found in {pattern}.")
+        error(f"No secret test cases found in {pattern}.")
     for f in paths:
         if f.is_file():
             if f.with_suffix(".ans").is_file():
                 add_testcase(f)
             else:
-                util.warn(f"No answer file found for {f}, skipping.")
+                warn(f"No answer file found for {f}, skipping.")
 
     # handle languages (files and yaml have to be in sync)
     yaml_path = export_dir / "problem.yaml"
@@ -231,13 +251,13 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         ]
         for pattern in constants_supported:
             for f in export_dir.glob(pattern):
-                if f.is_file() and util.has_substitute(f, config.CONSTANT_SUBSTITUTE_REGEX):
+                if f.is_file() and has_substitute(f, config.CONSTANT_SUBSTITUTE_REGEX):
                     text = f.read_text()
-                    text = util.substitute(
+                    text = substitute(
                         text,
                         problem.settings.constants,
                         pattern=config.CONSTANT_SUBSTITUTE_REGEX,
-                        bar=util.PrintBar("Zip"),
+                        bar=PrintBar("Zip"),
                     )
                     f.unlink()
                     f.write_text(text)
@@ -257,7 +277,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                 if not file.exists():
                     continue
                 if out.exists():
-                    util.warn(f"can't add {path} (already exists).")
+                    warn(f"can't add {path} (already exists).")
                     file.unlink()
                     continue
                 out.parent.mkdir(parents=True, exist_ok=True)
@@ -289,7 +309,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         # change source:
         if problem.settings.source:
             if len(problem.settings.source) > 1:
-                util.warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
+                warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
             yaml_data["source"] = problem.settings.source[0].name
             yaml_data["source_url"] = problem.settings.source[0].url
         # limits.time_multipliers -> time_multiplier / time_safety_margin
@@ -338,7 +358,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                         f.unlink()
                         f.write_text(t)
                     else:
-                        util.error(f"{f}: no name set for language {lang}.")
+                        error(f"{f}: no name set for language {lang}.")
 
         # rename statement dirs
         if (export_dir / "statement").exists():
@@ -346,7 +366,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         for d in ["solution", "problem_slide"]:
             if not (export_dir / d).is_dir():
                 continue
-            for f in list(util.glob(problem.path, f"{d}/*")):
+            for f in list(glob(problem.path, f"{d}/*")):
                 if f.is_file():
                     out = Path("problem_statement") / f.relative_to(problem.path / d)
                     if out.exists():
@@ -503,7 +523,7 @@ def export_contest(cid: Optional[str]) -> str:
         fatal(parse_yaml(r.text)["message"])
     r.raise_for_status()
 
-    new_cid = util.normalize_yaml_value(yaml.load(r.text, Loader=yaml.SafeLoader), str)
+    new_cid = normalize_yaml_value(yaml.load(r.text, Loader=yaml.SafeLoader), str)
     assert isinstance(new_cid, str)
 
     log(f"Uploaded the contest to contest_id {new_cid}.")
@@ -672,7 +692,7 @@ def export_contest_and_problems(problems: list[Problem], languages: list[str]) -
     if config.args.contest_id:
         cid = config.args.contest_id
     else:
-        cid = util.normalize_yaml_value(contest_yaml().get("contest_id"), str)
+        cid = normalize_yaml_value(contest_yaml().get("contest_id"), str)
         assert isinstance(cid, str)
         if cid is not None and cid != "":
             log(f"Reusing contest id {cid} from contest.yaml")
@@ -708,7 +728,7 @@ def export_contest_and_problems(problems: list[Problem], languages: list[str]) -
         nonlocal ccs_problems
         for p in ccs_problems:
             if problem.name in [p.get("short_name"), p.get("id"), p.get("externalid")]:
-                pid = util.normalize_yaml_value(p.get("id"), str)
+                pid = normalize_yaml_value(p.get("id"), str)
                 assert isinstance(pid, str)
                 return pid
         return None
