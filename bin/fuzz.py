@@ -12,7 +12,17 @@ from pathlib import Path
 from typing import Any, Optional, TextIO
 
 import parallel
-from util import *
+from util import (
+    error,
+    fatal,
+    has_ryaml,
+    message,
+    MessageType,
+    ProgressBar,
+    read_yaml,
+    ryaml_get_or_add,
+    write_yaml,
+)
 from run import Run, Submission
 from testcase import Testcase
 from validate import OutputValidator, Mode

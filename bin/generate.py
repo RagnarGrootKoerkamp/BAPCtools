@@ -23,7 +23,32 @@ from testcase import Testcase
 from verdicts import Verdict
 from problem import Problem
 
-from util import *
+from util import (
+    combine_hashes,
+    combine_hashes_dict,
+    ensure_symlink,
+    error,
+    ExecResult,
+    ExecStatus,
+    fatal,
+    get_basedirs,
+    glob,
+    hash_file_content,
+    hash_string,
+    has_ryaml,
+    is_relative_to,
+    log,
+    message,
+    MessageType,
+    path_size,
+    ProgressBar,
+    read_yaml,
+    ryaml_get_or_add,
+    shorten_path,
+    substitute,
+    warn,
+    write_yaml,
+)
 
 
 if has_ryaml:

@@ -5,6 +5,7 @@ import sys
 import threading
 
 from collections.abc import Callable, Sequence
+from colorama import Fore, Style
 from pathlib import Path
 from typing import Any, Final, Literal, Optional, overload, TypeVar, TYPE_CHECKING
 
@@ -22,8 +23,32 @@ import validate
 import validator_tests
 import verdicts
 import visualize
-from util import *
-from colorama import Fore, Style
+from util import (
+    BAR_TYPE,
+    combine_hashes_dict,
+    drop_suffix,
+    error,
+    fatal,
+    generate_problem_uuid,
+    glob,
+    hash_file_content,
+    has_ryaml,
+    is_relative_to,
+    is_uuid,
+    log,
+    message,
+    parse_yaml,
+    PrintBar,
+    ProgressBar,
+    read_yaml,
+    read_yaml_settings,
+    resolve_path_argument,
+    ryaml_get_or_add,
+    substitute,
+    verbose,
+    warn,
+    write_yaml,
+)
 
 
 if has_ryaml:

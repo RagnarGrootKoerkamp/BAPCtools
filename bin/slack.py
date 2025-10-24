@@ -1,7 +1,8 @@
 import config
 from problem import Problem
 from typing import Any, TYPE_CHECKING
-from util import *
+
+from util import error, fatal, log, verbose
 
 if TYPE_CHECKING:
     import requests

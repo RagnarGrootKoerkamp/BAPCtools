@@ -46,9 +46,27 @@ import upgrade
 import validate
 import signal
 
+from contest import call_api_get_json, contest_yaml, get_contest_id, problems_yaml
 from problem import Problem
-from contest import *
-from util import *
+from util import (
+    AbortException,
+    ask_variable_bool,
+    error,
+    fatal,
+    glob,
+    has_ryaml,
+    inc_label,
+    is_problem_directory,
+    is_relative_to,
+    is_windows,
+    log,
+    ProgressBar,
+    read_yaml,
+    resolve_path_argument,
+    verbose,
+    warn,
+    write_yaml,
+)
 
 if not is_windows():
     import argcomplete  # For automatic shell completions

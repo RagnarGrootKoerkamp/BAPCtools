@@ -7,9 +7,7 @@ import latex
 import validate
 from colorama import Fore, Style
 from problem import Problem
-
-# Local imports
-from util import *
+from util import error, log, warn
 
 """DISCLAIMER:
 

@@ -4,7 +4,7 @@ import sys
 from pathlib import Path
 from typing import cast, Any, Optional, TYPE_CHECKING
 
-from util import *
+from util import error, fatal, log, read_yaml, read_yaml_settings, verbose
 
 if TYPE_CHECKING:
     import requests
