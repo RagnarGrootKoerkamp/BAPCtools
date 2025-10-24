@@ -3,7 +3,6 @@
 import os
 import re
 import shutil
-import sys
 from collections.abc import Collection
 from enum import Enum
 from pathlib import Path
@@ -16,6 +15,7 @@ from contest import contest_yaml, problems_yaml
 from util import (
     copy_and_substitute,
     ensure_symlink,
+    eprint,
     ExecResult,
     exec_command,
     fatal,
@@ -246,7 +246,7 @@ def make_environment() -> dict[str, str]:
     ]
     texinputs = os.pathsep.join(map(str, latex_paths))
     if config.args.verbose >= 2:
-        print(f"export TEXINPUTS='{texinputs}'", file=sys.stderr)
+        eprint(f"export TEXINPUTS='{texinputs}'")
     env["TEXINPUTS"] = texinputs
     return env
 
@@ -348,9 +348,9 @@ def build_latex_pdf(
     if not ret.status:
         bar.error("Failure compiling PDF:")
         if ret.out is not None:
-            print(ret.out, file=sys.stderr)
+            eprint(ret.out)
             if logfile.exists():
-                print(logfile, file=sys.stderr)
+                eprint(logfile)
         bar.error(f"return code {ret.returncode}")
         bar.error(f"duration {ret.duration}\n")
         return False

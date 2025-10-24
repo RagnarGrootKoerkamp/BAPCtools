@@ -13,6 +13,7 @@ from typing import Any, Optional, TextIO
 
 import parallel
 from util import (
+    eprint,
     error,
     fatal,
     has_ryaml,
@@ -301,7 +302,7 @@ class Fuzz:
             else:
                 self.queue.abort()
                 with bar:
-                    print(bar.carriage_return, file=sys.stderr)
+                    eprint(bar.carriage_return)
                     message(
                         "Running interrupted (waiting on remaining tasks)\n",
                         "\nFuzz",

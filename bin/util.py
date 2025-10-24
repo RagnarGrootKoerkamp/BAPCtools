@@ -107,37 +107,43 @@ def exit1(force: bool = False) -> NoReturn:
         sys.exit(1)
 
 
+# we almost always want to print to stderr
+def eprint(*args: Any, **kwargs: Any) -> None:
+    kwargs.setdefault("file", sys.stderr)
+    print(*args, **kwargs)
+
+
 def debug(*msg: Any) -> None:
-    print(Fore.CYAN, end="", file=sys.stderr)
-    print("DEBUG:", *msg, end="", file=sys.stderr)
-    print(Style.RESET_ALL, file=sys.stderr)
+    eprint(Fore.CYAN, end="")
+    eprint("DEBUG:", *msg, end="")
+    eprint(Style.RESET_ALL)
 
 
 def log(msg: Any) -> None:
-    print(f"{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}")
 
 
 def verbose(msg: Any) -> None:
     if config.args.verbose >= 1:
-        print(f"{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}", file=sys.stderr)
+        eprint(f"{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}")
 
 
 def warn(msg: Any) -> None:
-    print(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
     config.n_warn += 1
 
 
 def error(msg: Any) -> None:
     if config.RUNNING_TEST:
         fatal(msg)
-    print(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
     config.n_error += 1
 
 
 def fatal(msg: Any, *, force: Optional[bool] = None) -> NoReturn:
     if force is None:
         force = threading.active_count() > 1
-    print(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}")
     exit1(force)
 
 
@@ -171,10 +177,10 @@ def message(
     color_type: Any = "",
 ) -> None:
     if task is not None:
-        print(f"{Fore.CYAN}{task}{Style.RESET_ALL}: ", end="", file=sys.stderr)
+        eprint(f"{Fore.CYAN}{task}{Style.RESET_ALL}: ", end="")
     if item is not None:
-        print(item, end="   ", file=sys.stderr)
-    print(f"{color_type}{msg}{Style.RESET_ALL}", file=sys.stderr)
+        eprint(item, end="   ")
+    eprint(f"{color_type}{msg}{Style.RESET_ALL}")
     if color_type == MessageType.WARN:
         config.n_warn += 1
     if color_type == MessageType.ERROR:
@@ -688,7 +694,7 @@ def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> A
 
             return yaml.safe_load(data)
         except Exception as e:
-            print(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="", file=sys.stderr)
+            eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
             fatal(f"Failed to parse {path}.")
 
 
@@ -1332,13 +1338,13 @@ def exec_command(
 
     if config.args.verbose >= 2:
         if "cwd" in kwargs:
-            print("cd", kwargs["cwd"], "; ", end="", file=sys.stderr)
+            eprint("cd", kwargs["cwd"], "; ", end="")
         else:
-            print("cd", Path.cwd(), "; ", end="", file=sys.stderr)
-        print(*command, end="", file=sys.stderr)
+            eprint("cd", Path.cwd(), "; ", end="")
+        eprint(*command, end="")
         if "stdin" in kwargs:
-            print(" < ", kwargs["stdin"].name, end="", file=sys.stderr)
-        print(file=sys.stderr)
+            eprint(" < ", kwargs["stdin"].name, end="")
+        eprint()
 
     timeout: Optional[int] = None
     if "timeout" in kwargs:
