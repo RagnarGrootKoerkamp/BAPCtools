@@ -211,10 +211,10 @@ def problem_stats(problems: list[Problem]) -> None:
 
         # mypy does not support variable-length tuples very well:
         # https://github.com/python/mypy/pull/16237#:~:text=indirect%20comparisons
-        def getThird(a: Any, b: Any, c: int | bool, *other: Any) -> int | bool:
+        def getThirdStat(a: Any, b: Any, c: int | bool, *other: Any) -> int | bool:
             return c
 
-        def getFourth(a: Any, b: Any, c: Any, d: Optional[int], *other: Any) -> Optional[int]:
+        def getFourthStat(a: Any, b: Any, c: Any, d: Optional[int], *other: Any) -> Optional[int]:
             return d
 
         print(
@@ -223,8 +223,8 @@ def problem_stats(problems: list[Problem]) -> None:
                 *[
                     _get_stat(
                         counts[i],
-                        getThird(*stats[i], True),
-                        getFourth(*stats[i], None),
+                        getThirdStat(*stats[i], True),
+                        getFourthStat(*stats[i], None),
                     )
                     for i in range(len(stats))
                 ],
