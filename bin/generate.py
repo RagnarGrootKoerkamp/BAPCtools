@@ -1920,7 +1920,7 @@ class GeneratorConfig:
                         else:
                             obj.walk(
                                 add_included_case,
-                                lambda d: [add_included_case(t) for t in d.includes.values()],  # type: ignore[func-returns-value]
+                                lambda d: list(map(add_included_case, d.includes.values())),
                             )
                             pass
                     else:
