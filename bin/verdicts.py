@@ -5,7 +5,7 @@ import threading
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, Optional, TextIO, TYPE_CHECKING
+from typing import Any, Literal, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
@@ -694,12 +694,11 @@ class TableProgressBar(ProgressBar):
         *objects: Any,
         sep: str = "",
         end: str = "\n",
-        file: TextIO = sys.stderr,
         flush: bool = True,
     ) -> None:
         assert self._is_locked()
         # drop all flushes...
-        print(*objects, sep=sep, end=end, file=file, flush=False)
+        print(*objects, sep=sep, end=end, flush=False)
 
     def start(self, item: ITEM_TYPE = "") -> "TableProgressBar":
         from run import Run
