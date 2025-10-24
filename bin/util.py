@@ -738,7 +738,7 @@ if has_ryaml:
             yaml[key] = t()
         value = yaml[key]
         assert isinstance(value, t)
-        return value  # type: ignore
+        return cast(ruamel.yaml.comments.CommentedMap | U, value)
 
     # This tries to preserve the correct comments.
     def ryaml_filter(data: Any, remove: str) -> Any:
