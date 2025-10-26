@@ -168,44 +168,6 @@ class Named(Protocol):
 ITEM_TYPE: TypeAlias = str | Path | Named
 
 
-def message(
-    msg: Any,
-    task: Optional[str | Path] = None,
-    item: Optional[ITEM_TYPE] = None,
-    *,
-    color_type: Any = "",
-) -> None:
-    if task is not None:
-        eprint(f"{Fore.CYAN}{task}{Style.RESET_ALL}: ", end="")
-    if item is not None:
-        eprint(item, end="   ")
-    eprint(f"{color_type}{msg}{Style.RESET_ALL}")
-    if color_type == MessageType.WARN:
-        config.n_warn += 1
-    if color_type == MessageType.ERROR:
-        config.n_error += 1
-    if color_type == MessageType.FATAL:
-        exit1()
-
-
-# A simple bar that only holds a task prefix
-class PrintBar:
-    def __init__(self, task: Optional[str | Path] = None) -> None:
-        self.task = task
-
-    def log(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
-        message(msg, self.task, item, color_type=MessageType.LOG)
-
-    def warn(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
-        message(msg, self.task, item, color_type=MessageType.WARN)
-
-    def error(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
-        message(msg, self.task, item, color_type=MessageType.ERROR)
-
-    def fatal(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
-        message(msg, self.task, item, color_type=MessageType.FATAL)
-
-
 # A class that draws a progressbar.
 # Construct with a constant prefix, the max length of the items to process, and
 # the number of items to process.
@@ -231,12 +193,18 @@ class ProgressBar:
         signal.signal(signal.SIGWINCH, update_columns)
 
     @staticmethod
-    def item_len(item: ITEM_TYPE) -> int:
+    def item_text(item: Optional[ITEM_TYPE]) -> str:
+        if item is None:
+            return ""
         if isinstance(item, str):
-            return len(item)
+            return item
         if isinstance(item, Path):
-            return len(str(item))
-        return len(item.name)
+            return str(item)
+        return item.name
+
+    @staticmethod
+    def item_len(item: ITEM_TYPE) -> int:
+        return len(ProgressBar.item_text(item))
 
     def _is_locked(self) -> bool:
         return ProgressBar.lock_depth > 0
@@ -322,23 +290,25 @@ class ProgressBar:
 
     @staticmethod
     def action(
-        prefix: str,
+        prefix: Optional[str],
         item: Optional[ITEM_TYPE],
         width: Optional[int] = None,
         total_width: Optional[int] = None,
         print_item: bool = True,
     ) -> str:
-        if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
-            width = total_width - len(prefix) - 2
-        item = "" if item is None else (item if isinstance(item, str) else item.name)
-        if width is not None and len(item) > width:
-            item = item[:width]
+        if width is not None and total_width is not None:
+            if prefix is None and width > total_width:
+                width = total_width
+            if prefix is not None and len(prefix) + 2 + width > total_width:
+                width = total_width - len(prefix) - 2
+        text = ProgressBar.item_text(item)
+        if width is not None and len(text) > width:
+            text = text[:width]
         if width is None or width <= 0:
             width = 0
-        if print_item:
-            return f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}"
-        else:
-            return f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: {' ' * width}"
+        prefix = "" if prefix is None else f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: "
+        suffix = f"{text:<{width}}" if print_item else " " * width
+        return prefix + suffix
 
     def get_prefix(self, print_item: bool = True) -> str:
         return ProgressBar.action(
@@ -430,8 +400,6 @@ class ProgressBar:
         print_item: bool = True,
     ) -> None:
         with self:
-            if message is None:
-                message = ""
             self.clearline()
             self.logged = True
 
@@ -471,7 +439,7 @@ class ProgressBar:
         print_item: bool = True,
     ) -> None:
         if config.args.verbose:
-            self.log(message, data, color=color, resume=resume, print_item=print_item)
+            self.log(message, data, color, resume=resume, print_item=print_item)
 
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         with self.lock:
@@ -595,6 +563,76 @@ class ProgressBar:
         ProgressBar.current_bar = None
 
         return self.global_logged and not suppress_newline
+
+
+# A simple bar that only holds a task prefix
+class PrintBar:
+    def __init__(
+        self,
+        prefix: Optional[str | Path] = None,
+        max_len: Optional[int] = None,
+        *,
+        item: Optional[ITEM_TYPE] = None,
+    ) -> None:
+        self.prefix = str(prefix) if prefix else None
+        self.item_width = max_len + 1 if max_len is not None else None
+        self.item = item
+
+    def start(self, item: Optional[ITEM_TYPE] = None) -> "PrintBar":
+        bar_copy = copy.copy(self)
+        bar_copy.item = item
+        return bar_copy
+
+    def log(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        color: str = Fore.GREEN,
+        *,
+        resume: bool = True,
+        print_item: bool = True,
+    ) -> None:
+        prefix = ProgressBar.action(self.prefix, self.item, self.item_width, None, print_item)
+        eprint(prefix, color, message, ProgressBar._format_data(data), Style.RESET_ALL, sep="")
+
+    def debug(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        color: str = Fore.GREEN,
+        *,
+        resume: bool = True,
+        print_item: bool = True,
+    ) -> None:
+        if config.args.verbose:
+            self.log(message, data, color, resume=resume, print_item=print_item)
+
+    def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
+        config.n_warn += 1
+        self.log(message, data, Fore.YELLOW, print_item=print_item)
+
+    def error(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        *,
+        resume: bool = False,
+        print_item: bool = True,
+    ) -> None:
+        config.n_error += 1
+        self.log(message, data, Fore.RED, print_item=print_item)
+
+    def fatal(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        *,
+        resume: bool = False,
+        print_item: bool = True,
+    ) -> None:
+        config.n_error += 1
+        self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
+        exit1()
 
 
 BAR_TYPE = PrintBar | ProgressBar

@@ -16,8 +16,7 @@ from util import (
     error,
     fatal,
     has_ryaml,
-    message,
-    MessageType,
+    PrintBar,
     ProgressBar,
     read_yaml,
     ryaml_get_or_add,
@@ -261,8 +260,6 @@ class Fuzz:
             error("No submissions found.")
             return False
 
-        message("Press CTRL+C to stop\n", "Fuzz", color_type=MessageType.LOG)
-
         def runner(task: GeneratorTask | SubmissionTask) -> None:
             task.run(bar)
 
@@ -286,6 +283,9 @@ class Fuzz:
             ],
         )
         max_len += len(f"{self.tmp_ids}: ")
+        # we use a PrintBar after an aboard
+        printbar = PrintBar("Fuzz", max_len=max_len)
+        printbar.log("Press CTRL+C to stop\n")
         bar = FuzzProgressBar(self.queue, "Fuzz", max_len=max_len)
 
         def soft_exit(sig: Any, frame: Any) -> None:
@@ -295,11 +295,7 @@ class Fuzz:
                 self.queue.abort()
                 with bar:
                     eprint(bar.carriage_return)
-                    message(
-                        "Running interrupted (waiting on remaining tasks)\n",
-                        "\nFuzz",
-                        color_type=MessageType.ERROR,
-                    )
+                    printbar.error("Running interrupted (waiting on remaining tasks)\n")
 
         old_handler = signal.signal(signal.SIGINT, soft_exit)
 
@@ -315,8 +311,8 @@ class Fuzz:
 
         for submission, verdicts in self.summary.items():
             msg = ", ".join(f"{v.color()}{v.short()}{Style.RESET_ALL}" for v in sorted(verdicts))
-            message(msg, "Fuzz", submission.name)
-        message(f"Found {self.added} testcases in total.", "Fuzz")
+            printbar.start(submission).log(msg, color="")
+        printbar.log(f"Found {self.added} testcases in total.", color="")
 
         if self.queue.aborted:
             fatal("Running interrupted")

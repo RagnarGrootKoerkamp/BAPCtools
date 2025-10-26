@@ -38,9 +38,8 @@ from util import (
     has_ryaml,
     is_relative_to,
     log,
-    message,
-    MessageType,
     path_size,
+    PrintBar,
     ProgressBar,
     read_yaml,
     ryaml_get_or_add,
@@ -282,14 +281,11 @@ def default_solution_path(generator_config: "GeneratorConfig") -> Path:
     problem = generator_config.problem
     solution = None
     stored_solution = problem.tmpdir / ".default_solution"
+    bar = PrintBar("generators.yaml")
     if config.args.default_solution:
         if generator_config.has_yaml:
-            message(
-                f"""--default-solution Ignored. Set the default solution in the generators.yaml!
-solution: /{config.args.default_solution}""",
-                "generators.yaml",
-                color_type=MessageType.WARN,
-            )
+            bar.warn(f"""--default-solution Ignored. Set the default solution in the generators.yaml!
+solution: /{config.args.default_solution}""")
         else:
             solution = problem.path / config.args.default_solution
     else:
@@ -313,10 +309,8 @@ solution: /{config.args.default_solution}""",
             raw = yaml_path.read_text()
             raw = f"solution: /{solution.relative_to(problem.path)}\n" + raw
             yaml_path.write_text(raw)
-            message(
-                f"No solution specified. {solution_short_path} added as default solution in the generators.yaml",
-                "generators.yaml",
-                color_type=MessageType.LOG,
+            bar.log(
+                f"No solution specified. {solution_short_path} added as default solution in the generators.yaml"
             )
         else:
             log(
@@ -492,17 +486,15 @@ class TestcaseRule(Rule):
         # used to handle duplicated testcase rules
         self.copy_of = None
 
+        bar = PrintBar("generators.yaml", item=parent.path / name)
+
         if name.endswith(".in"):
-            message(
-                "Testcase names should not end with '.in'",
-                "generators.yaml",
-                parent.path / name,
-                color_type=MessageType.ERROR,
-            )
+            bar.error("Testcase names should not end with '.in'")
             name = name[:-3]
 
         try:
             super().__init__(problem, key, name, yaml, parent)
+            bar = bar.start(self.path)
 
             # files to consider for hashing
             hashes = {}
@@ -523,11 +515,8 @@ class TestcaseRule(Rule):
                 if isinstance(yaml, str):
                     yaml = {"generate": yaml}
                     if yaml["generate"].endswith(".in"):
-                        message(
-                            f"Use the new `copy: path/to/case` key instead of {yaml['generate']}.",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.WARN,
+                        bar.warn(
+                            f"Use the new `copy: path/to/case` key instead of {yaml['generate']}."
                         )
                         yaml = {"copy": yaml["generate"][:-3]}
 
@@ -574,10 +563,8 @@ class TestcaseRule(Rule):
                                 "{count}", f"{self.count_index + 1}"
                             )
                         else:
-                            message(
-                                "Found {count} in generator command but no count in yaml. Ignored.",
-                                self.path,
-                                color_type=MessageType.WARN,
+                            bar.warn(
+                                "Found {count} in generator command but no count in yaml. Ignored."
                             )
                     self.generator = GeneratorInvocation(problem, command_string)
 
@@ -599,12 +586,7 @@ class TestcaseRule(Rule):
                 if "copy" in yaml:
                     assert_type("`copy`", yaml["copy"], str)
                     if Path(yaml["copy"]).suffix in config.KNOWN_TEXT_DATA_EXTENSIONS:
-                        message(
-                            f"`copy: {yaml['copy']}` should not include the extension.",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.WARN,
-                        )
+                        bar.warn(f"`copy: {yaml['copy']}` should not include the extension.")
                     self.copy = resolve_path(
                         yaml["copy"], allow_absolute=False, allow_relative=True
                     )
@@ -642,12 +624,7 @@ class TestcaseRule(Rule):
                     raise ParseException(f"Testcase must not contain reserved key {key}.")
                 if key not in KNOWN_TESTCASE_KEYS:
                     if config.args.action == "generate":
-                        message(
-                            f"Unknown testcase level key: {key}",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.LOG,
-                        )
+                        bar.log(f"Unknown testcase level key: {key}")
 
             # combine hashes
             self.hash = combine_hashes_dict(hashes)
@@ -1344,6 +1321,7 @@ class Directory(Rule):
                 raise ParseException("Directory does not have a valid name.", parent.path / name)
 
         super().__init__(problem, key, name, yaml, parent)
+        bar = PrintBar("generators.yaml", item=self.path)
 
         if isinstance(parent, RootDirectory):
             for key in yaml:
@@ -1352,20 +1330,10 @@ class Directory(Rule):
                         f"Directory must not contain reserved key {key}.", self.path
                     )
                 if key in DEPRECATED_ROOT_KEYS:
-                    message(
-                        f"Deprecated root level key: {key}, ignored",
-                        "generators.yaml",
-                        self.path,
-                        color_type=MessageType.WARN,
-                    )
+                    bar.warn(f"Deprecated root level key: {key}, ignored")
                 elif key not in [*KNOWN_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
                     if config.args.action == "generate":
-                        message(
-                            f"Unknown root level key: {key}",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.LOG,
-                        )
+                        bar.log(f"Unknown root level key: {key}")
         else:
             assert name != ""
             for key in yaml:
@@ -1375,12 +1343,7 @@ class Directory(Rule):
                     )
                 if key not in KNOWN_DIRECTORY_KEYS:
                     if config.args.action == "generate":
-                        message(
-                            f"Unknown directory level key: {key}",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.LOG,
-                        )
+                        bar.log(f"Unknown directory level key: {key}")
 
         self.test_group_yaml: Any = yaml.get("test_group.yaml", False)
         self.numbered = False
@@ -1631,8 +1594,7 @@ class GeneratorConfig:
             self.parse_yaml(self.yaml)
         except ParseException as e:
             # Handle fatal parse errors
-            message(e.message, "generators.yaml", e.path, color_type=MessageType.FATAL)
-            exit()
+            PrintBar("generators.yaml", item=e.path).fatal(e.message or "")
 
     # testcase_short_path: secret/1.in
     def process_testcase(self, relative_testcase_path: Path) -> bool:
@@ -1668,11 +1630,8 @@ class GeneratorConfig:
             is_included, cases_list = self.known_keys[obj.key]
             cases_list.append(obj)
             if is_included and len(cases_list) == 2:
-                message(
-                    f"Included key {name} exists more than once as {cases_list[0].path} and {cases_list[1].path}.",
-                    "generators.yaml",
-                    obj.path,
-                    color_type=MessageType.ERROR,
+                PrintBar("generators.yaml", item=obj.path).error(
+                    f"Included key {name} exists more than once as {cases_list[0].path} and {cases_list[1].path}."
                 )
 
         num_numbered_test_cases = 0
@@ -1684,31 +1643,17 @@ class GeneratorConfig:
             assert isinstance(yaml, dict)
             count = yaml["count"]
             assert isinstance(count, int)
+            bar = PrintBar("generators.yaml", item=warn_for)
             if count < 1:
                 if warn_for is not None:
-                    message(
-                        f"Found count: {count}, increased to 1.",
-                        "generators.yaml",
-                        warn_for,
-                        color_type=MessageType.WARN,
-                    )
+                    bar.warn(f"Found count: {count}, increased to 1.")
                 return 1
             if count > 1000:
                 if warn_for is not None:
-                    message(
-                        f"Found count: {count}, limited to 1000.",
-                        "generators.yaml",
-                        warn_for,
-                        color_type=MessageType.ERROR,
-                    )
+                    bar.error(f"Found count: {count}, limited to 1000.")
                 return 1000
             if count > 100 and warn_for is not None:
-                message(
-                    f"Found large count: {count}.",
-                    "generators.yaml",
-                    warn_for,
-                    color_type=MessageType.LOG,
-                )
+                bar.log(f"Found large count: {count}.")
             return count
 
         # Count the number of testcases in the given directory yaml.
@@ -1766,11 +1711,8 @@ class GeneratorConfig:
 
                     t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
                     if t.path in self.known_cases:
-                        message(
-                            "was already parsed. Skipping.",
-                            "generators.yaml",
-                            t.path,
-                            color_type=MessageType.ERROR,
+                        PrintBar("generators.yaml", item=t.path).error(
+                            "was already parsed. Skipping."
                         )
                         continue
 
@@ -1869,20 +1811,13 @@ class GeneratorConfig:
                 name = target.name
                 p = d.path / name
                 if p in self.known_cases:
+                    bar = PrintBar("generators.yaml", item=p)
                     if target != self.known_cases[p].path:
                         if self.known_cases[p].path == p:
-                            message(
-                                f"conflict with included case {target}.",
-                                "generators.yaml",
-                                p,
-                                color_type=MessageType.ERROR,
-                            )
+                            bar.error(f"conflict with included case {target}.")
                         else:
-                            message(
-                                f"included with multiple targets {target} and {self.known_cases[p].path}.",
-                                "generators.yaml",
-                                p,
-                                color_type=MessageType.ERROR,
+                            bar.error(
+                                f"included with multiple targets {target} and {self.known_cases[p].path}."
                             )
                     return
                 self.known_cases[p] = t
@@ -1891,26 +1826,17 @@ class GeneratorConfig:
             if "include" in yaml:
                 assert_type("includes", yaml["include"], list, d.path)
 
+                bar = PrintBar("generators.yaml", item=d.path)
                 for include in yaml["include"]:
                     assert_type("include", include, str, d.path)
                     if "/" in include:
-                        message(
-                            f"Include {include} should be a test case/group key, not a path.",
-                            "generators.yaml",
-                            d.path,
-                            color_type=MessageType.ERROR,
-                        )
+                        bar.error(f"Include {include} should be a test case/group key, not a path.")
                         continue
 
                     if include in self.known_keys:
                         is_included, cases_list = self.known_keys[include]
                         if len(cases_list) != 1:
-                            message(
-                                f"Included key {include} exists more than once.",
-                                "generators.yaml",
-                                d.path,
-                                color_type=MessageType.ERROR,
-                            )
+                            bar.error(f"Included key {include} exists more than once.")
                             continue
 
                         self.known_keys[include] = (True, cases_list)
@@ -1924,11 +1850,8 @@ class GeneratorConfig:
                             )
                             pass
                     else:
-                        message(
-                            f"Unknown include key {include} does not refer to a previous test case.",
-                            "generators.yaml",
-                            d.path,
-                            color_type=MessageType.ERROR,
+                        bar.error(
+                            f"Unknown include key {include} does not refer to a previous test case."
                         )
                         continue
             return d

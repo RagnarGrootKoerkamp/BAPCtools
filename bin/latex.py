@@ -19,8 +19,6 @@ from util import (
     ExecResult,
     exec_command,
     fatal,
-    message,
-    MessageType,
     PrintBar,
     substitute,
     tail,
@@ -400,14 +398,11 @@ def build_problem_pdfs(
     (either via config files or --lang arguments), build those. Otherwise
     build all languages for which there is a statement latex source.
     """
+    bar = PrintBar(problem.name)
     if config.args.lang is not None:
         for lang in config.args.lang:
             if lang not in problem.statement_languages:
-                message(
-                    f"No statement source for language {lang}",
-                    problem.name,
-                    color_type=MessageType.FATAL,
-                )
+                bar.fatal(f"No statement source for language {lang}")
         languages = config.args.lang
     else:
         languages = problem.statement_languages
@@ -418,11 +413,7 @@ def build_problem_pdfs(
                 if (problem.path / build_type.path(lang)).exists():
                     filtered_languages.append(lang)
                 else:
-                    message(
-                        f"{build_type.path(lang)} not found",
-                        problem.name,
-                        color_type=MessageType.WARN,
-                    )
+                    bar.warn(f"{build_type.path(lang)} not found")
             languages = filtered_languages
     if config.args.watch and len(languages) > 1:
         fatal("--watch does not work with multiple languages. Please use --lang")
@@ -553,28 +544,19 @@ def build_contest_pdfs(
     if lang:
         return build_contest_pdf(contest, problems, tmpdir, lang, build_type, web)
 
+    bar = PrintBar(contest)
     """Build contest PDFs for all available languages"""
     statement_languages = set.intersection(*(set(p.statement_languages) for p in problems))
     if not statement_languages:
-        message(
-            "No statement language present in every problem.", contest, color_type=MessageType.FATAL
-        )
+        bar.fatal("No statement language present in every problem.")
     if config.args.lang is not None:
         languages: Collection[str] = config.args.lang
         for lang in set(languages) - statement_languages:
-            message(
-                f"Unable to build all statements for language {lang}",
-                contest,
-                color_type=MessageType.FATAL,
-            )
+            bar.fatal(f"Unable to build all statements for language {lang}")
     else:
         languages = statement_languages
     if config.args.watch and len(languages) > 1:
-        message(
-            "--watch does not work with multiple languages. Please use --lang",
-            contest,
-            color_type=MessageType.FATAL,
-        )
+        bar.fatal("--watch does not work with multiple languages. Please use --lang")
     return all(
         build_contest_pdf(contest, problems, tmpdir, lang, build_type, web) for lang in languages
     )
