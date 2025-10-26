@@ -23,8 +23,6 @@ from util import (
     has_substitute,
     inc_label,
     log,
-    message,
-    MessageType,
     normalize_yaml_value,
     parse_yaml,
     PrintBar,
@@ -138,6 +136,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
         return False
 
+    bar = PrintBar("Zip", len(problem.name) + 4, item=problem)
+
     from ruamel.yaml.comments import CommentedMap
 
     languages = select_languages([problem])
@@ -167,7 +167,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     if problem.custom_output:
         files.append((f"{OutputValidator.source_dir}/**/*", True))
 
-    message("preparing zip file content", "Zip", problem.path, color_type=MessageType.LOG)
+    bar.log("preparing zip file content")
 
     # prepare files inside dir
     export_dir = problem.tmpdir / "export"
@@ -257,10 +257,12 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                         text,
                         problem.settings.constants,
                         pattern=config.CONSTANT_SUBSTITUTE_REGEX,
-                        bar=PrintBar("Zip"),
+                        bar=bar,
                     )
                     f.unlink()
                     f.write_text(text)
+
+    bar = bar.start(output)
 
     # move pdfs
     if config.args.legacy and languages:
@@ -277,7 +279,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                 if not file.exists():
                     continue
                 if out.exists():
-                    warn(f"can't add {path} (already exists).")
+                    bar.warn(f"can't add {path} (already exists).")
                     file.unlink()
                     continue
                 out.parent.mkdir(parents=True, exist_ok=True)
@@ -370,12 +372,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                 if f.is_file():
                     out = Path("problem_statement") / f.relative_to(problem.path / d)
                     if out.exists():
-                        message(
-                            f"Can not export {f.relative_to(problem.path)} as {out}",
-                            "Zip",
-                            output,
-                            color_type=MessageType.WARN,
-                        )
+                        bar.warn(f"Cannot export {f.relative_to(problem.path)} as {out}")
                     else:
                         add_file(out, f)
             shutil.rmtree(export_dir / d)
@@ -397,7 +394,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     write_yaml(yaml_data, yaml_path)
 
     # Build .ZIP file.
-    message("writing zip file", "Zip", output, color_type=MessageType.LOG)
+    bar.log("writing zip file")
     try:
         zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
@@ -410,7 +407,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 
         # Done.
         zf.close()
-        message("done", "Zip", color_type=MessageType.LOG)
+        bar.log("done")
         eprint()
     except Exception:
         return False

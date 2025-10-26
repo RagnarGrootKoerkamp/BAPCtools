@@ -36,7 +36,6 @@ from util import (
     is_relative_to,
     is_uuid,
     log,
-    message,
     parse_yaml,
     PrintBar,
     ProgressBar,
@@ -589,12 +588,6 @@ class Problem:
                     flags, "input_validator_flags", validate.InputValidator.args_key
                 )
 
-                # Use variable kwargs so the type checker does not complain when passing them to a PrintBar (nothing happens in that case anyway)
-                bar_warn_kwargs = {} if isinstance(bar, PrintBar) else {"print_item": False}
-                bar_error_kwargs = (
-                    {} if isinstance(bar, PrintBar) else {"resume": True, "print_item": False}
-                )
-
                 # Verify test_group.yaml
                 for k in flags:
                     match k:
@@ -606,17 +599,11 @@ class Problem:
                         ):
                             if not isinstance(flags[k], list):
                                 bar.error(
-                                    f"{k} must be a list of strings",
-                                    None,
-                                    **bar_error_kwargs,
+                                    f"{k} must be a list of strings", resume=True, print_item=False
                                 )
                         case validate.InputValidator.args_key:
                             if not isinstance(flags[k], (list, dict)):
-                                bar.error(
-                                    f"{k} must be list or map",
-                                    None,
-                                    **bar_error_kwargs,
-                                )
+                                bar.error(f"{k} must be list or map", resume=True, print_item=False)
                             if isinstance(flags[k], dict):
                                 input_validator_names = set(
                                     val.name for val in p.validators(validate.InputValidator)
@@ -624,20 +611,18 @@ class Problem:
                                 for name in set(flags[k]) - input_validator_names:
                                     bar.warn(
                                         f"Unknown input validator {name}; expected {input_validator_names}",
-                                        None,
-                                        **bar_warn_kwargs,
+                                        print_item=False,
                                     )
                         case "description" | "hint":
                             pass  # We don't do anything with hint or description in BAPCtools, but no need to warn about this
                         case "args" | "full_feedback" | "scoring" | "static_validation":
                             bar.warn(
                                 f"{k} in test_group.yaml not implemented in BAPCtools",
-                                None,
-                                **bar_warn_kwargs,
+                                print_item=False,
                             )
                         case _:
                             path = f.relative_to(p.path / "data")
-                            bar.warn(f'Unknown key "{k}" in {path}', None, **bar_warn_kwargs)
+                            bar.warn(f'Unknown key "{k}" in {path}', print_item=False)
 
     def get_test_case_yaml(
         p,
@@ -1691,18 +1676,18 @@ class Problem:
                 write_yaml(problem_yaml, problem.path / "problem.yaml")
 
         eprint()
-        message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
-        message(
-            f"{problem.limits.time_limit}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
-            "time limit",
+        PrintBar("slowest AC").log(f"  {duration:.3f}s @ {testcase} ({submission})", color="")
+        PrintBar("time limit").log(
+            f"  {problem.limits.time_limit:.1f}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
+            color="",
         )
-        message(
-            f"{safety_time_limit}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}",
-            "safety limit",
+        PrintBar("safety limit").log(
+            f"{safety_time_limit:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}",
+            color="",
         )
-        message(
-            f"{problem.limits.timeout}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}²",
-            "timeout",
+        PrintBar("timeout").log(
+            f"     {problem.limits.timeout:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}²",
+            color="",
         )
         eprint()
 
@@ -1713,7 +1698,7 @@ class Problem:
             assert testcase is not None
             assert duration is not None
             eprint()
-            message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
+            PrintBar("fastest TLE").log(f" {duration:.3f}s @ {testcase} ({submission})", color="")
             if duration <= problem.limits.time_limit:
                 error("TLE submission runs within time limit")
             elif duration <= safety_time_limit:
