@@ -498,7 +498,7 @@ class VerdictTable:
             printed_text = ["\n\033[2K" * new_lines]
             printed_lengths += [0] * new_lines
 
-            max_depth = None
+            max_depth = config.args.depth
             show_root = False
 
             stack = [(".", "", "", True)]

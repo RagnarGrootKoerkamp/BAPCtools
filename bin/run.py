@@ -197,7 +197,7 @@ class Run:
             ):
                 self.out_path.unlink()
 
-        if result.verdict and (self.feedbackdir / "nextpass.in").is_file():
+        if result.verdict != Verdict.ACCEPTED and (self.feedbackdir / "nextpass.in").is_file():
             assert not self.problem.multi_pass
             bar.warn("Validator created nextpass.in for non multi-pass problem. Ignored.")
 

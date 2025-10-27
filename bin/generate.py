@@ -806,11 +806,6 @@ class TestcaseRule(Rule):
         if t.generator and t.generator.program is None:
             bar.done(False, "Generator didn't build. Skipping.")
             return
-        if t.hash is None:
-            # Input can only be missing when the `copy:` does not have a corresponding `.in` file.
-            # (When `generate:` or `in:` is used, the input is always present.)
-            bar.done(False, f"{t.copy} does not exist. Skipping.")
-            return
 
         target_dir = problem.path / "data" / t.path.parent
         target_infile = target_dir / (t.name + ".in")
