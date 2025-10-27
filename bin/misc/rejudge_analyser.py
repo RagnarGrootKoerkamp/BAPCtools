@@ -5,8 +5,8 @@
 # those that were AC originally and on the latest rejudge.
 
 import json
-from pathlib import Path
 import matplotlib.pyplot as plt
+from pathlib import Path
 
 
 def read_json(path):

@@ -4,9 +4,9 @@ import copy
 import os
 import re
 import sys
-from pathlib import Path
 from collections.abc import Sequence
 from colorama import Fore, Style
+from pathlib import Path
 from typing import Any, Final, Literal, Optional, TypeVar
 
 # Randomly generated uuid4 for BAPCtools

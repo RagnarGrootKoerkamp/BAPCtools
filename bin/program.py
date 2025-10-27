@@ -1,13 +1,13 @@
 import re
+import shlex
 import shutil
 import stat
-import shlex
 import subprocess
 import threading
 from collections.abc import Callable, Mapping, Sequence
 from colorama import Fore
 from pathlib import Path
-from typing import Any, Final, Optional, TypeVar, TYPE_CHECKING
+from typing import Any, Final, Optional, TYPE_CHECKING, TypeVar
 
 import config
 from util import (
@@ -15,13 +15,13 @@ from util import (
     copy_and_substitute,
     ensure_symlink,
     error,
+    exec_command,
     ExecResult,
     ExecStatus,
-    exec_command,
     fatal,
     glob,
-    hash_file,
     has_substitute,
+    hash_file,
     ProgressBar,
     read_yaml,
     strip_newline,

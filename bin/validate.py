@@ -1,6 +1,6 @@
 import re
-from enum import Enum
 from collections.abc import Sequence
+from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 

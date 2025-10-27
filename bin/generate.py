@@ -6,7 +6,6 @@ import secrets
 import shlex
 import shutil
 import time
-
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
@@ -18,10 +17,8 @@ import program
 import run
 import validate
 import visualize
-from testcase import Testcase
-from verdicts import Verdict
 from problem import Problem
-
+from testcase import Testcase
 from util import (
     combine_hashes,
     combine_hashes_dict,
@@ -33,9 +30,9 @@ from util import (
     fatal,
     get_basedirs,
     glob,
+    has_ryaml,
     hash_file_content,
     hash_string,
-    has_ryaml,
     is_relative_to,
     log,
     path_size,
@@ -48,7 +45,7 @@ from util import (
     warn,
     write_yaml,
 )
-
+from verdicts import Verdict
 
 if has_ryaml:
     import ruamel.yaml

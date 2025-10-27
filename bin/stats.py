@@ -1,12 +1,11 @@
 import shutil
 import statistics
 from collections.abc import Callable, Sequence
+from colorama import ansi, Fore, Style
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from pathlib import Path
 from typing import Any, cast, Literal, Optional
-
-from colorama import ansi, Fore, Style
 
 import config
 import generate

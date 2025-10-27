@@ -4,11 +4,10 @@ import os
 import re
 import shutil
 from collections.abc import Collection
+from colorama import Fore, Style
 from enum import Enum
 from pathlib import Path
 from typing import Optional, TextIO, TYPE_CHECKING
-
-from colorama import Fore, Style
 
 import config
 from contest import contest_yaml, problems_yaml
@@ -16,8 +15,8 @@ from util import (
     copy_and_substitute,
     ensure_symlink,
     eprint,
-    ExecResult,
     exec_command,
+    ExecResult,
     fatal,
     PrintBar,
     substitute,

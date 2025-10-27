@@ -3,16 +3,15 @@
 line-length = 100
 # Assume Python 3.10
 target-version = "py310"
+# Source
+src = ["bin"]
 
-[tool.ruff.lint]
-select = ["I"]  # Enable import sorting rules
-
-[tool.ruff.isort]
-combine-as-imports = false
-force-sort-within-sections = true
+[tool.ruff.lint.isort]
+# organize imports in two blocks, non local and local
+section-order = ["standard-library", "first-party"]
+default-section = "standard-library"
+# X,y,Z case insensitive in from ? import X, y, Z
 order-by-type = false
-lines-between-sections = 1
-force-single-line = false
 
 [tool.pyright]
 include = ["bin"]

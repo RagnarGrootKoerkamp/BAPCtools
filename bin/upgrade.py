@@ -1,8 +1,13 @@
-import config
-import generate
+import secrets
 import shlex
+import shutil
 from collections import defaultdict
 from collections.abc import Callable
+from pathlib import Path
+from typing import Any, cast, Optional
+
+import config
+import generate
 from util import (
     error,
     fatal,
@@ -16,12 +21,7 @@ from util import (
     warn,
     write_yaml,
 )
-from validate import InputValidator, AnswerValidator, OutputValidator
-
-import secrets
-import shutil
-from pathlib import Path
-from typing import Any, cast, Optional
+from validate import AnswerValidator, InputValidator, OutputValidator
 
 if has_ryaml:
     from ruamel.yaml.comments import CommentedMap, CommentedSeq

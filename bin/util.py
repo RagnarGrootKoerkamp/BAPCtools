@@ -14,25 +14,25 @@ import tempfile
 import threading
 import time
 import yaml as yamllib
-from enum import Enum
 from collections.abc import Callable, Mapping, Sequence
+from colorama import Fore, Style
+from enum import Enum
+from io import StringIO
 from pathlib import Path
 from typing import (
-    cast,
     Any,
+    cast,
     Iterable,
     Literal,
     NoReturn,
     Optional,
     overload,
     Protocol,
+    TYPE_CHECKING,
     TypeAlias,
     TypeVar,
-    TYPE_CHECKING,
 )
 from uuid import UUID
-from colorama import Fore, Style
-from io import StringIO
 
 import config
 

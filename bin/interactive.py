@@ -4,20 +4,19 @@ import subprocess
 import sys
 import threading
 import time
-
 from collections.abc import Sequence
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, IO, TYPE_CHECKING
+from typing import Any, Final, IO, Literal, Optional, TYPE_CHECKING
 
 import config
 import validate
 from util import (
     eprint,
     error,
+    exec_command,
     ExecResult,
     ExecStatus,
-    exec_command,
     is_bsd,
     is_windows,
     limit_setter,

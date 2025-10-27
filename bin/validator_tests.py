@@ -1,5 +1,6 @@
 from collections.abc import Callable, Sequence
 from typing import Final, Optional, TypeVar
+
 from validate import AnswerValidator, AnyValidator, InputValidator, OutputValidator
 
 
