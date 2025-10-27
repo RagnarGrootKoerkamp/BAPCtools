@@ -183,9 +183,10 @@ def run_interactive_testcase(
             if not validator_err:
                 validator_err = bytes()
 
-            if verdict != Verdict.ACCEPTED and not run._continue_with_tle(
-                verdict, max_duration >= timeout
-            ):
+            if verdict == Verdict.TIME_LIMIT_EXCEEDED:
+                if not run._continue_with_tle(verdict, max_duration >= timeout):
+                    break
+            elif verdict != Verdict.ACCEPTED:
                 break
 
             if not run._prepare_nextpass(nextpass):
@@ -490,7 +491,10 @@ while True:
                 else:
                     tle_result.timeout_expired |= aborted
 
-            if not verdict != Verdict.ACCEPTED and not run._continue_with_tle(verdict, aborted):
+            if verdict == Verdict.TIME_LIMIT_EXCEEDED:
+                if not run._continue_with_tle(verdict, max_duration >= timeout):
+                    break
+            elif verdict != Verdict.ACCEPTED:
                 break
 
             if not run._prepare_nextpass(nextpass):
