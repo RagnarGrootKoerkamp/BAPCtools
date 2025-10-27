@@ -36,6 +36,7 @@ from util import (
     is_relative_to,
     is_uuid,
     log,
+    normalize_yaml_value,
     parse_yaml,
     PrintBar,
     ProgressBar,
@@ -67,14 +68,9 @@ T = TypeVar("T")
 
 def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
     if key in yaml_data:
-        value = yaml_data.pop(key)
-        if isinstance(value, int) and t is float:
-            value = float(value)
+        value = normalize_yaml_value(yaml_data.pop(key), t)
         if isinstance(value, t):
             return value
-        if value == "" and (t is list or t is dict):
-            # handle empty yaml keys
-            return t()
         warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
     return None
 
@@ -221,7 +217,7 @@ class ProblemSources(list[ProblemSource]):
             self.append(source_from_dict(source))
             return
         if isinstance(yaml_data["source"], list):
-            sources = parse_setting(yaml_data, "source", list[dict[str, str]]())
+            sources = parse_setting(yaml_data, "source", list[Any]())
             for i, source in enumerate(sources):
                 if isinstance(source, str):
                     self.append(ProblemSource(source))

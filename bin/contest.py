@@ -1,7 +1,7 @@
 import config
 
 from pathlib import Path
-from typing import cast, Any, Optional, TYPE_CHECKING
+from typing import cast, Any, Optional, Literal, TYPE_CHECKING
 
 from util import eprint, error, fatal, log, read_yaml, read_yaml_settings, verbose
 
@@ -25,7 +25,7 @@ def contest_yaml() -> dict[str, Any]:
     return _contest_yaml
 
 
-_problems_yaml = None
+_problems_yaml: Literal[False] | Optional[list[dict[str, Any]]] = None
 
 
 def problems_yaml() -> Optional[list[dict[str, Any]]]:
@@ -45,7 +45,7 @@ def problems_yaml() -> Optional[list[dict[str, Any]]]:
         return None
     if not isinstance(_problems_yaml, list):
         fatal("problems.yaml must contain a list of problems")
-    return cast(list[dict[str, Any]], _problems_yaml)
+    return _problems_yaml
 
 
 def get_api() -> str:
