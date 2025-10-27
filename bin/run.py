@@ -2,7 +2,6 @@ import os
 import shutil
 import subprocess
 import sys
-
 from collections.abc import Sequence
 from colorama import Fore, Style
 from contextlib import nullcontext

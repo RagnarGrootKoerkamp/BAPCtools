@@ -20,10 +20,9 @@ import hashlib
 import os
 import re
 import shutil
+import signal
 import sys
 import tempfile
-
-
 from collections import Counter
 from colorama import Style
 from pathlib import Path
@@ -33,19 +32,17 @@ from typing import Any, Optional
 import config
 import constraints
 import contest
+import download_submissions
 import export
-import generate
 import fuzz
+import generate
 import latex
 import skel
 import slack
 import solve_stats
-import download_submissions
 import stats
 import upgrade
 import validate
-import signal
-
 from contest import call_api_get_json, contest_yaml, get_contest_id, problems_yaml
 from problem import Problem
 from util import (

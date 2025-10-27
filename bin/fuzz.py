@@ -1,16 +1,18 @@
-import config
-import problem
 import random
-import generate
 import shutil
 import signal
-import time
 import threading
+import time
 from colorama import Style
 from pathlib import Path
 from typing import Any, Optional
 
+import config
+import generate
 import parallel
+import problem
+from run import Run, Submission
+from testcase import Testcase
 from util import (
     eprint,
     error,
@@ -22,9 +24,7 @@ from util import (
     ryaml_get_or_add,
     write_yaml,
 )
-from run import Run, Submission
-from testcase import Testcase
-from validate import OutputValidator, Mode
+from validate import Mode, OutputValidator
 from verdicts import Verdict
 
 if has_ryaml:

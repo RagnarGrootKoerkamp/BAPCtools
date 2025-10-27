@@ -1,10 +1,10 @@
 import re
 from collections import defaultdict
+from colorama import Fore, Style
 from typing import Optional
 
 import latex
 import validate
-from colorama import Fore, Style
 from problem import Problem
 from util import eprint, error, log, warn
 

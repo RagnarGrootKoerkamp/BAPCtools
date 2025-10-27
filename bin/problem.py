@@ -2,22 +2,22 @@ import datetime
 import re
 import shutil
 import threading
-
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, overload, TypeVar, TYPE_CHECKING
+from typing import Any, Final, Literal, Optional, overload, TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
 
+import math
+
+import check_testing_tool
 import config
 import latex
-import math
 import parallel
 import run
 import testcase
-import check_testing_tool
 import validate
 import validator_tests
 import verdicts
@@ -31,8 +31,8 @@ from util import (
     fatal,
     generate_problem_uuid,
     glob,
-    hash_file_content,
     has_ryaml,
+    hash_file_content,
     is_relative_to,
     is_uuid,
     log,
@@ -49,7 +49,6 @@ from util import (
     warn,
     write_yaml,
 )
-
 
 if has_ryaml:
     import ruamel.yaml

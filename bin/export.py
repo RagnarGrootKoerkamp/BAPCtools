@@ -7,7 +7,6 @@ from pathlib import Path
 from typing import Any, Optional
 
 import config
-
 from contest import call_api, call_api_get_json, contest_yaml, get_contests
 from latex import PdfType
 from problem import Problem
@@ -33,7 +32,7 @@ from util import (
     warn,
     write_yaml,
 )
-from validate import InputValidator, AnswerValidator, OutputValidator
+from validate import AnswerValidator, InputValidator, OutputValidator
 from visualize import InputVisualizer, OutputVisualizer
 
 

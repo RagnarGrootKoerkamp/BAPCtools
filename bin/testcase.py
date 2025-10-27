@@ -5,21 +5,21 @@ from colorama import Fore, Style
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
+import config
+import validate
 from util import (
     BAR_TYPE,
-    ExecStatus,
     combine_hashes_dict,
+    ExecStatus,
     fatal,
     print_name,
     ProgressBar,
     shorten_path,
 )
-import config
-import validate
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    import visualize
     import problem
+    import visualize
 
 
 # TODO #102: Consistently separate the compound noun "test case", e.g. "TestCase" or "test_case"

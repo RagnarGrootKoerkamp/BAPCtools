@@ -1,11 +1,11 @@
-from os import makedirs
 from multiprocessing import Pool
+from os import makedirs
 from pathlib import Path
 from typing import Any, Optional
 
 import config
 import parallel
-from contest import get_contest_id, call_api_get_json
+from contest import call_api_get_json, get_contest_id
 from util import ProgressBar
 
 # Note on multiprocessing:

@@ -3,7 +3,6 @@ from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
 import program
-
 from util import ExecResult
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
