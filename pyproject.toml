@@ -4,6 +4,16 @@ line-length = 100
 # Assume Python 3.10
 target-version = "py310"
 
+[tool.ruff.lint]
+select = ["I"]  # Enable import sorting rules
+
+[tool.ruff.isort]
+combine-as-imports = false
+force-sort-within-sections = true
+order-by-type = false
+lines-between-sections = 1
+force-single-line = false
+
 [tool.pyright]
 include = ["bin"]
 exclude = ["bin/misc"]
