@@ -773,13 +773,19 @@ class Problem:
                 and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
                 and t.root in ["invalid_output", "valid_output"]
             ):
-                warn(
-                    f"Found file {f} for {mode} validation in {p.settings.type_name()} problem. Skipping."
+                p._warn_once(
+                    t.name,
+                    f"Found file {f} for {mode} validation in {p.settings.type_name()} problem. Skipping.",
                 )
                 continue
             if needans and not t.ans_path.is_file():
                 if t.root != "invalid_input":
                     p._warn_once(t.name, f"Found input file {f} without a .ans file. Skipping.")
+                    continue
+            if t.root in ["valid_output", "invalid_output"]:
+                assert t.out_path is not None
+                if not t.out_path.is_file():
+                    p._warn_once(t.name, f"Found input file {f} without a .out file. Skipping.")
                     continue
             if mode == validate.Mode.VALID_OUTPUT:
                 if t.out_path is None:

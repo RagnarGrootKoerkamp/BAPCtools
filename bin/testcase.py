@@ -282,6 +282,7 @@ class Testcase:
     ) -> bool:
         args = []
         results = []
+        output_validator_crash = False
         for validator in validators:
             name = validator.name
             if isinstance(validator, validate.OutputValidator) and mode == validate.Mode.ANSWER:
@@ -336,11 +337,31 @@ class Testcase:
                 data = ret.err
 
             if expect_rejection:
-                bar.debug(
-                    message,
-                    data=data,
-                    color=Fore.GREEN if ret.status == ExecStatus.REJECTED else Fore.YELLOW,
-                )
+                warn = False
+                if (
+                    isinstance(validator, validate.OutputValidator)
+                    and ret.status == ExecStatus.ERROR
+                ):
+                    output_validator_crash = True
+                    warn = True
+                elif ret.status == ExecStatus.TIMEOUT:
+                    warn = True
+                else:
+                    color = Fore.GREEN if ret.status == ExecStatus.REJECTED else Fore.YELLOW
+
+                if warn:
+                    bar.part_done(
+                        False,
+                        message,
+                        data=data,
+                        warn_instead_of_error=warn_instead_of_error,
+                    )
+                else:
+                    bar.debug(
+                        message,
+                        data=data,
+                        color=color,
+                    )
             elif ret.status == ExecStatus.ERROR and ret.returncode == 0:
                 bar.part_done(
                     False,
@@ -356,7 +377,11 @@ class Testcase:
                     warn_instead_of_error=warn_instead_of_error,
                 )
 
-            if ret.status or self.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
+            if (
+                ret.status
+                or expect_rejection
+                or self.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]
+            ):
                 continue
 
             # Move testcase to destination directory if specified.
@@ -384,15 +409,20 @@ class Testcase:
             break
 
         if expect_rejection:
-            success = ExecStatus.REJECTED in results
-            accepted = all(results)
+            issues = []
+            if all(results):
+                issues.append("All validators accepted.")
+            elif ExecStatus.REJECTED not in results:
+                issues.append(f"At least one validator must exit with {config.RTV_WA}.")
+            else:
+                if ExecStatus.TIMEOUT in results:
+                    issues.append("Validator timed out.")
+                if output_validator_crash:
+                    issues.append("Output Validator crashed.")
+
+            success = not issues
             if not success:
-                reason = (
-                    "All validators accepted."
-                    if accepted
-                    else f"At least one validator must exit with {config.RTV_WA}."
-                )
-                msg = f"was not properly rejected by {mode} validation. {reason}"
+                msg = f"was not properly rejected by {mode} validation. {' '.join(issues)}"
                 if warn_instead_of_error:
                     bar.warn(msg)
                 else:
