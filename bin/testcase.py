@@ -414,10 +414,8 @@ class Testcase:
                 issues.append("All validators accepted.")
             elif ExecStatus.REJECTED not in results:
                 issues.append(f"At least one validator must exit with {config.RTV_WA}.")
-            else:
-                if ExecStatus.TIMEOUT in results:
-                    issues.append("Validator timed out.")
-            # Output validators should _never_ crash, so this should not be inside the 'else'?
+            elif ExecStatus.TIMEOUT in results:
+                issues.append("Validator timed out.")
             if output_validator_crash:
                 issues.append("Output Validator crashed.")
 
