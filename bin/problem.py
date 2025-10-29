@@ -1698,7 +1698,7 @@ class Problem:
             color="",
         )
         eprint()
-  
+
         if config.args.write:
             if not has_ryaml:
                 warn("ruamel.yaml library not found. Please update the time limit fields manually.")
