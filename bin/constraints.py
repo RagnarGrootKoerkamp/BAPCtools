@@ -1,14 +1,12 @@
 import re
 from collections import defaultdict
+from colorama import Fore, Style
 from typing import Optional
 
 import latex
 import validate
-from colorama import Fore, Style
 from problem import Problem
-
-# Local imports
-from util import *
+from util import eprint, error, log, warn
 
 """DISCLAIMER:
 
@@ -29,7 +27,7 @@ def check_validators(
     problem.validate_data(validate.Mode.ANSWER, constraints=ans_constraints)
     if not problem.settings.ans_is_output and not ans_constraints:
         log("No constraint validation of answer values found in answer or output validators.")
-    print()
+    eprint()
 
     validator_values: set[int | float] = set()
     validator_defs: list[str | tuple[int | float, str, int | float]] = []
@@ -272,7 +270,7 @@ def check_constraints(problem: Problem) -> bool:
     name_len = 8
     left_width = 8 + name_len + 2 * value_len
 
-    print(
+    eprint(
         "{:^{width}}|{:^40}".format("VALIDATORS", "PROBLEM STATEMENT", width=left_width),
         sep="",
     )
@@ -292,9 +290,9 @@ def check_constraints(problem: Problem) -> bool:
         if val is not None:
             validator_defs.remove(val)
             if isinstance(val, str):
-                print("{:^{width}}".format(val, width=left_width), sep="", end="")
+                eprint("{:^{width}}".format(val, width=left_width), sep="", end="")
             else:
-                print(
+                eprint(
                     "{:>{value_len}_} <= {:^{name_len}} <= {:<{value_len}_}".format(
                         *val, name_len=name_len, value_len=value_len
                     ),
@@ -302,18 +300,18 @@ def check_constraints(problem: Problem) -> bool:
                     end="",
                 )
         else:
-            print("{:^{width}}".format("", width=left_width), sep="", end="")
-        print("|", end="")
+            eprint("{:^{width}}".format("", width=left_width), sep="", end="")
+        eprint("|", end="")
         if st is not None:
             languages = ",".join(statement_defs[st])
-            print("{:^40} {}".format(st, languages), sep="", end="")
+            eprint("{:^40} {}".format(st, languages), sep="", end="")
         else:
-            print("{:^40}".format(""), sep="", end="")
-        print()
+            eprint("{:^40}".format(""), sep="", end="")
+        eprint()
         if st is not None:
             statement_defs.pop(st)
 
-    print()
+    eprint()
 
     warned = False
     for value in validator_values:
@@ -323,13 +321,16 @@ def check_constraints(problem: Problem) -> bool:
             if not warned:
                 warned = True
                 warn("Values in validators but missing in some statement:")
-            print(f"{Fore.YELLOW}{value}{Style.RESET_ALL} missing in", ",".join(missing))
+            eprint(
+                f"{Fore.YELLOW}{value}{Style.RESET_ALL} missing in",
+                ",".join(missing),
+            )
 
     extra_in_statement = set(statement_values.keys()).difference(validator_values)
     if extra_in_statement:
         warn("Values in some statement but not in input validators:")
         for value in extra_in_statement:
-            print(
+            eprint(
                 f"{Fore.YELLOW}{value}{Style.RESET_ALL} in",
                 ",".join(sorted(statement_values[value])),
             )

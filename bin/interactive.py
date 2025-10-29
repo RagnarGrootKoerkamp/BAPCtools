@@ -4,14 +4,25 @@ import subprocess
 import sys
 import threading
 import time
-
+from collections.abc import Sequence
 from contextlib import nullcontext
 from pathlib import Path
-from typing import Final, Literal, Optional, TYPE_CHECKING
+from typing import Any, Final, IO, Literal, Optional, TYPE_CHECKING
 
 import config
 import validate
-from util import *
+from util import (
+    eprint,
+    error,
+    exec_command,
+    ExecResult,
+    ExecStatus,
+    is_bsd,
+    is_windows,
+    limit_setter,
+    PrintBar,
+    ProgressBar,
+)
 from verdicts import Verdict
 
 if TYPE_CHECKING:
@@ -32,9 +43,9 @@ def run_interactive_testcase(
     # True: stderr
     # else: path
     interaction: Optional[bool | Path] = False,
-    submission_args: Optional[list[str]] = None,
+    submission_args: Optional[Sequence[str | Path]] = None,
     bar: Optional[ProgressBar] = None,
-):
+) -> Optional[ExecResult]:
     output_validators = run.problem.validators(validate.OutputValidator)
     if not output_validators:
         return None
@@ -49,25 +60,23 @@ def run_interactive_testcase(
     memory = run.problem.limits.memory
 
     # Validator command
-    def get_validator_command():
+    def get_validator_command() -> Sequence[str | Path]:
         assert output_validator.run_command, "Output validator must be built"
-        return (
-            output_validator.run_command
-            + [
-                run.in_path.absolute(),
-                run.testcase.ans_path.absolute(),
-                run.feedbackdir.absolute(),
-            ]
-            + run.testcase.test_case_yaml_args(
+        return [
+            *output_validator.run_command,
+            run.in_path.absolute(),
+            run.testcase.ans_path.absolute(),
+            run.feedbackdir.absolute(),
+            *run.testcase.test_case_yaml_args(
                 output_validator,
                 bar or PrintBar("Run interactive test case"),
-            )
-        )
+            ),
+        ]
 
     assert run.submission.run_command, "Submission must be built"
     submission_command = run.submission.run_command
     if submission_args:
-        submission_command += submission_args
+        submission_command = [*submission_command, *submission_args]
 
     # Both validator and submission run in their own directory.
     validator_dir = output_validator.tmpdir
@@ -76,8 +85,8 @@ def run_interactive_testcase(
     nextpass = run.feedbackdir / "nextpass.in" if run.problem.multi_pass else None
 
     if config.args.verbose >= 2:
-        print("Validator:  ", *get_validator_command(), file=sys.stderr)
-        print("Submission: ", *submission_command, file=sys.stderr)
+        eprint("Validator:  ", *get_validator_command())
+        eprint("Submission: ", *submission_command)
 
     # On Windows:
     # - Start the validator
@@ -173,7 +182,10 @@ def run_interactive_testcase(
             if not validator_err:
                 validator_err = bytes()
 
-            if not verdict and not run._continue_with_tle(verdict, max_duration >= timeout):
+            if verdict == Verdict.TIME_LIMIT_EXCEEDED:
+                if not run._continue_with_tle(verdict, max_duration >= timeout):
+                    break
+            elif verdict != Verdict.ACCEPTED:
                 break
 
             if not run._prepare_nextpass(nextpass):
@@ -312,7 +324,7 @@ while True:
                 stop_kill_handler = threading.Event()
                 submission_time: Optional[float] = None
 
-                def kill_handler_function():
+                def kill_handler_function() -> None:
                     if stop_kill_handler.wait(timeout + 1):
                         return
                     nonlocal submission_time
@@ -444,7 +456,7 @@ while True:
                     team_err = submission.stderr.read().decode("utf-8", "replace")
             finally:
                 # clean up resources
-                def close_io(stream):
+                def close_io(stream: Optional[IO[bytes]]) -> None:
                     if stream:
                         stream.close()
 
@@ -478,7 +490,10 @@ while True:
                 else:
                     tle_result.timeout_expired |= aborted
 
-            if not verdict and not run._continue_with_tle(verdict, aborted):
+            if verdict == Verdict.TIME_LIMIT_EXCEEDED:
+                if not run._continue_with_tle(verdict, max_duration >= timeout):
+                    break
+            elif verdict != Verdict.ACCEPTED:
                 break
 
             if not run._prepare_nextpass(nextpass):
@@ -511,15 +526,12 @@ while True:
         return tle_result
 
 
-def _feedback(run, err):
+def _feedback(run: "Run", err: bytes) -> str:
     judgemessage = run.feedbackdir / "judgemessage.txt"
     judgeerror = run.feedbackdir / "judgeerror.txt"
-    if err is None:
-        err = ""
-    else:
-        err = err.decode("utf-8", "replace")
+    res = "" if err is None else err.decode("utf-8", "replace")
     if judgeerror.is_file():
-        err = judgeerror.read_text(errors="replace")
-    if len(err) == 0 and judgemessage.is_file():
-        err = judgemessage.read_text(errors="replace")
-    return err
+        res = judgeerror.read_text(errors="replace")
+    if len(res) == 0 and judgemessage.is_file():
+        res = judgemessage.read_text(errors="replace")
+    return res

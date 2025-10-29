@@ -1,13 +1,11 @@
 import shutil
 import statistics
-import sys
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
+from colorama import ansi, Fore, Style
 from datetime import datetime, timedelta, timezone
 from dateutil import parser
 from pathlib import Path
-from typing import Any, cast, Literal, Optional, Sequence
-
-from colorama import ansi, Fore, Style
+from typing import Any, cast, Literal, Optional
 
 import config
 import generate
@@ -15,7 +13,7 @@ import latex
 import program
 import validate
 from problem import Problem
-from util import error, exec_command, glob, log, warn
+from util import eprint, error, exec_command, glob, log, warn
 
 Selector = (
     str | Callable[[Problem], int | float] | list[str] | list[Callable[[set[Path]], set[str]]]
@@ -24,9 +22,6 @@ Stat = tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, i
 
 
 def stats(problems: list[Problem]) -> None:
-    if config.args.more is not None:
-        config.args.all = config.args.more
-        warn("--more is deprecated, use --all instead!\n")
     problem_stats(problems)
     if config.args.all:
         more_stats(problems)
@@ -94,25 +89,23 @@ def problem_stats(problems: list[Problem]) -> None:
         ("subs", lambda p: len(glob(p.path, "submissions/*/*")), 6),
     ]
     languages = {
-        "  c(++)": ["C", "C++"],
-        "py": ["Python 2", "Python 3", "CPython 2", "CPython 3"],
-        "java": ["Java"],
-        "kt": ["Kotlin"],
+        "  c(++)": ["c", "c++"],
+        "py": ["python 2", "python 3", "cpython 2", "cpython 3"],
+        "java": ["java"],
+        "kt": ["kotlin"],
     }
     for column, lang_names in languages.items():
         paths = []
         lang_defined = False
-        for lang_id, lang_definition in program.languages().items():
-            if lang_definition["name"] in lang_names:
+        for lang in program.languages():
+            if lang.name.lower() in lang_names:
                 lang_defined = True
-                # dict.get() returns None if key 'files' is not declared
-                lang_globs = lang_definition.get("files")
+                lang_globs = lang.files
                 if lang_globs:
-                    paths += [f"submissions/accepted/{glob}" for glob in lang_globs.split()]
+                    paths += [f"submissions/accepted/{glob}" for glob in lang_globs]
                 else:
                     warn(
-                        f"Language {lang_id} ('{lang_definition['name']}') "
-                        "does not define `files:` in languages.yaml"
+                        f"Language {lang.id} ('{lang.name}') does not define `files:` in languages.yaml"
                     )
         if paths:
             stats.append((column, list(set(paths)), 1))
@@ -142,7 +135,7 @@ def problem_stats(problems: list[Problem]) -> None:
             format_string += " {:>" + str(width + len(Fore.WHITE) + len(Style.RESET_ALL)) + "}"
 
     header = header_string.format(*headers)
-    print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
+    eprint(Style.BRIGHT + header + Style.RESET_ALL)
 
     for problem in problems:
         generated_testcases = generate.testcases(problem)
@@ -214,30 +207,24 @@ def problem_stats(problems: list[Problem]) -> None:
         else:
             comment = Fore.YELLOW + comment + Style.RESET_ALL
 
-        print(
+        eprint(
             format_string.format(
                 f"{problem.label} {problem.name}",
                 *[
                     _get_stat(
                         counts[i],
-                        # mypy does not support variable-length tuples very well:
-                        # https://github.com/python/mypy/pull/16237#:~:text=indirect%20comparisons
-                        True if len(stats[i]) <= 2 else stats[i][2],  # type: ignore[misc]
-                        None if len(stats[i]) <= 3 else stats[i][3],  # type: ignore[misc]
+                        True if len(stat) <= 2 else stat[2],
+                        None if len(stat) <= 3 else stat[3],
                     )
-                    for i in range(len(stats))
+                    for i, stat in enumerate(stats)
                 ],
                 comment,
             ),
-            file=sys.stderr,
         )
 
     # print the cumulative count
-    print("-" * len(header), file=sys.stderr)
-    print(
-        format_string.format("TOTAL", *(_get_stat(x, False) for x in cumulative), ""),
-        file=sys.stderr,
-    )
+    eprint("-" * len(header))
+    eprint(format_string.format("TOTAL", *(_get_stat(x, False) for x in cumulative), ""))
 
 
 try:
@@ -250,7 +237,7 @@ except Exception:
     has_pygments = False
 
 
-def _is_code(language: str, type, text) -> bool:
+def _is_code(language: str, type: Any, text: str) -> bool:
     if type in pygments.token.Comment and type not in (
         pygments.token.Comment.Preproc,  # pygments treats preprocessor statements as comments
         pygments.token.Comment.PreprocFile,
@@ -278,7 +265,7 @@ def loc(file: Path) -> Optional[int]:
             content = file.read_text()
             lexer = lexers.guess_lexer_for_filename(file, content)
             assert isinstance(lexer, pygments.lexer.Lexer)
-            language = lexer.name.lower()
+            language = getattr(lexer, "name").lower()
             tokens = lexer.get_tokens(content)
 
             count = 0
@@ -307,7 +294,7 @@ def more_stats(problems: list[Problem]) -> None:
         return
 
     if not Path("submissions").is_dir():
-        print(file=sys.stderr)
+        eprint()
         log(
             "No team submissions found, try running 'bt download_submissions' to get stats for team submissions."
         )
@@ -329,10 +316,10 @@ def more_stats(problems: list[Problem]) -> None:
         + f" {{:>{stat_len + len(Fore.WHITE)}}}{Style.RESET_ALL}" * len(columns)
     )
 
-    print(file=sys.stderr)
+    eprint()
     header = header_string.format("", *columns)
-    print(Style.BRIGHT + header + Style.RESET_ALL, file=sys.stderr)
-    print("-" * len(header), file=sys.stderr)
+    eprint(Style.BRIGHT + header + Style.RESET_ALL)
+    eprint("-" * len(header))
 
     def format_value(
         value: Optional[str | float | int | timedelta], default_color: str = Fore.WHITE
@@ -358,11 +345,11 @@ def more_stats(problems: list[Problem]) -> None:
     def format_row(*values: Optional[str | float | int | timedelta]) -> str:
         return format_string.format(*[format_value(value) for value in values])
 
-    languages: dict[str, list[str] | Literal[True]] = {
-        "C(++)": ["C", "C++"],
-        "Python": ["Python 2", "Python 3", "CPython 2", "CPython 3"],
-        "Java": ["Java"],
-        "Kotlin": ["Kotlin"],
+    languages = {
+        "C(++)": ["c", "c++"],
+        "Python": ["python 2", "python 3", "cpython 2", "cpython 3"],
+        "Java": ["java"],
+        "Kotlin": ["kotlin"],
     }
 
     def get_submissions_row(
@@ -373,9 +360,9 @@ def more_stats(problems: list[Problem]) -> None:
             paths.append("accepted/*")
         else:
             assert isinstance(names, list)
-            for config in program.languages().values():
-                if config["name"] in names:
-                    globs = config["files"].split() or []
+            for config in program.languages():
+                if config.name.lower() in names:
+                    globs = config.files
                     paths += [f"accepted/{glob}" for glob in globs]
             paths = list(set(paths))
 
@@ -405,19 +392,19 @@ def more_stats(problems: list[Problem]) -> None:
 
     # handle jury solutions
     best_jury = get_submissions_row("Jury", True, False)
-    print(format_row(*best_jury), file=sys.stderr)
+    eprint(format_row(*best_jury))
     for display_name, names in languages.items():
         values = get_submissions_row(display_name, names, False)
         for i in range(1, 1 + len(problems)):
             if values[i] == best_jury[i]:
                 values[i] = format_value(values[i], Fore.CYAN)
-        print(format_row(*values), file=sys.stderr)
+        eprint(format_row(*values))
 
     # handle team submissions
     if Path("submissions").is_dir():
-        print("-" * len(header), file=sys.stderr)
+        eprint("-" * len(header))
         best_team = get_submissions_row("Teams", True, True)
-        print(format_row(*best_team), file=sys.stderr)
+        eprint(format_row(*best_team))
         for display_name, names in languages.items():
             values = get_submissions_row(display_name, names, True)
             for i in range(1, 1 + len(problems)):
@@ -429,7 +416,7 @@ def more_stats(problems: list[Problem]) -> None:
                         leq_jury = True
                 if values[i] == best_team[i] and leq_jury:
                     values[i] = format_value(values[i], Fore.CYAN)
-            print(format_row(*values), file=sys.stderr)
+            eprint(format_row(*values))
 
     # git stats
     if shutil.which("git") is None:
@@ -452,10 +439,10 @@ def more_stats(problems: list[Problem]) -> None:
     def parse_time(date: str) -> Optional[datetime]:
         return parser.parse(date) if date else None
 
-    print("-" * len(header), file=sys.stderr)
+    eprint("-" * len(header))
     testcases = [len(generate.testcases(p)) for p in problems]
     testcase_stats = get_stats(testcases)
-    print(format_row("Testcases", *testcases, *testcase_stats), file=sys.stderr)
+    eprint(format_row("Testcases", *testcases, *testcase_stats))
     changed: list[Optional[float | int]] = []
     for p in problems:
         times = [
@@ -472,7 +459,7 @@ def more_stats(problems: list[Problem]) -> None:
     changed += get_stats([c for c in changed if c is not None])
     changed[-4] = None  # sum of last changed is meaningless...
     changed_times = [timedelta(seconds=s) if s is not None else None for s in changed]
-    print(format_row("└╴changed", *changed_times), file=sys.stderr)
+    eprint(format_row("└╴changed", *changed_times))
 
     # this is hacky and does not handle all renames properly...
     # for example: if A is renamed to C and B is renamed to A this will break
@@ -494,22 +481,19 @@ def more_stats(problems: list[Problem]) -> None:
     commits = [countCommits(p) for p in problems]
     commit_stats = get_stats(commits)
     commit_stats[-4] = None  # one commit can change multiple problems so the sum is meaningless...
-    print(format_row("Commits", *commits, *commit_stats), file=sys.stderr)
-    print(file=sys.stderr)
-    print(
+    eprint(format_row("Commits", *commits, *commit_stats))
+    eprint()
+    eprint(
         f"{Fore.CYAN}Total Commits{Style.RESET_ALL}:",
         int(git("rev-list", "--all", "--count")),
-        file=sys.stderr,
     )
-    print(
+    eprint(
         f"{Fore.CYAN}Total Authors{Style.RESET_ALL}:",
         git("shortlog", "--group=%ae", "-s").count("\n"),
-        file=sys.stderr,
     )
     duration = datetime.now(timezone.utc) - parser.parse(
         git("log", "--reverse", "--format=%cI").partition("\n")[0]
     )
-    print(
-        f"{Fore.CYAN}Preparation{Style.RESET_ALL}: {duration.days}d, {duration.seconds // 3600}h",
-        file=sys.stderr,
+    eprint(
+        f"{Fore.CYAN}Preparation{Style.RESET_ALL}: {duration.days}d, {duration.seconds // 3600}h"
     )

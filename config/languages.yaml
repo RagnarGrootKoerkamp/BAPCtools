@@ -169,7 +169,7 @@ haskell:
 
 java:
     name: 'Java'
-    priority: 800
+    priority: 850
     files: '*.java'
     compile: 'javac -encoding UTF-8 -sourcepath {path} -d {path} {files}'
     run: 'java -Dfile.encoding=UTF-8 -XX:+UseSerialGC -Xss64m -Xms{memlim}m -Xmx{memlim}m -cp {path} {mainclass}'
@@ -281,7 +281,7 @@ cpython3:
 # Use .cpy to explicitly invoke CPython 3
 cpython:
     name: 'Python 3'
-    priority: 800
+    priority: 803
     files: '*.cpy'
     compile: 'python3 -m py_compile {files}'
     run: 'python3 {mainfile}'
@@ -313,13 +313,13 @@ scala:
 # Executes any .sh file.
 shell:
     name: 'Shell'
-    priority: 900
+    priority: 910
     files: '*.sh'
     run: 'sh {mainfile}'
 
 # Executes any .bash file.
 bash:
     name: 'Bash'
-    priority: 900
+    priority: 920
     files: '*.bash'
     run: 'bash {mainfile}'

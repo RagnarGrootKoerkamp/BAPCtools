@@ -21,19 +21,25 @@ PROBLEMS = [
     "interactivemultipass",
     "multipass",
     "constants",
-] + ["hellounix" if not util.is_mac() and not util.is_windows() else []]
+    "alternativeencryption",
+]
+if not util.is_mac() and not util.is_windows():
+    PROBLEMS += ["hellounix"]
 
 RUN_DIR = Path.cwd().absolute()
 
 
-@pytest.fixture(scope="class", params=PROBLEMS)
-def setup_problem(request):
-    problemname = request.param
+def _setup_problem(problemname):
     problem_dir = RUN_DIR / "test/problems" / problemname
     os.chdir(problem_dir)
     yield
     tools.test(["tmp", "--clean"])
     os.chdir(RUN_DIR)
+
+
+@pytest.fixture(scope="class", params=PROBLEMS)
+def setup_problem(request):
+    yield from _setup_problem(request.param)
 
 
 @pytest.mark.usefixtures("setup_problem")
@@ -43,15 +49,23 @@ class TestProblem:
 
 
 @pytest.fixture(scope="class")
+def setup_alternativeencryption_problem(request):
+    yield from _setup_problem("alternativeencryption")
+
+
+@pytest.mark.usefixtures("setup_alternativeencryption_problem")
+class TestAlternativeencryptionProblem:
+    def test_check_testing_tool(self):
+        tools.test(["check_testing_tool"])
+
+    def test_bad_check_testing_tool(self):
+        with pytest.raises(SystemExit):
+            tools.test(["check_testing_tool", "submissions/wrong_answer/no-change.py"])
+
+
+@pytest.fixture(scope="class")
 def setup_constants_problem(request):
-    problem_dir = RUN_DIR / "test/problems/constants"
-    os.chdir(problem_dir)
-    try:
-        tools.test(["tmp", "--clean"])
-        yield
-    finally:
-        tools.test(["tmp", "--clean"])
-        os.chdir(RUN_DIR)
+    yield from _setup_problem("constants")
 
 
 @pytest.mark.usefixtures("setup_constants_problem")
@@ -78,14 +92,7 @@ class TestConstantsProblem:
 
 @pytest.fixture(scope="class")
 def setup_identity_problem(request):
-    problem_dir = RUN_DIR / "test/problems/identity"
-    os.chdir(problem_dir)
-    try:
-        tools.test(["tmp", "--clean"])
-        yield
-    finally:
-        tools.test(["tmp", "--clean"])
-        os.chdir(RUN_DIR)
+    yield from _setup_problem("identity")
 
 
 @pytest.mark.usefixtures("setup_identity_problem")

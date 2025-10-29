@@ -1,5 +1,11 @@
+from typing import Any, TYPE_CHECKING
+
 import config
-from util import *
+from problem import Problem
+from util import error, fatal, log, verbose
+
+if TYPE_CHECKING:
+    import requests
 
 # Perform slack actions for the selected problems (all, or the selected/current one).
 # - create a slack channel
@@ -11,7 +17,7 @@ from util import *
 # It can be passed as `--token <token>` or stored in `.bapctools.yaml` as `token: <token>`.
 
 
-def call_slack_api(path, **kwargs):
+def call_slack_api(path: str, **kwargs: Any) -> "requests.Response":
     import requests  # Slow import, so only import it inside this function.
 
     verbose(f"Calling slack api {path}")
@@ -26,7 +32,7 @@ def call_slack_api(path, **kwargs):
     return result
 
 
-def get_channel_ids():
+def get_channel_ids() -> dict[str, str]:
     r = call_slack_api("conversations.list").json()
     if not r["ok"]:
         fatal(r["error"])
@@ -37,24 +43,25 @@ def get_channel_ids():
     return channel_ids
 
 
-def get_user_id(username):
+def get_user_id(username: str) -> str:
     r = call_slack_api("users.list").json()
     if not r["ok"]:
         fatal(r["error"])
     members = r["members"]
     for m in members:
         if m["profile"]["real_name"] == username or m["profile"]["display_name"] == username:
+            assert isinstance(m["id"], str)
             return m["id"]
     fatal(f"User {username} not found")
 
 
 # Function to create a slack channel for each problem
-def create_slack_channels(problems):
+def create_slack_channels(problems: list[Problem]) -> None:
     for p in problems:
         create_slack_channel(p.name)
 
 
-def create_slack_channel(name):
+def create_slack_channel(name: str) -> None:
     r = call_slack_api("conversations.create", name=name)
     if not r.ok:
         error(r.text)
@@ -66,7 +73,7 @@ def create_slack_channel(name):
     log(f"Created channel {name}")
 
 
-def join_slack_channels(problems, username):
+def join_slack_channels(problems: list[Problem], username: str) -> None:
     userid = get_user_id(username)
     channel_ids = get_channel_ids()
 
@@ -74,7 +81,7 @@ def join_slack_channels(problems, username):
         join_slack_channel(p.name, channel_ids[p.name], username, userid)
 
 
-def join_slack_channel(channel_name, channel_id, username, userid):
+def join_slack_channel(channel_name: str, channel_id: str, username: str, userid: str) -> None:
     # The bot account invites the user to the channel.
     r = call_slack_api("conversations.invite", channel=channel_id, users=userid)
     if not r.ok:

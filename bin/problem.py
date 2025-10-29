@@ -1,19 +1,20 @@
 import datetime
 import re
 import shutil
-import sys
 import threading
-
 from collections.abc import Callable, Sequence
+from colorama import Fore, Style
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, overload, TYPE_CHECKING
+from typing import Any, Final, Literal, Optional, overload, TYPE_CHECKING, TypeVar
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
 
+import math
+
+import check_testing_tool
 import config
 import latex
-import math
 import parallel
 import run
 import testcase
@@ -21,16 +22,99 @@ import validate
 import validator_tests
 import verdicts
 import visualize
-from util import *
-from colorama import Fore, Style
+from util import (
+    BAR_TYPE,
+    combine_hashes_dict,
+    drop_suffix,
+    eprint,
+    error,
+    fatal,
+    generate_problem_uuid,
+    glob,
+    has_ryaml,
+    hash_file_content,
+    is_relative_to,
+    is_uuid,
+    log,
+    normalize_yaml_value,
+    parse_yaml,
+    PrintBar,
+    ProgressBar,
+    read_yaml,
+    read_yaml_settings,
+    resolve_path_argument,
+    ryaml_get_or_add,
+    substitute,
+    verbose,
+    warn,
+    write_yaml,
+)
+
+if has_ryaml:
+    import ruamel.yaml
 
 
 # The parse_* functions will remove (.pop()) keys from the yaml data during parsing.
 # We will warn for any unknown keys that remain after this process.
-def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None):
+def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None) -> None:
     for key in yaml_data:
         assert isinstance(key, str)
         warn(f"found unknown problem.yaml key: {key} in {f'`{sub_key}`' if sub_key else 'root'}")
+
+
+T = TypeVar("T")
+
+
+def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
+    if key in yaml_data:
+        value = normalize_yaml_value(yaml_data.pop(key), t)
+        if isinstance(value, t):
+            return value
+        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+    return None
+
+
+def parse_setting(
+    yaml_data: dict[str, Any], key: str, default: T, constraint: Optional[str] = None
+) -> T:
+    value = parse_optional_setting(yaml_data, key, type(default))
+    result = default if value is None else value
+    if constraint:
+        assert isinstance(result, (float, int))
+        assert eval(f"{default} {constraint}")
+        if not eval(f"{result} {constraint}"):
+            warn(
+                f"value for '{key}' in problem.yaml should be {constraint} but is {result}. SKIPPED."
+            )
+            return default
+    return result
+
+
+def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> list[T]:
+    if key in yaml_data:
+        value = yaml_data.pop(key)
+        if isinstance(value, t):
+            return [value]
+        if isinstance(value, list):
+            if not all(isinstance(v, t) for v in value):
+                warn(
+                    f"some values for key '{key}' in problem.yaml do not have type {t.__name__}. SKIPPED."
+                )
+                return []
+            if not value:
+                warn(f"value for '{key}' in problem.yaml should not be an empty list.")
+            return value
+        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+    return []
+
+
+def parse_deprecated_setting(
+    yaml_data: dict[str, Any], key: str, new: Optional[str] = None
+) -> None:
+    if key in yaml_data:
+        use = f", use '{new}' instead" if new else ""
+        warn(f"key '{key}' is deprecated{use}. SKIPPED.")
+        yaml_data.pop(key)
 
 
 class Person:
@@ -45,6 +129,9 @@ class Person:
             self.name = (match[1] if match else yaml_data).strip()
             self.email = match[2].strip() if match else None
             self.kattis = self.orcid = None
+        for token in [",", " and ", "&"]:
+            if token in self.name:
+                warn(f"found suspicious token '{token.strip()}' in name: {self.name}")
 
 
 class ProblemCredits:
@@ -129,7 +216,7 @@ class ProblemSources(list[ProblemSource]):
             self.append(source_from_dict(source))
             return
         if isinstance(yaml_data["source"], list):
-            sources = parse_setting(yaml_data, "source", list[dict[str, str]]())
+            sources = parse_setting(yaml_data, "source", list[Any]())
             for i, source in enumerate(sources):
                 if isinstance(source, str):
                     self.append(ProblemSource(source))
@@ -223,7 +310,7 @@ class ProblemLimits:
         if config.args.timeout:
             self.validation_time = self.generator_time = self.visualizer_time = config.args.timeout
         if config.args.memory:
-            self.memory = self.validation_memory = config.args.memory
+            self.memory = self.compilation_memory = self.validation_memory = config.args.memory
 
 
 class ProblemSettings:
@@ -331,6 +418,16 @@ class ProblemSettings:
         if self.license not in config.KNOWN_LICENSES:
             warn(f"invalid license: {self.license}")
             self.license = "unknown"
+        if self.license == "public domain":
+            if self.rights_owner is not None:
+                warn(
+                    f"problem cannot be in 'public domain' and have a rights owner: {self.rights_owner}"
+                )
+        elif self.license != "unknown":
+            if self.rights_owner is None and not self.credits.authors and not self.source:
+                warn(
+                    f"problem with license '{self.license}' needs a rights owner, author, or source."
+                )
 
     def type_name(self) -> str:
         parts: list[str] = []
@@ -360,7 +457,7 @@ class Problem:
 
         # Some caches.
         self._testcases = dict[
-            tuple[Optional[validate.Mode], bool, bool], list[testcase.Testcase]
+            tuple[Optional[validate.Mode], bool, bool, bool], list[testcase.Testcase]
         ]()
         self._submissions: Optional[list[run.Submission] | Literal[False]] = None
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
@@ -393,7 +490,7 @@ class Problem:
             if (self.path / "data" / d).is_dir():
                 warn(f"Found directory: data/{d}, should be: data/{d[:-1]} (singular form).")
 
-    def _determine_statement_languages(self):
+    def _determine_statement_languages(self) -> list[str]:
         """Determine the languages that are both mentioned in the problem.yaml under name
         and have a corresponding problem statement.
 
@@ -440,7 +537,7 @@ class Problem:
                         )
         return sorted(texlangs & yamllangs)
 
-    def _read_settings(self):
+    def _read_settings(self) -> None:
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
         if has_ryaml:
@@ -469,7 +566,7 @@ class Problem:
         self.custom_output: bool = self.settings.custom_output
 
     # TODO #102 move to a new TestGroup class
-    def _parse_test_case_and_groups_yaml(p, path: Path, bar: BAR_TYPE):
+    def _parse_test_case_and_groups_yaml(p, path: Path, bar: BAR_TYPE) -> None:
         assert path.is_relative_to(p.path / "data"), f"{path} is not in data"
         for f in [path] + list(path.parents):
             # Do not go above the data directory.
@@ -495,12 +592,6 @@ class Problem:
                     flags, "input_validator_flags", validate.InputValidator.args_key
                 )
 
-                # Use variable kwargs so the type checker does not complain when passing them to a PrintBar (nothing happens in that case anyway)
-                bar_warn_kwargs = {} if isinstance(bar, PrintBar) else {"print_item": False}
-                bar_error_kwargs = (
-                    {} if isinstance(bar, PrintBar) else {"resume": True, "print_item": False}
-                )
-
                 # Verify test_group.yaml
                 for k in flags:
                     match k:
@@ -512,17 +603,11 @@ class Problem:
                         ):
                             if not isinstance(flags[k], list):
                                 bar.error(
-                                    f"{k} must be a list of strings",
-                                    None,
-                                    **bar_error_kwargs,
+                                    f"{k} must be a list of strings", resume=True, print_item=False
                                 )
                         case validate.InputValidator.args_key:
                             if not isinstance(flags[k], (list, dict)):
-                                bar.error(
-                                    f"{k} must be list or map",
-                                    None,
-                                    **bar_error_kwargs,
-                                )
+                                bar.error(f"{k} must be list or map", resume=True, print_item=False)
                             if isinstance(flags[k], dict):
                                 input_validator_names = set(
                                     val.name for val in p.validators(validate.InputValidator)
@@ -530,20 +615,18 @@ class Problem:
                                 for name in set(flags[k]) - input_validator_names:
                                     bar.warn(
                                         f"Unknown input validator {name}; expected {input_validator_names}",
-                                        None,
-                                        **bar_warn_kwargs,
+                                        print_item=False,
                                     )
                         case "description" | "hint":
                             pass  # We don't do anything with hint or description in BAPCtools, but no need to warn about this
                         case "args" | "full_feedback" | "scoring" | "static_validation":
                             bar.warn(
                                 f"{k} in test_group.yaml not implemented in BAPCtools",
-                                None,
-                                **bar_warn_kwargs,
+                                print_item=False,
                             )
                         case _:
                             path = f.relative_to(p.path / "data")
-                            bar.warn(f'Unknown key "{k}" in {path}', None, **bar_warn_kwargs)
+                            bar.warn(f'Unknown key "{k}" in {path}', print_item=False)
 
     def get_test_case_yaml(
         p,
@@ -609,12 +692,13 @@ class Problem:
                             return []
                         return args
                     elif name in args:
-                        if not isinstance(args[name], list) or any(
-                            not isinstance(arg, str) for arg in args[name]
+                        args = args[name]
+                        if not isinstance(args, list) or any(
+                            not isinstance(arg, str) for arg in args
                         ):
                             bar.error(f"{key} must be list of strings or map of lists")
                             return []
-                        return args[name]
+                        return args
                 elif key in known_args_keys:
                     if not isinstance(args, list) or any(not isinstance(arg, str) for arg in args):
                         bar.error(f"{key} must be a list of strings")
@@ -627,7 +711,7 @@ class Problem:
     # this cache makes sure that some warnings (like malformed test case names) only appear once.
     _warned_for_test_case = set[str]()
 
-    def _warn_once(p, test_name, msg):
+    def _warn_once(p, test_name: str, msg: str) -> None:
         if test_name not in p._warned_for_test_case:
             p._warned_for_test_case.add(test_name)
             warn(msg)
@@ -636,33 +720,35 @@ class Problem:
         p,
         *,
         mode: Optional[validate.Mode] = None,
-        needans=True,
-        only_samples=False,
+        needans: bool = True,
+        only_samples: bool = False,
+        testing_tool_test: bool = False,
     ) -> Sequence[testcase.Testcase]:
         only_samples = config.args.samples or only_samples
 
-        key = (mode, needans, only_samples)
+        key = (mode, needans, only_samples, testing_tool_test)
         if key in p._testcases is not None:
             return p._testcases[key]
 
         in_paths = None
         if config.args.testcases:
-            if only_samples:
-                assert False
+            assert not only_samples
             # Deduplicate testcases with both .in and .ans.
             in_paths = []
-            for t in config.args.testcases:
-                t = resolve_path_argument(p, t, "data", suffixes=[".in"])
-                if t:
+            for path in config.args.testcases:
+                res_path = resolve_path_argument(p, path, "data", suffixes=[".in"])
+                if res_path:
                     # When running from contest level, the testcase must be inside the problem.
-                    if config.level != "problemset" or is_relative_to(p.path, t):
-                        if t.is_dir():
-                            in_paths += glob(t, "**/*.in")
+                    if config.level != "problemset" or is_relative_to(p.path, res_path):
+                        if res_path.is_dir():
+                            in_paths += glob(res_path, "**/*.in")
                         else:
-                            in_paths.append(t)
+                            in_paths.append(res_path)
 
             in_paths = list(set(in_paths))
         elif mode is not None:
+            assert not only_samples
+            assert not testing_tool_test
             assert needans
             in_paths = []
             for prefix in {
@@ -672,6 +758,8 @@ class Problem:
                 validate.Mode.VALID_OUTPUT: ["secret", "sample", "valid_output"],
             }[mode]:
                 in_paths += glob(p.path, f"data/{prefix}/**/*.in")
+        elif testing_tool_test:
+            in_paths = list(glob(p.path, "data/testing_tool_test/**/*.in"))
         else:
             in_paths = list(glob(p.path, "data/sample/**/*.in"))
             if not only_samples:
@@ -694,13 +782,19 @@ class Problem:
                 and mode in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
                 and t.root in ["invalid_output", "valid_output"]
             ):
-                warn(
-                    f"Found file {f} for {mode} validation in {p.settings.type_name()} problem. Skipping."
+                p._warn_once(
+                    t.name,
+                    f"Found file {f} for {mode} validation in {p.settings.type_name()} problem. Skipping.",
                 )
                 continue
             if needans and not t.ans_path.is_file():
                 if t.root != "invalid_input":
                     p._warn_once(t.name, f"Found input file {f} without a .ans file. Skipping.")
+                    continue
+            if t.root in ["valid_output", "invalid_output"]:
+                assert t.out_path is not None
+                if not t.out_path.is_file():
+                    p._warn_once(t.name, f"Found input file {f} without a .out file. Skipping.")
                     continue
             if mode == validate.Mode.VALID_OUTPUT:
                 if t.out_path is None:
@@ -711,7 +805,7 @@ class Problem:
             testcases.append(t)
         testcases.sort(key=lambda t: t.name)
 
-        if len(testcases) == 0:
+        if len(testcases) == 0 and not testing_tool_test:
             ans = (
                 " with answer"
                 if needans and mode not in [validate.Mode.INVALID, validate.Mode.VALID_OUTPUT]
@@ -865,7 +959,7 @@ class Problem:
         paths = []
         if config.args.submissions:
 
-            def add(s):
+            def add(s: Path) -> None:
                 if s in paths:
                     warn(f"Ignoring duplicate submission: {s}")
                     return
@@ -901,21 +995,21 @@ class Problem:
 
         programs = [run.Submission(problem, path) for path in paths]
 
-        # - first all submission with just one verdict (sorted by that verdict)
+        # - first all submission with just one verdict (grouped by that verdict and sorted by the path)
         # - then by subdir
         # - then by list of verdicts
         # - then by name
-        def submissions_key(x):
-            if len(x.expected_verdicts) == 1:
-                return (1, x.expected_verdicts[0], x.name)
-            else:
-                return (len(x.expected_verdicts), x.subdir, x.expected_verdicts, x.name)
+        def submissions_key(
+            x: run.Submission,
+        ) -> tuple[int, str, Sequence[verdicts.Verdict], str, str]:
+            group = "" if len(x.expected_verdicts) == 1 else x.subdir
+            return (len(x.expected_verdicts), group, x.expected_verdicts, x.subdir, x.name)
 
         programs.sort(key=submissions_key)
 
         bar = ProgressBar("Build submissions", items=programs)
 
-        def build_program(p):
+        def build_program(p: run.Submission) -> None:
             localbar = bar.start(p)
             p.build(localbar)
             localbar.done()
@@ -961,9 +1055,9 @@ class Problem:
     def validators(
         problem,
         cls: type[validate.AnyValidator],
-        check_constraints=False,
-        strict=False,
-        print_warn=True,
+        check_constraints: bool = False,
+        strict: bool = False,
+        print_warn: bool = True,
     ) -> Sequence[validate.AnyValidator]:
         """
         Gets the validators of the given class.
@@ -1004,7 +1098,7 @@ class Problem:
         return validators if build_ok else []
 
     def _validators(
-        problem, cls: type[validate.AnyValidator], check_constraints=False
+        problem, cls: type[validate.AnyValidator], check_constraints: bool = False
     ) -> list[validate.AnyValidator]:
         key = (cls, check_constraints)
         if key in problem._validators_cache:
@@ -1019,7 +1113,7 @@ class Problem:
             paths = list(glob(problem.path / cls.source_dir, "*"))
 
         # TODO: Instead of checking file contents, maybe specify this in generators.yaml?
-        def has_constraints_checking(f):
+        def has_constraints_checking(f: Path) -> bool:
             if not f.is_file():
                 return False
             try:
@@ -1051,7 +1145,7 @@ class Problem:
         ]
         bar = ProgressBar(f"Building {cls.validator_type} validator", items=validators)
 
-        def build_program(p):
+        def build_program(p: "Program") -> None:
             localbar = bar.start(p)
             p.build(localbar)
             localbar.done()
@@ -1063,7 +1157,9 @@ class Problem:
         return validators
 
     # get all testcases and submissions and prepare the output validator and visualizer
-    def prepare_run(problem):
+    def prepare_run(
+        problem,
+    ) -> Literal[False] | tuple[Sequence[testcase.Testcase], Sequence[run.Submission]]:
         testcases = problem.testcases()
         if not testcases:
             return False
@@ -1083,7 +1179,9 @@ class Problem:
         return testcases, submissions
 
     @staticmethod
-    def run_some(testcases, submissions):
+    def run_some(
+        testcases: Sequence[testcase.Testcase], submissions: Sequence[run.Submission]
+    ) -> tuple[bool, verdicts.VerdictTable]:
         max_submission_len = max([len(x.name) for x in submissions])
 
         ok = True
@@ -1102,7 +1200,7 @@ class Problem:
         return ok, verdict_table
 
     # called by bt run
-    def run_submissions(problem):
+    def run_submissions(problem) -> bool:
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
@@ -1128,7 +1226,7 @@ class Problem:
     # Instead of validating the output, this function just prints all output to the
     # terminal.
     # Note: The CLI only accepts one submission.
-    def test_submissions(problem):
+    def test_submissions(problem) -> bool:
         submissions = problem.submissions()
         if submissions is False:
             return False
@@ -1141,16 +1239,18 @@ class Problem:
         return True
 
     @staticmethod
-    def _print_table(verdict_table, testcases):
+    def _print_table(
+        verdict_table: Sequence[verdicts.Verdicts], testcases: Sequence[testcase.Testcase]
+    ) -> None:
         # Begin by aggregating bitstrings for all testcases, and find bitstrings occurring often (>=config.TABLE_THRESHOLD).
-        def single_verdict(row, testcase):
+        def single_verdict(row: verdicts.Verdicts, testcase: testcase.Testcase) -> str:
             assert row[testcase.name] is not None
             if row[testcase.name] is not False:
                 return verdicts.to_char(row[testcase.name])
             else:
                 return f"{Style.DIM}-{Style.RESET_ALL}"
 
-        def make_verdict(tc):
+        def make_verdict(tc: testcase.Testcase) -> str:
             return "".join(map(lambda row: single_verdict(row, tc), verdict_table))
 
         resultant_count, resultant_id = dict[str, int](), dict[str, int]()
@@ -1177,21 +1277,17 @@ class Problem:
                     scores[t.name] += 1.0 / failures
         scores_list = sorted(scores.values())
 
-        print(
+        eprint(
             "\nVerdict analysis table. Submissions are ordered per column as above. Higher "
-            "scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed.",
-            file=sys.stderr,
+            "scores indicate they are critical to break some submissions. Only cases breaking at least one submission are listed."
         )
         fail = (
             verdicts.to_char(verdicts.Verdict.WRONG_ANSWER)
             + verdicts.to_char(verdicts.Verdict.TIME_LIMIT_EXCEEDED)
             + verdicts.to_char(verdicts.Verdict.RUNTIME_ERROR)
         )
-        print(f"{fail}: submission fails testcase", file=sys.stderr)
-        print(
-            f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n",
-            file=sys.stderr,
-        )
+        eprint(f"{fail}: submission fails testcase")
+        eprint(f"{verdicts.to_char(verdicts.Verdict.ACCEPTED)}: submission passes testcase\n")
 
         name_col_width = min(50, max([len(testcase.name) for testcase in testcases]))
 
@@ -1209,7 +1305,7 @@ class Problem:
             if len(name) > name_col_width:
                 name = "..." + name[-name_col_width + 3 :]
             padding = " " * (name_col_width - len(name))
-            print(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ", file=sys.stderr)
+            eprint(f"{Fore.CYAN}{name}{Style.RESET_ALL}:{padding}", end=" ")
 
             color = Style.RESET_ALL
             if len(scores_list) > 6 and scores[case.name] >= scores_list[-6]:
@@ -1217,17 +1313,42 @@ class Problem:
             if len(scores_list) > 3 and scores[case.name] >= scores_list[-3]:
                 color = Fore.RED
             resultant = make_verdict(case)
-            print(resultant, end="  ", file=sys.stderr)
-            print(f"{color}{scores[case.name]:0.3f}{Style.RESET_ALL}  ", end="", file=sys.stderr)
+            eprint(resultant, end="  ")
+            eprint(f"{color}{scores[case.name]:0.3f}{Style.RESET_ALL}  ", end="")
             if resultant in resultant_id:
-                print(str.format("(Type {})", resultant_id[resultant]), end="", file=sys.stderr)
-            print(end="\n", file=sys.stderr)
+                eprint(f"(Type {resultant_id[resultant]})", end="")
+            eprint()
 
-    def reset_testcase_hashes(self):
-        self._testcase_hashes = {}
+    # called by bt check_testing_tool
+    def check_testing_tool(problem) -> bool:
+        testcases = problem.testcases(needans=False, testing_tool_test=True)
+        testinputs = [
+            check_testing_tool.TestInput(problem, t.in_path, t.short_path) for t in testcases
+        ]
+        if not config.args.testcases:
+            sampleinputs = []
+            for in_path, _ in problem.download_samples():
+                sample = check_testing_tool.TestInput(
+                    problem, in_path, in_path.relative_to(problem.path / "data")
+                )
+                if sample not in testinputs:
+                    sampleinputs.append(sample)
+            testinputs = sampleinputs + testinputs
+        if not testinputs:
+            warn(
+                f"Didn't find any testcases to run the testing tool in problem {problem.name}. Skipping."
+            )
+            return False
+        submissions = problem.selected_or_accepted_submissions()
+        if not submissions:
+            return False
+        return check_testing_tool.run(problem, testinputs, submissions)
+
+    def reset_testcase_hashes(self) -> None:
+        self._testcase_hashes: dict[str, testcase.Testcase] = {}
 
     # Returns None for new testcases or the Testcase object it equals.
-    def matches_existing_testcase(self, t):
+    def matches_existing_testcase(self, t: testcase.Testcase) -> Optional[testcase.Testcase]:
         hashes = {}
         relevant_files = {
             "invalid_input": ["in"],
@@ -1249,14 +1370,15 @@ class Problem:
         return None
 
     def validate_data(
-        problem, mode: validate.Mode, constraints: dict | Literal[True] | None = None
+        problem,
+        mode: validate.Mode,
+        constraints: validate.ConstraintsDict | Literal[True] | None = None,
     ) -> bool:
         """Validate aspects of the test data files.
 
         Arguments:
             mode: validate.Mode.INPUT | validate.Mode.ANSWER | validate.Mode.INVALID | validate.Mode.VALID_OUTPUT
             constraints: True | dict | None. True means "do check constraints but discard the result."
-                False: TODO is this ever used?
         Return:
             True if all validation was successful. Successful validation includes, e.g.,
             correctly rejecting invalid inputs.
@@ -1275,6 +1397,7 @@ class Problem:
         return problem._validate_data(mode, constraints, action, testcases)
 
     def validate_invalid_extra_data(p) -> bool:
+        assert config.args.generic is not None
         base_path = p.tmpdir / "invalid_data"
         # pick at most first 3 samples (assuming they are valid and have .ans)
         # also add a dummy entry to always run generators that don't read or copy anything from a valid testcase
@@ -1354,6 +1477,7 @@ class Problem:
         )
 
     def validate_valid_extra_data(p) -> bool:
+        assert config.args.generic is not None
         if "valid_output" not in config.args.generic:
             return True
         if p.interactive or p.multi_pass:
@@ -1454,7 +1578,7 @@ class Problem:
         # validate the testcases
         bar = ProgressBar(action, items=[t.name for t in testcases])
 
-        def process_testcase(testcase: testcase.Testcase):
+        def process_testcase(testcase: testcase.Testcase) -> None:
             nonlocal success
 
             localbar = bar.start(testcase.name)
@@ -1496,7 +1620,7 @@ class Problem:
 
         return success
 
-    def determine_time_limit(problem):
+    def determine_time_limit(problem) -> bool:
         ts_pair = problem.prepare_run()
         if not ts_pair:
             return False
@@ -1507,7 +1631,10 @@ class Problem:
         problem.limits.time_limit_is_default = False
         problem.limits.timeout = problem.limits.time_limit + 1
 
-        def run_all(select_verdict, select):
+        def run_all(
+            select_verdict: Callable[[Sequence[verdicts.Verdict]], bool],
+            select: Callable[[Sequence[float]], float],
+        ) -> tuple[str, str, float] | tuple[None, None, None]:
             nonlocal ok
 
             cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
@@ -1520,7 +1647,7 @@ class Problem:
                 ok = False
                 return None, None, None
 
-            def get_slowest(result):
+            def get_slowest(result: verdicts.Verdicts) -> tuple[str, float]:
                 slowest_pair = result.slowest_test_case()
                 assert slowest_pair is not None
                 return slowest_pair
@@ -1537,6 +1664,8 @@ class Problem:
         if submission is None:
             error("No AC submissions found")
             return False
+        assert testcase is not None
+        assert duration is not None
 
         raw_time_limit = duration * problem.limits.ac_to_time_limit
         if config.args.local_time_multiplier is not None:
@@ -1550,26 +1679,26 @@ class Problem:
         safety_time_limit = problem.limits.time_limit * problem.limits.time_limit_to_tle
         problem.limits.timeout = int(safety_time_limit * problem.limits.time_limit_to_tle + 1)
 
-        print(file=sys.stderr)
-        message(f"{duration:.3f}s @ {testcase} ({submission})", "slowest AC")
-        message(
-            f"{problem.limits.time_limit}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
-            "time limit",
+        eprint()
+        PrintBar("slowest AC").log(f"  {duration:.3f}s @ {testcase} ({submission})", color="")
+        PrintBar("time limit").log(
+            f"  {problem.limits.time_limit:.1f}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
+            color="",
         )
         if config.args.local_time_multiplier is not None:
             warn(
                 f"local_time_multiplier = {config.args.local_time_multiplier:.1f} => time_limit should be set as {problem.limits.raw_time_limit}s"
             )
-        message(
-            f"{safety_time_limit}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}",
-            "safety limit",
+        PrintBar("safety limit").log(
+            f"{safety_time_limit:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}",
+            color="",
         )
-        message(
-            f"{problem.limits.timeout}s >= {problem.limits.time_limit}s * {problem.limits.time_limit_to_tle}²",
-            "timeout",
+        PrintBar("timeout").log(
+            f"     {problem.limits.timeout:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}²",
+            color="",
         )
-        print(file=sys.stderr)
-
+        eprint()
+  
         if config.args.write:
             if not has_ryaml:
                 warn("ruamel.yaml library not found. Please update the time limit fields manually.")
@@ -1579,22 +1708,24 @@ class Problem:
                 if problem_yaml is None:
                     problem_yaml = ruamel.yaml.comments.CommentedMap()
                 limits = ryaml_get_or_add(problem_yaml, "limits")
-                limits["time_limit"] = problem.limits.raw_time_limit
+                limits["time_limit"] = problem.limits.time_limit
                 write_yaml(problem_yaml, problem.path / "problem.yaml")
 
         submission, testcase, duration = run_all(
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
         )
         if submission is not None:
-            print()
-            message(f"{duration:.3f}s @ {testcase} ({submission})", "fastest TLE")
+            assert testcase is not None
+            assert duration is not None
+            eprint()
+            PrintBar("fastest TLE").log(f" {duration:.3f}s @ {testcase} ({submission})", color="")
             if duration <= problem.limits.time_limit:
                 error("TLE submission runs within time limit")
             elif duration <= safety_time_limit:
                 warn("TLE submission runs within safety margin")
             elif duration >= problem.limits.timeout:
                 log(f"No TLE submission finished within {problem.limits.timeout}s")
-            print()
+            eprint()
         else:
             log("No TLE submissions found")
 
@@ -1605,6 +1736,8 @@ class Problem:
                 max,
             )
             if submission is not None:
+                assert testcase is not None
+                assert duration is not None
                 if duration > problem.limits.time_limit:
                     warn("Non TLE submission timed out")
                 else:

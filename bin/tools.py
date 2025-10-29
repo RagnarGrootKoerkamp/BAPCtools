@@ -15,40 +15,56 @@ Bommel.
 """
 
 import argparse
+import colorama
 import hashlib
 import os
+import re
+import shutil
+import signal
 import sys
 import tempfile
-import shutil
-
-import colorama
-import re
-
 from collections import Counter
 from colorama import Style
 from pathlib import Path
-from typing import Any, cast, Optional
+from typing import Any, Optional
 
 # Local imports
 import config
 import constraints
 import contest
+import download_submissions
 import export
-import generate
 import fuzz
+import generate
 import latex
 import skel
 import slack
 import solve_stats
-import download_submissions
 import stats
 import upgrade
 import validate
-import signal
-
+from contest import call_api_get_json, contest_yaml, get_contest_id, problems_yaml
 from problem import Problem
-from contest import *
-from util import *
+from util import (
+    AbortException,
+    ask_variable_bool,
+    eprint,
+    error,
+    fatal,
+    glob,
+    has_ryaml,
+    inc_label,
+    is_problem_directory,
+    is_relative_to,
+    is_windows,
+    log,
+    ProgressBar,
+    read_yaml,
+    resolve_path_argument,
+    verbose,
+    warn,
+    write_yaml,
+)
 
 if not is_windows():
     import argcomplete  # For automatic shell completions
@@ -82,12 +98,10 @@ def change_directory() -> Optional[Path]:
     problem_dir: Optional[Path] = None
     config.level = "problemset"
     if config.args.contest:
-        # TODO #102: replace cast with typed Namespace field
-        contest_dir = cast(Path, config.args.contest).absolute()
+        contest_dir = config.args.contest.absolute()
         os.chdir(contest_dir)
     if config.args.problem:
-        # TODO #102: replace cast with typed Namespace field
-        problem_dir = cast(Path, config.args.problem).absolute()
+        problem_dir = config.args.problem.absolute()
     elif is_problem_directory(Path.cwd()):
         problem_dir = Path.cwd().absolute()
     if problem_dir is not None:
@@ -190,17 +204,17 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
 
                 # Sort by position of id in order
                 def get_pos(id: Optional[str]) -> int:
-                    if id in order:
+                    if id and id in order:
                         return order.index(id)
                     else:
                         return len(order)
 
-                problems.sort(key=lambda p: (get_pos(p.label), p.label))
+                problems.sort(key=lambda p: (get_pos(p.label), p.label, p.name))
 
             if config.args.order_from_ccs:
                 # Sort by increasing difficulty, extracted from the CCS api.
                 class ProblemStat:
-                    def __init__(self):
+                    def __init__(self) -> None:
                         self.solved = 0
                         self.submissions = 0
                         self.pending = 0
@@ -288,7 +302,7 @@ def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Pat
     submissions = []
     testcases = []
     for p in s:
-        testcase_dirs = ["data", "sample", "secret", "fuzz"]
+        testcase_dirs = ["data", "sample", "secret", "fuzz", "testing_tool_cases"]
         if (
             any(part in testcase_dirs for part in p.parts)
             or p.suffix in config.KNOWN_DATA_EXTENSIONS
@@ -307,7 +321,7 @@ def split_submissions_and_testcases(s: list[Path]) -> tuple[list[Path], list[Pat
 # If we would not do this, it would not be possible to check which keys are explicitly set from the command line.
 # This check is necessary when loading the personal config file in `read_personal_config`.
 class SuppressingParser(argparse.ArgumentParser):
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super(SuppressingParser, self).__init__(**kwargs, argument_default=argparse.SUPPRESS)
 
 
@@ -381,9 +395,8 @@ Run this from one of:
     global_parser.add_argument("--lang", nargs="+", help="Languages to include.")
 
     subparsers = parser.add_subparsers(
-        title="actions", dest="action", parser_class=SuppressingParser
+        title="actions", dest="action", parser_class=SuppressingParser, required=True
     )
-    subparsers.required = True
 
     # upgrade
     subparsers.add_parser(
@@ -437,6 +450,7 @@ Run this from one of:
     skelparser.add_argument(
         "directory",
         nargs="+",
+        type=Path,
         help="Directories to copy from skel/problem/, relative to the problem directory.",
     )
     skelparser.add_argument("--skel", help="Skeleton problem directory to copy from.")
@@ -579,7 +593,6 @@ Run this from one of:
         parents=[global_parser],
         help="prints all the constraints found in problemset and validators",
     )
-
     constraintsparser.add_argument(
         "--no-generate", "-G", action="store_true", help="Do not run `generate`."
     )
@@ -679,7 +692,7 @@ Run this from one of:
         help="Generate random testcases and search for inconsistencies in AC submissions.",
     )
     fuzzparser.add_argument("--time", type=int, help="Number of seconds to run for. Default: 600")
-    fuzzparser.add_argument("--time-limit", "-t", type=int, help="Time limit for submissions.")
+    fuzzparser.add_argument("--time-limit", "-t", type=float, help="Time limit for submissions.")
     fuzzparser.add_argument(
         "submissions",
         nargs="*",
@@ -747,7 +760,9 @@ Run this from one of:
         type=int,
         help="Override the default timeout. Default: 1.5 * time_limit + 1.",
     )
-    runparser.add_argument("--time-limit", "-t", type=int, help="Override the default time-limit.")
+    runparser.add_argument(
+        "--time-limit", "-t", type=float, help="Override the default time-limit."
+    )
     runparser.add_argument(
         "--no-testcase-sanity-checks",
         action="store_true",
@@ -817,6 +832,35 @@ Run this from one of:
         help="Override the default timeout. Default: 1.5 * time_limit + 1.",
     )
 
+    checktestingtool = subparsers.add_parser(
+        "check_testing_tool",
+        parents=[global_parser],
+        help="Run testing_tool against some or all accepted submissions.",
+    )
+    checktestingtool.add_argument(
+        "submissions",
+        nargs="*",
+        type=Path,
+        help="optionally supply a list of programs and testcases to run",
+    )
+    checktestingtool.add_argument(
+        "--no-generate",
+        "-G",
+        action="store_true",
+        help="Do not run `generate` before running submissions.",
+    )
+    checktestingtool.add_argument(
+        "--timeout",
+        type=int,
+        help="Override the default timeout. Default: 1.5 * time_limit + 1.",
+    )
+    checktestingtool.add_argument(
+        "--all",
+        "-a",
+        action="store_true",
+        help="Run all testcases and don't stop on error.",
+    )
+
     # Sort
     subparsers.add_parser(
         "sort", parents=[global_parser], help="sort the problems for a contest by name"
@@ -861,6 +905,9 @@ Run this from one of:
         "-f",
         action="store_true",
         help="Skip validation of input and answers.",
+    )
+    zipparser.add_argument(
+        "--no-generate", "-G", action="store_true", help="Skip generation of test cases."
     )
     zipparser.add_argument(
         "--kattis",
@@ -958,6 +1005,7 @@ Run this from one of:
     )
     tmpparser.add_argument(
         "--clean",
+        "-C",
         action="store_true",
         help="Delete the temporary cache directory for the current problem/contest.",
     )
@@ -1022,8 +1070,7 @@ def find_personal_config() -> Optional[Path]:
         )
 
 
-def read_personal_config(problem_dir: Optional[Path]) -> dict[str, Any]:
-    args = {}
+def read_personal_config(problem_dir: Optional[Path]) -> None:
     home_config = find_personal_config()
     # possible config files, sorted by priority
     config_files = []
@@ -1036,12 +1083,16 @@ def read_personal_config(problem_dir: Optional[Path]) -> dict[str, Any]:
     for config_file in config_files:
         if not config_file.is_file():
             continue
-        config_data = read_yaml(config_file) or {}
-        for arg, value in config_data.items():
-            if arg not in args:
-                args[arg] = value
 
-    return args
+        config_data = read_yaml(config_file)
+        if not config_data:
+            continue
+        if not isinstance(config_data, dict):
+            warn(f"invalid data in {config_data}. SKIPPED.")
+            continue
+
+        tmp = config.ARGS(config_file, **config_data)
+        config.args.update(tmp)
 
 
 def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True) -> None:
@@ -1050,8 +1101,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     os.environ["MALLOC_PERTURB_"] = str(0b01011001)
 
     # Process arguments
-    config.args = args
-    missing_args = config.set_default_args()
+    config.args = config.ARGS("args", **vars(args))
 
     # cd to contest directory
     call_cwd = Path.cwd().absolute()
@@ -1060,10 +1110,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     contest_name = Path.cwd().name
 
     if personal_config:
-        personal_args = read_personal_config(problem_dir)
-        for arg in missing_args:
-            if arg in personal_args:
-                setattr(config.args, arg, personal_args[arg])
+        read_personal_config(problem_dir)
 
     action = config.args.action
 
@@ -1087,7 +1134,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     problems, tmpdir = get_problems(problem_dir)
 
     # Split submissions and testcases when needed.
-    if action in ["run", "fuzz", "time_limit"]:
+    if action in ["run", "fuzz", "time_limit", "check_testing_tool"]:
         if config.args.submissions:
             config.args.submissions, config.args.testcases = split_submissions_and_testcases(
                 config.args.submissions
@@ -1128,7 +1175,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                 checked_paths.append(path)
         config.args.add = checked_paths
 
-    if config.args.reorder is not None:
+    if config.args.reorder:
         # default to 'data/secret'
         if not config.args.testcases:
             config.args.testcases = [Path("data/secret")]
@@ -1156,7 +1203,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             if level_tmpdir.is_file():
                 level_tmpdir.unlink()
         else:
-            print(level_tmpdir)
+            eprint(level_tmpdir)
 
         return
 
@@ -1216,6 +1263,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
         return
 
     if action == "join_slack_channels":
+        assert config.args.username is not None
         slack.join_slack_channels(problems, config.args.username)
         return
 
@@ -1230,13 +1278,16 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             and not config.args.all
         ):
             continue
-        print(Style.BRIGHT, "PROBLEM ", problem.name, Style.RESET_ALL, sep="", file=sys.stderr)
+        eprint(Style.BRIGHT, "PROBLEM ", problem.name, Style.RESET_ALL, sep="")
 
         if action in ["generate"]:
             success &= generate.generate(problem)
-        if action in ["all", "constraints", "run", "time_limit"] and not config.args.no_generate:
+        if (
+            action in ["all", "constraints", "run", "time_limit", "check_testing_tool"]
+            and not config.args.no_generate
+        ):
             # Call `generate` with modified arguments.
-            old_args = argparse.Namespace(**vars(config.args))
+            old_args = config.args.copy()
             config.args.jobs = (os.cpu_count() or 1) // 2
             config.args.add = None
             config.args.verbose = 0
@@ -1273,7 +1324,7 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             if action == "all" or not specified or config.args.invalid:
                 success &= problem.validate_data(validate.Mode.INVALID)
             if action == "all" or not specified or config.args.generic is not None:
-                if not config.args.generic:
+                if config.args.generic is None:
                     config.args.generic = [
                         "invalid_input",
                         "invalid_answer",
@@ -1295,6 +1346,8 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
             success &= problem.test_submissions()
         if action in ["constraints"]:
             success &= constraints.check_constraints(problem)
+        if action in ["check_testing_tool"]:
+            problem.check_testing_tool()
         if action in ["time_limit"]:
             success &= problem.determine_time_limit()
         if action in ["zip"]:
@@ -1302,15 +1355,16 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
 
             problem_zips.append(output)
             if not config.args.skip:
-                # Set up arguments for generate.
-                old_args = argparse.Namespace(**vars(config.args))
-                config.args.check_deterministic = not config.args.force
-                config.args.add = None
-                config.args.verbose = 0
-                config.args.testcases = None
-                config.args.force = False
-                success &= generate.generate(problem)
-                config.args = old_args
+                if not config.args.no_generate:
+                    # Set up arguments for generate.
+                    old_args = config.args.copy()
+                    config.args.check_deterministic = not config.args.force
+                    config.args.add = None
+                    config.args.verbose = 0
+                    config.args.testcases = None
+                    config.args.force = False
+                    success &= generate.generate(problem)
+                    config.args = old_args
 
                 if not config.args.kattis:
                     success &= latex.build_problem_pdfs(problem)
@@ -1333,14 +1387,14 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
                 success &= export.build_problem_zip(problem, output)
 
         if len(problems) > 1:
-            print(file=sys.stderr)
+            eprint()
 
     if action in ["export"]:
         languages = export.select_languages(problems)
         export.export_contest_and_problems(problems, languages)
 
     if level == "problemset":
-        print(f"{Style.BRIGHT}CONTEST {contest_name}{Style.RESET_ALL}", file=sys.stderr)
+        eprint(f"{Style.BRIGHT}CONTEST {contest_name}{Style.RESET_ALL}")
 
         # build pdf for the entire contest
         if action in ["pdf"]:

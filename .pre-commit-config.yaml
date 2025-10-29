@@ -9,6 +9,9 @@ repos:
     hooks:
     -   id: ruff
         args: [ --fix ]
+    -   id: ruff
+        files: ^bin/.*\.py$
+        args: ["--select=I", "--fix"]
     -   id: ruff-format
 -   repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.15.0
@@ -30,5 +33,5 @@ repos:
         -   --no-incremental  # Fixes ruamel.yaml, see https://stackoverflow.com/a/65223004
         -   --python-version=3.10
         -   --scripts-are-modules
-        #-   --strict  # TODO #102: Enable flag once everything has type annotations
-        exclude: ^test/
+        -   --strict
+        exclude: ^(test|skel|scripts|bin/misc)/

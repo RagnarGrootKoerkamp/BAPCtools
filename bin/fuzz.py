@@ -1,22 +1,34 @@
-import config
-import problem
 import random
-import generate
 import shutil
 import signal
-import sys
-import time
 import threading
+import time
 from colorama import Style
 from pathlib import Path
-from typing import Any, Optional, TextIO
+from typing import Any, Optional
 
+import config
+import generate
 import parallel
-from util import *
+import problem
 from run import Run, Submission
 from testcase import Testcase
-from validate import OutputValidator, Mode
+from util import (
+    eprint,
+    error,
+    fatal,
+    has_ryaml,
+    PrintBar,
+    ProgressBar,
+    read_yaml,
+    ryaml_get_or_add,
+    write_yaml,
+)
+from validate import Mode, OutputValidator
 from verdicts import Verdict
+
+if has_ryaml:
+    from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 # STEPS:
 # 1. Find generator invocations depending on {seed}.
@@ -28,7 +40,7 @@ from verdicts import Verdict
 
 
 class GeneratorTask:
-    def __init__(self, fuzz: "Fuzz", t: generate.TestcaseRule, i: int, tmp_id: int):
+    def __init__(self, fuzz: "Fuzz", t: generate.TestcaseRule, i: int, tmp_id: int) -> None:
         self.fuzz = fuzz
         self.rule = t
         generator = t.generator
@@ -151,7 +163,7 @@ class SubmissionTask:
         submission: Submission,
         testcase: Testcase,
         tmp_id: int,
-    ):
+    ) -> None:
         self.generator_task = generator_task
         self.submission = submission
         self.testcase = testcase
@@ -165,6 +177,7 @@ class SubmissionTask:
         r = Run(self.generator_task.fuzz.problem, self.submission, self.testcase)
         localbar = bar.start(f"{self.generator_task.i}: {self.submission.name}")
         result = r.run(localbar)
+        assert result.verdict is not None
         self.generator_task.fuzz.queue.ensure_alive()
         if result.verdict != Verdict.ACCEPTED:
             self.generator_task.save_test(bar, self.submission, result.verdict)
@@ -174,24 +187,22 @@ class SubmissionTask:
 
 
 class FuzzProgressBar(ProgressBar):
-    def __init__(self, queue: parallel.AbstractQueue, prefix: str, max_len: int):
+    def __init__(
+        self,
+        queue: parallel.AbstractQueue[GeneratorTask | SubmissionTask],
+        prefix: str,
+        max_len: int,
+    ) -> None:
         super().__init__(prefix, max_len)
         self.queue = queue
 
-    def _print(
-        self,
-        *objects,
-        sep: str = "",
-        end: str = "\n",
-        file: TextIO = sys.stderr,
-        flush: bool = True,
-    ):
+    def _print(self, *args: Any, **kwargs: Any) -> None:
         self.queue.ensure_alive()
-        super()._print(*objects, sep=sep, end=end, file=file, flush=flush)
+        super()._print(*args, **kwargs)
 
 
 class Fuzz:
-    def __init__(self, problem: problem.Problem):
+    def __init__(self, problem: problem.Problem) -> None:
         self.generators_yaml_mutex = threading.Lock()
         self.problem = problem
         self.summary: dict[Submission, set[Verdict]] = {}
@@ -249,8 +260,6 @@ class Fuzz:
             error("No submissions found.")
             return False
 
-        message("Press CTRL+C to stop\n", "Fuzz", color_type=MessageType.LOG)
-
         def runner(task: GeneratorTask | SubmissionTask) -> None:
             task.run(bar)
 
@@ -274,6 +283,9 @@ class Fuzz:
             ],
         )
         max_len += len(f"{self.tmp_ids}: ")
+        # we use a PrintBar after an abort
+        printbar = PrintBar("Fuzz", max_len=max_len)
+        printbar.log("Press CTRL+C to stop\n")
         bar = FuzzProgressBar(self.queue, "Fuzz", max_len=max_len)
 
         def soft_exit(sig: Any, frame: Any) -> None:
@@ -282,12 +294,8 @@ class Fuzz:
             else:
                 self.queue.abort()
                 with bar:
-                    print(bar.carriage_return, file=sys.stderr)
-                    message(
-                        "Running interrupted (waiting on remaining tasks)\n",
-                        "\nFuzz",
-                        color_type=MessageType.ERROR,
-                    )
+                    eprint(bar.carriage_return)
+                    printbar.error("Running interrupted (waiting on remaining tasks)\n")
 
         old_handler = signal.signal(signal.SIGINT, soft_exit)
 
@@ -303,8 +311,8 @@ class Fuzz:
 
         for submission, verdicts in self.summary.items():
             msg = ", ".join(f"{v.color()}{v.short()}{Style.RESET_ALL}" for v in sorted(verdicts))
-            message(msg, "Fuzz", submission.name)
-        message(f"Found {self.added} testcases in total.", "Fuzz")
+            printbar.start(submission).log(msg, color="")
+        printbar.log(f"Found {self.added} testcases in total.", color="")
 
         if self.queue.aborted:
             fatal("Running interrupted")
@@ -355,13 +363,13 @@ class Fuzz:
             if generators_yaml.is_file():
                 data = read_yaml(generators_yaml)
             if data is None:
-                data = ruamel.yaml.comments.CommentedMap()
+                data = CommentedMap()
 
             parent = ryaml_get_or_add(data, "data")
             parent = ryaml_get_or_add(parent, "fuzz")
-            entry = ryaml_get_or_add(parent, "data", ruamel.yaml.comments.CommentedSeq)
+            entry = ryaml_get_or_add(parent, "data", CommentedSeq)
 
-            entry.append(ruamel.yaml.comments.CommentedMap())
+            entry.append(CommentedMap())
             entry[-1][""] = command
 
             # Overwrite generators.yaml.

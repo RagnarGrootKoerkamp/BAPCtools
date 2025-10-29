@@ -1,15 +1,15 @@
 import collections
+import itertools
 import random
 import re
 import secrets
+import shlex
 import shutil
-import sys
 import time
-
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Iterator, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Any, Final, Iterable, Optional, overload
+from typing import Any, cast, Final, Literal, Optional, overload
 
 import config
 import parallel
@@ -17,21 +17,53 @@ import program
 import run
 import validate
 import visualize
-from testcase import Testcase
-from verdicts import Verdict
 from problem import Problem
+from testcase import Testcase
+from util import (
+    combine_hashes,
+    combine_hashes_dict,
+    ensure_symlink,
+    eprint,
+    error,
+    ExecResult,
+    ExecStatus,
+    fatal,
+    get_basedirs,
+    glob,
+    has_ryaml,
+    hash_file_content,
+    hash_string,
+    is_relative_to,
+    log,
+    path_size,
+    PrintBar,
+    ProgressBar,
+    read_yaml,
+    ryaml_get_or_add,
+    shorten_path,
+    substitute,
+    warn,
+    write_yaml,
+)
+from verdicts import Verdict
 
-from util import *
+if has_ryaml:
+    import ruamel.yaml
+
+
+YAML_TYPE = Optional[str | dict[str, Any]]
 
 
 class ParseException(Exception):
-    def __init__(self, message=None, path=None):
+    def __init__(self, message: Optional[str] = None, path: Optional[Path | str] = None) -> None:
         super().__init__(message, path)
         self.message = message
         self.path = path
 
 
-def assert_type(name, obj, types, path=None):
+def assert_type(
+    name: str, obj: Any, types: list[type[Any]] | type[Any], path: Optional[Path] = None
+) -> None:
     if not isinstance(types, list):
         types = [types]
     if any(isinstance(obj, t) for t in types):
@@ -51,7 +83,7 @@ UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = [
 ] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
 
 
-def is_testcase(yaml):
+def is_testcase(yaml: YAML_TYPE) -> bool:
     return (
         yaml is None
         or isinstance(yaml, str)
@@ -59,18 +91,18 @@ def is_testcase(yaml):
     )
 
 
-def is_directory(yaml):
+def is_directory(yaml: YAML_TYPE) -> bool:
     return isinstance(yaml, dict) and not is_testcase(yaml)
 
 
-def has_count(yaml):
+def has_count(yaml: YAML_TYPE) -> bool:
     return isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], int)
 
 
 # Returns the given path relative to the problem root.
-def resolve_path(path, *, allow_absolute, allow_relative):
-    assert isinstance(path, str)
-    path = PurePosixPath(path)
+def resolve_path(path_str: str, *, allow_absolute: bool, allow_relative: bool) -> Path:
+    assert isinstance(path_str, str)
+    path = PurePosixPath(path_str)
     if not allow_absolute:
         if path.is_absolute():
             raise ParseException(f"Path must not be absolute: {path}")
@@ -95,9 +127,10 @@ class Invocation:
 
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
-    def __init__(self, problem: Problem, string: str, *, allow_absolute: bool, allow_relative=True):
-        string = str(string)
-        commands = string.split()
+    def __init__(
+        self, problem: Problem, string: str, *, allow_absolute: bool, allow_relative: bool = True
+    ) -> None:
+        commands = shlex.split(string)
         command = commands[0]
         self.args = commands[1:]
         self.problem = problem
@@ -123,20 +156,21 @@ class Invocation:
         # Automatically set self.program when that program has been built.
         self.program: Optional[program.Generator | run.Submission] = None
 
-        def callback(program):
-            self.program = program
+        def callback(prog: program.Program) -> None:
+            assert isinstance(prog, (program.Generator, run.Submission))
+            self.program = prog
 
         program.Program.add_callback(problem, problem.path / self.program_path, callback)
 
     # Return the form of the command used for caching.
     # This is independent of {name} and the actual run_command.
-    def cache_command(self, seed=None) -> str:
+    def cache_command(self, seed: Optional[int] = None) -> str:
         command_string = self.command_string
         if seed:
             command_string = self.SEED_REGEX.sub(str(seed), command_string)
         return command_string
 
-    def hash(self, seed=None):
+    def hash(self, seed: Optional[int] = None) -> str:
         list = []
         if self.program is not None:
             assert self.program.hash is not None
@@ -145,11 +179,11 @@ class Invocation:
         return combine_hashes(list)
 
     # Return the full command to be executed.
-    def _sub_args(self, *, seed=None):
+    def _sub_args(self, *, seed: Optional[int] = None) -> Sequence[str]:
         if self.uses_seed:
             assert seed is not None
 
-        def sub(arg):
+        def sub(arg: str) -> str:
             arg = self.NAME_REGEX.sub("testcase", arg)
             if self.uses_seed:
                 arg = self.SEED_REGEX.sub(str(seed), arg)
@@ -159,11 +193,13 @@ class Invocation:
 
 
 class GeneratorInvocation(Invocation):
-    def __init__(self, problem, string):
+    def __init__(self, problem: Problem, string: str) -> None:
         super().__init__(problem, string, allow_absolute=False)
 
     # Try running the generator |retries| times, incrementing seed by 1 each time.
-    def run(self, bar, cwd, name, seed, retries=1):
+    def run(
+        self, bar: ProgressBar, cwd: Path, name: str, seed: int, retries: int = 1
+    ) -> ExecResult:
         assert isinstance(self.program, program.Generator), "Generator program must be built!"
 
         for retry in range(retries):
@@ -190,12 +226,12 @@ class GeneratorInvocation(Invocation):
 
 
 class SolutionInvocation(Invocation):
-    def __init__(self, problem, string):
+    def __init__(self, problem: Problem, string: str) -> None:
         super().__init__(problem, string, allow_absolute=True, allow_relative=False)
 
     # Run the submission, reading testcase.in from stdin and piping stdout to testcase.ans.
     # If the .ans already exists, nothing is done
-    def run(self, bar, cwd):
+    def run(self, bar: ProgressBar, cwd: Path) -> ExecResult:
         assert isinstance(self.program, run.Submission), "Submission program must be built!"
 
         in_path = cwd / "testcase.in"
@@ -217,7 +253,7 @@ class SolutionInvocation(Invocation):
             bar.log("stderr", result.err)
         return result
 
-    def generate_interaction(self, bar, cwd, t):
+    def generate_interaction(self, bar: ProgressBar, cwd: Path, t: "TestcaseRule") -> bool:
         in_path = cwd / "testcase.in"
         interaction_path = cwd / "testcase.interaction"
         interaction_path.unlink(missing_ok=True)
@@ -227,9 +263,9 @@ class SolutionInvocation(Invocation):
         r = run.Run(self.problem, self.program, testcase)
 
         # No {name}/{seed} substitution is done since all IO should be via stdin/stdout.
-        ret = r.run(bar, interaction=interaction_path, submission_args=self.args)
-        if ret.verdict != Verdict.ACCEPTED:
-            bar.error(ret.verdict)
+        result = r.run(bar, interaction=interaction_path, submission_args=self.args)
+        if result.verdict != Verdict.ACCEPTED:
+            bar.error(f"could not generate .interaction, submission got {result.verdict}")
             return False
 
         return True
@@ -238,18 +274,15 @@ class SolutionInvocation(Invocation):
 # Return absolute path to default submission, starting from the submissions directory.
 # This function will always prints a message.
 # Which submission is used is implementation defined, unless one is explicitly given on the command line.
-def default_solution_path(generator_config):
+def default_solution_path(generator_config: "GeneratorConfig") -> Path:
     problem = generator_config.problem
     solution = None
     stored_solution = problem.tmpdir / ".default_solution"
+    bar = PrintBar("generators.yaml")
     if config.args.default_solution:
         if generator_config.has_yaml:
-            message(
-                f"""--default-solution Ignored. Set the default solution in the generators.yaml!
-solution: /{config.args.default_solution}""",
-                "generators.yaml",
-                color_type=MessageType.WARN,
-            )
+            bar.warn(f"""--default-solution Ignored. Set the default solution in the generators.yaml!
+solution: /{config.args.default_solution}""")
         else:
             solution = problem.path / config.args.default_solution
     else:
@@ -273,10 +306,8 @@ solution: /{config.args.default_solution}""",
             raw = yaml_path.read_text()
             raw = f"solution: /{solution.relative_to(problem.path)}\n" + raw
             yaml_path.write_text(raw)
-            message(
-                f"No solution specified. {solution_short_path} added as default solution in the generators.yaml",
-                "generators.yaml",
-                color_type=MessageType.LOG,
+            bar.log(
+                f"No solution specified. {solution_short_path} added as default solution in the generators.yaml"
             )
         else:
             log(
@@ -287,14 +318,6 @@ to use a specific solution."""
     assert solution
     stored_solution.write_text(str(solution))
     return Path("/") / solution.relative_to(problem.path)
-
-
-# A wrapper that lazily initializes the underlying SolutionInvocation on first
-# usage.  This is to prevent instantiating the default solution when it's not
-# actually needed.
-class DefaultSolutionInvocation(SolutionInvocation):
-    def __init__(self, generator_config):
-        super().__init__(generator_config.problem, default_solution_path(generator_config))
 
 
 KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
@@ -324,92 +347,109 @@ DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated", "visualizer
 # Holds all inheritable configuration options. Currently:
 # - config.solution
 # - config.random_salt
+# - config.retries
 class Config:
     # Used at each directory or testcase level.
 
     @staticmethod
-    def parse_solution(p, x, path):
-        assert_type("Solution", x, [type(None), str], path)
+    def _parse_solution(p: Problem, x: Any, path: Path) -> Optional[SolutionInvocation]:
+        assert_type("solution", x, [type(None), str], path)
         if x is None:
             return None
         return SolutionInvocation(p, x)
 
     @staticmethod
-    def parse_random_salt(p, x, path):
-        assert_type("Random_salt", x, [type(None), str], path)
+    def _parse_random_salt(x: Any, path: Path) -> str:
+        assert_type("random_salt", x, [type(None), str], path)
         if x is None:
             return ""
-        return x
+        return cast(str, x)
 
-    INHERITABLE_KEYS: Final[Sequence] = [
-        # True: use an AC submission by default when the solution: key is not present.
-        ("solution", True, parse_solution),
-        ("random_salt", "", parse_random_salt),
-        # Non-portable keys only used by BAPCtools:
-        # The number of retries to run a generator when it fails, each time incrementing the {seed}
-        # by 1.
-        ("retries", 1, lambda p, x, path: int(x)),
-    ]
+    @staticmethod
+    def _parse_retries(x: Any, path: Path) -> int:
+        assert_type("retries", x, [type(None), int], path)
+        if x is None:
+            return 1
+        return cast(int, x)
 
-    solution: SolutionInvocation
-    random_salt: str
-    retries: int
+    def __init__(
+        self,
+        problem: Problem,
+        path: Path,
+        yaml: Optional[dict[str, Any]] = None,
+        parent_config: Optional["Config"] = None,
+    ) -> None:
+        if parent_config is None:
+            self.needs_default_solution = True
+            self.solution: Optional[SolutionInvocation] = None
+            self.random_salt: str = ""
+            self.retries: int = 1
+        else:
+            self.needs_default_solution = parent_config.needs_default_solution
+            self.solution = parent_config.solution
+            self.random_salt = parent_config.random_salt
+            self.retries = parent_config.retries
 
-    def __init__(self, problem, path, yaml=None, parent_config=None):
-        assert not yaml or isinstance(yaml, dict)
-
-        for key, default, func in Config.INHERITABLE_KEYS:
-            if func is None:
-                func = lambda p, x, path: x  # noqa: E731  # TODO this can probably be prettier
-            if yaml and key in yaml:
-                setattr(self, key, func(problem, yaml[key], path))
-            elif parent_config is not None:
-                setattr(self, key, getattr(parent_config, key))
-            else:
-                setattr(self, key, default)
+        if yaml is not None:
+            if "solution" in yaml:
+                self.needs_default_solution = False
+                self.solution = Config._parse_solution(problem, yaml["solution"], path)
+            if "random_salt" in yaml:
+                self.random_salt = Config._parse_random_salt(yaml["random_salt"], path)
+            if "retries" in yaml:
+                self.retries = Config._parse_retries(yaml["retries"], path)
 
 
 class Rule:
     # key: the dictionary key in the yaml file, i.e. `testcase`
     # name: the numbered testcase name, i.e. `01-testcase`
-    def __init__(self, problem, key, name, yaml, parent):
-        assert parent is not None
-
+    def __init__(
+        self,
+        problem: Problem,
+        key: str,
+        name: str,
+        yaml: YAML_TYPE,
+        parent: "AnyDirectory",
+    ) -> None:
         self.parent = parent
-
-        if isinstance(yaml, dict):
-            self.config = Config(problem, parent.path / name, yaml, parent_config=parent.config)
-        else:
-            self.config = parent.config
 
         # Yaml key of the current directory/testcase.
         self.key = key
         # Filename of the current directory/testcase.
-        self.name = name
+        self.name: str = name
         # Path of the current directory/testcase relative to data/.
         self.path: Path = parent.path / self.name
         # store Yaml
         self.yaml = yaml
+
+        if parent.config is not None:
+            self.config: Config = parent.config
+        else:
+            self.config = Config(problem, parent.path / name)
+        if isinstance(yaml, dict):
+            self.config = Config(problem, parent.path / name, yaml, parent_config=parent.config)
 
 
 class TestcaseRule(Rule):
     def __init__(
         self,
         problem: Problem,
-        generator_config,
-        key,
+        generator_config: "GeneratorConfig",
+        key: str,
         name: str,
-        yaml: dict[str, Any],
-        parent,
-        count_index,
-    ):
+        yaml: YAML_TYPE,
+        parent: "AnyDirectory",
+        count_index: int,
+    ) -> None:
         assert is_testcase(yaml)
 
         # if not None rule will be skipped during generation
         self.parse_error: Optional[str] = None
 
+        # root in /data
+        self.root = (parent.path / name).parts[0]
         # Whether this testcase is a sample.
-        self.sample: bool = len(parent.path.parts) > 0 and parent.path.parts[0] == "sample"
+        self.sample: bool = self.root == "sample"
         # each test case needs some kind of input
         self.required_in: list[list[str]] = [[".in"]]
         if self.sample:
@@ -443,23 +483,18 @@ class TestcaseRule(Rule):
         # used to handle duplicated testcase rules
         self.copy_of = None
 
+        bar = PrintBar("generators.yaml", item=parent.path / name)
+
         if name.endswith(".in"):
-            message(
-                "Testcase names should not end with '.in'",
-                "generators.yaml",
-                parent.path / name,
-                color_type=MessageType.ERROR,
-            )
+            bar.error("Testcase names should not end with '.in'")
             name = name[:-3]
 
-        super().__init__(problem, key, name, yaml, parent)
-
-        # root in /data
-        self.root = self.path.parts[0]
-
-        # files to consider for hashing
-        hashes = {}
         try:
+            super().__init__(problem, key, name, yaml, parent)
+            bar = bar.start(self.path)
+
+            # files to consider for hashing
+            hashes = {}
             if not config.COMPILED_FILE_NAME_REGEX.fullmatch(name + ".in"):
                 raise ParseException("Test case does not have a valid name.")
 
@@ -477,11 +512,8 @@ class TestcaseRule(Rule):
                 if isinstance(yaml, str):
                     yaml = {"generate": yaml}
                     if yaml["generate"].endswith(".in"):
-                        message(
-                            f"Use the new `copy: path/to/case` key instead of {yaml['generate']}.",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.WARN,
+                        bar.warn(
+                            f"Use the new `copy: path/to/case` key instead of {yaml['generate']}."
                         )
                         yaml = {"copy": yaml["generate"][:-3]}
 
@@ -528,10 +560,8 @@ class TestcaseRule(Rule):
                                 "{count}", f"{self.count_index + 1}"
                             )
                         else:
-                            message(
-                                "Found {count} in generator command but no count in yaml. Ignored.",
-                                self.path,
-                                color_type=MessageType.WARN,
+                            bar.warn(
+                                "Found {count} in generator command but no count in yaml. Ignored."
                             )
                     self.generator = GeneratorInvocation(problem, command_string)
 
@@ -553,12 +583,7 @@ class TestcaseRule(Rule):
                 if "copy" in yaml:
                     assert_type("`copy`", yaml["copy"], str)
                     if Path(yaml["copy"]).suffix in config.KNOWN_TEXT_DATA_EXTENSIONS:
-                        message(
-                            f"`copy: {yaml['copy']}` should not include the extension.",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.WARN,
-                        )
+                        bar.warn(f"`copy: {yaml['copy']}` should not include the extension.")
                     self.copy = resolve_path(
                         yaml["copy"], allow_absolute=False, allow_relative=True
                     )
@@ -596,12 +621,7 @@ class TestcaseRule(Rule):
                     raise ParseException(f"Testcase must not contain reserved key {key}.")
                 if key not in KNOWN_TESTCASE_KEYS:
                     if config.args.action == "generate":
-                        message(
-                            f"Unknown testcase level key: {key}",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.LOG,
-                        )
+                        bar.log(f"Unknown testcase level key: {key}")
 
             # combine hashes
             self.hash = combine_hashes_dict(hashes)
@@ -626,7 +646,9 @@ class TestcaseRule(Rule):
                 return True
         return False
 
-    def link(t, problem, generator_config, bar, dst):
+    def link(
+        t, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar, dst: Path
+    ) -> None:
         src_dir = problem.path / "data" / t.path.parent
         src = src_dir / (t.name + ".in")
 
@@ -657,9 +679,14 @@ class TestcaseRule(Rule):
                 # both source and target do not exist
                 pass
 
-    def validate_in(t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar):
+    def validate_in(
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict[str, Any], bar: ProgressBar
+    ) -> bool:
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
+
+        if testcase.root == "testing_tool_test":
+            return True
 
         input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
         if all(h in meta_yaml["input_validator_hashes"] for h in input_validator_hashes):
@@ -700,12 +727,12 @@ class TestcaseRule(Rule):
         return True
 
     def validate_ans_and_out(
-        t, problem: Problem, testcase: Testcase, meta_yaml: dict, bar: ProgressBar
-    ):
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict[str, Any], bar: ProgressBar
+    ) -> bool:
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
-        if testcase.root == "invalid_input":
+        if testcase.root in ["invalid_input", "testing_tool_test"]:
             return True
 
         ansfile = infile.with_suffix(".ans")
@@ -754,7 +781,9 @@ class TestcaseRule(Rule):
             )
         return True
 
-    def generate(t, problem: Problem, generator_config, parent_bar):
+    def generate(
+        t, problem: Problem, generator_config: "GeneratorConfig", parent_bar: ProgressBar
+    ) -> None:
         bar = parent_bar.start(str(t.path))
 
         t.generate_success = False
@@ -774,11 +803,6 @@ class TestcaseRule(Rule):
         if t.generator and t.generator.program is None:
             bar.done(False, "Generator didn't build. Skipping.")
             return
-        if t.hash is None:
-            # Input can only be missing when the `copy:` does not have a corresponding `.in` file.
-            # (When `generate:` or `in:` is used, the input is always present.)
-            bar.done(False, f"{t.copy} does not exist. Skipping.")
-            return
 
         target_dir = problem.path / "data" / t.path.parent
         target_infile = target_dir / (t.name + ".in")
@@ -790,7 +814,7 @@ class TestcaseRule(Rule):
         ansfile = cwd / "testcase.ans"
         meta_path = cwd / "meta_.yaml"
 
-        def init_meta():
+        def init_meta() -> dict[str, Any]:
             meta_yaml = read_yaml(meta_path) if meta_path.is_file() else None
             if meta_yaml is None:
                 meta_yaml = {
@@ -807,7 +831,7 @@ class TestcaseRule(Rule):
 
         meta_yaml = init_meta()
 
-        def _check_deterministic(tmp, tmp_infile):
+        def _check_deterministic(tmp: Path, tmp_infile: Path) -> None:
             assert t.generator is not None
             result = t.generator.run(bar, tmp, tmp_infile.stem, t.seed, t.config.retries)
             if not result.status:
@@ -852,7 +876,7 @@ class TestcaseRule(Rule):
         # which is also set to True when running `bt all`.
         # This doesn't do anything for non-generated cases.
         # It also checks that the input changes when the seed changes.
-        def check_deterministic(force=False):
+        def check_deterministic(force: bool = False) -> None:
             if not force and not config.args.check_deterministic:
                 return
             if t.generator is None:
@@ -868,7 +892,7 @@ class TestcaseRule(Rule):
             # clean up
             shutil.rmtree(tmp)
 
-        def generate_from_rule():
+        def generate_from_rule() -> bool:
             nonlocal meta_yaml
 
             # create expected cache entry for generate
@@ -936,16 +960,20 @@ class TestcaseRule(Rule):
             assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
-        def generate_from_solution(testcase: Testcase, bar: ProgressBar):
+        def generate_from_solution(testcase: Testcase, bar: ProgressBar) -> bool:
             nonlocal meta_yaml
 
-            if testcase.root in [*config.INVALID_CASE_DIRECTORIES, "valid_output"]:
+            if testcase.root in [
+                *config.INVALID_CASE_DIRECTORIES,
+                "valid_output",
+                "testing_tool_test",
+            ]:
                 return True
             if config.args.no_solution:
                 return True
 
             if t.config.solution is not None:
-                solution_hash = {
+                solution_hash: dict[str, Optional[str]] = {
                     "solution_hash": t.config.solution.hash(),
                     "solution": t.config.solution.cache_command(),
                 }
@@ -955,7 +983,9 @@ class TestcaseRule(Rule):
                     "solution": None,
                 }
 
-            def needed(ext, interactor_hash=None):
+            def needed(
+                ext: str, interactor_hash: Optional[dict[str, dict[str, str]]] = None
+            ) -> bool:
                 if ext in meta_yaml["generated_extensions"]:
                     return False
                 if not infile.with_suffix(ext).is_file():
@@ -1016,10 +1046,12 @@ class TestcaseRule(Rule):
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
             return True
 
-        def generate_visualization(testcase: Testcase, bar: ProgressBar):
+        def generate_visualization(testcase: Testcase, bar: ProgressBar) -> bool:
             nonlocal meta_yaml
 
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
+                return True
+            if testcase.root == "testing_tool_test":
                 return True
             if config.args.no_visualizer:
                 return True
@@ -1117,7 +1149,7 @@ class TestcaseRule(Rule):
             # errors in the visualizer are not critical
             return True
 
-        def generate_empty_interactive_sample_ans():
+        def generate_empty_interactive_sample_ans() -> bool:
             if not t.sample:
                 return True
             if not problem.interactive and not problem.multi_pass:
@@ -1131,7 +1163,7 @@ class TestcaseRule(Rule):
                     return True
             return True
 
-        def copy_generated():
+        def copy_generated() -> None:
             identical_exts = set()
 
             for ext in config.KNOWN_DATA_EXTENSIONS:
@@ -1173,7 +1205,7 @@ class TestcaseRule(Rule):
                     # both source and target do not exist
                     pass
 
-        def add_test_case_to_cache():
+        def add_test_case_to_cache() -> None:
             # Used to identify generated test cases
             generator_config.hashed_in.add(hash_file_content(infile))
 
@@ -1182,6 +1214,7 @@ class TestcaseRule(Rule):
 
             # consider specific files for the uniqueness of this testcase
             relevant_files = {
+                "testing_tool_test": [".in"],
                 "invalid_input": [".in"],
                 "invalid_answer": [".in", ".ans"],
                 "invalid_output": [".in", ".ans", ".out"],
@@ -1269,9 +1302,9 @@ class Directory(Rule):
         problem: Problem,
         key: str,
         name: str,
-        yaml: dict,
+        yaml: dict[str, Any],
         parent: "AnyDirectory",
-    ):
+    ) -> None:
         assert is_directory(yaml)
 
         # The root Directory object has name ''.
@@ -1280,29 +1313,21 @@ class Directory(Rule):
                 raise ParseException("Directory does not have a valid name.", parent.path / name)
 
         super().__init__(problem, key, name, yaml, parent)
+        bar = PrintBar("generators.yaml", item=self.path)
 
-        if name == "":
+        if isinstance(parent, RootDirectory):
             for key in yaml:
                 if key in RESERVED_DIRECTORY_KEYS:
                     raise ParseException(
                         f"Directory must not contain reserved key {key}.", self.path
                     )
                 if key in DEPRECATED_ROOT_KEYS:
-                    message(
-                        f"Deprecated root level key: {key}, ignored",
-                        "generators.yaml",
-                        self.path,
-                        color_type=MessageType.WARN,
-                    )
+                    bar.warn(f"Deprecated root level key: {key}, ignored")
                 elif key not in [*KNOWN_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
                     if config.args.action == "generate":
-                        message(
-                            f"Unknown root level key: {key}",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.LOG,
-                        )
+                        bar.log(f"Unknown root level key: {key}")
         else:
+            assert name != ""
             for key in yaml:
                 if key in [*RESERVED_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
                     raise ParseException(
@@ -1310,12 +1335,7 @@ class Directory(Rule):
                     )
                 if key not in KNOWN_DIRECTORY_KEYS:
                     if config.args.action == "generate":
-                        message(
-                            f"Unknown directory level key: {key}",
-                            "generators.yaml",
-                            self.path,
-                            color_type=MessageType.LOG,
-                        )
+                        bar.log(f"Unknown directory level key: {key}")
 
         self.test_group_yaml: Any = yaml.get("test_group.yaml", False)
         self.numbered = False
@@ -1330,8 +1350,6 @@ class Directory(Rule):
             return
         data = yaml["data"]
         if data is None:
-            return
-        if data == "":
             return
         assert_type("Data", data, [dict, list])
 
@@ -1361,9 +1379,7 @@ class Directory(Rule):
     def walk(
         self,
         testcase_f: Optional[Callable[["TestcaseRule | Directory"], Any]],
-        *,
-        dir_last=False,
-    ): ...
+    ) -> None: ...
 
     # This overload takes one function for test cases and a separate function for directories.
     @overload
@@ -1371,35 +1387,37 @@ class Directory(Rule):
         self,
         testcase_f: Optional[Callable[[TestcaseRule], Any]],
         dir_f: Optional[Callable[["Directory"], Any]],
-        *,
-        dir_last=False,
-    ): ...
-
-    # Below is the actual implementation of `walk`,
-    # no parameter types are needed here because they are already defined by the @overloads.
+    ) -> None: ...
 
     # Map a function over all test cases directory tree.
     # dir_f by default reuses testcase_f
-    def walk(self, testcase_f=None, dir_f=True, *, dir_last=False):
+    def walk(
+        self,
+        testcase_f: Optional[
+            Callable[["TestcaseRule | Directory"], Any] | Callable[[TestcaseRule], Any]
+        ] = None,
+        dir_f: Literal[True]
+        | Optional[
+            Callable[["TestcaseRule | Directory"], Any] | Callable[["Directory"], Any]
+        ] = True,
+    ) -> None:
         if dir_f is True:
-            dir_f = testcase_f
-
-        if not dir_last and dir_f:
+            dir_f = cast(Optional[Callable[["TestcaseRule | Directory"], Any]], testcase_f)
+        if dir_f:
             dir_f(self)
 
         for d in self.data:
             if isinstance(d, Directory):
-                d.walk(testcase_f, dir_f, dir_last=dir_last)
+                d.walk(testcase_f, dir_f)
             elif isinstance(d, TestcaseRule):
                 if testcase_f:
                     testcase_f(d)
             else:
                 assert False
 
-        if dir_last and dir_f:
-            dir_f(self)
-
-    def generate(d, problem, generator_config, bar):
+    def generate(
+        d, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
+    ) -> None:
         # Generate the current directory:
         # - Create the directory.
         # - Write test_group.yaml.
@@ -1431,13 +1449,15 @@ class Directory(Rule):
                 # new file -> create it
                 test_group_yaml_path.write_text(yaml_text)
                 bar.log("NEW: test_group.yaml")
-        elif d.test_group_yaml == "" and test_group_yaml_path.is_file():
+        elif d.test_group_yaml is None and test_group_yaml_path.is_file():
             # empty -> remove it
             generator_config.remove(test_group_yaml_path)
             bar.log("REMOVED: test_group.yaml")
         bar.done()
 
-    def generate_includes(d, problem, generator_config, bar):
+    def generate_includes(
+        d, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar
+    ) -> None:
         for key in d.includes:
             t = d.includes[key]
             target = t.path
@@ -1484,14 +1504,15 @@ class Directory(Rule):
 
 
 # Returns the numbered name
-def numbered_test_case_name(base_name, i, n):
+def next_numbered_name(base_name: str, i: Iterator[int], n: int) -> Iterator[str]:
     width = len(str(n))
-    number_prefix = f"{i:0{width}}"
-    if base_name:
-        return number_prefix + "-" + base_name
-    else:
-        assert base_name is None or base_name == ""
-        return number_prefix
+    while True:
+        number_prefix = f"{next(i):0{width}}"
+        if base_name:
+            yield f"{number_prefix}-{base_name}"
+        else:
+            assert base_name is None or base_name == ""
+            yield number_prefix
 
 
 AnyDirectory = RootDirectory | Directory
@@ -1499,10 +1520,11 @@ AnyDirectory = RootDirectory | Directory
 
 class GeneratorConfig:
     @staticmethod
-    def parse_generators(generators_yaml):
+    def _parse_generators(generators_yaml: YAML_TYPE) -> dict[Path, list[Path]]:
         assert_type("Generators", generators_yaml, dict)
+        assert isinstance(generators_yaml, dict)
         generators = {}
-        for gen in generators_yaml:
+        for gen, deps in generators_yaml.items():
             if (
                 gen.startswith("/")
                 or Path(gen).is_absolute()
@@ -1512,7 +1534,6 @@ class GeneratorConfig:
 
             path = Path("generators") / gen
 
-            deps = generators_yaml[gen]
             assert_type("Generator dependencies", deps, list)
             if len(deps) == 0:
                 raise ParseException("Generator dependencies must not be empty.", path)
@@ -1522,15 +1543,8 @@ class GeneratorConfig:
             generators[path] = [Path("generators") / d for d in deps]
         return generators
 
-    # Only used at the root directory level.
-    ROOT_KEYS: Final[Sequence] = [
-        ("generators", dict[Path, list[Path]](), parse_generators),
-    ]
-
-    generators: dict[Path, list[Path]]
-
     # Parse generators.yaml.
-    def __init__(self, problem, restriction=None):
+    def __init__(self, problem: Problem, restriction: Optional[Sequence[Path]] = None) -> None:
         self.problem = problem
         yaml_path = self.problem.path / "generators" / "generators.yaml"
         self.n_parse_error = 0
@@ -1538,26 +1552,28 @@ class GeneratorConfig:
         # A map of paths `secret/test_group/test_case` to their canonical TestcaseRule.
         # For generated cases this is the rule itself.
         # For included cases, this is the 'resolved' location of the test case that is included.
-        self.known_cases = dict()
+        self.known_cases = dict[Path, TestcaseRule]()
         # A map of paths `secret/test_group` to Directory rules.
-        self.known_directories = dict()
+        self.known_directories = dict[Path, Directory]()
         # Used for cleanup
-        self.known_files = set()
+        self.known_files = set[Path]()
         # A map from key to (is_included, list of test cases and directories),
         # used for `include` statements.
         self.known_keys = collections.defaultdict[str, tuple[bool, list[TestcaseRule | Directory]]](
             lambda: (False, [])
         )
         # A set of testcase rules, including seeds.
-        self.rules_cache = dict()
+        self.rules_cache = dict[str, TestcaseRule]()
         # The set of generated test cases keyed by hash(test_case).
-        self.generated_test_cases = dict()
+        self.generated_test_cases = dict[str, TestcaseRule]()
         # Path to the trash directory for this run
         self.trash_dir: Optional[Path] = None
         # Set of hash(.in) for all generated testcases
-        self.hashed_in = set()
+        self.hashed_in = set[str]()
         # Files that should be processed
         self.restriction = restriction
+        # replaced during parse_yaml
+        self.generators = dict[Path, list[Path]]()
 
         if yaml_path.is_file():
             self.yaml = read_yaml(yaml_path)
@@ -1570,11 +1586,10 @@ class GeneratorConfig:
             self.parse_yaml(self.yaml)
         except ParseException as e:
             # Handle fatal parse errors
-            message(e.message, "generators.yaml", e.path, color_type=MessageType.FATAL)
-            exit()
+            PrintBar("generators.yaml", item=e.path).fatal(e.message or "")
 
     # testcase_short_path: secret/1.in
-    def process_testcase(self, relative_testcase_path):
+    def process_testcase(self, relative_testcase_path: Path) -> bool:
         if not self.restriction:
             return True
         absolute_testcase_path = self.problem.path / "data" / relative_testcase_path.with_suffix("")
@@ -1584,19 +1599,17 @@ class GeneratorConfig:
                     return True
         return False
 
-    def parse_yaml(self, yaml):
+    def parse_yaml(self, yaml: YAML_TYPE) -> None:
         assert_type("Root yaml", yaml, [type(None), dict])
         if yaml is None:
             yaml = dict()
+        assert isinstance(yaml, dict)
 
         # Read root level configuration
-        for key, default, func in GeneratorConfig.ROOT_KEYS:
-            if yaml and key in yaml:
-                setattr(self, key, func(yaml[key] if yaml[key] is not None else default))
-            else:
-                setattr(self, key, default)
+        if "generators" in yaml:
+            self.generators = self._parse_generators(yaml["generators"])
 
-        def add_known(obj):
+        def add_known(obj: TestcaseRule | Directory) -> None:
             path = obj.path
             name = path.name
             if isinstance(obj, TestcaseRule):
@@ -1609,51 +1622,38 @@ class GeneratorConfig:
             is_included, cases_list = self.known_keys[obj.key]
             cases_list.append(obj)
             if is_included and len(cases_list) == 2:
-                message(
-                    f"Included key {name} exists more than once as {cases_list[0].path} and {cases_list[1].path}.",
-                    "generators.yaml",
-                    obj.path,
-                    color_type=MessageType.ERROR,
+                PrintBar("generators.yaml", item=obj.path).error(
+                    f"Included key {name} exists more than once as {cases_list[0].path} and {cases_list[1].path}."
                 )
 
         num_numbered_test_cases = 0
-        test_case_id = 0
+        next_test_case_id = itertools.count(1)
 
-        def parse_count(yaml, warn_for=None):
+        def parse_count(yaml: YAML_TYPE, warn_for: Optional[Path] = None) -> int:
             if not has_count(yaml):
                 return 1
+            assert isinstance(yaml, dict)
             count = yaml["count"]
+            assert isinstance(count, int)
+            bar = PrintBar("generators.yaml", item=warn_for)
             if count < 1:
                 if warn_for is not None:
-                    message(
-                        f"Found count: {count}, increased to 1.",
-                        "generators.yaml",
-                        warn_for,
-                        color_type=MessageType.WARN,
-                    )
+                    bar.warn(f"Found count: {count}, increased to 1.")
                 return 1
             if count > 1000:
                 if warn_for is not None:
-                    message(
-                        f"Found count: {count}, limited to 1000.",
-                        "generators.yaml",
-                        warn_for,
-                        color_type=MessageType.ERROR,
-                    )
+                    bar.error(f"Found count: {count}, limited to 1000.")
                 return 1000
             if count > 100 and warn_for is not None:
-                message(
-                    f"Found large count: {count}.",
-                    "generators.yaml",
-                    warn_for,
-                    color_type=MessageType.LOG,
-                )
+                bar.log(f"Found large count: {count}.")
             return count
 
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
-        def count(yaml):
+        def count(yaml: YAML_TYPE) -> None:
             nonlocal num_numbered_test_cases
+            if not isinstance(yaml, dict):
+                return
             ds = yaml.get("data")
             if isinstance(ds, dict):
                 ds = [ds]
@@ -1676,8 +1676,10 @@ class GeneratorConfig:
         # key: the yaml key e.g. 'testcase'
         # name_gen: each call should result in the next (possibly numbered) name e.g. '01-testcase'
         # Returns either a single Rule or a list of Rules
-        def parse(key: str, name_gen: Callable[[], str], yaml: dict, parent: AnyDirectory):
-            name = name_gen()
+        def parse(
+            key: str, name_gen: Iterator[str], yaml: YAML_TYPE, parent: AnyDirectory
+        ) -> Directory | list[TestcaseRule]:
+            name = next(name_gen)
             assert_type("Testcase/directory", yaml, [type(None), str, dict], parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
                 raise ParseException("not parsed as a testcase or directory.", parent.path / name)
@@ -1691,7 +1693,7 @@ class GeneratorConfig:
                 ts = []
                 for count_index in range(count):
                     if count_index > 0:
-                        name = name_gen()
+                        name = next(name_gen)
                     if has_count(yaml):
                         name += f"-{count_index + 1:0{len(str(count))}}"
 
@@ -1701,11 +1703,8 @@ class GeneratorConfig:
 
                     t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
                     if t.path in self.known_cases:
-                        message(
-                            "was already parsed. Skipping.",
-                            "generators.yaml",
-                            t.path,
-                            color_type=MessageType.ERROR,
+                        PrintBar("generators.yaml", item=t.path).error(
+                            "was already parsed. Skipping."
                         )
                         continue
 
@@ -1714,6 +1713,7 @@ class GeneratorConfig:
                 return ts
 
             assert is_directory(yaml)
+            assert isinstance(yaml, dict)
 
             d = Directory(self.problem, key, name, yaml, parent)
             if d.path in self.known_cases or d.path in self.known_directories:
@@ -1729,11 +1729,11 @@ class GeneratorConfig:
                     assert_type("Elements of data", dictionary, dict, d.path)
                     for key in dictionary.keys():
                         assert_type("Key of data", key, [type(None), str], d.path / str(key))
-                    for child_name, child_yaml in sorted(dictionary.items()):
+                    for _, child_yaml in sorted(dictionary.items()):
                         if is_directory(child_yaml):
                             num_test_groups += 1
 
-                test_group_id = 0
+                next_test_group_id = itertools.count(1)
                 for dictionary in data:
                     for key in dictionary:
                         assert_type("Test case/group name", key, [type(None), str], d.path)
@@ -1772,32 +1772,21 @@ class GeneratorConfig:
                         child_yaml = dictionary[child_key]
                         if d.numbered:
                             if is_directory(child_yaml):
-
-                                def next_test_group_name():
-                                    nonlocal test_group_id
-                                    test_group_id += 1
-                                    return numbered_test_case_name(
-                                        child_key, test_group_id, num_test_groups
-                                    )
-
-                                child_name = next_test_group_name
+                                child_name = next_numbered_name(
+                                    child_key, next_test_group_id, num_test_groups
+                                )
                             elif is_testcase(child_yaml):
-
-                                def next_test_case_name():
-                                    nonlocal test_case_id
-                                    test_case_id += 1
-                                    return numbered_test_case_name(
-                                        child_key, test_case_id, num_numbered_test_cases
-                                    )
-
-                                child_name = next_test_case_name
+                                child_name = next_numbered_name(
+                                    child_key, next_test_case_id, num_numbered_test_cases
+                                )
                             else:
                                 # Use error will be given inside parse(child).
-                                child_name = lambda: ""  # noqa: E731  # TODO this can probably be prettier
+                                child_name = itertools.repeat("")
 
                         else:
-                            child_name = lambda: child_key  # noqa: E731  # TODO this can probably be prettier
-                            if not child_name():
+                            assert isinstance(child_key, str)
+                            child_name = itertools.repeat(child_key)
+                            if not next(child_name):
                                 raise ParseException(
                                     "Unnumbered test cases must not have an empty key",
                                     d.path,
@@ -1809,25 +1798,18 @@ class GeneratorConfig:
                             d.data.append(c)
 
             # Include TestcaseRule t for the current directory.
-            def add_included_case(t: TestcaseRule):
+            def add_included_case(t: TestcaseRule) -> None:
                 target = t.path
                 name = target.name
                 p = d.path / name
                 if p in self.known_cases:
+                    bar = PrintBar("generators.yaml", item=p)
                     if target != self.known_cases[p].path:
                         if self.known_cases[p].path == p:
-                            message(
-                                f"conflict with included case {target}.",
-                                "generators.yaml",
-                                p,
-                                color_type=MessageType.ERROR,
-                            )
+                            bar.error(f"conflict with included case {target}.")
                         else:
-                            message(
-                                f"included with multiple targets {target} and {self.known_cases[p].path}.",
-                                "generators.yaml",
-                                p,
-                                color_type=MessageType.ERROR,
+                            bar.error(
+                                f"included with multiple targets {target} and {self.known_cases[p].path}."
                             )
                     return
                 self.known_cases[p] = t
@@ -1836,26 +1818,17 @@ class GeneratorConfig:
             if "include" in yaml:
                 assert_type("includes", yaml["include"], list, d.path)
 
+                bar = PrintBar("generators.yaml", item=d.path)
                 for include in yaml["include"]:
                     assert_type("include", include, str, d.path)
                     if "/" in include:
-                        message(
-                            f"Include {include} should be a test case/group key, not a path.",
-                            "generators.yaml",
-                            d.path,
-                            color_type=MessageType.ERROR,
-                        )
+                        bar.error(f"Include {include} should be a test case/group key, not a path.")
                         continue
 
                     if include in self.known_keys:
                         is_included, cases_list = self.known_keys[include]
                         if len(cases_list) != 1:
-                            message(
-                                f"Included key {include} exists more than once.",
-                                "generators.yaml",
-                                d.path,
-                                color_type=MessageType.ERROR,
-                            )
+                            bar.error(f"Included key {include} exists more than once.")
                             continue
 
                         self.known_keys[include] = (True, cases_list)
@@ -1865,51 +1838,54 @@ class GeneratorConfig:
                         else:
                             obj.walk(
                                 add_included_case,
-                                lambda d: [add_included_case(t) for t in d.includes.values()],
+                                lambda d: list(map(add_included_case, d.includes.values())),
                             )
                             pass
                     else:
-                        message(
-                            f"Unknown include key {include} does not refer to a previous test case.",
-                            "generators.yaml",
-                            d.path,
-                            color_type=MessageType.ERROR,
+                        bar.error(
+                            f"Unknown include key {include} does not refer to a previous test case."
                         )
                         continue
             return d
 
-        self.root_dir = parse("", lambda: "", yaml, RootDirectory())
+        root_dir = parse("", itertools.repeat(""), yaml, RootDirectory())
+        assert isinstance(root_dir, Directory)
+        self.root_dir = root_dir
 
-    def build(self, build_visualizers=True, skip_double_build_warning=False):
+    def build(
+        self, build_visualizers: bool = True, skip_double_build_warning: bool = False
+    ) -> None:
         generators_used: set[Path] = set()
         solutions_used: set[Path] = set()
 
         # Collect all programs that need building.
-        # Also, convert the default submission into an actual Invocation.
-        default_solution = None
+        # Also, set the default submission if needed.
+        # We only do this now to prevent instantiating
+        # the default solution when it's not actually needed.
+        default_solution: Optional[SolutionInvocation] = None
 
-        def collect_programs(t):
+        def collect_programs(t: TestcaseRule) -> None:
             if isinstance(t, TestcaseRule):
                 if t.generator:
                     generators_used.add(t.generator.program_path)
+            if config.args.no_solution:
+                t.config.solution = None
+            elif t.config.needs_default_solution:
+                # Initialize the default solution if needed.
+                nonlocal default_solution
+                if default_solution is None:
+                    default_path = default_solution_path(self)
+                    default_solution = SolutionInvocation(self.problem, str(default_path))
+                t.config.solution = default_solution
             if t.config.solution:
-                if config.args.no_solution:
-                    t.config.solution = None
-                else:
-                    # Initialize the default solution if needed.
-                    if t.config.solution is True:
-                        nonlocal default_solution
-                        if default_solution is None:
-                            default_solution = DefaultSolutionInvocation(self)
-                        t.config.solution = default_solution
-                    solutions_used.add(t.config.solution.program_path)
+                solutions_used.add(t.config.solution.program_path)
 
         self.root_dir.walk(collect_programs, dir_f=None)
 
         def build_programs(
             program_type: type[program.Generator | run.Submission],
             program_paths: Iterable[Path],
-        ):
+        ) -> None:
             programs = list[program.Generator | run.Submission]()
             for program_path in program_paths:
                 path = self.problem.path / program_path
@@ -1932,7 +1908,7 @@ class GeneratorConfig:
 
             bar = ProgressBar(f"Build {program_type.__name__.lower()}s", items=programs)
 
-            def build_program(p):
+            def build_program(p: program.Generator | run.Submission) -> None:
                 localbar = bar.start(p)
                 p.build(localbar)
                 localbar.done()
@@ -1952,20 +1928,20 @@ class GeneratorConfig:
         self.problem.validators(validate.AnswerValidator)
         self.problem.validators(validate.OutputValidator)
 
-        def cleanup_build_failures(t):
+        def cleanup_build_failures(t: TestcaseRule) -> None:
             if t.config.solution and t.config.solution.program is None:
                 t.config.solution = None
 
         self.root_dir.walk(cleanup_build_failures, dir_f=None)
 
-    def run(self):
+    def run(self) -> None:
         self.update_gitignore_file()
         self.problem.reset_testcase_hashes()
 
         item_names = []
         self.root_dir.walk(lambda x: item_names.append(x.path))
 
-        def count_dir(d):
+        def count_dir(d: Directory) -> None:
             for name in d.includes:
                 item_names.append(d.path / name)
 
@@ -1980,12 +1956,13 @@ class GeneratorConfig:
         #    included testcases.
 
         # 1
-        def runner(t: TestcaseRule) -> Any:
-            return t.copy_of is None and t.generate(self.problem, self, bar)
+        def runner(t: TestcaseRule) -> None:
+            if t.copy_of is None:
+                t.generate(self.problem, self, bar)
 
         p = parallel.new_queue(runner)
 
-        def generate_dir(d):
+        def generate_dir(d: Directory) -> None:
             p.join()
             d.generate(self.problem, self, bar)
 
@@ -1993,12 +1970,13 @@ class GeneratorConfig:
         p.done()
 
         # 2
-        def runner_copies(t: TestcaseRule):
-            return t.copy_of is not None and t.generate(self.problem, self, bar)
+        def runner_copies(t: TestcaseRule) -> None:
+            if t.copy_of is not None:
+                t.generate(self.problem, self, bar)
 
         p = parallel.new_queue(runner_copies)
 
-        def generate_copies_and_includes(d):
+        def generate_copies_and_includes(d: Directory) -> None:
             p.join()
             d.generate_includes(self.problem, self, bar)
 
@@ -2008,7 +1986,7 @@ class GeneratorConfig:
         bar.finalize()
 
     # move a file or into the trash directory
-    def remove(self, src):
+    def remove(self, src: Path) -> None:
         if self.trash_dir is None:
             self.trash_dir = self.problem.tmpdir / "trash" / secrets.token_hex(4)
         dst = self.trash_dir / src.absolute().relative_to((self.problem.path / "data").absolute())
@@ -2016,7 +1994,7 @@ class GeneratorConfig:
 
         shutil.move(src, dst)
 
-    def _remove_unknown(self, path, bar, silent=False):
+    def _remove_unknown(self, path: Path, bar: ProgressBar, silent: bool = False) -> None:
         local = path.relative_to(self.problem.path / "data")
         keep = any(
             (
@@ -2044,7 +2022,7 @@ class GeneratorConfig:
                 bar.log(f"REMOVED: {path.name}")
 
     # remove all files in data that were not written by the during run
-    def clean_up(self):
+    def clean_up(self) -> None:
         bar = ProgressBar("Clean Up", max_len=-1)
 
         self._remove_unknown(self.problem.path / "data", bar)
@@ -2053,7 +2031,7 @@ class GeneratorConfig:
         bar.finalize()
 
     # write a gitignore file to ignore everything in data/ except data/sample/
-    def update_gitignore_file(self):
+    def update_gitignore_file(self) -> None:
         gitignorefile = self.problem.path / ".gitignore"
 
         content = """#GENERATED BY BAPCtools
@@ -2076,7 +2054,7 @@ data/*
 
     # add all testcases specified as copy keys in the generators.yaml
     # can handle files and complete directories
-    def add(self, to_add):
+    def add(self, to_add: Sequence[Path]) -> bool:
         if not has_ryaml:
             error(
                 "generate --add needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml."
@@ -2135,7 +2113,7 @@ data/*
         return True
 
     # reorder all testcases in the given directories
-    def reorder(self):
+    def reorder(self) -> bool:
         if self.n_parse_error > 0:
             return False
 
@@ -2146,21 +2124,24 @@ data/*
             return False
 
         directory_rules = set()
-        for d in config.args.testcases:
-            path = d.relative_to("data")
+        assert config.args.testcases is not None  # set in tools.py
+        for t in config.args.testcases:
+            path = t.relative_to("data")
             parts = path.parts
             if not parts:
                 warn("Cannot reorder Root directory. Skipping.")
             elif parts[0] in config.INVALID_CASE_DIRECTORIES:
-                warn(f"{d} is used for invalid test data. Skipping.")
+                warn(f"{t} is used for invalid test data. Skipping.")
             elif parts[0] == "valid_output":
-                warn(f"{d} is used for valid test data. Skipping.")
+                warn(f"{t} is used for valid test data. Skipping.")
+            elif parts[0] == "testing_tool_test":
+                warn(f"{t} is used to test the testing tool. Skipping.")
             elif path not in self.known_directories:
-                warn(f"{d} is not a generated directory. Skipping.")
+                warn(f"{t} is not a generated directory. Skipping.")
             elif not self.known_directories[path].numbered:
-                warn(f"{d} is not numbered. Skipping.")
+                warn(f"{t} is not numbered. Skipping.")
             elif not self.known_directories[path].data:
-                warn(f"{d} is empty. Skipping.")
+                warn(f"{t} is empty. Skipping.")
             else:
                 directory_rules.add(self.known_directories[path])
 
@@ -2194,10 +2175,11 @@ data/*
         testcase_paths = {t.in_path.relative_to(data).with_suffix("") for t in testcases}
         max_testcase_len = max([len(str(t)) for t in testcase_paths])
         for d in directory_rules:
-            print(file=sys.stderr)
-            print(f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}", file=sys.stderr)
+            eprint()
+            eprint(f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {d.path}")
 
             # directory must be numbered
+            assert isinstance(d.yaml, dict)
             assert "data" in d.yaml
             assert isinstance(d.yaml["data"], list)
 
@@ -2210,13 +2192,13 @@ data/*
             others = [e for e in d.yaml["data"] if id(next(iter(e.values()))) not in test_nodes]
 
             class TestcaseResult:
-                def __init__(self, yaml):
+                def __init__(self, yaml: dict[str, Any]) -> None:
                     self.yaml = yaml
-                    self.test_node = test_nodes[id(next(iter(yaml.values())))]
+                    self.name = test_nodes[id(next(iter(yaml.values())))]
                     self.scores = []
                     self.result = []
                     for i in range(len(submissions)):
-                        verdict = verdict_table.results[i][self.test_node]
+                        verdict = verdict_table.results[i][self.name]
                         # moving TLE cases to the front is most important to save resources
                         # RTE are less reliable and therefore less important than WA
                         if verdict == Verdict.TIME_LIMIT_EXCEEDED:
@@ -2225,15 +2207,15 @@ data/*
                             self.scores.append((i, 4))
                         elif verdict == Verdict.RUNTIME_ERROR:
                             self.scores.append((i, 3))
-                        self.result.append(verdict_table._get_verdict(i, self.test_node))
+                        self.result.append(verdict_table._get_verdict(i, self.name))
 
-                def __str__(self):
-                    return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.test_node:<{max_testcase_len}} {''.join(self.result)}"
+                def __str__(self) -> str:
+                    return f"{Fore.CYAN}Reorder{Style.RESET_ALL}: {self.name:<{max_testcase_len}} {''.join(self.result)}"
 
-                def score(self, weights):
+                def score(self, weights: list[int]) -> int:
                     return sum(weights[i] * x for i, x in self.scores)
 
-                def update(self, weights):
+                def update(self, weights: list[int]) -> list[int]:
                     # the weights for each submission that did not fail on this testcase get doubled
                     # up to a limit of 2**16. (The same as halving the weight of all submission that failed)
                     weights = [x * 2 for x in weights]
@@ -2253,13 +2235,13 @@ data/*
                 if id(next(iter(e.values()))) in test_nodes
             ]
 
-            # TODO: ProgressBar?
             # Each submission is initially assigned a weight of one. The weight contributes to the score of a testcase if
             # the submission fails on this testcase. If a testcase is selected the weights for each submission that it fails
             # get halved (or all other get doubled) to encourage making the remaining submissions fail. We greedily pick the
             # submission that has the heighest score. Note that we additionally consider the type of failing (WA/TLE/RTE)
             # see class TestcaseResult.
             # Worstcase runtime testcases^2 * submissions
+            bar = ProgressBar("Reorder", items=todo)
             done = []
             weights = [1] * len(submissions)
             while todo:
@@ -2269,9 +2251,15 @@ data/*
                     break
                 index = scores.index(score)
                 result = todo.pop(index)
+                localbar = bar.start(result)
                 done.append(result.yaml)
                 weights = result.update(weights)
-                print(result, file=sys.stderr)
+                localbar.log("moved to front")
+                localbar.done()
+
+            for _ in todo:
+                bar.skip()
+            bar.finalize()
 
             # move all unknown subgroups/testcases to the end (keeping their relative order)
             d.yaml["data"].clear()
@@ -2281,7 +2269,7 @@ data/*
         write_yaml(self.yaml, generators_yaml)
 
         # regenerate cases
-        print(file=sys.stderr)
+        eprint()
         new_config = GeneratorConfig(self.problem, config.args.testcases)
         new_config.build(skip_double_build_warning=True)
         new_config.run()
@@ -2291,21 +2279,21 @@ data/*
 
 # Delete files in the tmpdir trash directory. By default all files older than 10min are removed
 # and additionally the oldest files are removed until the trash is less than 1 GiB
-def clean_trash(problem, time_limit=10 * 60, size_lim=1024**3):
+def clean_trash(problem: Problem, time_limit: int = 10 * 60, size_lim: int = 1024**3) -> None:
     trashdir = problem.tmpdir / "trash"
     if trashdir.exists():
         dirs = [(d, path_size(d)) for d in trashdir.iterdir()]
         dirs.sort(key=lambda d: d[0].stat().st_mtime)
         total_size = sum(x for d, x in dirs)
-        time_limit = time.time() - time_limit
+        begin = time.time() - time_limit
         for d, x in dirs:
-            if x == 0 or total_size > size_lim or d.stat().st_mtime < time_limit:
+            if x == 0 or total_size > size_lim or d.stat().st_mtime < begin:
                 total_size -= x
                 shutil.rmtree(d)
 
 
 # Clean data/ and tmpdir/data/
-def clean_data(problem, data=True, cache=True):
+def clean_data(problem: Problem, data: bool = True, cache: bool = True) -> None:
     dirs = [
         problem.path / "data" if data else None,
         problem.tmpdir / "data" if cache else None,
@@ -2315,7 +2303,7 @@ def clean_data(problem, data=True, cache=True):
             shutil.rmtree(d)
 
 
-def generate(problem):
+def generate(problem: Problem) -> bool:
     clean_trash(problem)
 
     if config.args.clean:
@@ -2343,7 +2331,7 @@ def generate(problem):
     return True
 
 
-def testcases(problem):
+def testcases(problem: Problem) -> set[Path]:
     gen_config = GeneratorConfig(problem)
     if gen_config.has_yaml:
         return {

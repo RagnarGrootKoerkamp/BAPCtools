@@ -1,11 +1,11 @@
-from os import makedirs
 from multiprocessing import Pool
+from os import makedirs
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import config
 import parallel
-from contest import get_contest_id, call_api_get_json
+from contest import call_api_get_json, get_contest_id
 from util import ProgressBar
 
 # Note on multiprocessing:
@@ -22,7 +22,7 @@ judgement_colors = {"AC": "lime", "WA": "red", "TLE": "#c0f", "RTE": "orange", "
 
 
 # Turns an endpoint list result into an object, mapped by 'id'
-def get_json_assoc(url: str) -> dict[str, dict]:
+def get_json_assoc(url: str) -> dict[str, dict[str, Any]]:
     return {o["id"]: o for o in call_api_get_json(url)}
 
 
@@ -34,8 +34,8 @@ def time_string_to_minutes(time_string: str) -> float:
 def plot_problem(
     minutes: list[dict[str, int]],
     label: str,
-    judgement_types: dict[str, dict],
-):
+    judgement_types: dict[str, dict[str, Any]],
+) -> None:
     import matplotlib.pyplot as plt  # Have to import it separately in multiprocessing worker.
 
     fig, ax = plt.subplots(figsize=(12, 2))
@@ -63,7 +63,7 @@ def plot_problem(
     fig.savefig(f"solve_stats/activity/{label}.pdf", bbox_inches="tight", transparent=True)
 
 
-def generate_solve_stats(post_freeze: bool):
+def generate_solve_stats(post_freeze: bool) -> None:
     # Import takes more than 1000 ms to evaluate, so only import inside function (when it is actually needed)
     import matplotlib
     import matplotlib.pyplot as plt
@@ -87,12 +87,12 @@ def generate_solve_stats(post_freeze: bool):
     contest_duration = time_string_to_minutes(contest["duration"])
     scale = contest_duration / bins
 
-    def get_contest_data(tuple):
-        i, endpoint = tuple
+    def get_contest_data(i_endpoint: tuple[int, str]) -> None:
+        i, endpoint = i_endpoint
         data[i] = get_json_assoc(url_prefix + endpoint)
 
     bar.start("Contest data")
-    data: list[Optional[dict]] = [None] * 5
+    data: list[Optional[dict[str, Any]]] = [None] * 5
     parallel.run_tasks(
         get_contest_data,
         list(

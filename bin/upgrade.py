@@ -1,17 +1,29 @@
+import secrets
+import shlex
+import shutil
+from collections import defaultdict
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any, cast, Optional
+
 import config
 import generate
-import shlex
-from collections import defaultdict
-from util import *
-from validate import InputValidator, AnswerValidator, OutputValidator
-
-import secrets
-import shutil
-from pathlib import Path
-from typing import Any, cast
+from util import (
+    error,
+    fatal,
+    has_ryaml,
+    is_problem_directory,
+    ProgressBar,
+    read_yaml,
+    ryaml_filter,
+    ryaml_get_or_add,
+    ryaml_replace,
+    warn,
+    write_yaml,
+)
+from validate import AnswerValidator, InputValidator, OutputValidator
 
 if has_ryaml:
-    # TODO #102 The conditional import in util.py isn't picked up properly
     from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 
@@ -73,7 +85,7 @@ def _move_dir(src_base: Path, dst_base: Path) -> None:
     movetree(src_base, dst_base)
 
 
-def args_split(args: str):
+def args_split(args: str) -> "CommentedSeq":
     splitted = CommentedSeq(shlex.split(args))
     splitted.fa.set_flow_style()
     return splitted
@@ -269,7 +281,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             changed = True
 
     def apply_recursively(
-        operation: Callable[[dict[str, Any], str], bool], data: dict[str, Any], path=""
+        operation: Callable[[dict[str, Any], str], bool], data: dict[str, Any], path: str = ""
     ) -> bool:
         changed = operation(data, path)
         if "data" in data and data["data"]:

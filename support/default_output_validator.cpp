@@ -241,7 +241,7 @@ diff check(const std::filesystem::path& ans_path) {
 			bool equal = false;
 			if (float_absolute_tolerance >= 0) {
 				long double abs = std::abs(given-expected);
-				diff += "Absolute difference: " + std::to_string(abs);
+				diff += "Absolute error: " + std::to_string(abs);
 				if (abs <= float_absolute_tolerance) {
 					equal = true;
 				}
@@ -249,7 +249,7 @@ diff check(const std::filesystem::path& ans_path) {
 			if (float_relative_tolerance >= 0) {
 				long double rel = std::abs((given-expected)/expected);
 				if (diff != "") diff += ", ";
-				diff += "Relative difference: " + std::to_string(rel);
+				diff += "Relative error: " + std::to_string(rel);
 				if (rel <= float_relative_tolerance) {
 					equal = true;
 				}

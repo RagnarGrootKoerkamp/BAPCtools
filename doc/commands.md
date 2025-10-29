@@ -26,6 +26,7 @@ This lists all subcommands and their most important options.
   - [`bt output [-v] [testcases [testcases ...]]`](#output)
   - [`bt validate [-v] [--input | --answer | --invalid | --valid-output | --generic [TYPE]] [--remove | --move-to DIR] [testcases [testcases ...]]`](#validate)
   - [`bt constraints [-v]`](#constraints)
+  - [`bt check_testing_tool [submissions [submissions ...]] [testcases [testcases ...]`](#check_testing_tool)
 - Creating new contest/problems
   - [`bt new_contest [contestname]`](#new_contest)
   - [`bt new_problem [problemname] [--author AUTHOR] [--type {pass-fail,float,custom,interactive,...}] [--defaults] [--skel SKEL]`](#new_problem)
@@ -36,7 +37,7 @@ This lists all subcommands and their most important options.
   - [`bt github_actions`](#github_actions)
 - Exporting
   - [`bt samplezip`](#samplezip)
-  - [`bt zip [--skip] [--force] [--kattis] [--no-solutions]`](#zip)
+  - [`bt zip [--skip] [--force] [--no-generate] [--kattis] [--no-solutions]`](#zip)
   - [`bt export`](#export)
 - Misc
   - [`bt all [-v] [--cp] [--no-time-limit] [--check-deterministic]`](#all)
@@ -334,6 +335,24 @@ This output will look like:
                               |            a_i  1
 ```
 
+## `check_testing_tool`
+
+`bt check_testing_tool` tries to run the testing tool with some submissions to ensure that it works properly.
+However, this tool has many caveats and should never replace a carefull manual review of the testing tool.
+
+**Caveats**
+- the testing tool must be found under `attachments/testing_tool.<ext>`
+- the testing tool must be callable as `{program} -f {in_path} {submission program}`
+- the testing tool must accept the downloadable samples as well as files matching `data/testing_tool_test/*.in` as input files
+- the testing tool must exits with a non zero exit code if something goes wrong
+- the testing tool must not change the working directory
+
+**Flags**
+
+- `--timeout <seconds>`: Override the default timeout.
+- `--all`/`-a`: run all testcases and don't stop after first error
+- `--no-generate`/`-G`: Do not generate testcases before running. This usually won't be needed since checking that generated testcases are up to date is fast.
+
 # Creating a new contest/problem
 
 ## `new_contest`
@@ -569,6 +588,7 @@ When run for a contest:
 
 - `--skip`: Do not rebuild problem zips when building a contest zip.
 - `--force`/`-f`: Skip validating input and output. This is useful to speed up regenerating the zip with only minimal changes.
+- `--no-generate`/`-G`: Skip generation of testcases. This usually won't be needed since checking that generated testcases are up to date is fast.
 - `--no-solutions`: Do not build solution slides for the contest zip.
 - `--kattis`: Differences for Kattis export are:
   - Problems zips are written to `<shortname>.zip` instead of `<problemlabel>.zip`.

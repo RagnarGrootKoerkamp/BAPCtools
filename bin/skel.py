@@ -1,5 +1,5 @@
-import os
 import datetime
+import os
 import re
 import shutil
 from pathlib import Path
@@ -9,7 +9,23 @@ import config
 import contest
 import latex
 from problem import Problem
-from util import *
+from util import (
+    ask_variable_bool,
+    ask_variable_choice,
+    ask_variable_string,
+    copytree_and_substitute,
+    error,
+    exec_command,
+    fatal,
+    generate_problem_uuid,
+    has_ryaml,
+    inc_label,
+    log,
+    read_yaml,
+    substitute,
+    warn,
+    write_yaml,
+)
 from validate import OutputValidator
 
 
@@ -247,7 +263,6 @@ def copy_skel_dir(problems: list[Problem]) -> None:
     skeldir, preserve_symlinks = get_skel_dir(problem.path)
 
     for d in config.args.directory:
-        d = Path(d)
         sources = [skeldir / d, skeldir / d.parent / (d.name + ".template")]
         target = problem.path / d
 
@@ -277,14 +292,14 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
         error("git command not found!")
         return
 
-    def git(*args):
+    def git(*args: str | Path) -> str:
         res = exec_command(
             ["git", *args],
             crop=False,
             preexec_fn=False,
             timeout=None,
         )
-        return res.out if res else ""
+        return res.out if res and res.out else ""
 
     if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
         error("not inside git")

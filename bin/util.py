@@ -13,28 +13,26 @@ import sys
 import tempfile
 import threading
 import time
-from enum import Enum
+import yaml as yamllib
 from collections.abc import Callable, Mapping, Sequence
+from colorama import Fore, Style
+from enum import Enum
+from io import StringIO
 from pathlib import Path
 from typing import (
-    cast,
     Any,
+    cast,
     Iterable,
     Literal,
     NoReturn,
     Optional,
     overload,
     Protocol,
-    TextIO,
+    TYPE_CHECKING,
     TypeAlias,
     TypeVar,
-    TYPE_CHECKING,
 )
 from uuid import UUID
-
-import yaml as yamllib
-from colorama import Fore, Style
-from io import StringIO
 
 import config
 
@@ -108,37 +106,43 @@ def exit1(force: bool = False) -> NoReturn:
         sys.exit(1)
 
 
+# we almost always want to print to stderr
+def eprint(*args: Any, **kwargs: Any) -> None:
+    kwargs.setdefault("file", sys.stderr)
+    print(*args, **kwargs)
+
+
 def debug(*msg: Any) -> None:
-    print(Fore.CYAN, end="", file=sys.stderr)
-    print("DEBUG:", *msg, end="", file=sys.stderr)
-    print(Style.RESET_ALL, file=sys.stderr)
+    eprint(Fore.CYAN, end="")
+    eprint("DEBUG:", *msg, end="")
+    eprint(Style.RESET_ALL)
 
 
 def log(msg: Any) -> None:
-    print(f"{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"{Fore.GREEN}LOG: {msg}{Style.RESET_ALL}")
 
 
 def verbose(msg: Any) -> None:
     if config.args.verbose >= 1:
-        print(f"{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}", file=sys.stderr)
+        eprint(f"{Fore.CYAN}VERBOSE: {msg}{Style.RESET_ALL}")
 
 
 def warn(msg: Any) -> None:
-    print(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}")
     config.n_warn += 1
 
 
 def error(msg: Any) -> None:
     if config.RUNNING_TEST:
         fatal(msg)
-    print(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"{Fore.RED}ERROR: {msg}{Style.RESET_ALL}")
     config.n_error += 1
 
 
 def fatal(msg: Any, *, force: Optional[bool] = None) -> NoReturn:
     if force is None:
         force = threading.active_count() > 1
-    print(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}", file=sys.stderr)
+    eprint(f"\n{Fore.RED}FATAL ERROR: {msg}{Style.RESET_ALL}")
     exit1(force)
 
 
@@ -162,44 +166,6 @@ class Named(Protocol):
 
 
 ITEM_TYPE: TypeAlias = str | Path | Named
-
-
-def message(
-    msg: Any,
-    task: Optional[str | Path] = None,
-    item: Optional[ITEM_TYPE] = None,
-    *,
-    color_type: Any = "",
-) -> None:
-    if task is not None:
-        print(f"{Fore.CYAN}{task}{Style.RESET_ALL}: ", end="", file=sys.stderr)
-    if item is not None:
-        print(item, end="   ", file=sys.stderr)
-    print(f"{color_type}{msg}{Style.RESET_ALL}", file=sys.stderr)
-    if color_type == MessageType.WARN:
-        config.n_warn += 1
-    if color_type == MessageType.ERROR:
-        config.n_error += 1
-    if color_type == MessageType.FATAL:
-        exit1()
-
-
-# A simple bar that only holds a task prefix
-class PrintBar:
-    def __init__(self, task: Optional[str | Path] = None):
-        self.task = task
-
-    def log(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
-        message(msg, self.task, item, color_type=MessageType.LOG)
-
-    def warn(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
-        message(msg, self.task, item, color_type=MessageType.WARN)
-
-    def error(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
-        message(msg, self.task, item, color_type=MessageType.ERROR)
-
-    def fatal(self, msg: Any, item: Optional[ITEM_TYPE] = None) -> None:
-        message(msg, self.task, item, color_type=MessageType.FATAL)
 
 
 # A class that draws a progressbar.
@@ -227,12 +193,18 @@ class ProgressBar:
         signal.signal(signal.SIGWINCH, update_columns)
 
     @staticmethod
-    def item_len(item: ITEM_TYPE) -> int:
+    def item_text(item: Optional[ITEM_TYPE]) -> str:
+        if item is None:
+            return ""
         if isinstance(item, str):
-            return len(item)
+            return item
         if isinstance(item, Path):
-            return len(str(item))
-        return len(item.name)
+            return str(item)
+        return item.name
+
+    @staticmethod
+    def item_len(item: ITEM_TYPE) -> int:
+        return len(ProgressBar.item_text(item))
 
     def _is_locked(self) -> bool:
         return ProgressBar.lock_depth > 0
@@ -246,7 +218,7 @@ class ProgressBar:
         *,
         items: Optional[Sequence[ITEM_TYPE]] = None,
         needs_leading_newline: bool = False,
-    ):
+    ) -> None:
         assert ProgressBar.current_bar is None, ProgressBar.current_bar.prefix
         ProgressBar.current_bar = self
 
@@ -284,15 +256,10 @@ class ProgressBar:
         ProgressBar.lock_depth -= 1
         ProgressBar.lock.__exit__(*args)
 
-    def _print(
-        self,
-        *objects: Any,
-        sep: str = "",
-        end: str = "\n",
-        file: TextIO = sys.stderr,
-        flush: bool = True,
-    ) -> None:
-        print(*objects, sep=sep, end=end, file=file, flush=flush)
+    def _print(self, *args: Any, **kwargs: Any) -> None:
+        kwargs.setdefault("sep", "")
+        kwargs.setdefault("flush", True)
+        eprint(*args, **kwargs)
 
     def total_width(self) -> int:
         cols = ProgressBar.columns
@@ -300,9 +267,7 @@ class ProgressBar:
             cols -= 1
         return cols
 
-    def bar_width(self) -> Optional[int]:
-        if self.item_width is None:
-            return None
+    def bar_width(self) -> int:
         return self.total_width() - len(self.prefix) - 2 - self.item_width
 
     def update(self, count: int, max_len: int) -> None:
@@ -323,23 +288,25 @@ class ProgressBar:
 
     @staticmethod
     def action(
-        prefix: str,
+        prefix: Optional[str],
         item: Optional[ITEM_TYPE],
         width: Optional[int] = None,
         total_width: Optional[int] = None,
         print_item: bool = True,
     ) -> str:
-        if width is not None and total_width is not None and len(prefix) + 2 + width > total_width:
-            width = total_width - len(prefix) - 2
-        item = "" if item is None else (item if isinstance(item, str) else item.name)
-        if width is not None and len(item) > width:
-            item = item[:width]
+        if width is not None and total_width is not None:
+            if prefix is None and width > total_width:
+                width = total_width
+            if prefix is not None and len(prefix) + 2 + width > total_width:
+                width = total_width - len(prefix) - 2
+        text = ProgressBar.item_text(item)
+        if width is not None and len(text) > width:
+            text = text[:width]
         if width is None or width <= 0:
             width = 0
-        if print_item:
-            return f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: {item:<{width}}"
-        else:
-            return f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: {' ' * width}"
+        prefix = "" if prefix is None else f"{Fore.CYAN}{prefix}{Style.RESET_ALL}: "
+        suffix = f"{text:<{width}}" if print_item else " " * width
+        return prefix + suffix
 
     def get_prefix(self, print_item: bool = True) -> str:
         return ProgressBar.action(
@@ -431,8 +398,6 @@ class ProgressBar:
         print_item: bool = True,
     ) -> None:
         with self:
-            if message is None:
-                message = ""
             self.clearline()
             self.logged = True
 
@@ -472,7 +437,7 @@ class ProgressBar:
         print_item: bool = True,
     ) -> None:
         if config.args.verbose:
-            self.log(message, data, color=color, resume=resume, print_item=print_item)
+            self.log(message, data, color, resume=resume, print_item=print_item)
 
     def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
         with self.lock:
@@ -598,6 +563,76 @@ class ProgressBar:
         return self.global_logged and not suppress_newline
 
 
+# A simple bar that only holds a task prefix
+class PrintBar:
+    def __init__(
+        self,
+        prefix: Optional[str | Path] = None,
+        max_len: Optional[int] = None,
+        *,
+        item: Optional[ITEM_TYPE] = None,
+    ) -> None:
+        self.prefix = str(prefix) if prefix else None
+        self.item_width = max_len + 1 if max_len is not None else None
+        self.item = item
+
+    def start(self, item: Optional[ITEM_TYPE] = None) -> "PrintBar":
+        bar_copy = copy.copy(self)
+        bar_copy.item = item
+        return bar_copy
+
+    def log(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        color: str = Fore.GREEN,
+        *,
+        resume: bool = True,
+        print_item: bool = True,
+    ) -> None:
+        prefix = ProgressBar.action(self.prefix, self.item, self.item_width, None, print_item)
+        eprint(prefix, color, message, ProgressBar._format_data(data), Style.RESET_ALL, sep="")
+
+    def debug(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        color: str = Fore.GREEN,
+        *,
+        resume: bool = True,
+        print_item: bool = True,
+    ) -> None:
+        if config.args.verbose:
+            self.log(message, data, color, resume=resume, print_item=print_item)
+
+    def warn(self, message: str, data: Optional[str] = None, *, print_item: bool = True) -> None:
+        config.n_warn += 1
+        self.log(message, data, Fore.YELLOW, print_item=print_item)
+
+    def error(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        *,
+        resume: bool = False,
+        print_item: bool = True,
+    ) -> None:
+        config.n_error += 1
+        self.log(message, data, Fore.RED, print_item=print_item)
+
+    def fatal(
+        self,
+        message: str,
+        data: Optional[str] = None,
+        *,
+        resume: bool = False,
+        print_item: bool = True,
+    ) -> None:
+        config.n_error += 1
+        self.log(message, data, Fore.RED, resume=resume, print_item=print_item)
+        exit1()
+
+
 BAR_TYPE = PrintBar | ProgressBar
 
 
@@ -689,7 +724,7 @@ def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> A
 
             return yaml.safe_load(data)
         except Exception as e:
-            print(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="", file=sys.stderr)
+            eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
             fatal(f"Failed to parse {path}.")
 
 
@@ -712,6 +747,14 @@ def read_yaml_settings(path: Path) -> Any:
     return settings
 
 
+def normalize_yaml_value(value: Any, t: type[Any]) -> Any:
+    if isinstance(value, str) and t is Path:
+        value = Path(value)
+    if isinstance(value, int) and t is float:
+        value = float(value)
+    return value
+
+
 if has_ryaml:
     U = TypeVar("U")
 
@@ -731,7 +774,7 @@ if has_ryaml:
             yaml[key] = t()
         value = yaml[key]
         assert isinstance(value, t)
-        return value  # type: ignore
+        return cast(ruamel.yaml.comments.CommentedMap | U, value)
 
     # This tries to preserve the correct comments.
     def ryaml_filter(data: Any, remove: str) -> Any:
@@ -777,6 +820,13 @@ if has_ryaml:
 write_yaml_lock = threading.Lock()
 
 
+# The @overload definitions are purely here for static typing reasons.
+@overload
+def write_yaml(data: Any, path: None = None, allow_yamllib: bool = False) -> str: ...
+@overload
+def write_yaml(data: Any, path: Path, allow_yamllib: bool = False) -> None: ...
+
+
 # Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
 def write_yaml(
     data: Any, path: Optional[Path] = None, allow_yamllib: bool = False
@@ -816,61 +866,6 @@ def write_yaml(
             _path.close()
             return string
     return None
-
-
-T = TypeVar("T")
-
-
-def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
-    if key in yaml_data:
-        value = yaml_data.pop(key)
-        if isinstance(value, int) and t is float:
-            value = float(value)
-        if isinstance(value, t):
-            return value
-        if value == "" and (t is list or t is dict):
-            # handle empty yaml keys
-            return t()
-        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
-    return None
-
-
-def parse_setting(
-    yaml_data: dict[str, Any], key: str, default: T, constraint: Optional[str] = None
-) -> T:
-    value = parse_optional_setting(yaml_data, key, type(default))
-    result = default if value is None else value
-    if constraint and not eval(f"{result} {constraint}"):
-        warn(f"value for '{key}' in problem.yaml should be {constraint} but is {value}. SKIPPED.")
-        return default
-    return result
-
-
-def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> list[T]:
-    if key in yaml_data:
-        value = yaml_data.pop(key)
-        if isinstance(value, t):
-            return [value]
-        if isinstance(value, list):
-            if not all(isinstance(v, t) for v in value):
-                warn(
-                    f"some values for key '{key}' in problem.yaml do not have type {t.__name__}. SKIPPED."
-                )
-                return []
-            if not value:
-                warn(f"value for '{key}' in problem.yaml should not be an empty list.")
-            return value
-        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
-    return []
-
-
-def parse_deprecated_setting(
-    yaml_data: dict[str, Any], key: str, new: Optional[str] = None
-) -> None:
-    if key in yaml_data:
-        use = f", use '{new}' instead" if new else ""
-        warn(f"key '{key}' is deprecated{use}. SKIPPED.")
-        yaml_data.pop(key)
 
 
 def _ask_variable(name: str, default: Optional[str] = None, allow_empty: bool = False) -> str:
@@ -1224,7 +1219,7 @@ class ExecResult:
         out: Optional[str],
         verdict: Optional["Verdict"] = None,
         pass_id: Optional[int] = None,
-    ):
+    ) -> None:
         self.returncode = returncode
         self.status = status
         self.duration = duration
@@ -1235,6 +1230,11 @@ class ExecResult:
         self.pass_id = pass_id
 
 
+def command_supports_memory_limit(command: Sequence[str | Path]) -> bool:
+    # https://bugs.openjdk.org/browse/JDK-8071445
+    return Path(command[0]).name not in ["java", "javac", "kotlin", "kotlinc", "sbcl"]
+
+
 def limit_setter(
     command: Optional[Sequence[str | Path]],
     timeout: Optional[int],
@@ -1242,35 +1242,45 @@ def limit_setter(
     group: Optional[int] = None,
     cores: Literal[False] | list[int] = False,
 ) -> Callable[[], None]:
+    # perform all syscalls / things that could fail in the current context, i.e., outside of the preexec_fn
+    disable_stack_limit = not is_bsd()
+
+    if config.args.memory:
+        memory_limit = config.args.memory
     if memory_limit:
+        memory_limit *= 1024**2
         assert command is not None
-        jvm = Path(command[0]).name in ["java", "javac", "kotlin", "kotlinc"]
+        if not command_supports_memory_limit(command):
+            memory_limit = None
+    if config.args.sanitizer or is_bsd() or is_windows():
+        memory_limit = None
 
     if group is not None:
         assert not is_windows()
         assert not is_mac()
 
+    if not is_windows() and not is_bsd():
+        cores = False
+
+    # actual preexec_fn called in the context of the new process
+    # this should only do resource and os calls to stay safe
     def setlimits() -> None:
-        if timeout:
+        if timeout is not None:
             resource.setrlimit(resource.RLIMIT_CPU, (timeout + 1, timeout + 1))
 
         # Increase the max stack size from default to the max available.
-        if not is_bsd():
+        if disable_stack_limit:
             resource.setrlimit(
                 resource.RLIMIT_STACK, (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
             )
 
-        if memory_limit and not jvm and not is_bsd():
-            resource.setrlimit(
-                resource.RLIMIT_AS,
-                (memory_limit * 1024**2, memory_limit * 1024**2),
-            )
+        if memory_limit is not None:
+            resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
 
-        # TODO: with python 3.11 it is better to use Popen(process_group=group)
         if group is not None:
             os.setpgid(0, group)
 
-        if cores is not False and not is_windows() and not is_bsd():
+        if cores is not False:
             os.sched_setaffinity(0, cores)
 
         # Disable coredumps.
@@ -1281,7 +1291,7 @@ def limit_setter(
 
 # Subclass Popen to get rusage information.
 class ResourcePopen(subprocess.Popen[bytes]):
-    rusage: Any  # TODO #102: use stricter type than `Any`
+    rusage: "Optional[resource.struct_rusage]"
 
     # If wait4 is available, store resource usage information.
     if "wait4" in dir(os):
@@ -1344,7 +1354,7 @@ def exec_command(
     command: Sequence[str | Path],
     exec_code_map: Callable[[int], ExecStatus] = default_exec_code_map,
     crop: bool = True,
-    preexec_fn: bool | Callable[[], None] = True,
+    preexec_fn: bool = True,
     **kwargs: Any,
 ) -> ExecResult:
     # By default: discard stdout, return stderr
@@ -1358,31 +1368,23 @@ def exec_command(
 
     if config.args.verbose >= 2:
         if "cwd" in kwargs:
-            print("cd", kwargs["cwd"], "; ", end="", file=sys.stderr)
+            eprint("cd", kwargs["cwd"], "; ", end="")
         else:
-            print("cd", Path.cwd(), "; ", end="", file=sys.stderr)
-        print(*command, end="", file=sys.stderr)
+            eprint("cd", Path.cwd(), "; ", end="")
+        eprint(*command, end="")
         if "stdin" in kwargs:
-            print(" < ", kwargs["stdin"].name, end="", file=sys.stderr)
-        print(file=sys.stderr)
+            eprint(" < ", kwargs["stdin"].name, end="")
+        eprint()
 
     timeout: Optional[int] = None
     if "timeout" in kwargs:
-        if kwargs["timeout"] is None:
-            timeout = None
-        elif kwargs["timeout"]:
-            timeout = kwargs["timeout"]
+        timeout = kwargs["timeout"]
         kwargs.pop("timeout")
 
     memory: Optional[int] = None
     if "memory" in kwargs:
-        if kwargs["memory"] is not None:
-            memory = kwargs["memory"]
+        memory = kwargs["memory"]
         kwargs.pop("memory")
-    if config.args.memory:
-        memory = config.args.memory
-    if is_windows() or config.args.sanitizer:
-        memory = None
 
     process: Optional[ResourcePopen] = None
     old_handler = None
@@ -1401,7 +1403,7 @@ def exec_command(
     tstart = time.monotonic()
 
     try:
-        if not is_windows() and preexec_fn not in [False, None]:
+        if not is_windows() and preexec_fn is not False:
             process = ResourcePopen(
                 command,
                 preexec_fn=limit_setter(command, timeout, memory),
@@ -1440,7 +1442,7 @@ def exec_command(
     err = maybe_crop(stderr.decode("utf-8", "replace")) if stderr is not None else None
     out = maybe_crop(stdout.decode("utf-8", "replace")) if stdout is not None else None
 
-    if hasattr(process, "rusage"):
+    if hasattr(process, "rusage") and process.rusage:
         duration = process.rusage.ru_utime + process.rusage.ru_stime
         # It may happen that the Rusage is low, even though a timeout was raised, i.e. when calling sleep().
         # To prevent under-reporting the duration, we take the max with wall time in this case.

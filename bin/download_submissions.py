@@ -3,19 +3,19 @@ import base64
 import json
 from os import makedirs
 from pathlib import Path
+from typing import Any
 
 import config
 import parallel
 from contest import call_api_get_json, get_contest_id
-from util import ProgressBar, fatal
-from verdicts import Verdict, from_string
-
+from util import fatal, ProgressBar
+from verdicts import from_string, Verdict
 
 # Example usage:
 # bt download_submissions [--user <username>] [--password <password>] [--contest <contest_id>] [--api <domjudge_url>]
 
 
-def download_submissions():
+def download_submissions() -> None:
     contest_id = get_contest_id()
     if contest_id is None:
         fatal("No contest ID found. Set in contest.yaml or pass --contest-id <cid>.")
@@ -51,7 +51,7 @@ def download_submissions():
 
     bar = ProgressBar("Downloading sources", count=len(submissions), max_len=4)
 
-    def download_submission(s):
+    def download_submission(s: dict[str, Any]) -> None:
         i = int(s["id"])
         bar.start(s["id"])
         if "judgement_type_id" not in s:
