@@ -417,8 +417,9 @@ class Testcase:
             else:
                 if ExecStatus.TIMEOUT in results:
                     issues.append("Validator timed out.")
-                if output_validator_crash:
-                    issues.append("Output Validator crashed.")
+            # Output validators should _never_ crash, so this should not be inside the 'else'?
+            if output_validator_crash:
+                issues.append("Output Validator crashed.")
 
             success = not issues
             if not success:

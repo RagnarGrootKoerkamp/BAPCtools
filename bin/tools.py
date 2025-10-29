@@ -1089,6 +1089,7 @@ def read_personal_config(problem_dir: Optional[Path]) -> None:
             continue
         if not isinstance(config_data, dict):
             warn(f"invalid data in {config_data}. SKIPPED.")
+            continue
 
         tmp = config.ARGS(config_file, **config_data)
         config.args.update(tmp)
