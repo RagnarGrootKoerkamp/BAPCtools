@@ -1,10 +1,10 @@
 # Workflow
-This documents aims to show the typical workflow of preparing a problem with BAPCtools and might be useful as a guide.
+This document aims to show the typical workflow of preparing a problem with BAPCtools and might be useful as a guide.
 We start with the creation of a new problem and end after uploading it to DOMjudge.
-Along the way, all commands that are used for various stages of problem preparaion are explained.
+Along the way, all commands that are used for various stages of problem preparation are explained.
 
 > [!CAUTION]
-> Do not use BAPCtools on probem packages from untrusted sources.
+> Do not use BAPCtools on problem packages from untrusted sources.
 > Programs are **not** run inside a sandbox.
 > Malicious submissions, validators, visualizers, and generators can harm your system.
 
@@ -28,7 +28,7 @@ Along the way, all commands that are used for various stages of problem preparai
 
 ## Problem Directory
 A problem directory is specified by the existence of a `problem.yaml`.
-However, to set up a proper problem we need some more sub directories and files.
+However, to set up a proper problem, we need some more subdirectories and files.
 
 #### Required Files
 ```ini
@@ -55,7 +55,7 @@ Problem
 ```
 > [!IMPORTANT]
 > There can be many input/answer validator*s* but only one output validator.
-> Therefore, its the only of those directories which does not end with a plural s.
+> Therefore, it is the only one of those directories that does not end with a plural *s*.
 #### Optional Files
 ```ini
 Problem
@@ -104,14 +104,14 @@ BAPCtools offers two commands to offer such an overview.
 
 #### `bt stats`
 This shows a summary of files and programs that have been added to the problem.
-The output should look similiar to this:
+The output should look similar to this:
 ```ini
 problem    time yaml tex sol   val: I A O   sample secret bad good    AC  WA TLE subs   c(++) py java kt    comment
 A <name>    1.0    Y   0   0        N N          0      0   0    0     0   0   0    0       0  0    0  0
 -------------------------------------------------------------------------------------------------------------------
 TOTAL       1.0    1   0   0        0 0 0        0      0   0    0     0   0   0    0       0  0    0  0
 ```
-Most of the columns should be self explanatory, but here is a description of what is displayed:
+Most of the columns should be self-explanatory, but here are descriptions of what is displayed:
 - **problem:** the problem label followed by the problem directory name
 - **time:** the time limit in seconds
 - **yaml:** `Y` if `problem.yaml` exists (should always be true)
@@ -122,14 +122,14 @@ Most of the columns should be self explanatory, but here is a description of wha
 - **val O:** `Y` if the output validator was found (note that this must exist if the problem is interactive and/or multi-pass)
 - **sample:** the number of sample test cases (BAPCtools encourages to give at least two examples)
 - **secret:** the number of secret test cases (BAPCtools encourages to use 30-100 test cases)
-- **bad:** the number of invalid test cases (those test cases are intentionally wrong to check that the validators correctly rejects them)
+- **bad:** the number of invalid test cases (those test cases are intentionally wrong to check that the validators correctly reject them)
 - **AC, WA, TLE:** the number of submissions in the corresponding `accepted`, `time_limit_exceeded`, and `wrong_answer` directories
 - **subs:** The total number of submissions (files) in the `submissions/` directory
-- **c(++), py, java, kt:** the number of *accpeted* submissions in the corresponding language
+- **c(++), py, java, kt:** the number of *accepted* submissions in the corresponding language
 - **comment:** the content of the `comment` entry in `problem.yaml`
 
 #### `bt run -o -a[a] [submissions/...] [data/...]`
-This command runs submission and presents their verdict on the testcases.
+This command runs submissions and presents their verdict on the test cases.
 The output should look similar to this:
 ```ini
 accepted/solution.py:          aaaAAAAAAA AAAAAAA
@@ -148,7 +148,7 @@ The entries correspond to the verdict that a submission got on a test case:
 - **-:** skipped because of lazy judging
 
 > [!NOTE]
-> Here is a short explenation for the given command line parameters do:
+> Here is a short explanation for the given command line parameters:
 > - **-o:** enable the overview table (if possible, printed with live updates)
 > - **-a:** disable lazy judging for WA/RTE submissions
 > - **-aa:** completely disable lazy judging
@@ -170,8 +170,8 @@ Every problem needs the following things:
 ### Submissions
 ---
 Strictly speaking, only one accepted submission is really required.
-However, multiple accepted submission in various languages help determining a good time limit.
-Additionally, adding WA submissions and TLE submissions help improving the test cases and the time limit.
+However, multiple accepted submissions in various languages help determine a good time limit.
+Additionally, adding WA submissions and TLE submissions helps improve the test cases and the time limit.
 
 The following commands can be used to run a submission:
 
@@ -189,7 +189,7 @@ This command will run the selected submission on a given test case.
 This will also validate the output of the submission but will not display the output.
 
 > [!TIP]
-> By default `bt run` will try to keep the `data/` directory up-to date, see Test cases/Generators](#testcasesgenerators) for more information.
+> By default `bt run` will try to keep the `data/` directory up to date, see [Test cases/Generators](#test-cases/generators) for more information.
 > If you just want to run the submission you can add `-G` (short for `--no-generate`) to disable this behaviour.
 
 ### Test cases/Generators
