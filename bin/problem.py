@@ -249,7 +249,9 @@ class ProblemLimits:
         check_unknown_keys(time_multipliers, "limits.time_multipliers")
 
         self.time_limit_is_default: bool = "time_limit" not in yaml_data
-        self.time_limit: float = parse_setting(yaml_data, "time_limit", 1.0, "> 0")  # in seconds
+        self.raw_time_limit: float = parse_setting(
+            yaml_data, "time_limit", 1.0, "> 0"
+        )  # in seconds
         self.time_resolution: float = parse_setting(yaml_data, "time_resolution", 1.0, "> 0")
         self.memory: int = parse_setting(yaml_data, "memory", 2048, "> 0")  # in MiB
         self.output: int = parse_setting(yaml_data, "output", 8, "> 0")  # in MiB
@@ -295,8 +297,15 @@ class ProblemLimits:
 
         check_unknown_keys(yaml_data, "limits")
 
+        # adjust actual time_limit based on local_time_multiplier
+        self.time_limit: float = self.raw_time_limit
+        if config.args.local_time_multiplier is not None:
+            self.time_limit *= config.args.local_time_multiplier
+
         # Override limmits by command line arguments.
-        self.time_limit = config.args.time_limit or self.time_limit
+        if config.args.time_limit:
+            self.time_limit = config.args.time_limit
+            self.raw_time_limit = config.args.time_limit
         self.timeout: int = int(config.args.timeout or self.time_limit_to_tle * self.time_limit + 1)
         if config.args.timeout:
             self.validation_time = self.generator_time = self.visualizer_time = config.args.timeout
@@ -1196,6 +1205,14 @@ class Problem:
         if not ts_pair:
             return False
         testcases, submissions = ts_pair
+
+        msg = (
+            "localy adjusted "
+            if config.args.local_time_multiplier is not None and config.args.time_limit is None
+            else ""
+        )
+        PrintBar("run").log(f"using {msg}timelimit: {problem.limits.time_limit:.1f}s\n", color="")
+
         ok, verdict_table = Problem.run_some(testcases, submissions)
 
         if (
@@ -1658,11 +1675,37 @@ class Problem:
         assert testcase is not None
         assert duration is not None
 
-        problem.limits.time_limit = problem.limits.time_resolution * math.ceil(
-            duration * problem.limits.ac_to_time_limit / problem.limits.time_resolution
+        raw_time_limit = duration * problem.limits.ac_to_time_limit
+        if config.args.local_time_multiplier is not None:
+            raw_time_limit /= config.args.local_time_multiplier
+        problem.limits.raw_time_limit = problem.limits.time_resolution * math.ceil(
+            raw_time_limit / problem.limits.time_resolution
         )
+        problem.limits.time_limit = problem.limits.raw_time_limit
+        if config.args.local_time_multiplier is not None:
+            problem.limits.time_limit *= config.args.local_time_multiplier
         safety_time_limit = problem.limits.time_limit * problem.limits.time_limit_to_tle
         problem.limits.timeout = int(safety_time_limit * problem.limits.time_limit_to_tle + 1)
+
+        eprint()
+        PrintBar("slowest AC").log(f"  {duration:.3f}s @ {testcase} ({submission})", color="")
+        PrintBar("time limit").log(
+            f"  {problem.limits.time_limit:.1f}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
+            color="",
+        )
+        if config.args.local_time_multiplier is not None:
+            warn(
+                f"local_time_multiplier = {config.args.local_time_multiplier:.1f} => time_limit should be set as {problem.limits.raw_time_limit}s"
+            )
+        PrintBar("safety limit").log(
+            f"{safety_time_limit:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}",
+            color="",
+        )
+        PrintBar("timeout").log(
+            f"     {problem.limits.timeout:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}²",
+            color="",
+        )
+        eprint()
 
         if config.args.write:
             if not has_ryaml:
@@ -1675,22 +1718,6 @@ class Problem:
                 limits = ryaml_get_or_add(problem_yaml, "limits")
                 limits["time_limit"] = problem.limits.time_limit
                 write_yaml(problem_yaml, problem.path / "problem.yaml")
-
-        eprint()
-        PrintBar("slowest AC").log(f"  {duration:.3f}s @ {testcase} ({submission})", color="")
-        PrintBar("time limit").log(
-            f"  {problem.limits.time_limit:.1f}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
-            color="",
-        )
-        PrintBar("safety limit").log(
-            f"{safety_time_limit:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}",
-            color="",
-        )
-        PrintBar("timeout").log(
-            f"     {problem.limits.timeout:.1f}s >= {problem.limits.time_limit:.1f}s * {problem.limits.time_limit_to_tle}²",
-            color="",
-        )
-        eprint()
 
         submission, testcase, duration = run_all(
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
