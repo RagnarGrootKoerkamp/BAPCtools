@@ -1,0 +1,17 @@
+# Specification: https://icpc.io/problem-package-format/spec/2025-09.html
+problem_format_version: 2025-09
+# 'pass-fail', 'interactive', 'multi-pass', or 'interactive multi-pass'
+type: pass-fail
+name:
+  #lang: name
+  en: Example problem
+# uuid: TODO  # BAPCtools will automatically generate a UUID if this field does not exist
+credits: TODO
+source:
+  name: TODO
+  url: TODO
+license: cc by-sa
+rights_owner: TODO
+
+# limits:
+#   time_limit: 1.0

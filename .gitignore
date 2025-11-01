@@ -2,5 +2,6 @@ latex/build
 latex/problem*.pdf
 latex/contest*.pdf
 latex/solution*.pdf
+skel/problem*.zip
 __pycache__
 *.swp
