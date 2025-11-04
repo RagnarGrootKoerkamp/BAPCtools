@@ -592,7 +592,6 @@ class Validator {
 	// If so, return AC. Otherwise, return WA.
 	~Validator() {
 		eof();
-		write_constraints();
 		AC();
 	}
 
@@ -1331,6 +1330,7 @@ class Validator {
 			return;
 		}
 
+		write_constraints();
 		exit(ret_AC);
 	}
 
@@ -1372,7 +1372,7 @@ class Validator {
 
 	std::unordered_map<std::string, std::variant<Bounds<long long>, Bounds<long double>>> bounds;
 
-	void write_constraints() {
+	void write_constraints() const {
 		if(constraints_file_path.empty()) return;
 
 		std::ofstream os(constraints_file_path);
