@@ -1379,7 +1379,7 @@ class Problem:
             action = "Invalidation"
         elif mode == validate.Mode.VALID_OUTPUT:
             action = "Output validation"
-        elif constraints:
+        elif constraints is not None:
             action = f"Collecting {str(mode).capitalize()} constraints"
         else:
             action = f"{str(mode).capitalize()} validation"
