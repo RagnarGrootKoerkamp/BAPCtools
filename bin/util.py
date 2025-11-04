@@ -1526,10 +1526,11 @@ def hash_file(file: Path, buffer_size: int = 65536) -> str:
 def hash_file_or_dir(file_or_dir: Path, buffer_size: int = 65536) -> str:
     if file_or_dir.is_dir():
         return combine_hashes(
-            [hash_string(file_or_dir.name)] + [hash_file_or_dir(f) for f in file_or_dir.iterdir()]
+            [hash_string(file_or_dir.name)]
+            + [hash_file_or_dir(f, buffer_size=buffer_size) for f in file_or_dir.iterdir()]
         )
     else:
-        return hash_file(file_or_dir)
+        return hash_file(file_or_dir, buffer_size=buffer_size)
 
 
 def generate_problem_uuid() -> str:
