@@ -161,7 +161,7 @@ bt time_limit [<submissions and/or testcases>]
 ```
 
 **Flags**
-- `--write`/`-w`: write the determined time limit to `.timelimit`
+- `--write`/`-w`: write the determined time limit to `problem.yaml`
 - `--all`/`-a`: run all submissions not only AC and TLE submissions.
 - `<submissions>`: The path to the submission to use to determine the time limit. See `run <submissions>` for more.
 - `<testcases>`: The path to the testcases to use determine the time limit. See `run <testcases>` for more.
