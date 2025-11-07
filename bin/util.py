@@ -815,6 +815,17 @@ if has_ryaml:
         if old_key in data.ca.items:
             data.ca.items[new_key] = data.ca.items.pop(old_key)
 
+elif not TYPE_CHECKING:
+
+    def ryaml_get_or_add(*args: Any, **kwargs) -> Any:
+        assert False, "missing ruamel.yaml"
+
+    def ryaml_filter(*args: Any, **kwargs) -> Any:
+        assert False, "missing ruamel.yaml"
+
+    def ryaml_replace(*args: Any, **kwargs) -> None:
+        assert False, "missing ruamel.yaml"
+
 
 # Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
 write_yaml_lock = threading.Lock()
