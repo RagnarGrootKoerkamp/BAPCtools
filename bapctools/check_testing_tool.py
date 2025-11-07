@@ -4,11 +4,11 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
-import config
-import parallel
-from program import Program
-from run import Submission
-from util import (
+from bapctools import config
+from bapctools import parallel
+from bapctools.program import Program
+from bapctools.run import Submission
+from bapctools.util import (
     command_supports_memory_limit,
     default_exec_code_map,
     ensure_symlink,
@@ -19,7 +19,7 @@ from util import (
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from problem import Problem
+    from bapctools.problem import Problem
 
 """DISCLAIMER:
 

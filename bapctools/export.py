@@ -5,8 +5,8 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-import config
-from contest import (
+from bapctools import config
+from bapctools.contest import (
     call_api,
     call_api_get_json,
     contest_yaml,
@@ -14,9 +14,9 @@ from contest import (
     get_request_json,
     problems_yaml,
 )
-from latex import PdfType
-from problem import Problem
-from util import (
+from bapctools.latex import PdfType
+from bapctools.problem import Problem
+from bapctools.util import (
     ask_variable_bool,
     drop_suffix,
     ensure_symlink,
@@ -38,8 +38,8 @@ from util import (
     warn,
     write_yaml,
 )
-from validate import AnswerValidator, InputValidator, OutputValidator
-from visualize import InputVisualizer, OutputVisualizer
+from bapctools.validate import AnswerValidator, InputValidator, OutputValidator
+from bapctools.visualize import InputVisualizer, OutputVisualizer
 
 
 def select_languages(problems: list[Problem]) -> list[str]:

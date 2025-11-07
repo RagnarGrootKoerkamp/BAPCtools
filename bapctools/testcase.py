@@ -5,9 +5,9 @@ from colorama import Fore, Style
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
-import config
-import validate
-from util import (
+from bapctools import config
+from bapctools import validate
+from bapctools.util import (
     BAR_TYPE,
     combine_hashes_dict,
     ExecStatus,
@@ -18,7 +18,7 @@ from util import (
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    import problem
+    from bapctools import problem
 
 
 # TODO #102: Consistently separate the compound noun "test case", e.g. "TestCase" or "test_case"

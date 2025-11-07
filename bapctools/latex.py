@@ -8,9 +8,9 @@ from enum import Enum
 from pathlib import Path
 from typing import Final, Optional, TextIO, TYPE_CHECKING
 
-import config
-from contest import contest_yaml, problems_yaml
-from util import (
+from bapctools import config
+from bapctools.contest import contest_yaml, problems_yaml
+from bapctools.util import (
     copy_and_substitute,
     ensure_symlink,
     eprint,
@@ -24,7 +24,7 @@ from util import (
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from problem import Problem
+    from bapctools.problem import Problem
 
 
 class PdfType(Enum):

@@ -8,12 +8,12 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-import config
-import testcase
-from util import eprint, ITEM_TYPE, ProgressBar
+from bapctools import config
+from bapctools import testcase
+from bapctools.util import eprint, ITEM_TYPE, ProgressBar
 
 if TYPE_CHECKING:
-    import run
+    from bapctools import run
 
 
 class Verdict(Enum):
