@@ -30,7 +30,14 @@ from bapctools.util import (
     shorten_path,
     warn,
 )
-from bapctools.verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdicts, VerdictTable
+from bapctools.verdicts import (
+    from_string,
+    from_string_domjudge,
+    RunUntil,
+    Verdict,
+    Verdicts,
+    VerdictTable,
+)
 
 
 class Run:

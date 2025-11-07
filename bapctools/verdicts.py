@@ -695,7 +695,7 @@ class TableProgressBar(ProgressBar):
         eprint(*args, **kwargs)
 
     def start(self, item: ITEM_TYPE = "") -> "TableProgressBar":
-        from run import Run
+        from bapctools.run import Run
 
         assert isinstance(item, Run)
         self.table.add_test_case(item.testcase.name)
