@@ -817,13 +817,13 @@ if has_ryaml:
 
 elif not TYPE_CHECKING:
 
-    def ryaml_get_or_add(*args: Any, **kwargs) -> Any:
+    def ryaml_get_or_add(*args: Any, **kwargs: Any) -> Any:
         assert False, "missing ruamel.yaml"
 
-    def ryaml_filter(*args: Any, **kwargs) -> Any:
+    def ryaml_filter(*args: Any, **kwargs: Any) -> Any:
         assert False, "missing ruamel.yaml"
 
-    def ryaml_replace(*args: Any, **kwargs) -> None:
+    def ryaml_replace(*args: Any, **kwargs: Any) -> None:
         assert False, "missing ruamel.yaml"
 
 
