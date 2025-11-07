@@ -3,10 +3,10 @@ from collections import defaultdict
 from colorama import Fore, Style
 from typing import Optional
 
-import latex
-import validate
-from problem import Problem
-from util import eprint, error, log, warn
+from bapctools import latex
+from bapctools import validate
+from bapctools.problem import Problem
+from bapctools.util import eprint, error, log, warn
 
 """DISCLAIMER:
 

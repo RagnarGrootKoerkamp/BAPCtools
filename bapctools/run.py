@@ -8,15 +8,15 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional
 
-import config
-import interactive
-import parallel
-import problem
-import program
-import validate
-import visualize
-from testcase import Testcase
-from util import (
+from bapctools import config
+from bapctools import interactive
+from bapctools import parallel
+from bapctools import problem
+from bapctools import program
+from bapctools import validate
+from bapctools import visualize
+from bapctools.testcase import Testcase
+from bapctools.util import (
     BAR_TYPE,
     crop_output,
     ensure_symlink,
@@ -30,7 +30,7 @@ from util import (
     shorten_path,
     warn,
 )
-from verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdicts, VerdictTable
+from bapctools.verdicts import from_string, from_string_domjudge, RunUntil, Verdict, Verdicts, VerdictTable
 
 
 class Run:

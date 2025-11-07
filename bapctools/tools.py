@@ -29,23 +29,23 @@ from pathlib import Path
 from typing import Any, Optional
 
 # Local imports
-import config
-import constraints
-import contest
-import download_submissions
-import export
-import fuzz
-import generate
-import latex
-import skel
-import slack
-import solve_stats
-import stats
-import upgrade
-import validate
-from contest import call_api_get_json, contest_yaml, get_contest_id, problems_yaml
-from problem import Problem
-from util import (
+from bapctools import config
+from bapctools import constraints
+from bapctools import contest
+from bapctools import download_submissions
+from bapctools import export
+from bapctools import fuzz
+from bapctools import generate
+from bapctools import latex
+from bapctools import skel
+from bapctools import slack
+from bapctools import solve_stats
+from bapctools import stats
+from bapctools import upgrade
+from bapctools import validate
+from bapctools.contest import call_api_get_json, contest_yaml, get_contest_id, problems_yaml
+from bapctools.problem import Problem
+from bapctools.util import (
     AbortException,
     ask_variable_bool,
     eprint,

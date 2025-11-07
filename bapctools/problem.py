@@ -8,21 +8,21 @@ from pathlib import Path
 from typing import Final, Literal, Optional, overload, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from program import Program
+    from bapctools.program import Program
 
 import math
 
-import check_testing_tool
-import config
-import latex
-import parallel
-import run
-import testcase
-import validate
-import validator_tests
-import verdicts
-import visualize
-from util import (
+from bapctools import check_testing_tool
+from bapctools import config
+from bapctools import latex
+from bapctools import parallel
+from bapctools import run
+from bapctools import testcase
+from bapctools import validate
+from bapctools import validator_tests
+from bapctools import verdicts
+from bapctools import visualize
+from bapctools.util import (
     BAR_TYPE,
     combine_hashes_dict,
     drop_suffix,

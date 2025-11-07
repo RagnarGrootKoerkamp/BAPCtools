@@ -7,13 +7,13 @@ from colorama import Style
 from pathlib import Path
 from typing import Any, Optional
 
-import config
-import generate
-import parallel
-import problem
-from run import Run, Submission
-from testcase import Testcase
-from util import (
+from bapctools import config
+from bapctools import generate
+from bapctools import parallel
+from bapctools import problem
+from bapctools.run import Run, Submission
+from bapctools.testcase import Testcase
+from bapctools.util import (
     eprint,
     error,
     fatal,
@@ -25,8 +25,8 @@ from util import (
     ryaml_get_or_add,
     write_yaml,
 )
-from validate import Mode, OutputValidator
-from verdicts import Verdict
+from bapctools.validate import Mode, OutputValidator
+from bapctools.verdicts import Verdict
 
 if has_ryaml:
     from ruamel.yaml.comments import CommentedMap, CommentedSeq

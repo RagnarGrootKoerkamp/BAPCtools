@@ -11,15 +11,15 @@ from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
 from typing import cast, Final, Literal, Optional, overload, TypeVar
 
-import config
-import parallel
-import program
-import run
-import validate
-import visualize
-from problem import Problem
-from testcase import Testcase
-from util import (
+from bapctools import config
+from bapctools import parallel
+from bapctools import program
+from bapctools import run
+from bapctools import validate
+from bapctools import visualize
+from bapctools.problem import Problem
+from bapctools.testcase import Testcase
+from bapctools.util import (
     combine_hashes,
     combine_hashes_dict,
     ensure_symlink,
@@ -46,7 +46,7 @@ from util import (
     warn,
     write_yaml,
 )
-from verdicts import Verdict
+from bapctools.verdicts import Verdict
 
 if has_ryaml:
     import ruamel.yaml

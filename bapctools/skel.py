@@ -5,11 +5,11 @@ import shutil
 from pathlib import Path
 
 # Local imports
-import config
-import contest
-import latex
-from problem import Problem
-from util import (
+from bapctools import config
+from bapctools import contest
+from bapctools import latex
+from bapctools.problem import Problem
+from bapctools.util import (
     ask_variable_bool,
     ask_variable_choice,
     ask_variable_string,
@@ -27,7 +27,7 @@ from util import (
     warn,
     write_yaml,
 )
-from validate import OutputValidator
+from bapctools.validate import OutputValidator
 
 
 # Returns the alphanumeric version of a string:

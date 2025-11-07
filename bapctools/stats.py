@@ -6,13 +6,13 @@ from dateutil import parser
 from pathlib import Path
 from typing import Any, cast, Literal, Optional
 
-import config
-import generate
-import latex
-import program
-import validate
-from problem import Problem
-from util import eprint, error, glob, log, ShellCommand, warn
+from bapctools import config
+from bapctools import generate
+from bapctools import latex
+from bapctools import program
+from bapctools import validate
+from bapctools.problem import Problem
+from bapctools.util import eprint, error, glob, log, ShellCommand, warn
 
 Selector = (
     str | Callable[[Problem], int | float] | list[str] | list[Callable[[set[Path]], set[str]]]
