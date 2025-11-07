@@ -10,6 +10,9 @@ dependencies = [
 
 [project.optional-dependencies]
 update-yaml = ["ruamel.yaml"]
+solve-stats = ["matplotlib"]
+domjudge = ["requests"]
+new = ["questionary"]
 
 [project.scripts]
 bt = "bapctools.tools:main"
