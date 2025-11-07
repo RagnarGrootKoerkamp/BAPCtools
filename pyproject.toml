@@ -1,3 +1,20 @@
+[project]
+name = "bapctools"
+version = "0.0.0"
+dependencies = [
+    "pyyaml",
+    "colorama",
+    "argcomplete",
+    "python-dateutil",
+]
+
+[project.optional-dependencies]
+update-yaml = ["ruamel.yaml"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [tool.ruff]
 # Line length 100
 line-length = 100
