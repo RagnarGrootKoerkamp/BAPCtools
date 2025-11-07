@@ -11,6 +11,9 @@ dependencies = [
 [project.optional-dependencies]
 update-yaml = ["ruamel.yaml"]
 
+[project.scripts]
+bt = "bapctools.tools:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
