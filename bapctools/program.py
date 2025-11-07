@@ -393,7 +393,7 @@ class Program:
                     pass
 
         # Warn for known bad (non-deterministic) patterns in generators
-        from validate import Validator
+        from bapctools.validate import Validator
 
         if isinstance(self, Generator) or isinstance(self, Validator):
             if "c++" in self.language.name.lower():

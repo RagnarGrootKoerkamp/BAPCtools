@@ -10,7 +10,7 @@ from bapctools.util import ExecResult, ExecStatus, fatal, ProgressBar, validator
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools import run
-    from bapctools     import testcase
+    from bapctools import testcase
     from bapctools.problem import Problem
 
 

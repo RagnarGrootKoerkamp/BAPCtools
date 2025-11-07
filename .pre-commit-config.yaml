@@ -10,7 +10,7 @@ repos:
     -   id: ruff
         args: [ --fix ]
     -   id: ruff
-        files: ^bin/.*\.py$
+        files: ^bapctools/.*\.py$
         args: ["--select=I", "--fix"]
     -   id: ruff-format
 -   repo: https://github.com/pre-commit/mirrors-mypy
