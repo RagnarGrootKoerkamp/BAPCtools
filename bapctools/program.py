@@ -131,7 +131,7 @@ def languages() -> Sequence[Language]:
         if languages_path.is_file():
             raw_languages = read_yaml(languages_path)
         else:
-            raw_languages = read_yaml(config.TOOLS_ROOT / "config/languages.yaml")
+            raw_languages = read_yaml(config.RESOURCES_ROOT / "config/languages.yaml")
         if not isinstance(raw_languages, dict):
             fatal("could not parse languages.yaml.")
 
@@ -362,7 +362,7 @@ class Program:
                     self.tmpdir / "build" if (self.tmpdir / "build") in self.input_files else ""
                 ),
                 "run": self.tmpdir / "run",
-                "viva_jar": config.TOOLS_ROOT / "third_party/viva/viva.jar",
+                "viva_jar": config.RESOURCES_ROOT / "third_party/viva/viva.jar",
             }
 
             return True

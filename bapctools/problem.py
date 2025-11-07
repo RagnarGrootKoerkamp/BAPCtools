@@ -1075,7 +1075,7 @@ class Problem:
             if problem.custom_output:
                 paths = [problem.path / validate.OutputValidator.source_dir]
             else:
-                paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
+                paths = [config.RESOURCES_ROOT / "support" / "default_output_validator.cpp"]
         else:
             paths = list(glob(problem.path / cls.source_dir, "*"))
 
