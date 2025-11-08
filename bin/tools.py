@@ -1091,8 +1091,7 @@ def read_personal_config(problem_dir: Optional[Path]) -> None:
             warn(f"invalid data in {config_data}. SKIPPED.")
             continue
 
-        tmp = config.ARGS(config_file, **config_data)
-        config.args.update(tmp)
+        config.args.add_if_not_set(config.ARGS(config_file, **config_data))
 
 
 def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True) -> None:

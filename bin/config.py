@@ -272,9 +272,9 @@ class ARGS:
             print(key, type(kwargs[key]))
             warn(f"unknown key in {source}: '{key}'")
 
-    def update(self, args: "ARGS", replace: bool = False) -> None:
+    def add_if_not_set(self, args: "ARGS") -> None:
         for key in args._set:
-            if key not in self._set or replace:
+            if key not in self._set:
                 setattr(self, key, getattr(args, key))
                 self._set.add(key)
 
