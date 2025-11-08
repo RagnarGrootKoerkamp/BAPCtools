@@ -9,9 +9,7 @@ import problem
 
 RUN_DIR = Path.cwd().absolute()
 
-config.args.verbose = 2
-config.args.error = True
-config.args.mark_set("verbose", "error")
+config.args.add_if_not_set(config.ARGS("test_problem_yaml.py", verbose=2, error=True))
 
 
 # return list of {yaml: {...}, ...} documents
