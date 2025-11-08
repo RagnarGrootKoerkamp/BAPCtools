@@ -129,6 +129,7 @@ class ARGS:
 
         def warn(msg: Any) -> None:
             global n_warn
+            # `config` is imported before `util`, so we cannot use a `PrintBar` or `eprint` here.
             print(f"{Fore.YELLOW}WARNING: {msg}{Style.RESET_ALL}", file=sys.stderr)
             n_warn += 1
 
