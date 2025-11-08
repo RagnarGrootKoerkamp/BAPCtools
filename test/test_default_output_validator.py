@@ -15,9 +15,7 @@ RUN_DIR = Path.cwd().absolute()
 # Note: the python version isn't tested by default, because it's quite slow.
 DEFAULT_OUTPUT_VALIDATOR = ["default_output_validator.cpp"]
 
-config.args.verbose = 2
-config.args.error = True
-config.args.mark_set("verbose", "error")
+config.args.add_if_not_set(config.ARGS("test_default_output_validator.py", verbose=2, error=True))
 
 
 # return list of (flags, ans, out, expected result)

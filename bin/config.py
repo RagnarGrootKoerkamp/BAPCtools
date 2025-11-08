@@ -278,9 +278,6 @@ class ARGS:
                 setattr(self, key, getattr(args, key))
                 self._set.add(key)
 
-    def mark_set(self, *keys: str) -> None:
-        self._set.update(list(keys))
-
     def copy(self) -> "ARGS":
         res = copy.copy(self)
         res._set = copy.copy(res._set)
