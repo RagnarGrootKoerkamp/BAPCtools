@@ -17,6 +17,7 @@ import yaml as yamllib
 from collections.abc import Callable, Mapping, Sequence
 from colorama import Fore, Style
 from enum import Enum
+from functools import wraps
 from io import StringIO
 from pathlib import Path
 from typing import (
@@ -27,6 +28,7 @@ from typing import (
     NoReturn,
     Optional,
     overload,
+    ParamSpec,
     Protocol,
     TYPE_CHECKING,
     TypeAlias,
@@ -702,6 +704,26 @@ def drop_suffix(path: Path, suffixes: Sequence[str]) -> Path:
 # Drops the first two path components <problem>/<type>/
 def print_name(path: Path, keep_type: bool = False) -> str:
     return str(Path(*path.parts[1 if keep_type else 2 :]))
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
+
+
+def require_ruamel(action: str, return_value: R) -> Callable[[Callable[P, R]], Callable[P, R]]:
+    def decorator(function: Callable[P, R]) -> Callable[P, R]:
+        @wraps(function)
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            if not has_ryaml:
+                error(
+                    f"{action} needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml."
+                )
+                return return_value
+            return function(*args, **kwargs)
+
+        return wrapper
+
+    return decorator
 
 
 def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> Any:

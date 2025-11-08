@@ -39,6 +39,7 @@ from util import (
     PrintBar,
     ProgressBar,
     read_yaml,
+    require_ruamel,
     ryaml_get_or_add,
     shorten_path,
     substitute,
@@ -2054,13 +2055,8 @@ data/*
 
     # add all testcases specified as copy keys in the generators.yaml
     # can handle files and complete directories
+    @require_ruamel("generate --upgrade", False)
     def add(self, to_add: Sequence[Path]) -> bool:
-        if not has_ryaml:
-            error(
-                "generate --add needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml."
-            )
-            return False
-
         in_files = []
         for path in to_add:
             if path.suffix == ".in":
@@ -2113,14 +2109,9 @@ data/*
         return True
 
     # reorder all testcases in the given directories
+    @require_ruamel("generate --reorder", False)
     def reorder(self) -> bool:
         if self.n_parse_error > 0:
-            return False
-
-        if not has_ryaml:
-            error(
-                "generate --reorder needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml."
-            )
             return False
 
         directory_rules = set()

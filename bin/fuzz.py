@@ -21,6 +21,7 @@ from util import (
     PrintBar,
     ProgressBar,
     read_yaml,
+    require_ruamel,
     ryaml_get_or_add,
     write_yaml,
 )
@@ -247,11 +248,8 @@ class Fuzz:
         # SUBMISSIONS
         self.submissions = self.problem.selected_or_accepted_submissions()
 
+    @require_ruamel("Fuzz", False)
     def run(self) -> bool:
-        if not has_ryaml:
-            error("Fuzzing needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
-            return False
-
         if len(self.testcase_rules) == 0:
             error("No invocations depending on {seed} found.")
             return False

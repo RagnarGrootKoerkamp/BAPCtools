@@ -9,12 +9,12 @@ from typing import Any, cast, Optional
 import config
 import generate
 from util import (
-    error,
     fatal,
     has_ryaml,
     is_problem_directory,
     ProgressBar,
     read_yaml,
+    require_ruamel,
     ryaml_filter,
     ryaml_get_or_add,
     ryaml_replace,
@@ -621,11 +621,8 @@ def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
     bar.done()
 
 
+@require_ruamel("upgrade", None)
 def upgrade(problem_dir: Optional[Path]) -> None:
-    if not has_ryaml:
-        error("upgrade needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
-        return
-
     if config.level == "problem":
         assert problem_dir
         if not is_problem_directory(problem_dir):

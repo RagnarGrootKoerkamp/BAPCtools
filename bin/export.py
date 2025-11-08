@@ -26,6 +26,7 @@ from util import (
     parse_yaml,
     PrintBar,
     read_yaml,
+    require_ruamel,
     ryaml_filter,
     substitute,
     verbose,
@@ -128,12 +129,9 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
     eprint("Wrote zip to samples.zip")
 
 
+@require_ruamel("zip", False)
 def build_problem_zip(problem: Problem, output: Path) -> bool:
     """Make DOMjudge/Kattis ZIP file for specified problem."""
-
-    if not has_ryaml:
-        error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
-        return False
 
     bar = PrintBar("Zip", len(problem.name) + 4, item=problem)
 
@@ -419,13 +417,10 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 # solutions*.{lang}.pdf
 # problem-slides*.{lang}.pdf
 # Output is <outfile>
+@require_ruamel("zip", None)
 def build_contest_zip(
     problems: list[Problem], zipfiles: list[Path], outfile: str, languages: list[str]
 ) -> None:
-    if not has_ryaml:
-        error("zip needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml.")
-        return
-
     eprint(f"writing ZIP file {outfile}")
 
     if not config.args.kattis:  # Kattis does not use problems.yaml.
