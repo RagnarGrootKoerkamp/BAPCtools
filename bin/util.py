@@ -1563,3 +1563,23 @@ def is_uuid(uuid: str) -> bool:
         return uuid.casefold() == str(UUID(uuid)).casefold()
     except ValueError:
         return False
+
+
+class Command:
+    @staticmethod
+    def get(cmd: str) -> Optional["Command"]:
+        if shutil.which(cmd) is None:
+            return None
+        return Command(cmd)
+
+    def __init__(self, cmd: str) -> None:
+        self.cmd = cmd
+
+    def __call__(self, *args: str | Path) -> str:
+        res = exec_command(
+            ["git", *args],
+            crop=False,
+            preexec_fn=False,
+            timeout=None,
+        )
+        return res.out if res.status == ExecStatus.ACCEPTED and res.out else ""

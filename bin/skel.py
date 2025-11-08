@@ -13,10 +13,9 @@ from util import (
     ask_variable_bool,
     ask_variable_choice,
     ask_variable_string,
+    Command,
     copytree_and_substitute,
     error,
-    exec_command,
-    ExecStatus,
     fatal,
     generate_problem_uuid,
     has_ryaml,
@@ -289,18 +288,10 @@ def copy_skel_dir(problems: list[Problem]) -> None:
 
 # NOTE: This is one of few places that prints to stdout instead of stderr.
 def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
-    if shutil.which("git") is None:
+    git = Command.get("git")
+    if git is None:
         error("git command not found!")
         return
-
-    def git(*args: str | Path) -> str:
-        res = exec_command(
-            ["git", *args],
-            crop=False,
-            preexec_fn=False,
-            timeout=None,
-        )
-        return res.out if res.status == ExecStatus.ACCEPTED and res.out else ""
 
     if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
         error("not inside git")

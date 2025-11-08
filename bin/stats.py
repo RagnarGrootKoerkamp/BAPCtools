@@ -1,4 +1,3 @@
-import shutil
 import statistics
 from collections.abc import Callable, Sequence
 from colorama import ansi, Fore, Style
@@ -13,7 +12,7 @@ import latex
 import program
 import validate
 from problem import Problem
-from util import eprint, error, exec_command, ExecStatus, glob, log, warn
+from util import Command, eprint, error, glob, log, warn
 
 Selector = (
     str | Callable[[Problem], int | float] | list[str] | list[Callable[[set[Path]], set[str]]]
@@ -419,18 +418,10 @@ def more_stats(problems: list[Problem]) -> None:
             eprint(format_row(*values))
 
     # git stats
-    if shutil.which("git") is None:
+    git = Command.get("git")
+    if git is None:
         error("git command not found!")
         return
-
-    def git(*args: str | Path) -> str:
-        res = exec_command(
-            ["git", *args],
-            crop=False,
-            preexec_fn=False,
-            timeout=None,
-        )
-        return res.out if res.status == ExecStatus.ACCEPTED and res.out else ""
 
     if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
         error("not inside git")
