@@ -3,7 +3,6 @@
 import os
 import re
 import shutil
-from collections.abc import Collection
 from colorama import Fore, Style
 from enum import Enum
 from pathlib import Path
@@ -549,8 +548,8 @@ def build_contest_pdfs(
     if not statement_languages:
         bar.fatal("No statement language present in every problem.")
     if config.args.lang is not None:
-        languages: Collection[str] = config.args.lang
-        for lang in set(languages) - statement_languages:
+        languages = set(config.args.lang)
+        for lang in languages - statement_languages:
             bar.fatal(f"Unable to build all statements for language {lang}")
     else:
         languages = statement_languages
