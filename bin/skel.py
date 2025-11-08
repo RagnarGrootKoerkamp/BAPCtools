@@ -16,6 +16,7 @@ from util import (
     copytree_and_substitute,
     error,
     exec_command,
+    ExecStatus,
     fatal,
     generate_problem_uuid,
     has_ryaml,
@@ -299,7 +300,7 @@ def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
             preexec_fn=False,
             timeout=None,
         )
-        return res.out if res and res.out else ""
+        return res.out if res.status == ExecStatus.ACCEPTED and res.out else ""
 
     if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
         error("not inside git")

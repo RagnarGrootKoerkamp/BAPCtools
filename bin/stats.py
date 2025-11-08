@@ -13,7 +13,7 @@ import latex
 import program
 import validate
 from problem import Problem
-from util import eprint, error, exec_command, glob, log, warn
+from util import eprint, error, exec_command, ExecStatus, glob, log, warn
 
 Selector = (
     str | Callable[[Problem], int | float] | list[str] | list[Callable[[set[Path]], set[str]]]
@@ -430,7 +430,7 @@ def more_stats(problems: list[Problem]) -> None:
             preexec_fn=False,
             timeout=None,
         )
-        return res.out if res and res.out else ""
+        return res.out if res.status == ExecStatus.ACCEPTED and res.out else ""
 
     if not git("rev-parse", "--is-inside-work-tree").startswith("true"):
         error("not inside git")

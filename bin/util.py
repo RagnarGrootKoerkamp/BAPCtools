@@ -1449,7 +1449,7 @@ def exec_command(
     def maybe_crop(s: str) -> str:
         return crop_output(s) if crop else s
 
-    ok = exec_code_map(process.returncode)
+    status = exec_code_map(process.returncode)
     err = maybe_crop(stderr.decode("utf-8", "replace")) if stderr is not None else None
     out = maybe_crop(stdout.decode("utf-8", "replace")) if stdout is not None else None
 
@@ -1462,7 +1462,7 @@ def exec_command(
     else:
         duration = tend - tstart
 
-    return ExecResult(process.returncode, ok, duration, timeout_expired, err, out)
+    return ExecResult(process.returncode, status, duration, timeout_expired, err, out)
 
 
 def inc_label(label: str) -> str:

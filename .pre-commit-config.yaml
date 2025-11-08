@@ -30,6 +30,8 @@ repos:
         args:
         -   --check-untyped-defs
         -   --exclude=test
+        -   --enable-error-code=truthy-bool
+        -   --enable-error-code=truthy-iterable
         -   --no-incremental  # Fixes ruamel.yaml, see https://stackoverflow.com/a/65223004
         -   --python-version=3.10
         -   --scripts-are-modules

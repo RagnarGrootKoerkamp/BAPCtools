@@ -356,7 +356,7 @@ class Submission(program.Program):
         expected_verdicts.sort()
         return expected_verdicts or [Verdict.ACCEPTED]
 
-    # Run submission on in_path, writing stdout to out_path or stdout if out_path is None.
+    # Run submission on in_path, writing stdout to out_path.
     # args is used by SubmissionInvocation to pass on additional arguments.
     # Returns ExecResult
     # The `generator_timeout` argument is used when a submission is run as a solution when
@@ -374,10 +374,7 @@ class Submission(program.Program):
         # Just for safety reasons, change the cwd.
         if cwd is None:
             cwd = self.tmpdir
-        with (
-            in_path.open("rb") as in_file,
-            out_path.open("wb") if out_path else nullcontext(None) as out_file,
-        ):
+        with in_path.open("rb") as in_file, out_path.open("wb") as out_file:
             # Print stderr to terminal is stdout is None, otherwise return its value.
             result = self._exec_command(
                 [*self.run_command, *args],
@@ -719,7 +716,7 @@ while True:
             finally:
                 os.close(r)
                 os.close(w)
-                if writer:
+                if writer is not None:
                     writer.kill()
                     writer.wait()
             bar.done()

@@ -460,18 +460,18 @@ while True:
                     if stream:
                         stream.close()
 
-                if validator:
+                if validator is not None:
                     validator.wait()
                     close_io(validator.stdin)
                     close_io(validator.stdout)
                     close_io(validator.stderr)
-                if team_tee:
+                if team_tee is not None:
                     team_tee.wait()
                     close_io(team_tee.stdin)
-                if val_tee:
+                if val_tee is not None:
                     val_tee.wait()
                     close_io(val_tee.stdout)
-                if submission:
+                if submission is not None:
                     submission.wait()
                     close_io(submission.stderr)
 
