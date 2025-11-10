@@ -120,7 +120,7 @@ VIVA: Final[Language] = Language(
         "run": "java -jar {viva_jar} {mainfile}",
     },
 )
-EXTRA_LANGUAGES: Final[Sequence[Language]] = [
+EXTRA_LANGUAGES: Final[Sequence[Language]] = (
     CHECKTESTDATA,
     VIVA,
     Language(
@@ -133,10 +133,10 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = [
             "run": "{run}",
         },
     ),
-]
+)
 
 # The cached languages.yaml for the current contest.
-_languages: Optional[list[Language]] = None
+_languages: Optional[Sequence[Language]] = None
 _program_config_lock = threading.Lock()
 
 
@@ -154,22 +154,20 @@ def languages() -> Sequence[Language]:
             fatal("could not parse languages.yaml.")
 
         languages = [Language(lang_id, lang_conf) for lang_id, lang_conf in raw_languages.items()]
+        languages = [lang for lang in languages if lang.ok]
         priorities: dict[int, str] = {}
-        _languages = []
         for lang in languages:
-            if not lang.ok:
-                continue
             if lang.priority in priorities:
                 warn(
                     f"'{lang.id}' and '{priorities[lang.priority]}' have the same priority in languages.yaml."
                 )
-            _languages.append(lang)
             priorities[lang.priority] = lang.id
 
         for lang in EXTRA_LANGUAGES:
             assert lang.ok
-            _languages.append(lang)
+            languages.append(lang)
 
+        _languages = tuple(languages)
         return _languages
 
 

@@ -133,7 +133,8 @@ def new_problem() -> None:
         custom_output = True
 
     # Read settings from the contest-level yaml file.
-    variables = contest.contest_yaml() | {
+    variables = {
+        **contest.contest_yaml(),
         "problemname": "\n".join(f"  {lang}: {name}" for lang, name in problemname.items()),
         "dirname": dirname,
         "author": author,

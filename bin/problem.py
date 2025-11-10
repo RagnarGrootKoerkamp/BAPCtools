@@ -449,11 +449,11 @@ class Problem:
 
         # Some caches.
         self._testcases = dict[
-            tuple[Optional[validate.Mode], bool, bool, bool], list[testcase.Testcase]
+            tuple[Optional[validate.Mode], bool, bool, bool], Sequence[testcase.Testcase]
         ]()
-        self._submissions: Optional[list[run.Submission] | Literal[False]] = None
+        self._submissions: Optional[Sequence[run.Submission] | Literal[False]] = None
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
-            tuple[type[validate.AnyValidator], bool], list[validate.AnyValidator]
+            tuple[type[validate.AnyValidator], bool], Sequence[validate.AnyValidator]
         ]()
         self._validators_warn_cache = set[tuple[type[validate.AnyValidator], bool]]()
         self._visualizer_cache = dict[
@@ -812,8 +812,8 @@ class Problem:
                 f"Didn't find any testcases{ans}{val} in problem {p.name}. Skipping."
             )
 
-        p._testcases[key] = testcases
-        return testcases
+        p._testcases[key] = tuple(testcases)
+        return p._testcases[key]
 
     def _samples(
         p, in_extensions: list[str], ans_extensions: list[str], return_interaction_file: bool
@@ -935,21 +935,23 @@ class Problem:
         return [t for t in testcases if isinstance(t, tuple)]
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
-    def selected_or_accepted_submissions(problem) -> list[run.Submission]:
+    def selected_or_accepted_submissions(problem) -> Sequence[run.Submission]:
         submissions = problem.submissions()
         if not submissions:
-            return []
+            return tuple()
         if config.args.submissions:
             return submissions
         else:
-            return [s for s in submissions if s.expected_verdicts == [verdicts.Verdict.ACCEPTED]]
+            return tuple(
+                s for s in submissions if s.expected_verdicts == [verdicts.Verdict.ACCEPTED]
+            )
 
-    def submissions(problem) -> list[run.Submission] | Literal[False]:
+    def submissions(problem) -> Sequence[run.Submission] | Literal[False]:
         if problem._submissions is not None:
             if problem._submissions is False:
                 return False
             else:
-                return problem._submissions.copy()
+                return problem._submissions
 
         paths = []
         if config.args.submissions:
@@ -1014,14 +1016,14 @@ class Problem:
         bar.finalize(print_done=False)
 
         # Filter out broken submissions.
-        problem._submissions = [p for p in programs if p.ok]
+        problem._submissions = tuple(p for p in programs if p.ok)
 
         if len(problem._submissions) == 0:
             problem._submissions = False
             return False
 
-        assert isinstance(problem._submissions, list)
-        return problem._submissions.copy()
+        assert isinstance(problem._submissions, tuple)
+        return problem._submissions
 
     @overload
     def visualizer(
@@ -1069,8 +1071,9 @@ class Problem:
         """
         validators = problem._validators(cls, check_constraints)
         if not strict and cls == validate.AnswerValidator and problem.settings.ans_is_output:
-            validators = validators + problem._validators(
-                validate.OutputValidator, check_constraints
+            validators = (
+                *validators,
+                *problem._validators(validate.OutputValidator, check_constraints),
             )
 
         # Check that the proper number of validators is present
@@ -1090,11 +1093,11 @@ class Problem:
 
         # All validators must build.
         # TODO Really? Why not at least return those that built?
-        return validators if build_ok else []
+        return validators if build_ok else tuple()
 
     def _validators(
         problem, cls: type[validate.AnyValidator], check_constraints: bool = False
-    ) -> list[validate.AnyValidator]:
+    ) -> Sequence[validate.AnyValidator]:
         key = (cls, check_constraints)
         if key in problem._validators_cache:
             return problem._validators_cache[key]
@@ -1129,7 +1132,7 @@ class Problem:
         skip_double_build_warning = (
             check_constraints  # or not paths_for_class[Class.ANSWER] TODO not sure about this
         )
-        validators = [
+        validators = tuple(
             cls(
                 problem,
                 path,
@@ -1137,7 +1140,7 @@ class Problem:
                 check_constraints=check_constraints,
             )
             for path in paths
-        ]
+        )
         bar = ProgressBar(f"Building {cls.validator_type} validator", items=validators)
 
         def build_program(p: "Program") -> None:
