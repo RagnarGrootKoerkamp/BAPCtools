@@ -12,7 +12,7 @@ import latex
 import program
 import validate
 from problem import Problem
-from util import Command, eprint, error, glob, log, warn
+from util import eprint, error, glob, log, ShellCommand, warn
 
 Selector = (
     str | Callable[[Problem], int | float] | list[str] | list[Callable[[set[Path]], set[str]]]
@@ -418,7 +418,7 @@ def more_stats(problems: list[Problem]) -> None:
             eprint(format_row(*values))
 
     # git stats
-    git = Command.get("git")
+    git = ShellCommand.get("git")
     if git is None:
         error("git command not found!")
         return

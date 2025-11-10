@@ -1587,12 +1587,12 @@ def is_uuid(uuid: str) -> bool:
         return False
 
 
-class Command:
+class ShellCommand:
     @staticmethod
-    def get(cmd: str) -> Optional["Command"]:
+    def get(cmd: str) -> Optional["ShellCommand"]:
         if shutil.which(cmd) is None:
             return None
-        return Command(cmd)
+        return ShellCommand(cmd)
 
     def __init__(self, cmd: str) -> None:
         self.cmd = cmd

@@ -13,7 +13,6 @@ from util import (
     ask_variable_bool,
     ask_variable_choice,
     ask_variable_string,
-    Command,
     copytree_and_substitute,
     error,
     fatal,
@@ -22,6 +21,7 @@ from util import (
     inc_label,
     log,
     read_yaml,
+    ShellCommand,
     substitute,
     warn,
     write_yaml,
@@ -288,7 +288,7 @@ def copy_skel_dir(problems: list[Problem]) -> None:
 
 # NOTE: This is one of few places that prints to stdout instead of stderr.
 def create_gitlab_jobs(contest: str, problems: list[Problem]) -> None:
-    git = Command.get("git")
+    git = ShellCommand.get("git")
     if git is None:
         error("git command not found!")
         return
