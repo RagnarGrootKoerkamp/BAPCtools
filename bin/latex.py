@@ -447,17 +447,14 @@ def build_contest_pdf(
     bar = PrintBar(f"{main_file[:-3]}{language}.pdf")
     bar.log(f"Building PDF for language {language}")
 
-    default_config_data = {
+    config_data = {
         "title": "TITLE",
         "subtitle": "",
         "year": "YEAR",
         "author": "AUTHOR",
         "test_session": "",
+        **contest_yaml(),
     }
-    config_data = contest_yaml()
-    for x in default_config_data:
-        if x not in config_data:
-            config_data[x] = default_config_data[x]
     config_data["test_session"] = "\\testsession" if config_data.get("test_session") else ""
     config_data["logofile"] = find_logo().as_posix()
 

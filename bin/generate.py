@@ -76,12 +76,12 @@ def assert_type(
     )
 
 
-UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = [
+UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = (
     "copy",
     "generate",
     "retries",
     "count",
-] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
+) + tuple(e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS)
 
 
 def is_testcase(yaml: YAML_TYPE) -> bool:
@@ -321,7 +321,7 @@ to use a specific solution."""
     return Path("/") / solution.relative_to(problem.path)
 
 
-KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
+KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = (
     "type",
     "generate",
     "copy",
@@ -329,9 +329,9 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = [
     "random_salt",
     "retries",
     "count",
-] + [e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS]
-RESERVED_TESTCASE_KEYS: Final[Sequence[str]] = ["data", "test_group.yaml", "include"]
-KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = [
+) + tuple(e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS)
+RESERVED_TESTCASE_KEYS: Final[Sequence[str]] = ("data", "test_group.yaml", "include")
+KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
     "type",
     "data",
     "test_group.yaml",
@@ -339,10 +339,10 @@ KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = [
     "solution",
     "random_salt",
     "retries",
-]
-RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ["command"]
-KNOWN_ROOT_KEYS: Final[Sequence[str]] = ["generators", "parallel", "version"]
-DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ["gitignore_generated", "visualizer"]
+)
+RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = "command"
+KNOWN_ROOT_KEYS: Final[Sequence[str]] = ("generators", "parallel", "version")
+DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ("gitignore_generated", "visualizer")
 
 
 # Holds all inheritable configuration options. Currently:

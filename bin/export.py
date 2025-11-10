@@ -478,7 +478,7 @@ def update_contest_id(cid: str) -> None:
 
 
 def export_contest(cid: Optional[str]) -> str:
-    data = contest_yaml()
+    data = dict(contest_yaml())
 
     if not data:
         fatal("Exporting a contest only works if contest.yaml is available and not empty.")

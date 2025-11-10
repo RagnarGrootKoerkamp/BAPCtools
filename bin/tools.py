@@ -24,6 +24,7 @@ import signal
 import sys
 import tempfile
 from collections import Counter
+from collections.abc import Mapping, Sequence
 from colorama import Style
 from pathlib import Path
 from typing import Any, Optional
@@ -119,7 +120,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
     tmpdir = Path(tempfile.gettempdir()) / ("bapctools_" + h)
     tmpdir.mkdir(parents=True, exist_ok=True)
 
-    def parse_problems_yaml(problemlist: list[dict[str, Any]]) -> list[tuple[str, str]]:
+    def parse_problems_yaml(problemlist: Sequence[Mapping[str, Any]]) -> list[tuple[str, str]]:
         labels = dict[str, str]()  # label -> shortname
         problems = []
         for p in problemlist:

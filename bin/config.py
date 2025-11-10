@@ -22,15 +22,15 @@ RTV_WA: Final[int] = 43
 # limit in MiB for the ICPC Archive
 ICPC_FILE_LIMIT: Final[int] = 100
 
-SUBMISSION_DIRS: Final[Sequence[str]] = [
+SUBMISSION_DIRS: Final[Sequence[str]] = (
     "accepted",
     "wrong_answer",
     "time_limit_exceeded",
     "run_time_error",
-]
+)
 
 # This ordering is shown in bt new_problem with questionary installed (intentionally non-alphabetical).
-KNOWN_LICENSES: Final[Sequence[str]] = [
+KNOWN_LICENSES: Final[Sequence[str]] = (
     "cc by-sa",
     "cc by",
     "cc0",
@@ -38,7 +38,7 @@ KNOWN_LICENSES: Final[Sequence[str]] = [
     "educational",
     "permission",
     "unknown",
-]
+)
 
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD: Final[int] = 4
@@ -57,43 +57,43 @@ BAPCTOOLS_SUBSTITUTE_REGEX: Final[re.Pattern[str]] = re.compile(
 )
 
 
-KNOWN_TESTCASE_EXTENSIONS: Final[Sequence[str]] = [
+KNOWN_TESTCASE_EXTENSIONS: Final[Sequence[str]] = (
     ".in",
     ".ans",
     ".out",
-]
+)
 
-KNOWN_VISUALIZER_EXTENSIONS: Final[Sequence[str]] = [
+KNOWN_VISUALIZER_EXTENSIONS: Final[Sequence[str]] = (
     ".png",
     ".jpg",
     ".svg",
     ".pdf",
-]
+)
 
-KNOWN_SAMPLE_TESTCASE_EXTENSIONS: Final[Sequence[str]] = [
+KNOWN_SAMPLE_TESTCASE_EXTENSIONS: Final[Sequence[str]] = (
     ".in.statement",
     ".ans.statement",
     ".in.download",
     ".ans.download",
-]
+)
 
-KNOWN_TEXT_DATA_EXTENSIONS: Final[Sequence[str]] = [
+KNOWN_TEXT_DATA_EXTENSIONS: Final[Sequence[str]] = (
     *KNOWN_TESTCASE_EXTENSIONS,
     *KNOWN_SAMPLE_TESTCASE_EXTENSIONS,
     ".interaction",
     ".yaml",
-]
+)
 
-KNOWN_DATA_EXTENSIONS: Final[Sequence[str]] = [
+KNOWN_DATA_EXTENSIONS: Final[Sequence[str]] = (
     *KNOWN_TEXT_DATA_EXTENSIONS,
     *KNOWN_VISUALIZER_EXTENSIONS,
-]
+)
 
-INVALID_CASE_DIRECTORIES: Final[Sequence[str]] = [
+INVALID_CASE_DIRECTORIES: Final[Sequence[str]] = (
     "invalid_input",
     "invalid_answer",
     "invalid_output",
-]
+)
 
 
 SEED_DEPENDENCY_RETRIES: Final[int] = 10

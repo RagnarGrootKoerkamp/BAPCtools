@@ -1,3 +1,4 @@
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Any, cast, Literal, Optional, TYPE_CHECKING
 
@@ -8,10 +9,10 @@ if TYPE_CHECKING:
     import requests
 
 # Read the contest.yaml, if available
-_contest_yaml: Optional[dict[str, Any]] = None
+_contest_yaml: Optional[Mapping[str, Any]] = None
 
 
-def contest_yaml() -> dict[str, Any]:
+def contest_yaml() -> Mapping[str, Any]:
     global _contest_yaml
     if _contest_yaml is not None:
         return _contest_yaml
@@ -24,10 +25,10 @@ def contest_yaml() -> dict[str, Any]:
     return _contest_yaml
 
 
-_problems_yaml: Literal[False] | Optional[list[dict[str, Any]]] = None
+_problems_yaml: Literal[False] | Optional[Sequence[Mapping[str, Any]]] = None
 
 
-def problems_yaml() -> Optional[list[dict[str, Any]]]:
+def problems_yaml() -> Optional[Sequence[Mapping[str, Any]]]:
     global _problems_yaml
     if _problems_yaml is False:
         return None
