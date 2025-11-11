@@ -20,8 +20,8 @@ def contest_yaml() -> Mapping[str, Any]:
     contest_yaml_path = Path("contest.yaml")
     if contest_yaml_path.is_file():
         _contest_yaml = read_yaml_settings(contest_yaml_path)
-        return _contest_yaml
-    _contest_yaml = {}
+    if _contest_yaml is None:
+        _contest_yaml = {}
     return _contest_yaml
 
 
