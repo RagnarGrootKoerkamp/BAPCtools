@@ -147,6 +147,8 @@ class ARGS:
         def get_optional_arg(key: str, t: type[T], constraint: Optional[str] = None) -> Optional[T]:
             if key in kwargs:
                 value = normalize_arg(kwargs.pop(key), t)
+                if value is None:
+                    return None
                 if constraint:
                     assert isinstance(value, (float, int))
                     if not eval(f"{value} {constraint}"):

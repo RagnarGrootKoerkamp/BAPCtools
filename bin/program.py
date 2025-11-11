@@ -43,7 +43,7 @@ class Language:
         def get_optional_value(key: str, t: type[T]) -> Optional[T]:
             if key in conf:
                 value = conf.pop(key)
-                if isinstance(value, t):
+                if value is None or isinstance(value, t):
                     return value
                 warn(
                     f"incompatible value for key '{key}' in languages.yaml for '{lang_id}'. SKIPPED."

@@ -67,7 +67,7 @@ T = TypeVar("T")
 def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
     if key in yaml_data:
         value = normalize_yaml_value(yaml_data.pop(key), t)
-        if isinstance(value, t):
+        if value is None or isinstance(value, t):
             return value
         warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
     return None
@@ -92,6 +92,8 @@ def parse_setting(
 def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> list[T]:
     if key in yaml_data:
         value = yaml_data.pop(key)
+        if value is None:
+            return []
         if isinstance(value, t):
             return [value]
         if isinstance(value, list):
