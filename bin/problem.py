@@ -41,7 +41,6 @@ from util import (
     PrintBar,
     ProgressBar,
     read_yaml,
-    read_yaml_settings,
     resolve_path_argument,
     ryaml_get_or_add,
     substitute,
@@ -533,12 +532,15 @@ class Problem:
         yaml_path = self.path / "problem.yaml"
         if has_ryaml:
             try:
-                yaml_data = read_yaml_settings(yaml_path)
+                yaml_data = read_yaml(yaml_path)
             except ruamel.yaml.scanner.ScannerError:
                 fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
         else:
-            yaml_data = read_yaml_settings(yaml_path)
+            yaml_data = read_yaml(yaml_path)
         yaml_data = yaml_data or {}
+
+        if not isinstance(yaml_data, dict):
+            fatal(f"{self.name}/problem.yaml is illformed.")
 
         if "uuid" not in yaml_data:
             uuid = generate_problem_uuid()
@@ -546,7 +548,7 @@ class Problem:
             raw = yaml_path.read_text().rstrip()
             raw += f"\n# uuid added by BAPCtools\nuuid: '{uuid}'\n"
             yaml_path.write_text(raw)
-            log("Added new UUID to problem.yaml")
+            log(f"Added new UUID to {self.name}/problem.yaml")
 
         self.settings = ProblemSettings(yaml_data, self)
 
