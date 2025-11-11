@@ -81,7 +81,8 @@ UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = (
     "generate",
     "retries",
     "count",
-) + tuple(e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS)
+    *(e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS),
+)
 
 
 def is_testcase(yaml: YAML_TYPE) -> bool:
@@ -329,7 +330,8 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = (
     "random_salt",
     "retries",
     "count",
-) + tuple(e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS)
+    *(e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS),
+)
 RESERVED_TESTCASE_KEYS: Final[Sequence[str]] = ("data", "test_group.yaml", "include")
 KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
     "type",
