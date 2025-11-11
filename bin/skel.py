@@ -21,6 +21,7 @@ from util import (
     inc_label,
     log,
     read_yaml,
+    require_ruamel,
     ShellCommand,
     substitute,
     warn,
@@ -221,10 +222,8 @@ def new_problem() -> None:
             )
 
 
+@require_ruamel("rename_problem", None)
 def rename_problem(problem: Problem) -> None:
-    if not has_ryaml:
-        fatal("ruamel.yaml library not found.")
-
     newname = {
         lang: (
             config.args.problemname
