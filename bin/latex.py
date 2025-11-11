@@ -227,14 +227,16 @@ def problem_data(problem: "Problem", language: str) -> dict[str, Optional[str]]:
     }
 
 
-def make_environment() -> dict[str, str]:
+def make_environment(builddir: Path) -> dict[str, str]:
     env = os.environ.copy()
     # Search the contest directory and the latex directory.
+    cwd = Path.cwd().absolute()
     latex_paths = [
-        Path.cwd(),
-        Path.cwd() / "solve_stats",
-        Path.cwd() / "solve_stats" / "activity",
-        Path.cwd() / "latex",
+        builddir.absolute(),
+        cwd,
+        cwd / "solve_stats",
+        cwd / "solve_stats" / "activity",
+        cwd / "latex",
         config.TOOLS_ROOT / "latex",
         # The default empty element at the end makes sure that the new TEXINPUTS ends with a path separator.
         # This is required to make LaTeX look in the default global paths: https://tex.stackexchange.com/a/410353
@@ -254,10 +256,10 @@ def build_latex_pdf(
     bar: PrintBar,
     problem_path: Optional[Path] = None,
 ) -> bool:
-    env = make_environment()
-
     if shutil.which("latexmk") is None:
         bar.fatal("latexmk not found!")
+
+    env = make_environment(builddir)
 
     logfile = (builddir / tex_path.name).with_suffix(".log")
     built_pdf = (builddir / tex_path.name).with_suffix(".pdf")
