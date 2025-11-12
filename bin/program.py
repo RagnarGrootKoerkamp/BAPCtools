@@ -159,7 +159,7 @@ def languages() -> Sequence[Language]:
             if not isinstance(lang_id, str):
                 error("keys in languages.yaml must be strings.")
                 continue
-            if not isinstance(lang_id, dict):
+            if not isinstance(lang_conf, dict):
                 error(f"invalid entry {lang_id} in languages.yaml.")
                 continue
             lang = Language(lang_id, lang_conf)
