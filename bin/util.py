@@ -817,7 +817,7 @@ class YamlParser:
     def extract_deprecated(self, key: str, new: Optional[str] = None) -> None:
         if key in self.yaml:
             use = f", use '{new}' instead" if new else ""
-            warn(f"key '{key}' is deprecated{use} in {self.source}. SKIPPED.")
+            warn(f"key '{key}' is deprecated{use}. SKIPPED.")
             self.yaml.pop(key)
 
     def extract_optional_list(self, key: str, t: type[T]) -> list[T]:

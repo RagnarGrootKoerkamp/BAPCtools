@@ -116,7 +116,7 @@ class ProblemCredits:
         self.translators = {}
         for lang in list(translators.yaml.keys()):
             if not isinstance(lang, str):
-                warn(f"invalid language: '{lang}' in problem.yaml. SKIPPED.")
+                warn(f"invalid language '{lang}' in problem.yaml. SKIPPED.")
             else:
                 self.translators[lang] = extract_optional_persons(translators, lang)
 
@@ -282,9 +282,9 @@ class ProblemSettings:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                warn(f"invalid language: '{lang}' in problem.yaml. SKIPPED.")
+                warn(f"invalid language '{lang}' in problem.yaml. SKIPPED.")
             elif not isinstance(name, str):
-                warn(f"incompatible name for language: '{lang}' in problem.yaml. SKIPPED.")
+                warn(f"incompatible value for language '{lang}' in problem.yaml. SKIPPED.")
             else:
                 self.name[lang] = name
 
