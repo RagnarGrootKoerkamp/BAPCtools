@@ -34,7 +34,7 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 
 class Language:
-    def __init__(self, lang_id: str, conf: dict[str, Any]) -> None:
+    def __init__(self, lang_id: str, conf: dict[object, object]) -> None:
         self.ok = True
         self.id = lang_id
 
@@ -153,10 +153,20 @@ def languages() -> Sequence[Language]:
         if not isinstance(raw_languages, dict):
             fatal("could not parse languages.yaml.")
 
-        languages = [Language(lang_id, lang_conf) for lang_id, lang_conf in raw_languages.items()]
-        languages = [lang for lang in languages if lang.ok]
+        languages = []
         priorities: dict[int, str] = {}
-        for lang in languages:
+        for lang_id, lang_conf in raw_languages.items():
+            if not isinstance(lang_id, str):
+                error("keys in languages.yaml must be strings.")
+                continue
+            if not isinstance(lang_id, dict):
+                error(f"invalid entry {lang_id} in languages.yaml.")
+                continue
+            lang = Language(lang_id, lang_conf)
+            if not lang.ok:
+                continue
+
+            languages.append(lang)
             if lang.priority in priorities:
                 warn(
                     f"'{lang.id}' and '{priorities[lang.priority]}' have the same priority in languages.yaml."
