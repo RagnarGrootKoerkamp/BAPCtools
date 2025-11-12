@@ -182,6 +182,7 @@ def new_problem() -> None:
     if problems_yaml.is_file():
         if has_ryaml:
             data = read_yaml(problems_yaml) or []
+            assert isinstance(data, list)
             prev_label = data[-1]["label"] if data else None
             next_label = (
                 ("X" if contest.contest_yaml().test_session else "A")
@@ -250,11 +251,14 @@ def rename_problem(problem: Problem) -> None:
     problems_yaml = Path("problems.yaml")
     if problems_yaml.is_file():
         data = read_yaml(problems_yaml) or []
-        prob = next((p for p in data if p["id"] == problem.name), None)
-        if prob is not None:
-            prob["id"] = dirname
-            prob["name"] = newname
-            write_yaml(data, problems_yaml)
+        if not isinstance(data, list) or not all(isinstance(p, dict) for p in data):
+            warn("could not update problems.yaml")
+        else:
+            prob = next((p for p in data if p["id"] == problem.name), None)
+            if prob is not None:
+                prob["id"] = dirname
+                prob["name"] = newname
+                write_yaml(data, problems_yaml)
 
 
 def copy_skel_dir(problems: list[Problem]) -> None:

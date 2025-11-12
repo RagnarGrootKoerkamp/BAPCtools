@@ -755,20 +755,6 @@ def read_yaml(path: Path, plain: bool = False) -> Any:
     return parse_yaml(path.read_text(), path=path, plain=plain)
 
 
-# Wrapper around read_yaml that returns an empty dictionary by default.
-def read_yaml_settings(path: Path) -> Any:
-    settings = {}
-    if path.is_file():
-        config = read_yaml(path)
-        if config is None:
-            return None
-        if isinstance(config, list):
-            return config
-        for key, value in config.items():
-            settings[key] = "" if value is None else value
-    return settings
-
-
 def normalize_yaml_value(value: Any, t: type[Any]) -> Any:
     if isinstance(value, str) and t is Path:
         value = Path(value)

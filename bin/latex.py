@@ -199,12 +199,7 @@ def get_raw_tl(problem: "Problem") -> str:
 
 def problem_data(problem: "Problem", language: str) -> dict[str, Optional[str]]:
     background = next(
-        (
-            p["rgb"][1:]
-            for p in problems_yaml() or []
-            if p["id"] == str(problem.path) and "rgb" in p
-        ),
-        "ffffff",
+        (p.rgb for p in problems_yaml() if p.id == str(problem.path) and p.rgb), "ffffff"
     )
     # Source: https://github.com/DOMjudge/domjudge/blob/095854650facda41dbb40966e70199840b887e33/webapp/src/Twig/TwigExtension.php#L1056
     background_rgb = [int(background[i : i + 2], 16) for i in [0, 2, 4]]

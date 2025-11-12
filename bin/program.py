@@ -147,8 +147,9 @@ def languages() -> Sequence[Language]:
         if _languages is not None:
             return _languages
 
-        if Path("languages.yaml").is_file():
-            raw_languages = read_yaml(Path("languages.yaml"))
+        languages_path = Path("languages.yaml")
+        if languages_path.is_file():
+            raw_languages = read_yaml(languages_path)
         else:
             raw_languages = read_yaml(config.TOOLS_ROOT / "config/languages.yaml")
         if not isinstance(raw_languages, dict):

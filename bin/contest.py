@@ -1,7 +1,8 @@
 import datetime
-from collections.abc import Mapping, Sequence
+import string
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, Literal, Optional, TYPE_CHECKING
+from typing import Any, Optional, TYPE_CHECKING
 
 import config
 from util import (
@@ -10,7 +11,6 @@ from util import (
     has_ryaml,
     log,
     read_yaml,
-    read_yaml_settings,
     verbose,
     warn,
     YamlParser,
@@ -58,8 +58,58 @@ class ContestYaml:
         return data
 
 
-# Read the contest.yaml, if available
+class ProblemsYamlEntry:
+    def __init__(self, yaml_data: dict[object, object]) -> None:
+        parser = YamlParser("problems.yaml", yaml_data)
+        self.ok = True
+
+        def parse_required_str(key: str) -> str:
+            if key not in parser.yaml:
+                self.ok = False
+                error(f"Found no {key} for problem in problems.yaml. SKIPPED")
+            value = parser.extract_optional(key, str)
+            if not value:
+                self.ok = False
+                value = ""
+                error(f"invalid value for {key} in problems.yaml. SKIPPED")
+            return value
+
+        def get_hex(rgb: Optional[str]) -> Optional[str]:
+            if rgb is None:
+                return None
+            if not rgb.startswith("#"):
+                error(f"invalid rgb value {rgb} in problems.yaml. SKIPPED")
+                return None
+            hex_part = rgb[1:].lower()
+            if len(hex_part) not in (3, 6) or any(c not in string.hexdigits for c in hex_part):
+                error(f"invalid rgb value {rgb} in problems.yaml. SKIPPED")
+                return None
+            return hex_part
+
+        # known keys
+        self.id: str = parse_required_str("id")
+        self.label: str = parse_required_str("label")
+        self.rgb: Optional[str] = get_hex(parser.extract_optional("rgb", str))
+
+        # unused keys
+        self.name: Optional[str] = parser.extract_optional("name", str)
+        self.time_limit: Optional[float] = parser.extract_optional("time_limit", float)
+        if self.time_limit is not None and not self.time_limit > 0:
+            error(
+                f"value for 'time_limit' in problems.yaml should be > 0 but is {self.time_limit}. SKIPPED"
+            )
+            self.time_limit = None
+
+        # contains remaining proper keys
+        self._yaml = {k: v for k, v in parser.yaml.items() if isinstance(k, str) and v is not None}
+        for key in parser.yaml:
+            if key not in self._yaml:
+                warn(f"invalid problems.yaml key: {key} in {self.id}")
+
+
+# cache the contest.yaml and problems.yaml
 _contest_yaml: Optional[ContestYaml] = None
+_problems_yaml: Optional[Sequence[ProblemsYamlEntry]] = None
 
 
 def contest_yaml() -> ContestYaml:
@@ -67,37 +117,48 @@ def contest_yaml() -> ContestYaml:
     if _contest_yaml is not None:
         return _contest_yaml
 
-    raw_contest_yaml = None
+    raw_yaml = None
     contest_yaml_path = Path("contest.yaml")
     if contest_yaml_path.is_file():
-        raw_contest_yaml = read_yaml_settings(contest_yaml_path)
-    if raw_contest_yaml is not None and not isinstance(raw_contest_yaml, dict):
-        fatal("could not parse contest.yaml.")
+        raw_yaml = read_yaml(contest_yaml_path)
+    if raw_yaml is not None and not isinstance(raw_yaml, dict):
+        fatal("could not parse contest.yaml, must be a dict.")
 
-    _contest_yaml = ContestYaml(raw_contest_yaml)
+    _contest_yaml = ContestYaml(raw_yaml)
     return _contest_yaml
 
 
-_problems_yaml: Literal[False] | Optional[Sequence[Mapping[str, Any]]] = None
-
-
-def problems_yaml() -> Optional[Sequence[Mapping[str, Any]]]:
+def problems_yaml() -> Sequence[ProblemsYamlEntry]:
     global _problems_yaml
-    if _problems_yaml is False:
-        return None
-    if _problems_yaml:
+    if _problems_yaml is not None:
         return _problems_yaml
 
-    problemsyaml_path = Path("problems.yaml")
-    if not problemsyaml_path.is_file():
-        _problems_yaml = False
-        return None
-    _problems_yaml = read_yaml(problemsyaml_path)
-    if _problems_yaml is None:
-        _problems_yaml = False
-        return None
-    if not isinstance(_problems_yaml, list):
-        fatal("problems.yaml must contain a list of problems")
+    problems_yaml_path = Path("contest.yaml")
+    raw_yaml = []
+    if problems_yaml_path.is_file():
+        raw_yaml = read_yaml(problems_yaml_path)
+    if raw_yaml is not None and not isinstance(raw_yaml, list):
+        fatal("could not parse problems.yaml, must be a list.")
+
+    problems = []
+    labels: dict[str, str] = {}
+    for yaml_data in raw_yaml:
+        if not isinstance(yaml_data, dict):
+            error("entries in problems.yaml must be dicts.")
+            continue
+        problem = ProblemsYamlEntry(yaml_data)
+        if not problem.ok:
+            continue
+        if problem.label in labels:
+            error(f"lebal {problem.label} found twice in problems.yaml")
+            continue
+        labels[problem.label] = problem.id
+        if not Path(problem.id).is_dir():
+            error(f"No directory found for problem {problem.id} mentioned in problems.yaml.")
+            continue
+        problems.append(problem)
+
+    _problems_yaml = tuple(problems)
     return _problems_yaml
 
 
