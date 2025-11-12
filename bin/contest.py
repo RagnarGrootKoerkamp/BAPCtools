@@ -42,7 +42,7 @@ class ContestYaml:
         # contains remaining proper keys
         self._yaml = {k: v for k, v in parser.yaml.items() if isinstance(k, str) and v is not None}
         for key in parser.yaml:
-            if key not in self._yaml:
+            if not isinstance(key, str):
                 warn(f"invalid contest.yaml key: {key} in root")
 
     def dict(self) -> dict[str, object]:
