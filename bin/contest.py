@@ -92,7 +92,17 @@ class ProblemsYamlEntry:
         self.rgb: Optional[str] = get_hex(parser.extract_optional("rgb", str))
 
         # unused keys
-        self.name: Optional[str] = parser.extract_optional("name", str)
+        if isinstance(parser.yaml.get("name", None), str):
+            parser.yaml["name"] = {"en": parser.yaml["name"]}
+        names: dict[object, object] = parser.extract("name", {"en": ""})
+        self.name: dict[str, str] = {}
+        for lang, name in names.items():
+            if not isinstance(lang, str):
+                warn(f"invalid language '{lang}' in problems.yaml. SKIPPED.")
+            elif not isinstance(name, str):
+                warn(f"incompatible value for language '{lang}' in problems.yaml. SKIPPED.")
+            else:
+                self.name[lang] = name
         self.time_limit: Optional[float] = parser.extract_optional("time_limit", float)
         if self.time_limit is not None and not self.time_limit > 0:
             error(
