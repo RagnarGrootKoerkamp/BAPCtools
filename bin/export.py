@@ -1,4 +1,3 @@
-import datetime
 import re
 import shutil
 import yaml
@@ -477,31 +476,21 @@ def update_contest_id(cid: str) -> None:
     if has_ryaml:
         contest_yaml_path = Path("contest.yaml")
         data = read_yaml(contest_yaml_path)
+        assert isinstance(data, dict)
         data["contest_id"] = cid
         write_yaml(data, contest_yaml_path)
+        log(f"Updated contest_id to {cid}")
     else:
-        error("ruamel.yaml library not found. Update the id manually.")
+        error(f"ruamel.yaml library not found. Update the id manually to {cid}.")
 
 
 def export_contest(cid: Optional[str]) -> str:
-    data = dict(contest_yaml())
+    if not contest_yaml().exists:
+        fatal("Exporting a contest only works if contest.yaml is available.")
 
-    if not data:
-        fatal("Exporting a contest only works if contest.yaml is available and not empty.")
-
+    data = contest_yaml().dict()
     if cid:
         data["id"] = cid
-
-    data["start_time"] = data["start_time"].isoformat()
-    if "+" not in data["start_time"]:
-        data["start_time"] += "+00:00"
-    if not has_ryaml:
-        for key in ("duration", "scoreboard_freeze_duration"):
-            if key in data:
-                # YAML 1.1 parses 1:00:00 as 3600. Convert it back to a string if so.
-                # (YAML 1.2 and ruamel.yaml parse it as a string.)
-                if isinstance(data[key], int):
-                    data[key] = str(datetime.timedelta(seconds=data[key]))
 
     verbose("Uploading contest.yaml:")
     verbose(data)
@@ -527,7 +516,6 @@ def export_contest(cid: Optional[str]) -> str:
     if new_cid != cid:
         if ask_variable_bool("Update contest_id in contest.yaml automatically"):
             update_contest_id(new_cid)
-            log(f"Updated contest_id to {new_cid}")
 
     return new_cid
 
@@ -599,7 +587,7 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
         if data != sorted_data:
             change = True
             data = sorted_data
-            label = "X" if contest_yaml().get("test_session") else "A"
+            label = "X" if contest_yaml().test_session else "A"
             for d in data:
                 d["label"] = label
                 label = inc_label(label)
@@ -625,8 +613,8 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
 
 
 def export_problems(problems: list[Problem], cid: str) -> Any:
-    if not contest_yaml():
-        fatal("Exporting a contest only works if contest.yaml is available and not empty.")
+    if not contest_yaml().exists:
+        fatal("Exporting a contest only works if contest.yaml is available.")
 
     update_problems_yaml(problems)
 
@@ -687,14 +675,14 @@ def export_problem(problem: Problem, cid: str, pid: Optional[str]) -> None:
 # Mimicked from https://github.com/DOMjudge/domjudge/blob/main/misc-tools/import-contest.sh
 def export_contest_and_problems(problems: list[Problem], languages: list[str]) -> None:
     if config.args.contest_id:
-        cid = config.args.contest_id
+        cid: Optional[str] = config.args.contest_id
     else:
-        cid = normalize_yaml_value(contest_yaml().get("contest_id"), str)
-        assert isinstance(cid, str)
-        if cid is not None and cid != "":
+        cid = contest_yaml().contest_id
+        if cid is not None:
             log(f"Reusing contest id {cid} from contest.yaml")
     if not any(contest["id"] == cid for contest in get_contests()):
         cid = export_contest(cid)
+    assert cid is not None
 
     if len(languages) != 1:
         # TODO: fix this

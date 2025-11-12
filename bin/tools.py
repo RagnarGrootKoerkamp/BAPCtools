@@ -143,9 +143,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
 
     def fallback_problems() -> list[tuple[Path, str]]:
         problem_paths = list(filter(is_problem_directory, glob(Path("."), "*/")))
-        label = (
-            chr(ord("Z") - len(problem_paths) + 1) if contest_yaml().get("test_session") else "A"
-        )
+        label = chr(ord("Z") - len(problem_paths) + 1) if contest_yaml().test_session else "A"
         problems = []
         for path in problem_paths:
             problems.append((path, label))
@@ -188,9 +186,8 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                 fatal("Did not find problem.yaml. Are you running this from a problem directory?")
 
         if config.args.action == "solutions":
-            if config.args.order or contest_yaml().get("order"):
-                order = config.args.order or contest_yaml()["order"]
-
+            order = config.args.order or contest_yaml().order
+            if order is not None:
                 labels = {p.label for p in problems}
                 counts = Counter(order)
                 for id, count in counts.items():

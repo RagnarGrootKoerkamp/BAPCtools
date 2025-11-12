@@ -185,12 +185,8 @@ def prepare_problem(problem: "Problem", language: str) -> None:
 
 
 def get_raw_tl(problem: "Problem") -> str:
-    tl = problem.limits.raw_time_limit
-    tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
-    if "print_time_limit" in contest_yaml():
-        print_tl = contest_yaml()["print_time_limit"]
-    elif "print_timelimit" in contest_yaml():  # TODO remove legacy at some point
-        print_tl = contest_yaml()["print_timelimit"]
+    if contest_yaml().print_time_limit is not None:
+        print_tl = contest_yaml().print_time_limit
     else:
         print_tl = not config.args.no_time_limit
 
@@ -457,7 +453,7 @@ def build_contest_pdf(
         "year": "YEAR",
         "author": "AUTHOR",
         "test_session": "",
-        **contest_yaml(),
+        **contest_yaml().dict(),
     }
     config_data["test_session"] = "\\testsession" if config_data.get("test_session") else ""
     config_data["logofile"] = find_logo().as_posix()

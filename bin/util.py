@@ -774,6 +774,10 @@ def normalize_yaml_value(value: Any, t: type[Any]) -> Any:
         value = Path(value)
     if isinstance(value, int) and t is float:
         value = float(value)
+    if isinstance(value, int) and t is bool and value in [0, 1]:
+        value = bool(value)
+    if t is str:
+        value = str(value)
     return value
 
 
@@ -1139,7 +1143,7 @@ def has_substitute(
 
 def substitute(
     data: str,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
     bar: BAR_TYPE = PrintBar(),
@@ -1162,7 +1166,7 @@ def substitute(
 def copy_and_substitute(
     inpath: Path,
     outpath: Path,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
     bar: BAR_TYPE = PrintBar(),
@@ -1181,7 +1185,7 @@ def copy_and_substitute(
 
 def substitute_file_variables(
     path: Path,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
     bar: BAR_TYPE = PrintBar(),
@@ -1191,7 +1195,7 @@ def substitute_file_variables(
 
 def substitute_dir_variables(
     dirname: Path,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
     bar: BAR_TYPE = PrintBar(),
@@ -1206,7 +1210,7 @@ def substitute_dir_variables(
 def copytree_and_substitute(
     src: Path,
     dst: Path,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     exist_ok: bool = True,
     *,
     preserve_symlinks: bool = True,

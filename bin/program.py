@@ -22,6 +22,7 @@ from util import (
     glob,
     has_substitute,
     hash_file,
+    normalize_yaml_value,
     ProgressBar,
     read_yaml,
     strip_newline,
@@ -42,7 +43,7 @@ class Language:
 
         def get_optional_value(key: str, t: type[T]) -> Optional[T]:
             if key in conf:
-                value = conf.pop(key)
+                value = normalize_yaml_value(conf.pop(key), t)
                 if value is None or isinstance(value, t):
                     return value
                 warn(
@@ -52,7 +53,7 @@ class Language:
 
         def get_value(key: str, t: type[T]) -> T:
             if key in conf:
-                value = conf.pop(key)
+                value = normalize_yaml_value(conf.pop(key), t)
                 if isinstance(value, t):
                     return value
                 error(f"incompatible value for key '{key}' in languages.yaml for '{lang_id}'")

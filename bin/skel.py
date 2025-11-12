@@ -133,8 +133,9 @@ def new_problem() -> None:
         custom_output = True
 
     # Read settings from the contest-level yaml file.
+    contest_data = {k: str(v) for k, v in contest.contest_yaml().dict().items()}
     variables = {
-        **contest.contest_yaml(),
+        **contest_data,
         "problemname": "\n".join(f"  {lang}: {name}" for lang, name in problemname.items()),
         "dirname": dirname,
         "author": author,
@@ -183,7 +184,7 @@ def new_problem() -> None:
             data = read_yaml(problems_yaml) or []
             prev_label = data[-1]["label"] if data else None
             next_label = (
-                ("X" if contest.contest_yaml().get("test_session") else "A")
+                ("X" if contest.contest_yaml().test_session else "A")
                 if prev_label is None
                 else inc_label(prev_label)
             )

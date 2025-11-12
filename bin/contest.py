@@ -1,27 +1,80 @@
+import datetime
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, cast, Literal, Optional, TYPE_CHECKING
+from typing import Any, Literal, Optional, TYPE_CHECKING
 
 import config
-from util import eprint, error, fatal, log, read_yaml, read_yaml_settings, verbose
+from util import (
+    error,
+    fatal,
+    has_ryaml,
+    log,
+    read_yaml,
+    read_yaml_settings,
+    verbose,
+    warn,
+    YamlParser,
+)
 
 if TYPE_CHECKING:
     import requests
 
+
+class ContestYaml:
+    def __init__(self, yaml_data: Optional[dict[object, object]]) -> None:
+        self.exists = yaml_data is not None
+        parser = YamlParser("contest.yaml", yaml_data or {})
+
+        # known keys
+        self.api: Optional[str] = parser.extract_optional("api", str)
+        self.contest_id: Optional[str] = parser.extract_optional("contest_id", str)
+        parser.extract_deprecated("print_timelimit", "print_time_limit")
+        self.print_time_limit: Optional[bool] = parser.extract_optional("print_time_limit", bool)
+        self.test_session: bool = parser.extract("test_session", False)
+        self.order: Optional[str] = parser.extract_optional("order", str)
+        self.start_time: Optional[str] = None
+        start_time = parser.extract_optional("start_time", datetime.date)
+        if start_time is not None:
+            self.start_time = start_time.isoformat()
+            if "+" not in self.start_time:
+                self.start_time += "+00:00"
+
+        # contains remaining proper keys
+        self._yaml = {k: v for k, v in parser.yaml.items() if isinstance(k, str) and v is not None}
+        for key in parser.yaml:
+            if key not in self._yaml:
+                warn(f"invalid contest.yaml key: {key} in root")
+
+    def dict(self) -> dict[str, object]:
+        data = {k: v for k, v in vars(self).items() if not k.startswith("_") and v is not None}
+        data.update(self._yaml)
+        if not has_ryaml:
+            for key in ("duration", "scoreboard_freeze_duration"):
+                if key in data:
+                    # YAML 1.1 parses 1:00:00 as 3600. Convert it back to a string if so.
+                    # (YAML 1.2 and ruamel.yaml parse it as a string.)
+                    if isinstance(data[key], int):
+                        data[key] = str(datetime.timedelta(seconds=data[key]))
+        return data
+
+
 # Read the contest.yaml, if available
-_contest_yaml: Optional[Mapping[str, Any]] = None
+_contest_yaml: Optional[ContestYaml] = None
 
 
-def contest_yaml() -> Mapping[str, Any]:
+def contest_yaml() -> ContestYaml:
     global _contest_yaml
     if _contest_yaml is not None:
         return _contest_yaml
 
+    raw_contest_yaml = None
     contest_yaml_path = Path("contest.yaml")
     if contest_yaml_path.is_file():
-        _contest_yaml = read_yaml_settings(contest_yaml_path)
-    if _contest_yaml is None:
-        _contest_yaml = {}
+        raw_contest_yaml = read_yaml_settings(contest_yaml_path)
+    if raw_contest_yaml is not None and not isinstance(raw_contest_yaml, dict):
+        fatal("could not parse contest.yaml.")
+
+    _contest_yaml = ContestYaml(raw_contest_yaml)
     return _contest_yaml
 
 
@@ -49,7 +102,7 @@ def problems_yaml() -> Optional[Sequence[Mapping[str, Any]]]:
 
 
 def get_api() -> str:
-    api = config.args.api or cast(str, contest_yaml().get("api"))
+    api = config.args.api or contest_yaml().api
     if not api:
         fatal(
             "Could not find key `api` in contest.yaml and it was not specified on the command line."
@@ -62,13 +115,7 @@ def get_api() -> str:
 
 
 def get_contest_id() -> str:
-    contest_id = (
-        config.args.contest_id
-        if config.args.contest_id
-        else contest_yaml()["contest_id"]
-        if "contest_id" in contest_yaml()
-        else None
-    )
+    contest_id = config.args.contest_id if config.args.contest_id else contest_yaml().contest_id
     contests = get_contests()
     if contest_id is not None:
         if contest_id not in {c["id"] for c in contests}:
@@ -125,4 +172,4 @@ def call_api_get_json(url: str) -> Any:
     try:
         return r.json()
     except Exception as e:
-        eprint(f"\nError in decoding JSON:\n{e}\n{r.text}")
+        error(f"\nError in decoding JSON:\n{e}\n{r.text}")
