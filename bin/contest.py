@@ -133,7 +133,7 @@ def problems_yaml() -> Sequence[ProblemsYamlEntry]:
     if _problems_yaml is not None:
         return _problems_yaml
 
-    problems_yaml_path = Path("contest.yaml")
+    problems_yaml_path = Path("problems.yaml")
     raw_yaml = []
     if problems_yaml_path.is_file():
         raw_yaml = read_yaml(problems_yaml_path)
