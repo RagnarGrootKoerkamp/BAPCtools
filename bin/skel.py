@@ -122,7 +122,7 @@ def new_problem() -> None:
     # The validation type `float` is not official, it only helps setting the `output_validator_args`.
     if problem_type == "float":
         problem_type = "pass-fail"
-        output_validator_args = f"{OutputValidator.args_key}: float_tolerance 1e-6"
+        output_validator_args = f'{OutputValidator.args_key}: [float_tolerance, "1e-6"]'
         log("Using default float tolerance of 1e-6")
     # Since version 2025-09 of the spec, the `custom` validation type is no longer explicit.
     # The mere existence of the output_validator(s)/ folder signals non-default output validation.
