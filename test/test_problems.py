@@ -159,9 +159,12 @@ class TestIdentityProblem:
             for info in ZipFile(zip_path).infolist()
             if info.filename.startswith("A/")
         ) == [
-            (f"A/{i}.{ext}", size)
-            for i, size in enumerate([2, 4, 2, 5, 2, 2], start=1)
-            for ext in ["ans", "in"]
+            ("A/", 0),
+            *(
+                (f"A/{i}.{ext}", size)
+                for i, size in enumerate([2, 4, 2, 5, 2, 2], start=1)
+                for ext in ["ans", "in"]
+            ),
         ], "Sample zip contents are not correct"
 
         zip_path.unlink()
