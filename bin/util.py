@@ -768,6 +768,7 @@ class YamlParser:
 
     def __init__(self, source: str, yaml: dict[object, object], parent: Optional[str] = None):
         assert isinstance(yaml, dict)
+        self.errors = 0
         self.source = source
         self.yaml = yaml
         self.parent = "root" if parent is None else f"`{parent}`"
@@ -799,6 +800,17 @@ class YamlParser:
                 )
                 return default
         return result
+
+    def extract_and_error(self, key: str, t: type[T]) -> T:
+        if key in self.yaml:
+            value = normalize_yaml_value(self.yaml.pop(key), t)
+            if isinstance(value, t):
+                return value
+            error(f"incompatible value for key '{key}' in {self.source}.")
+        else:
+            error(f"missing key '{key}' in {self.source}.")
+        self.errors += 1
+        return t()
 
     def extract_deprecated(self, key: str, new: Optional[str] = None) -> None:
         if key in self.yaml:

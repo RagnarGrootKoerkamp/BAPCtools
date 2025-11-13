@@ -60,19 +60,8 @@ class ContestYaml:
 
 class ProblemsYamlEntry:
     def __init__(self, yaml_data: dict[object, object]) -> None:
+        self.ok = False
         parser = YamlParser("problems.yaml", yaml_data)
-        self.ok = True
-
-        def parse_required_str(key: str) -> str:
-            if key not in parser.yaml:
-                self.ok = False
-                error(f"Found no {key} for problem in problems.yaml. SKIPPED")
-            value = parser.extract_optional(key, str)
-            if not value:
-                self.ok = False
-                value = ""
-                error(f"invalid value for {key} in problems.yaml. SKIPPED")
-            return value
 
         def get_hex(rgb: Optional[str]) -> Optional[str]:
             if rgb is None:
@@ -87,8 +76,8 @@ class ProblemsYamlEntry:
             return hex_part
 
         # known keys
-        self.id: str = parse_required_str("id")
-        self.label: str = parse_required_str("label")
+        self.id: str = parser.extract_and_error("id", str)
+        self.label: str = parser.extract_and_error("label", str)
         self.rgb: Optional[str] = get_hex(parser.extract_optional("rgb", str))
 
         # unused keys
@@ -115,6 +104,8 @@ class ProblemsYamlEntry:
         for key in parser.yaml:
             if key not in self._yaml:
                 warn(f"invalid problems.yaml key: {key} in {self.id}")
+
+        self.ok = parser.errors == 0
 
 
 # cache the contest.yaml and problems.yaml

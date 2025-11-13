@@ -7,7 +7,7 @@ import threading
 from collections.abc import Callable, Mapping, Sequence
 from colorama import Fore
 from pathlib import Path
-from typing import Any, Final, Optional, TYPE_CHECKING, TypeVar
+from typing import Any, Final, Optional, TYPE_CHECKING
 
 import config
 from util import (
@@ -22,12 +22,12 @@ from util import (
     glob,
     has_substitute,
     hash_file,
-    normalize_yaml_value,
     ProgressBar,
     read_yaml,
     strip_newline,
     warn,
     write_yaml,
+    YamlParser,
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
@@ -36,44 +36,22 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 class Language:
     def __init__(self, lang_id: str, conf: dict[object, object]) -> None:
-        self.ok = True
+        self.ok = False
+        parser = YamlParser("languages.yaml", conf, lang_id)
+
         self.id = lang_id
-
-        T = TypeVar("T")
-
-        def get_optional_value(key: str, t: type[T]) -> Optional[T]:
-            if key in conf:
-                value = normalize_yaml_value(conf.pop(key), t)
-                if value is None or isinstance(value, t):
-                    return value
-                warn(
-                    f"incompatible value for key '{key}' in languages.yaml for '{lang_id}'. SKIPPED."
-                )
-            return None
-
-        def get_value(key: str, t: type[T]) -> T:
-            if key in conf:
-                value = normalize_yaml_value(conf.pop(key), t)
-                if isinstance(value, t):
-                    return value
-                error(f"incompatible value for key '{key}' in languages.yaml for '{lang_id}'")
-            else:
-                error(f"missing key '{key}' in languages.yaml for '{lang_id}'")
-            self.ok = False
-            return t()
-
-        self.name = get_value("name", str)
-        self.priority = get_value("priority", int)
-        self.files = (get_optional_value("files", str) or "").split()
+        self.name = parser.extract_and_error("name", str)
+        self.priority = parser.extract_and_error("priority", int)
+        self.files = (parser.extract_optional("files", str) or "").split()
         self.shebang = None
-        shebang = get_optional_value("shebang", str)
+        shebang = parser.extract_optional("shebang", str)
         if shebang is not None:
             try:
                 self.shebang = re.compile(shebang)
             except re.error:
                 warn(f"invalid shebang in languages.yaml for '{lang_id}'. SKIPPED.")
-        self.compile = get_optional_value("compile", str)
-        self.run = get_value("run", str)
+        self.compile = parser.extract_optional("compile", str)
+        self.run = parser.extract_and_error("run", str)
 
         def get_exe(key: str, command: str) -> Optional[str]:
             try:
@@ -88,9 +66,8 @@ class Language:
         self.compile_exe = get_exe("compile", self.compile) if self.compile else None
         self.run_exe = get_exe("run", self.run)
 
-        for key in conf:
-            assert isinstance(key, str)
-            warn(f"found unknown languages.yaml key: '{key}' for '{lang_id}'")
+        parser.check_unknown_keys()
+        self.ok = parser.errors == 0
 
     def __lt__(self, other: "Language") -> bool:
         return self.id > other.id
