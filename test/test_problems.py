@@ -177,6 +177,7 @@ class TestIdentityProblem:
             for info in ZipFile(zip_path).infolist()
             if info.filename.startswith("identity/data/sample/")
         ) == [
+            ("identity/data/sample/", 0),
             *(
                 (f"identity/data/sample/{i}.{ext}", size)
                 for i, size in enumerate([2, 4, 2, 5], start=1)
