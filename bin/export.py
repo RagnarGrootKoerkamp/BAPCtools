@@ -61,6 +61,8 @@ def remove_language_pdf_suffix(file: Path, lang: Optional[str]) -> Path:
 
 
 def build_samples_zip(problems: list[Problem], output: Path, languages: list[str]) -> None:
+    bar = PrintBar("Zip", len(output.name), item=output)
+    bar.log("writing sample zip file")
     zf = zipfile.ZipFile(output, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
     # Do not include contest PDF for kattis.
@@ -80,10 +82,11 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
             fatal(f"Cannot create samples zip: Problem {problem.name} does not have a label!")
 
         outputdir = Path(problem.label)
+        zf.writestr(f"{problem.label}/", "", compress_type=zipfile.ZIP_DEFLATED)
 
         attachments_dir = problem.path / "attachments"
         if (problem.interactive or problem.multi_pass) and not attachments_dir.is_dir():
-            error(
+            bar.error(
                 f"{problem.settings.type_name()} problem {problem.name} does not have an attachments/ directory."
             )
             continue
@@ -102,13 +105,13 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
         if attachments_dir.is_dir():
             for f in attachments_dir.iterdir():
                 if f.is_dir():
-                    error(f"{f} directory attachments are not yet supported.")
-                elif f.is_file() and f.exists():
+                    bar.error(f"{f} directory attachments are not yet supported.")
+                elif f.is_file():
                     if f.name.startswith("."):
                         continue  # Skip dotfiles
                     destination = outputdir / f.name
                     if destination in contents:
-                        error(
+                        bar.error(
                             f"Cannot overwrite {destination} from attachments/"
                             + f" (sourced from {contents[destination]})."
                             + "\n\tDo not include samples in attachments/,"
@@ -117,16 +120,16 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
                     else:
                         contents[destination] = f
                 else:
-                    error(f"Cannot include broken file {f}.")
+                    bar.error(f"Cannot include broken file {f}.")
 
         if contents:
             for destination, source in contents.items():
                 zf.write(source, destination)
         else:
-            error(f"No attachments or samples found for problem {problem.name}.")
+            bar.error(f"No attachments or samples found for problem {problem.name}.")
 
     zf.close()
-    eprint("Wrote zip to samples.zip")
+    bar.log("done")
 
 
 @require_ruamel("zip", False)
@@ -177,7 +180,9 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 
     def add_file(path: Path, source: Path) -> None:
         if source.stat().st_size >= config.ICPC_FILE_LIMIT * 1024**2:
-            warn(f"{path} is too large for the ICPC Archive (limit {config.ICPC_FILE_LIMIT}MiB)!")
+            bar.warn(
+                f"{path} is too large for the ICPC Archive (limit {config.ICPC_FILE_LIMIT}MiB)!"
+            )
         path = export_dir / path
         path.parent.mkdir(parents=True, exist_ok=True)
         ensure_symlink(path, source)
@@ -187,7 +192,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         # Only include hidden files if the pattern starts with a '.'.
         paths = list(glob(problem.path, pattern, include_hidden=True))
         if required and len(paths) == 0:
-            error(f"No matches for required path {pattern}.")
+            bar.error(f"No matches for required path {pattern}.")
         for f in paths:
             if f.is_file() and not f.name.startswith("."):
                 add_file(f.relative_to(problem.path), f)
@@ -202,7 +207,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     # Include all sample test cases and copy all related files.
     samples = problem.download_samples()
     if len(samples) == 0:
-        error("No samples found.")
+        bar.error("No samples found.")
     for in_file, _ in samples:
         add_testcase(in_file)
 
@@ -210,13 +215,13 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     pattern = "data/secret/**/*.in"
     paths = glob(problem.path, pattern)
     if len(paths) == 0:
-        error(f"No secret test cases found in {pattern}.")
+        bar.error(f"No secret test cases found in {pattern}.")
     for f in paths:
         if f.is_file():
             if f.with_suffix(".ans").is_file():
                 add_testcase(f)
             else:
-                warn(f"No answer file found for {f}, skipping.")
+                bar.warn(f"No answer file found for {f}, skipping.")
 
     # handle languages (files and yaml have to be in sync)
     yaml_path = export_dir / "problem.yaml"
@@ -259,7 +264,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                     f.unlink()
                     f.write_text(text)
 
-    bar = bar.start(output)
+    bar = bar.start(f"{problem.name}.zip")
 
     # move pdfs
     if config.args.legacy and languages:
@@ -308,7 +313,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         # change source:
         if problem.settings.source:
             if len(problem.settings.source) > 1:
-                warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
+                bar.warn(f"Found multiple sources, using '{problem.settings.source[0].name}'.")
             yaml_data["source"] = problem.settings.source[0].name
             yaml_data["source_url"] = problem.settings.source[0].url
         # limits.time_multipliers -> time_multiplier / time_safety_margin
@@ -327,7 +332,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             problem.get_test_case_yaml(
                 problem.path / "data",
                 OutputValidator.args_key,
-                PrintBar("Getting validator_flags for legacy export"),
+                PrintBar("Zip", item="Getting validator_flags for legacy export"),
             )
         )
         if validator_flags:
@@ -357,7 +362,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                         f.unlink()
                         f.write_text(t)
                     else:
-                        error(f"{f}: no name set for language {lang}.")
+                        bar.error(f"{f}: no name set for language {lang}.")
 
         # rename statement dirs
         if (export_dir / "statement").exists():
@@ -422,10 +427,11 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 def build_contest_zip(
     problems: list[Problem], zipfiles: list[Path], outfile: str, languages: list[str]
 ) -> None:
-    eprint(f"writing ZIP file {outfile}")
-
     if not config.args.kattis:  # Kattis does not use problems.yaml.
         update_problems_yaml(problems)
+
+    bar = PrintBar("Zip", len(outfile), item=outfile)
+    bar.log("writing zip file")
 
     zf = zipfile.ZipFile(outfile, mode="w", compression=zipfile.ZIP_DEFLATED, allowZip64=False)
 
@@ -462,10 +468,9 @@ def build_contest_zip(
         for fname in zipfiles:
             fname.unlink()
 
-    eprint("done")
-    eprint()
-
     zf.close()
+    bar.log("done")
+    eprint()
 
 
 def update_contest_id(cid: str) -> None:
