@@ -5,9 +5,7 @@ import shutil
 from pathlib import Path
 
 # Local imports
-from bapctools import config
-from bapctools import contest
-from bapctools import latex
+from bapctools import config, contest, latex
 from bapctools.problem import Problem
 from bapctools.util import (
     ask_variable_bool,

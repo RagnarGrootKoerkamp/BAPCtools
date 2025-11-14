@@ -5,8 +5,7 @@ from colorama import Fore, Style
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
-from bapctools import config
-from bapctools import validate
+from bapctools import config, validate
 from bapctools.util import (
     BAR_TYPE,
     combine_hashes_dict,

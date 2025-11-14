@@ -3,8 +3,7 @@ from collections import defaultdict
 from colorama import Fore, Style
 from typing import Optional
 
-from bapctools import latex
-from bapctools import validate
+from bapctools import latex, validate
 from bapctools.problem import Problem
 from bapctools.util import eprint, error, log, warn
 

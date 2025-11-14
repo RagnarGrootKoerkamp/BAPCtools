@@ -4,13 +4,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
-from bapctools import config
-from bapctools import program
+from bapctools import config, program
 from bapctools.util import ExecResult, ExecStatus, fatal, ProgressBar, validator_exec_code_map
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from bapctools import run
-    from bapctools import testcase
+    from bapctools import run, testcase
     from bapctools.problem import Problem
 
 

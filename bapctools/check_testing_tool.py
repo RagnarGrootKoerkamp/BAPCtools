@@ -4,8 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
-from bapctools import config
-from bapctools import parallel
+from bapctools import config, parallel
 from bapctools.program import Program
 from bapctools.run import Submission
 from bapctools.util import (
