@@ -215,12 +215,15 @@ class ARGS:
         self.input: bool = get_arg("input", False)
         self.interaction: bool = get_arg("interaction", False)
         self.interactive: bool = get_arg("interactive", False)
-        self.jobs: int = get_arg("jobs", (os.cpu_count() or 1) // 2, ">= 0")
         self.invalid: bool = get_arg("invalid", False)
+        self.jobs: int = get_arg("jobs", (os.cpu_count() or 1) // 2, ">= 0")
         self.kattis: bool = get_arg("kattis", False)
         self.lang: Optional[list[str]] = get_list_arg("lang", str)
         self.latest_bt: bool = get_arg("latest_bt", False)
         self.legacy: bool = get_arg("legacy", False)
+        self.local_time_multiplier: Optional[float] = get_optional_arg(
+            "local_time_multiplier", float, "> 0"
+        )
         self.memory: Optional[int] = get_optional_arg("legacy", int, "> 0")
 
         more: Optional[bool] = get_optional_arg("more", bool)

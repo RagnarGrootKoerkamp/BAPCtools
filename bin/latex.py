@@ -184,7 +184,9 @@ def prepare_problem(problem: "Problem", language: str) -> None:
     create_constants_file(problem, language)
 
 
-def get_tl(problem: "Problem") -> str:
+def get_raw_tl(problem: "Problem") -> str:
+    tl = problem.limits.raw_time_limit
+    tl = int(tl) if abs(tl - int(tl)) < 0.0001 else tl
     if "print_time_limit" in contest_yaml():
         print_tl = contest_yaml()["print_time_limit"]
     elif "print_timelimit" in contest_yaml():  # TODO remove legacy at some point
@@ -220,7 +222,7 @@ def problem_data(problem: "Problem", language: str) -> dict[str, Optional[str]]:
         "problembackground": background,
         "problemforeground": foreground,
         "problemborder": border,
-        "timelimit": get_tl(problem),
+        "timelimit": get_raw_tl(problem),
         "problemdir": problem.path.absolute().as_posix(),
         "problemdirname": problem.name,
         "builddir": latex_builddir(problem, language).as_posix(),
