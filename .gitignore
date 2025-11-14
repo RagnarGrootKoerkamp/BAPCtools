@@ -5,3 +5,5 @@ latex/solution*.pdf
 skel/problem*.zip
 __pycache__
 *.swp
+/venv
+/dist
