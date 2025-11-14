@@ -211,6 +211,9 @@ The keys in this config file can be any option that can be passed on the command
 Note that the keys should be written out in full (e.g., `username: jury` rather than `u: jury`)
 and any hyphens should be replaced with an underscore (e.g., `no_bar: True` rather than `no-bar: True`).
 
+These personal config files also allow to set the key `local_time_multiplier` to adjust hardcoded time limits intended for different hardware.
+This might be useful for the CI or if your hadware is much faster or slower than the contest hardware.
+
 ## Contributing / Style guide
 
 - The python code in the repository is formatted using [Ruff](https://github.com/astral-sh/ruff)
