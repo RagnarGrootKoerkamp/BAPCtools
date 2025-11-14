@@ -342,7 +342,7 @@ KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
     "random_salt",
     "retries",
 )
-RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = "command"
+RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ("command",)
 KNOWN_ROOT_KEYS: Final[Sequence[str]] = ("generators", "parallel", "version")
 DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ("gitignore_generated", "visualizer")
 
