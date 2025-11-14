@@ -148,6 +148,7 @@ class ARGS:
             if key in kwargs:
                 value = normalize_arg(kwargs.pop(key), t)
                 if value is None:
+                    self._set.add(key)
                     return None
                 if constraint:
                     assert isinstance(value, (float, int))
