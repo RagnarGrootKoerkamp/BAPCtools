@@ -70,7 +70,9 @@ class ProblemsYamlEntry:
                 error(f"invalid rgb value {rgb} in problems.yaml. SKIPPED")
                 return None
             hex_part = rgb[1:].lower()
-            if len(hex_part) not in (3, 6) or any(c not in string.hexdigits for c in hex_part):
+            if len(hex_part) == 3:
+                hex_part = "".join(c * 2 for c in hex_part)
+            if len(hex_part) != 6 or any(c not in string.hexdigits for c in hex_part):
                 error(f"invalid rgb value {rgb} in problems.yaml. SKIPPED")
                 return None
             return hex_part
