@@ -3,8 +3,7 @@ from os import makedirs
 from pathlib import Path
 from typing import Any, Optional
 
-from bapctools import config
-from bapctools import parallel
+from bapctools import config, parallel
 from bapctools.contest import call_api_get_json, get_contest_id
 from bapctools.util import ProgressBar
 

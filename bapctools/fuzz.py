@@ -7,10 +7,7 @@ from colorama import Style
 from pathlib import Path
 from typing import Any, Optional
 
-from bapctools import config
-from bapctools import generate
-from bapctools import parallel
-from bapctools import problem
+from bapctools import config, generate, parallel, problem
 from bapctools.run import Run, Submission
 from bapctools.testcase import Testcase
 from bapctools.util import (

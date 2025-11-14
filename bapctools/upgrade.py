@@ -6,8 +6,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast, Optional
 
-from bapctools import config
-from bapctools import generate
+from bapctools import config, generate
 from bapctools.util import (
     fatal,
     has_ryaml,

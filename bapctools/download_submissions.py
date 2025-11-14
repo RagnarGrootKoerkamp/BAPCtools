@@ -5,8 +5,7 @@ from os import makedirs
 from pathlib import Path
 from typing import Any
 
-from bapctools import config
-from bapctools import parallel
+from bapctools import config, parallel
 from bapctools.contest import call_api_get_json, get_contest_id
 from bapctools.util import fatal, ProgressBar
 from bapctools.verdicts import from_string, Verdict

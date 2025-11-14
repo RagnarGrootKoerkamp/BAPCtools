@@ -6,11 +6,7 @@ from dateutil import parser
 from pathlib import Path
 from typing import Any, cast, Literal, Optional
 
-from bapctools import config
-from bapctools import generate
-from bapctools import latex
-from bapctools import program
-from bapctools import validate
+from bapctools import config, generate, latex, program, validate
 from bapctools.problem import Problem
 from bapctools.util import eprint, error, glob, log, ShellCommand, warn
 

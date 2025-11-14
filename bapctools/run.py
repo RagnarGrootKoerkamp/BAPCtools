@@ -8,13 +8,7 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional
 
-from bapctools import config
-from bapctools import interactive
-from bapctools import parallel
-from bapctools import problem
-from bapctools import program
-from bapctools import validate
-from bapctools import visualize
+from bapctools import config, interactive, parallel, problem, program, validate, visualize
 from bapctools.testcase import Testcase
 from bapctools.util import (
     BAR_TYPE,

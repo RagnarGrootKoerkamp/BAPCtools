@@ -12,16 +12,18 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 import math
 
-from bapctools import check_testing_tool
-from bapctools import config
-from bapctools import latex
-from bapctools import parallel
-from bapctools import run
-from bapctools import testcase
-from bapctools import validate
-from bapctools import validator_tests
-from bapctools import verdicts
-from bapctools import visualize
+from bapctools import (
+    check_testing_tool,
+    config,
+    latex,
+    parallel,
+    run,
+    testcase,
+    validate,
+    validator_tests,
+    verdicts,
+    visualize,
+)
 from bapctools.util import (
     BAR_TYPE,
     combine_hashes_dict,

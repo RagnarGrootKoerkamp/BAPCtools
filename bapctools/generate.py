@@ -11,12 +11,7 @@ from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
 from typing import cast, Final, Literal, Optional, overload, TypeVar
 
-from bapctools import config
-from bapctools import parallel
-from bapctools import program
-from bapctools import run
-from bapctools import validate
-from bapctools import visualize
+from bapctools import config, parallel, program, run, validate, visualize
 from bapctools.problem import Problem
 from bapctools.testcase import Testcase
 from bapctools.util import (

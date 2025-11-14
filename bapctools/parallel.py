@@ -5,8 +5,7 @@ import threading
 from collections.abc import Callable, Sequence
 from typing import Any, Generic, Literal, Optional, TypeVar
 
-from bapctools import config
-from bapctools import util
+from bapctools import config, util
 
 T = TypeVar("T")
 

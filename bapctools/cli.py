@@ -29,20 +29,22 @@ from pathlib import Path
 from typing import Any, Optional
 
 # Local imports
-from bapctools import config
-from bapctools import constraints
-from bapctools import contest
-from bapctools import download_submissions
-from bapctools import export
-from bapctools import fuzz
-from bapctools import generate
-from bapctools import latex
-from bapctools import skel
-from bapctools import slack
-from bapctools import solve_stats
-from bapctools import stats
-from bapctools import upgrade
-from bapctools import validate
+from bapctools import (
+    config,
+    constraints,
+    contest,
+    download_submissions,
+    export,
+    fuzz,
+    generate,
+    latex,
+    skel,
+    slack,
+    solve_stats,
+    stats,
+    upgrade,
+    validate,
+)
 from bapctools.contest import call_api_get_json, contest_yaml, get_contest_id, problems_yaml
 from bapctools.problem import Problem
 from bapctools.util import (

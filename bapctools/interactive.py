@@ -9,8 +9,7 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Final, IO, Literal, Optional, TYPE_CHECKING
 
-from bapctools import config
-from bapctools import validate
+from bapctools import config, validate
 from bapctools.util import (
     eprint,
     error,

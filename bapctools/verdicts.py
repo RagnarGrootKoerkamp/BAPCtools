@@ -8,8 +8,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-from bapctools import config
-from bapctools import testcase
+from bapctools import config, testcase
 from bapctools.util import eprint, ITEM_TYPE, ProgressBar
 
 if TYPE_CHECKING:
