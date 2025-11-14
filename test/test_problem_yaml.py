@@ -4,9 +4,8 @@ from pathlib import Path
 from typing import cast, Any
 from unittest.mock import call, MagicMock
 
-import config
-import problem
-from util import PrintBar
+from bapctools import config, problem
+from bapctools.util import PrintBar
 
 RUN_DIR = Path.cwd().absolute()
 
@@ -77,7 +76,7 @@ class TestProblemYaml:
         monkeypatch.setattr(PrintBar, "fatal", fatal)
         monkeypatch.setattr(PrintBar, "error", error)
         monkeypatch.setattr(PrintBar, "warn", warn)
-        for module in ["problem", "util"]:
+        for module in ["bapctools.problem", "bapctools.util"]:
             monkeypatch.setattr(f"{module}.fatal", fatal)
             monkeypatch.setattr(f"{module}.error", error)
             monkeypatch.setattr(f"{module}.warn", warn)
