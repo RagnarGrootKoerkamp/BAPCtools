@@ -4,7 +4,7 @@ version = "0.0.0"
 dependencies = [
     "pyyaml",
     "colorama",
-    "argcomplete",
+    "argcomplete; platform_system != 'Windows'",
     "python-dateutil",
     "ruamel.yaml",
     "matplotlib",
