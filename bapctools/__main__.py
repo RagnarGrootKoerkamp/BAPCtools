@@ -1,7 +1,4 @@
-import sys
-
-from bapctools.tools import main
+from bapctools.cli import main
 
 
-if __name__ == "__main__":
-    sys.exit(main())
+main()

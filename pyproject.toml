@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.scripts]
-bt = "bapctools.tools:main"
+bt = "bapctools.cli:main"
 
 [build-system]
 requires = ["hatchling"]
