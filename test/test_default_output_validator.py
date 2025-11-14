@@ -5,11 +5,7 @@ import hashlib
 import tempfile
 from pathlib import Path
 
-import problem
-import testcase
-import validate
-import util
-import config
+from bapctools import problem, testcase, validate, util, config
 
 RUN_DIR = Path.cwd().absolute()
 # Note: the python version isn't tested by default, because it's quite slow.
@@ -49,7 +45,7 @@ def validator(request):
     tmpdir = Path(tempfile.gettempdir()) / ("bapctools_" + h)
     tmpdir.mkdir(exist_ok=True)
     p = problem.Problem(Path("."), tmpdir)
-    validator = validate.OutputValidator(p, RUN_DIR / "support" / request.param)
+    validator = validate.OutputValidator(p, config.RESOURCES_ROOT / "support" / request.param)
     print(util.ProgressBar.current_bar)
     bar = util.ProgressBar("build", max_len=1)
     validator.build(bar)
