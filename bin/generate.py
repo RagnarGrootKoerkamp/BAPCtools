@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable, Iterable, Iterator, Sequence
 from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
-from typing import Any, cast, Final, Literal, Optional, overload
+from typing import Any, cast, Final, Literal, Optional, overload, TypeVar
 
 import config
 import parallel
@@ -52,7 +52,7 @@ if has_ryaml:
     import ruamel.yaml
 
 
-YAML_TYPE = Optional[str | dict[str, Any]]
+YAML_TYPE = Optional[str | dict[object, object]]
 
 
 class ParseException(Exception):
@@ -63,7 +63,7 @@ class ParseException(Exception):
 
 
 def assert_type(
-    name: str, obj: Any, types: list[type[Any]] | type[Any], path: Optional[Path] = None
+    name: str, obj: object, types: list[type[object]] | type[object], path: Optional[Path] = None
 ) -> None:
     if not isinstance(types, list):
         types = [types]
@@ -355,21 +355,21 @@ class Config:
     # Used at each directory or testcase level.
 
     @staticmethod
-    def _parse_solution(p: Problem, x: Any, path: Path) -> Optional[SolutionInvocation]:
+    def _parse_solution(p: Problem, x: object, path: Path) -> Optional[SolutionInvocation]:
         assert_type("solution", x, [type(None), str], path)
         if x is None:
             return None
-        return SolutionInvocation(p, x)
+        return SolutionInvocation(p, cast(str, x))
 
     @staticmethod
-    def _parse_random_salt(x: Any, path: Path) -> str:
+    def _parse_random_salt(x: object, path: Path) -> str:
         assert_type("random_salt", x, [type(None), str], path)
         if x is None:
             return ""
         return cast(str, x)
 
     @staticmethod
-    def _parse_retries(x: Any, path: Path) -> int:
+    def _parse_retries(x: object, path: Path) -> int:
         assert_type("retries", x, [type(None), int], path)
         if x is None:
             return 1
@@ -379,7 +379,7 @@ class Config:
         self,
         problem: Problem,
         path: Path,
-        yaml: Optional[dict[str, Any]] = None,
+        yaml: Optional[dict[object, object]] = None,
         parent_config: Optional["Config"] = None,
     ) -> None:
         if parent_config is None:
@@ -514,7 +514,7 @@ class TestcaseRule(Rule):
                 assert_type("testcase", yaml, [str, dict])
                 if isinstance(yaml, str):
                     yaml = {"generate": yaml}
-                    if yaml["generate"].endswith(".in"):
+                    if isinstance(yaml["generate"], str) and yaml["generate"].endswith(".in"):
                         bar.warn(
                             f"Use the new `copy: path/to/case` key instead of {yaml['generate']}."
                         )
@@ -544,12 +544,13 @@ class TestcaseRule(Rule):
 
                 # 1. generate
                 if "generate" in yaml:
-                    assert_type("generate", yaml["generate"], str)
-                    if len(yaml["generate"]) == 0:
+                    command_string = yaml["generate"]
+                    assert_type("generate", command_string, str)
+                    assert isinstance(command_string, str)
+                    if len(command_string) == 0:
                         raise ParseException("'generate' must not be empty.")
 
                     # first replace {{constants}}
-                    command_string = yaml["generate"]
                     command_string = substitute(
                         command_string,
                         problem.settings.constants,
@@ -584,12 +585,12 @@ class TestcaseRule(Rule):
 
                 # 2. path
                 if "copy" in yaml:
-                    assert_type("`copy`", yaml["copy"], str)
-                    if Path(yaml["copy"]).suffix in config.KNOWN_TEXT_DATA_EXTENSIONS:
-                        bar.warn(f"`copy: {yaml['copy']}` should not include the extension.")
-                    self.copy = resolve_path(
-                        yaml["copy"], allow_absolute=False, allow_relative=True
-                    )
+                    copy_entry = yaml["copy"]
+                    assert_type("`copy`", copy_entry, str)
+                    assert isinstance(copy_entry, str)
+                    if Path(copy_entry).suffix in config.KNOWN_TEXT_DATA_EXTENSIONS:
+                        bar.warn(f"`copy: {copy_entry}` should not include the extension.")
+                    self.copy = resolve_path(copy_entry, allow_absolute=False, allow_relative=True)
                     self.copy = problem.path / self.copy.parent / (self.copy.name + ".in")
                     if self.copy.is_file():
                         self.in_is_generated = False
@@ -608,6 +609,7 @@ class TestcaseRule(Rule):
                             assert value is not None
                         else:
                             assert_type(ext, value, str)
+                        assert isinstance(value, str)
                         if len(value) > 0 and value[-1] != "\n":
                             value += "\n"
                         self.hardcoded[ext] = value
@@ -619,12 +621,12 @@ class TestcaseRule(Rule):
                     hashes[ext] = hash_string(value)
 
             # Warn/Error for unknown keys.
-            for key in yaml:
-                if key in RESERVED_TESTCASE_KEYS:
-                    raise ParseException(f"Testcase must not contain reserved key {key}.")
-                if key not in KNOWN_TESTCASE_KEYS:
+            for any_key in yaml:
+                if any_key in RESERVED_TESTCASE_KEYS:
+                    raise ParseException(f"Testcase must not contain reserved key {any_key}.")
+                if any_key not in KNOWN_TESTCASE_KEYS:
                     if config.args.action == "generate":
-                        bar.log(f"Unknown testcase level key: {key}")
+                        bar.log(f"Unknown testcase level key: {any_key}")
 
             # combine hashes
             self.hash = combine_hashes_dict(hashes)
@@ -648,6 +650,34 @@ class TestcaseRule(Rule):
             if all(infile.with_suffix(ext).is_file() for ext in required):
                 return True
         return False
+
+    class MetaYaml:
+        def __init__(self, problem: Problem, testcase: "TestcaseRule") -> None:
+            self._path = problem.tmpdir / "data" / testcase.hash / "meta_.yaml"
+            data = read_yaml(self._path) if self._path.is_file() else {}
+            if not isinstance(data, dict):
+                data = {}
+
+            T = TypeVar("T")
+
+            def get(key: str, default: T) -> T:
+                value = data.get(key, default)
+                return value if isinstance(value, type(default)) else default
+
+            self.rule_hashes: dict[object, object] = get("rule_hashes", {})
+            self.generated_extensions: list[object] = get("generated_extensions", [])
+            self.input_validator_hashes: dict[object, object] = get("input_validator_hashes", {})
+            self.solution_hash: dict[object, object] = get("solution_hash", {})
+            self.interactor_hash: dict[object, object] = get("interactor_hash", {})
+            self.ans_out_validator_hashes: dict[object, object] = get(
+                "ans_out_validator_hashes", {}
+            )
+            self.visualizer_hash: dict[object, object] = get("visualizer_hash", {})
+            self.rule = testcase.rule
+
+        def write(self) -> None:
+            data = {k: v for k, v in vars(self).items() if not k.startswith("_")}
+            write_yaml(data, self._path, allow_yamllib=True)
 
     def link(
         t, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar, dst: Path
@@ -683,7 +713,11 @@ class TestcaseRule(Rule):
                 pass
 
     def validate_in(
-        t, problem: Problem, testcase: Testcase, meta_yaml: dict[object, Any], bar: ProgressBar
+        t,
+        problem: Problem,
+        testcase: Testcase,
+        meta_yaml: "TestcaseRule.MetaYaml",
+        bar: ProgressBar,
     ) -> bool:
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
@@ -692,7 +726,7 @@ class TestcaseRule(Rule):
             return True
 
         input_validator_hashes = testcase.validator_hashes(validate.InputValidator, bar)
-        if all(h in meta_yaml["input_validator_hashes"] for h in input_validator_hashes):
+        if all(h in meta_yaml.input_validator_hashes for h in input_validator_hashes):
             return True
 
         if not testcase.validate_format(
@@ -721,16 +755,16 @@ class TestcaseRule(Rule):
                 return False
         else:
             for h in input_validator_hashes:
-                meta_yaml["input_validator_hashes"][h] = input_validator_hashes[h]
-            write_yaml(
-                meta_yaml,
-                problem.tmpdir / "data" / t.hash / "meta_.yaml",
-                allow_yamllib=True,
-            )
+                meta_yaml.input_validator_hashes[h] = input_validator_hashes[h]
+            meta_yaml.write()
         return True
 
     def validate_ans_and_out(
-        t, problem: Problem, testcase: Testcase, meta_yaml: dict[object, Any], bar: ProgressBar
+        t,
+        problem: Problem,
+        testcase: Testcase,
+        meta_yaml: "TestcaseRule.MetaYaml",
+        bar: ProgressBar,
     ) -> bool:
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
@@ -761,7 +795,7 @@ class TestcaseRule(Rule):
             ans_out_validator_hashes.update(output_validator_hashes)
             mode = validate.Mode.VALID_OUTPUT
 
-        if all(h in meta_yaml["ans_out_validator_hashes"] for h in ans_out_validator_hashes):
+        if all(h in meta_yaml.ans_out_validator_hashes for h in ans_out_validator_hashes):
             return True
 
         if not testcase.validate_format(
@@ -775,13 +809,9 @@ class TestcaseRule(Rule):
                 return False
         else:
             for h in ans_out_validator_hashes:
-                meta_yaml["ans_out_validator_hashes"][h] = ans_out_validator_hashes[h]
-            meta_yaml["visualizer_hash"] = dict()
-            write_yaml(
-                meta_yaml,
-                problem.tmpdir / "data" / t.hash / "meta_.yaml",
-                allow_yamllib=True,
-            )
+                meta_yaml.ans_out_validator_hashes[h] = ans_out_validator_hashes[h]
+            meta_yaml.visualizer_hash = {}
+            meta_yaml.write()
         return True
 
     def generate(
@@ -815,24 +845,7 @@ class TestcaseRule(Rule):
         cwd.mkdir(parents=True, exist_ok=True)
         infile = cwd / "testcase.in"
         ansfile = cwd / "testcase.ans"
-        meta_path = cwd / "meta_.yaml"
-
-        def init_meta() -> dict[object, Any]:
-            meta_yaml = read_yaml(meta_path) if meta_path.is_file() else None
-            if not isinstance(meta_yaml, dict):
-                meta_yaml = {
-                    "rule_hashes": dict(),
-                    "generated_extensions": [],
-                    "input_validator_hashes": dict(),
-                    "solution_hash": dict(),
-                    "interactor_hash": dict(),
-                    "ans_out_validator_hashes": dict(),
-                    "visualizer_hash": dict(),
-                }
-            meta_yaml["rule"] = t.rule
-            return meta_yaml
-
-        meta_yaml = init_meta()
+        meta_yaml = TestcaseRule.MetaYaml(problem, t)
 
         def _check_deterministic(tmp: Path, tmp_infile: Path) -> None:
             assert t.generator is not None
@@ -899,7 +912,7 @@ class TestcaseRule(Rule):
             nonlocal meta_yaml
 
             # create expected cache entry for generate
-            rule_hashes = dict()
+            rule_hashes = dict[object, object]()
             if t.copy:
                 rule_hashes["source_hash"] = t.hash
             for ext, string in t.hardcoded.items():
@@ -908,11 +921,11 @@ class TestcaseRule(Rule):
                 rule_hashes["generator_hash"] = t.generator.hash(seed=t.seed)
                 rule_hashes["generator"] = t.generator.cache_command(seed=t.seed)
 
-            if not infile.is_file() or meta_yaml.get("rule_hashes") != rule_hashes:
+            if not infile.is_file() or meta_yaml.rule_hashes != rule_hashes:
                 # clear all generated files
                 shutil.rmtree(cwd, ignore_errors=True)
                 cwd.mkdir(parents=True, exist_ok=True)
-                meta_yaml = init_meta()
+                meta_yaml = TestcaseRule.MetaYaml(problem, t)
 
                 # Step 1: run `generate:` if present.
                 if t.generator:
@@ -947,13 +960,13 @@ class TestcaseRule(Rule):
                     return False
 
                 # Step 5: save which files where generated
-                meta_yaml["generated_extensions"] = [
+                meta_yaml.generated_extensions = [
                     ext for ext in config.KNOWN_DATA_EXTENSIONS if infile.with_suffix(ext).is_file()
                 ]
 
                 # Step 6: update cache
-                meta_yaml["rule_hashes"] = rule_hashes
-                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+                meta_yaml.rule_hashes = rule_hashes
+                meta_yaml.write()
 
                 # Step 7: check deterministic:
                 check_deterministic(True)
@@ -976,7 +989,7 @@ class TestcaseRule(Rule):
                 return True
 
             if t.config.solution is not None:
-                solution_hash: dict[str, Optional[str]] = {
+                solution_hash: dict[object, object] = {
                     "solution_hash": t.config.solution.hash(),
                     "solution": t.config.solution.cache_command(),
                 }
@@ -989,22 +1002,19 @@ class TestcaseRule(Rule):
             def needed(
                 ext: str, interactor_hash: Optional[dict[str, dict[str, str]]] = None
             ) -> bool:
-                if ext in meta_yaml["generated_extensions"]:
+                if ext in meta_yaml.generated_extensions:
                     return False
                 if not infile.with_suffix(ext).is_file():
                     return True
-                if (
-                    interactor_hash is not None
-                    and meta_yaml.get("interactor_hash") != interactor_hash
-                ):
+                if interactor_hash is not None and meta_yaml.interactor_hash != interactor_hash:
                     return True
-                return meta_yaml.get("solution_hash") != solution_hash
+                return meta_yaml.solution_hash != solution_hash
 
             used_solution = False
             changed_ans = False
             if not problem.settings.ans_is_output:
                 # Generate empty ans file
-                if ".ans" not in meta_yaml["generated_extensions"]:
+                if ".ans" not in meta_yaml.generated_extensions:
                     if not ansfile.is_file() and (problem.interactive or problem.multi_pass):
                         ansfile.write_text("")
                         changed_ans = True
@@ -1023,7 +1033,7 @@ class TestcaseRule(Rule):
                         if not t.config.solution.generate_interaction(bar, cwd, t):
                             return False
                         used_solution = True
-                        meta_yaml["interactor_hash"] = interactor_hash
+                        meta_yaml.interactor_hash = cast(dict[Any, Any], interactor_hash)
             else:
                 # Generate a .ans if not already generated by earlier steps.
                 if needed(".ans"):
@@ -1039,12 +1049,12 @@ class TestcaseRule(Rule):
                         return False
 
             if used_solution:
-                meta_yaml["solution_hash"] = solution_hash
+                meta_yaml.solution_hash = solution_hash
             if changed_ans:
-                meta_yaml["ans_out_validator_hashes"] = dict()
-                meta_yaml["visualizer_hash"] = dict()
+                meta_yaml.ans_out_validator_hashes = {}
+                meta_yaml.visualizer_hash = {}
             if changed_ans or used_solution:
-                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+                meta_yaml.write()
 
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
             return True
@@ -1098,12 +1108,12 @@ class TestcaseRule(Rule):
                 return True
 
             visualizer_args = testcase.test_case_yaml_args(visualizer, bar)
-            visualizer_hash = {
+            visualizer_hash: dict[object, object] = {
                 "visualizer_hash": visualizer.hash,
                 "visualizer_args": visualizer_args,
             }
 
-            if meta_yaml.get("visualizer_hash") == visualizer_hash:
+            if meta_yaml.visualizer_hash == visualizer_hash:
                 return True
 
             for ext in config.KNOWN_VISUALIZER_EXTENSIONS:
@@ -1146,8 +1156,8 @@ class TestcaseRule(Rule):
                 bar.log("stderr", result.err)
 
             if result.status:
-                meta_yaml["visualizer_hash"] = visualizer_hash
-                write_yaml(meta_yaml, meta_path, allow_yamllib=True)
+                meta_yaml.visualizer_hash = visualizer_hash
+                meta_yaml.write()
 
             # errors in the visualizer are not critical
             return True
@@ -1305,7 +1315,7 @@ class Directory(Rule):
         problem: Problem,
         key: str,
         name: str,
-        yaml: dict[str, Any],
+        yaml: dict[object, object],
         parent: "AnyDirectory",
     ) -> None:
         assert is_directory(yaml)
@@ -1319,28 +1329,28 @@ class Directory(Rule):
         bar = PrintBar("generators.yaml", item=self.path)
 
         if isinstance(parent, RootDirectory):
-            for key in yaml:
-                if key in RESERVED_DIRECTORY_KEYS:
+            for any_key in yaml:
+                if any_key in RESERVED_DIRECTORY_KEYS:
                     raise ParseException(
-                        f"Directory must not contain reserved key {key}.", self.path
+                        f"Directory must not contain reserved key {any_key}.", self.path
                     )
-                if key in DEPRECATED_ROOT_KEYS:
-                    bar.warn(f"Deprecated root level key: {key}, ignored")
-                elif key not in [*KNOWN_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
+                if any_key in DEPRECATED_ROOT_KEYS:
+                    bar.warn(f"Deprecated root level key: {any_key}, ignored")
+                elif any_key not in [*KNOWN_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
                     if config.args.action == "generate":
-                        bar.log(f"Unknown root level key: {key}")
+                        bar.log(f"Unknown root level key: {any_key}")
         else:
             assert name != ""
-            for key in yaml:
-                if key in [*RESERVED_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
+            for any_key in yaml:
+                if any_key in [*RESERVED_DIRECTORY_KEYS, *KNOWN_ROOT_KEYS]:
                     raise ParseException(
-                        f"Directory must not contain reserved key {key}.", self.path
+                        f"Directory must not contain reserved key {any_key}.", self.path
                     )
-                if key not in KNOWN_DIRECTORY_KEYS:
+                if any_key not in KNOWN_DIRECTORY_KEYS:
                     if config.args.action == "generate":
-                        bar.log(f"Unknown directory level key: {key}")
+                        bar.log(f"Unknown directory level key: {any_key}")
 
-        self.test_group_yaml: Any = yaml.get("test_group.yaml", False)
+        self.test_group_yaml: object | Literal[False] = yaml.get("test_group.yaml", False)
         self.numbered = False
 
         # List of child TestcaseRule/Directory objects, filled by parse().
@@ -1381,15 +1391,15 @@ class Directory(Rule):
     @overload
     def walk(
         self,
-        testcase_f: Optional[Callable[["TestcaseRule | Directory"], Any]],
+        testcase_f: Optional[Callable[["TestcaseRule | Directory"], object]],
     ) -> None: ...
 
     # This overload takes one function for test cases and a separate function for directories.
     @overload
     def walk(
         self,
-        testcase_f: Optional[Callable[[TestcaseRule], Any]],
-        dir_f: Optional[Callable[["Directory"], Any]],
+        testcase_f: Optional[Callable[[TestcaseRule], object]],
+        dir_f: Optional[Callable[["Directory"], object]],
     ) -> None: ...
 
     # Map a function over all test cases directory tree.
@@ -1397,15 +1407,15 @@ class Directory(Rule):
     def walk(
         self,
         testcase_f: Optional[
-            Callable[["TestcaseRule | Directory"], Any] | Callable[[TestcaseRule], Any]
+            Callable[["TestcaseRule | Directory"], object] | Callable[[TestcaseRule], object]
         ] = None,
         dir_f: Literal[True]
         | Optional[
-            Callable[["TestcaseRule | Directory"], Any] | Callable[["Directory"], Any]
+            Callable[["TestcaseRule | Directory"], object] | Callable[["Directory"], object]
         ] = True,
     ) -> None:
         if dir_f is True:
-            dir_f = cast(Optional[Callable[["TestcaseRule | Directory"], Any]], testcase_f)
+            dir_f = cast(Optional[Callable[["TestcaseRule | Directory"], object]], testcase_f)
         if dir_f:
             dir_f(self)
 
@@ -1437,7 +1447,7 @@ class Directory(Rule):
         test_group_yaml_path = dir_path / "test_group.yaml"
         if d.test_group_yaml:
             generator_config.known_files.add(test_group_yaml_path)
-            yaml_text = write_yaml(dict(d.test_group_yaml))
+            yaml_text = write_yaml(d.test_group_yaml)
 
             if test_group_yaml_path.is_file():
                 if yaml_text == test_group_yaml_path.read_text():
@@ -1486,13 +1496,7 @@ class Directory(Rule):
                 continue
 
             # Check if the testcase was already validated.
-            cwd = problem.tmpdir / "data" / t.hash
-            meta_path = cwd / "meta_.yaml"
-            assert meta_path.is_file(), (
-                f"Metadata file not found for included case {d.path / key}\nwith hash {t.hash}\nfile {meta_path}"
-            )
-            meta_yaml = read_yaml(meta_path)
-            assert isinstance(meta_yaml, dict)
+            meta_yaml = TestcaseRule.MetaYaml(problem, t)
             testcase = Testcase(problem, infile, short_path=new_case)
 
             # Step 1: validate .in
@@ -1529,6 +1533,8 @@ class GeneratorConfig:
         assert isinstance(generators_yaml, dict)
         generators = {}
         for gen, deps in generators_yaml.items():
+            if not isinstance(gen, str):
+                raise ParseException("Invalid generator name", f"generators/{gen}")
             if (
                 gen.startswith("/")
                 or Path(gen).is_absolute()
@@ -1539,6 +1545,7 @@ class GeneratorConfig:
             path = Path("generators") / gen
 
             assert_type("Generator dependencies", deps, list)
+            assert isinstance(deps, list)
             if len(deps) == 0:
                 raise ParseException("Generator dependencies must not be empty.", path)
             for d in deps:
@@ -1820,10 +1827,12 @@ class GeneratorConfig:
                 d.includes[name] = t
 
             if "include" in yaml:
-                assert_type("includes", yaml["include"], list, d.path)
+                includes = yaml["include"]
+                assert_type("includes", includes, list, d.path)
+                assert isinstance(includes, list)
 
                 bar = PrintBar("generators.yaml", item=d.path)
-                for include in yaml["include"]:
+                for include in includes:
                     assert_type("include", include, str, d.path)
                     if "/" in include:
                         bar.error(f"Include {include} should be a test case/group key, not a path.")
@@ -2190,7 +2199,7 @@ data/*
             others = [e for e in d.yaml["data"] if id(next(iter(e.values()))) not in test_nodes]
 
             class TestcaseResult:
-                def __init__(self, yaml: dict[str, Any]) -> None:
+                def __init__(self, yaml: dict[object, object]) -> None:
                     self.yaml = yaml
                     self.name = test_nodes[id(next(iter(yaml.values())))]
                     self.scores = []
