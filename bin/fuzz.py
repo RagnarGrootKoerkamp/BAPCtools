@@ -359,7 +359,9 @@ class Fuzz:
             generators_yaml = self.problem.path / "generators/generators.yaml"
             data = None
             if generators_yaml.is_file():
-                data = read_yaml(generators_yaml)
+                raw_data = read_yaml(generators_yaml)
+                assert isinstance(raw_data, CommentedMap)
+                data = raw_data
             if data is None:
                 data = CommentedMap()
 

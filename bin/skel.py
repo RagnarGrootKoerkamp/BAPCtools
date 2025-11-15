@@ -245,6 +245,9 @@ def rename_problem(problem: Problem) -> None:
 
     problem_yaml = Path(dirname) / "problem.yaml"
     data = read_yaml(problem_yaml)
+    if not isinstance(data, dict):
+        error("could not parse problem.yaml")
+        return
     data["name"] = newname
     write_yaml(data, problem_yaml)
 

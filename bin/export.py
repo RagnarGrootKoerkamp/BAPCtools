@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 import config
-from contest import call_api, call_api_get_json, contest_yaml, get_contests
+from contest import call_api, call_api_get_json, contest_yaml, get_contests, problems_yaml
 from latex import PdfType
 from problem import Problem
 from util import (
@@ -22,7 +22,6 @@ from util import (
     inc_label,
     log,
     normalize_yaml_value,
-    parse_yaml,
     PrintBar,
     read_yaml,
     require_ruamel,
@@ -225,6 +224,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     # handle languages (files and yaml have to be in sync)
     yaml_path = export_dir / "problem.yaml"
     yaml_data = read_yaml(yaml_path)
+    assert isinstance(yaml_data, CommentedMap)
     yaml_data["name"] = CommentedMap(
         {language: problem.settings.name[language] for language in languages}
     )
@@ -506,7 +506,7 @@ def export_contest(cid: Optional[str]) -> str:
         },
     )
     if r.status_code == 400:
-        fatal(parse_yaml(r.text)["message"])
+        fatal(r.json()["message"])
     r.raise_for_status()
 
     new_cid = normalize_yaml_value(yaml.load(r.text, Loader=yaml.SafeLoader), str)
@@ -528,9 +528,12 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
         )
         return
 
+    problems_yaml()
+
     log("Updating problems.yaml")
     path = Path("problems.yaml")
     data = path.is_file() and read_yaml(path) or []
+    assert isinstance(data, list)
 
     change = False
     for problem in problems:
@@ -634,7 +637,7 @@ def export_problems(problems: list[Problem], cid: str) -> Any:
         },
     )
     if r.status_code == 400:
-        fatal(parse_yaml(r.text)["message"])
+        fatal(r.json()["message"])
     r.raise_for_status()
 
     log(f"Uploaded problems.yaml for contest_id {cid}.")

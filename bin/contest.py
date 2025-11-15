@@ -124,7 +124,7 @@ def contest_yaml() -> ContestYaml:
     contest_yaml_path = Path("contest.yaml")
     if contest_yaml_path.is_file():
         raw_yaml = read_yaml(contest_yaml_path)
-    if raw_yaml is not None and not isinstance(raw_yaml, dict):
+    if not isinstance(raw_yaml, dict):
         fatal("could not parse contest.yaml, must be a dict.")
 
     _contest_yaml = ContestYaml(raw_yaml)
@@ -137,10 +137,10 @@ def problems_yaml() -> Sequence[ProblemsYamlEntry]:
         return _problems_yaml
 
     problems_yaml_path = Path("problems.yaml")
-    raw_yaml = []
+    raw_yaml: object = []
     if problems_yaml_path.is_file():
         raw_yaml = read_yaml(problems_yaml_path)
-    if raw_yaml is not None and not isinstance(raw_yaml, list):
+    if not isinstance(raw_yaml, list):
         fatal("could not parse problems.yaml, must be a list.")
 
     problems = []

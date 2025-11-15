@@ -683,7 +683,7 @@ class TestcaseRule(Rule):
                 pass
 
     def validate_in(
-        t, problem: Problem, testcase: Testcase, meta_yaml: dict[str, Any], bar: ProgressBar
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict[object, Any], bar: ProgressBar
     ) -> bool:
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
@@ -730,7 +730,7 @@ class TestcaseRule(Rule):
         return True
 
     def validate_ans_and_out(
-        t, problem: Problem, testcase: Testcase, meta_yaml: dict[str, Any], bar: ProgressBar
+        t, problem: Problem, testcase: Testcase, meta_yaml: dict[object, Any], bar: ProgressBar
     ) -> bool:
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
@@ -817,9 +817,9 @@ class TestcaseRule(Rule):
         ansfile = cwd / "testcase.ans"
         meta_path = cwd / "meta_.yaml"
 
-        def init_meta() -> dict[str, Any]:
+        def init_meta() -> dict[object, Any]:
             meta_yaml = read_yaml(meta_path) if meta_path.is_file() else None
-            if meta_yaml is None:
+            if not isinstance(meta_yaml, dict):
                 meta_yaml = {
                     "rule_hashes": dict(),
                     "generated_extensions": [],
@@ -1492,6 +1492,7 @@ class Directory(Rule):
                 f"Metadata file not found for included case {d.path / key}\nwith hash {t.hash}\nfile {meta_path}"
             )
             meta_yaml = read_yaml(meta_path)
+            assert isinstance(meta_yaml, dict)
             testcase = Testcase(problem, infile, short_path=new_case)
 
             # Step 1: validate .in
@@ -1602,7 +1603,7 @@ class GeneratorConfig:
                     return True
         return False
 
-    def parse_yaml(self, yaml: YAML_TYPE) -> None:
+    def parse_yaml(self, yaml: object) -> None:
         assert_type("Root yaml", yaml, [type(None), dict])
         if yaml is None:
             yaml = dict()
@@ -2059,6 +2060,9 @@ data/*
     # can handle files and complete directories
     @require_ruamel("generate --upgrade", False)
     def add(self, to_add: Sequence[Path]) -> bool:
+        if self.n_parse_error > 0:
+            return False
+
         in_files = []
         for path in to_add:
             if path.suffix == ".in":
@@ -2079,6 +2083,7 @@ data/*
         data = read_yaml(generators_yaml)
         if data is None:
             data = ruamel.yaml.comments.CommentedMap()
+        assert isinstance(data, ruamel.yaml.comments.CommentedMap)
 
         parent = ryaml_get_or_add(data, "data")
         parent = ryaml_get_or_add(parent, "secret")

@@ -726,7 +726,7 @@ def require_ruamel(action: str, return_value: R) -> Callable[[Callable[P, R]], C
     return decorator
 
 
-def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> Any:
+def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> object:
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
     if has_ryaml and not plain:
@@ -750,12 +750,12 @@ def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> A
             fatal(f"Failed to parse {path}.")
 
 
-def read_yaml(path: Path, plain: bool = False) -> Any:
+def read_yaml(path: Path, plain: bool = False) -> object:
     assert path.is_file(), f"File {path} does not exist"
     return parse_yaml(path.read_text(), path=path, plain=plain)
 
 
-def normalize_yaml_value(value: Any, t: type[Any]) -> Any:
+def normalize_yaml_value(value: object, t: type[object]) -> object:
     if isinstance(value, str) and t is Path:
         value = Path(value)
     if isinstance(value, int) and t is float:
@@ -863,7 +863,7 @@ if has_ryaml:
         return cast(ruamel.yaml.comments.CommentedMap | U, value)
 
     # This tries to preserve the correct comments.
-    def ryaml_filter(data: Any, remove: str) -> Any:
+    def ryaml_filter(data: ruamel.yaml.comments.CommentedMap, remove: str) -> object:
         assert isinstance(data, ruamel.yaml.comments.CommentedMap)
         remove_index = list(data.keys()).index(remove)
         if remove_index == 0:
@@ -892,7 +892,12 @@ if has_ryaml:
 
     # Insert a new key before an old key, then remove the old key.
     # If new_value is not given, the default is to simply rename the old key to the new key.
-    def ryaml_replace(data: Any, old_key: str, new_key: str, new_value: Any = None) -> None:
+    def ryaml_replace(
+        data: ruamel.yaml.comments.CommentedMap,
+        old_key: str,
+        new_key: str,
+        new_value: object = None,
+    ) -> None:
         assert isinstance(data, ruamel.yaml.comments.CommentedMap)
         if new_value is None:
             new_value = data[old_key]
@@ -903,10 +908,10 @@ if has_ryaml:
 
 elif not TYPE_CHECKING:
 
-    def ryaml_get_or_add(*args: Any, **kwargs: Any) -> Any:
+    def ryaml_get_or_add(*args: Any, **kwargs: Any) -> object:
         assert False, "missing ruamel.yaml"
 
-    def ryaml_filter(*args: Any, **kwargs: Any) -> Any:
+    def ryaml_filter(*args: Any, **kwargs: Any) -> object:
         assert False, "missing ruamel.yaml"
 
     def ryaml_replace(*args: Any, **kwargs: Any) -> None:
@@ -919,14 +924,14 @@ write_yaml_lock = threading.Lock()
 
 # The @overload definitions are purely here for static typing reasons.
 @overload
-def write_yaml(data: Any, path: None = None, allow_yamllib: bool = False) -> str: ...
+def write_yaml(data: object, path: None = None, allow_yamllib: bool = False) -> str: ...
 @overload
-def write_yaml(data: Any, path: Path, allow_yamllib: bool = False) -> None: ...
+def write_yaml(data: object, path: Path, allow_yamllib: bool = False) -> None: ...
 
 
 # Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
 def write_yaml(
-    data: Any, path: Optional[Path] = None, allow_yamllib: bool = False
+    data: object, path: Optional[Path] = None, allow_yamllib: bool = False
 ) -> Optional[str]:
     if not has_ryaml:
         if not allow_yamllib:

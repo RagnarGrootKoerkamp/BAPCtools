@@ -227,10 +227,13 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                 if ask_variable_bool("Update order in contest.yaml"):
                     if has_ryaml:
                         contest_yaml_path = Path("contest.yaml")
-                        data = read_yaml(contest_yaml_path)
-                        data["order"] = "".join(p.label or p.name for p in problems)
-                        write_yaml(data, contest_yaml_path)
-                        log("Updated order")
+                        data = read_yaml(contest_yaml_path) or {}
+                        if not isinstance(data, dict):
+                            error("could not parse contest.yaml.")
+                        else:
+                            data["order"] = "".join(p.label or p.name for p in problems)
+                            write_yaml(data, contest_yaml_path)
+                            log("Updated order")
                     else:
                         error("ruamel.yaml library not found. Update the order manually.")
 

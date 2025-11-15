@@ -5,7 +5,7 @@ import threading
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, overload, TYPE_CHECKING
+from typing import Final, Literal, Optional, overload, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
@@ -393,7 +393,7 @@ class Problem:
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
         # TODO #102: Add type for test_group.yaml (typed Namespace?)
-        self._test_case_yamls = dict[Path, dict[str, Any]]()
+        self._test_case_yamls = dict[Path, dict[object, object]]()
         self._test_group_lock = threading.Lock()
 
         # The label for the problem: A, B, A1, A2, X, ...
@@ -508,7 +508,11 @@ class Problem:
                     p.settings.constants,
                     pattern=config.CONSTANT_SUBSTITUTE_REGEX,
                 )
-                p._test_case_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
+                flags = parse_yaml(raw, path=f, plain=True)
+                if not isinstance(flags, dict):
+                    bar.error(f"could not parse {f}. SKIPPED.")
+                    continue
+                p._test_case_yamls[f] = flags
 
                 parser = YamlParser(str(f), flags)
                 parser.extract_deprecated(
@@ -1642,9 +1646,12 @@ class Problem:
                 problem_yaml = read_yaml(yaml_path)
                 if problem_yaml is None:
                     problem_yaml = ruamel.yaml.comments.CommentedMap()
-                limits = ryaml_get_or_add(problem_yaml, "limits")
-                limits["time_limit"] = problem.limits.time_limit
-                write_yaml(problem_yaml, problem.path / "problem.yaml")
+                if not isinstance(problem_yaml, ruamel.yaml.comments.CommentedMap):
+                    warn("could not parse problem.yaml")
+                else:
+                    limits = ryaml_get_or_add(problem_yaml, "limits")
+                    limits["time_limit"] = problem.limits.time_limit
+                    write_yaml(problem_yaml, problem.path / "problem.yaml")
 
         submission, testcase, duration = run_all(
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min

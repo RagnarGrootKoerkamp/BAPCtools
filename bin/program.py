@@ -565,9 +565,10 @@ class Program:
         up_to_date = False
         if meta_path.is_file():
             meta_yaml = read_yaml(meta_path)
-            up_to_date = (
-                meta_yaml["hash"] == self.hash and meta_yaml["command"] == self.compile_command
-            )
+            if isinstance(meta_yaml, dict):
+                up_to_date = (
+                    meta_yaml["hash"] == self.hash and meta_yaml["command"] == self.compile_command
+                )
 
         if not up_to_date or config.args.force_build:
             if not self._compile(bar):
