@@ -246,7 +246,7 @@ def rename_problem(problem: Problem) -> None:
     problem_yaml = Path(dirname) / "problem.yaml"
     data = read_yaml(problem_yaml)
     if not isinstance(data, dict):
-        error("could not parse problem.yaml")
+        error("could not parse problem.yaml.")
         return
     data["name"] = newname
     write_yaml(data, problem_yaml)
@@ -255,7 +255,7 @@ def rename_problem(problem: Problem) -> None:
     if problems_yaml.is_file():
         data = read_yaml(problems_yaml) or []
         if not isinstance(data, list) or not all(isinstance(p, dict) for p in data):
-            warn("could not update problems.yaml")
+            error("could not parse problems.yaml. Must be a list of problems.")
         else:
             prob = next((p for p in data if p["id"] == problem.name), None)
             if prob is not None:
