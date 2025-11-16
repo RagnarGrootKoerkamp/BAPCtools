@@ -63,13 +63,16 @@ class ParseException(Exception):
 
 
 def assert_type(
-    name: str, obj: object, types: list[type[object]] | type[object], path: Optional[Path] = None
+    name: str,
+    obj: object,
+    types: tuple[type[object], ...] | type[object],
+    path: Optional[Path] = None,
 ) -> None:
-    if not isinstance(types, list):
-        types = [types]
-    if any(isinstance(obj, t) for t in types):
+    if isinstance(obj, types):
         return
-    named_types = " or ".join(str(t) if t is None else t.__name__ for t in types)
+    if not isinstance(types, tuple):
+        types = (types,)
+    named_types = " or ".join("None" if t is None else t.__name__ for t in types)
     raise ParseException(
         f"{name} must be of type {named_types}, found {obj.__class__.__name__}: {obj}",
         path,
@@ -356,21 +359,21 @@ class Config:
 
     @staticmethod
     def _parse_solution(p: Problem, x: object, path: Path) -> Optional[SolutionInvocation]:
-        assert_type("solution", x, [type(None), str], path)
+        assert_type("solution", x, (type(None), str), path)
         if x is None:
             return None
         return SolutionInvocation(p, cast(str, x))
 
     @staticmethod
     def _parse_random_salt(x: object, path: Path) -> str:
-        assert_type("random_salt", x, [type(None), str], path)
+        assert_type("random_salt", x, (type(None), str), path)
         if x is None:
             return ""
         return cast(str, x)
 
     @staticmethod
     def _parse_retries(x: object, path: Path) -> int:
-        assert_type("retries", x, [type(None), int], path)
+        assert_type("retries", x, (type(None), int), path)
         if x is None:
             return 1
         return cast(int, x)
@@ -511,7 +514,7 @@ class TestcaseRule(Rule):
                     "Empty yaml entry (Testcases must be generated not only mentioned)."
                 )
             else:
-                assert_type("testcase", yaml, [str, dict])
+                assert_type("testcase", yaml, (str, dict))
                 if isinstance(yaml, str):
                     yaml = {"generate": yaml}
                     if isinstance(yaml["generate"], str) and yaml["generate"].endswith(".in"):
@@ -1366,7 +1369,7 @@ class Directory(Rule):
         data = yaml["data"]
         if data is None:
             return
-        assert_type("Data", data, [dict, list])
+        assert_type("Data", data, (dict, list))
 
         if isinstance(data, list):
             self.numbered = True
@@ -1613,7 +1616,7 @@ class GeneratorConfig:
         return False
 
     def parse_yaml(self, yaml: object) -> None:
-        assert_type("Root yaml", yaml, [type(None), dict])
+        assert_type("Root yaml", yaml, (type(None), dict))
         if yaml is None:
             yaml = dict()
         assert isinstance(yaml, dict)
@@ -1693,7 +1696,7 @@ class GeneratorConfig:
             key: str, name_gen: Iterator[str], yaml: YAML_TYPE, parent: AnyDirectory
         ) -> Directory | list[TestcaseRule]:
             name = next(name_gen)
-            assert_type("Testcase/directory", yaml, [type(None), str, dict], parent.path)
+            assert_type("Testcase/directory", yaml, (type(None), str, dict), parent.path)
             if not is_testcase(yaml) and not is_directory(yaml):
                 raise ParseException("not parsed as a testcase or directory.", parent.path / name)
 
@@ -1741,7 +1744,7 @@ class GeneratorConfig:
                 for dictionary in data:
                     assert_type("Elements of data", dictionary, dict, d.path)
                     for key in dictionary.keys():
-                        assert_type("Key of data", key, [type(None), str], d.path / str(key))
+                        assert_type("Key of data", key, (type(None), str), d.path / str(key))
                     for _, child_yaml in sorted(dictionary.items()):
                         if is_directory(child_yaml):
                             num_test_groups += 1
@@ -1749,7 +1752,7 @@ class GeneratorConfig:
                 next_test_group_id = itertools.count(1)
                 for dictionary in data:
                     for key in dictionary:
-                        assert_type("Test case/group name", key, [type(None), str], d.path)
+                        assert_type("Test case/group name", key, (type(None), str), d.path)
 
                     # Process named children alphabetically, but not in the root directory.
                     # There, process in the 'natural order'.
