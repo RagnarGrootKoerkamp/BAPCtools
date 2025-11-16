@@ -1142,7 +1142,7 @@ class Problem:
             if config.args.local_time_multiplier is not None and config.args.time_limit is None
             else ""
         )
-        PrintBar("run").log(f"using {msg}timelimit: {problem.limits.time_limit:.1f}s\n", color="")
+        PrintBar("Run").log(f"using {msg}timelimit: {problem.limits.time_limit:.1f}s\n", color="")
 
         ok, verdict_table = Problem.run_some(testcases, submissions)
 
