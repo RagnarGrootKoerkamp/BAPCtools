@@ -132,7 +132,7 @@ def new_problem() -> None:
     if "interactive" in problem_type or "multi-pass" in problem_type:
         custom_output = True
 
-    # Read settings from the contest-level yaml file.
+    # Convert settings from the contest-level yaml file to strings so they can be used to substitute.
     contest_data = {k: str(v) for k, v in contest.contest_yaml().dict().items()}
     variables = {
         **contest_data,
