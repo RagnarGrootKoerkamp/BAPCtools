@@ -59,7 +59,7 @@ class ContestYaml:
 
 
 class ProblemsYamlEntry:
-    def __init__(self, yaml_data: dict[object, object]) -> None:
+    def __init__(self, yaml_data: dict[object, object], index: int) -> None:
         self.ok = False
         parser = YamlParser("problems.yaml", yaml_data)
 
@@ -67,13 +67,17 @@ class ProblemsYamlEntry:
             if rgb is None:
                 return None
             if not rgb.startswith("#"):
-                error(f"invalid rgb value {rgb} in problems.yaml. SKIPPED")
+                error(
+                    f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
+                )
                 return None
             hex_part = rgb[1:].lower()
             if len(hex_part) == 3:
                 hex_part = "".join(c * 2 for c in hex_part)
             if len(hex_part) != 6 or any(c not in string.hexdigits for c in hex_part):
-                error(f"invalid rgb value {rgb} in problems.yaml. SKIPPED")
+                error(
+                    f"invalid rgb value '{rgb}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED"
+                )
                 return None
             return hex_part
 
@@ -89,15 +93,19 @@ class ProblemsYamlEntry:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                warn(f"invalid language '{lang}' in problems.yaml. SKIPPED.")
+                warn(
+                    f"invalid language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
+                )
             elif not isinstance(name, str):
-                warn(f"incompatible value for language '{lang}' in problems.yaml. SKIPPED.")
+                warn(
+                    f"incompatible value for language '{lang}' for problem {index} (id: {self.id}) in problems.yaml. SKIPPED."
+                )
             else:
                 self.name[lang] = name
         self.time_limit: Optional[float] = parser.extract_optional("time_limit", float)
         if self.time_limit is not None and not self.time_limit > 0:
             error(
-                f"value for 'time_limit' in problems.yaml should be > 0 but is {self.time_limit}. SKIPPED"
+                f"value for 'time_limit' for problem {index} (id: {self.id}) in problems.yaml should be > 0 but is {self.time_limit}. SKIPPED"
             )
             self.time_limit = None
 
@@ -105,7 +113,7 @@ class ProblemsYamlEntry:
         self._yaml = {k: v for k, v in parser.yaml.items() if isinstance(k, str) and v is not None}
         for key in parser.yaml:
             if key not in self._yaml:
-                warn(f"invalid problems.yaml key: {key} in {self.id}")
+                warn(f"invalid problems.yaml key: {key} for problem {index} (id: {self.id})")
 
         self.ok = parser.errors == 0
 
@@ -145,15 +153,15 @@ def problems_yaml() -> Sequence[ProblemsYamlEntry]:
 
     problems = []
     labels: dict[str, str] = {}
-    for yaml_data in raw_yaml:
+    for i, yaml_data in enumerate(raw_yaml):
         if not isinstance(yaml_data, dict):
             error("entries in problems.yaml must be dicts.")
             continue
-        problem = ProblemsYamlEntry(yaml_data)
+        problem = ProblemsYamlEntry(yaml_data, i)
         if not problem.ok:
             continue
         if problem.label in labels:
-            error(f"lebal {problem.label} found twice in problems.yaml")
+            error(f"label {problem.label} found twice in problems.yaml")
             continue
         labels[problem.label] = problem.id
         if not Path(problem.id).is_dir():

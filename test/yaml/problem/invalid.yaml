@@ -217,6 +217,23 @@ yaml:
     authors:
       - foo: "bar"
 warn: "found unknown problem.yaml key: foo in `credits.authors[0]`"
+---
+yaml:
+  problem_format_version: 2025-09
+  name: Invalid key type in credits.authors list
+  credits:
+    authors:
+      - 42: "bar"
+warn: "invalid problem.yaml key: 42 in `credits.authors[0]`"
+---
+yaml:
+  problem_format_version: 2025-09
+  name: Invalid key type in credits.translators list
+  credits:
+    translators:
+      en:
+        - 42: "bar"
+warn: "invalid problem.yaml key: 42 in `credits.translators.en[0]`"
 
 ---
 # Source

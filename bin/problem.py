@@ -119,7 +119,9 @@ class ProblemCredits:
         self.translators = {}
         for lang in list(translators.yaml.keys()):
             if not isinstance(lang, str):
-                warn(f"invalid language '{lang}' in problem.yaml. SKIPPED.")
+                warn(
+                    f"invalid language `{lang}` for {translators.parent_str} in problem.yaml. SKIPPED."
+                )
             else:
                 self.translators[lang] = extract_optional_persons(translators, lang)
 
@@ -322,9 +324,9 @@ class ProblemSettings:
         self.constants: dict[str, str] = {}
         for key, value in constants.items():
             if not isinstance(key, str) or not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(key):
-                warn(f"invalid constant name: {key}. SKIPPED.")
+                warn(f"invalid constant name `{key}` for `constants` in problem.yaml. SKIPPED.")
             elif not isinstance(value, (str, int, float)):
-                warn(f"invalid constant type for: {key}. SKIPPED.")
+                warn(f"invalid constant type for `constants.{key}` in problem.yaml. SKIPPED.")
             else:
                 self.constants[key] = str(value)
 
