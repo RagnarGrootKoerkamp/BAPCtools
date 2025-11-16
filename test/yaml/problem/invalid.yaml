@@ -22,7 +22,7 @@ yaml:
   limits:
     time_multipliers:
       mumbo: jumbo
-warn: "found unknown problem.yaml key: mumbo in `time_multipliers`"
+warn: "found unknown problem.yaml key: mumbo in `limits.time_multipliers`"
 
 ---
 # UUID
@@ -167,11 +167,34 @@ warn: "incompatible value for key 'credits' in problem.yaml. SKIPPED."
 ---
 yaml:
   problem_format_version: 2025-09
-  name: Cannot specify multiple authors in credits
+  name: Invalid value for author name
   credits:
     authors:
       - name: 42
 warn: "incompatible value for key 'name' in problem.yaml. SKIPPED."
+---
+yaml:
+  problem_format_version: 2025-09
+  name: Invalid key in credits
+  credits:
+    foo: "bar"
+warn: "found unknown problem.yaml key: foo in `credits`"
+---
+yaml:
+  problem_format_version: 2025-09
+  name: Invalid key in credits.authors
+  credits:
+    authors:
+      foo: "bar"
+warn: "found unknown problem.yaml key: foo in `credits.authors`"
+---
+yaml:
+  problem_format_version: 2025-09
+  name: Invalid key in credits.authors list
+  credits:
+    authors:
+      - foo: "bar"
+warn: "found unknown problem.yaml key: foo in `credits.authors[0]`"
 
 ---
 # Source
@@ -180,7 +203,23 @@ yaml:
   name: Source must have a name
   source:
     - url: https://2024.nwerc.example/contest
-warn: "problem.yaml: 'name' is required in source"
+warn: "problem.yaml: 'name' is required in `source[0]`"
+---
+yaml:
+  problem_format_version: 2025-09
+  name: Invalid key in source
+  source:
+    name: name
+    foo: "bar"
+warn: "found unknown problem.yaml key: foo in `source`"
+---
+yaml:
+  problem_format_version: 2025-09
+  name: Invalid key in source list
+  source:
+    - name: name
+      foo: "bar"
+warn: "found unknown problem.yaml key: foo in `source[0]`"
 
 ---
 # Embargo

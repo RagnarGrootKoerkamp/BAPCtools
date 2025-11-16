@@ -54,9 +54,9 @@ if has_ryaml:
 
 
 class Person:
-    def __init__(self, yaml_data: str | dict[object, object]):
+    def __init__(self, yaml_data: str | dict[object, object], parent_path: str):
         if isinstance(yaml_data, dict):
-            parser = YamlParser("problem.yaml", yaml_data, "credits")
+            parser = YamlParser("problem.yaml", yaml_data, parent_path)
             self.name: str = parser.extract("name", "")
             self.email: Optional[str] = parser.extract_optional("email", str)
             self.kattis: Optional[str] = parser.extract_optional("kattis", str)
@@ -85,7 +85,7 @@ class ProblemCredits:
         if "credits" not in parser.yaml:
             return
         if isinstance(parser.yaml["credits"], str):
-            self.authors = [Person(parser.extract("credits", ""))]
+            self.authors = [Person(parser.extract("credits", ""), "credits")]
             return
 
         def extract_optional_persons(source: YamlParser, key: str) -> list[Person]:
@@ -94,7 +94,7 @@ class ProblemCredits:
                 if value is None:
                     return []
                 if isinstance(value, (str, dict)):
-                    return [Person(value)]
+                    return [Person(value, f"credits.{key}")]
                 if isinstance(value, list):
                     if not all(isinstance(v, (str, dict)) for v in value):
                         warn(
@@ -103,7 +103,7 @@ class ProblemCredits:
                         return []
                     if not value:
                         warn(f"value for '{key}' in problem.yaml should not be an empty list.")
-                    return list(map(Person, value))
+                    return [Person(v, f"credits.{key}[{i}]") for i, v in enumerate(value)]
                 warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
             return []
 
@@ -142,8 +142,9 @@ class ProblemSources(list[ProblemSource]):
             name = source.extract_optional("name", str)
             url = source.extract_optional("url", str)
             if name is None:
-                warn("problem.yaml: 'name' is required in source")
+                warn(f"problem.yaml: 'name' is required in {source.parent_str}")
                 name = ""
+            source.check_unknown_keys()
             return ProblemSource(name, url)
 
         parser.extract_deprecated("source_url", "source.url")
@@ -161,7 +162,7 @@ class ProblemSources(list[ProblemSource]):
                 if isinstance(source, str):
                     self.append(ProblemSource(source))
                 elif isinstance(source, dict):
-                    self.append(parse_source(YamlParser("problem.yaml", source, "source")))
+                    self.append(parse_source(YamlParser("problem.yaml", source, f"source[{i}]")))
                 else:
                     warn(f"problem.yaml key 'source[{i}]' does not have the correct type. SKIPPED.")
             return
