@@ -69,7 +69,9 @@ class Person:
             self.kattis = self.orcid = None
         for token in [",", " and ", "&"]:
             if token in self.name:
-                warn(f"found suspicious token '{token.strip()}' in name: {self.name}")
+                warn(
+                    f"found suspicious token '{token.strip()}' in `{parent_path}.name`: {self.name}"
+                )
 
 
 class ProblemCredits:
@@ -89,22 +91,23 @@ class ProblemCredits:
             return
 
         def extract_optional_persons(source: YamlParser, key: str) -> list[Person]:
+            key_path = f"{source.parent_path}.{key}"
             if key in source.yaml:
                 value = source.yaml.pop(key)
                 if value is None:
                     return []
                 if isinstance(value, (str, dict)):
-                    return [Person(value, f"credits.{key}")]
+                    return [Person(value, key_path)]
                 if isinstance(value, list):
                     if not all(isinstance(v, (str, dict)) for v in value):
                         warn(
-                            f"some values for key '{key}' in problem.yaml have invalid type. SKIPPED."
+                            f"some values for key `{key_path}` in problem.yaml have invalid type. SKIPPED."
                         )
                         return []
                     if not value:
-                        warn(f"value for '{key}' in problem.yaml should not be an empty list.")
-                    return [Person(v, f"credits.{key}[{i}]") for i, v in enumerate(value)]
-                warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+                        warn(f"value for `{key_path}` in problem.yaml should not be an empty list.")
+                    return [Person(v, f"{key_path}[{i}]") for i, v in enumerate(value)]
+                warn(f"incompatible value for key `{key_path}` in problem.yaml. SKIPPED.")
             return []
 
         credits = parser.extract_parser("credits")
@@ -142,7 +145,7 @@ class ProblemSources(list[ProblemSource]):
             name = source.extract_optional("name", str)
             url = source.extract_optional("url", str)
             if name is None:
-                warn(f"problem.yaml: 'name' is required in {source.parent_str}")
+                warn(f"problem.yaml: `name` is required in {source.parent_str}")
                 name = ""
             source.check_unknown_keys()
             return ProblemSource(name, url)
@@ -164,9 +167,9 @@ class ProblemSources(list[ProblemSource]):
                 elif isinstance(source, dict):
                     self.append(parse_source(YamlParser("problem.yaml", source, f"source[{i}]")))
                 else:
-                    warn(f"problem.yaml key 'source[{i}]' does not have the correct type. SKIPPED.")
+                    warn(f"problem.yaml key `source[{i}]` does not have the correct type. SKIPPED.")
             return
-        warn("problem.yaml key 'source' does not have the correct type")
+        warn("problem.yaml key `source` does not have the correct type")
 
 
 class ProblemLimits:
@@ -263,13 +266,13 @@ class ProblemSettings:
             if not mode:
                 mode = {"pass-fail"}
         else:
-            fatal("problem.yaml: 'type' must be a string or a sequence")
+            fatal("problem.yaml: `type` must be a string or a sequence")
         unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
         if unrecognized_type:
             fatal(
                 f"""problem.yaml: unrecognized value{
                     "" if len(unrecognized_type) == 1 else "s"
-                } for 'type': {" ".join(sorted(unrecognized_type))}"""
+                } for `type`: {" ".join(sorted(unrecognized_type))}"""
             )
         self.interactive: bool = "interactive" in mode
         self.multi_pass: bool = "multi-pass" in mode
@@ -283,9 +286,11 @@ class ProblemSettings:
         self.name: dict[str, str] = {}
         for lang, name in names.items():
             if not isinstance(lang, str):
-                warn(f"invalid language '{lang}' in problem.yaml. SKIPPED.")
+                warn(f"invalid language `{lang}` for `name` in problem.yaml. SKIPPED.")
             elif not isinstance(name, str):
-                warn(f"incompatible value for language '{lang}' in problem.yaml. SKIPPED.")
+                warn(
+                    f"incompatible value for language `{lang}` for `name` in problem.yaml. SKIPPED."
+                )
             else:
                 self.name[lang] = name
 
@@ -344,12 +349,12 @@ class ProblemSettings:
         if self.license == "public domain":
             if self.rights_owner is not None:
                 warn(
-                    f"problem cannot be in 'public domain' and have a rights owner: {self.rights_owner}"
+                    f"problem cannot have license 'public domain' and have a rights owner: {self.rights_owner}"
                 )
         elif self.license != "unknown":
             if self.rights_owner is None and not self.credits.authors and not self.source:
                 warn(
-                    f"problem with license '{self.license}' needs a rights owner, author, or source."
+                    f"problem with license '{self.license}': needs a rights owner, author, or source."
                 )
 
     def type_name(self) -> str:
