@@ -772,26 +772,30 @@ def normalize_yaml_value(value: object, t: type[object]) -> object:
 class YamlParser:
     T = TypeVar("T")
 
-    def __init__(self, source: str, yaml: dict[object, object], parent: Optional[str] = None):
+    def __init__(self, source: str, yaml: dict[object, object], parent_path: Optional[str] = None):
         assert isinstance(yaml, dict)
         self.errors = 0
         self.source = source
         self.yaml = yaml
-        self.parent = "root" if parent is None else f"`{parent}`"
+        self.parent_path = parent_path
+        self.parent_str = "root" if parent_path is None else f"`{parent_path}`"
+
+    def _key_path(self, key: str) -> str:
+        return key if self.parent_path is None else f"{self.parent_path}.{key}"
 
     def check_unknown_keys(self) -> None:
         for key in self.yaml:
             if not isinstance(key, str):
-                warn(f"invalid {self.source} key: {key} in {self.parent}")
+                warn(f"invalid {self.source} key: {key} in {self.parent_str}")
             else:
-                warn(f"found unknown {self.source} key: {key} in {self.parent}")
+                warn(f"found unknown {self.source} key: {key} in {self.parent_str}")
 
     def extract_optional(self, key: str, t: type[T]) -> Optional[T]:
         if key in self.yaml:
             value = normalize_yaml_value(self.yaml.pop(key), t)
             if value is None or isinstance(value, t):
                 return value
-            warn(f"incompatible value for key '{key}' in {self.source}. SKIPPED.")
+            warn(f"incompatible value for key `{self._key_path(key)}` in {self.source}. SKIPPED.")
         return None
 
     def extract(self, key: str, default: T, constraint: Optional[str] = None) -> T:
@@ -802,7 +806,7 @@ class YamlParser:
             assert eval(f"{default} {constraint}")
             if not eval(f"{result} {constraint}"):
                 warn(
-                    f"value for '{key}' in {self.source} should be {constraint} but is {result}. SKIPPED."
+                    f"value for `{self._key_path(key)}` in {self.source} should be {constraint} but is {result}. SKIPPED."
                 )
                 return default
         return result
@@ -814,14 +818,14 @@ class YamlParser:
                 return value
             error(f"incompatible value for key '{key}' in {self.source}.")
         else:
-            error(f"missing key '{key}' in {self.source}.")
+            error(f"missing key `{self._key_path(key)}` in {self.source}.")
         self.errors += 1
         return t()
 
     def extract_deprecated(self, key: str, new: Optional[str] = None) -> None:
         if key in self.yaml:
-            use = f", use '{new}' instead" if new else ""
-            warn(f"key '{key}' is deprecated{use}. SKIPPED.")
+            use = f", use `{new}` instead" if new else ""
+            warn(f"key `{self._key_path(key)}` is deprecated{use}. SKIPPED.")
             self.yaml.pop(key)
 
     def extract_optional_list(self, key: str, t: type[T]) -> list[T]:
@@ -834,17 +838,19 @@ class YamlParser:
             if isinstance(value, list):
                 if not all(isinstance(v, t) for v in value):
                     warn(
-                        f"some values for key '{key}' in {self.source} do not have type {t.__name__}. SKIPPED."
+                        f"some values for key `{self._key_path(key)}` in {self.source} do not have type {t.__name__}. SKIPPED."
                     )
                     return []
                 if not value:
-                    warn(f"value for '{key}' in {self.source} should not be an empty list.")
+                    warn(
+                        f"value for `{self._key_path(key)}` in {self.source} should not be an empty list."
+                    )
                 return value
-            warn(f"incompatible value for key '{key}' in {self.source}. SKIPPED.")
+            warn(f"incompatible value for key `{self._key_path(key)}` in {self.source}. SKIPPED.")
         return []
 
     def extract_parser(self, key: str) -> "YamlParser":
-        return YamlParser(self.source, self.extract(key, {}), key)
+        return YamlParser(self.source, self.extract(key, {}), self._key_path(key))
 
 
 if has_ryaml:
