@@ -230,7 +230,7 @@ def call_api(method: str, endpoint: str, **kwargs: Any) -> "requests.Response":
     return r
 
 
-def call_api_get_json(url: str) -> Any:
+def call_api_get_json(url: str, raise_for_status: bool = False) -> Any:
     r = call_api("GET", url)
     r.raise_for_status()
     try:

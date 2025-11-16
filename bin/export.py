@@ -506,7 +506,10 @@ def export_contest(cid: Optional[str]) -> str:
         },
     )
     if r.status_code == 400:
-        fatal(r.json()["message"])
+        try:
+            fatal(r.json()["message"])
+        except Exception:
+            fatal(r.text)
     r.raise_for_status()
 
     new_cid = normalize_yaml_value(yaml.load(r.text, Loader=yaml.SafeLoader), str)
@@ -637,7 +640,10 @@ def export_problems(problems: list[Problem], cid: str) -> Any:
         },
     )
     if r.status_code == 400:
-        fatal(r.json()["message"])
+        try:
+            fatal(r.json()["message"])
+        except Exception:
+            fatal(r.text)
     r.raise_for_status()
 
     log(f"Uploaded problems.yaml for contest_id {cid}.")
