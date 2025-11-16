@@ -654,7 +654,7 @@ class TestcaseRule(Rule):
     class MetaYaml:
         def __init__(self, problem: Problem, testcase: "TestcaseRule") -> None:
             self._path = problem.tmpdir / "data" / testcase.hash / "meta_.yaml"
-            data = read_yaml(self._path) if self._path.is_file() else {}
+            data = read_yaml(self._path, suppress_errors=True) if self._path.is_file() else {}
             if not isinstance(data, dict):
                 data = {}
 

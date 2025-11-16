@@ -726,7 +726,9 @@ def require_ruamel(action: str, return_value: R) -> Callable[[Callable[P, R]], C
     return decorator
 
 
-def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> object:
+def parse_yaml(
+    data: str, path: Optional[Path] = None, *, plain: bool = False, suppress_errors: bool = False
+) -> object:
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
     if has_ryaml and not plain:
@@ -734,6 +736,8 @@ def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> o
             try:
                 ret = ryaml.load(data)
             except ruamel.yaml.constructor.DuplicateKeyError as error:
+                if suppress_errors:
+                    return None
                 if path is not None:
                     fatal(f"Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}")
                 else:
@@ -746,13 +750,15 @@ def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> o
 
             return yaml.safe_load(data)
         except Exception as e:
+            if suppress_errors:
+                return None
             eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
             fatal(f"Failed to parse {path}.")
 
 
-def read_yaml(path: Path, plain: bool = False) -> object:
+def read_yaml(path: Path, *, plain: bool = False, suppress_errors: bool = False) -> object:
     assert path.is_file(), f"File {path} does not exist"
-    return parse_yaml(path.read_text(), path=path, plain=plain)
+    return parse_yaml(path.read_text(), path=path, plain=plain, suppress_errors=suppress_errors)
 
 
 def normalize_yaml_value(value: object, t: type[object]) -> object:
