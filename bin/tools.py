@@ -24,7 +24,6 @@ import signal
 import sys
 import tempfile
 from collections import Counter
-from collections.abc import Mapping, Sequence
 from colorama import Style
 from pathlib import Path
 from typing import Any, Optional
@@ -120,32 +119,9 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
     tmpdir = Path(tempfile.gettempdir()) / ("bapctools_" + h)
     tmpdir.mkdir(parents=True, exist_ok=True)
 
-    def parse_problems_yaml(problemlist: Sequence[Mapping[str, Any]]) -> list[tuple[str, str]]:
-        labels = dict[str, str]()  # label -> shortname
-        problems = []
-        for p in problemlist:
-            shortname = p["id"]
-            if "label" not in p:
-                fatal(f"Found no label for problem {shortname} in problems.yaml.")
-            label = p["label"]
-            if label == "":
-                fatal(f"Found empty label for problem {shortname} in problems.yaml.")
-            if label in labels:
-                fatal(
-                    f"problems.yaml: label {label} found twice for problem {shortname} and {labels[label]}."
-                )
-            labels[label] = shortname
-            if Path(shortname).is_dir():
-                problems.append((shortname, label))
-            else:
-                error(f"No directory found for problem {shortname} mentioned in problems.yaml.")
-        return problems
-
     def fallback_problems() -> list[tuple[Path, str]]:
         problem_paths = list(filter(is_problem_directory, glob(Path("."), "*/")))
-        label = (
-            chr(ord("Z") - len(problem_paths) + 1) if contest_yaml().get("test_session") else "A"
-        )
+        label = chr(ord("Z") - len(problem_paths) + 1) if contest_yaml().test_session else "A"
         problems = []
         for path in problem_paths:
             problems.append((path, label))
@@ -156,41 +132,30 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
     if config.level == "problem":
         assert problem_dir
         # If the problem is mentioned in problems.yaml, use that ID.
-        problemsyaml = problems_yaml()
-        if problemsyaml:
-            problem_labels = parse_problems_yaml(problemsyaml)
-            for shortname, label in problem_labels:
-                if shortname == problem_dir.name:
-                    problems = [Problem(Path(problem_dir.name), tmpdir, label)]
-                    break
+        for p in problems_yaml():
+            if p.id == problem_dir.name:
+                problems = [Problem(Path(problem_dir.name), tmpdir, p.label)]
+                break
 
-        if len(problems) == 0:
-            found_label = None
+        if not problems:
             for path, label in fallback_problems():
                 if path.name == problem_dir.name:
-                    found_label = label
-            problems = [Problem(Path(problem_dir.name), tmpdir, found_label)]
+                    problems = [Problem(Path(problem_dir.name), tmpdir, label)]
+                    break
     else:
         assert config.level == "problemset"
         # If problems.yaml is available, use it.
-        problemsyaml = problems_yaml()
-        if problemsyaml:
-            problems = []
-            problem_labels = parse_problems_yaml(problemsyaml)
-            for shortname, label in problem_labels:
-                problems.append(Problem(Path(shortname), tmpdir, label))
+        if problems_yaml():
+            problems = [Problem(Path(p.id), tmpdir, p.label) for p in problems_yaml()]
         else:
             # Otherwise, fallback to all directories with a problem.yaml and sort by shortname.
-            problems = []
-            for path, label in fallback_problems():
-                problems.append(Problem(path, tmpdir, label))
+            problems = [Problem(path, tmpdir, label) for patj, label in fallback_problems()]
             if len(problems) == 0:
                 fatal("Did not find problem.yaml. Are you running this from a problem directory?")
 
         if config.args.action == "solutions":
-            if config.args.order or contest_yaml().get("order"):
-                order = config.args.order or contest_yaml()["order"]
-
+            order = config.args.order or contest_yaml().order
+            if order is not None:
                 labels = {p.label for p in problems}
                 counts = Counter(order)
                 for id, count in counts.items():
@@ -199,9 +164,9 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                         warn(f"Unknown {id} appears {count} time{append_s} in 'order'")
                     elif count > 1:
                         warn(f"{id} appears {count} times in 'order'")
-                for p in problems:
-                    if p.label not in counts:
-                        warn(f"{p.label} does not appear in 'order'")
+                for problem in problems:
+                    if problem.label not in counts:
+                        warn(f"{problem.label} does not appear in 'order'")
 
                 # Sort by position of id in order
                 def get_pos(id: Optional[str]) -> int:
@@ -262,10 +227,13 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                 if ask_variable_bool("Update order in contest.yaml"):
                     if has_ryaml:
                         contest_yaml_path = Path("contest.yaml")
-                        data = read_yaml(contest_yaml_path)
-                        data["order"] = "".join(p.label or p.name for p in problems)
-                        write_yaml(data, contest_yaml_path)
-                        log("Updated order")
+                        data = read_yaml(contest_yaml_path) or {}
+                        if not isinstance(data, dict):
+                            error("could not parse contest.yaml.")
+                        else:
+                            data["order"] = "".join(p.label or p.name for p in problems)
+                            write_yaml(data, contest_yaml_path)
+                            log("Updated order")
                     else:
                         error("ruamel.yaml library not found. Update the order manually.")
 

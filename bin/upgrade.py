@@ -18,7 +18,6 @@ from util import (
     ryaml_filter,
     ryaml_get_or_add,
     ryaml_replace,
-    warn,
     write_yaml,
 )
 from validate import AnswerValidator, InputValidator, OutputValidator
@@ -93,7 +92,7 @@ def args_split(args: str) -> "CommentedSeq":
 
 def upgrade_contest_yaml(contest_yaml_path: Path, bar: ProgressBar) -> None:
     yaml_data = read_yaml(contest_yaml_path)
-    if "testsession" in yaml_data:
+    if isinstance(yaml_data, CommentedMap) and "testsession" in yaml_data:
         ryaml_replace(yaml_data, "testsession", "test_session")
         write_yaml(yaml_data, contest_yaml_path)
         bar.log("renaming 'testsession' to 'test_session'")
@@ -151,7 +150,11 @@ def upgrade_data(problem_path: Path, bar: ProgressBar) -> None:
     test_case_yamls = defaultdict[Path, CommentedMap](CommentedMap)
     for f in (problem_path / "data").rglob("*.yaml"):
         if f.with_suffix(".in").exists():  # Prevent reading test_group.yaml, which has no *.in file
-            test_case_yamls[f] = read_yaml(f)
+            test_case_yaml = read_yaml(f)
+            if not isinstance(test_case_yaml, CommentedMap):
+                bar.warn(f"cannot not parse {f}. SKIPPED.")
+                continue
+            test_case_yamls[f] = test_case_yaml
 
     for f in (problem_path / "data").rglob("*.desc"):
         test_case_yaml = test_case_yamls[f.with_suffix(".yaml")]
@@ -215,18 +218,21 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
     if not generators_yaml.is_file():
         return
     yaml_data = read_yaml(generators_yaml)
-    if yaml_data is None or not isinstance(yaml_data, dict):
+    if yaml_data is None:
+        return
+    if not isinstance(yaml_data, CommentedMap):
+        bar.error("cannot not parse generators.yaml. SKIPPED.")
         return
 
     changed = False
 
     if "visualizer" in yaml_data:
-        warn(
+        bar.warn(
             "Cannot automatically upgrade 'visualizer'.\n - move visualizer to 'input_visualizer/'\n - first argument is the in_file\n - second argument is the ans_file"
         )
 
-    if "data" in yaml_data and isinstance(yaml_data["data"], dict):
-        data = cast(CommentedMap, yaml_data["data"])
+    if "data" in yaml_data and isinstance(yaml_data["data"], CommentedMap):
+        data = yaml_data["data"]
 
         rename = [
             ("invalid_inputs", "invalid_input"),
@@ -238,7 +244,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             if old_name in data:
                 if new_name in data:
                     bar.error(
-                        f"can't rename 'data.{old_name}', 'data.{new_name}' already exists in generators.yaml",
+                        f"cannot rename 'data.{old_name}', 'data.{new_name}' already exists in generators.yaml",
                         resume=True,
                     )
                     continue
@@ -281,12 +287,14 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             changed = True
 
     def apply_recursively(
-        operation: Callable[[dict[str, Any], str], bool], data: dict[str, Any], path: str = ""
+        operation: Callable[["CommentedMap", str], bool], data: "CommentedMap", path: str = ""
     ) -> bool:
         changed = operation(data, path)
         if "data" in data and data["data"]:
             children = data["data"] if isinstance(data["data"], list) else [data["data"]]
             for dictionary in children:
+                if not isinstance(dictionary, dict):
+                    continue
                 for child_name, child_data in sorted(dictionary.items()):
                     if not child_name:
                         child_name = '""'
@@ -294,7 +302,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                         changed |= apply_recursively(operation, child_data, path + "." + child_name)
         return changed
 
-    def rename_testdata_to_test_group_yaml(data: dict[str, Any], path: str) -> bool:
+    def rename_testdata_to_test_group_yaml(data: "CommentedMap", path: str) -> bool:
         old, new = "testdata.yaml", "test_group.yaml"
         if old in data:
             print_path = f" ({path[1:]})" if len(path) > 1 else ""
@@ -303,7 +311,7 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
             return True
         return False
 
-    def upgrade_generated_test_group_yaml(data: dict[str, Any], path: str) -> bool:
+    def upgrade_generated_test_group_yaml(data: "CommentedMap", path: str) -> bool:
         changed = False
         if "test_group.yaml" in data:
             test_group_yaml = cast(CommentedMap, data["test_group.yaml"])
@@ -329,11 +337,13 @@ def upgrade_generators_yaml(problem_path: Path, bar: ProgressBar) -> None:
                     changed = True
         return changed
 
-    def replace_hint_desc_in_test_cases(data: dict[str, Any], path: str) -> bool:
+    def replace_hint_desc_in_test_cases(data: "CommentedMap", path: str) -> bool:
         changed = False
         if "data" in data and data["data"]:
             children = data["data"] if isinstance(data["data"], list) else [data["data"]]
             for dictionary in children:
+                if not isinstance(dictionary, dict):
+                    continue
                 for child_name, child_data in sorted(dictionary.items()):
                     if not child_name:
                         child_name = '""'

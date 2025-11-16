@@ -5,7 +5,7 @@ import threading
 from collections.abc import Callable, Sequence
 from colorama import Fore, Style
 from pathlib import Path
-from typing import Any, Final, Literal, Optional, overload, TYPE_CHECKING, TypeVar
+from typing import Final, Literal, Optional, overload, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from program import Program
@@ -36,7 +36,6 @@ from util import (
     is_relative_to,
     is_uuid,
     log,
-    normalize_yaml_value,
     parse_yaml,
     PrintBar,
     ProgressBar,
@@ -47,84 +46,22 @@ from util import (
     verbose,
     warn,
     write_yaml,
+    YamlParser,
 )
 
 if has_ryaml:
     import ruamel.yaml
 
 
-# The parse_* functions will remove (.pop()) keys from the yaml data during parsing.
-# We will warn for any unknown keys that remain after this process.
-def check_unknown_keys(yaml_data: dict[str, Any], sub_key: Optional[str] = None) -> None:
-    for key in yaml_data:
-        assert isinstance(key, str)
-        warn(f"found unknown problem.yaml key: {key} in {f'`{sub_key}`' if sub_key else 'root'}")
-
-
-T = TypeVar("T")
-
-
-def parse_optional_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> Optional[T]:
-    if key in yaml_data:
-        value = normalize_yaml_value(yaml_data.pop(key), t)
-        if value is None or isinstance(value, t):
-            return value
-        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
-    return None
-
-
-def parse_setting(
-    yaml_data: dict[str, Any], key: str, default: T, constraint: Optional[str] = None
-) -> T:
-    value = parse_optional_setting(yaml_data, key, type(default))
-    result = default if value is None else value
-    if constraint:
-        assert isinstance(result, (float, int))
-        assert eval(f"{default} {constraint}")
-        if not eval(f"{result} {constraint}"):
-            warn(
-                f"value for '{key}' in problem.yaml should be {constraint} but is {result}. SKIPPED."
-            )
-            return default
-    return result
-
-
-def parse_optional_list_setting(yaml_data: dict[str, Any], key: str, t: type[T]) -> list[T]:
-    if key in yaml_data:
-        value = yaml_data.pop(key)
-        if value is None:
-            return []
-        if isinstance(value, t):
-            return [value]
-        if isinstance(value, list):
-            if not all(isinstance(v, t) for v in value):
-                warn(
-                    f"some values for key '{key}' in problem.yaml do not have type {t.__name__}. SKIPPED."
-                )
-                return []
-            if not value:
-                warn(f"value for '{key}' in problem.yaml should not be an empty list.")
-            return value
-        warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
-    return []
-
-
-def parse_deprecated_setting(
-    yaml_data: dict[str, Any], key: str, new: Optional[str] = None
-) -> None:
-    if key in yaml_data:
-        use = f", use '{new}' instead" if new else ""
-        warn(f"key '{key}' is deprecated{use}. SKIPPED.")
-        yaml_data.pop(key)
-
-
 class Person:
-    def __init__(self, yaml_data: str | dict[str, Any]):
+    def __init__(self, yaml_data: str | dict[object, object]):
         if isinstance(yaml_data, dict):
-            self.name: str = parse_setting(yaml_data, "name", "")
-            self.email: Optional[str] = parse_optional_setting(yaml_data, "email", str)
-            self.kattis: Optional[str] = parse_optional_setting(yaml_data, "kattis", str)
-            self.orcid: Optional[str] = parse_optional_setting(yaml_data, "orcid", str)
+            parser = YamlParser("problem.yaml", yaml_data, "credits")
+            self.name: str = parser.extract("name", "")
+            self.email: Optional[str] = parser.extract_optional("email", str)
+            self.kattis: Optional[str] = parser.extract_optional("kattis", str)
+            self.orcid: Optional[str] = parser.extract_optional("orcid", str)
+            parser.check_unknown_keys()
         else:
             match = re.match("(.*)<(.*)>", yaml_data)
             self.name = (match[1] if match else yaml_data).strip()
@@ -136,7 +73,7 @@ class Person:
 
 
 class ProblemCredits:
-    def __init__(self, yaml_data: dict[str, Any]):
+    def __init__(self, parser: YamlParser):
         self.authors: list[Person] = []
         self.contributors: list[Person] = []
         self.testers: list[Person] = []
@@ -144,43 +81,50 @@ class ProblemCredits:
         self.packagers: list[Person] = []
         self.acknowledgements: list[Person] = []
 
-        parse_deprecated_setting(yaml_data, "author", "credits.authors")
-        if "credits" not in yaml_data:
+        parser.extract_deprecated("author", "credits.authors")
+        if "credits" not in parser.yaml:
             return
-        if isinstance(yaml_data["credits"], str):
-            self.authors = [Person(parse_setting(yaml_data, "credits", ""))]
+        if isinstance(parser.yaml["credits"], str):
+            self.authors = [Person(parser.extract("credits", ""))]
             return
 
-        credits = parse_setting(yaml_data, "credits", dict[str, Any]())
-        self.authors = self.parse_optional_list_persons(credits, "authors")
-        self.contributors = self.parse_optional_list_persons(credits, "contributors")
-        self.translators = parse_setting(credits, "translators", {})
-        for lang in list(self.translators.keys()):
-            self.translators[lang] = self.parse_optional_list_persons(self.translators, lang)
-        self.testers = self.parse_optional_list_persons(credits, "testers")
-        self.packagers = self.parse_optional_list_persons(credits, "packagers")
-        self.acknowledgements = self.parse_optional_list_persons(credits, "acknowledgements")
-
-        check_unknown_keys(credits, "credits")
-
-    # Based on parse_optional_list_setting: the type checker does not like type unions like `str | dict`.
-    @staticmethod
-    def parse_optional_list_persons(yaml_data: dict[str, Any], key: str) -> list[Person]:
-        if key in yaml_data:
-            value = yaml_data.pop(key)
-            if isinstance(value, str | dict):
-                return [Person(value)]
-            if isinstance(value, list):
-                if not all(isinstance(v, str | dict) for v in value):
-                    warn(
-                        f"some values for key '{key}' in problem.yaml do not have type str or dict. SKIPPED."
-                    )
+        def extract_optional_persons(source: YamlParser, key: str) -> list[Person]:
+            if key in source.yaml:
+                value = source.yaml.pop(key)
+                if value is None:
                     return []
-                if not value:
-                    warn(f"value for '{key}' in problem.yaml should not be an empty list.")
-                return list(map(Person, value))
-            warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
-        return []
+                if isinstance(value, (str, dict)):
+                    return [Person(value)]
+                if isinstance(value, list):
+                    if not all(isinstance(v, (str, dict)) for v in value):
+                        warn(
+                            f"some values for key '{key}' in problem.yaml have invalid type. SKIPPED."
+                        )
+                        return []
+                    if not value:
+                        warn(f"value for '{key}' in problem.yaml should not be an empty list.")
+                    return list(map(Person, value))
+                warn(f"incompatible value for key '{key}' in problem.yaml. SKIPPED.")
+            return []
+
+        credits = parser.extract_parser("credits")
+
+        self.authors = extract_optional_persons(credits, "authors")
+        self.contributors = extract_optional_persons(credits, "contributors")
+
+        translators = credits.extract_parser("translators")
+        self.translators = {}
+        for lang in list(translators.yaml.keys()):
+            if not isinstance(lang, str):
+                warn(f"invalid language '{lang}' in problem.yaml. SKIPPED.")
+            else:
+                self.translators[lang] = extract_optional_persons(translators, lang)
+
+        self.testers = extract_optional_persons(credits, "testers")
+        self.packagers = extract_optional_persons(credits, "packagers")
+        self.acknowledgements = extract_optional_persons(credits, "acknowledgements")
+
+        credits.check_unknown_keys()
 
 
 class ProblemSource:
@@ -193,38 +137,33 @@ class ProblemSource:
 
 
 class ProblemSources(list[ProblemSource]):
-    def __init__(
-        self,
-        yaml_data: dict[str, Any],
-    ):
-        def source_from_dict(source_dict: dict[str, str]) -> ProblemSource:
-            name = parse_setting(source_dict, "name", "")
-            if not name:
+    def __init__(self, parser: YamlParser):
+        def parse_source(source: YamlParser) -> ProblemSource:
+            name = source.extract_optional("name", str)
+            url = source.extract_optional("url", str)
+            if name is None:
                 warn("problem.yaml: 'name' is required in source")
-            return ProblemSource(
-                name,
-                parse_optional_setting(source_dict, "url", str),
-            )
+                name = ""
+            return ProblemSource(name, url)
 
-        parse_deprecated_setting(yaml_data, "source_url", "source.url")
-        if "source" not in yaml_data:
+        parser.extract_deprecated("source_url", "source.url")
+        if "source" not in parser.yaml:
             return
-        if isinstance(yaml_data["source"], str):
-            self.append(ProblemSource(parse_setting(yaml_data, "source", "")))
+        if isinstance(parser.yaml["source"], str):
+            self.append(ProblemSource(parser.extract("source", "")))
             return
-        if isinstance(yaml_data["source"], dict):
-            source = parse_setting(yaml_data, "source", dict[str, str]())
-            self.append(source_from_dict(source))
+        if isinstance(parser.yaml["source"], dict):
+            self.append(parse_source(parser.extract_parser("source")))
             return
-        if isinstance(yaml_data["source"], list):
-            sources = parse_setting(yaml_data, "source", list[Any]())
+        if isinstance(parser.yaml["source"], list):
+            sources = parser.extract("source", list[object]())
             for i, source in enumerate(sources):
                 if isinstance(source, str):
                     self.append(ProblemSource(source))
                 elif isinstance(source, dict):
-                    self.append(source_from_dict(source))
+                    self.append(parse_source(YamlParser("problem.yaml", source, "source")))
                 else:
-                    warn(f"problem.yaml key 'source[{i}]' does not have the correct type")
+                    warn(f"problem.yaml key 'source[{i}]' does not have the correct type. SKIPPED.")
             return
         warn("problem.yaml key 'source' does not have the correct type")
 
@@ -232,61 +171,40 @@ class ProblemSources(list[ProblemSource]):
 class ProblemLimits:
     def __init__(
         self,
-        yaml_data: dict[str, Any],
+        parser: YamlParser,
         problem: "Problem",
         problem_settings: "ProblemSettings",
     ):
-        assert isinstance(yaml_data, dict)
-
         # Known keys:
         # (defaults from https://icpc.io/problem-package-format/spec/2025-09.html#limits)
-        time_multipliers = parse_setting(yaml_data, "time_multipliers", dict[str, Any]())
+        time_multipliers = parser.extract_parser("time_multipliers")
+        parser.extract_deprecated("time_multiplier", "ac_to_time_limit")
+        self.ac_to_time_limit = time_multipliers.extract("ac_to_time_limit", 2.0, ">= 1")
+        parser.extract_deprecated("time_safety_margin", "time_limit_to_tle")
+        self.time_limit_to_tle = time_multipliers.extract("time_limit_to_tle", 1.5, ">= 1")
+        time_multipliers.check_unknown_keys()
 
-        parse_deprecated_setting(yaml_data, "time_multiplier", "ac_to_time_limit")
-        self.ac_to_time_limit = parse_setting(time_multipliers, "ac_to_time_limit", 2.0, ">= 1")
-        parse_deprecated_setting(yaml_data, "time_safety_margin", "time_limit_to_tle")
-        self.time_limit_to_tle = parse_setting(time_multipliers, "time_limit_to_tle", 1.5, ">= 1")
-
-        check_unknown_keys(time_multipliers, "limits.time_multipliers")
-
-        self.time_limit_is_default: bool = "time_limit" not in yaml_data
-        self.raw_time_limit: float = parse_setting(
-            yaml_data, "time_limit", 1.0, "> 0"
-        )  # in seconds
-        self.time_resolution: float = parse_setting(yaml_data, "time_resolution", 1.0, "> 0")
-        self.memory: int = parse_setting(yaml_data, "memory", 2048, "> 0")  # in MiB
-        self.output: int = parse_setting(yaml_data, "output", 8, "> 0")  # in MiB
-        self.code: int = parse_setting(yaml_data, "code", 128, "> 0")  # in KiB
-        self.compilation_time: int = parse_setting(
-            yaml_data, "compilation_time", 60, "> 0"
-        )  # in seconds
-        self.compilation_memory: int = parse_setting(
-            yaml_data, "compilation_memory", 2048, "> 0"
-        )  # in MiB
-        self.validation_time: int = parse_setting(
-            yaml_data, "validation_time", 60, "> 0"
-        )  # in seconds
-        self.validation_memory: int = parse_setting(
-            yaml_data, "validation_memory", 2048, "> 0"
-        )  # in MiB
-        self.validation_output: int = parse_setting(
-            yaml_data, "validation_output", 8, "> 0"
-        )  # in MiB
+        self.time_limit_is_default: bool = "time_limit" not in parser.yaml
+        self.raw_time_limit: float = parser.extract("time_limit", 1.0, "> 0")  # in seconds
+        self.time_resolution: float = parser.extract("time_resolution", 1.0, "> 0")
+        self.memory: int = parser.extract("memory", 2048, "> 0")  # in MiB
+        self.output: int = parser.extract("output", 8, "> 0")  # in MiB
+        self.code: int = parser.extract("code", 128, "> 0")  # in KiB
+        self.compilation_time: int = parser.extract("compilation_time", 60, "> 0")  # in seconds
+        self.compilation_memory: int = parser.extract("compilation_memory", 2048, "> 0")  # in MiB
+        self.validation_time: int = parser.extract("validation_time", 60, "> 0")  # in seconds
+        self.validation_memory: int = parser.extract("validation_memory", 2048, "> 0")  # in MiB
+        self.validation_output: int = parser.extract("validation_output", 8, "> 0")  # in MiB
         if problem_settings.multi_pass:
-            self.validation_passes: Optional[int] = parse_setting(
-                yaml_data, "validation_passes", 2, ">= 2"
-            )
-        elif "validation_passes" in yaml_data:
-            yaml_data.pop("validation_passes")
+            self.validation_passes: Optional[int] = parser.extract("validation_passes", 2, ">= 2")
+        elif "validation_passes" in parser.yaml:
+            parser.yaml.pop("validation_passes")
             warn("limit: validation_passes is only used for multi-pass problems. SKIPPED.")
+            self.validation_passes = None
 
         # BAPCtools extensions:
-        self.generator_time: int = parse_setting(
-            yaml_data, "generator_time", 60, "> 0"
-        )  # in seconds
-        self.visualizer_time: int = parse_setting(
-            yaml_data, "visualizer_time", 60, "> 0"
-        )  # in seconds
+        self.generator_time: int = parser.extract("generator_time", 60, "> 0")  # in seconds
+        self.visualizer_time: int = parser.extract("visualizer_time", 60, "> 0")  # in seconds
 
         # warn for deprecated timelimit files
         if (problem.path / ".timelimit").is_file():
@@ -296,7 +214,7 @@ class ProblemLimits:
                 "domjudge-problem.ini is DEPRECATED. Use limits.time_limit if you want to set a timelimit."
             )
 
-        check_unknown_keys(yaml_data, "limits")
+        parser.check_unknown_keys()
 
         # adjust actual time_limit based on local_time_multiplier
         self.time_limit: float = self.raw_time_limit
@@ -317,35 +235,34 @@ class ProblemLimits:
 class ProblemSettings:
     def __init__(
         self,
-        yaml_data: dict[str, Any],
+        yaml_data: dict[object, object],
         problem: "Problem",
     ):
-        assert isinstance(yaml_data, dict)
+        parser = YamlParser("problem.yaml", yaml_data)
 
-        if "name" in yaml_data and isinstance(yaml_data["name"], str):
-            yaml_data["name"] = {"en": yaml_data["name"]}
+        if isinstance(parser.yaml.get("name", None), str):
+            parser.yaml["name"] = {"en": parser.yaml["name"]}
 
         # Known keys:
         # (defaults from https://icpc.io/problem-package-format/spec/2025-09.html#problem-metadata)
-        self.problem_format_version: str = parse_setting(
-            yaml_data, "problem_format_version", "legacy-icpc"
-        )
+        self.problem_format_version: str = parser.extract("problem_format_version", "legacy-icpc")
 
         if self.problem_format_version.startswith("legacy"):
             fatal("legacy is no longer supported, try running 'bt upgrade'")
         elif self.problem_format_version != config.SPEC_VERSION:
             fatal(f"unrecognized problem_format_version: {self.problem_format_version}")
 
-        parse_deprecated_setting(yaml_data, "validation", "type")
-        mode = set(
-            ["pass-fail"]
-            if "type" not in yaml_data
-            else parse_setting(yaml_data, "type", "pass-fail").split()
-            if isinstance(yaml_data["type"], str)
-            else parse_optional_list_setting(yaml_data, "type", str)
-            if isinstance(yaml_data["type"], list)
-            else [fatal("problem.yaml: 'type' must be a string or a sequence")]
-        )
+        parser.extract_deprecated("validation", "type")
+        if "type" not in parser.yaml:
+            mode = {"pass-fail"}
+        elif isinstance(parser.yaml["type"], str):
+            mode = set(parser.extract("type", "pass-fail").split())
+        elif isinstance(yaml_data["type"], list):
+            mode = set(parser.extract_optional_list("type", str))
+            if not mode:
+                mode = {"pass-fail"}
+        else:
+            fatal("problem.yaml: 'type' must be a string or a sequence")
         unrecognized_type = mode - {"pass-fail", "interactive", "multi-pass"}
         if unrecognized_type:
             fatal(
@@ -361,37 +278,41 @@ class ProblemSettings:
             or (problem.path / validate.OutputValidator.source_dir).is_dir()
         )
 
-        self.name: dict[str, str] = parse_setting(yaml_data, "name", {"en": ""})
-        for lang in list(self.name.keys()):
-            self.name[lang] = parse_setting(self.name, lang, "")
-        self.uuid: str = parse_setting(yaml_data, "uuid", "")
-        self.version: str = parse_setting(yaml_data, "version", "")
-        self.credits: ProblemCredits = ProblemCredits(yaml_data)
-        self.source: ProblemSources = ProblemSources(yaml_data)
-        self.license: str = parse_setting(yaml_data, "license", "unknown")
-        self.rights_owner: Optional[str] = parse_optional_setting(yaml_data, "rights_owner", str)
-        # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
-        self.embargo_until: Optional[datetime.date] = parse_optional_setting(
-            yaml_data,
-            "embargo_until",
-            # Note that datetime.datetime is also valid, as subclass of datetime.date
-            datetime.date,
-        )
-        self.limits = ProblemLimits(parse_setting(yaml_data, "limits", {}), problem, self)
+        names: dict[object, object] = parser.extract("name", {"en": ""})
+        self.name: dict[str, str] = {}
+        for lang, name in names.items():
+            if not isinstance(lang, str):
+                warn(f"invalid language '{lang}' in problem.yaml. SKIPPED.")
+            elif not isinstance(name, str):
+                warn(f"incompatible value for language '{lang}' in problem.yaml. SKIPPED.")
+            else:
+                self.name[lang] = name
 
-        parse_deprecated_setting(
-            yaml_data,
+        self.uuid: str = parser.extract("uuid", "")
+        self.version: str = parser.extract("version", "")
+        self.credits: ProblemCredits = ProblemCredits(parser)
+        self.source: ProblemSources = ProblemSources(parser)
+        self.license: str = parser.extract("license", "unknown")
+        self.rights_owner: Optional[str] = parser.extract_optional("rights_owner", str)
+        # Not implemented in BAPCtools. Should be a date, but we don't do anything with this anyway.
+        # Note that datetime.datetime is also valid, as subclass of datetime.date
+        self.embargo_until: Optional[datetime.date] = parser.extract_optional(
+            "embargo_until", datetime.date
+        )
+        self.limits = ProblemLimits(parser.extract_parser("limits"), problem, self)
+
+        parser.extract_deprecated(
             "validator_flags",
             f"{validate.OutputValidator.args_key}' in 'test_group.yaml",
         )
 
-        self.keywords: list[str] = parse_optional_list_setting(yaml_data, "keywords", str)
+        self.keywords: list[str] = parser.extract_optional_list("keywords", str)
         # Not implemented in BAPCtools. We always test all languages in languages.yaml.
-        self.languages: list[str] = parse_optional_list_setting(yaml_data, "languages", str)
+        self.languages: list[str] = parser.extract_optional_list("languages", str)
         # Not implemented in BAPCtools
-        self.allow_file_writing: bool = parse_setting(yaml_data, "allow_file_writing", False)
+        self.allow_file_writing: bool = parser.extract("allow_file_writing", False)
 
-        constants: dict[str, Any] = parse_setting(yaml_data, "constants", {})
+        constants: dict[object, object] = parser.extract("constants", {})
         self.constants: dict[str, str] = {}
         for key, value in constants.items():
             if not isinstance(key, str) or not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(key):
@@ -402,16 +323,16 @@ class ProblemSettings:
                 self.constants[key] = str(value)
 
         # BAPCtools extensions:
-        self.verified: Optional[str] = parse_optional_setting(yaml_data, "verified", str)
-        self.comment: Optional[str] = parse_optional_setting(yaml_data, "comment", str)
-        self.ans_is_output: bool = parse_setting(
-            yaml_data, "ans_is_output", not self.interactive and not self.multi_pass
+        self.verified: Optional[str] = parser.extract_optional("verified", str)
+        self.comment: Optional[str] = parser.extract_optional("comment", str)
+        self.ans_is_output: bool = parser.extract(
+            "ans_is_output", not self.interactive and not self.multi_pass
         )
         if (self.interactive or self.multi_pass) and self.ans_is_output:
             warn(f"ans_is_output: True makes no sense for {self.type_name()} problem. IGNORED.")
             self.ans_is_output = False
 
-        check_unknown_keys(yaml_data)
+        parser.check_unknown_keys()
 
         # checks
         if not is_uuid(self.uuid):
@@ -472,7 +393,7 @@ class Problem:
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
         # TODO #102: Add type for test_group.yaml (typed Namespace?)
-        self._test_case_yamls = dict[Path, dict[str, Any]]()
+        self._test_case_yamls = dict[Path, dict[object, object]]()
         self._test_group_lock = threading.Lock()
 
         # The label for the problem: A, B, A1, A2, X, ...
@@ -587,14 +508,17 @@ class Problem:
                     p.settings.constants,
                     pattern=config.CONSTANT_SUBSTITUTE_REGEX,
                 )
-                p._test_case_yamls[f] = flags = parse_yaml(raw, path=f, plain=True)
+                flags = parse_yaml(raw, path=f, plain=True)
+                if not isinstance(flags, dict):
+                    bar.error(f"could not parse {f}. SKIPPED.")
+                    continue
+                p._test_case_yamls[f] = flags
 
-                parse_deprecated_setting(
-                    flags, "output_validator_flags", validate.OutputValidator.args_key
+                parser = YamlParser(str(f), flags)
+                parser.extract_deprecated(
+                    "output_validator_flags", validate.OutputValidator.args_key
                 )
-                parse_deprecated_setting(
-                    flags, "input_validator_flags", validate.InputValidator.args_key
-                )
+                parser.extract_deprecated("input_validator_flags", validate.InputValidator.args_key)
 
                 # Verify test_group.yaml
                 for k in flags:
@@ -1722,9 +1646,12 @@ class Problem:
                 problem_yaml = read_yaml(yaml_path)
                 if problem_yaml is None:
                     problem_yaml = ruamel.yaml.comments.CommentedMap()
-                limits = ryaml_get_or_add(problem_yaml, "limits")
-                limits["time_limit"] = problem.limits.time_limit
-                write_yaml(problem_yaml, problem.path / "problem.yaml")
+                if not isinstance(problem_yaml, ruamel.yaml.comments.CommentedMap):
+                    warn("could not parse problem.yaml")
+                else:
+                    limits = ryaml_get_or_add(problem_yaml, "limits")
+                    limits["time_limit"] = problem.limits.time_limit
+                    write_yaml(problem_yaml, problem.path / "problem.yaml")
 
         submission, testcase, duration = run_all(
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min

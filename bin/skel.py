@@ -132,9 +132,10 @@ def new_problem() -> None:
     if "interactive" in problem_type or "multi-pass" in problem_type:
         custom_output = True
 
-    # Read settings from the contest-level yaml file.
+    # Convert settings from the contest-level yaml file to strings so they can be used to substitute.
+    contest_data = {k: str(v) for k, v in contest.contest_yaml().dict().items()}
     variables = {
-        **contest.contest_yaml(),
+        **contest_data,
         "problemname": "\n".join(f"  {lang}: {name}" for lang, name in problemname.items()),
         "dirname": dirname,
         "author": author,
@@ -181,9 +182,10 @@ def new_problem() -> None:
     if problems_yaml.is_file():
         if has_ryaml:
             data = read_yaml(problems_yaml) or []
+            assert isinstance(data, list)
             prev_label = data[-1]["label"] if data else None
             next_label = (
-                ("X" if contest.contest_yaml().get("test_session") else "A")
+                ("X" if contest.contest_yaml().test_session else "A")
                 if prev_label is None
                 else inc_label(prev_label)
             )
@@ -243,17 +245,23 @@ def rename_problem(problem: Problem) -> None:
 
     problem_yaml = Path(dirname) / "problem.yaml"
     data = read_yaml(problem_yaml)
+    if not isinstance(data, dict):
+        error("could not parse problem.yaml.")
+        return
     data["name"] = newname
     write_yaml(data, problem_yaml)
 
     problems_yaml = Path("problems.yaml")
     if problems_yaml.is_file():
         data = read_yaml(problems_yaml) or []
-        prob = next((p for p in data if p["id"] == problem.name), None)
-        if prob is not None:
-            prob["id"] = dirname
-            prob["name"] = newname
-            write_yaml(data, problems_yaml)
+        if not isinstance(data, list) or not all(isinstance(p, dict) for p in data):
+            error("could not parse problems.yaml. Must be a list of problems.")
+        else:
+            prob = next((p for p in data if p["id"] == problem.name), None)
+            if prob is not None:
+                prob["id"] = dirname
+                prob["name"] = newname
+                write_yaml(data, problems_yaml)
 
 
 def copy_skel_dir(problems: list[Problem]) -> None:

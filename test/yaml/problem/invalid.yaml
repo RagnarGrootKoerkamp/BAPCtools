@@ -22,7 +22,7 @@ yaml:
   limits:
     time_multipliers:
       mumbo: jumbo
-warn: "found unknown problem.yaml key: mumbo in `limits.time_multipliers`"
+warn: "found unknown problem.yaml key: mumbo in `time_multipliers`"
 
 ---
 # UUID
@@ -49,7 +49,7 @@ yaml:
   problem_format_version: 2025-09
   name:
     en: 42
-warn: incompatible value for key 'en' in problem.yaml. SKIPPED.
+warn: incompatible value for language 'en' in problem.yaml. SKIPPED.
 
 ---
 # Validation/type

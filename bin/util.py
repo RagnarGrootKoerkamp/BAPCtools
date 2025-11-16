@@ -726,7 +726,9 @@ def require_ruamel(action: str, return_value: R) -> Callable[[Callable[P, R]], C
     return decorator
 
 
-def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> Any:
+def parse_yaml(
+    data: str, path: Optional[Path] = None, *, plain: bool = False, suppress_errors: bool = False
+) -> object:
     # First try parsing with ruamel.yaml.
     # If not found, use the normal yaml lib instead.
     if has_ryaml and not plain:
@@ -734,6 +736,8 @@ def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> A
             try:
                 ret = ryaml.load(data)
             except ruamel.yaml.constructor.DuplicateKeyError as error:
+                if suppress_errors:
+                    return None
                 if path is not None:
                     fatal(f"Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}")
                 else:
@@ -746,35 +750,101 @@ def parse_yaml(data: str, path: Optional[Path] = None, plain: bool = False) -> A
 
             return yaml.safe_load(data)
         except Exception as e:
+            if suppress_errors:
+                return None
             eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
             fatal(f"Failed to parse {path}.")
 
 
-def read_yaml(path: Path, plain: bool = False) -> Any:
+def read_yaml(path: Path, *, plain: bool = False, suppress_errors: bool = False) -> object:
     assert path.is_file(), f"File {path} does not exist"
-    return parse_yaml(path.read_text(), path=path, plain=plain)
+    return parse_yaml(path.read_text(), path=path, plain=plain, suppress_errors=suppress_errors)
 
 
-# Wrapper around read_yaml that returns an empty dictionary by default.
-def read_yaml_settings(path: Path) -> Any:
-    settings = {}
-    if path.is_file():
-        config = read_yaml(path)
-        if config is None:
-            return None
-        if isinstance(config, list):
-            return config
-        for key, value in config.items():
-            settings[key] = "" if value is None else value
-    return settings
-
-
-def normalize_yaml_value(value: Any, t: type[Any]) -> Any:
+def normalize_yaml_value(value: object, t: type[object]) -> object:
     if isinstance(value, str) and t is Path:
         value = Path(value)
     if isinstance(value, int) and t is float:
         value = float(value)
     return value
+
+
+class YamlParser:
+    T = TypeVar("T")
+
+    def __init__(self, source: str, yaml: dict[object, object], parent: Optional[str] = None):
+        assert isinstance(yaml, dict)
+        self.errors = 0
+        self.source = source
+        self.yaml = yaml
+        self.parent = "root" if parent is None else f"`{parent}`"
+
+    def check_unknown_keys(self) -> None:
+        for key in self.yaml:
+            if not isinstance(key, str):
+                warn(f"invalid {self.source} key: {key} in {self.parent}")
+            else:
+                warn(f"found unknown {self.source} key: {key} in {self.parent}")
+
+    def extract_optional(self, key: str, t: type[T]) -> Optional[T]:
+        if key in self.yaml:
+            value = normalize_yaml_value(self.yaml.pop(key), t)
+            if value is None or isinstance(value, t):
+                return value
+            warn(f"incompatible value for key '{key}' in {self.source}. SKIPPED.")
+        return None
+
+    def extract(self, key: str, default: T, constraint: Optional[str] = None) -> T:
+        value = self.extract_optional(key, type(default))
+        result = default if value is None else value
+        if constraint:
+            assert isinstance(result, (float, int))
+            assert eval(f"{default} {constraint}")
+            if not eval(f"{result} {constraint}"):
+                warn(
+                    f"value for '{key}' in {self.source} should be {constraint} but is {result}. SKIPPED."
+                )
+                return default
+        return result
+
+    def extract_and_error(self, key: str, t: type[T]) -> T:
+        if key in self.yaml:
+            value = normalize_yaml_value(self.yaml.pop(key), t)
+            if isinstance(value, t):
+                return value
+            error(f"incompatible value for key '{key}' in {self.source}.")
+        else:
+            error(f"missing key '{key}' in {self.source}.")
+        self.errors += 1
+        return t()
+
+    def extract_deprecated(self, key: str, new: Optional[str] = None) -> None:
+        if key in self.yaml:
+            use = f", use '{new}' instead" if new else ""
+            warn(f"key '{key}' is deprecated{use}. SKIPPED.")
+            self.yaml.pop(key)
+
+    def extract_optional_list(self, key: str, t: type[T]) -> list[T]:
+        if key in self.yaml:
+            value = self.yaml.pop(key)
+            if value is None:
+                return []
+            if isinstance(value, t):
+                return [value]
+            if isinstance(value, list):
+                if not all(isinstance(v, t) for v in value):
+                    warn(
+                        f"some values for key '{key}' in {self.source} do not have type {t.__name__}. SKIPPED."
+                    )
+                    return []
+                if not value:
+                    warn(f"value for '{key}' in {self.source} should not be an empty list.")
+                return value
+            warn(f"incompatible value for key '{key}' in {self.source}. SKIPPED.")
+        return []
+
+    def extract_parser(self, key: str) -> "YamlParser":
+        return YamlParser(self.source, self.extract(key, {}), key)
 
 
 if has_ryaml:
@@ -799,7 +869,7 @@ if has_ryaml:
         return cast(ruamel.yaml.comments.CommentedMap | U, value)
 
     # This tries to preserve the correct comments.
-    def ryaml_filter(data: Any, remove: str) -> Any:
+    def ryaml_filter(data: ruamel.yaml.comments.CommentedMap, remove: str) -> object:
         assert isinstance(data, ruamel.yaml.comments.CommentedMap)
         remove_index = list(data.keys()).index(remove)
         if remove_index == 0:
@@ -828,7 +898,12 @@ if has_ryaml:
 
     # Insert a new key before an old key, then remove the old key.
     # If new_value is not given, the default is to simply rename the old key to the new key.
-    def ryaml_replace(data: Any, old_key: str, new_key: str, new_value: Any = None) -> None:
+    def ryaml_replace(
+        data: ruamel.yaml.comments.CommentedMap,
+        old_key: str,
+        new_key: str,
+        new_value: object = None,
+    ) -> None:
         assert isinstance(data, ruamel.yaml.comments.CommentedMap)
         if new_value is None:
             new_value = data[old_key]
@@ -839,10 +914,10 @@ if has_ryaml:
 
 elif not TYPE_CHECKING:
 
-    def ryaml_get_or_add(*args: Any, **kwargs: Any) -> Any:
+    def ryaml_get_or_add(*args: Any, **kwargs: Any) -> object:
         assert False, "missing ruamel.yaml"
 
-    def ryaml_filter(*args: Any, **kwargs: Any) -> Any:
+    def ryaml_filter(*args: Any, **kwargs: Any) -> object:
         assert False, "missing ruamel.yaml"
 
     def ryaml_replace(*args: Any, **kwargs: Any) -> None:
@@ -855,14 +930,14 @@ write_yaml_lock = threading.Lock()
 
 # The @overload definitions are purely here for static typing reasons.
 @overload
-def write_yaml(data: Any, path: None = None, allow_yamllib: bool = False) -> str: ...
+def write_yaml(data: object, path: None = None, allow_yamllib: bool = False) -> str: ...
 @overload
-def write_yaml(data: Any, path: Path, allow_yamllib: bool = False) -> None: ...
+def write_yaml(data: object, path: Path, allow_yamllib: bool = False) -> None: ...
 
 
 # Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
 def write_yaml(
-    data: Any, path: Optional[Path] = None, allow_yamllib: bool = False
+    data: object, path: Optional[Path] = None, allow_yamllib: bool = False
 ) -> Optional[str]:
     if not has_ryaml:
         if not allow_yamllib:
@@ -1073,7 +1148,7 @@ def has_substitute(
 
 def substitute(
     data: str,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
     bar: BAR_TYPE = PrintBar(),
@@ -1096,7 +1171,7 @@ def substitute(
 def copy_and_substitute(
     inpath: Path,
     outpath: Path,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
     bar: BAR_TYPE = PrintBar(),
@@ -1115,7 +1190,7 @@ def copy_and_substitute(
 
 def substitute_file_variables(
     path: Path,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
     bar: BAR_TYPE = PrintBar(),
@@ -1125,7 +1200,7 @@ def substitute_file_variables(
 
 def substitute_dir_variables(
     dirname: Path,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     *,
     pattern: re.Pattern[str] = config.BAPCTOOLS_SUBSTITUTE_REGEX,
     bar: BAR_TYPE = PrintBar(),
@@ -1140,7 +1215,7 @@ def substitute_dir_variables(
 def copytree_and_substitute(
     src: Path,
     dst: Path,
-    variables: Optional[Mapping[str, Optional[str]]],
+    variables: Optional[Mapping[str, Optional[object]]],
     exist_ok: bool = True,
     *,
     preserve_symlinks: bool = True,
