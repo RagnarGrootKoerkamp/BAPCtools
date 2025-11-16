@@ -772,19 +772,20 @@ def normalize_yaml_value(value: object, t: type[object]) -> object:
 class YamlParser:
     T = TypeVar("T")
 
-    def __init__(self, source: str, yaml: dict[object, object], parent: Optional[str] = None):
+    def __init__(self, source: str, yaml: dict[object, object], parent_path: Optional[str] = None):
         assert isinstance(yaml, dict)
         self.errors = 0
         self.source = source
         self.yaml = yaml
-        self.parent = "root" if parent is None else f"`{parent}`"
+        self.parent_path = parent_path
+        self.parent_str = "root" if parent_path is None else f"`{parent_path}`"
 
     def check_unknown_keys(self) -> None:
         for key in self.yaml:
             if not isinstance(key, str):
-                warn(f"invalid {self.source} key: {key} in {self.parent}")
+                warn(f"invalid {self.source} key: {key} in {self.parent_str}")
             else:
-                warn(f"found unknown {self.source} key: {key} in {self.parent}")
+                warn(f"found unknown {self.source} key: {key} in {self.parent_str}")
 
     def extract_optional(self, key: str, t: type[T]) -> Optional[T]:
         if key in self.yaml:
@@ -844,7 +845,11 @@ class YamlParser:
         return []
 
     def extract_parser(self, key: str) -> "YamlParser":
-        return YamlParser(self.source, self.extract(key, {}), key)
+        return YamlParser(
+            self.source,
+            self.extract(key, {}),
+            f"{self.parent_path}.{key}" if self.parent_path else key,
+        )
 
 
 if has_ryaml:
