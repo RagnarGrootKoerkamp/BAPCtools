@@ -226,7 +226,7 @@ class ProgressBar:
 
         assert not (items and (max_len or count))
         assert items is not None or max_len
-        if items is not None:
+        if items is not None and max_len is None:
             max_len = max((ProgressBar.item_len(x) for x in items), default=0)
         assert max_len is not None
         self.prefix: str = prefix  # The prefix to always print
@@ -575,7 +575,11 @@ class PrintBar:
         item: Optional[ITEM_TYPE] = None,
     ) -> None:
         self.prefix = str(prefix) if prefix else None
-        self.item_width = max_len + 1 if max_len is not None else None
+        self.item_width = None
+        if item is not None:
+            self.item_width = ProgressBar.item_len(item) + 1
+        if max_len is not None:
+            self.item_width = max_len + 1
         self.item = item
 
     def start(self, item: Optional[ITEM_TYPE] = None) -> "PrintBar":
@@ -742,6 +746,11 @@ def parse_yaml(
                     fatal(f"Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}")
                 else:
                     fatal(f"Duplicate key in yaml object!\n{str(error)}")
+            except Exception as e:
+                if suppress_errors:
+                    return None
+                eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
+                fatal(f"Failed to parse {path}.")
         return ret
 
     else:

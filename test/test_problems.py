@@ -55,6 +55,9 @@ def setup_alternativeencryption_problem(request):
 
 @pytest.mark.usefixtures("setup_alternativeencryption_problem")
 class TestAlternativeencryptionProblem:
+    def test_generate(self):
+        tools.test(["generate"])
+
     def test_check_testing_tool(self):
         tools.test(["check_testing_tool"])
 
