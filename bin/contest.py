@@ -128,12 +128,13 @@ def contest_yaml() -> ContestYaml:
     if _contest_yaml is not None:
         return _contest_yaml
 
-    raw_yaml = None
     contest_yaml_path = Path("contest.yaml")
     if contest_yaml_path.is_file():
         raw_yaml = read_yaml(contest_yaml_path)
         if not isinstance(raw_yaml, dict):
             fatal("could not parse contest.yaml, must be a dict.")
+    else:
+        raw_yaml = None
 
     _contest_yaml = ContestYaml(raw_yaml)
     return _contest_yaml
