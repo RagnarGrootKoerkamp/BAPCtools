@@ -332,19 +332,17 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = (
     "retries",
     *UNIQUE_TESTCASE_KEYS,
 )
-RESERVED_TESTCASE_KEYS: Final[Sequence[str]] = ("data", "test_group.yaml", "include")
+UNIQUE_DIRECTORY_KEYS: Final[Sequence[str]] = ("data", "test_group.yaml", "include")
 KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
     "type",
-    "data",
-    "test_group.yaml",
-    "include",
     "solution",
     "random_salt",
     "retries",
+    *UNIQUE_DIRECTORY_KEYS,
 )
 RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ("command",)
-KNOWN_ROOT_KEYS: Final[Sequence[str]] = ("generators", "parallel", "version")
-DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ("gitignore_generated", "visualizer")
+KNOWN_ROOT_KEYS: Final[Sequence[str]] = ("generators", "version")
+DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ("gitignore_generated", "parallel", "visualizer")
 
 
 # Holds all inheritable configuration options. Currently:
@@ -638,7 +636,7 @@ class TestcaseRule(Rule):
 
             # Warn/Error for unknown keys.
             for any_key in yaml:
-                if any_key in RESERVED_TESTCASE_KEYS:
+                if any_key in UNIQUE_DIRECTORY_KEYS:
                     raise ParseException(f"Testcase must not contain reserved key {any_key}.")
                 if any_key not in KNOWN_TESTCASE_KEYS:
                     if config.args.action == "generate":
