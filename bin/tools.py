@@ -5,7 +5,10 @@ import sys
 from pathlib import Path
 
 if __name__ == "__main__":
-    sys.path.append(str(Path(__file__).parent.parent.resolve()))
+    # Add repository root to python path so that bapctools is importable. Notably, we need to
+    # resolve __file__ as it would otherwise refer to the location of the symlink used to invoke
+    # this script.
+    sys.path.append(str(Path(__file__).resolve().parents[1]))
 
     from bapctools.cli import main
 
