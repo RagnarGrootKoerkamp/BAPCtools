@@ -84,6 +84,7 @@ UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = (
     "generate",
     "retries",
     "count",
+    "match",
     *(e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS),
 )
 
@@ -327,13 +328,9 @@ to use a specific solution."""
 
 KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = (
     "type",
-    "generate",
-    "copy",
     "solution",
     "random_salt",
-    "retries",
-    "count",
-    *(e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS),
+    *UNIQUE_TESTCASE_KEYS,
 )
 RESERVED_TESTCASE_KEYS: Final[Sequence[str]] = ("data", "test_group.yaml", "include")
 KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
@@ -469,7 +466,9 @@ class TestcaseRule(Rule):
         #    This variable already includes the .in extension, so `.with_suffix()` works nicely.
         self.copy = None
         # 3. Hardcoded cases where the source is in the yaml file itself.
-        self.hardcoded = {}
+        self.hardcoded = dict[str, str]()
+        # list of patterns used to check the generated testcase.in
+        self.patterns = list[re.Pattern[str]]()
 
         # Hash of testcase for caching.
         self.hash: str
@@ -626,6 +625,20 @@ class TestcaseRule(Rule):
                 for ext, value in self.hardcoded.items():
                     hashes[ext] = hash_string(value)
 
+                if "match" in yaml:
+                    match_entries = yaml["match"]
+                    assert_type("`match`", match_entries, (list, str))
+                    if isinstance(match_entries, str):
+                        match_entries = [match_entries]
+                    assert isinstance(match_entries, list)
+
+                    for i, match_entry in enumerate(match_entries):
+                        assert_type(f"`match[{i}]`", match_entry, str)
+                        try:
+                            self.patterns.append(re.compile(match_entry, re.MULTILINE | re.DOTALL))
+                        except re.error:
+                            raise ParseException(f"could not parse regex `match[{i}]`.")
+
             # Warn/Error for unknown keys.
             for any_key in yaml:
                 if any_key in RESERVED_TESTCASE_KEYS:
@@ -673,6 +686,7 @@ class TestcaseRule(Rule):
             self.rule_hashes: dict[object, object] = get("rule_hashes", {})
             self.generated_extensions: list[object] = get("generated_extensions", [])
             self.input_validator_hashes: dict[object, object] = get("input_validator_hashes", {})
+            self.matches: dict[object, object] = get("matches", {})
             self.solution_hash: dict[object, object] = get("solution_hash", {})
             self.interactor_hash: dict[object, object] = get("interactor_hash", {})
             self.ans_out_validator_hashes: dict[object, object] = get(
@@ -988,6 +1002,31 @@ class TestcaseRule(Rule):
             assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
+        def check_match(testcase: Testcase, bar: ProgressBar) -> None:
+            nonlocal meta_yaml
+
+            def get_pattern_str(pattern: re.Pattern[str]) -> str:
+                return pattern.pattern.encode("unicode_escape").decode()
+
+            if all(meta_yaml.matches.get(get_pattern_str(p)) for p in t.patterns):
+                return
+
+            updated = False
+            text = testcase.in_path.read_text()
+            for pattern in t.patterns:
+                if meta_yaml.matches.get(pattern.pattern):
+                    continue
+                match = pattern.search(text)
+                if match:
+                    match_str = f"[{match.start()}, {match.end()})"
+                    bar.debug(f"Found match for '{get_pattern_str(pattern)}'': {match_str}")
+                    meta_yaml.matches[pattern.pattern] = match_str
+                    updated = True
+                else:
+                    bar.warn(f"Found not match for '{get_pattern_str(pattern)}'")
+            if updated:
+                meta_yaml.write()
+
         def generate_from_solution(testcase: Testcase, bar: ProgressBar) -> bool:
             nonlocal meta_yaml
 
@@ -1287,6 +1326,10 @@ class TestcaseRule(Rule):
             testcase = Testcase(problem, infile, short_path=t.path / t.name)
             if not t.validate_in(problem, testcase, meta_yaml, bar):
                 return
+
+            # Step 3.1: check patterns
+            # this is not a hard error since the testcase is still valid
+            check_match(testcase, bar)
 
             # Step 4: generate .ans and .interaction if needed
             if not generate_from_solution(testcase, bar):
