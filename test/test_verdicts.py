@@ -1,4 +1,4 @@
-import verdicts
+from bapctools import verdicts
 
 
 class MockTestcase:

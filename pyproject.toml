@@ -1,10 +1,32 @@
+[project]
+name = "bapctools"
+version = "0.0.0"
+dependencies = [
+    "pyyaml~=6.0.3",
+    "colorama~=0.4.6",
+    "argcomplete~=3.6.3; platform_system != 'Windows'",
+    "python-dateutil~=2.9.0",
+    "ruamel.yaml~=0.18.16",
+    "matplotlib~=3.10.7",
+    "requests~=2.32.5",
+    "questionary~=2.1.1",
+]
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = [
+    "pytest~=9.0.1",
+]
+
+[project.scripts]
+bt = "bapctools.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [tool.ruff]
-# Line length 100
 line-length = 100
-# Assume Python 3.10
-target-version = "py310"
-# Source
-src = ["bin"]
 
 [tool.ruff.lint.isort]
 # organize imports in two blocks, non local and local
@@ -14,8 +36,5 @@ default-section = "standard-library"
 order-by-type = false
 
 [tool.pyright]
-include = ["bin"]
-exclude = ["bin/misc"]
-executionEnvironments = [
-  { root = "bin" },
-]
+include = ["bapctools"]
+exclude = ["bapctools/resources"]

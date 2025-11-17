@@ -36,7 +36,7 @@ from typing import (
 )
 from uuid import UUID
 
-import config
+from bapctools import config
 
 try:
     import ruamel.yaml
@@ -51,8 +51,8 @@ except Exception:
     has_ryaml = False
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from problem import Problem
-    from verdicts import Verdict
+    from bapctools.problem import Problem
+    from bapctools.verdicts import Verdict
 
 
 # For some reason ryaml.load doesn't work well in parallel.

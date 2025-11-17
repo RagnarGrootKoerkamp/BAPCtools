@@ -4,8 +4,7 @@ from pathlib import Path
 from typing import cast, Any
 from unittest.mock import call, MagicMock
 
-import config
-import problem
+from bapctools import config, problem
 
 RUN_DIR = Path.cwd().absolute()
 
@@ -72,7 +71,7 @@ class TestProblemYaml:
         fatal = MagicMock(name="fatal", side_effect=SystemExit(-42))
         error = MagicMock(name="error")
         warn = MagicMock(name="warn")
-        for module in ["problem", "util"]:
+        for module in ["bapctools.problem", "bapctools.util"]:
             monkeypatch.setattr(f"{module}.fatal", fatal)
             monkeypatch.setattr(f"{module}.error", error)
             monkeypatch.setattr(f"{module}.warn", warn)

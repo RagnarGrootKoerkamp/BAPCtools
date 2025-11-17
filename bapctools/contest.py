@@ -4,8 +4,8 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Optional, TYPE_CHECKING
 
-import config
-from util import (
+from bapctools import config
+from bapctools.util import (
     error,
     fatal,
     has_ryaml,

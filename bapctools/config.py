@@ -9,6 +9,8 @@ from colorama import Fore, Style
 from pathlib import Path
 from typing import Any, Final, Literal, Optional, TypeVar
 
+import bapctools
+
 # Randomly generated uuid4 for BAPCtools
 BAPC_UUID: Final[str] = "8ee7605a-d1ce-47b3-be37-15de5acd757e"
 BAPC_UUID_PREFIX: Final[int] = 8
@@ -98,14 +100,14 @@ INVALID_CASE_DIRECTORIES: Final[Sequence[str]] = (
 
 SEED_DEPENDENCY_RETRIES: Final[int] = 10
 
-# The root directory of the BAPCtools repository.
-TOOLS_ROOT: Final[Path] = Path(__file__).absolute().parent.parent
+# The directory containing all non-python resources
+RESOURCES_ROOT: Final[Path] = Path(bapctools.__file__).parent / "resources"
 
 # The directory from which BAPCtools is invoked.
 current_working_directory: Final[Path] = Path.cwd().absolute()
 
 # Add third_party/ to the $PATH for checktestdata.
-os.environ["PATH"] += os.pathsep + str(TOOLS_ROOT / "third_party")
+os.environ["PATH"] += os.pathsep + str(RESOURCES_ROOT / "third_party")
 
 # Below here is some global state that will be filled in main().
 
