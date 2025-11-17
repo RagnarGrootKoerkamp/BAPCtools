@@ -2,20 +2,20 @@
 name = "bapctools"
 version = "0.0.0"
 dependencies = [
-    "pyyaml",
-    "colorama",
-    "argcomplete; platform_system != 'Windows'",
-    "python-dateutil",
-    "ruamel.yaml",
-    "matplotlib",
-    "requests",
-    "questionary",
+    "pyyaml~=6.0.3",
+    "colorama~=0.4.6",
+    "argcomplete~=3.6.3; platform_system != 'Windows'",
+    "python-dateutil~=2.9.0",
+    "ruamel.yaml~=0.18.16",
+    "matplotlib~=3.10.7",
+    "requests~=2.32.5",
+    "questionary~=2.1.1",
 ]
 requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
+    "pytest~=9.0.1",
 ]
 
 [project.scripts]
