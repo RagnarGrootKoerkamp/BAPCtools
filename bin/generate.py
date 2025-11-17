@@ -82,7 +82,6 @@ def assert_type(
 UNIQUE_TESTCASE_KEYS: Final[Sequence[str]] = (
     "copy",
     "generate",
-    "retries",
     "count",
     "match",
     *(e[1:] for e in config.KNOWN_TEXT_DATA_EXTENSIONS),
@@ -330,6 +329,7 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = (
     "type",
     "solution",
     "random_salt",
+    "retries",
     *UNIQUE_TESTCASE_KEYS,
 )
 RESERVED_TESTCASE_KEYS: Final[Sequence[str]] = ("data", "test_group.yaml", "include")
