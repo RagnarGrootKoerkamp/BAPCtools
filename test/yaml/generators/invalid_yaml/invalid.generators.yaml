@@ -381,6 +381,26 @@ data:
        generate: my_generator {count}
        count: 101
 ---
+# match must be a string or list of strings
+data:
+  sample: {}
+  secret:
+    data:
+    - '':
+       in: "1 2"
+       match: 1
+---
+# match must be a string or list of strings
+data:
+  sample: {}
+  secret:
+    data:
+    - '':
+       in: "1 2"
+       match:
+        - "1"
+        - 2
+---
 # No test_group.yaml on testcase level
 # TODO Not picked up by JSON schema
 data:
