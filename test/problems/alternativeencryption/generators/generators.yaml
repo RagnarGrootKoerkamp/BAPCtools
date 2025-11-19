@@ -21,8 +21,17 @@ data:
             encrypt
             1
             a
-      - letters: eval.py 0 26 sigma[i % 26]
-      - letters: eval.py 0 1000 sigma[i % 26]
+      - letters:
+          generate: eval.py 0 26 sigma[i % 26]
+          match:
+            - "\\Aencrypt$"
+            - "^a$"
+            - "^c$"
+            - "^z$"
+            - "\\A(?!.*^[A-Z]$).*\\Z"
+      - letters:
+          generate: eval.py 0 1000 sigma[i % 26]
+          match: "^a$.*^z$"
       - random_equal: eval.py {seed} 1000 sigma[i % 26] * randrange(1, 101)
       - max_equal: eval.py 0 1000 sigma[i % 26] * 100
       - random2: eval.py {seed} 1000 randstr(2)

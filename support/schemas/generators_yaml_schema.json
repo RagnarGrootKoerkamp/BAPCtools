@@ -250,6 +250,21 @@
               "title": "Count",
               "description": "Generate this number of test cases, substituting `{count}` in the `generate:` command with values between 1 and `count`, inclusive."
             },
+            "match": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ],
+              "title": "Match",
+              "description": "Regular expression(s) that are searched in the test case. Each regular expression that is not found results in a warning."
+            },
             "in": {
               "type": "string",
               "title": "Input",

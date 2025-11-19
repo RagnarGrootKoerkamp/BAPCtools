@@ -117,6 +117,7 @@ data:
       "04": tree 5 # keys from the global generators: dictionary may also be used.
       "05":
         generate: tree 6 # same as above, but with different argument
+        match: "^1 2$" # check that there is an edge from 1 to 2 (can also be a list with multiple pattern)
 
       # Arguments are split on white space: this will pass two arguments: `"a` and `b"`, so probably not what is intended.
       06-string: tree "a b"
