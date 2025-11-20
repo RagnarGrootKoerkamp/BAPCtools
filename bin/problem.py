@@ -314,7 +314,7 @@ class ProblemSettings:
             f"{validate.OutputValidator.args_key}' in 'test_group.yaml",
         )
 
-        self.keywords: list[str] = parser.extract_optional_list("keywords", str)
+        self.keywords: list[str] = parser.extract_optional_list("keywords", str, allow_empty=True)
         # Not implemented in BAPCtools. We always test all languages in languages.yaml.
         self.languages: list[str] = parser.extract_optional_list("languages", str)
         # Not implemented in BAPCtools
@@ -411,35 +411,47 @@ class TestGroup:
         parser.extract_deprecated("input_validator_flags", validate.InputValidator.args_key)
 
         # parse args
-        self.args = parser.extract_optional_list("args", str, allow_value=False)
-        self.output_visualizer_args = parser.extract_optional_list(
-            visualize.OutputVisualizer.args_key, str, allow_value=False
-        )
-        self.output_validator_args = parser.extract_optional_list(
-            validate.OutputValidator.args_key, str, allow_value=False
-        )
-        self.input_visualizer_args = parser.extract_optional_list(
-            visualize.InputVisualizer.args_key, str, allow_value=False
-        )
         assert validate.OutputValidator.args_key == validate.AnswerValidator.args_key
+        for key in [
+            "args",
+            visualize.OutputVisualizer.args_key,
+            validate.OutputValidator.args_key,
+            visualize.InputVisualizer.args_key,
+        ]:
+            if key in parser.yaml:
+                setattr(
+                    self,
+                    key,
+                    parser.extract_optional_list(key, str, allow_value=False, allow_empty=True),
+                )
 
         if validate.InputValidator.args_key in parser.yaml:
             if isinstance(parser.yaml[validate.InputValidator.args_key], list):
                 self.input_validator_args = parser.extract_optional_list(
-                    validate.InputValidator.args_key, str, allow_value=False
+                    validate.InputValidator.args_key,
+                    str,
+                    allow_value=False,
+                    allow_empty=True,
                 )
-            elif isinstance(value, dict):
+            elif isinstance(parser.yaml[validate.InputValidator.args_key], dict):
                 # only the hole dict is inherited not individual entries
                 validator_args_parser = parser.extract_parser(validate.InputValidator.args_key)
                 self.input_validator_args = {}
                 for val in problem.validators(validate.InputValidator):
-                    self.input_validator_args[val.name] = parser.extract_optional_list(
-                        val.name, str, allow_value=False
+                    self.input_validator_args[val.name] = (
+                        validator_args_parser.extract_optional_list(
+                            val.name,
+                            str,
+                            allow_value=False,
+                            allow_empty=True,
+                        )
                     )
                 validator_args_parser.check_unknown_keys()
-            elif value is None:
+            elif parser.yaml[validate.InputValidator.args_key] is None:
+                parser.pop(validate.InputValidator.args_key)
                 self.input_validator_args = []
             else:
+                parser.pop(validate.InputValidator.args_key)
                 bar.warn(
                     f"incompatible value for key `{validate.InputValidator.args_key}` in {parser.source}. SKIPPED."
                 )
