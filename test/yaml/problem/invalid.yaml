@@ -154,12 +154,6 @@ yaml:
   name: pass-fail type from empty type
   type: []
 warn: "value for `type` in problem.yaml should not be an empty list."
----
-yaml:
-  problem_format_version: 2025-09
-  name: Empty list
-  keywords: []
-warn: "value for `keywords` in problem.yaml should not be an empty list."
 
 ---
 # Credits

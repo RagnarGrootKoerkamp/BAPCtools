@@ -840,7 +840,9 @@ class YamlParser:
             self.bar.warn(f"key `{self._key_path(key)}` is deprecated{use}. SKIPPED.")
             self.yaml.pop(key)
 
-    def extract_optional_list(self, key: str, t: type[T], *, allow_value: bool = True) -> list[T]:
+    def extract_optional_list(
+        self, key: str, t: type[T], *, allow_value: bool = True, allow_empty: bool = False
+    ) -> list[T]:
         if key in self.yaml:
             value = self.yaml.pop(key)
             if value is None:
@@ -853,7 +855,7 @@ class YamlParser:
                         f"some values for key `{self._key_path(key)}` in {self.source} do not have type {t.__name__}. SKIPPED."
                     )
                     return []
-                if not value:
+                if not value and not allow_empty:
                     self.bar.warn(
                         f"value for `{self._key_path(key)}` in {self.source} should not be an empty list."
                     )
