@@ -487,6 +487,11 @@ class TestcaseRule(Rule):
         # used to handle duplicated testcase rules
         self.copy_of = None
 
+        # set during generate
+        self.generate_success = False
+
+        self.process = generator_config.process_testcase(parent.path / name)
+
         bar = PrintBar("generators.yaml", item=parent.path / name)
 
         if name.endswith(".in"):
@@ -683,6 +688,8 @@ class TestcaseRule(Rule):
     def link(
         t, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar, dst: Path
     ) -> None:
+        assert t.process
+
         src_dir = problem.path / "data" / t.path.parent
         src = src_dir / (t.name + ".in")
 
@@ -720,6 +727,8 @@ class TestcaseRule(Rule):
         meta_yaml: "TestcaseRule.MetaYaml",
         bar: ProgressBar,
     ) -> bool:
+        assert t.process
+
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
@@ -767,6 +776,8 @@ class TestcaseRule(Rule):
         meta_yaml: "TestcaseRule.MetaYaml",
         bar: ProgressBar,
     ) -> bool:
+        assert t.process
+
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
@@ -818,9 +829,9 @@ class TestcaseRule(Rule):
     def generate(
         t, problem: Problem, generator_config: "GeneratorConfig", parent_bar: ProgressBar
     ) -> None:
-        bar = parent_bar.start(str(t.path))
+        assert t.process
 
-        t.generate_success = False
+        bar = parent_bar.start(str(t.path))
 
         if t.copy_of is not None and not t.intended_copy:
             bar.warn(
@@ -1427,7 +1438,7 @@ class Directory(Rule):
             if isinstance(d, Directory):
                 d.walk(testcase_f, dir_f)
             elif isinstance(d, TestcaseRule):
-                if testcase_f:
+                if testcase_f and d.process:
                     testcase_f(d)
             else:
                 assert False
@@ -1483,6 +1494,11 @@ class Directory(Rule):
             infile = problem.path / "data" / target.parent / (target.name + ".in")
             ansfile = problem.path / "data" / target.parent / (target.name + ".ans")
             new_infile = problem.path / "data" / d.path / (target.name + ".in")
+
+            if not t.process:
+                bar.warn(f"Included case {target} was not processed.")
+                bar.done()
+                continue
 
             if not t.generate_success:
                 bar.error(f"Included case {target} has errors.")
@@ -1711,10 +1727,6 @@ class GeneratorConfig:
                         name = next(name_gen)
                     if has_count(yaml):
                         name += f"-{count_index + 1:0{len(str(count))}}"
-
-                    # If a list of testcases was passed and this one is not in it, skip it.
-                    if not self.process_testcase(parent.path / name):
-                        continue
 
                     t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
                     if t.path in self.known_cases:
