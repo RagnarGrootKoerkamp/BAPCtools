@@ -6,6 +6,7 @@ from unittest.mock import call, MagicMock
 
 import config
 import problem
+from util import PrintBar
 
 RUN_DIR = Path.cwd().absolute()
 
@@ -72,6 +73,10 @@ class TestProblemYaml:
         fatal = MagicMock(name="fatal", side_effect=SystemExit(-42))
         error = MagicMock(name="error")
         warn = MagicMock(name="warn")
+
+        monkeypatch.setattr(PrintBar, "fatal", fatal)
+        monkeypatch.setattr(PrintBar, "error", error)
+        monkeypatch.setattr(PrintBar, "warn", warn)
         for module in ["problem", "util"]:
             monkeypatch.setattr(f"{module}.fatal", fatal)
             monkeypatch.setattr(f"{module}.error", error)
