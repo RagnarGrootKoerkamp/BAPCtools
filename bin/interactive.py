@@ -67,10 +67,9 @@ def run_interactive_testcase(
             run.in_path.absolute(),
             run.testcase.ans_path.absolute(),
             run.feedbackdir.absolute(),
-            *run.testcase.test_case_yaml_args(
-                output_validator,
-                bar or PrintBar("Run interactive test case"),
-            ),
+            *run.testcase.get_test_case_yaml(
+                bar or PrintBar("Run interactive test case")
+            ).output_validator_args,
         ]
 
     assert run.submission.run_command, "Submission must be built"

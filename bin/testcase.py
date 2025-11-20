@@ -19,7 +19,6 @@ from util import (
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     import problem
-    import visualize
 
 
 # TODO #102: Consistently separate the compound noun "test case", e.g. "TestCase" or "test_case"
@@ -115,26 +114,11 @@ class Testcase:
     def with_suffix(self, ext: str) -> Path:
         return self.in_path.with_suffix(ext)
 
-    def test_case_yaml_args(
-        self,
-        program: "validate.AnyValidator | visualize.AnyVisualizer",
-        bar: BAR_TYPE,
-    ) -> list[str]:
-        """
-        The flags specified in test_group.yaml for the given validator applying to this testcase.
-
-        Returns
-        -------
-
-        A nonempty list of strings, such as ["space_change_sensitive", "case_sensitive"]
-        or ["--max_N", "50"] or even [""].
-        """
-
+    def get_test_case_yaml(self, bar: BAR_TYPE) -> "problem.TestGroup":
+        assert self.in_path.is_file()
         return self.problem.get_test_case_yaml(
             self.problem.path / "data" / self.short_path.with_suffix(".yaml"),
-            type(program).args_key,
             bar,
-            name=program.name if isinstance(program, validate.InputValidator) else None,
         )
 
     def validator_hashes(
@@ -155,7 +139,7 @@ class Testcase:
         d = dict()
 
         for validator in validators:
-            flags = self.test_case_yaml_args(validator, bar)
+            flags = self.get_test_case_yaml(bar).get_args(validator)
             flags_string = " ".join(flags)
             h = combine_hashes_dict(
                 {
@@ -280,23 +264,22 @@ class Testcase:
         constraints: Optional[validate.ConstraintsDict] = None,
         warn_instead_of_error: bool = False,
     ) -> bool:
-        args = []
         results = []
         output_validator_crash = False
         for validator in validators:
             name = validator.name
+            args = []
             if isinstance(validator, validate.OutputValidator) and mode == validate.Mode.ANSWER:
                 args += ["case_sensitive", "space_change_sensitive"]
                 name = f"{name} (ans)"
-            flags = self.test_case_yaml_args(validator, bar)
-            flags = flags + args
+            args = [*args, *self.get_test_case_yaml(bar).get_args(validator)]
 
-            ret = validator.run(self, mode=mode, constraints=constraints, args=flags)
+            ret = validator.run(self, mode=mode, constraints=constraints, args=args)
             results.append(ret.status)
 
             message = name
-            if flags:
-                message += " [" + ", ".join(flags) + "]"
+            if args:
+                message += " [" + ", ".join(args) + "]"
             message += ": "
             if ret.status:
                 message += "accepted"
