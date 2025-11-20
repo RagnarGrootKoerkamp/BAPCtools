@@ -391,10 +391,8 @@ class Config:
             self.random_salt: str = ""
             self.retries: int = 1
         else:
-            self.needs_default_solution = parent_config.needs_default_solution
-            self.solution = parent_config.solution
-            self.random_salt = parent_config.random_salt
-            self.retries = parent_config.retries
+            for key, value in vars(parent_config).items():
+                setattr(self, key, value)
 
         if yaml is not None:
             if "solution" in yaml:
@@ -1098,10 +1096,12 @@ class TestcaseRule(Rule):
                 visualize.InputVisualizer
             )
             output_visualizer = problem.visualizer(visualize.OutputVisualizer)
+            visualizer_args = testcase.get_test_case_yaml(bar).input_visualizer_args
             if output_visualizer is not None:
                 if out_path.is_file() or problem.settings.ans_is_output:
                     if visualizer is None or out_path.is_file():
                         visualizer = output_visualizer
+                        visualizer_args = testcase.get_test_case_yaml(bar).output_visualizer_args
                     if not out_path.is_file():
                         assert problem.settings.ans_is_output
                         out_path = ans_path
@@ -1112,7 +1112,6 @@ class TestcaseRule(Rule):
                 use_feedback_image(feedbackdir, "validator")
                 return True
 
-            visualizer_args = testcase.test_case_yaml_args(visualizer, bar)
             visualizer_hash: dict[object, object] = {
                 "visualizer_hash": visualizer.hash,
                 "visualizer_args": visualizer_args,

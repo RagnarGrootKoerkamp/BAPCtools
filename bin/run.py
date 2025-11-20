@@ -244,7 +244,7 @@ class Run:
         return output_validator.run(
             self.testcase,
             self,
-            args=self.testcase.test_case_yaml_args(output_validator, bar),
+            args=self.testcase.get_test_case_yaml(bar).output_validator_args,
         )
 
     def _visualize_output(self, bar: BAR_TYPE) -> Optional[ExecResult]:
@@ -258,7 +258,7 @@ class Run:
             self.testcase.ans_path.absolute(),
             self.out_path if not self.problem.interactive else None,
             self.feedbackdir,
-            args=self.testcase.test_case_yaml_args(output_visualizer, bar),
+            args=self.testcase.get_test_case_yaml(bar).output_visualizer_args,
         )
 
 

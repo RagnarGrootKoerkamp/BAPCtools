@@ -2,7 +2,7 @@ import datetime
 import re
 import shutil
 import threading
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from colorama import Fore, Style
 from pathlib import Path
 from typing import Final, Literal, Optional, overload, TYPE_CHECKING
@@ -370,6 +370,104 @@ class ProblemSettings:
         return " ".join(parts)
 
 
+class TestGroup:
+    def __init__(
+        self,
+        problem: "Problem",
+        file: Optional[Path],
+        yaml_data: object,
+        parent: Optional["TestGroup"],
+        bar: BAR_TYPE,
+    ) -> None:
+        if parent is None:
+            self.args: Sequence[str] = []
+            self.output_visualizer_args: Sequence[str] = []
+            self.output_validator_args: Sequence[str] = []
+            self.input_visualizer_args: Sequence[str] = []
+            self.input_validator_args: Sequence[str] | Mapping[str, Sequence[str]] = []
+
+            # not implemented:
+            # self.full_feedback: bool
+            # self.hint: str
+            # self.description: str
+            # self.max_score: int | "unbounded"
+            # self.score_aggregation: "pass-fail" | "sum" | "min"
+            # self.static_validation_score: int | "pass-fail"
+            # self.require_pass: str | Sequence[str]
+        else:
+            for key, value in vars(parent).items():
+                setattr(self, key, value)
+
+        self.file = file
+
+        if not isinstance(yaml_data, dict):
+            bar.error(f"could not parse {file}. SKIPPED.")
+            return
+
+        parser = YamlParser(str(file) if file else "default test_group.yaml", yaml_data, bar=bar)
+
+        # parse deprecated keys
+        parser.extract_deprecated("output_validator_flags", validate.OutputValidator.args_key)
+        parser.extract_deprecated("input_validator_flags", validate.InputValidator.args_key)
+
+        # parse args
+        self.args = parser.extract_optional_list("args", str, allow_value=False)
+        self.output_visualizer_args = parser.extract_optional_list(
+            visualize.OutputVisualizer.args_key, str, allow_value=False
+        )
+        self.output_validator_args = parser.extract_optional_list(
+            validate.OutputValidator.args_key, str, allow_value=False
+        )
+        self.input_visualizer_args = parser.extract_optional_list(
+            visualize.InputVisualizer.args_key, str, allow_value=False
+        )
+        assert validate.OutputValidator.args_key == validate.AnswerValidator.args_key
+
+        if validate.InputValidator.args_key in parser.yaml:
+            if isinstance(parser.yaml[validate.InputValidator.args_key], list):
+                self.input_validator_args = parser.extract_optional_list(
+                    validate.InputValidator.args_key, str, allow_value=False
+                )
+            elif isinstance(value, dict):
+                # only the hole dict is inherited not individual entries
+                validator_args_parser = parser.extract_parser(validate.InputValidator.args_key)
+                self.input_validator_args = {}
+                for val in problem.validators(validate.InputValidator):
+                    self.input_validator_args[val.name] = parser.extract_optional_list(
+                        val.name, str, allow_value=False
+                    )
+                validator_args_parser.check_unknown_keys()
+            elif value is None:
+                self.input_validator_args = []
+            else:
+                bar.warn(
+                    f"incompatible value for key `{validate.InputValidator.args_key}` in {parser.source}. SKIPPED."
+                )
+
+        # parse keys not currently used
+        parser.extract_optional("full_feedback", bool)
+        parser.extract_optional("hint", str)
+        parser.extract_optional("description", str)
+
+        # check test group only keys
+        if file is None or not file.with_suffix(".in").is_file():
+            for key in ["max_score", "score_aggregation", "static_validation_score"]:
+                if parser.pop(key) is not None:
+                    bar.error(
+                        f"key `{key}` not supported by BAPCtools in {parser.source}. SKIPPED."
+                    )
+
+        parser.check_unknown_keys()
+
+    def get_args(self, program: validate.AnyValidator | visualize.AnyVisualizer) -> Sequence[str]:
+        assert hasattr(self, type(program).args_key)
+        args = getattr(self, type(program).args_key)
+        if isinstance(args, dict):
+            args = args.get(program.name, [])
+        assert isinstance(args, list)
+        return args
+
+
 # A problem.
 class Problem:
     _SHORTNAME_REGEX_STRING: Final[str] = "[a-z0-9]{2,255}"
@@ -400,8 +498,8 @@ class Problem:
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
-        # TODO #102: Add type for test_group.yaml (typed Namespace?)
-        self._test_case_yamls = dict[Path, dict[object, object]]()
+        self._root_test_case_yaml: Optional[TestGroup] = None
+        self._test_case_yamls = dict[Path, TestGroup]()
         self._test_group_lock = threading.Lock()
 
         # The label for the problem: A, B, A1, A2, X, ...
@@ -498,81 +596,31 @@ class Problem:
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
 
-    # TODO #102 move to a new TestGroup class
-    def _parse_test_case_and_groups_yaml(p, path: Path, bar: BAR_TYPE) -> None:
-        assert path.is_relative_to(p.path / "data"), f"{path} is not in data"
-        for f in [path] + list(path.parents):
-            # Do not go above the data directory.
-            if f == p.path:
+    def _parse_test_case_yaml(p, file: Path, parent: TestGroup, bar: BAR_TYPE) -> None:
+        assert file.is_file()
+        assert file.is_relative_to(p.path / "data"), f"{file} is not in data"
+
+        with p._test_group_lock:
+            # handle race conditions
+            if file in p._test_case_yamls:
                 return
 
-            if f.is_dir():
-                f = f / "test_group.yaml"
-            with p._test_group_lock:
-                if not f.is_file() or f in p._test_case_yamls:
-                    continue
-                raw = substitute(
-                    f.read_text(),
-                    p.settings.constants,
-                    pattern=config.CONSTANT_SUBSTITUTE_REGEX,
-                )
-                flags = parse_yaml(raw, path=f, plain=True)
-                if not isinstance(flags, dict):
-                    bar.error(f"could not parse {f}. SKIPPED.")
-                    continue
-                p._test_case_yamls[f] = flags
-
-                parser = YamlParser(str(f), flags)
-                parser.extract_deprecated(
-                    "output_validator_flags", validate.OutputValidator.args_key
-                )
-                parser.extract_deprecated("input_validator_flags", validate.InputValidator.args_key)
-
-                # Verify test_group.yaml
-                for k in flags:
-                    match k:
-                        case (
-                            validate.OutputValidator.args_key
-                            | validate.AnswerValidator.args_key
-                            | visualize.InputVisualizer.args_key
-                            | visualize.OutputVisualizer.args_key
-                        ):
-                            if not isinstance(flags[k], list):
-                                bar.error(
-                                    f"{k} must be a list of strings", resume=True, print_item=False
-                                )
-                        case validate.InputValidator.args_key:
-                            if not isinstance(flags[k], (list, dict)):
-                                bar.error(f"{k} must be list or map", resume=True, print_item=False)
-                            if isinstance(flags[k], dict):
-                                input_validator_names = set(
-                                    val.name for val in p.validators(validate.InputValidator)
-                                )
-                                for name in set(flags[k]) - input_validator_names:
-                                    bar.warn(
-                                        f"Unknown input validator {name}; expected {input_validator_names}",
-                                        print_item=False,
-                                    )
-                        case "description" | "hint":
-                            pass  # We don't do anything with hint or description in BAPCtools, but no need to warn about this
-                        case "args" | "full_feedback" | "scoring" | "static_validation":
-                            bar.warn(
-                                f"{k} in test_group.yaml not implemented in BAPCtools",
-                                print_item=False,
-                            )
-                        case _:
-                            path = f.relative_to(p.path / "data")
-                            bar.warn(f'Unknown key "{k}" in {path}', print_item=False)
+            # substitute constants
+            raw = substitute(
+                file.read_text(),
+                p.settings.constants,
+                pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+            )
+            yaml_data = parse_yaml(raw, path=file, plain=True)
+            p._test_case_yamls[file] = TestGroup(p, file, yaml_data, parent, bar)
 
     def get_test_case_yaml(
         p,
         path: Path,
-        key: str,
         bar: BAR_TYPE,
-        name: Optional[str] = None,
-    ) -> list[str]:
+    ) -> TestGroup:
         """
-        Find the value of the given test_group.yaml key applying at the given path.
+        Find the test_group.yaml for the given path.
         If necessary, walk up from `path` looking for the first test_group.yaml file that applies.
 
         Side effects: parses and caches the file.
@@ -580,68 +628,36 @@ class Problem:
         Arguments
         ---------
         path: absolute path (a <test_case>.yaml file or a test group directory)
-        key: The test_group.yaml key to look for (TODO: 'grading' is not yet implemented)
-        name: If key == 'input_validator_args', optionally the name of the input validator.
 
         Returns:
         --------
-        A list of string arguments, which is empty if no test_group.yaml is found.
-        TODO: when 'grading' is supported, it also can return dict
+        A TestGroup object
         """
-        known_args_keys = [
-            validate.InputValidator.args_key,
-            validate.OutputValidator.args_key,
-            validate.AnswerValidator.args_key,
-            visualize.InputVisualizer.args_key,
-            visualize.OutputVisualizer.args_key,
-        ]
-        if key not in known_args_keys:
-            raise NotImplementedError(key)
-        if key != validate.InputValidator.args_key and name is not None:
-            raise ValueError(
-                f"Only input validators support flags by validator name, got {key} and {name}"
-            )
 
-        # parse and cache <test_case>.yaml and test_group.yaml
-        p._parse_test_case_and_groups_yaml(path, bar)
-
-        # extract the flags
-        for f in [path] + list(path.parents):
+        paths = []
+        for f in [path, *path.parents]:
             # Do not go above the data directory.
             if f == p.path:
-                return []
+                break
+            paths.append(f)
 
+        # create a root TestGroup object
+        if p._root_test_case_yaml is None:
+            with p._test_group_lock:
+                if p._root_test_case_yaml is None:
+                    p._root_test_case_yaml = TestGroup(p, None, {}, None, bar)
+
+        test_group_yaml = p._root_test_case_yaml
+        for f in reversed(paths):
             if f.is_dir():
                 f = f / "test_group.yaml"
-            if f not in p._test_case_yamls:
+            if not f.is_file():
                 continue
-            flags = p._test_case_yamls[f]
-            if key in flags:
-                args = flags[key]
-                if key == validate.InputValidator.args_key:
-                    if not isinstance(args, (list, dict)):
-                        bar.error(f"{key} must be list of strings or map of lists")
-                        return []
-                    if isinstance(args, list):
-                        if any(not isinstance(arg, str) for arg in args):
-                            bar.error(f"{key} must be list of strings or map of lists")
-                            return []
-                        return args
-                    elif name in args:
-                        args = args[name]
-                        if not isinstance(args, list) or any(
-                            not isinstance(arg, str) for arg in args
-                        ):
-                            bar.error(f"{key} must be list of strings or map of lists")
-                            return []
-                        return args
-                elif key in known_args_keys:
-                    if not isinstance(args, list) or any(not isinstance(arg, str) for arg in args):
-                        bar.error(f"{key} must be a list of strings")
-                        return []
-                    return args
-
-        return []
+            if f not in p._test_case_yamls:
+                p._parse_test_case_yaml(f, test_group_yaml, bar)
+            assert f in p._test_case_yamls
+            test_group_yaml = p._test_case_yamls[f]
+        return test_group_yaml
 
     # Because Problem.testcases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
     # this cache makes sure that some warnings (like malformed test case names) only appear once.
@@ -1434,9 +1450,8 @@ class Problem:
 
         args = p.get_test_case_yaml(
             p.path / "data" / "valid_output",
-            "output_validator_args",
             PrintBar("Generic Output Validation"),
-        )
+        ).output_validator_args
         is_space_sensitive = "space_change_sensitive" in args
         is_case_sensitive = "case_sensitive" in args
 
