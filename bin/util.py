@@ -864,7 +864,7 @@ class YamlParser:
         return []
 
     def extract_parser(self, key: str) -> "YamlParser":
-        return YamlParser(self.source, self.extract(key, {}), self._key_path(key))
+        return YamlParser(self.source, self.extract(key, {}), self._key_path(key), self.bar)
 
 
 if has_ryaml:
