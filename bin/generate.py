@@ -1490,6 +1490,10 @@ class Directory(Rule):
             t = d.includes[key]
             target = t.path
             new_case = d.path / target.name
+
+            if not generator_config.process_testcase(new_case):
+                continue
+
             bar.start(str(new_case))
             infile = problem.path / "data" / target.parent / (target.name + ".in")
             ansfile = problem.path / "data" / target.parent / (target.name + ".ans")
