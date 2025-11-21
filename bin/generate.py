@@ -1407,6 +1407,8 @@ class Directory(Rule):
     def walk(
         self,
         testcase_f: Optional[Callable[["TestcaseRule | Directory"], object]],
+        *,
+        skip_restricted: bool = True,
     ) -> None: ...
 
     # This overload takes one function for test cases and a separate function for directories.
@@ -1415,6 +1417,8 @@ class Directory(Rule):
         self,
         testcase_f: Optional[Callable[[TestcaseRule], object]],
         dir_f: Optional[Callable[["Directory"], object]],
+        *,
+        skip_restricted: bool = True,
     ) -> None: ...
 
     # Map a function over all test cases directory tree.
@@ -1428,6 +1432,8 @@ class Directory(Rule):
         | Optional[
             Callable[["TestcaseRule | Directory"], object] | Callable[["Directory"], object]
         ] = True,
+        *,
+        skip_restricted: bool = True,
     ) -> None:
         if dir_f is True:
             dir_f = cast(Optional[Callable[["TestcaseRule | Directory"], object]], testcase_f)
@@ -1438,7 +1444,9 @@ class Directory(Rule):
             if isinstance(d, Directory):
                 d.walk(testcase_f, dir_f)
             elif isinstance(d, TestcaseRule):
-                if testcase_f and d.process:
+                if not d.process and skip_restricted:
+                    continue
+                if testcase_f:
                     testcase_f(d)
             else:
                 assert False
@@ -1872,6 +1880,7 @@ class GeneratorConfig:
                             obj.walk(
                                 add_included_case,
                                 lambda d: list(map(add_included_case, d.includes.values())),
+                                skip_restricted=False,
                             )
                             pass
                     else:
