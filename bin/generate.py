@@ -391,10 +391,8 @@ class Config:
             self.random_salt: str = ""
             self.retries: int = 1
         else:
-            self.needs_default_solution = parent_config.needs_default_solution
-            self.solution = parent_config.solution
-            self.random_salt = parent_config.random_salt
-            self.retries = parent_config.retries
+            for key, value in vars(parent_config).items():
+                setattr(self, key, value)
 
         if yaml is not None:
             if "solution" in yaml:
@@ -488,6 +486,11 @@ class TestcaseRule(Rule):
 
         # used to handle duplicated testcase rules
         self.copy_of = None
+
+        # set during generate
+        self.generate_success = False
+
+        self.process = generator_config.process_testcase(parent.path / name)
 
         bar = PrintBar("generators.yaml", item=parent.path / name)
 
@@ -685,6 +688,8 @@ class TestcaseRule(Rule):
     def link(
         t, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar, dst: Path
     ) -> None:
+        assert t.process
+
         src_dir = problem.path / "data" / t.path.parent
         src = src_dir / (t.name + ".in")
 
@@ -722,6 +727,8 @@ class TestcaseRule(Rule):
         meta_yaml: "TestcaseRule.MetaYaml",
         bar: ProgressBar,
     ) -> bool:
+        assert t.process
+
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
@@ -769,6 +776,8 @@ class TestcaseRule(Rule):
         meta_yaml: "TestcaseRule.MetaYaml",
         bar: ProgressBar,
     ) -> bool:
+        assert t.process
+
         infile = problem.tmpdir / "data" / t.hash / "testcase.in"
         assert infile.is_file()
 
@@ -820,9 +829,9 @@ class TestcaseRule(Rule):
     def generate(
         t, problem: Problem, generator_config: "GeneratorConfig", parent_bar: ProgressBar
     ) -> None:
-        bar = parent_bar.start(str(t.path))
+        assert t.process
 
-        t.generate_success = False
+        bar = parent_bar.start(str(t.path))
 
         if t.copy_of is not None and not t.intended_copy:
             bar.warn(
@@ -1098,10 +1107,12 @@ class TestcaseRule(Rule):
                 visualize.InputVisualizer
             )
             output_visualizer = problem.visualizer(visualize.OutputVisualizer)
+            visualizer_args = testcase.get_test_case_yaml(bar).input_visualizer_args
             if output_visualizer is not None:
                 if out_path.is_file() or problem.settings.ans_is_output:
                     if visualizer is None or out_path.is_file():
                         visualizer = output_visualizer
+                        visualizer_args = testcase.get_test_case_yaml(bar).output_visualizer_args
                     if not out_path.is_file():
                         assert problem.settings.ans_is_output
                         out_path = ans_path
@@ -1112,7 +1123,6 @@ class TestcaseRule(Rule):
                 use_feedback_image(feedbackdir, "validator")
                 return True
 
-            visualizer_args = testcase.test_case_yaml_args(visualizer, bar)
             visualizer_hash: dict[object, object] = {
                 "visualizer_hash": visualizer.hash,
                 "visualizer_args": visualizer_args,
@@ -1397,6 +1407,8 @@ class Directory(Rule):
     def walk(
         self,
         testcase_f: Optional[Callable[["TestcaseRule | Directory"], object]],
+        *,
+        skip_restricted: bool = True,
     ) -> None: ...
 
     # This overload takes one function for test cases and a separate function for directories.
@@ -1405,6 +1417,8 @@ class Directory(Rule):
         self,
         testcase_f: Optional[Callable[[TestcaseRule], object]],
         dir_f: Optional[Callable[["Directory"], object]],
+        *,
+        skip_restricted: bool = True,
     ) -> None: ...
 
     # Map a function over all test cases directory tree.
@@ -1418,6 +1432,8 @@ class Directory(Rule):
         | Optional[
             Callable[["TestcaseRule | Directory"], object] | Callable[["Directory"], object]
         ] = True,
+        *,
+        skip_restricted: bool = True,
     ) -> None:
         if dir_f is True:
             dir_f = cast(Optional[Callable[["TestcaseRule | Directory"], object]], testcase_f)
@@ -1428,6 +1444,8 @@ class Directory(Rule):
             if isinstance(d, Directory):
                 d.walk(testcase_f, dir_f)
             elif isinstance(d, TestcaseRule):
+                if not d.process and skip_restricted:
+                    continue
                 if testcase_f:
                     testcase_f(d)
             else:
@@ -1480,10 +1498,19 @@ class Directory(Rule):
             t = d.includes[key]
             target = t.path
             new_case = d.path / target.name
+
+            if not generator_config.process_testcase(new_case):
+                continue
+
             bar.start(str(new_case))
             infile = problem.path / "data" / target.parent / (target.name + ".in")
             ansfile = problem.path / "data" / target.parent / (target.name + ".ans")
             new_infile = problem.path / "data" / d.path / (target.name + ".in")
+
+            if not t.process:
+                bar.warn(f"Included case {target} was not processed.")
+                bar.done()
+                continue
 
             if not t.generate_success:
                 bar.error(f"Included case {target} has errors.")
@@ -1713,10 +1740,6 @@ class GeneratorConfig:
                     if has_count(yaml):
                         name += f"-{count_index + 1:0{len(str(count))}}"
 
-                    # If a list of testcases was passed and this one is not in it, skip it.
-                    if not self.process_testcase(parent.path / name):
-                        continue
-
                     t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
                     if t.path in self.known_cases:
                         PrintBar("generators.yaml", item=t.path).error(
@@ -1857,6 +1880,7 @@ class GeneratorConfig:
                             obj.walk(
                                 add_included_case,
                                 lambda d: list(map(add_included_case, d.includes.values())),
+                                skip_restricted=False,
                             )
                             pass
                     else:

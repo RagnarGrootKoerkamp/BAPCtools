@@ -5,4 +5,4 @@ from pathlib import Path
 n = sys.argv[1]
 Path("testcase.in").write_text(n + "\n")
 Path("testcase.ans").write_text(n + "\n")
-Path("testcase.yaml").write_text("hint: " + n + "\ndescription: " + n + "\n")
+Path("testcase.yaml").write_text(f'hint: "{n}"\ndescription: "{n}"\n')
