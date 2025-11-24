@@ -261,6 +261,7 @@ class ARGS:
         self.submissions: Optional[list[Path]] = get_list_arg("submissions", Path)
         self.table: bool = get_arg("table", False)
         self.testcases: Optional[list[Path]] = get_list_arg("testcases", Path)
+        self.tex_command: Optional[str] = get_optional_arg("tex_command", str)
         self.time: int = get_arg("time", 600, "> 0")
         self.time_limit: Optional[float] = get_optional_arg("time_limit", float, "> 0")
         self.timeout: Optional[int] = get_optional_arg("timeout", int, "> 0")
