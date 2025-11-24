@@ -6,7 +6,7 @@ import shutil
 from colorama import Fore, Style
 from enum import Enum
 from pathlib import Path
-from typing import Optional, TextIO, TYPE_CHECKING
+from typing import Final, Optional, TextIO, TYPE_CHECKING
 
 import config
 from contest import contest_yaml, problems_yaml
@@ -242,6 +242,36 @@ def make_environment(builddir: Path) -> dict[str, str]:
     return env
 
 
+TEX_MAGIC_REGEX: Final[str] = "^%\\ ?!tex\\s+program\\s*=\\s*(.*)$"
+COMPILED_TEX_MAGIC_REGEX: Final[re.Pattern[str]] = re.compile(TEX_MAGIC_REGEX, re.IGNORECASE)
+
+
+def get_tex_command(tex_path: Path, bar: PrintBar) -> tuple[str, str]:
+    command = config.args.tex_command
+    if command is None:
+        with tex_path.open() as f:
+            for line in f:
+                match = COMPILED_TEX_MAGIC_REGEX.match(line)
+                if match:
+                    command = match.group(1).strip()
+                    break
+    if command is None:
+        command = "pdflatex"
+
+    short_name = {
+        "pdflatex": "pdf",
+        "lualatex": "pdflua",
+        "xelatex": "pdfxe",
+    }
+    if command not in short_name:
+        bar.fatal(f"unknwon latex command {command}!")
+
+    if shutil.which(command) is None:
+        bar.fatal(f"{command} not found!")
+
+    return (short_name[command], command)
+
+
 def build_latex_pdf(
     builddir: Path,
     tex_path: Path,
@@ -258,17 +288,18 @@ def build_latex_pdf(
     built_pdf = (builddir / tex_path.name).with_suffix(".pdf")
     output_pdf = Path(built_pdf.name).with_suffix(f".{language}.pdf")
     dest_path = output_pdf if problem_path is None else problem_path / output_pdf
+    short_command, command = get_tex_command(tex_path, bar)
 
     latexmk_command: list[str | Path] = [
         "latexmk",
         "-cd",
         "-g",
         f'-usepretex="\\\\newcommand\\\\lang{{{language}}}"',
-        "-pdf",
+        f"-{short_command}",
         # %P passes the pretex to pdflatex.
         # %O makes sure other default options (like the working directory) are passed correctly.
         # See https://texdoc.org/serve/latexmk/0
-        "-pdflatex=pdflatex -interaction=nonstopmode -halt-on-error %O %P",
+        f"-{command}={command} -interaction=nonstopmode -halt-on-error %O %P",
         f"-aux-directory={builddir.absolute()}",
     ]
 

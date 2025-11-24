@@ -459,6 +459,7 @@ Run this from one of:
     )
     pdfparser.add_argument("--web", action="store_true", help="Create a web version of the pdf.")
     pdfparser.add_argument("-1", action="store_true", help="Only run the LaTeX compiler once.")
+    pdfparser.add_argument("--tex-command", help="TeX command to use, defaul: pdflatex")
 
     # Problem slides
     slidesparser = subparsers.add_parser(
@@ -482,6 +483,7 @@ Run this from one of:
         help="Open the continuously compiled pdf (with a specified program).",
     )
     slidesparser.add_argument("-1", action="store_true", help="Only run the LaTeX compiler once.")
+    slidesparser.add_argument("--tex-command", help="TeX command to use, defaul: pdflatex")
 
     # Solution slides
     solparser = subparsers.add_parser(
@@ -517,6 +519,7 @@ Run this from one of:
     )
     solparser.add_argument("--web", action="store_true", help="Create a web version of the pdf.")
     solparser.add_argument("-1", action="store_true", help="Only run the LaTeX compiler once.")
+    solparser.add_argument("--tex-command", help="TeX command to use, defaul: pdflatex")
 
     # Validation
     validate_parser = subparsers.add_parser(
