@@ -248,13 +248,16 @@ COMPILED_TEX_MAGIC_REGEX: Final[re.Pattern[str]] = re.compile(TEX_MAGIC_REGEX, r
 
 def get_tex_command(tex_path: Path, bar: PrintBar) -> tuple[str, str]:
     command = config.args.tex_command
-    if command is None:
-        with tex_path.open() as f:
-            for line in f:
-                match = COMPILED_TEX_MAGIC_REGEX.match(line)
-                if match:
-                    command = match.group(1).strip()
-                    break
+    if command is None and tex_path.is_file():
+        try:
+            with tex_path.open() as f:
+                for line in f:
+                    match = COMPILED_TEX_MAGIC_REGEX.match(line)
+                    if match:
+                        command = match.group(1).strip()
+                        break
+        except UnicodeDecodeError:
+            pass
     if command is None:
         command = "pdflatex"
 
