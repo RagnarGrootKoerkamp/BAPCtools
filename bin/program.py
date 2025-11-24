@@ -76,8 +76,11 @@ class Language:
     def matches_shebang(self, f: Path) -> bool:
         if self.shebang is None:
             return True
-        with f.open() as o:
-            return self.shebang.search(o.readline()) is not None
+        try:
+            with f.open() as o:
+                return self.shebang.search(o.readline()) is not None
+        except UnicodeDecodeError:
+            return False
 
 
 CHECKTESTDATA: Final[Language] = Language(
