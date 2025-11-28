@@ -338,12 +338,13 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
             yaml_data["validator_flags"] = validator_flags
 
         # The downloadable samples should be copied to attachments/.
-        samples = problem.download_samples()
-        for i, (in_file, ans_file) in enumerate(samples):
-            base_name = export_dir / "attachments" / str(i + 1)
-            add_file(base_name.with_suffix(".in"), in_file)
-            if ans_file.stat().st_size > 0:
-                add_file(base_name.with_suffix(".ans"), ans_file)
+        if problem.interactive or problem.multi_pass:
+            samples = problem.download_samples()
+            for i, (in_file, ans_file) in enumerate(samples):
+                base_name = export_dir / "attachments" / str(i + 1)
+                add_file(base_name.with_suffix(".in"), in_file)
+                if ans_file.stat().st_size > 0:
+                    add_file(base_name.with_suffix(".ans"), ans_file)
 
         # handle time limit
         if not config.args.kattis:
