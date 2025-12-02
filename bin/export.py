@@ -266,7 +266,7 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     bar = bar.start(f"{problem.name}.zip")
 
     # move pdfs
-    if config.args.legacy and languages:
+    if config.args.legacy:
         for type in PdfType:
             file = export_dir / type.path(languages[0], ".pdf").name
             if file.exists():
@@ -304,6 +304,8 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         else:
             validation.append("default")
         yaml_data["validation"] = " ".join(validation)
+        # name is a string, not a map
+        yaml_data["name"] = problem.settings.name[languages[0]]
         # credits -> author
         if "credits" in yaml_data:
             ryaml_filter(yaml_data, "credits")
