@@ -135,7 +135,7 @@ class ARGS:
 
         T = TypeVar("T")
 
-        def normalize_arg(value: Any, t: type[Any]) -> Any:
+        def normalize_arg(value: object, t: type[object]) -> object:
             if isinstance(value, str) and t is Path:
                 value = Path(value)
             if isinstance(value, int) and t is float:

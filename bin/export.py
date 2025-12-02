@@ -3,7 +3,7 @@ import shutil
 import yaml
 import zipfile
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import config
 from contest import call_api, call_api_get_json, contest_yaml, get_contests, problems_yaml
@@ -621,7 +621,7 @@ def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = 
             log("Already up to date")
 
 
-def export_problems(problems: list[Problem], cid: str) -> Any:
+def export_problems(problems: list[Problem], cid: str) -> object:
     if not contest_yaml().exists:
         fatal("Exporting a contest only works if contest.yaml is available.")
 
