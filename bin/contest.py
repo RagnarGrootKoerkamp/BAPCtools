@@ -239,10 +239,15 @@ def call_api(method: str, endpoint: str, **kwargs: Any) -> "requests.Response":
     return r
 
 
-def call_api_get_json(url: str) -> Any:
-    r = call_api("GET", url)
-    r.raise_for_status()
+def get_request_json(r: "requests.Response") -> object:
     try:
         return r.json()
     except Exception as e:
         error(f"\nError in decoding JSON:\n{e}\n{r.text}")
+    return None
+
+
+def call_api_get_json(url: str) -> Any:
+    r = call_api("GET", url)
+    r.raise_for_status()
+    return get_request_json(r)

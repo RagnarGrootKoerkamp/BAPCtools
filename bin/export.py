@@ -6,7 +6,14 @@ from pathlib import Path
 from typing import Optional
 
 import config
-from contest import call_api, call_api_get_json, contest_yaml, get_contests, problems_yaml
+from contest import (
+    call_api,
+    call_api_get_json,
+    contest_yaml,
+    get_contests,
+    get_request_json,
+    problems_yaml,
+)
 from latex import PdfType
 from problem import Problem
 from util import (
@@ -515,7 +522,7 @@ def export_contest(cid: Optional[str]) -> str:
             fatal(r.text)
     r.raise_for_status()
 
-    new_cid = normalize_yaml_value(yaml.load(r.text, Loader=yaml.SafeLoader), str)
+    new_cid = normalize_yaml_value(get_request_json(r), str)
     assert isinstance(new_cid, str)
 
     log(f"Uploaded the contest to contest_id {new_cid}.")
@@ -650,8 +657,7 @@ def export_problems(problems: list[Problem], cid: str) -> object:
     r.raise_for_status()
 
     log(f"Uploaded problems.yaml for contest_id {cid}.")
-    data = yaml.load(r.text, Loader=yaml.SafeLoader)
-    return data  # Returns the API IDs of the added problems.
+    return get_request_json(r)  # Returns the API IDs of the added problems.
 
 
 # Export a single problem to the specified contest ID.
@@ -673,13 +679,13 @@ def export_problem(problem: Problem, cid: str, pid: Optional[str]) -> None:
             data=data,
             files=[("zip", zipfile)],
         )
-    yaml_response = yaml.load(r.text, Loader=yaml.SafeLoader)
-    if "messages" in yaml_response:
+    yaml_response = get_request_json(r)
+    if isinstance(yaml_response, dict) and "messages" in yaml_response:
         verbose("RESPONSE:\n" + "\n".join(yaml_response["messages"]))
-    elif "message" in yaml_response:
+    elif isinstance(yaml_response, dict) and "message" in yaml_response:
         verbose("RESPONSE: " + yaml_response["message"])
     else:
-        verbose("RESPONSE:\n" + str(yaml_response))
+        verbose("RESPONSE:\n" + r.text)
     r.raise_for_status()
 
 
