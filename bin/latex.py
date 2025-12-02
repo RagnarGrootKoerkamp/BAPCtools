@@ -249,6 +249,8 @@ COMPILED_TEX_MAGIC_REGEX: Final[re.Pattern[str]] = re.compile(TEX_MAGIC_REGEX, r
 def get_tex_command(tex_path: Path, bar: PrintBar) -> tuple[str, str]:
     command = config.args.tex_command
     if command is None and tex_path.is_file():
+        # try to guess the right tex command from a magic comment
+        # https://tex.stackexchange.com/tags/magic-comment/info
         try:
             with tex_path.open() as f:
                 for line in f:
