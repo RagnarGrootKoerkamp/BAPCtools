@@ -149,7 +149,7 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
             problems = [Problem(Path(p.id), tmpdir, p.label) for p in problems_yaml()]
         else:
             # Otherwise, fallback to all directories with a problem.yaml and sort by shortname.
-            problems = [Problem(path, tmpdir, label) for patj, label in fallback_problems()]
+            problems = [Problem(path, tmpdir, label) for path, label in fallback_problems()]
             if len(problems) == 0:
                 fatal("Did not find problem.yaml. Are you running this from a problem directory?")
 
