@@ -31,12 +31,21 @@ data:
       'match':
         in: "1 2"
         match: "1"
-      'morematch':
+      'matchlist':
         in: "1 2 3"
         match:
           - "1"
           - "2"
           - "3"
+      'matchdict':
+        in: "1"
+        ans: "1 2 3"
+        match:
+          in: "1"
+          ans:
+            - "1"
+            - "2"
+            - "3"
       'group_with_test_group_yaml':
         test_group.yaml:
           input_validator_args: [--connected, --max_n, "2000"]
