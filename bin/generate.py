@@ -465,8 +465,8 @@ class TestcaseRule(Rule):
         self.copy = None
         # 3. Hardcoded cases where the source is in the yaml file itself.
         self.hardcoded = dict[str, str]()
-        # list of patterns used to check the generated testcase.in
-        self.patterns = list[re.Pattern[str]]()
+        # map of ext to list of patterns used to check the generated testcase.<ext>
+        self.patterns = collections.defaultdict[str, list[re.Pattern[str]]](list)
 
         # Hash of testcase for caching.
         self.hash: str
@@ -625,17 +625,31 @@ class TestcaseRule(Rule):
 
                 if "match" in yaml:
                     match_entries = yaml["match"]
-                    assert_type("`match`", match_entries, (list, str))
+                    assert_type("`match`", match_entries, (list, dict, str))
                     if isinstance(match_entries, str):
                         match_entries = [match_entries]
-                    assert isinstance(match_entries, list)
+                    if isinstance(match_entries, list):
+                        match_entries = {"in": match_entries}
+                    assert isinstance(match_entries, dict)
 
-                    for i, match_entry in enumerate(match_entries):
-                        assert_type(f"`match[{i}]`", match_entry, str)
-                        try:
-                            self.patterns.append(re.compile(match_entry, re.MULTILINE | re.DOTALL))
-                        except re.error:
-                            raise ParseException(f"could not parse regex `match[{i}]`.")
+                    for ext, entries in match_entries.items():
+                        if ext not in ["in", "ans"]:
+                            if config.args.action == "generate":
+                                bar.log(f"Unknown match key: {ext}")
+                            continue
+
+                        if isinstance(entries, str):
+                            entries = [entries]
+
+                        assert_type(f"`match.{ext}`", entries, list)
+                        for i, entry in enumerate(entries):
+                            assert_type(f"`match.{ext}[{i}]`", entry, str)
+                            try:
+                                self.patterns[ext].append(
+                                    re.compile(entry, re.MULTILINE | re.DOTALL)
+                                )
+                            except re.error:
+                                raise ParseException(f"could not parse regex `match.{ext}[{i}]`.")
 
             # Warn/Error for unknown keys.
             for any_key in yaml:
@@ -1000,28 +1014,34 @@ class TestcaseRule(Rule):
             assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
-        def check_match(testcase: Testcase, bar: ProgressBar) -> None:
+        def check_match(testcase: Testcase, ext: str, bar: ProgressBar) -> None:
             nonlocal meta_yaml
 
-            def get_pattern_str(pattern: re.Pattern[str]) -> str:
-                return pattern.pattern.encode("unicode_escape").decode()
-
-            if all(meta_yaml.matches.get(get_pattern_str(p)) for p in t.patterns):
-                return
-
             updated = False
-            text = testcase.in_path.read_text()
-            for pattern in t.patterns:
-                if meta_yaml.matches.get(pattern.pattern):
-                    continue
-                match = pattern.search(text)
-                if match:
-                    match_str = f"[{match.start()}, {match.end()})"
-                    bar.debug(f"Found match for '{get_pattern_str(pattern)}'': {match_str}")
-                    meta_yaml.matches[pattern.pattern] = match_str
+            cache = meta_yaml.matches.get(ext)
+            if not isinstance(cache, dict):
+                cache = {}
+                meta_yaml.matches[ext] = cache
+                updated = True
+
+            text: Optional[str] = None
+            for pattern in t.patterns[ext]:
+                name = pattern.pattern.encode("unicode_escape").decode()
+
+                if name not in cache:
+                    if text is None:
+                        file = testcase.in_path.with_suffix(f".{ext}")
+                        assert file.is_file()
+                        text = file.read_text()
+                    match = pattern.search(text)
+                    cache[name] = f"[{match.start()}, {match.end()})" if match else None
                     updated = True
+
+                if cache[name]:
+                    bar.debug(f"Found match for '{name}'': {cache[name]}")
                 else:
-                    bar.warn(f"Found not match for '{get_pattern_str(pattern)}'")
+                    bar.warn(f"Found not match for '{name}'")
+
             if updated:
                 meta_yaml.write()
 
@@ -1326,8 +1346,7 @@ class TestcaseRule(Rule):
                 return
 
             # Step 3.1: check patterns
-            # this is not a hard error since the testcase is still valid
-            check_match(testcase, bar)
+            check_match(testcase, "in", bar)
 
             # Step 4: generate .ans and .interaction if needed
             if not generate_from_solution(testcase, bar):
@@ -1336,6 +1355,9 @@ class TestcaseRule(Rule):
             # Step 5: validate .ans (and .out if it exists)
             if not t.validate_ans_and_out(problem, testcase, meta_yaml, bar):
                 return
+
+            # Step 5.1: check patterns
+            check_match(testcase, "ans", bar)
 
             # Step 6: generate visualization if needed
             if not generate_visualization(testcase, bar):
