@@ -40,7 +40,10 @@ import "strings"
 		// The "copy" key uses a path relative to "/generators/" ending in a test case name,
 		// such as "manual/samples/3".
 		copy?: #dirpath
-		match?: string | [...string]
+		match?: string | [...string] | {
+			in?: string | [...string]
+			ans?: string | [...string]
+		}
 
 		["in" | "in.statement" | "in.download" |
 		 "ans" | "ans.statement" | "ans.download" |
