@@ -19,7 +19,7 @@ Stat = tuple[str, Selector] | tuple[str, Selector, int] | tuple[str, Selector, i
 def stats(problems: list[Problem]) -> None:
     problem_stats(problems)
     if config.args.all:
-        more_stats(problems)
+        stats_all(problems)
 
 
 # This prints the number belonging to the count.
@@ -283,9 +283,9 @@ def loc(file: Path) -> Optional[int]:
     return loc_cache[file]
 
 
-def more_stats(problems: list[Problem]) -> None:
+def stats_all(problems: list[Problem]) -> None:
     if not has_pygments:
-        error("stats --more needs pygments. Install python[3]-pygments.")
+        error("stats --all needs pygments. Install python[3]-pygments.")
         return
 
     if not Path("submissions").is_dir():

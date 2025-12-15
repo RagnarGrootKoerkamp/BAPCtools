@@ -227,14 +227,6 @@ class ARGS:
             "local_time_multiplier", float, "> 0"
         )
         self.memory: Optional[int] = get_optional_arg("legacy", int, "> 0")
-
-        more: Optional[bool] = get_optional_arg("more", bool)
-        if more is not None:
-            self.all = int(more)
-            self._set.add("all")
-            self._set.discard("more")
-            warn("--more is deprecated, use --all instead!\n")
-
         self.move_to: Optional[str] = get_optional_arg("colors", str)
         self.no_bar: bool = get_arg("no_bar", False)
         self.no_generate: bool = get_arg("no_generate", False)

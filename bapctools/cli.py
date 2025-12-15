@@ -576,7 +576,6 @@ Run this from one of:
         "stats", parents=[global_parser], help="show statistics for contest/problem"
     )
     all_stats_group = statsparser.add_mutually_exclusive_group()
-    all_stats_group.add_argument("--more", action="store_true", help="DEPRECATED! Use --all.")
     all_stats_group.add_argument(
         "--all",
         "-a",
