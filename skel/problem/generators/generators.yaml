@@ -1,5 +1,5 @@
 #solution: /submissions/accepted/submission.py
-version: 2025-08  # use this version of the generators framework
+version: 2025-12  # use this version of the generators framework
 
 {%test_group_yaml_comment%}test_group.yaml:
   # One or more of:
