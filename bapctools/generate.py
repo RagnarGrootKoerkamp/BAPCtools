@@ -2218,7 +2218,7 @@ data/*
             return False
 
         directory_rules = set()
-        assert config.args.testcases is not None  # set in tools.py
+        assert config.args.testcases is not None  # set in cli.py
         for t in config.args.testcases:
             path = t.relative_to("data")
             parts = path.parts

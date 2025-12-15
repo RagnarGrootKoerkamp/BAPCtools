@@ -85,8 +85,8 @@ if not os.getenv("GITLAB_CI", False) and not os.getenv("CI", False):
     colorama.init()
 
 # List of high level todos:
-# TODO: Do more things in parallel (running testcases, building submissions)
-# TODO: Get rid of old problem.path and settings objects in tools.py.
+# TODO: Do more things in parallel (e.g. building validators/generators/submissions).
+# TODO: Get rid of old problem.path and settings objects in cli.py.
 #       This mostly needs changes in the less frequently used subcommands.
 
 if sys.version_info < (3, 10):

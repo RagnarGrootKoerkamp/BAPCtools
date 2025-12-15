@@ -23,8 +23,8 @@ time since I'm not aware of usage outside of BAPC yet.
 > which is no longer maintained.
 
 You can install the [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/),
-mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git),
-or use the [Docker image](#Docker).
+mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git).
+You can also use the [Docker image](#Docker) or install [via Pip (experimental)](#Experimental-Pip-installation).
 
 Otherwise, clone this repository and install the required dependencies manually.
 (If you know how to make a Debian package, feel free to help out.)
@@ -38,7 +38,7 @@ Otherwise, clone this repository and install the required dependencies manually.
   - Note that actually using `argcomplete` is optional, but recommended.
     Detailed instructions are [here](https://argcomplete.readthedocs.io/en/latest/).
 
-    TL;DR: Put `eval "$(register-python-argcomplete[3] tools.py)"` in your `.bashrc` or `.zshrc`.
+    TL;DR: Put `eval "$(register-python-argcomplete[3] bt)"` in your `.bashrc` or `.zshrc`.
 
 Optional dependencies, required for some subcommands:
 
@@ -58,7 +58,7 @@ Optional dependencies, required for some subcommands:
 After cloning the repository, symlink [bin/tools.py](bin/tools.py) to somewhere in your `$PATH`. E.g., if `~/bin/` is in your `$PATH`, you can do:
 
 ```
-% ln -s ~/git/BAPCtools/bin/tools.py ~/bin/bt
+$ ln -s ~/git/BAPCtools/bin/tools.py ~/bin/bt
 ```
 
 ### Windows
@@ -113,6 +113,19 @@ $ ssh <server> sudo docker pull ragnargrootkoerkamp/bapctools
 ```
 
 The last step is needed when your CI server is not automatically pulling the latest version.
+
+### Experimental: Pip installation
+
+We are transitioning towards adding BAPCtools to the Python Package Index (PyPI).
+This is still experimental, but if you would like to try it out, you can install it using:
+```shell
+pip install 'git+https://github.com/RagnarGrootKoerkamp/BAPCtools.git'
+```
+This should be a complete installation (including optional dependencies and a `bt` executable) and should work on any Linux-ish system.
+If you encounter any issues, please open an issue.
+
+> [!IMPORTANT]
+> Please do NOT `pip install bapctools` yet, as this will install a heavily outdated version of BAPCtools.
 
 ## Usage
 
