@@ -9,9 +9,8 @@ from contextlib import nullcontext
 from pathlib import Path
 from typing import Any, Final, IO, Literal, Optional, TYPE_CHECKING
 
-import config
-import validate
-from util import (
+from bapctools import config, validate
+from bapctools.util import (
     eprint,
     error,
     exec_command,
@@ -23,10 +22,10 @@ from util import (
     PrintBar,
     ProgressBar,
 )
-from verdicts import Verdict
+from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
-    from run import Run
+    from bapctools.run import Run
 
 BUFFER_SIZE: Final[int] = 2**20
 

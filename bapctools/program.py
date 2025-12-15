@@ -9,8 +9,8 @@ from colorama import Fore
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
-import config
-from util import (
+from bapctools import config
+from bapctools.util import (
     combine_hashes,
     copy_and_substitute,
     ensure_symlink,
@@ -31,7 +31,7 @@ from util import (
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from problem import Problem
+    from bapctools.problem import Problem
 
 
 class Language:
@@ -131,7 +131,7 @@ def languages() -> Sequence[Language]:
         if languages_path.is_file():
             raw_languages = read_yaml(languages_path)
         else:
-            raw_languages = read_yaml(config.TOOLS_ROOT / "config/languages.yaml")
+            raw_languages = read_yaml(config.RESOURCES_ROOT / "config/languages.yaml")
         if not isinstance(raw_languages, dict):
             fatal("could not parse languages.yaml.")
 
@@ -362,7 +362,7 @@ class Program:
                     self.tmpdir / "build" if (self.tmpdir / "build") in self.input_files else ""
                 ),
                 "run": self.tmpdir / "run",
-                "viva_jar": config.TOOLS_ROOT / "third_party/viva/viva.jar",
+                "viva_jar": config.RESOURCES_ROOT / "third_party/viva/viva.jar",
             }
 
             return True
@@ -393,7 +393,7 @@ class Program:
                     pass
 
         # Warn for known bad (non-deterministic) patterns in generators
-        from validate import Validator
+        from bapctools.validate import Validator
 
         if isinstance(self, Generator) or isinstance(self, Validator):
             if "c++" in self.language.name.lower():

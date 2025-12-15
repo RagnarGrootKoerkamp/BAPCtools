@@ -2,11 +2,11 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
 
-import program
-from util import ExecResult
+from bapctools import program
+from bapctools.util import ExecResult
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from problem import Problem
+    from bapctools.problem import Problem
 
 
 class InputVisualizer(program.Program):

@@ -8,21 +8,23 @@ from pathlib import Path
 from typing import Final, Literal, Optional, overload, TYPE_CHECKING
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from program import Program
+    from bapctools.program import Program
 
 import math
 
-import check_testing_tool
-import config
-import latex
-import parallel
-import run
-import testcase
-import validate
-import validator_tests
-import verdicts
-import visualize
-from util import (
+from bapctools import (
+    check_testing_tool,
+    config,
+    latex,
+    parallel,
+    run,
+    testcase,
+    validate,
+    validator_tests,
+    verdicts,
+    visualize,
+)
+from bapctools.util import (
     BAR_TYPE,
     combine_hashes_dict,
     drop_suffix,
@@ -1075,7 +1077,7 @@ class Problem:
             if problem.custom_output:
                 paths = [problem.path / validate.OutputValidator.source_dir]
             else:
-                paths = [config.TOOLS_ROOT / "support" / "default_output_validator.cpp"]
+                paths = [config.RESOURCES_ROOT / "support" / "default_output_validator.cpp"]
         else:
             paths = list(glob(problem.path / cls.source_dir, "*"))
 

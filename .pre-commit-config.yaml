@@ -10,7 +10,7 @@ repos:
     -   id: ruff
         args: [ --fix ]
     -   id: ruff
-        files: ^bin/.*\.py$
+        files: ^bapctools/.*\.py$
         args: ["--select=I", "--fix"]
     -   id: ruff-format
 -   repo: https://github.com/pre-commit/mirrors-mypy
@@ -36,4 +36,4 @@ repos:
         -   --python-version=3.10
         -   --scripts-are-modules
         -   --strict
-        exclude: ^(test|skel|scripts|bin/misc)/
+        exclude: ^(test|scripts|bin/misc|bapctools/resources)/

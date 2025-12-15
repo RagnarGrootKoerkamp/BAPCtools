@@ -3,8 +3,7 @@ import pytest
 import yaml
 from pathlib import Path
 
-import generate
-import config
+from bapctools import generate, config
 
 config.RUNNING_TEST = True
 

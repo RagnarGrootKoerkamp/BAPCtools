@@ -5,11 +5,10 @@ from os import makedirs
 from pathlib import Path
 from typing import Any
 
-import config
-import parallel
-from contest import call_api_get_json, get_contest_id
-from util import fatal, ProgressBar
-from verdicts import from_string, Verdict
+from bapctools import config, parallel
+from bapctools.contest import call_api_get_json, get_contest_id
+from bapctools.util import fatal, ProgressBar
+from bapctools.verdicts import from_string, Verdict
 
 # Example usage:
 # bt download_submissions [--user <username>] [--password <password>] [--contest <contest_id>] [--api <domjudge_url>]

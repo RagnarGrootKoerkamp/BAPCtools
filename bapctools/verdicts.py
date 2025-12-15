@@ -8,12 +8,11 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, Optional, TYPE_CHECKING
 
-import config
-import testcase
-from util import eprint, ITEM_TYPE, ProgressBar
+from bapctools import config, testcase
+from bapctools.util import eprint, ITEM_TYPE, ProgressBar
 
 if TYPE_CHECKING:
-    import run
+    from bapctools import run
 
 
 class Verdict(Enum):
@@ -695,7 +694,7 @@ class TableProgressBar(ProgressBar):
         eprint(*args, **kwargs)
 
     def start(self, item: ITEM_TYPE = "") -> "TableProgressBar":
-        from run import Run
+        from bapctools.run import Run
 
         assert isinstance(item, Run)
         self.table.add_test_case(item.testcase.name)
