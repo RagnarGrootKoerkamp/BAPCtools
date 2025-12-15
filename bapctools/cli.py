@@ -15,7 +15,6 @@ Bommel.
 """
 
 import argparse
-import colorama
 import hashlib
 import os
 import re
@@ -24,9 +23,11 @@ import signal
 import sys
 import tempfile
 from collections import Counter
-from colorama import Style
 from pathlib import Path
 from typing import Any, Optional
+
+import colorama
+from colorama import Style
 
 # Local imports
 from bapctools import (

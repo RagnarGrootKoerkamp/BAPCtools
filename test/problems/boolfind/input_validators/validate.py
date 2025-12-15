@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 
-import sys
 import re
-
+import sys
 
 try:
     line = sys.stdin.readline()

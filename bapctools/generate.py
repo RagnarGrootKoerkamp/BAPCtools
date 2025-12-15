@@ -7,9 +7,10 @@ import shlex
 import shutil
 import time
 from collections.abc import Callable, Iterable, Iterator, Sequence
-from colorama import Fore, Style
 from pathlib import Path, PurePosixPath
 from typing import cast, Final, Literal, Optional, overload, TypeVar
+
+from colorama import Fore, Style
 
 from bapctools import config, parallel, program, run, validate, visualize
 from bapctools.problem import Problem

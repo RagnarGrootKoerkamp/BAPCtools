@@ -1,11 +1,12 @@
-import pytest
-import yaml
-import os
 import hashlib
+import os
 import tempfile
 from pathlib import Path
 
-from bapctools import problem, testcase, validate, util, config
+import pytest
+import yaml
+
+from bapctools import config, problem, testcase, util, validate
 
 RUN_DIR = Path.cwd().absolute()
 # Note: the python version isn't tested by default, because it's quite slow.

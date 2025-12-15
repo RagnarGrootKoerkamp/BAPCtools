@@ -28,11 +28,12 @@ build-backend = "hatchling.build"
 [tool.ruff]
 line-length = 100
 
+[tool.ruff.lint]
+# Enable import sorting rules
+extend-select = ["I"]
+
 [tool.ruff.lint.isort]
-# organize imports in two blocks, non local and local
-section-order = ["standard-library", "first-party"]
-default-section = "standard-library"
-# X,y,Z case insensitive in from ? import X, y, Z
+# Case-insensitive ordering in `from ? import X, y, Z`
 order-by-type = false
 
 [tool.pyright]

@@ -3,10 +3,11 @@ import shutil
 import subprocess
 import sys
 from collections.abc import Sequence
-from colorama import Fore, Style
 from contextlib import nullcontext
 from pathlib import Path
 from typing import Optional
+
+from colorama import Fore, Style
 
 from bapctools import config, interactive, parallel, problem, program, validate, visualize
 from bapctools.testcase import Testcase

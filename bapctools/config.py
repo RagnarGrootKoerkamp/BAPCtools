@@ -5,9 +5,10 @@ import os
 import re
 import sys
 from collections.abc import Sequence
-from colorama import Fore, Style
 from pathlib import Path
 from typing import Any, Final, Literal, Optional, TypeVar
+
+from colorama import Fore, Style
 
 import bapctools
 

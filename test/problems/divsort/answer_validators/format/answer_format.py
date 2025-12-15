@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
-import sys
 import re
+import sys
 
 line = sys.stdin.readline()
 if not re.match(r"\d+(\.\d+)? [a-zA-Z]+\n", line):

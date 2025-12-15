@@ -5,9 +5,10 @@ import stat
 import subprocess
 import threading
 from collections.abc import Callable, Mapping, Sequence
-from colorama import Fore
 from pathlib import Path
 from typing import Any, Final, Optional, TYPE_CHECKING
+
+from colorama import Fore
 
 from bapctools import config
 from bapctools.util import (

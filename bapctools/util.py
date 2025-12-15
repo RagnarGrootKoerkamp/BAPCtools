@@ -13,9 +13,7 @@ import sys
 import tempfile
 import threading
 import time
-import yaml as yamllib
 from collections.abc import Callable, Mapping, Sequence
-from colorama import Fore, Style
 from enum import Enum
 from functools import wraps
 from io import StringIO
@@ -35,6 +33,9 @@ from typing import (
     TypeVar,
 )
 from uuid import UUID
+
+import yaml as yamllib
+from colorama import Fore, Style
 
 from bapctools import config
 

@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
-from sys import stdin
-import sys
 import re
+import sys
 
 integer = "(0|-?[1-9]\d*)"
 pat = "(fixed|random|adaptive) " + integer + "\n"
 
-line = stdin.readline()
+line = sys.stdin.readline()
 assert re.match(pat, line)
 
-line = stdin.readline()
+line = sys.stdin.readline()
 assert len(line) == 0
 
 # Nothing to report

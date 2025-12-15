@@ -1,10 +1,11 @@
 import statistics
 from collections.abc import Callable, Sequence
-from colorama import ansi, Fore, Style
 from datetime import datetime, timedelta, timezone
-from dateutil import parser
 from pathlib import Path
 from typing import Any, cast, Literal, Optional
+
+from colorama import ansi, Fore, Style
+from dateutil import parser
 
 from bapctools import config, generate, latex, program, validate
 from bapctools.problem import Problem

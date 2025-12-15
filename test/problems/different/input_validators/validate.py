@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
-from sys import stdin
-import sys
 import re
+import sys
 
 integer = "(0|-?[1-9]\d*)"
 
@@ -10,7 +9,7 @@ MAX = 10**15
 cases = 0
 
 while True:
-    line = stdin.readline()
+    line = sys.stdin.readline()
     if len(line) == 0:
         break
     assert re.match(integer + " " + integer + "\n", line), "'%s' is not a pair of integers" % line

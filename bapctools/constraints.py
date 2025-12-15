@@ -1,7 +1,8 @@
 import re
 from collections import defaultdict
-from colorama import Fore, Style
 from typing import Optional
+
+from colorama import Fore, Style
 
 from bapctools import latex, validate
 from bapctools.problem import Problem

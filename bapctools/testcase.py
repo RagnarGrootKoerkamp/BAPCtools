@@ -1,9 +1,10 @@
 """Test case"""
 
 from collections.abc import Sequence
-from colorama import Fore, Style
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
+
+from colorama import Fore, Style
 
 from bapctools import config, validate
 from bapctools.util import (

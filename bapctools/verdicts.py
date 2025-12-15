@@ -3,10 +3,11 @@ import shutil
 import sys
 import threading
 from collections.abc import Sequence
-from colorama import Fore, Style
 from enum import Enum
 from pathlib import Path
 from typing import Any, Literal, Optional, TYPE_CHECKING
+
+from colorama import Fore, Style
 
 from bapctools import config, testcase
 from bapctools.util import eprint, ITEM_TYPE, ProgressBar

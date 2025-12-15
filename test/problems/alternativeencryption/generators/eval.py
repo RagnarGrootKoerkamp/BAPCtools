@@ -1,7 +1,7 @@
 #!/usr/bin/python3
-from random import seed, choice, randrange
-from string import ascii_lowercase as sigma
 import sys
+from random import choice, randrange, seed
+from string import ascii_lowercase as sigma
 
 # to make ruff happy
 randrange(1, 2)

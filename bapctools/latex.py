@@ -3,10 +3,11 @@
 import os
 import re
 import shutil
-from colorama import Fore, Style
 from enum import Enum
 from pathlib import Path
 from typing import Final, Optional, TextIO, TYPE_CHECKING
+
+from colorama import Fore, Style
 
 from bapctools import config
 from bapctools.contest import contest_yaml, problems_yaml

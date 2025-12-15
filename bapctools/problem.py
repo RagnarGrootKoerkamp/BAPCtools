@@ -1,16 +1,13 @@
 import datetime
+import math
 import re
 import shutil
 import threading
 from collections.abc import Callable, Mapping, Sequence
-from colorama import Fore, Style
 from pathlib import Path
 from typing import Final, Literal, Optional, overload, TYPE_CHECKING
 
-if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
-    from bapctools.program import Program
-
-import math
+from colorama import Fore, Style
 
 from bapctools import (
     check_testing_tool,
@@ -50,6 +47,9 @@ from bapctools.util import (
     write_yaml,
     YamlParser,
 )
+
+if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
+    from bapctools.program import Program
 
 if has_ryaml:
     import ruamel.yaml

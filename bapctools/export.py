@@ -1,9 +1,10 @@
 import re
 import shutil
-import yaml
 import zipfile
 from pathlib import Path
 from typing import Optional
+
+import yaml
 
 from bapctools import config
 from bapctools.contest import (

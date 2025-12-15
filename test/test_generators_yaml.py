@@ -1,9 +1,10 @@
 import collections
-import pytest
-import yaml
 from pathlib import Path
 
-from bapctools import generate, config
+import pytest
+import yaml
+
+from bapctools import config, generate
 
 config.RUNNING_TEST = True
 

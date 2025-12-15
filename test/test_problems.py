@@ -1,10 +1,11 @@
-import pytest
-import os
 import io
+import os
 from pathlib import Path
 from zipfile import ZipFile
 
-from bapctools import cli as tools, problem, config, util
+import pytest
+
+from bapctools import cli, config, problem, util
 
 # Run `bt run` on these problems.
 PROBLEMS = [
@@ -30,7 +31,7 @@ def _setup_problem(problemname):
     problem_dir = RUN_DIR / "test/problems" / problemname
     os.chdir(problem_dir)
     yield
-    tools.test(["tmp", "--clean"])
+    cli.test(["tmp", "--clean"])
     os.chdir(RUN_DIR)
 
 
@@ -42,7 +43,7 @@ def setup_problem(request):
 @pytest.mark.usefixtures("setup_problem")
 class TestProblem:
     def test_problem(self):
-        tools.test(["run"])
+        cli.test(["run"])
 
 
 @pytest.fixture(scope="class")
@@ -53,14 +54,14 @@ def setup_alternativeencryption_problem(request):
 @pytest.mark.usefixtures("setup_alternativeencryption_problem")
 class TestAlternativeencryptionProblem:
     def test_generate(self):
-        tools.test(["generate"])
+        cli.test(["generate"])
 
     def test_check_testing_tool(self):
-        tools.test(["check_testing_tool"])
+        cli.test(["check_testing_tool"])
 
     def test_bad_check_testing_tool(self):
         with pytest.raises(SystemExit):
-            tools.test(["check_testing_tool", "submissions/wrong_answer/no-change.py"])
+            cli.test(["check_testing_tool", "submissions/wrong_answer/no-change.py"])
 
 
 @pytest.fixture(scope="class")
@@ -71,22 +72,22 @@ def setup_constants_problem(request):
 @pytest.mark.usefixtures("setup_constants_problem")
 class TestConstantsProblem:
     def test_generate(self):
-        tools.test(["generate"])
+        cli.test(["generate"])
 
     def test_pdf(self):
-        tools.test(["pdf"])
+        cli.test(["pdf"])
 
     def test_solutions(self):
-        tools.test(["solutions"])
+        cli.test(["solutions"])
 
     def test_problem_slides(self):
-        tools.test(["problem_slides"])
+        cli.test(["problem_slides"])
 
     def test_validate(self):
-        tools.test(["validate"])
+        cli.test(["validate"])
 
     def test_zip(self):
-        tools.test(["zip", "--force"])
+        cli.test(["zip", "--force"])
         Path("constants.zip").unlink()
 
 
@@ -99,18 +100,18 @@ def setup_identity_problem(request):
 class TestIdentityProblem:
     # Development
     def test_generate(self):
-        tools.test(["generate"])
+        cli.test(["generate"])
 
     def test_run(self):
-        tools.test(["run"])
+        cli.test(["run"])
         # pass testcases
-        tools.test(["run", "data/sample"])
-        tools.test(["run", "data/secret/seeding", "data/sample/1.in"])
+        cli.test(["run", "data/sample"])
+        cli.test(["run", "data/secret/seeding", "data/sample/1.in"])
         # pass submission
-        tools.test(["run", "submissions/accepted/author.cpp"])
+        cli.test(["run", "submissions/accepted/author.cpp"])
         # pass submissions + testcases
-        tools.test(["run", "data/sample/1.in", "submissions/accepted/author.cpp"])
-        tools.test(
+        cli.test(["run", "data/sample/1.in", "submissions/accepted/author.cpp"])
+        cli.test(
             [
                 "run",
                 "submissions/accepted/author.c",
@@ -120,37 +121,37 @@ class TestIdentityProblem:
         )
 
     def test_test(self):
-        tools.test(["test", "submissions/accepted/author.c"])
-        tools.test(["test", "submissions/accepted/author.c", "--samples"])
-        tools.test(["test", "submissions/accepted/author.c", "data/sample"])
-        tools.test(["test", "submissions/accepted/author.c", "data/sample/1.in"])
-        tools.test(["test", "submissions/accepted/author.c", "data/sample/1.ans"])
-        tools.test(["test", "submissions/accepted/author.c", "data/sample/1", "data/sample/2"])
+        cli.test(["test", "submissions/accepted/author.c"])
+        cli.test(["test", "submissions/accepted/author.c", "--samples"])
+        cli.test(["test", "submissions/accepted/author.c", "data/sample"])
+        cli.test(["test", "submissions/accepted/author.c", "data/sample/1.in"])
+        cli.test(["test", "submissions/accepted/author.c", "data/sample/1.ans"])
+        cli.test(["test", "submissions/accepted/author.c", "data/sample/1", "data/sample/2"])
 
     def test_pdf(self):
-        tools.test(["pdf"])
+        cli.test(["pdf"])
 
     def test_solutions(self):
-        tools.test(["solutions"])
+        cli.test(["solutions"])
 
     def test_problem_slides(self):
-        tools.test(["problem_slides"])
+        cli.test(["problem_slides"])
 
     def test_stats(self):
-        tools.test(["stats"])
+        cli.test(["stats"])
 
     # Validation
     # def test_input(self): tools.test(['input'])
     # def test_output(self): tools.test(['output'])
     def test_validate(self):
-        tools.test(["validate"])
+        cli.test(["validate"])
 
     def test_constraints(self):
-        tools.test(["constraints", "-e"])
+        cli.test(["constraints", "-e"])
 
     # Exporting
     def test_samplezip(self):
-        tools.test(["samplezip"])
+        cli.test(["samplezip"])
         zip_path = Path("samples.zip")
 
         # Sample zip should contain exactly one .in and .ans file.
@@ -172,7 +173,7 @@ class TestIdentityProblem:
     def test_zip(self):
         zip_path = Path("identity.zip")
 
-        tools.test(["zip", "--force"])
+        cli.test(["zip", "--force"])
 
         # The full zip should contain the samples with the original file extensions.
         assert sorted(
@@ -203,7 +204,7 @@ class TestIdentityProblem:
             for lang in ["de", "en"]
         ], "Zip contents for PDFs with both languages are not correct"
 
-        tools.test(["zip", "--force", "--lang", "en"])
+        cli.test(["zip", "--force", "--lang", "en"])
 
         # The full zip should contain all PDFs in their corresponding directories.
         assert sorted(
@@ -222,14 +223,14 @@ class TestIdentityProblem:
     # Misc
     # def test_all(self): tools.test(['all'])
     def test_sort(self):
-        tools.test(["sort"])
-        tools.test(["sort", "--problem", "."])
-        tools.test(["sort", "--problem", str(Path().cwd())])
-        tools.test(["sort", "--contest", ".."])
-        tools.test(["sort", "--contest", str(Path.cwd().parent)])
+        cli.test(["sort"])
+        cli.test(["sort", "--problem", "."])
+        cli.test(["sort", "--problem", str(Path().cwd())])
+        cli.test(["sort", "--contest", ".."])
+        cli.test(["sort", "--contest", str(Path.cwd().parent)])
 
     def test_tmp(self):
-        tools.test(["tmp"])
+        cli.test(["tmp"])
 
     @pytest.mark.parametrize(
         "bad_submission",
@@ -237,7 +238,7 @@ class TestIdentityProblem:
     )
     def test_bad_submission(self, bad_submission):
         with pytest.raises(SystemExit):
-            tools.test(["run", str(bad_submission)])
+            cli.test(["run", str(bad_submission)])
 
 
 @pytest.fixture(scope="class")
@@ -245,39 +246,39 @@ def setup_contest(request):
     contest_dir = RUN_DIR / "test/problems"
     os.chdir(contest_dir)
     yield
-    tools.test(["tmp", "--clean"])
+    cli.test(["tmp", "--clean"])
     os.chdir(RUN_DIR)
 
 
 @pytest.mark.usefixtures("setup_contest")
 class TestContest:
     def test_stats(self):
-        tools.test(["stats"])
+        cli.test(["stats"])
 
     def test_sort(self):
-        tools.test(["sort"])
-        tools.test(["sort", "--contest", "."])
-        tools.test(["sort", "--contest", str(Path.cwd())])
-        tools.test(["sort", "--problem", "identity"])
-        tools.test(["sort", "--problem", str(Path.cwd() / "identity")])
+        cli.test(["sort"])
+        cli.test(["sort", "--contest", "."])
+        cli.test(["sort", "--contest", str(Path.cwd())])
+        cli.test(["sort", "--problem", "identity"])
+        cli.test(["sort", "--problem", str(Path.cwd() / "identity")])
 
     def test_pdf(self):
-        tools.test(["pdf"])
+        cli.test(["pdf"])
 
     def test_solutions(self):
-        tools.test(["solutions"])
+        cli.test(["solutions"])
 
     def test_problem_slides(self):
-        tools.test(["problem_slides"])
+        cli.test(["problem_slides"])
 
     def test_gitlabci(self):
-        tools.test(["gitlabci"])
+        cli.test(["gitlabci"])
 
     def test_zip(self):
         zip_path = Path("problems.zip")
 
         for languages in [["en", "de"], ["en"]]:
-            tools.test(["zip", "--force", "--lang", *languages])
+            cli.test(["zip", "--force", "--lang", *languages])
 
             # The full zip should contain all PDFs in their corresponding directories.
             assert sorted(info.filename for info in ZipFile(zip_path).infolist()) == sorted(
@@ -313,8 +314,8 @@ def tmp_contest_dir(tmp_path):
 class TestNewContestProblem:
     def test_new_contest_problem(self, monkeypatch):
         monkeypatch.setattr("sys.stdin", io.StringIO("\n\n\n\n\n\n\n\n\n\n\n\n\n\n"))
-        tools.test(["new_contest", "contest_name"])
-        tools.test(
+        cli.test(["new_contest", "contest_name"])
+        cli.test(
             [
                 "new_problem",
                 "--contest",
@@ -328,19 +329,19 @@ class TestNewContestProblem:
         )
         os.chdir("contest_name")
         monkeypatch.setattr("sys.stdin", io.StringIO("Ragnar Groot Koerkamp\ncustom\n\n\n\n\n\n\n"))
-        tools.test(["new_problem", "Problem Two"])
+        cli.test(["new_problem", "Problem Two"])
         os.chdir("..")
         problemsyaml = Path("contest_name/problems.yaml").read_text()
         assert "id: problemone" in problemsyaml
         assert "id: problemtwo" in problemsyaml
 
         with pytest.raises(SystemExit):
-            tools.test(["pdf", "--contest", "contest_name"])
+            cli.test(["pdf", "--contest", "contest_name"])
         assert config.n_warn == 2
         assert Path("contest_name/contest.en.pdf").is_file()
-        tools.test(["solutions", "--contest", "contest_name"])
-        tools.test(["problem_slides", "--contest", "contest_name"])
-        tools.test(["tmp", "--clean", "--contest", "contest_name"])
+        cli.test(["solutions", "--contest", "contest_name"])
+        cli.test(["problem_slides", "--contest", "contest_name"])
+        cli.test(["tmp", "--clean", "--contest", "contest_name"])
 
 
 class TestReadProblemConfig:

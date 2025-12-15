@@ -3,9 +3,10 @@ import shutil
 import signal
 import threading
 import time
-from colorama import Style
 from pathlib import Path
 from typing import Any, Optional
+
+from colorama import Style
 
 from bapctools import config, generate, parallel, problem
 from bapctools.run import Run, Submission

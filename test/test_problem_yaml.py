@@ -1,8 +1,9 @@
+from pathlib import Path
+from typing import Any, cast
+from unittest.mock import call, MagicMock
+
 import pytest
 import yaml
-from pathlib import Path
-from typing import cast, Any
-from unittest.mock import call, MagicMock
 
 from bapctools import config, problem
 from bapctools.util import PrintBar

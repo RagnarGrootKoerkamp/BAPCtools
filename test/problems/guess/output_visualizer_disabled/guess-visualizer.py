@@ -1,7 +1,6 @@
 import sys
 from pathlib import Path
 
-
 with open(sys.argv[1]) as in_file, open(sys.argv[3] / Path("judgemessage.txt"), "r") as msg_file:
     mode = in_file.read().split()[0]
     assert mode in ("random", "fixed", "adaptive"), mode

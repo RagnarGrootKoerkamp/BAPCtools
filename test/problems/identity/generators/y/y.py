@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import sys
-import random
 import pathlib
+import random
+import sys
 
 # Seed with the directory name.
 random.seed(pathlib.Path(sys.argv[0]).parts[-2])
