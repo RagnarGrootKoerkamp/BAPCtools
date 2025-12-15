@@ -76,10 +76,11 @@ import "strings"
 			ans?: string | [...string]
 		}
 
-		["in" | "in.statement" | "in.download" |
-			"ans" | "ans.statement" | "ans.download" |
-				"out"]: string
-		interaction?: =~"^([<>][^\\n]*\\n)+$"
+		["in" | "ans" | "out"]: string
+		["in.statement" | "in.download" | "ans.statement" | "ans.download"]: string | {
+			link: "in" | "in.statement" | "in.download" | "ans" | "ans.statement" | "ans.download" | "out"
+		}
+		interaction?: =~"^([<>][^\\n]*\\n)+|---$"
 		yaml?:        #test_case_configuration
 
 		#config

@@ -421,6 +421,18 @@ class ProblemSettings:
         return " ".join(parts)
 
 
+class SampleData:
+    def __init__(
+        self,
+        name: Path,
+        statement: tuple[Path, Path] | Path,
+        download: tuple[Path, Path],
+    ) -> None:
+        self.name = name
+        self.statement = statement
+        self.download = download
+
+
 # A problem.
 class Problem:
     _SHORTNAME_REGEX_STRING: Final[str] = "[a-z0-9]{1,255}"
@@ -440,6 +452,7 @@ class Problem:
         self._testcases = dict[
             tuple[Optional[validate.Mode], bool, bool, bool], Sequence[testcase.Testcase]
         ]()
+        self._samples: Optional[list[SampleData]] = None
         self._submissions: Optional[Sequence[run.Submission] | Literal[False]] = None
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
             tuple[type[validate.AnyValidator], bool], Sequence[validate.AnyValidator]
@@ -710,33 +723,35 @@ class Problem:
         p._testcases[key] = tuple(testcases)
         return p._testcases[key]
 
-    def _samples(
-        p, in_extensions: list[str], ans_extensions: list[str], return_interaction_file: bool
-    ) -> list[Path | tuple[Path, Path]]:
-        """
-        Find the samples of the problem
+    def samples(p) -> Sequence[SampleData]:
+        if p._samples is not None:
+            return p._samples
 
-        Arguments
-        ---------
-        in_extensions: possible extensions for an in file sorted by priority
-        ans_extensions: possible extensions for an ans file sorted by priority
-        return_interaction_file: If True allows to represent testcases by an .interaction file
-
-        Returns:
-        --------
-        A list of testcases represented either by their .interaction file or an in and ans file
-        """
+        in_extensions = [
+            ".in.statement",
+            ".in.download",
+            ".in",
+        ]
+        ans_extensions = [
+            ".ans.statement",
+            ".ans.download",
+            ".out",
+            ".ans",
+        ]
 
         base_names: set[Path] = set()
         for ext in [".in", ".in.statement", ".interaction"]:
             files = list(p.path.glob(f"data/sample/**/*{ext}"))
             base_names.update([drop_suffix(f, [ext]) for f in files if f.is_file()])
-        testcases: list[Path | tuple[Path, Path]] = []
+        p._samples = []
+
         has_raw = False
         for name in base_names:
             in_found = [ext for ext in in_extensions if name.with_suffix(ext).is_file()]
             ans_found = [ext for ext in ans_extensions if name.with_suffix(ext).is_file()]
-            has_statement = ".in.statement" in in_found or ".ans.statement" in ans_found
+
+            statement: Optional[tuple[Path, Path] | tuple[Path]] = None
+            download: Optional[tuple[Path, Path]] = None
 
             # check for inconsistencies
             if ".in" in in_found and ".ans" not in ans_found:
@@ -751,83 +766,65 @@ class Problem:
                 if ".out" in ans_found:
                     warn(f"Found {name}.out but no {name}.in. IGNORED.")
                     ans_found.remove(".out")
-            if has_statement and ".out" in ans_found:
+            if ".ans.statement" in ans_found and ".out" in ans_found:
                 # we prefer .statement files
                 warn(f"Found {name}.out (but also .statement). IGNORED.")
                 ans_found.remove(".out")
 
             # .interaction files get highest priority
-            if return_interaction_file and name.with_suffix(".interaction").is_file():
+            if name.with_suffix(".interaction").is_file():
                 if not p.interactive and not p.multi_pass:
                     warn(f"Found {name}.interaction for non-interactive/non-multi-pass. IGNORED.")
                 else:
-                    if has_statement:
+                    if ".in.statement" in in_found or ".ans.statement" in ans_found:
                         warn(
                             f"Mixed .interaction and .statement file for {name}. (using .interaction)."
                         )
                     if ".out" in ans_found:
                         warn(f"Mixed .interaction and .out file for {name}. (using .interaction).")
-                    testcases.append(name.with_suffix(".interaction"))
-                    continue
+                statement = (name.with_suffix(".interaction"),)
+            else:
+                statement_in = [ext for ext in in_found if not ext.endswith(".download")]
+                statement_ans = [ext for ext in in_found if not ext.endswith(".download")]
+                if statement_in and statement_ans:
+                    statement = (
+                        name.with_suffix(statement_in[0]),
+                        name.with_suffix(statement_ans[0]),
+                    )
 
-            if not in_found or not ans_found:
-                warn(
-                    f"Could not find valid .in/.ans combination for test case {name}. SKIPPED."
-                    + "\n\tNumbering for statement and download could be inconsistent!"
-                )
+            download_in = [ext for ext in in_found if not ext.endswith(".statement")]
+            download_ans = [ext for ext in in_found if not ext.endswith(".statement")]
+            if download_in and download_ans:
+                download = (name.with_suffix(download_in[0]), name.with_suffix(download_ans[0]))
+
+            if not statement or not download:
+                warn(f"Could not find valid .in/.ans combination for test case {name}. SKIPPED.")
                 continue
 
-            if (
-                not name.with_suffix(".interaction").is_file()
-                and ans_found[0] == ".ans"
-                and name.with_suffix(in_found[0]).stat().st_size > 0
-                and name.with_suffix(ans_found[0]).stat().st_size > 0
-            ):
+            if (statement[0].suffix == ".in") != (download[0].suffix == ".in"):
+                warn("You are supposed to overwrite .in for statement and download. SKIPPED.")
+                continue
+            if (statement[-1].suffix == ".in") != (download[-1].suffix == ".in"):
+                warn("You are supposed to overwrite .ans for statement and download. SKIPPED.")
+                continue
+
+            if statement[-1].suffix == ".ans" and statement[-1].stat().st_size > 0:
+                has_raw = True
+            if download[-1].suffix == ".ans" and download[-1].stat().st_size > 0:
                 has_raw = True
 
-            # fallback is pair of files
-            testcases.append((name.with_suffix(in_found[0]), name.with_suffix(ans_found[0])))
+            p._samples.append(
+                SampleData(name, statement if len(statement) > 1 else statement[0], download)
+            )
 
         if has_raw and not p.settings.ans_is_output:
             warn(
                 "It is advised to overwrite .ans for samples if it does not represent a valid output."
-                + "\n\tUse .ans.statement or .out for this."
+                + "\n\tUse .ans.statement+.ans.download or .out for this."
             )
 
-        testcases.sort()
-        return testcases
-
-    # Returns a list of:
-    # - (Path, Path): with the first being one of [.in.statement, .in] and the second one of [.ans.statement, .out, .ans]
-    # -  Path       :  .interaction file
-    def statement_samples(p) -> list[Path | tuple[Path, Path]]:
-        in_extensions = [
-            ".in.statement",
-            ".in",
-        ]
-        ans_extensions = [
-            ".ans.statement",
-            ".out",
-            ".ans",
-        ]
-        return p._samples(in_extensions, ans_extensions, True)
-
-    # Returns a list of:
-    # - (Path, Path): with the first being one of [.in.download, .in.statement, .in] and the second one of [.ans.download, .ans.statement, .out, .ans]
-    def download_samples(p) -> list[tuple[Path, Path]]:
-        in_extensions = [
-            ".in.download",
-            ".in.statement",
-            ".in",
-        ]
-        ans_extensions = [
-            ".ans.download",
-            ".ans.statement",
-            ".out",
-            ".ans",
-        ]
-        testcases = p._samples(in_extensions, ans_extensions, False)
-        return [t for t in testcases if isinstance(t, tuple)]
+        p._samples.sort(key=lambda t: t.name)
+        return p._samples
 
     # Returns the list of submissions passed as command-line arguments, or the list of accepted submissions by default.
     def selected_or_accepted_submissions(problem) -> Sequence[run.Submission]:
@@ -1228,12 +1225,13 @@ class Problem:
         ]
         if not config.args.testcases:
             sampleinputs = []
-            for in_path, _ in problem.download_samples():
-                sample = check_testing_tool.TestInput(
+            for sample in problem.samples():
+                in_path = sample.download[0]
+                sampleinput = check_testing_tool.TestInput(
                     problem, in_path, in_path.relative_to(problem.path / "data")
                 )
-                if sample not in testinputs:
-                    sampleinputs.append(sample)
+                if sampleinput not in testinputs:
+                    sampleinputs.append(sampleinput)
             testinputs = sampleinputs + testinputs
         if not testinputs:
             warn(

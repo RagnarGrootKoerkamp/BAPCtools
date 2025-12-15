@@ -75,6 +75,8 @@ data:
       "6":
         in.statement: "6"
         ans.statement: "6"
+        in.download: {link: .in.statement}
+        ans.download: {link: .ans.statement}
     test_group.yaml:
       output_visualizer_args: [--draw-please]
 
