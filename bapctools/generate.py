@@ -1449,6 +1449,7 @@ class TestcaseRule(Rule):
         if not generate_empty_interactive_sample_ans():
             return
 
+        # Step 8: warn if statement/download files are inconsistent
         warn_override()
 
         # Step 9: copy and link all generated files
