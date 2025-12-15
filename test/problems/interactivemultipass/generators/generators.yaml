@@ -5,5 +5,7 @@ data:
     data:
       - "":
           in: "-1"
+          in.download: {link: .in}
+          ans.download: ""
   secret:
     data: []

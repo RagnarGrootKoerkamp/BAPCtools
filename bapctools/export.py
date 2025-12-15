@@ -96,10 +96,13 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
         contents: dict[Path, Path] = {}  # Maps desination to source, to allow checking duplicates.
 
         # Add samples.
-        samples = problem.download_samples()
-        for i, (in_file, ans_file) in enumerate(samples):
+        samples = problem.samples()
+        for i, sample in enumerate(samples):
+            in_file, ans_file = sample.download
             base_name = outputdir / str(i + 1)
             contents[base_name.with_suffix(".in")] = in_file
+            if in_file.stat().st_size > 0:
+                contents[base_name.with_suffix(".ans")] = in_file
             if ans_file.stat().st_size > 0:
                 contents[base_name.with_suffix(".ans")] = ans_file
 
@@ -206,11 +209,11 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
                 add_file(f.relative_to(problem.path), f)
 
     # Include all sample test cases and copy all related files.
-    samples = problem.download_samples()
+    samples = problem.samples()
     if len(samples) == 0:
         bar.error("No samples found.")
-    for in_file, _ in samples:
-        add_testcase(in_file)
+    for sample in samples:
+        add_testcase(sample.download[0])
 
     # Include all secret test cases and copy all related files.
     pattern = "data/secret/**/*.in"
@@ -343,10 +346,12 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 
         # The downloadable samples should be copied to attachments/.
         if problem.interactive or problem.multi_pass:
-            samples = problem.download_samples()
-            for i, (in_file, ans_file) in enumerate(samples):
+            samples = problem.samples()
+            for i, sample in enumerate(samples):
+                in_file, ans_file = sample.download
                 base_name = export_dir / "attachments" / str(i + 1)
-                add_file(base_name.with_suffix(".in"), in_file)
+                if in_file.stat().st_size > 0:
+                    add_file(base_name.with_suffix(".in"), in_file)
                 if ans_file.stat().st_size > 0:
                     add_file(base_name.with_suffix(".ans"), ans_file)
 

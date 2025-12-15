@@ -335,6 +335,12 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = (
     *UNIQUE_TESTCASE_KEYS,
 )
 UNIQUE_DIRECTORY_KEYS: Final[Sequence[str]] = ("data", "test_group.yaml", "include")
+ALLOWED_LINK_KEYS: Final[Sequence[str]] = (
+    ".in.statement",
+    ".ans.statement",
+    ".in.download",
+    ".ans.download",
+)
 KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
     "type",
     "solution",
@@ -471,6 +477,8 @@ class TestcaseRule(Rule):
         self.copy = None
         # 3. Hardcoded cases where the source is in the yaml file itself.
         self.hardcoded = dict[str, str]()
+        # 4. Linked files belonging to the same testcase.
+        self.linked = dict[str, str]()
         # map of ext to list of patterns used to check the generated testcase.<ext>
         self.patterns = collections.defaultdict[str, list[re.Pattern[str]]](list)
 
@@ -607,20 +615,41 @@ class TestcaseRule(Rule):
                         if self.copy.with_suffix(ext).is_file():
                             hashes[ext] = hash_file_content(self.copy.with_suffix(ext))
 
-                # 3. hardcoded strings (or, for the Test Case Configuration, a yaml mapping)
+                # 3./4. hardcoded data or link to another file
                 for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
                     if ext[1:] in yaml:
                         value = yaml[ext[1:]]
                         if ext == ".yaml":
-                            assert_type(ext, value, dict)
-                            value = write_yaml(value)
-                            assert value is not None
+                            # yaml can only be hardcoded (convert dict -> str)
+                            if not isinstance(value, str):
+                                value = write_yaml(value)
+                                assert value is not None
+                        if isinstance(value, dict) and ext in ALLOWED_LINK_KEYS:
+                            # 4. linked
+                            if "link" not in value or len(value) != 1:
+                                raise ParseException(
+                                    f"{ext} should either be a string or a map with only the entry link."
+                                )
+                            value = value["link"]
+                            assert_type(f"{ext}.link", value, str)
+                            if value not in config.KNOWN_TEXT_DATA_EXTENSIONS:
+                                raise ParseException(f"Unknown value for for key {ext}.link.")
+                            assert isinstance(value, str)
+                            self.linked[ext] = value
                         else:
+                            # 3. hardcoded
                             assert_type(ext, value, str)
-                        assert isinstance(value, str)
-                        if len(value) > 0 and value[-1] != "\n":
-                            value += "\n"
-                        self.hardcoded[ext] = value
+                            assert isinstance(value, str)
+                            if len(value) > 0 and value[-1] != "\n":
+                                value += "\n"
+                            self.hardcoded[ext] = value
+
+                for link, target in self.linked.items():
+                    # do not allow links to other links to avoid cycles
+                    if target in self.linked:
+                        raise ParseException(
+                            f"link from {link}->{target} is forbidden, {target} is also a link!"
+                        )
 
                 if ".in" in self.hardcoded:
                     self.in_is_generated = False
@@ -727,6 +756,8 @@ class TestcaseRule(Rule):
     ) -> None:
         assert t.process
 
+        identical_exts = set()
+
         src_dir = problem.path / "data" / t.path.parent
         src = src_dir / (t.name + ".in")
 
@@ -736,10 +767,10 @@ class TestcaseRule(Rule):
 
             if source.is_file() and source in generator_config.known_files:
                 generator_config.known_files.add(target)
-                if target.is_file():
+                if target.exists() or target.is_symlink():
                     if target.is_symlink() and target.resolve() == source.resolve():
                         # identical -> skip
-                        pass
+                        identical_exts.add(ext)
                     else:
                         # different -> overwrite
                         generator_config.remove(target)
@@ -749,7 +780,19 @@ class TestcaseRule(Rule):
                     # new file -> copy it
                     ensure_symlink(target, source, relative=True)
                     bar.log(f"NEW: {target.name}")
-            elif target.is_file():
+            elif target.exists() or target.is_symlink():
+                if (
+                    config.args.no_visualizer
+                    and ext in config.KNOWN_VISUALIZER_EXTENSIONS
+                    and ".in" in identical_exts
+                    and ".ans" in identical_exts
+                ):
+                    # When running with --no-visualizer and .in/.ans files did not change,
+                    # do not remove output of visualizer.
+                    # This is useful for when a user/CI has a clean cache (e.g. after a reboot).
+                    # Also add target to known_files, so the cleanup step does not remove it.
+                    generator_config.known_files.add(target)
+                    continue
                 # Target exists but source wasn't generated -> remove it
                 generator_config.remove(target)
                 bar.log(f"REMOVED: {target.name}")
@@ -1005,6 +1048,7 @@ class TestcaseRule(Rule):
                         bar.warn(f"No files copied from {t.copy}.")
 
                 # Step 3: Write hardcoded files.
+                # Note: we cannot generate links yet, since files like .ans are not yet generated
                 for ext, contents in t.hardcoded.items():
                     # substitute in contents? -> No!
                     infile.with_suffix(ext).write_text(contents)
@@ -1063,7 +1107,7 @@ class TestcaseRule(Rule):
             if updated:
                 meta_yaml.write()
 
-        def generate_from_solution(testcase: Testcase, bar: ProgressBar) -> bool:
+        def generate_from_solution(testcase: Testcase) -> bool:
             nonlocal meta_yaml
 
             if testcase.root in [
@@ -1148,7 +1192,7 @@ class TestcaseRule(Rule):
             assert ansfile.is_file(), f"Failed to generate ans file: {ansfile}"
             return True
 
-        def generate_visualization(testcase: Testcase, bar: ProgressBar) -> bool:
+        def generate_visualization(testcase: Testcase) -> bool:
             nonlocal meta_yaml
 
             if testcase.root in config.INVALID_CASE_DIRECTORIES:
@@ -1266,6 +1310,29 @@ class TestcaseRule(Rule):
                     return True
             return True
 
+        def warn_override() -> None:
+            def find_override(*exts: str) -> list[str]:
+                found = [
+                    ext for ext in exts if infile.with_suffix(ext).is_file() or ext in t.linked
+                ]
+                if len(found) > 1:
+                    bar.warn(f"There should be at most one of {', '.join(found)}")
+                return found
+
+            statement_in = find_override(".in.statement", ".interaction")
+            download_in = find_override(".in.download")
+            if statement_in and not download_in:
+                bar.warn(f"found {statement_in[0]} but no override for download")
+            if not statement_in and download_in:
+                bar.warn(f"found {download_in[0]} but no override for statement")
+
+            statement_ans = find_override(".out", ".ans.statement", ".interaction")
+            download_ans = find_override(".out", ".ans.download")
+            if statement_ans and not download_ans:
+                bar.warn(f"found {statement_ans[0]} but no override for download")
+            if not statement_ans and download_ans:
+                bar.warn(f"found {download_ans[0]} but no override for statement")
+
         def copy_generated() -> None:
             identical_exts = set()
 
@@ -1273,10 +1340,29 @@ class TestcaseRule(Rule):
                 source = infile.with_suffix(ext)
                 target = target_infile.with_suffix(ext)
 
-                if source.is_file():
+                if ext in t.linked:
                     generator_config.known_files.add(target)
-                    if target.is_file():
-                        if source.read_bytes() == target.read_bytes() and not target.is_symlink():
+                    dest = target_infile.with_suffix(t.linked[ext])
+                    if not dest.is_file():
+                        bar.warn(
+                            f"{target.name}->{dest.name} is broken since {dest.name} was not generated"
+                        )
+                    if target.exists() or target.is_symlink():
+                        if target.is_symlink() and target.resolve() == dest.resolve():
+                            # identical -> skip
+                            identical_exts.add(ext)
+                        else:
+                            # different -> overwrite
+                            ensure_symlink(target, dest, relative=True)
+                            bar.log(f"CHANGED: {target.name}")
+                    else:
+                        # new link -> create it
+                        ensure_symlink(target, dest, relative=True)
+                        bar.log(f"NEW: {target.name}")
+                elif source.is_file():
+                    generator_config.known_files.add(target)
+                    if target.exists() or target.is_symlink():
+                        if not target.is_symlink() and source.read_bytes() == target.read_bytes():
                             # identical -> skip
                             identical_exts.add(ext)
                         else:
@@ -1288,7 +1374,7 @@ class TestcaseRule(Rule):
                         # new file -> copy it
                         shutil.copy(source, target, follow_symlinks=True)
                         bar.log(f"NEW: {target.name}")
-                elif target.is_file():
+                elif target.is_file() or target.is_symlink():
                     if (
                         config.args.no_visualizer
                         and ext in config.KNOWN_VISUALIZER_EXTENSIONS
@@ -1369,7 +1455,7 @@ class TestcaseRule(Rule):
             check_match(testcase, "in", bar)
 
             # Step 4: generate .ans and .interaction if needed
-            if not generate_from_solution(testcase, bar):
+            if not generate_from_solution(testcase):
                 return
 
             # Step 5: validate .ans (and .out if it exists)
@@ -1380,14 +1466,16 @@ class TestcaseRule(Rule):
             check_match(testcase, "ans", bar)
 
             # Step 6: generate visualization if needed
-            if not generate_visualization(testcase, bar):
+            if not generate_visualization(testcase):
                 return
 
         # Step 7: for interactive and/or multi-pass samples, generate empty .ans if it does not exist
         if not generate_empty_interactive_sample_ans():
             return
 
-        # Step 8: copy all generated files
+        warn_override()
+
+        # Step 9: copy and link all generated files
         copy_generated()
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
@@ -2170,7 +2258,7 @@ class GeneratorConfig:
         bar.item_width = 0
         bar.finalize(message="".join(stats))
 
-    # move a file or into the trash directory
+    # move a file or directory into the trash directory
     def remove(self, src: Path) -> None:
         if self.trash_dir is None:
             self.trash_dir = self.problem.tmpdir / "trash" / secrets.token_hex(4)
