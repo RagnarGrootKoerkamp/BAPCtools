@@ -5,7 +5,7 @@ import shutil
 import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import Final, Literal, Optional, overload, TYPE_CHECKING
+from typing import Final, Literal, NamedTuple, Optional, overload, TYPE_CHECKING
 
 from colorama import Fore, Style
 from ruamel.yaml.comments import CommentedMap
@@ -421,16 +421,11 @@ class ProblemSettings:
         return " ".join(parts)
 
 
-class SampleData:
-    def __init__(
-        self,
-        name: Path,
-        statement: tuple[Path, Path] | Path,
-        download: tuple[Path, Path],
-    ) -> None:
-        self.name = name
-        self.statement = statement
-        self.download = download
+class SampleData(NamedTuple):
+    name: Path
+    # A single path represents a .interaction file. A tuple contains (.in, .ans)
+    statement: tuple[Path, Path] | Path
+    download: tuple[Path, Path]
 
 
 # A problem.
@@ -724,6 +719,14 @@ class Problem:
         return p._testcases[key]
 
     def samples(p) -> Sequence[SampleData]:
+        """
+        Find the samples of the problem
+
+        Returns:
+        --------
+        A list of SampleData. The SampleData contains separate data for statement and download.
+        The entries sample is represented bei either a (.in, .ans) tuple or (only for statement) a .interaction file
+        """
         if p._samples is not None:
             return p._samples
 
