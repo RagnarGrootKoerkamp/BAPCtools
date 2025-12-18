@@ -47,7 +47,7 @@ import "strings"
 
 		["in" | "ans" | "out"]: string
 		["in.statement" | "in.download" | "ans.statement" | "ans.download"]: string | {
-			link: "in" | "in.statement" | "in.download" | "ans.statement" | "ans.download" | "ans" | "out"
+			link: "in" | "in.statement" | "in.download" | "ans" | "ans.statement" | "ans.download" | "out"
 		}
 		interaction?: =~"^([<>][^\\n]*\\n)+|---$"
 		yaml?: #test_case_config
