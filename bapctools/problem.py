@@ -332,19 +332,17 @@ class ProblemSettings:
             variants = set()
             if not isinstance(value, dict):
                 value = {"value": value}
-            for subkey, variant in value.items():
-                if not isinstance(subkey, str) or not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(
-                    subkey
-                ):
-                    warn(f"invalid key `{key}.{subkey}` for `constants` in problem.yaml. SKIPPED.")
-                if not isinstance(variant, (str, int, float)):
-                    warn(
-                        f"invalid value for `{key}.{subkey}` for `constants` in problem.yaml. SKIPPED."
-                    )
+            for sub, variant in value.items():
+                if not isinstance(sub, str):
+                    warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
+                elif not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(sub):
+                    warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
+                elif not isinstance(variant, (str, int, float)):
+                    warn(f"invalid value for `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
                 else:
                     variants.add(str(variant))
-                    self.constants[f"{key}.{subkey}"] = str(variant)
-                    if subkey == "value":
+                    self.constants[f"{key}.{sub}"] = str(variant)
+                    if sub == "value":
                         self.constants[key] = str(variant)
 
             # TODO: check if all variants represent the same value
