@@ -14,5 +14,9 @@ rights_owner: author
 #   time_limit: 1.0
 
 constants:
-  INT_FIVE: 5
-  STRING_FIVE: "5"
+  FIVE:
+    value: 5
+    INT: 5
+    FLOAT: 5.0
+    STRING: "5"
+  SIX: 6

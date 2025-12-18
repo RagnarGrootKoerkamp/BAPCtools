@@ -7,6 +7,6 @@ int main(int argc, char *argv[]) {
 
     int input;
     in >> input;
-    int answer = v.read_integer("answer", {{INT_FIVE}}, {{STRING_FIVE}});
+    int answer = v.read_integer("answer", {{FIVE.INT}}, {{FIVE.STRING}});
     v.newline();
 }
