@@ -91,7 +91,7 @@
                         },
                         "interaction": {
                             "type": "string",
-                            "pattern": "^([<>][^\\n]*\\n)+$"
+                            "pattern": "^([<>][^\\n]*\\n)+|---$"
                         },
                         "match": {
                             "anyOf": [
