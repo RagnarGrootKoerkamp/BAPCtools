@@ -57,7 +57,6 @@ from bapctools.util import (
     glob,
     has_ryaml,
     inc_label,
-    is_bsd,
     is_problem_directory,
     is_relative_to,
     is_windows,
@@ -71,8 +70,6 @@ from bapctools.util import (
 )
 
 if not is_windows():
-    import resource  # For resource checks
-
     import argcomplete  # For automatic shell completions
 
 # Initialize colorama for printing coloured output. On Windows, this captures
@@ -1075,16 +1072,6 @@ def run_parsed_arguments(args: argparse.Namespace, personal_config: bool = True)
     # Don't zero newly allocated memory for this and any subprocess
     # Will likely only have an effect on linux
     os.environ["MALLOC_PERTURB_"] = str(0b01011001)
-
-    if not is_windows():
-        unlimited = (resource.RLIM_INFINITY, resource.RLIM_INFINITY)
-        if not is_bsd():
-            stack_limit = resource.getrlimit(resource.RLIMIT_STACK)
-            if stack_limit != unlimited:
-                warn(f"stack limit is set: {stack_limit}, this might cause trouble for BAPCtools")
-        mem_limit = resource.getrlimit(resource.RLIMIT_AS)
-        if mem_limit != unlimited:
-            warn(f"mempry limit is set: {stack_limit}, this might cause trouble for BAPCtools")
 
     # Process arguments
     config.args = config.ARGS("args", **vars(args))

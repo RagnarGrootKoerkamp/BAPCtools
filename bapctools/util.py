@@ -1402,6 +1402,15 @@ def limit_setter(
     if not is_windows() and not is_bsd():
         cores = False
 
+    if disable_stack_limit:
+        current = resource.getrlimit(resource.RLIMIT_STACK)
+        if current[1] != resource.RLIM_INFINITY:
+            fatal("Stacklimit must be unlimited")
+    if memory_limit is not None:
+        current = resource.getrlimit(resource.RLIMIT_AS)
+        if current[1] != resource.RLIM_INFINITY and current[1] < memory_limit:
+            fatal(f"Insufficient memory limit: {current[1]}")
+
     # actual preexec_fn called in the context of the new process
     # this should only do resource and os calls to stay safe
     def setlimits() -> None:
