@@ -2,6 +2,6 @@
 
 int main(int argc, char** argv) {
 	InputValidator v(argc, argv);
-	int n = v.read_integer("n", {{INT_FIVE}}, {{STRING_FIVE}});
+	int n = v.read_integer("n", {{FIVE.INT}}, {{FIVE.STRING}});
 	v.newline();
 }

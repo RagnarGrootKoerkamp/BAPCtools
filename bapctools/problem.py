@@ -326,11 +326,29 @@ class ProblemSettings:
         self.constants: dict[str, str] = {}
         for key, value in constants.items():
             if not isinstance(key, str) or not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(key):
-                warn(f"invalid constant name `{key}` for `constants` in problem.yaml. SKIPPED.")
-            elif not isinstance(value, (str, int, float)):
-                warn(f"invalid constant type for `constants.{key}` in problem.yaml. SKIPPED.")
-            else:
-                self.constants[key] = str(value)
+                warn(f"invalid name `{key}` for `constants` in problem.yaml. SKIPPED.")
+                continue
+
+            variants = set()
+            if not isinstance(value, dict):
+                value = {"value": value}
+            for subkey, variant in value.items():
+                if not isinstance(subkey, str) or not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(
+                    subkey
+                ):
+                    warn(f"invalid key `{key}.{subkey}` for `constants` in problem.yaml. SKIPPED.")
+                if not isinstance(variant, (str, int, float)):
+                    warn(
+                        f"invalid value for `{key}.{subkey}` for `constants` in problem.yaml. SKIPPED."
+                    )
+                else:
+                    variants.add(str(variant))
+                    self.constants[f"{key}.{subkey}"] = str(variant)
+                    if subkey == "value":
+                        self.constants[key] = str(variant)
+
+            # TODO: check if all variants represent the same value
+            pass
 
         # BAPCtools extensions:
         self.verified: Optional[str] = parser.extract_optional("verified", str)
