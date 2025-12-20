@@ -1774,6 +1774,10 @@ class GeneratorConfig:
                     assert False # syntax check must have caught this
             if len(count_list) > 100 and warn_for is not None:
                 bar.log(f"Found large count: {count}.")
+            if not count_list:
+                if warn_for is not None:
+                    bar.error(f"Count expression {count} produces empty list. Replaced by [1].")
+                count_list = [1]
             return count_list
 
         # Count the number of testcases in the given directory yaml.
