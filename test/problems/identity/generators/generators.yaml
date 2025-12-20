@@ -192,7 +192,16 @@ data:
         data:
           - count1:
               generate: stdout.py 700 {count}
-              count: 1
+              count: [1] # same as count: 1
+          - primes:
+              generate: stdout.py {count}
+              count: [907, 911, 919]
+          - slice:
+              generate: stdout.py 523 {count}
+              count: -23:24:23 # same as [-23, 0, 23]
+          - dotdot:
+              generate: stdout.py {count}
+              count: 801..=803 # same as [001, 802, 803]
           - generate:
               generate: stdout.py 701 {name}
               count: 3
