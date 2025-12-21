@@ -17,6 +17,6 @@ constants:
   FIVE:
     value: 5
     INT: 5
-    FLOAT: 5.0
+    #FLOAT: 5.0  # 5.0 and 5 represent different values
     STRING: "5"
   SIX: 6
