@@ -41,7 +41,6 @@ The two main object types are `directory` and `generator`. The root of `generato
 - `copy: <base_path>`: For all known extensions `<ext>` the corresponding file `<base_path>.<ext>` will be copied to the specified location should it be present. `<base_path>` must be relative to `generators/`.
 - `<ext>: <content>`: A file with extension `ext` and the `content` will be generated. `<ext>` must be a known file extension.
 - `count: <int>`. To generate multiple Generator objects. If `generate` is used and `{seed}` or `{seed:(0-9)+}` is present all Generator objects will use a different seed. The arguments of `generate` may contain `{count}` to refer to the index of this generator invocation.
-Or as a shorthand:
 - `match`: Optional `str` or list of `str`. Each entry should be a regex pattern. If the generated testcase does not match a pattern a warning will be shown.
 - `solution`, `random_salt`, and `retries`: see **Directory objects**.
 
