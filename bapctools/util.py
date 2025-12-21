@@ -756,9 +756,7 @@ def parse_yaml(
 
     else:
         try:
-            import yaml
-
-            return yaml.safe_load(data)
+            return yamllib.safe_load(data)
         except Exception as e:
             if suppress_errors:
                 return None
