@@ -51,11 +51,7 @@ import "strings"
 			"ans" | "ans.statement" | "ans.download" |
 				"out"]: string
 		interaction?: =~"^([<>][^\\n]*\\n)+$"
-<<<<<<< HEAD
-		yaml?: #test_case_settings
-=======
 		yaml?:        #test_case_configuration
->>>>>>> fcbd715c (Schema, examples, tests for 2025-09)
 
 		#config
 	}
