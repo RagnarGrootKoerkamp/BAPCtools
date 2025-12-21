@@ -10,6 +10,24 @@ data:
       'count-100':
         generate: my_generator {count}
         count: 100
+      'count-list':
+        generate: my_generator {count}
+        count: [1]
+      'count-list-neg':
+        generate: my_generator {count}
+        count: [-1]
+      'count-range':
+        generate: my_generator {count}
+        count: 10..=20
+      'count-range-neg':
+        generate: my_generator {count}
+        count: -20..=-10
+      'count-slice':
+        generate: my_generator {count}
+        count: 1:10:2
+      'count-slice-neg':
+        generate: my_generator {count}
+        count: -4:-1:2
       'copied':
         copy: ab
         in: "1 2"
