@@ -50,8 +50,8 @@ if has_ryaml:
 
 YAML_TYPE = Optional[str | dict[object, object]]
 
-SLICE = re.compile(r"^(-?\d+):(\d+):(\d+)$")
-DOTDOT = re.compile(r"^(\d+)\.\.=(\d+)$")
+SLICE = re.compile(r"^(-?\d+):(-?\d+):(\d+)$")
+DOTDOT = re.compile(r"^(-?\d+)\.\.=(-?\d+)$")
 
 
 class ParseException(Exception):
