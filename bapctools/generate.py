@@ -100,7 +100,9 @@ def is_directory(yaml: YAML_TYPE) -> bool:
 
 
 def has_count(yaml: YAML_TYPE) -> bool:
-    return isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], int | list | str)
+    return (
+        isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], int | list | str)
+    )
 
 
 # Returns the given path relative to the problem root.
@@ -547,9 +549,13 @@ class TestcaseRule(Rule):
                             pass
                         case list(items):
                             if not all(isinstance(item, int) for item in items):
-                                raise ParseException(f"Testcase count list must be integers, found {value}.")
+                                raise ParseException(
+                                    f"Testcase count list must be integers, found {value}."
+                                )
                             if not len(items) == len(set(items)):
-                                raise ParseException("Testcase count list contains duplicate integers.")
+                                raise ParseException(
+                                    "Testcase count list contains duplicate integers."
+                                )
                         case str(s):
                             if not (DOTDOT.match(s) or SLICE.match(s)):
                                 raise ParseException(f"Testcase count expression invalid: {s}")
@@ -1764,14 +1770,14 @@ class GeneratorConfig:
                         count = 1000
                     count_list = list(range(1, count + 1))
                 case list(idx_list):
-                    count_list = idx_list 
+                    count_list = idx_list
                 case str(s):
                     if m := DOTDOT.match(s):
-                        count_list = list(range(int(m[1]), int(m[2])+1))
+                        count_list = list(range(int(m[1]), int(m[2]) + 1))
                     elif m := SLICE.match(s):
                         count_list = list(range(int(m[1]), int(m[2]), int(m[3])))
                 case _:
-                    assert False # syntax check must have caught this
+                    assert False  # syntax check must have caught this
             if len(count_list) > 100 and warn_for is not None:
                 bar.log(f"Found large count: {count}.")
             if not count_list:
@@ -1824,7 +1830,7 @@ class GeneratorConfig:
 
                 ts = []
                 for count_index in count_list:
-                    if len(count_list) > 0: # can this ever be 0?
+                    if len(count_list) > 0:  # can this ever be 0?
                         name = next(name_gen)
                     if has_count(yaml):
                         name += f"-{count_index:0{len(str(len(count_list)))}}"
