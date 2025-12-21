@@ -4,8 +4,6 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-import yaml
-
 from bapctools import config
 from bapctools.contest import (
     call_api,
@@ -510,7 +508,7 @@ def export_contest(cid: Optional[str]) -> str:
         files={
             "yaml": (
                 "contest.yaml",
-                yaml.dump(data),
+                write_yaml(data),
                 "application/x-yaml",
             )
         },
