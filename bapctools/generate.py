@@ -543,18 +543,18 @@ class TestcaseRule(Rule):
                 if "count" in yaml:
                     value = yaml["count"]
                     match value:
-                        case int(ct):
+                        case int():
                             pass
                         case list(items):
                             if not all(isinstance(item, int) for item in items):
                                 raise ParseException(f"Testcase count list must be integers, found {value}.")
                             if not len(items) == len(set(items)):
-                                raise ParseException(f"Testcase count list contains duplicate integers.")
+                                raise ParseException("Testcase count list contains duplicate integers.")
                         case str(s):
                             if not (DOTDOT.match(s) or SLICE.match(s)):
-                                raise ParseException(f"Testcase count expression invalid: {{s}}")
+                                raise ParseException(f"Testcase count expression invalid: {s}")
                         case _:
-                            raise ParseException(f"Testcase count expression invalid: {{value}}")
+                            raise ParseException(f"Testcase count expression invalid: {value}")
 
                 # 1. generate
                 if "generate" in yaml:
