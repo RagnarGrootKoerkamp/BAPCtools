@@ -345,8 +345,27 @@ class ProblemSettings:
                     if sub == "value":
                         self.constants[key] = str(variant)
 
-            # TODO: check if all variants represent the same value
-            pass
+            # check if all variants represent the same value
+            variant_numbers = {}
+            for variant in variants:
+                normalized = variant
+                normalized = normalized.replace("\\cdot", "*")  # LaTeX mul
+                normalized = normalized.replace("\\cdot{}", "*")  # LaTeX mul
+                normalized = normalized.replace("^", "**")  # latex pow
+                normalized = normalized.replace("\\,", "")  # latex half space
+                normalized = normalized.replace("_", "")  # python separator
+                normalized = normalized.replace("'", "")  # c++ separator
+                try:
+                    # eval is dangerous, but on the other hand we run submission code so this is fine
+                    value = eval(normalized, {"__builtin__": None})
+                    if isinstance(value, (int, float)):
+                        variant_numbers[(value, type(value))] = variant
+                except (SyntaxError, NameError, TypeError, ZeroDivisionError):
+                    continue
+            # TODO: consider float values with an eps?
+            #      (compare the largest and smallest found float with rel/abs error)
+            if len(variant_numbers) > 1:
+                warn(f"found different variants for {key}: {', '.join(variant_numbers.values())}")
 
         # BAPCtools extensions:
         self.verified: Optional[str] = parser.extract_optional("verified", str)
