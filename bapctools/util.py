@@ -1311,6 +1311,7 @@ def math_eval(text: str) -> Optional[int | float]:
     if text.count(".") != 1 and text.count(",") <= 1:
         text = text.translate(str.maketrans(".,", ",."))
     text.replace(",", "")
+    text = text.strip()
 
     # make math eval slightly safer
     allowed = string.digits + "+-*/()." + "eE"
