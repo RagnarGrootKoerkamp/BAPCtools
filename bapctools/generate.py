@@ -50,7 +50,6 @@ if has_ryaml:
 
 YAML_TYPE = Optional[str | dict[object, object]]
 
-SLICE = re.compile(r"^(-?\d+):(-?\d+):(\d+)$")
 DOTDOT = re.compile(r"^(-?\d+)\.\.=(-?\d+)$")
 
 
@@ -557,8 +556,10 @@ class TestcaseRule(Rule):
                                     "Testcase count list contains duplicate integers."
                                 )
                         case str(s):
-                            if not (DOTDOT.match(s) or SLICE.match(s)):
-                                raise ParseException(f"Testcase count expression invalid: {s}")
+                            if not DOTDOT.match(s):
+                                raise ParseException(
+                                    f"Testcase count range expression invalid: {s}"
+                                )
                         case _:
                             raise ParseException(f"Testcase count expression invalid: {value}")
 
@@ -1774,8 +1775,6 @@ class GeneratorConfig:
                 case str(s):
                     if m := DOTDOT.match(s):
                         count_list = list(range(int(m[1]), int(m[2]) + 1))
-                    elif m := SLICE.match(s):
-                        count_list = list(range(int(m[1]), int(m[2]), int(m[3])))
                 case _:
                     assert False  # syntax check must have caught this
             if len(count_list) > 100 and warn_for is not None:

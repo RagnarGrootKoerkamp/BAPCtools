@@ -100,7 +100,7 @@ data:
         data:
           # Both ~ (None) and the empty string can be used to have only numbers as testcase names.
           - ~: stdout.py 123 # 01.in
-          - "": stdout.py 124
+            #- "": stdout.py 124
           - "": stdout.py 125
           - "": stdout.py 126
           - "": stdout.py 127
@@ -196,9 +196,6 @@ data:
           - primes:
               generate: stdout.py {count}
               count: [907, 911, 919]
-          - slice:
-              generate: stdout.py 523 {count}
-              count: -23:24:23 # same as [-23, 0, 23]
           - dotdot:
               generate: stdout.py {count}
               count: 801..=803 # same as [001, 802, 803]

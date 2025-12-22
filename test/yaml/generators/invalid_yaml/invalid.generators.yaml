@@ -381,15 +381,6 @@ data:
        generate: my_generator {count}
        count: 101
 ---
-# Count can't be a two-token slice
-data:
-  sample: {}
-  secret:
-    data:
-    - '':
-       generate: my_generator {count}
-       count: 1:3
----
 # Count can't be float
 data:
   sample: {}

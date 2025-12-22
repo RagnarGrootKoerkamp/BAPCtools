@@ -146,9 +146,6 @@ data:
       14-count-range:
         generate: graph {seed:3} {count}
         count: 10..=12 # three test cases, {count} will be [10, 11, 12]
-      15-count-range:
-        generate: graph {seed:3} {count}
-        count: 5:9:2 # two test cases, {count} will be [5,7]
 
       # No key (test case or test group) may be a prefix of another key.
       #01-second: graph 6                     # Collision with rule 01 above.
@@ -166,12 +163,12 @@ data:
       #
       # The generator below generates and writes both testcase.in and testcase.ans, and
       # the optionally specified `solution:` will not be called.
-      "16": write_in_and_ans.py
+      "15": write_in_and_ans.py
 
       # To override the global/test group configuration on a per-test-case basis,
       # a dictionary may be used. This allows the solution: key,
       # as well as the generate: key which contains the command to execute.
-      17_override:
+      16_override:
         generate: large_case_generator.py 1000000
         solution: /generators/gnu_multi_precision.cpp
         random_salt: "123"

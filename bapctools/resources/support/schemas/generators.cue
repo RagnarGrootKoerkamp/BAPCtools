@@ -37,8 +37,8 @@ import "strings"
 	{
 		generate?: #command & !~"^/"
 		// Produce multiple test cases, numbered 1 ,..., count.
-		// If value is a list, slice, or range, use those numbers instead.
-		count?:    int & >=1 & <=100 | [...int] | =~ "^-?\d+:-?\d+:\d+$" | "^-?\d+\.\.=-?\d+$"
+		// If value is a list or range, use those numbers instead.
+		count?:    int & >=1 & <=100 | [...int] | "^-?\d+\.\.=-?\d+$"
 		// The "copy" key uses a path relative to "/generators/" ending in a test case name,
 		// such as "manual/samples/3".
 		copy?: #dirpath
