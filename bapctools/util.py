@@ -8,6 +8,7 @@ import re
 import secrets
 import shutil
 import signal
+import string
 import subprocess
 import sys
 import tempfile
@@ -1302,6 +1303,27 @@ def copytree_and_substitute(
         except UnicodeDecodeError:
             # Do not substitute for binary files.
             dst.write_bytes(src.read_bytes())
+
+
+# this eval is still dangerous, but on the other hand we run submission code so this is fine
+def math_eval(text: str) -> Optional[int | float]:
+    # try to guess the meaning of dot and comma (punctuation and separator)
+    if text.count(".") != 1 and text.count(",") <= 1:
+        text = text.translate(str.maketrans(".,", ",."))
+    text.replace(",", "")
+
+    # make math eval slightly safer
+    allowed = string.digits + "+-*/()." + "eE"
+    if any(c not in allowed for c in text):
+        return None
+
+    try:
+        value = eval(text, {"__builtin__": None})
+        if isinstance(value, (int, float)):
+            return value
+    except Exception:
+        pass
+    return None
 
 
 def crop_output(output: str) -> str:
