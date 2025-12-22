@@ -1,12 +1,11 @@
 import re
 from collections import defaultdict
-from typing import Optional
 
 from colorama import Fore, Style
 
 from bapctools import latex, validate
 from bapctools.problem import Problem
-from bapctools.util import eprint, error, log, warn
+from bapctools.util import eprint, error, log, math_eval, warn
 
 """DISCLAIMER:
 
@@ -69,15 +68,6 @@ def check_statement(problem: Problem, language: str) -> tuple[set[int | float], 
     }
     relations = re.compile(r"(<=|!=|>=|<|=|>)")
 
-    def math_eval(text: str) -> Optional[int | float]:
-        try:
-            # eval is dangerous, but on the other hand we run submission code so this is fine
-            text = text.replace("^", "**")
-            value = eval(text, {"__builtin__": None})
-            return value if isinstance(value, (int, float)) else None
-        except (SyntaxError, NameError, TypeError, ZeroDivisionError):
-            return None
-
     def constraint(text: str) -> None:
         # handles $$math$$
         if len(text) == 0:
@@ -121,7 +111,7 @@ def check_statement(problem: Problem, language: str) -> tuple[set[int | float], 
         if len(parts) != 1:
             for i, p in enumerate(parts):
                 # eval parts to get numbers if possible
-                tmp = math_eval(p)
+                tmp = math_eval(p.replace("^", "**"))
                 if tmp is not None:
                     statement_values.add(tmp)
                     parts[i] = f"{tmp:_}"

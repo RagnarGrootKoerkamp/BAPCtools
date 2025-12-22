@@ -35,6 +35,7 @@ from bapctools.util import (
     is_relative_to,
     is_uuid,
     log,
+    math_eval,
     parse_yaml,
     PrintBar,
     ProgressBar,
@@ -349,19 +350,20 @@ class ProblemSettings:
             variant_numbers = {}
             for variant in variants:
                 normalized = variant
-                normalized = normalized.replace("\\cdot", "*")  # LaTeX mul
+                normalized = re.sub(
+                    r"\\frac{(.*)}{(.*)}", r"(\1)/(\2)", normalized
+                )  # LaTeX fraction
                 normalized = normalized.replace("\\cdot{}", "*")  # LaTeX mul
+                normalized = normalized.replace("\\cdot", "*")  # LaTeX mul
                 normalized = normalized.replace("^", "**")  # latex pow
                 normalized = normalized.replace("\\,", "")  # latex half space
                 normalized = normalized.replace("_", "")  # python separator
                 normalized = normalized.replace("'", "")  # c++ separator
-                try:
-                    # eval is dangerous, but on the other hand we run submission code so this is fine
-                    value = eval(normalized, {"__builtin__": None})
-                    if isinstance(value, (int, float)):
-                        variant_numbers[(value, type(value))] = variant
-                except (SyntaxError, NameError, TypeError, ZeroDivisionError):
-                    continue
+
+                value = math_eval(normalized)
+                if value is not None:
+                    variant_numbers[(value, type(value))] = variant
+
             # TODO: consider float values with an eps?
             #      (compare the largest and smallest found float with rel/abs error)
             if len(variant_numbers) > 1:
