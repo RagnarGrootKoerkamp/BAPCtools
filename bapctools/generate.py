@@ -854,6 +854,7 @@ class TestcaseRule(Rule):
         assert t.process
 
         bar = parent_bar.start(str(t.path))
+        generator_config.failed += 1
 
         if t.copy_of is not None and not t.intended_copy:
             bar.warn(
@@ -1328,6 +1329,8 @@ class TestcaseRule(Rule):
                 # This is a duplicated rule, we copy to show this
                 copy_generated()
             t.generate_success = True
+            generator_config.failed -= 1
+            generator_config.copied += 1
             bar.done(message="SKIPPED: up to date")
             return
 
@@ -1368,6 +1371,8 @@ class TestcaseRule(Rule):
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
         t.generate_success = True
+        generator_config.failed -= 1
+        generator_config.generated += 1
         if infile.is_file():
             add_test_case_to_cache()
         if config.args.action != "generate":
@@ -1562,6 +1567,7 @@ class Directory(Rule):
                 continue
 
             bar.start(str(new_case))
+            generator_config.failed += 1
             infile = problem.path / "data" / target.parent / (target.name + ".in")
             ansfile = problem.path / "data" / target.parent / (target.name + ".ans")
             new_infile = problem.path / "data" / d.path / (target.name + ".in")
@@ -1599,6 +1605,8 @@ class Directory(Rule):
                 continue
 
             t.link(problem, generator_config, bar, new_infile)
+            generator_config.failed -= 1
+            generator_config.included += 1
             bar.done()
 
 
@@ -1676,6 +1684,12 @@ class GeneratorConfig:
         self.restriction = restriction
         # replaced during parse_yaml
         self.generators = dict[Path, list[Path]]()
+
+        # stats
+        self.failed = 0
+        self.generated = 0
+        self.included = 0
+        self.copied = 0
 
         if yaml_path.is_file():
             self.yaml = read_yaml(yaml_path)
@@ -2077,12 +2091,24 @@ class GeneratorConfig:
 
         p = parallel.new_queue(runner_copies)
 
-        def generate_copies_and_includes(d: Directory) -> None:
+        def generate_includes(d: Directory) -> None:
             p.join()
             d.generate_includes(self.problem, self, bar)
 
-        self.root_dir.walk(p.put, generate_copies_and_includes)
+        self.root_dir.walk(p.put, generate_includes)
         p.done()
+
+        stats = []
+        if self.failed > 0:
+            stats.append(f"{Fore.RED}failed: {self.failed}{Style.RESET_ALL},")
+        total = self.generated + self.included + self.copied
+        stats.append(f"generated: {total}")
+        if len(self.generated_test_cases) != total:
+            stats.append(
+                f"{Fore.YELLOW}(unique: {len(self.generated_test_cases)}){Style.RESET_ALL}"
+            )
+        bar.item_width = 0
+        bar.log(message=" ".join(stats), color="", print_item=False)
 
         bar.finalize()
 
