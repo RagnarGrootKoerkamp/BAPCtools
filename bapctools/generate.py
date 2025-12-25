@@ -2100,17 +2100,15 @@ class GeneratorConfig:
 
         stats = []
         if self.failed > 0:
-            stats.append(f"{Fore.RED}failed: {self.failed}{Style.RESET_ALL},")
+            stats.append(f"{Fore.RED}{self.failed} failed{Style.RESET_ALL}, ")
         total = self.generated + self.included + self.copied
-        stats.append(f"generated: {total}")
+        stats.append(f"{total} case generated")
         if len(self.generated_test_cases) != total:
             stats.append(
-                f"{Fore.YELLOW}(unique: {len(self.generated_test_cases)}){Style.RESET_ALL}"
+                f" {Fore.YELLOW}(unique: {len(self.generated_test_cases)}){Style.RESET_ALL}"
             )
         bar.item_width = 0
-        bar.log(message=" ".join(stats), color="", print_item=False)
-
-        bar.finalize()
+        bar.finalize(message="".join(stats))
 
     # move a file or into the trash directory
     def remove(self, src: Path) -> None:
