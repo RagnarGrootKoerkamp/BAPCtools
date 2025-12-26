@@ -1760,15 +1760,7 @@ class GeneratorConfig:
             count = yaml["count"]
             bar = PrintBar("generators.yaml", item=warn_for)
             match count:
-                case int(num):
-                    if num < 1:
-                        if warn_for is not None:
-                            bar.warn(f"Found count: {count}, increased to 1.")
-                        count = 1
-                    if num > 1000:
-                        if warn_for is not None:
-                            bar.error(f"Found count: {count}, limited to 1000.")
-                        count = 1000
+                case int():
                     count_list = list(range(1, count + 1))
                 case list(idx_list):
                     count_list = idx_list
@@ -1777,13 +1769,14 @@ class GeneratorConfig:
                         count_list = list(range(int(m[1]), int(m[2]) + 1))
                 case _:
                     assert False  # syntax check must have caught this
-            if len(count_list) > 100 and warn_for is not None:
-                bar.log(f"Found large count: {count}.")
-            if not count_list:
-                if warn_for is not None:
-                    bar.error(f"Count expression {count} produces empty list. Replaced by [1].")
-                count_list = [1]
-            return count_list
+            if warn_for is not None:
+                if not count_list:
+                    bar.warn(f"Found empty count: {count}, increased to 1.")
+                if len(count_list) > 100:
+                    bar.log(f"Found large count: {count}.")
+                if len(count_list) > 1000:
+                    bar.error(f"Found count: {count}, limited to first 1000 items.")
+            return count_list[:1000] or [1]
 
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
@@ -1827,9 +1820,9 @@ class GeneratorConfig:
 
                 count_list = parse_count(yaml, parent.path / name)
 
-                ts = []
-                for count_index in count_list:
-                    if len(count_list) > 0:  # can this ever be 0?
+                ts: list[TestcaseRule] = []
+                for i, count_index in enumerate(count_list):
+                    if i > 0:  # need a fresh name in every round but the first
                         name = next(name_gen)
                     if has_count(yaml):
                         name += f"-{count_index:0{len(str(len(count_list)))}}"
