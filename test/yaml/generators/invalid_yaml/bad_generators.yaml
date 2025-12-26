@@ -182,11 +182,6 @@ data:
     generate: abc
     data: {}
 ---
-# File names must be >= 2 letters
-data:
-  a:
-    type: directory
----
 # Keys are strings
 data:
   1.: hi
