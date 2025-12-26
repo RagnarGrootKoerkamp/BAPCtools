@@ -46,7 +46,7 @@ KNOWN_LICENSES: Final[Sequence[str]] = (
 # When --table is set, this threshold determines the number of identical profiles needed to get flagged.
 TABLE_THRESHOLD: Final[int] = 4
 
-FILE_NAME_REGEX: Final[str] = "[a-zA-Z0-9][a-zA-Z0-9_.-]{0,253}[a-zA-Z0-9]"
+FILE_NAME_REGEX: Final[str] = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 COMPILED_FILE_NAME_REGEX: Final[re.Pattern[str]] = re.compile(FILE_NAME_REGEX)
 
 CONSTANT_NAME_REGEX = "[a-zA-Z_][a-zA-Z0-9_]*"
