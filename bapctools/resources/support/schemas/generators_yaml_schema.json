@@ -302,14 +302,40 @@
               "description": "Explicit input given as a string"
             },
             "in.statement": {
-              "type": "string",
               "title": "Input (statement)",
-              "description": "Explicit input given as a string, only shown in problem statement (defaults to 'in')"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Explicit override for statement input, given as a string",
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "link": {
+                      "type": "string",
+                      "description": "Explicit symlink to another file used as for statement input, given as a the extension of the other file",
+                    }
+                  },
+                },
+              ],
             },
             "in.download": {
-              "type": "string",
               "title": "Input (download)",
-              "description": "Explicit input given as a string, only shown as sample download in the contest system (defaults to 'in.statement' or 'in')"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Explicit override for input download, given as a string",
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "link": {
+                      "type": "string",
+                      "description": "Explicit symlink to another file used as for input download, given as a the extension of the other file",
+                    }
+                  },
+                },
+              ],
             },
             "ans": {
               "type": "string",
@@ -317,14 +343,40 @@
               "description": "Explicit default answer given as a string"
             },
             "ans.statement": {
-              "type": "string",
               "title": "Default Answer (statement)",
-              "description": "Explicit default answer given as a strans, only shown in problem statement (defaults to 'in')"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Explicit override for statement answer, given as a string",
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "link": {
+                      "type": "string",
+                      "description": "Explicit symlink to another file used as for statement answer, given as a the extension of the other file",
+                    }
+                  },
+                },
+              ],
             },
             "ans.download": {
-              "type": "string",
               "title": "Default Answer (download)",
-              "description": "Explicit default answer given as a string, only shown as sample download in the contest system (defaults to 'ans.statement' or 'ans')"
+              "oneOf": [
+                {
+                  "type": "string",
+                  "description": "Explicit override for answer download, given as a string",
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "link": {
+                      "type": "string",
+                      "description": "Explicit symlink to another file used as for answer download, given as a the extension of the other file",
+                    }
+                  },
+                },
+              ],
             },
             "out": {
               "type": "string",

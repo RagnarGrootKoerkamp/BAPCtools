@@ -49,7 +49,7 @@ def create_samples_file(problem: "Problem", language: str) -> None:
 
     # create the samples.tex file
     # For samples, find all .in/.ans/.interaction pairs.
-    samples = problem.statement_samples()
+    samples = problem.samples()
 
     samples_file_path = builddir / "samples.tex"
 
@@ -63,7 +63,8 @@ def create_samples_file(problem: "Problem", language: str) -> None:
 
     samples_data = []
     fallback_call = []
-    for i, sample in enumerate(samples):
+    for i, data in enumerate(samples):
+        sample = data.statement
         fallback_call.append(f"\t\\csname Sample{i + 1}\\endcsname\n")
 
         current_sample = []

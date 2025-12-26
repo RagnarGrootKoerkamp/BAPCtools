@@ -13,6 +13,8 @@ data:
             plaintext
             nwerc
             correct
+          in.download: {link: .in}
+          ans.download: ""
 
   secret:
     data:
