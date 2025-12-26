@@ -5,7 +5,7 @@ import threading
 from collections.abc import Sequence
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, Optional, TYPE_CHECKING
+from typing import Any, Final, Literal, Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
@@ -60,7 +60,7 @@ class Verdict(Enum):
         }[self]
 
 
-VERDICTS = [
+VERDICTS: Final[Sequence[Verdict]] = [
     Verdict.ACCEPTED,
     Verdict.WRONG_ANSWER,
     Verdict.TIME_LIMIT_EXCEEDED,
