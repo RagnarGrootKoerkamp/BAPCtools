@@ -521,7 +521,7 @@ class TestGroup:
 
 # A problem.
 class Problem:
-    _SHORTNAME_REGEX_STRING: Final[str] = "[a-z0-9]{2,255}"
+    _SHORTNAME_REGEX_STRING: Final[str] = "[a-z0-9]{1,255}"
     _SHORTNAME_REGEX: Final[re.Pattern[str]] = re.compile(_SHORTNAME_REGEX_STRING)
 
     def __init__(self, path: Path, tmpdir: Path, label: Optional[str] = None):
