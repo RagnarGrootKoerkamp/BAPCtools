@@ -3,16 +3,15 @@ package problemformat
 // Directory names, as well as names of test cases and generators are
 // alphanumerical with internal underscores and hyphens; such as
 // "huge", "make_tree", "3", "a", or "connected_graph-01";
-// but not "huge_" or "-2" or "bapc.24" or ".." or "".
-let dirname = "[A-Za-z0-9]([A-Za-z0-9_-]{0,253}[A-Za-z0-9])?"
+// but not "-2" or ".2" or ".." or "".
+let dirname = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 #name: =~"^\(dirname)$"
 
 // Directory paths are separated by / and do not start with a slash
 #dirpath: =~"^(\(dirname)/)*\(dirname)$"
 
-// Filenames are names, but have length at least 2 and can also
-// contain '.' such as "good-solution_02.py" or "1.in"
-let filename = "[A-Za-z0-9][A-Za-z0-9_.-]{0,253}[A-Za-z0-9]"
+// with 2025-09 filenames are indistinguishable from dirnames
+let filename = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 
 #filepath: =~"^/?(\(dirname)/)*\(filename)$"
 
