@@ -1787,10 +1787,8 @@ class GeneratorConfig:
                 if not count_list:
                     bar.warn(f"Found empty count: {count}, increased to 1.")
                 if len(count_list) > 100:
-                    bar.log(f"Found large count: {count}.")
-                if len(count_list) > 1000:
-                    bar.error(f"Found count: {count}, limited to first 1000 items.")
-            return count_list[:1000] or [1]
+                    bar.error(f"Found count: {count}, limited to first 100 items.")
+            return count_list[:100] or [1]
 
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
