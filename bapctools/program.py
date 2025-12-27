@@ -132,7 +132,7 @@ def languages() -> Sequence[Language]:
         if languages_path.is_file():
             raw_languages = read_yaml(languages_path)
         else:
-            raw_languages = read_yaml(config.RESOURCES_ROOT / "config/languages.yaml")
+            raw_languages = read_yaml(config.RESOURCES_ROOT / "config" / "languages.yaml")
         if not isinstance(raw_languages, dict):
             fatal("could not parse languages.yaml.")
 
@@ -140,10 +140,10 @@ def languages() -> Sequence[Language]:
         priorities: dict[int, str] = {}
         for lang_id, lang_conf in raw_languages.items():
             if not isinstance(lang_id, str):
-                error("keys in languages.yaml must be strings.")
+                error("keys in languages.yaml must be strings. SKIPPED.")
                 continue
             if not isinstance(lang_conf, dict):
-                error(f"invalid entry {lang_id} in languages.yaml.")
+                error(f"invalid entry {lang_id} in languages.yaml. SKIPPED.")
                 continue
             lang = Language(lang_id, lang_conf)
             if not lang.ok:
