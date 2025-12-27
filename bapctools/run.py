@@ -345,7 +345,7 @@ class Submission(program.Program):
             # Submissions in any of config.VERDICTS should not have `@EXPECTED_RESULTS@: `, and vice versa.
             # See https://github.com/DOMjudge/domjudge/issues/1861
             subdir = self.short_path.parts[0]
-            if subdir in config.SUBMISSION_DIRS:
+            if subdir in ["accepted", "wrong_answer", "time_limit_exceeded", "run_time_error"]:
                 if len(expected_verdicts) != 0:
                     warn(f"@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.")
                 expected_verdicts = [from_string(subdir.upper())]
