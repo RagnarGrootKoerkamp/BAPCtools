@@ -25,13 +25,6 @@ RTV_WA: Final[int] = 43
 # limit in MiB for the ICPC Archive
 ICPC_FILE_LIMIT: Final[int] = 100
 
-SUBMISSION_DIRS: Final[Sequence[str]] = (
-    "accepted",
-    "wrong_answer",
-    "time_limit_exceeded",
-    "run_time_error",
-)
-
 # This ordering is shown in bt new_problem with questionary installed (intentionally non-alphabetical).
 KNOWN_LICENSES: Final[Sequence[str]] = (
     "cc by-sa",
