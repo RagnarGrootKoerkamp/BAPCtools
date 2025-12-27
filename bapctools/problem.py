@@ -14,6 +14,7 @@ from ruamel.yaml.scanner import ScannerError
 from bapctools import (
     check_testing_tool,
     config,
+    expectations,
     latex,
     parallel,
     run,
@@ -418,6 +419,7 @@ class Problem:
             tuple[Optional[validate.Mode], bool, bool, bool], Sequence[testcase.Testcase]
         ]()
         self._samples: Optional[list[SampleData]] = None
+        self._expectations: Optional[expectations.Expectation] = None
         self._submissions: Optional[Sequence[run.Submission] | Literal[False]] = None
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
             tuple[type[validate.AnyValidator], bool], Sequence[validate.AnyValidator]
@@ -811,12 +813,21 @@ class Problem:
                 s for s in submissions if s.expected_verdicts == [verdicts.Verdict.ACCEPTED]
             )
 
+    def expectations(problem) -> expectations.Expectation:
+        if problem._expectations is not None:
+            return problem._expectations
+        problem._expectations = expectations.Expectation(problem)
+        return problem._expectations
+
     def submissions(problem) -> Sequence[run.Submission] | Literal[False]:
         if problem._submissions is not None:
             if problem._submissions is False:
                 return False
             else:
                 return problem._submissions
+
+        # ensure that expectations are cached
+        problem.expectations()
 
         paths = []
         if config.args.submissions:
