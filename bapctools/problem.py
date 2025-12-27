@@ -21,6 +21,7 @@ from bapctools import (
     verdicts,
     visualize,
 )
+from bapctools.expectations import Person
 from bapctools.util import (
     BAR_TYPE,
     combine_hashes_dict,
@@ -56,27 +57,6 @@ if has_ryaml:
     import ruamel.yaml
 
 
-class Person:
-    def __init__(self, yaml_data: str | dict[object, object], parent_path: str):
-        if isinstance(yaml_data, dict):
-            parser = YamlParser("problem.yaml", yaml_data, parent_path)
-            self.name: str = parser.extract("name", "")
-            self.email: Optional[str] = parser.extract_optional("email", str)
-            self.kattis: Optional[str] = parser.extract_optional("kattis", str)
-            self.orcid: Optional[str] = parser.extract_optional("orcid", str)
-            parser.check_unknown_keys()
-        else:
-            match = re.match("(.*)<(.*)>", yaml_data)
-            self.name = (match[1] if match else yaml_data).strip()
-            self.email = match[2].strip() if match else None
-            self.kattis = self.orcid = None
-        for token in [",", " and ", "&"]:
-            if token in self.name:
-                warn(
-                    f"found suspicious token '{token.strip()}' in `{parent_path}.name`: {self.name}"
-                )
-
-
 class ProblemCredits:
     def __init__(self, parser: YamlParser):
         self.authors: list[Person] = []
@@ -90,33 +70,13 @@ class ProblemCredits:
         if "credits" not in parser.yaml:
             return
         if isinstance(parser.yaml["credits"], str):
-            self.authors = [Person(parser.extract("credits", ""), "credits")]
+            self.authors = [Person("problem.yaml", parser.extract("credits", ""), "credits")]
             return
-
-        def extract_optional_persons(source: YamlParser, key: str) -> list[Person]:
-            key_path = f"{source.parent_path}.{key}"
-            if key in source.yaml:
-                value = source.yaml.pop(key)
-                if value is None:
-                    return []
-                if isinstance(value, (str, dict)):
-                    return [Person(value, key_path)]
-                if isinstance(value, list):
-                    if not all(isinstance(v, (str, dict)) for v in value):
-                        warn(
-                            f"some values for key `{key_path}` in problem.yaml have invalid type. SKIPPED."
-                        )
-                        return []
-                    if not value:
-                        warn(f"value for `{key_path}` in problem.yaml should not be an empty list.")
-                    return [Person(v, f"{key_path}[{i}]") for i, v in enumerate(value)]
-                warn(f"incompatible value for key `{key_path}` in problem.yaml. SKIPPED.")
-            return []
 
         credits = parser.extract_parser("credits")
 
-        self.authors = extract_optional_persons(credits, "authors")
-        self.contributors = extract_optional_persons(credits, "contributors")
+        self.authors = Person.extract_optional_persons(credits, "authors")
+        self.contributors = Person.extract_optional_persons(credits, "contributors")
 
         translators = credits.extract_parser("translators")
         self.translators = {}
@@ -126,11 +86,11 @@ class ProblemCredits:
                     f"invalid language `{lang}` for {translators.parent_str} in problem.yaml. SKIPPED."
                 )
             else:
-                self.translators[lang] = extract_optional_persons(translators, lang)
+                self.translators[lang] = Person.extract_optional_persons(translators, lang)
 
-        self.testers = extract_optional_persons(credits, "testers")
-        self.packagers = extract_optional_persons(credits, "packagers")
-        self.acknowledgements = extract_optional_persons(credits, "acknowledgements")
+        self.testers = Person.extract_optional_persons(credits, "testers")
+        self.packagers = Person.extract_optional_persons(credits, "packagers")
+        self.acknowledgements = Person.extract_optional_persons(credits, "acknowledgements")
 
         credits.check_unknown_keys()
 
