@@ -38,7 +38,7 @@ import "strings"
 		generate?: #command & !~"^/"
 		// Produce multiple test cases, numbered 1 ,..., count.
 		// If value is a list or range, use those numbers instead.
-		count?:    int & >=1 & <=100 | [...int] | "^-?\d+\.\.=-?\d+$"
+		count?:    int & >=1 & <=100 | [...int] | =~"^-?\\d+\\.\\.=-?\\d+$"
 		// The "copy" key uses a path relative to "/generators/" ending in a test case name,
 		// such as "manual/samples/3".
 		copy?: #dirpath
@@ -51,7 +51,7 @@ import "strings"
 		 "ans" | "ans.statement" | "ans.download" |
 		 "out"]: string
 		interaction?: =~"^([<>][^\\n]*\\n)+$"
-		yaml?: #test_case_config
+		yaml?: #test_case_settings
 
 		#config
 	}
@@ -62,7 +62,7 @@ import "strings"
 #test_group: {
 	data?: #data_dict | [...#data_list]
 	include?: [...#dirpath]
-	#test_group_config
+	#test_group_settings
 }
 
 #Generators: {
@@ -78,7 +78,7 @@ import "strings"
 		invalid_output?: #test_group
 		valid_output?:   #test_group
 	})
-	#test_group_config
+	#test_group_settings
 	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2025-12"
 
 	... // Do allow unknown_key at top level for tooling
