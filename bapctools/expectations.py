@@ -1,9 +1,14 @@
 import re
 from collections.abc import Mapping, Sequence
-from typing import Final, Optional
+from pathlib import Path
+from typing import Final, Optional, TYPE_CHECKING
 
+from bapctools.testcase import Testcase
 from bapctools.util import warn, YamlParser
 from bapctools.verdicts import Verdict
+
+if TYPE_CHECKING:
+    from bapctools import run
 
 
 class Person:
@@ -57,7 +62,7 @@ VERDICTS: Final[Sequence[Verdict]] = [
 KNOWN_VERDICTS: Final[Mapping[str, Verdict]] = {v.short(): v for v in VERDICTS}
 
 
-class Expectation:
+class TestcaseExpectation:
     def __init__(self, parser: YamlParser, test_case_glob: Optional[str] = None):
         self.test_case_glob: Optional[str] = test_case_glob
 
@@ -100,8 +105,14 @@ class Expectation:
                     f"`{parser.parent_path}.use_for_time_limit` must be bool or `lower` or `upper`. SKIPPED."
                 )
 
+    def matches(self, testcase: Testcase) -> bool:
+        if self.test_case_glob is None:
+            return True
+        # TODO implement me
+        return False
 
-class Expectations:
+
+class SubmissionExpectation:
     def __init__(self, submission_glob: str, yaml_data: dict[object, object]) -> None:
         self.submission_glob: str = submission_glob
 
@@ -112,11 +123,63 @@ class Expectations:
         self.authors: list[Person] = Person.extract_optional_persons(parser, "authors")
         self.model_solution: bool = parser.extract("model_solution", False)
 
-        self.expectations: list[Expectation] = [Expectation(parser)]
+        self.expectations: list[TestcaseExpectation] = [TestcaseExpectation(parser)]
         for key in list(parser.yaml):
             if not isinstance(key, str):
                 continue
             if not key.startswith("sample") and key.startswith("secret"):
                 continue
-            self.expectations.append(Expectation(parser, key))
+            self.expectations.append(TestcaseExpectation(parser, key))
         parser.check_unknown_keys()
+
+    def matches(self, submission: "run.Submission") -> bool:
+        # TODO implement me
+        return False
+
+    def all_matches(self, testcase: Testcase) -> list[TestcaseExpectation]:
+        return [e for e in self.expectations if e.matches(testcase)]
+
+
+class Expectation:
+    def __init__(self) -> None:
+        self.expectations: dict[str, SubmissionExpectation] = {}
+        self._combined: dict[Path, SubmissionExpectation] = {}
+        # todo:
+        # 1. parse default
+        # 2. parse from problem
+
+    def all_matches(self, submission: "run.Submission") -> SubmissionExpectation:
+        if submission.short_path in self._combined:
+            return self._combined[submission.short_path]
+
+        languages = set()
+        entrypoints = set()
+        authors = set()
+
+        combined = SubmissionExpectation(submission.name, {})
+        for expectation in self.expectations.values():
+            if not expectation.matches(submission):
+                continue
+            if expectation.language is not None:
+                languages.add(expectation.language)
+            if expectation.entrypoint is not None:
+                entrypoints.add(expectation.entrypoint)
+            if expectation.authors:
+                authors.add(expectation.authors)
+            combined.model_solution |= expectation.model_solution
+            combined.expectations += expectation.expectations
+
+        combined.language = min(languages, default=combined.language)
+        combined.entrypoint = min(entrypoints, default=combined.entrypoint)
+        combined.authors = min(authors, default=combined.authors)
+
+        if len(languages) > 1:
+            warn(f"found multiple languages for {submission.name}, using {combined.language}")
+        if len(entrypoints) > 1:
+            warn(f"found multiple languages for {submission.name}, using {combined.entrypoint}")
+        if len(authors) > 1:
+            names = ", ".join([a.name for a in combined.authors])
+            warn(f"found multiple languages for {submission.name}, using {names}")
+
+        self._combined[submission.short_path] = combined
+        return combined
