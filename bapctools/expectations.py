@@ -9,7 +9,7 @@ from bapctools.verdicts import Verdict
 class Person:
     def __init__(self, source: str, yaml_data: str | dict[object, object], parent_path: str):
         if isinstance(yaml_data, dict):
-            parser = YamlParser("{source.source}", yaml_data, parent_path)
+            parser = YamlParser(source, yaml_data, parent_path)
             self.name: str = parser.extract("name", "")
             self.email: Optional[str] = parser.extract_optional("email", str)
             self.kattis: Optional[str] = parser.extract_optional("kattis", str)
