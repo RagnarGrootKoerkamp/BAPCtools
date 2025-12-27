@@ -22,7 +22,3 @@ run_time_error:
 brute_force:
   permitted: [AC, RTE, TLE]
   required: [RTE, TLE]
-# BAPCtools extension, allows everything
-mixed:
-  permitted: [AC, WA, RTE, TLE]
-  required: [AC, WA, RTE, TLE]
