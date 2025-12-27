@@ -3,12 +3,14 @@ from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Final, Optional, TYPE_CHECKING
 
+from bapctools import config
 from bapctools.testcase import Testcase
-from bapctools.util import warn, YamlParser
+from bapctools.util import error, fatal, read_yaml, warn, YamlParser
 from bapctools.verdicts import Verdict
 
 if TYPE_CHECKING:
-    from bapctools import run
+    from bapctools.problem import Problem
+    from bapctools.run import Submission
 
 
 class Person:
@@ -51,6 +53,24 @@ class Person:
                 return [Person(source.source, v, f"{key_path}[{i}]") for i, v in enumerate(value)]
             warn(f"incompatible value for key `{key_path}` in {source.source}. SKIPPED.")
         return []
+
+
+def _match(glob: str, path: Path) -> bool:
+    # TODO: implement this properly
+    # TODO: handle stuff like a.{cpp,py}
+    if not glob.startswith("/"):
+        glob = "/" + glob
+    if not glob.endswith("/"):
+        glob = glob + "/"
+    glob_parts = glob.split("/")[1:-1]
+    path_parts = path.parts
+    if len(glob_parts) > len(path_parts):
+        return False
+    for glob_part, path_part in zip(glob_parts, path_parts):
+        glob_part = re.escape(glob_part).replace(re.escape("*"), ".*")
+        if not re.fullmatch(glob_part, path_part):
+            return False
+    return True
 
 
 VERDICTS: Final[Sequence[Verdict]] = [
@@ -108,8 +128,7 @@ class TestcaseExpectation:
     def matches(self, testcase: Testcase) -> bool:
         if self.test_case_glob is None:
             return True
-        # TODO implement me
-        return False
+        return _match(self.test_case_glob, testcase.short_path)
 
 
 class SubmissionExpectation:
@@ -132,23 +151,47 @@ class SubmissionExpectation:
             self.expectations.append(TestcaseExpectation(parser, key))
         parser.check_unknown_keys()
 
-    def matches(self, submission: "run.Submission") -> bool:
-        # TODO implement me
-        return False
+    def matches(self, submission: "Submission") -> bool:
+        return _match(self.submission_glob, submission.short_path)
 
     def all_matches(self, testcase: Testcase) -> list[TestcaseExpectation]:
+        # TODO: warn if if there is no match?
         return [e for e in self.expectations if e.matches(testcase)]
+
+    def all_permitted(self, testcase: Testcase) -> set[Verdict]:
+        permitted = set(VERDICTS)
+        for e in self.all_matches(testcase):
+            permitted &= e.permitted
+        return permitted
 
 
 class Expectation:
-    def __init__(self) -> None:
+    def __init__(self, problem: "Problem") -> None:
         self.expectations: dict[str, SubmissionExpectation] = {}
         self._combined: dict[Path, SubmissionExpectation] = {}
-        # todo:
-        # 1. parse default
-        # 2. parse from problem
 
-    def all_matches(self, submission: "run.Submission") -> SubmissionExpectation:
+        files = [
+            config.RESOURCES_ROOT / "config" / "submissions.yaml",
+            problem.path / "submissions" / "submissions.yaml",
+        ]
+        for file in files:
+            if not file.is_file():
+                continue
+            yaml_data = read_yaml(file)
+            if not isinstance(yaml_data, dict):
+                fatal("could not parse submissions.yaml.")
+            for submission_glob, expectation in yaml_data.items():
+                if not isinstance(submission_glob, str):
+                    error("keys in submissions.yaml must be strings. SKIPPED.")
+                    continue
+                if not isinstance(expectation, dict):
+                    error(f"invalid entry {expectation} in submissions.yaml. SKIPPED.")
+                    continue
+                self.expectations[submission_glob] = SubmissionExpectation(
+                    submission_glob, expectation
+                )
+
+    def all_matches(self, submission: "Submission") -> SubmissionExpectation:
         if submission.short_path in self._combined:
             return self._combined[submission.short_path]
 
@@ -157,9 +200,11 @@ class Expectation:
         authors = set()
 
         combined = SubmissionExpectation(submission.name, {})
+        found_match = False
         for expectation in self.expectations.values():
             if not expectation.matches(submission):
                 continue
+            found_match = True
             if expectation.language is not None:
                 languages.add(expectation.language)
             if expectation.entrypoint is not None:
@@ -180,6 +225,9 @@ class Expectation:
         if len(authors) > 1:
             names = ", ".join([a.name for a in combined.authors])
             warn(f"found multiple languages for {submission.name}, using {names}")
+
+        if not found_match:
+            warn(f"{submission.name} not covered by submissions.yaml")
 
         self._combined[submission.short_path] = combined
         return combined
