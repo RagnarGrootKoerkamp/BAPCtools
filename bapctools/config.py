@@ -35,13 +35,6 @@ DEFAULT_VALIDATION_TIME = 60  # in seconds
 DEFAULT_VALIDATION_MEMORY = DEFAULT_MEMORY
 DEFAULT_VALIDATION_OUTPUT = DEFAULT_OUTPUT
 
-SUBMISSION_DIRS: Final[Sequence[str]] = (
-    "accepted",
-    "wrong_answer",
-    "time_limit_exceeded",
-    "run_time_error",
-)
-
 # This ordering is shown in bt new_problem with questionary installed (intentionally non-alphabetical).
 KNOWN_LICENSES: Final[Sequence[str]] = (
     "cc by-sa",
