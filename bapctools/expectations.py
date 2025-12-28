@@ -55,24 +55,6 @@ class Person:
         return []
 
 
-def _match(glob: str, path: Path) -> bool:
-    # TODO: implement this properly
-    # TODO: handle stuff like a.{cpp,py}
-    if not glob.startswith("/"):
-        glob = "/" + glob
-    if not glob.endswith("/"):
-        glob = glob + "/"
-    glob_parts = glob.split("/")[1:-1]
-    path_parts = path.parts
-    if len(glob_parts) > len(path_parts):
-        return False
-    for glob_part, path_part in zip(glob_parts, path_parts):
-        glob_part = re.escape(glob_part).replace(re.escape("*"), ".*")
-        if not re.fullmatch(glob_part, path_part):
-            return False
-    return True
-
-
 VERDICTS: Final[Sequence[Verdict]] = [
     Verdict.ACCEPTED,
     Verdict.WRONG_ANSWER,
@@ -82,9 +64,30 @@ VERDICTS: Final[Sequence[Verdict]] = [
 KNOWN_VERDICTS: Final[Mapping[str, Verdict]] = {v.short(): v for v in VERDICTS}
 
 
+def _compile_glob(glob: str) -> re.Pattern[str]:
+    # TODO: does this properly handle brace expansion?
+    # TODO: what should happen for nested braces
+    parts = re.split("{[^{}]*}", glob)
+    comma = re.escape(".")
+    for i, part in enumerate(parts):
+        part = re.escape(part)
+        if i % 2 != 0:
+            part = f"({part[i].replace(comma, '|')})"
+        parts[i] = part
+    glob = "".join(parts)
+    # stars match anything exept /
+    glob = glob.replace(re.escape("*"), "[^/]*")
+    # match from start and only match complete directories
+    glob = f"^{glob}(/|$)"
+    return re.compile(glob, re.MULTILINE)
+
+
 class TestcaseExpectation:
     def __init__(self, parser: YamlParser, test_case_glob: Optional[str] = None):
         self.test_case_glob: Optional[str] = test_case_glob
+        self.test_case_regex: Optional[re.Pattern[str]] = None
+        if test_case_glob:
+            self.test_case_regex = _compile_glob(test_case_glob)
 
         def extract_verdicts(key: str) -> set[Verdict]:
             verdicts = parser.extract_optional_list(key, str)
@@ -126,14 +129,15 @@ class TestcaseExpectation:
                 )
 
     def matches(self, testcase: Testcase) -> bool:
-        if self.test_case_glob is None:
+        if self.test_case_regex is None:
             return True
-        return _match(self.test_case_glob, testcase.short_path)
+        return self.test_case_regex.match(testcase.short_path.as_posix()) is not None
 
 
 class SubmissionExpectation:
     def __init__(self, submission_glob: str, yaml_data: dict[object, object]) -> None:
         self.submission_glob: str = submission_glob
+        self.submission_regex: re.Pattern[str] = _compile_glob(submission_glob)
 
         parser = YamlParser("submissions.yaml", yaml_data, submission_glob)
 
@@ -152,7 +156,7 @@ class SubmissionExpectation:
         parser.check_unknown_keys()
 
     def matches(self, submission: "Submission") -> bool:
-        return _match(self.submission_glob, submission.short_path)
+        return self.submission_regex.match(submission.short_path.as_posix()) is not None
 
     def all_matches(self, testcase: Testcase) -> list[TestcaseExpectation]:
         # TODO: warn if if there is no match?
