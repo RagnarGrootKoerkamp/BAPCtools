@@ -65,6 +65,9 @@ KNOWN_VERDICTS: Final[Mapping[str, Verdict]] = {v.short(): v for v in VERDICTS}
 
 
 def _compile_glob(glob: str) -> re.Pattern[str]:
+    # dir/ and dir should match the same
+    if glob.endswith("/"):
+        glob = glob[:-1]
     # TODO: does this properly handle brace expansion?
     # TODO: what should happen for nested braces
     parts = re.split("{[^{}]*}", glob)
@@ -83,10 +86,13 @@ def _compile_glob(glob: str) -> re.Pattern[str]:
 
 
 class TestcaseExpectation:
-    def __init__(self, parser: YamlParser, test_case_glob: Optional[str] = None):
+    def __init__(self, parser: Optional[YamlParser] = None, test_case_glob: Optional[str] = None):
+        if parser is None:
+            parser = YamlParser("internal", {})
+
         self.test_case_glob: Optional[str] = test_case_glob
         self.test_case_regex: Optional[re.Pattern[str]] = None
-        if test_case_glob:
+        if test_case_glob is not None:
             self.test_case_regex = _compile_glob(test_case_glob)
 
         def extract_verdicts(key: str) -> set[Verdict]:
@@ -116,7 +122,7 @@ class TestcaseExpectation:
 
         self.message: Optional[str] = parser.extract_optional("message", str)
         self.lower_time_limit: bool = Verdict.TIME_LIMIT_EXCEEDED not in self.permitted
-        self.upper_time_limit: bool = Verdict.TIME_LIMIT_EXCEEDED in self.required
+        self.upper_time_limit: bool = {Verdict.TIME_LIMIT_EXCEEDED} == self.required
         use_for_time_limit = parser.pop("use_for_time_limit")
         if use_for_time_limit is not None:
             if use_for_time_limit in [False, "upper"]:
@@ -127,6 +133,8 @@ class TestcaseExpectation:
                 warn(
                     f"`{parser.parent_path}.use_for_time_limit` must be bool or `lower` or `upper`. SKIPPED."
                 )
+        if self.lower_time_limit and self.upper_time_limit:
+            error(f"`{parser.parent_path}` is used for upper and lower time limit!")
 
     def matches(self, testcase: Testcase) -> bool:
         if self.test_case_regex is None:
@@ -143,6 +151,8 @@ class SubmissionExpectation:
 
         self.language: Optional[str] = parser.extract_optional("language", str)
         self.entrypoint: Optional[str] = parser.extract_optional("entrypoint", str)
+        if self.entrypoint is not None:
+            warn("entrypoint is not used by BAPCtools.")
         self.authors: list[Person] = Person.extract_optional_persons(parser, "authors")
         self.model_solution: bool = parser.extract("model_solution", False)
 
@@ -158,11 +168,14 @@ class SubmissionExpectation:
     def matches(self, submission: "Submission") -> bool:
         return self.submission_regex.match(submission.short_path.as_posix()) is not None
 
-    def all_matches(self, testcase: Testcase) -> list[TestcaseExpectation]:
+    def all_matches(self, testcase: Optional[Testcase] = None) -> list[TestcaseExpectation]:
+        # TODO: should we return all here? there could be expectations that match no test case at all?
+        if testcase is None:
+            return self.expectations
         # TODO: warn if if there is no match?
         return [e for e in self.expectations if e.matches(testcase)]
 
-    def all_permitted(self, testcase: Testcase) -> set[Verdict]:
+    def all_permitted(self, testcase: Optional[Testcase] = None) -> set[Verdict]:
         permitted = set(VERDICTS)
         for e in self.all_matches(testcase):
             permitted &= e.permitted
