@@ -2276,7 +2276,11 @@ data/*
             return False
 
         testcases = [t for t in ts_pair[0] if t.in_path in testcase_filter]
-        submissions = [s for s in ts_pair[1] if s.expected_verdicts != [Verdict.ACCEPTED]]
+
+        def not_accepted(s: run.Submission) -> bool:
+            return any({Verdict.ACCEPTED} != s.expectations.all_permitted(t) for t in testcases)
+
+        submissions = [s for s in ts_pair[1] if not_accepted(s)]
 
         if not testcases:
             error("No testcases found.")
