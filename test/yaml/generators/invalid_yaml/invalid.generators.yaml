@@ -390,6 +390,33 @@ data:
        generate: my_generator {count}
        count: [1, 2.0]
 ---
+# Count range expression syntax
+data:
+  sample: {}
+  secret:
+    data:
+    - '':
+       generate: my_generator {count}
+       count: 1.x=2
+---
+# Count range expression: no space
+data:
+  sample: {}
+  secret:
+    data:
+    - '':
+       generate: my_generator {count}
+       count: 1 ..= 2
+---
+# Count range expression: no float
+data:
+  sample: {}
+  secret:
+    data:
+    - '':
+       generate: my_generator {count}
+       count: 1..=2.0
+---
 # match must be a string or list of strings
 data:
   sample: {}
