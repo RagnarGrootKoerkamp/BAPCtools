@@ -810,7 +810,11 @@ class Problem:
             return submissions
         else:
             return tuple(
-                s for s in submissions if s.expected_verdicts == [verdicts.Verdict.ACCEPTED]
+                s
+                for s in submissions
+                if all(
+                    e.required == {verdicts.Verdict.ACCEPTED} for e in s.expectations.all_matches()
+                )
             )
 
     def expectations(problem) -> expectations.Expectation:
@@ -868,15 +872,8 @@ class Problem:
 
         programs = [run.Submission(problem, path) for path in paths]
 
-        # - first all submission with just one verdict (grouped by that verdict and sorted by the path)
-        # - then by subdir
-        # - then by list of verdicts
-        # - then by name
-        def submissions_key(
-            x: run.Submission,
-        ) -> tuple[int, str, Sequence[verdicts.Verdict], str, str]:
-            group = "" if len(x.expected_verdicts) == 1 else x.subdir
-            return (len(x.expected_verdicts), group, x.expected_verdicts, x.subdir, x.name)
+        def submissions_key(x: run.Submission) -> tuple[str, str]:
+            return (x.subdir, x.name)
 
         programs.sort(key=submissions_key)
 
@@ -1054,7 +1051,9 @@ class Problem:
 
     @staticmethod
     def run_some(
-        testcases: Sequence[testcase.Testcase], submissions: Sequence[run.Submission]
+        testcases: Sequence[testcase.Testcase],
+        submissions: Sequence[run.Submission],
+        skip_test_case: Callable[[run.Submission, testcase.Testcase], bool] = lambda s, t: False,
     ) -> tuple[bool, verdicts.VerdictTable]:
         max_submission_len = max([len(x.name) for x in submissions])
 
@@ -1067,6 +1066,7 @@ class Problem:
                 max_submission_len,
                 verdict_table,
                 testcases,
+                skip_test_case,
                 needs_leading_newline=needs_leading_newline,
             )
             needs_leading_newline = not printed_newline
@@ -1508,26 +1508,29 @@ class Problem:
             return False
         testcases, submissions = ts_pair
 
-        ok = True
         problem.limits.time_limit = config.args.timeout or 60
         problem.limits.time_limit_is_default = False
         problem.limits.timeout = problem.limits.time_limit + 1
 
+        ok = True
+
         def run_all(
-            select_verdict: Callable[[Sequence[verdicts.Verdict]], bool],
-            select: Callable[[Sequence[float]], float],
+            skip_test_case: Callable[[run.Submission, testcase.Testcase], bool],
+            select_duration: Callable[[Sequence[float]], float],
         ) -> tuple[str, str, float] | tuple[None, None, None]:
             nonlocal ok
 
-            cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
+            def skip_submission(s: run.Submission) -> bool:
+                return all(skip_test_case(s, t) for t in testcases)
+
+            cur_submissions = [s for s in submissions if not skip_submission(s)]
 
             if len(cur_submissions) == 0:
                 return None, None, None
 
-            cur_ok, verdict_table = Problem.run_some(testcases, cur_submissions)
+            cur_ok, verdict_table = Problem.run_some(testcases, cur_submissions, skip_test_case)
             if not cur_ok:
                 ok = False
-                return None, None, None
 
             def get_slowest(result: verdicts.Verdicts) -> tuple[str, float]:
                 slowest_pair = result.slowest_test_case()
@@ -1535,18 +1538,21 @@ class Problem:
                 return slowest_pair
 
             durations = [get_slowest(result)[1] for result in verdict_table.results]
-            selected = durations.index(select(durations))
+            selected = durations.index(select_duration(durations))
             testcase, duration = get_slowest(verdict_table.results[selected])
             return verdict_table.submissions[selected], testcase, duration
 
-        submission, testcase, duration = run_all(lambda vs: vs == [verdicts.Verdict.ACCEPTED], max)
+        # determine lower bound for time limit
+        submission, slowest, duration = run_all(
+            lambda s, t: all(not e.lower_time_limit for e in s.expectations.all_matches(t)),
+            max,
+        )
         if not ok:
-            error("AC submissions failed")
-            return False
+            warn("Got unexpected verdicts")
         if submission is None:
-            error("No AC submissions found")
+            error("No submissions found to determine time limit")
             return False
-        assert testcase is not None
+        assert slowest is not None
         assert duration is not None
 
         raw_time_limit = duration * problem.limits.ac_to_time_limit
@@ -1562,7 +1568,7 @@ class Problem:
         problem.limits.timeout = int(safety_time_limit * problem.limits.time_limit_to_tle + 1)
 
         eprint()
-        PrintBar("slowest AC").log(f"  {duration:.3f}s @ {testcase} ({submission})", color="")
+        PrintBar("slowest").log(f"     {duration:.3f}s @ {slowest} ({submission})", color="")
         PrintBar("time limit").log(
             f"  {problem.limits.time_limit:.1f}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
             color="",
@@ -1593,14 +1599,16 @@ class Problem:
                 limits["time_limit"] = problem.limits.time_limit
                 write_yaml(problem_yaml, problem.path / "problem.yaml")
 
-        submission, testcase, duration = run_all(
-            lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
+        # determine/check upper bound for time limit
+        submission, fastest, duration = run_all(
+            lambda s, t: all(not e.upper_time_limit for e in s.expectations.all_matches(t)),
+            min,
         )
         if submission is not None:
-            assert testcase is not None
+            assert fastest is not None
             assert duration is not None
             eprint()
-            PrintBar("fastest TLE").log(f" {duration:.3f}s @ {testcase} ({submission})", color="")
+            PrintBar("fastest TLE").log(f" {duration:.3f}s @ {fastest} ({submission})", color="")
             if duration <= problem.limits.time_limit:
                 error("TLE submission runs within time limit")
             elif duration <= safety_time_limit:
@@ -1612,16 +1620,10 @@ class Problem:
             log("No TLE submissions found")
 
         if config.args.all:
-            submission, testcase, duration = run_all(
-                lambda vs: vs != [verdicts.Verdict.ACCEPTED]
-                and vs != [verdicts.Verdict.TIME_LIMIT_EXCEEDED],
+            run_all(
+                lambda s, t: any(
+                    e.lower_time_limit or e.upper_time_limit for e in s.expectations.all_matches(t)
+                ),
                 max,
             )
-            if submission is not None:
-                assert testcase is not None
-                assert duration is not None
-                if duration > problem.limits.time_limit:
-                    warn("Non TLE submission timed out")
-                else:
-                    log("All non TLE submission finished within time limit")
         return ok
