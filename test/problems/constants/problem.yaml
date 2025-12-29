@@ -25,5 +25,6 @@ constants:
     EXPRESSION: "1+2^2"
   SIX: 6
   FLOAT:
+    value: "10.0"
     GERMAN: "10,0"
     ENGLISH: "10.0"
