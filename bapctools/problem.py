@@ -333,6 +333,9 @@ class ProblemSettings:
             variants = set()
             if not isinstance(value, dict):
                 value = {"value": value}
+            if "value" not in variants:
+                warn(f"missing `value` for key `constants.{key}` in problem.yaml. SKIPPED.")
+                continue
             for sub, variant in value.items():
                 if not isinstance(sub, str):
                     warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
