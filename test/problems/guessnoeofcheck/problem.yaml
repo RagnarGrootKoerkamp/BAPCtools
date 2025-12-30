@@ -1,4 +1,5 @@
 problem_format_version: 2025-09
+name: guessnoeofcheck
 type: interactive
 source: Kattis
 uuid: 1bf54011-8f0f-44fb-8030-15d9c1583979
@@ -9,4 +10,4 @@ license: cc by-sa
 # happy.
 limits:
   time_multipliers:
-    time_limit_to_tle: 4
+    time_limit_to_tle: 4.0

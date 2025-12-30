@@ -24,4 +24,4 @@ license: cc by-sa
 # happy.
 limits:
   time_multipliers:
-    time_limit_to_tle: 4
+    time_limit_to_tle: 4.0
