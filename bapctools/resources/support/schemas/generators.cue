@@ -1,4 +1,4 @@
-package problemformat
+package problempackageformat
 
 // Use cue version 0.11 or later
 // To validate generators.yaml using cue:
@@ -23,13 +23,13 @@ import "strings"
 // Test cases and test groups allow configuration of solution, and random salt.
 #config: {
 	// Path to solution starts with slash, such as "/submissions/accepted/foo.py"
-	solution?: #filepath & =~"^/"
+	solution?:    #path & =~"^/"
 	random_salt?: string
 }
 
 #test_group_config: {
 	#config
-	"test_group.yaml": #test_group_settings
+	"test_group.yaml": #test_group_configuration
 }
 
 #test_case:
@@ -41,17 +41,21 @@ import "strings"
 		count?:    int & >=1 & <=100 | [...int] | =~"^-?\\d+\\.\\.=-?\\d+$"
 		// The "copy" key uses a path relative to "/generators/" ending in a test case name,
 		// such as "manual/samples/3".
-		copy?: #dirpath
+		copy?: #path & !~"^/"
 		match?: string | [...string] | {
 			in?: string | [...string]
 			ans?: string | [...string]
 		}
 
 		["in" | "in.statement" | "in.download" |
-		 "ans" | "ans.statement" | "ans.download" |
-		 "out"]: string
+			"ans" | "ans.statement" | "ans.download" |
+				"out"]: string
 		interaction?: =~"^([<>][^\\n]*\\n)+$"
+<<<<<<< HEAD
 		yaml?: #test_case_settings
+=======
+		yaml?:        #test_case_configuration
+>>>>>>> fcbd715c (Schema, examples, tests for 2025-09)
 
 		#config
 	}
@@ -61,8 +65,8 @@ import "strings"
 
 #test_group: {
 	data?: #data_dict | [...#data_list]
-	include?: [...#dirpath]
-	#test_group_settings
+	include?: [...#path]
+	#test_group_config
 }
 
 #Generators: {

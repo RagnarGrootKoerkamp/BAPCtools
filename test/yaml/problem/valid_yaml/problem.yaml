@@ -1,0 +1,203 @@
+name:
+  en: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 2023-02-draft
+---
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 2023-02
+---
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: draft
+---
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: legacy-icpc
+---
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 9999-99
+type: pass-fail
+---
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 9999-99
+type: scoring
+---
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 9999-99
+type: interactive
+---
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 9999-99
+type: multi-pass
+---
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 9999-99
+type: submit-answer
+---
+# Can give type as sequence instead:
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 9999-99
+type:
+  - pass-fail
+---
+# Can give more than one type
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 9999-99
+type:
+  - pass-fail # redundant, because pass-fail is default
+  - interactive
+---
+# Can give more than one type
+name: Hello World!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 9999-99
+type:
+  - scoring
+  - interactive
+  - multi-pass
+---
+name:
+  en: Hello World!
+  pt-BR: Olá mundo!
+  pt-PT: Oi mundo!
+  fil: Kumusta mundo!
+uuid: 550e8400-e29b-41d4-a716-446655440000
+problem_format_version: 9999-99
+---
+# One-language names are fine
+name:
+  en: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Source can be string
+source: NWERC 2024
+name:
+  en: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Source can be map
+source: 
+  name: NWERC 2024
+name:
+  en: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Source can be map with two keys (name, url)
+source: 
+  name: NWERC 2024
+  url: https://2024.nwerc.example/contest
+name:
+  en: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Source can be just a string
+source: NWERC 2024
+name:
+  en: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Many sources can be specified:
+source:
+  - name: NWERC 2024
+    url: https://2024.nwerc.example/contest
+  - SWERC 2024
+  - name: SEERC 2024
+name: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Specify license
+license: public domain
+name: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Specify license
+license: cc0
+rights_owner: "Bob"
+name: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Specify embargo
+embargo_until: 2025-12-31
+name: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Credits
+credits:
+  authors: Authy McAuth <authy@mcauth.example>
+  contributors:
+  - Authy McAuth <authy@mcauth.example>
+  - Additional Contributor <extra@contrib.example>
+  testers:
+  - Tester One
+  - Tester Two
+  - Tester Three
+  translators:
+    da: 
+      - Mads Jensen <mads@mads.example>
+      - Monika Jensen <monika@jensen.example>
+    eo: Ludoviko Lazaro Zamenhofo
+  acknowledgements:
+    - Inspirational Speaker 1
+    - Inspirational Speaker 2
+  packagers:
+    - Package Creatorson
+name: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# The credits section from the draft 2025-09 spec ultimo 2025
+name: a
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+credits:
+  authors: Authy McAuth <authy@mcauth.example>
+  contributors:
+  - Authy McAuth <authy@mcauth.example>
+  - Additional Contributor <extra@contrib.example>
+  testers:
+  - name: Tester One
+    email: one@tester.com
+  - name: Tester Two
+    orcid: 0000-0001-7414-8743
+  - name: Tester Three
+    kattis: tester-three
+  translators:
+    da: Mads Jensen <mads@mads.example>
+    eo: Ludoviko Lazaro Zamenhofo
+  acknowledgements:
+    - Inspirational Speaker 1
+    - Inspirational Speaker 2
+  packagers:
+    - Package Creatorson
+---
+name: a
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+constants:
+  k:
+    value: 5000000
+    tex: 5,000,000
+    scientific: 5 \cdot 10^6
+---
+name: a
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+constants:
+  k: 5000000

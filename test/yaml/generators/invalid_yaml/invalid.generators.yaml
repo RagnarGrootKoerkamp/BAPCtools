@@ -266,12 +266,6 @@ data:
 solution: a
 data: {sample: {data: []}, secret: {data: []}}
 ---
-solution: /a/b
-data: {sample: {data: []}, secret: {data: []}}
----
-solution: a 1 2
-data: {sample: {data: []}, secret: {data: []}}
----
 ## No toplevel generate TODO
 #generate: xyz
 #data: {sample: {data: []}, secret: {data: []}}
