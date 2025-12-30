@@ -641,13 +641,6 @@ def get_basedirs(problem: "Problem", type: str | Path) -> list[Path]:
     return [p / type, p, p.parent, config.current_working_directory]
 
 
-# Python 3.9
-# True when child is a Path inside parent Path.
-# Both must be absolute.
-def is_relative_to(parent: Path, child: Path) -> bool:
-    return child == parent or parent in child.parents
-
-
 def resolve_path_argument(
     problem: "Problem", path: Path, type: str | Path, suffixes: list[str] = []
 ) -> Optional[Path]:

@@ -35,7 +35,6 @@ from bapctools.util import (
     generate_problem_uuid,
     glob,
     hash_file_content,
-    is_relative_to,
     is_uuid,
     log,
     math_eval,
@@ -609,7 +608,7 @@ class Problem:
                 res_path = resolve_path_argument(p, path, "data", suffixes=[".in"])
                 if res_path:
                     # When running from contest level, the testcase must be inside the problem.
-                    if config.level != "problemset" or is_relative_to(p.path, res_path):
+                    if config.level != "problemset" or p.path.is_relative_to(res_path):
                         if res_path.is_dir():
                             in_paths += glob(res_path, "**/*.in")
                         else:
@@ -852,7 +851,7 @@ class Problem:
                             add(s)
                     else:
                         # If running from a contest, the submission must be inside a problem.
-                        if config.level == "problem" or is_relative_to(problem.path, s):
+                        if config.level == "problem" or problem.path.is_relative_to(s):
                             add(s)
         else:
             for s in glob(problem.path / "submissions", "*/*"):
