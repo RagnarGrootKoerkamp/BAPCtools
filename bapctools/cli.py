@@ -58,7 +58,6 @@ from bapctools.util import (
     has_ryaml,
     inc_label,
     is_problem_directory,
-    is_relative_to,
     is_windows,
     log,
     ProgressBar,
@@ -249,12 +248,12 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
             for s in submissions:
                 x = resolve_path_argument(problem, s, "submissions")
                 if x:
-                    if is_relative_to(problem.path, x):
+                    if problem.path.is_relative_to(x):
                         return True
             for t in testcases:
                 x = resolve_path_argument(problem, t, "data", suffixes=[".in"])
                 if x:
-                    if is_relative_to(problem.path, x):
+                    if problem.path.is_relative_to(x):
                         return True
             return False
 
