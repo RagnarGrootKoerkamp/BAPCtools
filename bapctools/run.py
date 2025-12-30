@@ -11,6 +11,7 @@ from colorama import Fore, Style
 
 from bapctools import (
     config,
+    expectations,
     interactive,
     parallel,
     problem,
@@ -289,8 +290,12 @@ class Submission(program.Program):
         self.verdict: Optional[Verdict] = None
         self.duration = None
 
-        # The first element will match the directory the file is in, if possible.
-        self.expectations = problem.expectations().all_matches(self)
+        if self.path.is_relative_to(problem.path / "submissions"):
+            self.expectations: expectations.SubmissionExpectation = (
+                problem.expectations().all_matches(self)
+            )
+        else:
+            self.expectations = expectations.SubmissionExpectation(self.name, {})
         self.expected_results = self._parse_expected_results()
         # NOTE: Judging of interactive problems on systems without `os.wait4` is
         # suboptimal because we cannot determine which of the submission and
