@@ -1,0 +1,223 @@
+problem_format_version: 2025-09
+name: Unknown key mumbo
+uuid: 12345678-1234-1234-1234-123456789abc
+mumbo: jumbo
+---
+problem_format_version: 2025-09
+name: Unknown key credit.mumbo
+uuid: 12345678-1234-1234-1234-123456789abc
+credits:
+  mumbo: jumbo
+---
+problem_format_version: 2025-09
+name: Unknown key limits.mumbo
+uuid: 12345678-1234-1234-1234-123456789abc
+limits:
+  mumbo: jumbo
+---
+problem_format_version: 2025-09
+name: Unknown key limits.time_multipliers.mumbo
+uuid: 12345678-1234-1234-1234-123456789abc
+limits:
+  time_multipliers:
+    mumbo: jumbo
+---
+problem_format_version: 2025-09
+name: Invalid UUID, too short
+uuid: 12345678-1234-1234-1234-123456789ab
+---
+problem_format_version: 2025-09
+name: Invalid UUID, too long
+uuid: 12345678-1234-1234-1234-123456789abcd
+---
+problem_format_version: 2025-09
+name: Invalid UUID, not hexadecimal
+uuid: 12345678-1234-1234-1234-123456789abx
+---
+problem_format_version: 2025-09
+name: 42
+uuid: 12345678-1234-1234-1234-123456789abc
+# incompatible value for key `name` in problem.yaml.
+---
+problem_format_version: 2025-09
+name:
+  en: 42
+uuid: 12345678-1234-1234-1234-123456789abc
+# incompatible value for language `en` for `name` in problem.yaml
+---
+problem_format_version: 2025-09
+name: Unkown (retired) key validation
+uuid: 12345678-1234-1234-1234-123456789abc
+validation: pass-fail
+---
+problem_format_version: 2025-09
+name: incorrect type
+uuid: 12345678-1234-1234-1234-123456789abc
+type: mumbo-jumbo
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Incorrect type (list)
+type:
+  - mumbo
+  - jumbo
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Incorrect type (map)
+type:
+    mumbo: jumbo
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Incorrect type (int)
+type: 42
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Incorrect type (empty list)
+type: []
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Incorrect type (int)
+type: [interactive, submit-answer]
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Incorrect type (int)
+type: [multipass, submit-answer]
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Incorrect type (int)
+type: [scoring, pass-fail]
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Negative time limit
+limits:
+  time_limit: -1
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Zero time limit
+limits:
+  time_limit: 0
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Time multiplier < 1
+limits:
+  time_multipliers:
+    ac_to_time_limit: 0.9
+---
+problem_format_version: 2025-09
+name: Only one pass for multi-pass
+uuid: 12345678-1234-1234-1234-123456789abc
+type: multi-pass
+limits:
+  validation_passes: 1
+---
+problem_format_version: 2025-09
+name: Noninteger pass for multi-pass
+uuid: 12345678-1234-1234-1234-123456789abc
+type: multi-pass
+limits:
+  validation_passes: 2.5
+---
+problem_format_version: 2025-09
+name: validation passes specified for non-multi-pass
+uuid: 12345678-1234-1234-1234-123456789abc
+limits:
+  validation_passes: 1
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Malformed credits
+credits:
+  name: Alice
+  email: bob@foo.bar
+---
+problem_format_version: 2025-09
+name: Empty list for authors
+uuid: 12345678-1234-1234-1234-123456789abc
+credits:
+  authors: []
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid value for author name
+credits:
+  authors:
+    - name: 42
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Unexpected field in authors
+credits:
+  authors:
+    - name: Alice
+      phone: 555-3452
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in credits
+credits:
+  foo: bar
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in credits.authors
+credits:
+  authors:
+    foo: bar
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in credits.authors list
+credits:
+  authors:
+    - foo: "bar"
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key type in credits.translators list
+credits:
+  translators:
+    en: 42
+---
+# Source
+problem_format_version: 2025-09
+name: Source must have a name
+uuid: 12345678-1234-1234-1234-123456789abc
+source:
+  - url: https://2025.nwerc.example/contest
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in source
+source:
+  name: name
+  foo: "bar"
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in source list
+source:
+  - name: name
+    foo: "bar"
+---
+# Embargo
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Embargo_until not in expected format
+embargo_until: 2025-09
+---
+name: Constant value for key different than value must be string
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+constants:
+  k:
+    value: 5
+    tex: 5
