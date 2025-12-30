@@ -290,7 +290,7 @@ class Submission(program.Program):
         self.verdict: Optional[Verdict] = None
         self.duration = None
 
-        if self.path.is_relative_to(problem.path / "submissions"):
+        if self.path.absolute().is_relative_to((problem.path / "submissions").absolute()):
             self.expectations: expectations.SubmissionExpectation = (
                 problem.expectations().all_matches(self)
             )
