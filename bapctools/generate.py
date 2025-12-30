@@ -29,7 +29,6 @@ from bapctools.util import (
     glob,
     hash_file_content,
     hash_string,
-    is_relative_to,
     log,
     path_size,
     PrintBar,
@@ -1882,7 +1881,7 @@ class GeneratorConfig:
         absolute_testcase_path = self.problem.path / "data" / relative_testcase_path.with_suffix("")
         for p in self.restriction:
             for basedir in get_basedirs(self.problem, "data"):
-                if is_relative_to(basedir / p, absolute_testcase_path):
+                if (basedir / p).is_relative_to(absolute_testcase_path):
                     return True
         return False
 
