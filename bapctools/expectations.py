@@ -108,6 +108,9 @@ class TestcaseExpectation:
 
         self.permitted: set[Verdict] = extract_verdicts("permitted")
         self.required: set[Verdict] = extract_verdicts("required")
+        if not self.required.issubset(self.permitted):
+            missing = ",".join(v.short() for v in self.required - self.permitted)
+            warn(f"`{parser.parent_path}` has [{missing}] as required but not as permitted")
 
         if "score" in parser.yaml:
             # Not implemented
@@ -123,8 +126,11 @@ class TestcaseExpectation:
         self.message: Optional[str] = parser.extract_optional("message", str)
         self.lower_time_limit: bool = Verdict.TIME_LIMIT_EXCEEDED not in self.permitted
         self.upper_time_limit: bool = {Verdict.TIME_LIMIT_EXCEEDED} == self.required
+        self.allowed_for_time_limit: bool = True
         use_for_time_limit = parser.pop("use_for_time_limit")
         if use_for_time_limit is not None:
+            if use_for_time_limit is False:
+                self.allowed_for_time_limit = False
             if use_for_time_limit in [False, "upper"]:
                 self.lower_time_limit = False
             if use_for_time_limit in [False, "lower"]:

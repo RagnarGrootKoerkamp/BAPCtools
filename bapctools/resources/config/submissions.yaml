@@ -2,6 +2,7 @@
 # All cases must be accepted.
 accepted:
   permitted: [AC]
+  required: [AC]
 # At least one case is not accepted.
 rejected:
   required: [RTE, TLE, WA]
