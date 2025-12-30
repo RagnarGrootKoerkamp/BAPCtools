@@ -1,0 +1,2 @@
+mixed:
+  permitted: [AC, WA, TLE, RTE]
