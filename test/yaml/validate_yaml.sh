@@ -95,7 +95,7 @@ run_cue_vet() {
 }
 
 # ------------------------
-# Process single YAML file 
+# Process single YAML file
 # ------------------------
 process_yaml_file() {
     local file=$1
