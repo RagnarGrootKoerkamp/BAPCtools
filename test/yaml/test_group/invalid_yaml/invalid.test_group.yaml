@@ -1,0 +1,35 @@
+max_score:  -1
+---
+max_score:  1.0
+---
+max_score: bounded
+---
+score_aggregation: random
+---
+static_validation_score: -1
+---
+static_validation_score: 1.0
+---
+static_validation_score: passfail
+  #---
+#require_pass: [secret/small, secret/huge] # DUNNO WHAT IS ILLEGAL HERE
+---
+args: 0
+---
+output_validator_args: 0
+---
+#static_validator_score: 0
+static_validator_args: []
+---
+#static_validator_score: 0
+static_validator_args: [--connected, -n 5000]
+---
+input_visualizer_args: 0
+---
+output_visualizer_args: 0
+---
+input_validator_args: 0
+---
+input_validator_args: 0
+---
+full_feedback: 1

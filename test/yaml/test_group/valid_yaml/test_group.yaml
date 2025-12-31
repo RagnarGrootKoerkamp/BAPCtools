@@ -1,0 +1,61 @@
+max_score:  1 
+---
+max_score:  0
+---
+max_score:  10000000
+---
+max_score:  unbounded
+---
+score_aggregation: pass-fail
+---
+score_aggregation: sum
+---
+score_aggregation: min
+---
+static_validation_score: 0
+---
+static_validation_score: 1
+---
+static_validation_score: 10000000
+---
+static_validation_score: pass-fail
+---
+require_pass: secret/small
+---
+require_pass: []
+---
+require_pass: [secret/small, secret/huge]
+---
+args: []
+---
+args: [--connected, -n 5000]
+---
+output_validator_args: []
+---
+output_validator_args: [--connected, -n 5000]
+---
+static_validation_score: 0
+static_validator_args: []
+---
+static_validation_score: 0
+static_validator_args: [--connected, -n 5000]
+---
+input_visualizer_args: []
+---
+input_visualizer_args: [--connected, -n 5000]
+---
+output_visualizer_args: []
+---
+output_visualizer_args: [--connected, -n 5000]
+---
+input_validator_args: []
+---
+input_validator_args: [--connected, -n 500]
+---
+input_validator_args:
+  connected: [--connected, a b c]
+  size: [-m 250, -n 500]
+---
+full_feedback: true
+---
+full_feedback: false
