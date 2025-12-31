@@ -429,10 +429,15 @@ class Submission(program.Program):
         if config.args.all == 2 or config.args.reorder:
             run_until = RunUntil.ALL
 
+        run_testcase: list[Testcase] = []
+        skip_testcase: list[Testcase] = []
+        for testcase in testcases:
+            (skip_testcase if skip_test_case(self, testcase) else run_testcase).append(testcase)
         verdicts = Verdicts(
-            [t for t in testcases if not skip_test_case(self, t)],
+            run_testcase,
             self.problem.limits.timeout,
             run_until,
+            skip_testcase,
         )
 
         verdict_table.next_submission(verdicts)
@@ -445,9 +450,6 @@ class Submission(program.Program):
 
         def process_run(run: Run) -> None:
             if not verdicts.run_is_needed(run.name):
-                bar.skip()
-                return
-            if skip_test_case(run.submission, run.testcase):
                 bar.skip()
                 return
 

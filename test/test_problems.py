@@ -19,6 +19,7 @@ PROBLEMS = [
     "interactivemultipass",
     "multipass",
     "constants",
+    "testexpectations",
     "alternativeencryption",
 ]
 if not util.is_mac() and not util.is_windows():
