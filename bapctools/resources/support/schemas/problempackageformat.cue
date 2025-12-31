@@ -66,9 +66,13 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 
 	source?: #Source | [#Source, ...#Source]
 	license:       *"unknown" | "public domain" | "cc0" | "cc by" | "cc by-sa" | "educational" | "permission"
-	rights_owner?: _
-	if license != "unknown" && license != "public domain" && credits.authors == _|_ && source == _|_ {rights_owner!: #Person}
-	if license == "unknown" || license == "public domain" {rights_owner: null}
+	if license != "public domain" {
+		rights_owner?: #Persons
+		if license != "unknown" && credits.authors == _|_ && source == _|_ {
+				rights_owner!: _
+			}
+		}
+
 
 	embargo_until?: time.Format("2006-01-02") | time.Format("2006-01-02T15:04:05Z")
 
@@ -123,9 +127,9 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 	max_score?:               int & >=0 | "unbounded"
 	score_aggregation?:       "pass-fail" | "sum" | "min"
 	static_validation_score?: int & >=0 | "pass-fail"
-	require_pass?: "sample" | #test_data_group | [...("sample" | #test_data_group)]
 	if static_validation_score != _|_ {
 		static_validator_args?: *[] | [...string]
 	}
+	require_pass?: "sample" | #test_data_group | [...("sample" | #test_data_group)]
 
 }
