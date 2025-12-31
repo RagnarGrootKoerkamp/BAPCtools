@@ -1,0 +1,47 @@
+# check if overwriting defaults works
+accepted:
+  #permitted: [AC]
+  permitted: [WA]
+  required: [WA]
+
+# check if adding custom directories works
+ac_or_wa:
+  permitted: [AC, WA]
+
+# check if combining things works
+ac_or_wa/wa.py:
+  permitted: [WA]
+ac_or_wa/ac.py:
+  permitted: [AC]
+
+# check if brace expension works
+expansion/ac.{py,cpp}:
+  permitted: [AC]
+
+# new dir for further tests
+wa:
+  permitted: [AC,WA]
+  required: [WA]
+
+# check if regex works:
+wa/ac*:
+  permitted: [AC]
+  required: [AC]
+
+# check if test groups work
+wa/odd.py:
+  sample:
+    permitted: [AC]
+  secret/*{1,3,5,7,9}:
+    permitted: [AC]
+
+# check time limit
+tle:
+  sample:
+    use_for_time_limit: lower
+  secret:
+    use_for_time_limit: upper
+
+# check message
+wa/hello.py:
+  message: hello

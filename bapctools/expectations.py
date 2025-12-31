@@ -70,12 +70,12 @@ def _compile_glob(glob: str) -> re.Pattern[str]:
         glob = glob[:-1]
     # TODO: does this properly handle brace expansion?
     # TODO: what should happen for nested braces
-    parts = re.split("{[^{}]*}", glob)
-    comma = re.escape(".")
+    parts = re.split("{([^{}]*)}", glob)
+    comma = re.escape(",")
     for i, part in enumerate(parts):
         part = re.escape(part)
         if i % 2 != 0:
-            part = f"({part[i].replace(comma, '|')})"
+            part = f"({part.replace(comma, '|')})"
         parts[i] = part
     glob = "".join(parts)
     # stars match anything exept /
@@ -95,19 +95,19 @@ class TestcaseExpectation:
         if test_case_glob is not None:
             self.test_case_regex = _compile_glob(test_case_glob)
 
-        def extract_verdicts(key: str) -> set[Verdict]:
+        def extract_verdicts(key: str, default: set[Verdict] = set(VERDICTS)) -> set[Verdict]:
             verdicts = parser.extract_optional_list(key, str)
             if not verdicts:
-                return set(VERDICTS)
+                return default
             if any(v not in KNOWN_VERDICTS for v in verdicts):
                 warn(
                     f"some values for key `{parser.parent_path}.{key}` in {parser.source} are unknown. SKIPPED."
                 )
-                return set(VERDICTS)
+                return default
             return {KNOWN_VERDICTS[v] for v in verdicts}
 
         self.permitted: set[Verdict] = extract_verdicts("permitted")
-        self.required: set[Verdict] = extract_verdicts("required")
+        self.required: set[Verdict] = extract_verdicts("required", self.permitted)
         if not self.required.issubset(self.permitted):
             missing = ",".join(v.short() for v in self.required - self.permitted)
             warn(f"`{parser.parent_path}` has [{missing}] as required but not as permitted")
@@ -128,16 +128,12 @@ class TestcaseExpectation:
         self.upper_time_limit: bool = {Verdict.TIME_LIMIT_EXCEEDED} == self.required
         self.allowed_for_time_limit: bool = True
         use_for_time_limit = parser.pop("use_for_time_limit")
-        if use_for_time_limit is not None:
-            if use_for_time_limit is False:
-                self.allowed_for_time_limit = False
-            if use_for_time_limit in [False, "upper"]:
-                self.lower_time_limit = False
-            if use_for_time_limit in [False, "lower"]:
-                self.upper_time_limit = False
+        if use_for_time_limit not in [True, None]:
+            self.lower_time_limit = use_for_time_limit == "lower"
+            self.upper_time_limit = use_for_time_limit == "upper"
             if use_for_time_limit not in [True, False, "lower", "upper"]:
                 warn(
-                    f"`{parser.parent_path}.use_for_time_limit` must be bool or `lower` or `upper`. SKIPPED."
+                    f"`{parser.parent_path}.use_for_time_limit` must be bool, `lower`, or `upper`. SKIPPED."
                 )
         if self.lower_time_limit and self.upper_time_limit:
             error(f"`{parser.parent_path}` is used for upper and lower time limit!")
@@ -145,7 +141,7 @@ class TestcaseExpectation:
     def matches(self, testcase: Testcase) -> bool:
         if self.test_case_regex is None:
             return True
-        return self.test_case_regex.match(testcase.short_path.as_posix()) is not None
+        return self.test_case_regex.match(testcase.name) is not None
 
 
 class SubmissionExpectation:
@@ -166,13 +162,14 @@ class SubmissionExpectation:
         for key in list(parser.yaml):
             if not isinstance(key, str):
                 continue
-            if not key.startswith("sample") and key.startswith("secret"):
+            # TODO is se* allowed here? should we just do no check at all?
+            if not key.startswith("sample") and not key.startswith("secret"):
                 continue
-            self.expectations.append(TestcaseExpectation(parser, key))
+            self.expectations.append(TestcaseExpectation(parser.extract_parser(key), key))
         parser.check_unknown_keys()
 
     def matches(self, submission: "Submission") -> bool:
-        return self.submission_regex.match(submission.short_path.as_posix()) is not None
+        return self.submission_regex.match(submission.name) is not None
 
     def all_matches(self, testcase: Optional[Testcase] = None) -> list[TestcaseExpectation]:
         # TODO: should we return all here? there could be expectations that match no test case at all?
@@ -215,8 +212,8 @@ class Expectation:
                 )
 
     def all_matches(self, submission: "Submission") -> SubmissionExpectation:
-        if submission.short_path in self._combined:
-            return self._combined[submission.short_path]
+        if submission.path in self._combined:
+            return self._combined[submission.path]
 
         languages = set()
         entrypoints = set()
@@ -252,5 +249,5 @@ class Expectation:
         if not found_match:
             warn(f"{submission.name} not covered by submissions.yaml")
 
-        self._combined[submission.short_path] = combined
+        self._combined[submission.path] = combined
         return combined
