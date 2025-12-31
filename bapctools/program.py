@@ -242,7 +242,7 @@ class Program:
                 pass
 
         self.short_path = relpath
-        self.name: str = str(relpath)
+        self.name: str = relpath.as_posix()
         self.tmpdir = problem.tmpdir / self.subdir / self.name
 
         self.compile_command: Optional[Sequence[str | Path]] = None

@@ -171,9 +171,10 @@ class Verdicts:
         test_cases_list: Sequence[testcase.Testcase],
         timeout: int,
         run_until: RunUntil = RunUntil.FIRST_ERROR,
+        ignored: Sequence[testcase.Testcase] = [],
     ) -> None:
-        test_cases: set[str] = set(t.name for t in test_cases_list)
-        test_groups: set[str] = set(str(path) for tc in test_cases for path in Path(tc).parents)
+        test_cases: set[str] = {t.name for t in test_cases_list}
+        test_groups: set[str] = {str(path) for tc in test_cases for path in Path(tc).parents}
 
         # Lock operations reading/writing non-static data.
         # Private methods assume the lock is already locked when entering a public method.
@@ -188,6 +189,10 @@ class Verdicts:
         }
         # test_case -> float | None
         self.duration: dict[str, float | None] = {g: None for g in test_cases}
+        # test_case
+        self.ignored: set[str] = {t.name for t in ignored}
+        assert all(x not in test_cases for x in self.ignored)
+        assert all(x not in test_groups for x in self.ignored)
 
         # const test_group -> [test_group | test_case]
         self.children: dict[str, list[str]] = {node: [] for node in test_groups}
@@ -231,6 +236,8 @@ class Verdicts:
 
     def __getitem__(self, test_node: str) -> Verdict | None | Literal[False]:
         with self:
+            if test_node in self.ignored:
+                return False
             return self.verdict[test_node]
 
     def salient_test_case(self) -> tuple[str, float]:
@@ -307,37 +314,38 @@ class Verdicts:
                 f"Overwriting verdict of {test_node} to {verdict} (was {self.verdict[test_node]})"
             )
         self.verdict[test_node] = verdict
-        if test_node != ".":
-            parent = str(Path(test_node).parent)
+        if test_node == ".":
+            return None
+        parent = str(Path(test_node).parent)
 
-            # Possibly mark sibling cases as unneeded.
-            match self.run_until:
-                case RunUntil.FIRST_ERROR:
-                    # On error, set all later siblings to False.
-                    if verdict != Verdict.ACCEPTED:
-                        for sibling in self.children[parent]:
-                            if sibling > test_node and self.verdict[sibling] is None:
-                                self.verdict[sibling] = False
+        # Possibly mark sibling cases as unneeded.
+        match self.run_until:
+            case RunUntil.FIRST_ERROR:
+                # On error, set all later siblings to False.
+                if verdict != Verdict.ACCEPTED:
+                    for sibling in self.children[parent]:
+                        if sibling > test_node and self.verdict[sibling] is None:
+                            self.verdict[sibling] = False
 
-                case RunUntil.DURATION:
-                    # On timeout, set all later siblings to False.
-                    if timeout:
-                        for sibling in self.children[parent]:
-                            if sibling > test_node and self.verdict[sibling] is None:
-                                self.verdict[sibling] = False
+            case RunUntil.DURATION:
+                # On timeout, set all later siblings to False.
+                if timeout:
+                    for sibling in self.children[parent]:
+                        if sibling > test_node and self.verdict[sibling] is None:
+                            self.verdict[sibling] = False
 
-                case RunUntil.ALL:
-                    # Don't skip any cases.
-                    pass
+            case RunUntil.ALL:
+                # Don't skip any cases.
+                pass
 
-            # possibly update verdict at parent and escalate change upward recursively
-            if self.verdict[parent] is None or self.verdict[parent] is False:
-                try:
-                    parentverdict = self.aggregate(parent)
-                    self._set_verdict_for_node(parent, parentverdict, timeout)
-                except ValueError:
-                    # parent verdict cannot be determined yet
-                    pass
+        # possibly update verdict at parent and escalate change upward recursively
+        if self.verdict[parent] is None or self.verdict[parent] is False:
+            try:
+                parentverdict = self.aggregate(parent)
+                self._set_verdict_for_node(parent, parentverdict, timeout)
+            except ValueError:
+                # parent verdict cannot be determined yet
+                pass
 
     def run_is_needed(self, test_case: str) -> bool:
         """
@@ -349,7 +357,7 @@ class Verdicts:
         Test cases/groups have their verdict set to `False` as soon as it is determined they are not needed.
         """
         with self:
-            if self.verdict[test_case] is not None:
+            if self[test_case] is not None:
                 return False
 
             match self.run_until:
