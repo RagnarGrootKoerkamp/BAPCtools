@@ -100,7 +100,7 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 
 // Test data configuration
 #test_case_or_group_configuration: {
-	args?: *[] | [string]
+	args?: *[] | [...string]
 	input_validator_args?: *[] | [...string] | {[string]: [...string]}
 	output_validator_args?: *[] | [...string]
 	input_visualizer_args?: *[] | [...string]
@@ -116,9 +116,12 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 
 #test_group_configuration: {
 	#test_case_or_group_configuration
-	max_score?:               >0 | "unbounded"
+	max_score?:               int & >=0 | "unbounded"
 	score_aggregation?:       "pass-fail" | "sum" | "min"
-	static_validation_score?: int | "pass-fail"
+	static_validation_score?: int & >=0 | "pass-fail"
 	require_pass?: string | [...string]
-	static_validator_args?: *[] | [...string]
+	if static_validation_score != _|_ {
+		static_validator_args?: *[] | [...string]
+	}
+
 }
