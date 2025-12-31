@@ -28,6 +28,8 @@ require_pass: [secret/small, secret/huge]
 ---
 require_pass: [sample, secret/1, secret/2]
 ---
+require_pass: [secret/_]
+---
 args: []
 ---
 args: [--connected, -n 5000]
