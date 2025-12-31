@@ -7,8 +7,8 @@ name:
   en: constants
 uuid: 8ee7605a-26db-897d-15c8-b72d4e1bfcbb
 credits: BAPCtools
+source: BAPCtools
 license: cc by-sa
-rights_owner: author
 
 # limits:
 #   time_limit: 1.0
