@@ -19,6 +19,7 @@ PROBLEMS = [
     "interactivemultipass",
     "multipass",
     "constants",
+    "testexpectations",
     "alternativeencryption",
     "testseed",
     "generatorcount",
