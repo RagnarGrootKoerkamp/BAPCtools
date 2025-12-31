@@ -6,6 +6,14 @@ max_score: bounded
 ---
 score_aggregation: random
 ---
+require_pass: [a]
+---
+require_pass: [secret]
+---
+require_pass: [secret/a/b]
+---
+require_pass: [valid_output]
+---
 static_validation_score: -1
 ---
 static_validation_score: 1.0

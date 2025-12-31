@@ -19,6 +19,10 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 // a program file like "/submissions/accepted/x.cpp"
 #path: =~"^/?(\(name_regex)/)*\(name_regex)$"
 
+// A test data group is a subdivision of `secret`
+
+#test_data_group: =~"secret/\(name_regex)$"
+
 #ProgrammingLanguage: "ada" | "algol68" | "apl" | "bash" | "c" | "cgmp" | "cobol" | "cpp" | "cppgmp" | "crystal" | "csharp" | "d" | "dart" | "elixir" | "erlang" | "forth" | "fortran" | "fsharp" | "gerbil" | "go" | "haskell" | "java" | "javaalgs4" | "javascript" | "julia" | "kotlin" | "lisp" | "lua" | "modula2" | "nim" | "objectivec" | "ocaml" | "octave" | "odin" | "pascal" | "perl" | "php" | "prolog" | "python2" | "python3" | "python3numpy" | "racket" | "ruby" | "rust" | "scala" | "simula" | "smalltalk" | "snobol" | "swift" | "typescript" | "visualbasic" | "zig"
 #LanguageCode:        =~"^[a-z]{2,3}(-[A-Z]{2})?$"
 #Type:                "pass-fail" | "scoring" | "multi-pass" | "interactive" | "submit-answer"
@@ -119,7 +123,7 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 	max_score?:               int & >=0 | "unbounded"
 	score_aggregation?:       "pass-fail" | "sum" | "min"
 	static_validation_score?: int & >=0 | "pass-fail"
-	require_pass?: string | [...string]
+	require_pass?: "sample" | #test_data_group | [...("sample" | #test_data_group)]
 	if static_validation_score != _|_ {
 		static_validator_args?: *[] | [...string]
 	}
