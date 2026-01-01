@@ -20,7 +20,7 @@ def read_tests(yaml_name) -> list[dict]:
         if "uuid" in test["yaml"]
         else {**test, "yaml": {**test["yaml"], "uuid": "00000000-0000-0000-0000-000000000000"}}
         for test in yaml.load_all(
-            (RUN_DIR / f"test/yaml/problem/{yaml_name}.yaml").read_text(),
+            (RUN_DIR / f"test/yaml/problem/bapctools/{yaml_name}.yaml").read_text(),
             Loader=yaml.SafeLoader,
         )
     ]
