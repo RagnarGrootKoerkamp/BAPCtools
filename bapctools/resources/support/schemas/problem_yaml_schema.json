@@ -1,0 +1,383 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$defs": {
+        "Person": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "email": {
+                            "type": "string"
+                        },
+                        "kattis": {
+                            "type": "string"
+                        },
+                        "name": {
+                            "type": "string"
+                        },
+                        "orcid": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "name"
+                    ]
+                }
+            ]
+        },
+        "Persons": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/Person"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/Person"
+                    },
+                    "prefixItems": [
+                        {
+                            "$ref": "#/$defs/Person"
+                        }
+                    ],
+                    "minLength": 1
+                }
+            ]
+        },
+        "ProgrammingLanguage": {
+            "enum": [
+                "ada",
+                "algol68",
+                "apl",
+                "bash",
+                "c",
+                "cgmp",
+                "cobol",
+                "cpp",
+                "cppgmp",
+                "crystal",
+                "csharp",
+                "d",
+                "dart",
+                "elixir",
+                "erlang",
+                "forth",
+                "fortran",
+                "fsharp",
+                "gerbil",
+                "go",
+                "haskell",
+                "java",
+                "javaalgs4",
+                "javascript",
+                "julia",
+                "kotlin",
+                "lisp",
+                "lua",
+                "modula2",
+                "nim",
+                "objectivec",
+                "ocaml",
+                "octave",
+                "odin",
+                "pascal",
+                "perl",
+                "php",
+                "prolog",
+                "python2",
+                "python3",
+                "python3numpy",
+                "racket",
+                "ruby",
+                "rust",
+                "scala",
+                "simula",
+                "smalltalk",
+                "snobol",
+                "swift",
+                "typescript",
+                "visualbasic",
+                "zig"
+            ]
+        },
+        "Source": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "url": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "name"
+                    ]
+                }
+            ]
+        },
+        "Type": {
+            "enum": [
+                "pass-fail",
+                "scoring",
+                "multi-pass",
+                "interactive",
+                "submit-answer"
+            ]
+        },
+        "Valid": {
+            "type": "string"
+        }
+    },
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+        "allow_file_writing": {
+            "enum": [
+                false,
+                true
+            ]
+        },
+        "constants": {
+            "type": "object",
+            "patternProperties": {
+                "^[a-zA-Z_][a-zA-Z0-9_]*$": {
+                    "anyOf": [
+                        {
+                            "type": "integer"
+                        },
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "type": "object",
+                            "additionalProperties": true,
+                            "properties": {
+                                "value": {
+                                    "anyOf": [
+                                        {
+                                            "type": "integer"
+                                        },
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "string"
+                                        }
+                                    ]
+                                }
+                            },
+                            "required": [
+                                "value"
+                            ]
+                        }
+                    ]
+                }
+            }
+        },
+        "credits": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "properties": {
+                        "authors": {
+                            "$ref": "#/$defs/Persons"
+                        },
+                        "translators": {
+                            "type": "object",
+                            "patternProperties": {
+                                "^[a-z]{2,3}(-[A-Z]{2})?$": {
+                                    "$ref": "#/$defs/Persons"
+                                }
+                            }
+                        }
+                    },
+                    "required": [
+                        "authors"
+                    ]
+                }
+            ]
+        },
+        "embargo_until": {
+            "anyOf": [
+                {
+                    "type": "string",
+                    "format": "date"
+                },
+                {
+                    "type": "string"
+                }
+            ]
+        },
+        "keywords": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "languages": {
+            "anyOf": [
+                {
+                    "const": "all"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/ProgrammingLanguage"
+                    },
+                    "prefixItems": [
+                        {
+                            "$ref": "#/$defs/ProgrammingLanguage"
+                        }
+                    ],
+                    "minLength": 1
+                }
+            ]
+        },
+        "license": {
+            "enum": [
+                "unknown",
+                "public domain",
+                "cc0",
+                "cc by",
+                "cc by-sa",
+                "educational",
+                "permission"
+            ]
+        },
+        "limits": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+                "time_limit": {
+                    "type": "number",
+                    "anyOf": [
+                        {
+                            "type": "number"
+                        },
+                        {
+                            "type": "integer"
+                        }
+                    ],
+                    "exclusiveMinimum": 0
+                },
+                "time_multipliers": {
+                    "type": "object",
+                    "properties": {
+                        "ac_to_time_limit": {
+                            "type": "number"
+                        },
+                        "time_limit_to_tle": {
+                            "type": "number"
+                        }
+                    }
+                },
+                "time_resolution": {
+                    "type": "number"
+                }
+            }
+        },
+        "name": {
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "type": "object",
+                    "patternProperties": {
+                        "^[a-z]{2,3}(-[A-Z]{2})?$": {
+                            "type": "string"
+                        }
+                    }
+                }
+            ]
+        },
+        "problem_format_version": {
+            "anyOf": [
+                {
+                    "type": "string",
+                    "pattern": "^[0-9]{4}-[0-9]{2}(-draft)?$"
+                },
+                {
+                    "const": "draft"
+                },
+                {
+                    "const": "legacy"
+                },
+                {
+                    "const": "legacy-icpc"
+                }
+            ]
+        },
+        "rights_owner": {
+            "$ref": "#/$defs/Persons"
+        },
+        "source": {
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/Source"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/Source"
+                    },
+                    "prefixItems": [
+                        {
+                            "$ref": "#/$defs/Source"
+                        }
+                    ],
+                    "minLength": 1
+                }
+            ]
+        },
+        "type": {
+            "anyOf": [
+                {
+                    "const": "pass-fail"
+                },
+                {
+                    "$ref": "#/$defs/Type"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/Type"
+                    },
+                    "prefixItems": [
+                        {
+                            "$ref": "#/$defs/Type"
+                        }
+                    ],
+                    "minLength": 1
+                }
+            ]
+        },
+        "uuid": {
+            "$ref": "#/$defs/Valid"
+        },
+        "version": {
+            "type": "string"
+        }
+    },
+    "required": [
+        "name",
+        "problem_format_version",
+        "uuid"
+    ]
+}
