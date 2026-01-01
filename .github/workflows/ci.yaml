@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: git config --global --add safe.directory "$(pwd)"
-      - run: bash test/yaml/generators/test_schemata.sh
+      - run: bash test/yaml/validate_yaml.sh
       - run: pytest
 
   test-wsl:
