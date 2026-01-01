@@ -152,11 +152,11 @@ done
 # -------
 # Summary
 # -------
-echo "" 
-echo -e "\033[1mSummary:\033[0m" 
-printf " %-15s %s\n" "Succeeded:" "$succeeded" 
-printf " %-15s %s\n" "Failed:" "$failed" 
-printf " %-15s %s\n" "Ignored:" "$ignored" 
+echo ""
+echo -e "\033[1mSummary:\033[0m"
+printf " %-15s %s\n" "Succeeded:" "$succeeded"
+printf " %-15s %s\n" "Failed:" "$failed"
+printf " %-15s %s\n" "Ignored:" "$ignored"
 echo ""
 
 if [ $failed -ne 0 ]; then
