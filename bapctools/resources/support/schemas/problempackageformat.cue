@@ -68,7 +68,7 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 	license:       *"unknown" | "public domain" | "cc0" | "cc by" | "cc by-sa" | "educational" | "permission"
 	if license != "public domain" {
 		rights_owner?: #Persons
-		if license != "unknown" && credits.authors == _|_ && source == _|_ {
+		if license != "unknown" && (credits & string) == _|_ && credits.authors == _|_ && source == _|_ {
 				rights_owner!: _
 			}
 		}
