@@ -65,14 +65,13 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 	}
 
 	source?: #Source | [#Source, ...#Source]
-	license:       *"unknown" | "public domain" | "cc0" | "cc by" | "cc by-sa" | "educational" | "permission"
+	license: *"unknown" | "public domain" | "cc0" | "cc by" | "cc by-sa" | "educational" | "permission"
 	if license != "public domain" {
 		rights_owner?: #Persons
 		if license != "unknown" && (credits & string) == _|_ && credits.authors == _|_ && source == _|_ {
-				rights_owner!: _
-			}
+			rights_owner!: _
 		}
-
+	}
 
 	embargo_until?: time.Format("2006-01-02") | time.Format("2006-01-02T15:04:05Z")
 
@@ -108,11 +107,11 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 
 // Test data configuration
 #test_case_or_group_configuration: {
-	args?: *[] | [...string]
-	input_validator_args?: *[] | [...string] | {[string]: [...string]}
-	output_validator_args?: *[] | [...string]
-	input_visualizer_args?: *[] | [...string]
-	output_visualizer_args?: *[] | [...string]
+	args?: [...string]
+	input_validator_args?: [...string] | {[string]: [...string]}
+	output_validator_args?: [...string]
+	input_visualizer_args?: [...string]
+	output_visualizer_args?: [...string]
 	full_feedback?: bool
 }
 
@@ -128,7 +127,7 @@ let name_regex = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
 	score_aggregation?:       "pass-fail" | "sum" | "min"
 	static_validation_score?: int & >=0 | "pass-fail"
 	if static_validation_score != _|_ {
-		static_validator_args?: *[] | [...string]
+		static_validator_args?: [...string]
 	}
 	require_pass?: "sample" | #test_data_group | [...("sample" | #test_data_group)]
 
