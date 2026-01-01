@@ -86,7 +86,7 @@ problem_format_version: 9999-99
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Source can be map
-source: 
+source:
   name: NWERC 2024
 name:
   en: Hello World!
@@ -94,7 +94,7 @@ problem_format_version: 9999-99
 uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Source can be map with two keys (name, url)
-source: 
+source:
   name: NWERC 2024
   url: https://2024.nwerc.example/contest
 name:
@@ -141,7 +141,7 @@ uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Specify rights owner via credits.authors
 license: cc0
-credits: 
+credits:
   authors: Bob
 name: Hello World!
 problem_format_version: 9999-99
@@ -171,7 +171,7 @@ credits:
   - Tester Two
   - Tester Three
   translators:
-    da: 
+    da:
       - Mads Jensen <mads@mads.example>
       - Monika Jensen <monika@jensen.example>
     eo: Ludoviko Lazaro Zamenhofo
