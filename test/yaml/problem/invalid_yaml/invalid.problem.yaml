@@ -146,6 +146,17 @@ credits:
   authors: []
 ---
 problem_format_version: 2025-09
+name: Credits can be string, not Person
+uuid: 12345678-1234-1234-1234-123456789abc
+credits:
+  name: Alice
+---
+problem_format_version: 2025-09
+name: Credits cannot be list of strings
+uuid: 12345678-1234-1234-1234-123456789abc
+credits: [Alice, Bob]
+---
+problem_format_version: 2025-09
 uuid: 12345678-1234-1234-1234-123456789abc
 name: Invalid value for author name
 credits:
@@ -221,3 +232,32 @@ constants:
   k:
     value: 5
     tex: 5
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in source list
+license: public domain
+rights_owner: a # public domain problems have no rights owner
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in source list
+license: cc0
+rights_owner: # cannot be null
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in source list
+license: unknown
+rights_owner: # cannot be null
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in source list
+rights_owner: # cannot be null
+---
+problem_format_version: 2025-09
+uuid: 12345678-1234-1234-1234-123456789abc
+name: Invalid key in source list
+license: cc0
+# must specify righs_owner (or other field from which rights owner can be inferred)
