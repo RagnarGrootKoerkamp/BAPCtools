@@ -22,6 +22,7 @@ from bapctools import (
 from bapctools.testcase import Testcase
 from bapctools.util import (
     BAR_TYPE,
+    crop_line,
     crop_output,
     ensure_symlink,
     eprint,
@@ -535,8 +536,10 @@ class Submission(program.Program):
         passed_required = True
         for expectation in self.expectations.all_matches():
             passed_cur_required = False
+            message = expectation.message
             got = set()
-            for testcase in testcases:
+            for run in runs:
+                testcase = run.testcase
                 if not expectation.matches(testcase):
                     continue
                 verdict = verdicts[testcase.name]
@@ -544,9 +547,19 @@ class Submission(program.Program):
                     got.add(verdict)
                     passed_permitted &= verdict in expectation.permitted
                     passed_cur_required |= verdict in expectation.required
+                    # the spec explicitly says judgemessage, not cerr/cout
+                    judgemessage = run.feedbackdir / "judgemessage.txt"
+                    if (
+                        message is not None
+                        and judgemessage.is_file()
+                        and message in judgemessage.read_text(errors="replace")
+                    ):
+                        message = None
                 else:
-                    # if we have a missing verdict it could be the required one => do not warn
+                    # if we do not have verdict we skipped that case
+                    # that case could satisfy our constraints => do not warn
                     passed_cur_required = True
+                    message = None
             if not passed_cur_required:
                 requiredmsg = ",".join([v.short() for v in expectation.required])
                 gotmsg = ",".join([v.short() for v in got])
@@ -555,6 +568,8 @@ class Submission(program.Program):
                     msg += ["for", expectation.test_case_glob]
                 bar.warn(f"{' '.join(msg)}, got: [{gotmsg}]")
                 passed_required = False
+            if message is not None:
+                bar.warn(f"missing '{crop_line(message, 15)}' in judgemessage.txt")
 
         verdict = verdicts["."]
         assert isinstance(verdict, Verdict), "Verdict of root must not be empty"
