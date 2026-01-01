@@ -35,13 +35,23 @@ wa/odd.py:
   secret/*{1,3,5,7,9}:
     permitted: [AC]
 
+# check some more matching things
+match:
+  permitted: [AC]
+# match only full names
+match/wa:
+  required: [WA]
+# match only absolute names
+test_match.py:
+  required: [WA]
+
+# check message
+wa/hello.py:
+  message: hello
+
 # check time limit
 tle:
   sample:
     use_for_time_limit: lower
   secret:
     use_for_time_limit: upper
-
-# check message
-wa/hello.py:
-  message: hello

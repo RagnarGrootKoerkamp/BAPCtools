@@ -82,7 +82,7 @@ def _compile_glob(glob: str) -> re.Pattern[str]:
     glob = glob.replace(re.escape("*"), "[^/]*")
     # match from start and only match complete directories
     glob = f"^{glob}(/|$)"
-    return re.compile(glob, re.MULTILINE)
+    return re.compile(glob)
 
 
 class TestcaseExpectation:
