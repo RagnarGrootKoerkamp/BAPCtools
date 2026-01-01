@@ -127,7 +127,29 @@ uuid: 550e8400-e29b-41d4-a716-446655440000
 ---
 # Specify license
 license: cc0
-rights_owner: "Bob"
+rights_owner: Bob
+name: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Specify rights owner via credits
+license: cc0
+credits: Bob
+name: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Specify rights owner via credits.authors
+license: cc0
+credits: 
+  authors: Bob
+name: Hello World!
+problem_format_version: 9999-99
+uuid: 550e8400-e29b-41d4-a716-446655440000
+---
+# Specify rights owner via source
+license: cc0
+source: NCPC 1856
 name: Hello World!
 problem_format_version: 9999-99
 uuid: 550e8400-e29b-41d4-a716-446655440000
