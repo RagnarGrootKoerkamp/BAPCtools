@@ -39,10 +39,12 @@ wa/odd.py:
 match:
   permitted: [AC]
 # match only full names
-match/wa:
+match/match_wa:
+  required: [WA]
+match/match:
   required: [WA]
 # match only absolute names
-test_match.py:
+match_wa.py:
   required: [WA]
 
 # check message
