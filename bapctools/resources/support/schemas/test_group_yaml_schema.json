@@ -320,67 +320,27 @@
         }
     },
     "type": "object",
-    "additionalProperties": true,
+    "additionalProperties": false,
     "properties": {
         "data": {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-                "invalid_answer": {
-                    "$ref": "#/$defs/test_group"
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/data_dict"
                 },
-                "invalid_input": {
-                    "$ref": "#/$defs/test_group"
-                },
-                "invalid_output": {
-                    "$ref": "#/$defs/test_group"
-                },
-                "sample": {
-                    "$ref": "#/$defs/test_group"
-                },
-                "secret": {
-                    "$ref": "#/$defs/test_group"
-                },
-                "valid_output": {
-                    "$ref": "#/$defs/test_group"
+                {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/data_list"
+                    }
                 }
-            },
-            "required": [
-                "sample",
-                "secret"
             ]
         },
-        "generators": {
-            "type": "object",
-            "patternProperties": {
-                "^[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}$": {
-                    "allOf": [
-                        {
-                            "prefixItems": [
-                                true
-                            ]
-                        },
-                        {
-                            "type": "array",
-                            "items": {
-                                "type": "string",
-                                "$ref": "#/$defs/path",
-                                "not": {
-                                    "pattern": "^/"
-                                }
-                            },
-                            "minLength": 1
-                        }
-                    ]
-                }
+        "include": {
+            "type": "array",
+            "items": {
+                "$ref": "#/$defs/path"
             }
-        },
-        "version": {
-            "type": "string"
         }
     },
-    "$ref": "#/$defs/test_group_config",
-    "required": [
-        "data"
-    ]
+    "$ref": "#/$defs/test_group_config"
 }
