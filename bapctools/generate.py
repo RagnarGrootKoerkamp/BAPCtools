@@ -133,7 +133,12 @@ class Invocation:
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
     def __init__(
-        self, problem: Problem, string: str, *, allow_absolute: bool, allow_relative: bool = True
+        self,
+        problem: Problem,
+        string: str,
+        *,
+        allow_absolute: bool,
+        allow_relative: bool = True,
     ) -> None:
         commands = shlex.split(string)
         command = commands[0]
@@ -286,8 +291,10 @@ def default_solution_path(generator_config: "GeneratorConfig") -> Path:
     bar = PrintBar("generators.yaml")
     if config.args.default_solution:
         if generator_config.has_yaml:
-            bar.warn(f"""--default-solution Ignored. Set the default solution in the generators.yaml!
-solution: /{config.args.default_solution}""")
+            bar.warn(
+                f"""--default-solution Ignored. Set the default solution in the generators.yaml!
+solution: /{config.args.default_solution}"""
+            )
         else:
             solution = problem.path / config.args.default_solution
     else:
@@ -342,7 +349,11 @@ KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
 )
 RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ("command",)
 KNOWN_ROOT_KEYS: Final[Sequence[str]] = ("generators", "version")
-DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ("gitignore_generated", "parallel", "visualizer")
+DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = (
+    "gitignore_generated",
+    "parallel",
+    "visualizer",
+)
 
 
 # Holds all inheritable configuration options. Currently:
@@ -730,7 +741,11 @@ class TestcaseRule(Rule):
             write_yaml(data, self._path, allow_yamllib=True)
 
     def link(
-        t, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar, dst: Path
+        t,
+        problem: Problem,
+        generator_config: "GeneratorConfig",
+        bar: ProgressBar,
+        dst: Path,
     ) -> None:
         assert t.process
 
@@ -834,7 +849,10 @@ class TestcaseRule(Rule):
             return False
 
         outfile = infile.with_suffix(".out")
-        if not outfile.is_file() and testcase.root in ["invalid_output", "valid_output"]:
+        if not outfile.is_file() and testcase.root in [
+            "invalid_output",
+            "valid_output",
+        ]:
             bar.error("No .out file was generated!")
             return False
 
@@ -871,7 +889,10 @@ class TestcaseRule(Rule):
         return True
 
     def generate(
-        t, problem: Problem, generator_config: "GeneratorConfig", parent_bar: ProgressBar
+        t,
+        problem: Problem,
+        generator_config: "GeneratorConfig",
+        parent_bar: ProgressBar,
     ) -> None:
         assert t.process
 
@@ -1514,10 +1535,12 @@ class Directory(Rule):
         testcase_f: Optional[
             Callable[["TestcaseRule | Directory"], object] | Callable[[TestcaseRule], object]
         ] = None,
-        dir_f: Literal[True]
-        | Optional[
-            Callable[["TestcaseRule | Directory"], object] | Callable[["Directory"], object]
-        ] = True,
+        dir_f: (
+            Literal[True]
+            | Optional[
+                Callable[["TestcaseRule | Directory"], object] | Callable[["Directory"], object]
+            ]
+        ) = True,
         *,
         skip_restricted: bool = True,
     ) -> None:
@@ -1890,7 +1913,7 @@ class GeneratorConfig:
                     if isinstance(parent, RootDirectory):
                         keys = sorted(
                             keys,
-                            key=lambda k: (order.index(k), k) if k in order else (999, k),
+                            key=lambda k: ((order.index(k), k) if k in order else (999, k)),
                         )
                         deprecated = [
                             "invalid_outputs",
@@ -1915,7 +1938,9 @@ class GeneratorConfig:
                                 )
                             elif is_testcase(child_yaml):
                                 child_name = next_numbered_name(
-                                    child_key, next_test_case_id, num_numbered_test_cases
+                                    child_key,
+                                    next_test_case_id,
+                                    num_numbered_test_cases,
                                 )
                             else:
                                 # Use error will be given inside parse(child).
