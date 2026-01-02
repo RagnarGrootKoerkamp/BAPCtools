@@ -2,83 +2,83 @@
 # empty
 ---
 # missing secret
-data: {sample: {data: []}}
+data: { sample: { data: [] } }
 ---
 # missing sample:
-data: {secret: {data: []}}
+data: { secret: { data: [] } }
 ---
 # invalid test group below root
-data: {sample: {data: []}, secret: {data: []}, public: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] }, public: { data: [] } }
 ---
 # solution must be null or string
 solution: 0
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 solution: 0.0
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 solution: []
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 solution: {}
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 solution: true
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 solution: false
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 # random_salt must be null or string
 random_salt: 0
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 random_salt: 0.0
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 random_salt: []
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 random_salt: {}
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 random_salt: true
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 random_salt: false
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 # generators must be a dictionary of non-empty list of string
 generators: str
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 generators: []
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 generators: [str]
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 generators:
   g: a
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 generators:
   g: 1
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 generators:
   g:
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 # TODO
 generators:
   g: []
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 generators:
   g:
     - true
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 # data: must be a dictionary or list of dictionaries
 data: str
@@ -91,7 +91,7 @@ data: 1
 ---
 data: [1]
 ---
-data: {1: 2}
+data: { 1: 2 }
 ---
 data: [{}]
 ---
@@ -101,58 +101,58 @@ data:
 # Unnumbered keys must not be empty.
 # TODO not picked up by JSON schema
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
-      '': str
+      "": str
 ---
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
-      - '':
-        - a
+      - "":
+          - a
 ---
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
         - a
 ---
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: []
 ---
 # generate must not contain {seed} twice.
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: gen {seed} {seed}
 ---
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: gen {seed} {seed:1}
 ---
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: gen {seed:1} {seed}
 ---
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: gen {seed:1} {seed:1}
 ---
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: gen {seed:1} {seed:2}
@@ -160,42 +160,42 @@ data:
 # no empty string TODO
 # TODO not picked up by JSON schema
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: ""
 ---
 # no null production
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
 ---
 # Testcase object must not be boolean
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: true
 ---
 # ... or int
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: 1
 ---
 # ... or list
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a: []
 ---
 # Generator invocation can't be boolean
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
@@ -203,7 +203,7 @@ data:
 ---
 # ... or int
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
@@ -211,7 +211,7 @@ data:
 ---
 # ... or list
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
@@ -220,7 +220,7 @@ data:
 # Copied cases must not have an absolute path. TODO
 # TODO not picked up by JSON schema
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
@@ -229,7 +229,7 @@ data:
 # Copied cases must not have an absolute path. TODO
 # TODO not picked up by JSON schema
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
@@ -238,7 +238,7 @@ data:
 # Copied cases must not have an absolute path. TODO
 # TODO not picked up by JSON schema
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
@@ -247,7 +247,7 @@ data:
 # Generator invocations must not have an absolute path.
 # TODO not picked up by JSON schema
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
@@ -256,7 +256,7 @@ data:
 # Generator invocations must not have an absolute path.
 # TODO not picked up by JSON schema
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
@@ -264,7 +264,7 @@ data:
 ---
 # Solution must have an absolute path:
 solution: a
-data: {sample: {data: []}, secret: {data: []}}
+data: { sample: { data: [] }, secret: { data: [] } }
 ---
 ## No toplevel generate TODO
 #generate: xyz
@@ -272,14 +272,14 @@ data: {sample: {data: []}, secret: {data: []}}
 #---
 # No generate in test group
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     generate: x
     data: []
 ---
 # Testcases may not have data:
 data:
-  sample: {data: []}
+  sample: { data: [] }
   secret:
     data:
       a:
@@ -362,38 +362,110 @@ data:
   sample: {}
   secret:
     data:
-    - '':
-       generate: my_generator {count}
-       count: 0
+      - "":
+          generate: my_generator {count}
+          count: 0
 ---
 # Count is at most 100
 data:
   sample: {}
   secret:
     data:
-    - '':
-       generate: my_generator {count}
-       count: 101
+      - "":
+          generate: my_generator {count}
+          count: 101
+---
+# Count can't be float
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: [1, 2.0]
+---
+# Count range expression syntax
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: 1.x=2
+---
+# Count range expression: no space
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: 1 ..= 2
+---
+# Count range expression: wrong syntax
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: 1..2
+---
+# Count range expression: wrong syntax
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: 1...2
+---
+# # Count range expression: range must not be empty
+# data:
+#   sample: {}
+#   secret:
+#     data:
+#       - "":
+#           generate: my_generator {count}
+#           count: 2..=1
+# ---
+# # Count range expression: range must not be too long
+# data:
+#   sample: {}
+#   secret:
+#     data:
+#       - "":
+#           generate: my_generator {count}
+#           count: 0..=999999999
+# ---
+# Count range expression: no float
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: 1..=2.0
 ---
 # match must be a string or list of strings
 data:
   sample: {}
   secret:
     data:
-    - '':
-       in: "1 2"
-       match: 1
+      - "":
+          in: "1 2"
+          match: 1
 ---
 # match must be a string or list of strings
 data:
   sample: {}
   secret:
     data:
-    - '':
-       in: "1 2"
-       match:
-        - "1"
-        - 2
+      - "":
+          in: "1 2"
+          match:
+            - "1"
+            - 2
 ---
 # No test_group.yaml on testcase level
 # TODO Not picked up by JSON schema
@@ -401,7 +473,7 @@ data:
   sample: {}
   secret:
     data:
-    - '':
-        in: '1 2'
-        test_group.yaml:      # this is not ok
-          input_validator_args: [connected]
+      - "":
+          in: "1 2"
+          test_group.yaml: # this is not ok
+            input_validator_args: [connected]

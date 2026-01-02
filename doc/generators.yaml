@@ -139,7 +139,13 @@ data:
       #11-random-4: graph {seed} {seed:2}  # Not allowed because the regex matches twice.
       12-counted:
         generate: graph {seed:3} {count}
-        count: 2 # generate two test cases at once
+        count: 2 # generate two test cases at once, value for {count} will be [1,2]
+      13-count-list:
+        generate: graph {seed:3} {count}
+        count: [7, -3] # two test cases, {count} will be [7, -3]
+      14-count-range:
+        generate: graph {seed:3} {count}
+        count: 10..=12 # three test cases, {count} will be [10, 11, 12]
 
       # No key (test case or test group) may be a prefix of another key.
       #01-second: graph 6                     # Collision with rule 01 above.
@@ -157,12 +163,12 @@ data:
       #
       # The generator below generates and writes both testcase.in and testcase.ans, and
       # the optionally specified `solution:` will not be called.
-      "13": write_in_and_ans.py
+      "15": write_in_and_ans.py
 
       # To override the global/test group configuration on a per-test-case basis,
       # a dictionary may be used. This allows the solution: key,
       # as well as the generate: key which contains the command to execute.
-      14_override:
+      16_override:
         generate: large_case_generator.py 1000000
         solution: /generators/gnu_multi_precision.cpp
         random_salt: "123"

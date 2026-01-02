@@ -50,6 +50,8 @@ if has_ryaml:
 
 YAML_TYPE = Optional[str | dict[object, object]]
 
+INCLUSIVE_RANGE_REGEX = re.compile(r"^(-?\d+)\.\.=(-?\d+)$")
+
 
 class ParseException(Exception):
     def __init__(self, message: Optional[str] = None, path: Optional[Path | str] = None) -> None:
@@ -97,7 +99,9 @@ def is_directory(yaml: YAML_TYPE) -> bool:
 
 
 def has_count(yaml: YAML_TYPE) -> bool:
-    return isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], int)
+    return (
+        isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], int | list | str)
+    )
 
 
 # Returns the given path relative to the problem root.
@@ -129,7 +133,12 @@ class Invocation:
     # `string` is the name of the submission (relative to generators/ or absolute from the problem root) with command line arguments.
     # A direct path may also be given.
     def __init__(
-        self, problem: Problem, string: str, *, allow_absolute: bool, allow_relative: bool = True
+        self,
+        problem: Problem,
+        string: str,
+        *,
+        allow_absolute: bool,
+        allow_relative: bool = True,
     ) -> None:
         commands = shlex.split(string)
         command = commands[0]
@@ -282,8 +291,10 @@ def default_solution_path(generator_config: "GeneratorConfig") -> Path:
     bar = PrintBar("generators.yaml")
     if config.args.default_solution:
         if generator_config.has_yaml:
-            bar.warn(f"""--default-solution Ignored. Set the default solution in the generators.yaml!
-solution: /{config.args.default_solution}""")
+            bar.warn(
+                f"""--default-solution Ignored. Set the default solution in the generators.yaml!
+solution: /{config.args.default_solution}"""
+            )
         else:
             solution = problem.path / config.args.default_solution
     else:
@@ -338,7 +349,11 @@ KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
 )
 RESERVED_DIRECTORY_KEYS: Final[Sequence[str]] = ("command",)
 KNOWN_ROOT_KEYS: Final[Sequence[str]] = ("generators", "version")
-DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = ("gitignore_generated", "parallel", "visualizer")
+DEPRECATED_ROOT_KEYS: Final[Sequence[str]] = (
+    "gitignore_generated",
+    "parallel",
+    "visualizer",
+)
 
 
 # Holds all inheritable configuration options. Currently:
@@ -537,9 +552,27 @@ class TestcaseRule(Rule):
                             raise ParseException(f"Non sample testcase cannot use '{ext[1:]}")
                 if "submission" in yaml and "ans" in yaml:
                     raise ParseException("Testcase cannot specify both 'submissions' and 'ans'.")
-                if "count" in yaml and not isinstance(yaml["count"], int):
+                if "count" in yaml:
                     value = yaml["count"]
-                    raise ParseException(f"Testcase expected int for 'count' but found {value}.")
+                    match value:
+                        case int():
+                            pass
+                        case list(items):
+                            if not all(isinstance(item, int) for item in items):
+                                raise ParseException(
+                                    f"Testcase count list must be integers, found {value}."
+                                )
+                            if not len(items) == len(set(items)):
+                                raise ParseException(
+                                    "Testcase count list contains duplicate integers."
+                                )
+                        case str(s):
+                            if not INCLUSIVE_RANGE_REGEX.match(s):
+                                raise ParseException(
+                                    f"Testcase count range expression invalid: {s}"
+                                )
+                        case _:
+                            raise ParseException(f"Testcase count expression invalid: {value}")
 
                 # 1. generate
                 if "generate" in yaml:
@@ -708,7 +741,11 @@ class TestcaseRule(Rule):
             write_yaml(data, self._path, allow_yamllib=True)
 
     def link(
-        t, problem: Problem, generator_config: "GeneratorConfig", bar: ProgressBar, dst: Path
+        t,
+        problem: Problem,
+        generator_config: "GeneratorConfig",
+        bar: ProgressBar,
+        dst: Path,
     ) -> None:
         assert t.process
 
@@ -812,7 +849,10 @@ class TestcaseRule(Rule):
             return False
 
         outfile = infile.with_suffix(".out")
-        if not outfile.is_file() and testcase.root in ["invalid_output", "valid_output"]:
+        if not outfile.is_file() and testcase.root in [
+            "invalid_output",
+            "valid_output",
+        ]:
             bar.error("No .out file was generated!")
             return False
 
@@ -849,7 +889,10 @@ class TestcaseRule(Rule):
         return True
 
     def generate(
-        t, problem: Problem, generator_config: "GeneratorConfig", parent_bar: ProgressBar
+        t,
+        problem: Problem,
+        generator_config: "GeneratorConfig",
+        parent_bar: ProgressBar,
     ) -> None:
         assert t.process
 
@@ -1492,10 +1535,12 @@ class Directory(Rule):
         testcase_f: Optional[
             Callable[["TestcaseRule | Directory"], object] | Callable[[TestcaseRule], object]
         ] = None,
-        dir_f: Literal[True]
-        | Optional[
-            Callable[["TestcaseRule | Directory"], object] | Callable[["Directory"], object]
-        ] = True,
+        dir_f: (
+            Literal[True]
+            | Optional[
+                Callable[["TestcaseRule | Directory"], object] | Callable[["Directory"], object]
+            ]
+        ) = True,
         *,
         skip_restricted: bool = True,
     ) -> None:
@@ -1745,24 +1790,39 @@ class GeneratorConfig:
         num_numbered_test_cases = 0
         next_test_case_id = itertools.count(1)
 
-        def parse_count(yaml: YAML_TYPE, warn_for: Optional[Path] = None) -> int:
+        def parse_count(yaml: YAML_TYPE, warn_for: Optional[Path] = None) -> list[int]:
             if not has_count(yaml):
-                return 1
+                return [1]
             assert isinstance(yaml, dict)
             count = yaml["count"]
-            assert isinstance(count, int)
             bar = PrintBar("generators.yaml", item=warn_for)
-            if count < 1:
-                if warn_for is not None:
-                    bar.warn(f"Found count: {count}, increased to 1.")
-                return 1
-            if count > 1000:
-                if warn_for is not None:
-                    bar.error(f"Found count: {count}, limited to 1000.")
-                return 1000
-            if count > 100 and warn_for is not None:
-                bar.log(f"Found large count: {count}.")
-            return count
+            match count:
+                case int():
+                    count_list = list(range(1, count + 1))
+                case list(idx_list):
+                    count_list = idx_list
+                case str(s):
+                    if m := INCLUSIVE_RANGE_REGEX.match(s):
+                        m1 = int(m[1])
+                        m2 = int(m[2])
+                        if m1 <= m2:
+                            if m2 >= m1 + 100:
+                                bar.error(
+                                    f"Invalid count range, length {m2 - m1 + 1}>100. Limiting to 100."
+                                )
+                                count_list = list(range(int(m1), int(m1) + 100))
+                            else:
+                                count_list = list(range(int(m1), int(m2) + 1))
+                        else:
+                            bar.error(f"Invalid count range, start={m1} must be <= end={m2}.")
+                case _:
+                    assert False  # syntax check must have caught this
+            if warn_for is not None:
+                if not count_list:
+                    bar.warn(f"Found empty count: {count}, increased to 1.")
+                if len(count_list) > 100:
+                    bar.error(f"Found count: {count}, limited to first 100 items.")
+            return count_list[:100] or [1]
 
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
@@ -1782,7 +1842,7 @@ class GeneratorConfig:
                 if isinstance(elem, dict):
                     for key in elem:
                         if is_testcase(elem[key]) and numbered:
-                            num_numbered_test_cases += parse_count(elem[key])
+                            num_numbered_test_cases += len(parse_count(elem[key]))
                         elif is_directory(elem[key]):
                             count(elem[key])
 
@@ -1804,14 +1864,14 @@ class GeneratorConfig:
                 if isinstance(parent, RootDirectory):
                     raise ParseException("Test case must be inside a Directory.", name)
 
-                count = parse_count(yaml, parent.path / name)
+                count_list = parse_count(yaml, parent.path / name)
 
-                ts = []
-                for count_index in range(count):
-                    if count_index > 0:
+                ts: list[TestcaseRule] = []
+                for i, count_index in enumerate(count_list):
+                    if i > 0:  # need a fresh name in every round but the first
                         name = next(name_gen)
                     if has_count(yaml):
-                        name += f"-{count_index + 1:0{len(str(count))}}"
+                        name += f"-{count_index:0{len(str(len(count_list)))}}"
 
                     t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
                     if t.path in self.known_cases:
@@ -1864,7 +1924,7 @@ class GeneratorConfig:
                     if isinstance(parent, RootDirectory):
                         keys = sorted(
                             keys,
-                            key=lambda k: (order.index(k), k) if k in order else (999, k),
+                            key=lambda k: ((order.index(k), k) if k in order else (999, k)),
                         )
                         deprecated = [
                             "invalid_outputs",
@@ -1889,7 +1949,9 @@ class GeneratorConfig:
                                 )
                             elif is_testcase(child_yaml):
                                 child_name = next_numbered_name(
-                                    child_key, next_test_case_id, num_numbered_test_cases
+                                    child_key,
+                                    next_test_case_id,
+                                    num_numbered_test_cases,
                                 )
                             else:
                                 # Use error will be given inside parse(child).

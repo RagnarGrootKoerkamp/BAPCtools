@@ -66,14 +66,28 @@
                             }
                         },
                         "count": {
-                            "allOf": [
+                            "anyOf": [
                                 {
-                                    "type": "number"
+                                    "allOf": [
+                                        {
+                                            "type": "number"
+                                        },
+                                        {
+                                            "type": "integer",
+                                            "maximum": 100,
+                                            "minimum": 1
+                                        }
+                                    ]
                                 },
                                 {
-                                    "type": "integer",
-                                    "maximum": 100,
-                                    "minimum": 1
+                                    "type": "array",
+                                    "items": {
+                                        "type": "integer"
+                                    }
+                                },
+                                {
+                                    "type": "string",
+                                    "pattern": "^-?\\d+\\.\\.=-?\\d+$"
                                 }
                             ]
                         },
