@@ -1,27 +1,20 @@
-package problemformat
+package problempackageformat
 
 import "list"
 
-#person: =~"^[^<]+(<[^>]+>)?$" // "Alice" or "Bob <bob@com>"
-
 #verdict: "AC" | "WA" | "RTE" | "TLE"
 
-let globbed_dirname = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
-#globbed_dirpath: =~"^(\(globbed_dirname)/)*\(globbed_dirname)$" & !~ "\\*\\*"
-let globbed_filename = "([a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}|\\*)"
-
-#globbed_submissionpath: =~"^(\(globbed_dirname)/)*\(globbed_filename)$" & !~ "\\*\\*"
 #Submissions: {
-	[#globbed_submissionpath]: #submission
+	[#path]: #submission
 }
 
 #submission: {
 	language?: string
 	entrypoint?: string
-	author?: #person | [...#person]
+	author?: #Persons
 	model_solution?: bool
 	#expectation
-	[=~"^(sample|secret|\\*)" & #globbed_dirpath]: #expectation
+	[=~"^(sample|secret|\\*)" & #path]: #expectation
 }
 
 #expectation: {
