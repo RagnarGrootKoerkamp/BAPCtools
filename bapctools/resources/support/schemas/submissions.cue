@@ -1,27 +1,27 @@
-package problemformat
+package problempackageformat
 
 import "list"
 
-#person: =~"^[^<]+(<[^>]+>)?$" // "Alice" or "Bob <bob@com>"
-
 #verdict: "AC" | "WA" | "RTE" | "TLE"
 
-let globbed_dirname = "[a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}"
-#globbed_dirpath: =~"^(\(globbed_dirname)/)*\(globbed_dirname)$" & !~ "\\*\\*"
-let globbed_filename = "([a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}|\\*)"
+// Regular expressions for glob-like path matching
+let letter = "[a-zA-Z0-9_.*-]"
+let word_re = "[a-zA-Z0-9_. -]*"
+let brace_atom_re  = "\\{\(word_re)(,\(word_re))*\\}"
+let component_re = "(\(letter)|\(brace_atom_re))+"
+let glob_path = =~"^(\(component_re)/)*\(component_re)$" & !~"\\*\\*"
 
-#globbed_submissionpath: =~"^(\(globbed_dirname)/)*\(globbed_filename)$" & !~ "\\*\\*"
 #Submissions: {
-	[#globbed_submissionpath]: #submission
+	[glob_path]: #submission
 }
 
 #submission: {
 	language?: string
 	entrypoint?: string
-	author?: #person | [...#person]
+	author?: #Persons
 	model_solution?: bool
 	#expectation
-	[=~"^(sample|secret|\\*)" & #globbed_dirpath]: #expectation
+	[=~"^(sample|secret|\\*)" & glob_path]: #expectation
 }
 
 #expectation: {
@@ -29,5 +29,5 @@ let globbed_filename = "([a-zA-Z0-9_][a-zA-Z0-9_.-]{0,254}|\\*)"
 	required?: [#verdict, ...#verdict] // at least one of these verdicts must appear
 	score?: int | [int, int] & list.IsSorted(list.Ascending)
 	message?: string
-	use_for_timelmit?: false | "lower" | "upper"
+	use_for_time_limit?: false | "lower" | "upper"
 }
