@@ -59,9 +59,9 @@ match/match:
 match_wa.py:
   required: [WA]
 
-# do not match **
-#"**/nested_wa.py":
-#  required: [WA]
+# * does not match /
+"*/nested_wa.py":
+  required: [WA]
 
 # check message
 wa/hello.py:
