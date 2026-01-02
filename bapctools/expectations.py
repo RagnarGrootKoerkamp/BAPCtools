@@ -71,11 +71,10 @@ def _compile_glob(glob: str) -> re.Pattern[str]:
     # TODO: does this properly handle brace expansion?
     # TODO: what should happen for nested braces
     parts = re.split("{([^{}]*)}", glob)
-    comma = re.escape(",")
     for i, part in enumerate(parts):
         part = re.escape(part)
         if i % 2 != 0:
-            part = f"({part.replace(comma, '|')})"
+            part = f"({'|'.join(re.escape(p) for p in part.split(','))})"
         parts[i] = part
     glob = "".join(parts)
     # stars match anything exept /
