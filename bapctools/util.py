@@ -908,7 +908,7 @@ if has_ryaml:
 
         curr = data
         prev_key = list(data.keys())[remove_index - 1]
-        while isinstance(curr[prev_key], list | dict) and len(curr[prev_key]):
+        while isinstance(curr[prev_key], (list, dict)) and len(curr[prev_key]):
             # Try to remove the comment from the last element in the preceding list/dict
             curr = curr[prev_key]
             if isinstance(curr, list):

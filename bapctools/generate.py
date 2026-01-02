@@ -100,7 +100,7 @@ def is_directory(yaml: YAML_TYPE) -> bool:
 
 def has_count(yaml: YAML_TYPE) -> bool:
     return (
-        isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], int | list | str)
+        isinstance(yaml, dict) and "count" in yaml and isinstance(yaml["count"], (int, list, str))
     )
 
 
