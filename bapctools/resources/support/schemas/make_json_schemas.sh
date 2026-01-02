@@ -7,3 +7,4 @@ cd "$(dirname "$0")"
 cue export --out jsonschema -e '#Generators' | sed -E 's/#([A-Za-z0-9_]+)/\1/g' > generators_yaml_schema.json
 cue export --out jsonschema -e '#Problem' | sed -E 's/#([A-Za-z0-9_]+)/\1/g' > problem_yaml_schema.json
 cue export --out jsonschema -e '#test_group' | sed -E 's/#([A-Za-z0-9_]+)/\1/g' > test_group_yaml_schema.json
+cue export --out jsonschema -e '#Submissions' | sed -E 's/#([A-Za-z0-9_]+)/\1/g' > submissions_yaml_schema.json
