@@ -402,6 +402,42 @@ data:
           generate: my_generator {count}
           count: 1 ..= 2
 ---
+# Count range expression: wrong syntax
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: 1..2
+---
+# Count range expression: wrong syntax
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: 1...2
+---
+# Count range expression: range must not be empty
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: 2..=1
+---
+# Count range expression: range must not be too long
+data:
+  sample: {}
+  secret:
+    data:
+      - "":
+          generate: my_generator {count}
+          count: 0..=999999999
+---
 # Count range expression: no float
 data:
   sample: {}

@@ -50,7 +50,7 @@ if has_ryaml:
 
 YAML_TYPE = Optional[str | dict[object, object]]
 
-DOTDOT = re.compile(r"^(-?\d+)\.\.=(-?\d+)$")
+INCLUSIVE_RANGE_REGEX = re.compile(r"^(-?\d+)\.\.=(-?\d+)$")
 
 
 class ParseException(Exception):
@@ -567,7 +567,7 @@ class TestcaseRule(Rule):
                                     "Testcase count list contains duplicate integers."
                                 )
                         case str(s):
-                            if not DOTDOT.match(s):
+                            if not INCLUSIVE_RANGE_REGEX.match(s):
                                 raise ParseException(
                                     f"Testcase count range expression invalid: {s}"
                                 )
@@ -1802,8 +1802,19 @@ class GeneratorConfig:
                 case list(idx_list):
                     count_list = idx_list
                 case str(s):
-                    if m := DOTDOT.match(s):
-                        count_list = list(range(int(m[1]), int(m[2]) + 1))
+                    if m := INCLUSIVE_RANGE_REGEX.match(s):
+                        m1 = int(m[1])
+                        m2 = int(m[2])
+                        if m1 <= m2:
+                            if m2 >= m1 + 100:
+                                bar.error(
+                                    f"Invalid count range, length {m2 - m1 + 1}>100. Limiting to 100."
+                                )
+                                count_list = list(range(int(m1), int(m1) + 100))
+                            else:
+                                count_list = list(range(int(m1), int(m2) + 1))
+                        else:
+                            bar.error(f"Invalid count range, start={m1} must be <= end={m2}.")
                 case _:
                     assert False  # syntax check must have caught this
             if warn_for is not None:
