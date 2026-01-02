@@ -42,7 +42,7 @@ wa/even.py:
 
 # check if spaces are ok
 wa/42.py:
-  secret/*{ 4 }{ 2 }:
+  "secret/*{ 4 }{ 2 }":
     required: [AC]
 
 # check some more matching things
@@ -60,8 +60,8 @@ match_wa.py:
   required: [WA]
 
 # do not match **
-"**/nested_wa.py":
-  required: [WA]
+#"**/nested_wa.py":
+#  required: [WA]
 
 # check message
 wa/hello.py:

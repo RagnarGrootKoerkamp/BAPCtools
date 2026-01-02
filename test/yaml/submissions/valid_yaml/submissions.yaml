@@ -1,0 +1,6 @@
+accepted:
+  permitted: [AC]
+---
+mumbo:
+  permitted: [AC, TLE]
+  required: [TLE]

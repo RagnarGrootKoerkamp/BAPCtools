@@ -1,0 +1,15 @@
+# do not use **
+"**/nested_wa.py":
+  required: [WA]
+---
+# do not use [a-z]
+"[a-z]":
+  required: [WA]
+---
+# do not nest {}
+"{{secret}}":
+  required: [WA]
+---
+# invalid verdict
+accepted:
+  required: [MLE]
