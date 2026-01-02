@@ -132,7 +132,7 @@ def languages() -> Sequence[Language]:
         if languages_path.is_file():
             raw_languages = read_yaml(languages_path)
         else:
-            raw_languages = read_yaml(config.RESOURCES_ROOT / "config/languages.yaml")
+            raw_languages = read_yaml(config.RESOURCES_ROOT / "config" / "languages.yaml")
         if not isinstance(raw_languages, dict):
             fatal("could not parse languages.yaml.")
 
@@ -140,10 +140,10 @@ def languages() -> Sequence[Language]:
         priorities: dict[int, str] = {}
         for lang_id, lang_conf in raw_languages.items():
             if not isinstance(lang_id, str):
-                error("keys in languages.yaml must be strings.")
+                error("keys in languages.yaml must be strings. SKIPPED.")
                 continue
             if not isinstance(lang_conf, dict):
-                error(f"invalid entry {lang_id} in languages.yaml.")
+                error(f"invalid entry {lang_id} in languages.yaml. SKIPPED.")
                 continue
             lang = Language(lang_id, lang_conf)
             if not lang.ok:
@@ -242,7 +242,7 @@ class Program:
                 pass
 
         self.short_path = relpath
-        self.name: str = str(relpath)
+        self.name: str = relpath.as_posix()
         self.tmpdir = problem.tmpdir / self.subdir / self.name
 
         self.compile_command: Optional[Sequence[str | Path]] = None
@@ -285,9 +285,8 @@ class Program:
     # Do not warn for the same fallback language multiple times.
     warn_cache: set[str] = set()
 
-    # Sets self.language and self.env['mainfile']
-    def _get_language(self, bar: ProgressBar) -> bool:
-        fallback = False
+    # checks all languages and gives them a score
+    def _get_language_candidates(self) -> list[tuple[tuple[int, int, int], Language, list[Path]]]:
         candidates = []
         for lang in languages():
             matching_files = []
@@ -301,8 +300,14 @@ class Program:
             candidates.append(
                 ((lang.priority // 1000, len(matching_files), lang.priority), lang, matching_files)
             )
+        return candidates
+
+    # Sets self.language and self.env['mainfile']
+    def _get_language(self, bar: ProgressBar) -> bool:
+        candidates = self._get_language_candidates()
         candidates.sort(reverse=True)
 
+        fallback = False
         for _, lang, files in candidates:
             name = lang.name
             # Make sure we can compile programs for this language.
@@ -329,12 +334,8 @@ class Program:
                     Program.warn_cache.add(lang.id)
                     bar.debug(f"Falling back to {name}.")
 
-            if len(files) == 0:
-                self.ok = False
-                bar.error(f"No file detected for language {name} at {self.path}.")
-                return False
-
             self.language = lang
+            # TODO determine entry point
             mainfile = None
             if not self.has_deps:
                 if len(files) == 1:
