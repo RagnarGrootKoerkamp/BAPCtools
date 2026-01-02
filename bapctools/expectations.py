@@ -72,9 +72,10 @@ def _compile_glob(glob: str) -> re.Pattern[str]:
     # TODO: what should happen for nested braces
     parts = re.split("{([^{}]*)}", glob)
     for i, part in enumerate(parts):
-        part = re.escape(part)
-        if i % 2 != 0:
-            part = f"({'|'.join(re.escape(p) for p in part.split(','))})"
+        if i % 2 == 0:
+            part = re.escape(part)
+        else:
+            part = f"({'|'.join(re.escape(p.strip()) for p in part.split(','))})"
         parts[i] = part
     glob = "".join(parts)
     # stars match anything exept /
