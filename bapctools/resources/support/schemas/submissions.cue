@@ -18,7 +18,7 @@ let glob_path = =~"^(\(component_re)/)*\(component_re)$" & !~"\\*\\*"
 #submission: {
 	language?: string
 	entrypoint?: string
-	author?: #Persons
+	authors?: #Persons
 	model_solution?: bool
 	#expectation
 	[=~"^(sample|secret|\\*)" & glob_path]: #expectation
