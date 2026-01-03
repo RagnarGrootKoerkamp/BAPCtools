@@ -812,7 +812,7 @@ class Problem:
                 s
                 for s in submissions
                 if all(
-                    e.required == {verdicts.Verdict.ACCEPTED} for e in s.expectations.all_matches()
+                    e.permitted == {verdicts.Verdict.ACCEPTED} for e in s.expectations.all_matches()
                 )
             )
 
