@@ -16,9 +16,6 @@
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{bapc}
 
-\providecommand{\lang}{en}% fallback definition, should be defined as -usepretex to latexmk
-\input{lang/\lang.tex}
-
 %\RequirePackage{frcursive}
 
 %-------------------------------------------------------------------------------
@@ -61,13 +58,13 @@
 \nonzeroparskip
 
 % Require some packages.
+\RequirePackage{bapcbase}
 \RequirePackage{microtype}
 \RequirePackage{eqparbox}
 \RequirePackage{tabularx}
 \RequirePackage{environ}
 \RequirePackage{etoolbox}
 \RequirePackage{float}
-\RequirePackage{listingsutf8}
 \RequirePackage{upquote}
 \RequirePackage{tocloft}
 \RequirePackage{xparse}
@@ -77,12 +74,6 @@
 \RequirePackage[hidelinks,bookmarks=true,pdfusetitle]{hyperref}
 
 \newcommand{\todo}[1]{{\color{red}[#1]}}
-
-\newcommand{\timelimit}{\langtimelimitmissing{}}
-\newcommand{\problemlabel}{} % Empty to hide activity chart
-\newcommand{\problemyamlname}{\langproblemname{}}
-\newcommand{\problemauthor}{\langproblemauthor{}}
-\newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
 
 %-------------------------------------------------------------------------------
 % Sectioning commands and list of problems.
@@ -95,7 +86,6 @@
 \newlistof{listofproblems}{lop}{\listofproblemsname}
 \newlistentry{problem}{lop}{0}
 \newcounter{SampleCount}
-\newcounter{NextSample}
 \renewcommand{\printloptitle}[1]{
 	\hfill
 	\sffamily
@@ -111,19 +101,14 @@
 \cftpagenumbersoff{section}
 \renewcommand{\cftsectionleader}{}
 
-\newcommand{\problemname}[1]{
+\newcommand{\ProblemHeading}[1]{
 	\ThisIsNotABlankPage
-	\ifblank{#1}{
-		\section{\problemyamlname}
-	}{
-		\section{#1}
-	}
+	\section{#1}
 	\vspace{-2.3em}
 	\hfill
 	\ifdefempty{\timelimit}{}{{\color{darkgray}\fontfamily{qcr}\langtimelimit{}: \timelimit{}s}}
 
 	\setcounter{SampleCount}{0}
-	\setcounter{NextSample}{1}
 	\setcounter{figure}{0}
 
 	\rmfamily
@@ -136,11 +121,7 @@
 		\Large
 		\eqmakebox[letter][c]{\thesection}
 		\quad
-		\ifblank{#1}{%
-			\eqmakebox[titel][l]{\problemyamlname}%
-		}{%
-			\eqmakebox[titel][l]{#1}%
-		}%
+		\eqmakebox[titel][l]{#1}%
 		\hfill
 	}{}
 }
@@ -155,22 +136,6 @@
 \pagestyle{bapc}
 \nouppercaseheads
 
-
-%-------------------------------------------------------------------------------
-% Environments for specifying Input, Output and Interaction
-%-------------------------------------------------------------------------------
-\newenvironment{Input}{
-	\subsection*{\langinput{}}
-}{\par}
-\newenvironment{Output}{
-	\subsection*{\langoutput{}}
-}{\par}
-\newenvironment{Interaction}{
-	\subsection*{\langinteraction{}}
-}{\par}
-\newenvironment{Explanation}{
-	\subsection*{\langexplanation{}}
-}{\par}
 
 %-------------------------------------------------------------------------------
 % Environment for specifying Samples.
@@ -408,44 +373,13 @@
 }
 
 %-------------------------------------------------------------------------------
-% Command to automatically include samples in order.
-% The tooling has to define the commands \Sample1{},...\Sample<n>{}
-%-------------------------------------------------------------------------------
-\newcommand{\nextsample}{%
-	\expandafter\csname Sample\theNextSample\endcsname%
-	\expandafter\let\csname Sample\theNextSample\endcsname\undefined%
-	\stepcounter{NextSample}%
-}
-
-\newcommand{\remainingsamples}{%
-	\ifcsname Sample\theNextSample\endcsname%
-		\nextsample%
-		\remainingsamples%
-	\fi%
-}
-
-%-------------------------------------------------------------------------------
-% Command to include consatnts.
-% The tooling has to define the commands \constants_<key>{}
-%-------------------------------------------------------------------------------
-\newcommand{\constant}[1]{%
-	\ifcsname constants_#1\endcsname%
-		\csname constants_#1\endcsname%
-	\else%
-		\PackageError{constants}{constant{#1} is not defined}{}%
-	\fi%
-}
-
-%-------------------------------------------------------------------------------
 % The following are required for the overall layout:
 %-------------------------------------------------------------------------------
 \let\sffamilyFB\sffamily% Prevent error if babel fr loads \sffamilyFB in cache
 \let\ttfamilyFB\ttfamily
 \let\rmfamilyFB\rmfamily
-\usepackage[\langbabel]{babel}
 \usepackage[none]{hyphenat} % Disable hyphenation with language [none]
 \usepackage{lmodern}
-\usepackage{graphicx}
 \usepackage{courier}
 \usepackage[T1]{fontenc} % Standard
 \usepackage[utf8]{inputenc} % UTF-8 support
@@ -457,7 +391,6 @@
 % The following are required for most problems:
 %-------------------------------------------------------------------------------
 \usepackage{amsmath,amssymb}
-\usepackage{wrapfig}
 \usepackage{tikz}
 \usepackage{tikz-qtree}
 \usetikzlibrary{arrows}
@@ -496,7 +429,7 @@
 \renewcommand\@memback@floats{}
 \makeatletter
 
-\newcommand{\illustration}[3]{
+\renewcommand{\illustration}[3]{
 	\begin{wrapfigure}{r}{#1\textwidth}
 	\vspace{-10pt}
 	\includegraphics[width=#1\textwidth]{#2}

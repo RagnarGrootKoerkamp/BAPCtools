@@ -3,7 +3,15 @@
 %
 % This code implements the basic features mandated by the problem spec:
 % https://www.kattis.com/problem-package-format/spec/2025-09.html#latex-environment-and-supported-subset
-% This code does not do any styling
+% To use this package you must implement the following macros:
+% \InteractiveSampleHeading
+% \InteractiveRead{<path>}
+% \InteractiveWrite{<path>}
+% \InteractivePass{<pass id>}
+% \MultipassSampleHeading
+% \SamplePass{<pass id>}{<in path>}{<ans path>}
+% \Sample{<in path>}{<ans path>}
+% \ProblemHeading{<name>}
 %-------------------------------------------------------------------------------
 \NeedsTeXFormat{LaTeX2e}
 \ProvidesClass{bapcbase}[2026/01/01 Base LaTeX class for ICPC problem statements that get build with BAPCtools]
@@ -14,10 +22,22 @@
 %-------------------------------------------------------------------------------
 \providecommand{\lang}{en}
 \input{lang/\lang.tex}
+\let\sffamilyFB\sffamily% Prevent error if babel fr loads \sffamilyFB in cache
+\let\ttfamilyFB\ttfamily
+\let\rmfamilyFB\rmfamily
 \RequirePackage[\langbabel]{babel}
 
 %-------------------------------------------------------------------------------
-% Required packages
+% Additional commands redefined by the contest-problem.tex
+%-------------------------------------------------------------------------------
+\newcommand{\timelimit}{\langtimelimitmissing{}}
+\newcommand{\problemlabel}{}
+\newcommand{\problemyamlname}{\langproblemname{}}
+\newcommand{\problemauthor}{\langproblemauthor{}}
+\newcommand{\fullproblemtitle}{\problemlabel: \problemyamlname}
+
+%-------------------------------------------------------------------------------
+% Additional packages required by the problem spec
 %-------------------------------------------------------------------------------
 \RequirePackage{listingsutf8}
 \RequirePackage{graphicx}
@@ -26,7 +46,6 @@
 % Command to automatically include samples in order.
 % The tooling has to define the commands \Sample1{},...\Sample<n>{}
 %-------------------------------------------------------------------------------
-\newcounter{SampleCount}
 \newcounter{NextSample}
 
 \newcommand{\nextsample}{%
@@ -53,17 +72,16 @@
 %-------------------------------------------------------------------------------
 % Define problemname command and reset internal counters
 %-------------------------------------------------------------------------------
-\newcommand{\problemyamlname}{\langproblemname{}}
 \newcommand{\problemname}[1]{
-	\ifblank{#1}{\ProblemHeading{\problemyamlname}}{\ProblemHeading{#1}}
-	\setcounter{SampleCount}{0}
 	\setcounter{NextSample}{1}
+	\ifblank{#1}{\ProblemHeading{\problemyamlname}}{\ProblemHeading{#1}}
 }
 % Requires:
 % \ProblemHeading{<name>}
 
 %-------------------------------------------------------------------------------
 % Environments for specifying Input, Output and Interaction
+% you may want to override these
 %-------------------------------------------------------------------------------
 \newenvironment{Input}{
 	\subsection*{\langinput{}}
@@ -80,6 +98,7 @@
 
 %-------------------------------------------------------------------------------
 % Command to include illustaration.
+% you may want to override this
 %-------------------------------------------------------------------------------
 \RequirePackage{wrapfig}
 \newcommand{\illustration}[3]{
