@@ -85,6 +85,7 @@ def _compile_glob(glob: str) -> re.Pattern[str]:
     return re.compile(glob)
 
 
+# Represents a submissions.yaml entry of a testcase glob
 class TestcaseExpectation:
     def __init__(self, parser: Optional[YamlParser] = None, test_case_glob: Optional[str] = None):
         if parser is None:
@@ -144,6 +145,8 @@ class TestcaseExpectation:
         return self.test_case_regex.match(testcase.name) is not None
 
 
+# Represents a submissions.yaml entry of a submission glob
+# This stores all testcase globs
 class SubmissionExpectation:
     def __init__(self, submission_glob: str, yaml_data: dict[object, object]) -> None:
         self.submission_glob: str = submission_glob
@@ -185,6 +188,7 @@ class SubmissionExpectation:
         return permitted
 
 
+# This store all data in the submissions.yaml
 class Expectation:
     def __init__(self, problem: "Problem") -> None:
         self.expectations: dict[str, SubmissionExpectation] = {}
@@ -219,6 +223,8 @@ class Expectation:
         entrypoints = set()
         authors = set()
 
+        # A submission can be matched by multiple submissions globs
+        # => we try to combine them and warn in case of inconsistencies
         combined = SubmissionExpectation(submission.name, {})
         found_match = False
         for expectation in self.expectations.values():
