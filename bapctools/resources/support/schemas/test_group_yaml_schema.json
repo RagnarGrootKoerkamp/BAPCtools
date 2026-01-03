@@ -66,14 +66,19 @@
                             }
                         },
                         "count": {
-                            "allOf": [
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
+                            "anyOf": [
                                 {
-                                    "type": "number"
+                                    "type": "integer"
                                 },
                                 {
-                                    "type": "integer",
-                                    "maximum": 100,
-                                    "minimum": 1
+                                    "type": "array"
+                                },
+                                {
+                                    "type": "string"
                                 }
                             ]
                         },
@@ -136,7 +141,10 @@
                             "$ref": "#/$defs/test_case_configuration"
                         }
                     },
-                    "$ref": "#/$defs/config"
+                    "$ref": "#/$defs/config",
+                    "required": [
+                        "count"
+                    ]
                 }
             ]
         },

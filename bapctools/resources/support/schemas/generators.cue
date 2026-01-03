@@ -5,6 +5,9 @@ package problempackageformat
 // > cue vet generators.yaml *.cue -d "#Generators"
 
 import "struct"
+import "list"
+import "strconv"
+import "regexp"
 
 import "strings"
 
@@ -36,9 +39,35 @@ import "strings"
 	#command & !~"^/" |
 	{
 		generate?: #command & !~"^/"
-		// Produce multiple test cases, numbered 1 ,..., count.
-		// If value is a list or range, use those numbers instead.
-		count?:    int & >=1 & <=100 | [...int] | =~"^-?\\d+\\.\\.=-?\\d+$"
+
+		// Produce multiple test cases
+		count: int | [...] | string
+
+		// Count defines a list of integers that are substituted for {count} in the generate call
+		_count_list: _ | *[1]
+
+		{
+			// if count is an integer, produce the list [1, 2, ..., count]
+			count: int
+			_count_list: list.Range(1, count+1, 1)
+		} | {
+			// if count is a list of integers, use that directly
+			count: [...int] & list.UniqueItems()
+			_count_list: count
+		} | {
+			// if count is a string of the form "lo..=hi", produce the list [lo, lo+1, ..., hi]
+			let INCLUSIVE_RANGE_REGEX = "(-?\\d+)\\.\\.=(-?\\d+)"
+			count: =~"^\(INCLUSIVE_RANGE_REGEX)$"
+			let range_match = regexp.FindSubmatch(INCLUSIVE_RANGE_REGEX, count)
+			let lo = strconv.Atoi(range_match[1])
+			let hi = strconv.Atoi(range_match[2])
+			_count_list: list.Range(lo, hi+1, 1)
+		}
+
+		// the resulting count list must be nonempty and not too long
+		_policy1: true & 0 < len(_count_list) | error("Empty count list")
+		_policy2: true & len(_count_list) <= 100 | error("Count list too long")
+
 		// The "copy" key uses a path relative to "/generators/" ending in a test case name,
 		// such as "manual/samples/3".
 		copy?: #path & !~"^/"
@@ -79,7 +108,7 @@ import "strings"
 		valid_output?:   #test_group
 	})
 	#test_group_config
-	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2025-12"
+	version: =~"^[0-9]{4}-[0-9]{2}$" | *"2026-01"
 
 	... // Do allow unknown_key at top level for tooling
 }

@@ -66,28 +66,19 @@
                             }
                         },
                         "count": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            },
                             "anyOf": [
                                 {
-                                    "allOf": [
-                                        {
-                                            "type": "number"
-                                        },
-                                        {
-                                            "type": "integer",
-                                            "maximum": 100,
-                                            "minimum": 1
-                                        }
-                                    ]
+                                    "type": "integer"
                                 },
                                 {
-                                    "type": "array",
-                                    "items": {
-                                        "type": "integer"
-                                    }
+                                    "type": "array"
                                 },
                                 {
-                                    "type": "string",
-                                    "pattern": "^-?\\d+\\.\\.=-?\\d+$"
+                                    "type": "string"
                                 }
                             ]
                         },
@@ -150,7 +141,10 @@
                             "$ref": "#/$defs/test_case_configuration"
                         }
                     },
-                    "$ref": "#/$defs/config"
+                    "$ref": "#/$defs/config",
+                    "required": [
+                        "count"
+                    ]
                 }
             ]
         },
