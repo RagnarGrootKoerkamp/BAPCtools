@@ -1,0 +1,105 @@
+%-------------------------------------------------------------------------------
+% This is the file bapcbase.sty
+%
+% This code implements the basic features mandated by the problem spec:
+% https://www.kattis.com/problem-package-format/spec/2025-09.html#latex-environment-and-supported-subset
+% This code does not do any styling
+%-------------------------------------------------------------------------------
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesClass{bapcbase}[2026/01/01 Base LaTeX class for ICPC problem statements that get build with BAPCtools]
+
+%-------------------------------------------------------------------------------
+% Localization
+% The tooling should define this using pretex
+%-------------------------------------------------------------------------------
+\providecommand{\lang}{en}
+\input{lang/\lang.tex}
+\RequirePackage[\langbabel]{babel}
+
+%-------------------------------------------------------------------------------
+% Required packages
+%-------------------------------------------------------------------------------
+\RequirePackage{listingsutf8}
+\RequirePackage{graphicx}
+
+%-------------------------------------------------------------------------------
+% Command to automatically include samples in order.
+% The tooling has to define the commands \Sample1{},...\Sample<n>{}
+%-------------------------------------------------------------------------------
+\newcounter{SampleCount}
+\newcounter{NextSample}
+
+\newcommand{\nextsample}{%
+	\expandafter\csname Sample\theNextSample\endcsname%
+	\expandafter\let\csname Sample\theNextSample\endcsname\undefined%
+	\stepcounter{NextSample}%
+}
+
+\newcommand{\remainingsamples}{%
+	\ifcsname Sample\theNextSample\endcsname%
+		\nextsample%
+		\remainingsamples%
+	\fi%
+}
+% Requires:
+% \InteractiveSampleHeading
+% \InteractiveRead{<path>}
+% \InteractiveWrite{<path>}
+% \InteractivePass{<pass id>}
+% \MultipassSampleHeading
+% \SamplePass{<pass id>}{<in path>}{<ans path>}
+% \Sample{<in path>}{<ans path>}
+
+%-------------------------------------------------------------------------------
+% Define problemname command and reset internal counters
+%-------------------------------------------------------------------------------
+\newcommand{\problemyamlname}{\langproblemname{}}
+\newcommand{\problemname}[1]{
+	\ifblank{#1}{\ProblemHeading{\problemyamlname}}{\ProblemHeading{#1}}
+	\setcounter{SampleCount}{0}
+	\setcounter{NextSample}{1}
+}
+% Requires:
+% \ProblemHeading{<name>}
+
+%-------------------------------------------------------------------------------
+% Environments for specifying Input, Output and Interaction
+%-------------------------------------------------------------------------------
+\newenvironment{Input}{
+	\subsection*{\langinput{}}
+}{\par}
+\newenvironment{Output}{
+	\subsection*{\langoutput{}}
+}{\par}
+\newenvironment{Interaction}{
+	\subsection*{\langinteraction{}}
+}{\par}
+\newenvironment{Explanation}{
+	\subsection*{\langexplanation{}}
+}{\par}
+
+%-------------------------------------------------------------------------------
+% Command to include illustaration.
+%-------------------------------------------------------------------------------
+\RequirePackage{wrapfig}
+\newcommand{\illustration}[3]{
+	\begin{wrapfigure}{r}{#1\textwidth}
+		\includegraphics[width=#1\textwidth]{#2}
+
+		\begin{flushright}
+			\tiny\strut{}#3
+		\end{flushright}
+	\end{wrapfigure}
+}
+
+%-------------------------------------------------------------------------------
+% Command to include constants.
+% The tooling has to define the commands \constants_<key>{}
+%-------------------------------------------------------------------------------
+\newcommand{\constant}[1]{%
+	\ifcsname constants_#1\endcsname%
+		\csname constants_#1\endcsname%
+	\else%
+		\PackageError{constants}{constant{#1} is not defined}{}%
+	\fi%
+}
