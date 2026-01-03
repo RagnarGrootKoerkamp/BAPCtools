@@ -236,13 +236,13 @@ class Expectation:
             if expectation.entrypoint is not None:
                 entrypoints.add(expectation.entrypoint)
             if expectation.authors:
-                authors.add(expectation.authors)
+                authors.add(tuple(expectation.authors))
             combined.model_solution |= expectation.model_solution
             combined.expectations += expectation.expectations
 
         combined.language = min(languages, default=combined.language)
         combined.entrypoint = min(entrypoints, default=combined.entrypoint)
-        combined.authors = min(authors, default=combined.authors)
+        combined.authors = list(min(authors, default=combined.authors))
 
         if len(languages) > 1:
             warn(f"found multiple languages for {submission.name}, using {combined.language}")
