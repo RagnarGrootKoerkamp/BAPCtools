@@ -296,12 +296,16 @@ class Submission(program.Program):
                 problem.expectations().all_matches(self)
             )
         else:
-            self.expectations = expectations.SubmissionExpectation(self.name, {})
+            # External submission are only allowed to get AC
+            self.expectations = expectations.SubmissionExpectation(self.name, {"permitted": ["AC"]})
+
+        # parse deprecated @EXPECTED_RESULTS@
         self.expected_results = self._parse_expected_results()
         # NOTE: Judging of interactive problems on systems without `os.wait4` is
         # suboptimal because we cannot determine which of the submission and
         # interactor exits first. This likely makes expectations fail
 
+    # TODO: remove this once domjudge supports the submissions.yaml
     def _parse_expected_results(self) -> Optional[set[Verdict]]:
         permitted = []
 
@@ -351,7 +355,7 @@ class Submission(program.Program):
                 warn(f"@EXPECTED_RESULTS@ in submission {self.short_path} is ignored.")
                 return None
 
-        return set(permitted or [Verdict.ACCEPTED])
+        return set(permitted)
 
     def _get_language_candidates(
         self,

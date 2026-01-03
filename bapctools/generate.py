@@ -2481,6 +2481,8 @@ data/*
         testcases = [t for t in ts_pair[0] if t.in_path in testcase_filter]
 
         def not_accepted(s: run.Submission) -> bool:
+            # If a submission is permitted to get a non AC verdict on any test case
+            # it is not a accepted submission
             return any({Verdict.ACCEPTED} != s.expectations.all_permitted(t) for t in testcases)
 
         submissions = [s for s in ts_pair[1] if not_accepted(s)]

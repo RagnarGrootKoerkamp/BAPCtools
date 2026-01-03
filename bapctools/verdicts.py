@@ -148,6 +148,10 @@ class Verdicts:
     available (and returns the topmost inferred test group).
     Verdicts (registered and inferred) are accessed with __getitem__
 
+    Test cases which should be displayed but not considered for verdict
+    aggregation can be set with `ignored`. This can be used if different
+    submissions are run with different test cases.
+
     >>> V = Verdicts(["a/b/1", "a/b/2", "a/c/1", "a/d/1", "b/3"], timeout=1)
     >>> V.set('a/b/1', 'ACCEPTED', 0.9)
     >>> V.set('a/b/2', 'AC', 0.9) # returns 'a/b' because that verdict will be set as well
@@ -157,7 +161,7 @@ class Verdicts:
     Attributes:
     - run_until: Which test cases to run.
     - children[test_group]: the lexicographically sorted list of direct children (test groups and test cases) of the given test node
-    - verdict[test_node]: the verdict at the given test node, or None. In particular,
+    - self[test_node]: the verdict at the given test node, or None. In particular,
         verdict['.'] is the root verdict, sometimes called final verdict or submission verdict.
         Should not be directly set; use __setitem__ on the Verdict object instead.
 
