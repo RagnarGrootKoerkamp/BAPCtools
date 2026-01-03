@@ -337,17 +337,24 @@ class ProblemSettings:
                 warn(f"missing `value` for key `constants.{key}` in problem.yaml. SKIPPED.")
                 continue
             for sub, variant in value.items():
+                if sub == "value" and isinstance(variant, (int, float)):
+                    variant = str(variant)
+
                 if not isinstance(sub, str):
                     warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
                 elif not config.COMPILED_CONSTANT_NAME_REGEX.fullmatch(sub):
                     warn(f"invalid key `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
-                elif not isinstance(variant, (str, int, float)):
-                    warn(f"invalid value for `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
+                elif isinstance(variant, (int, float)):
+                    warn(
+                        f"invalid type {type(variant).__name__} for `constants.{key}.{sub}` in problem.yaml, use string. SKIPPED."
+                    )
+                elif not isinstance(variant, str):
+                    warn(f"invalid type for `constants.{key}.{sub}` in problem.yaml. SKIPPED.")
                 else:
-                    variants.add(str(variant))
-                    self.constants[f"{key}.{sub}"] = str(variant)
+                    variants.add(variant)
+                    self.constants[f"{key}.{sub}"] = variant
                     if sub == "value":
-                        self.constants[key] = str(variant)
+                        self.constants[key] = variant
 
             # check if all variants represent the same value
             variant_numbers = {}
