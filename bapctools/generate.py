@@ -1807,14 +1807,16 @@ class GeneratorConfig:
                         m2 = int(m[2])
                         if m1 <= m2:
                             if m2 >= m1 + 100:
-                                bar.error(
-                                    f"Invalid count range, length {m2 - m1 + 1}>100. Limiting to 100."
-                                )
+                                if warn_for is not None:
+                                    bar.error(
+                                        f"Invalid count range, length {m2 - m1 + 1}>100. Limiting to 100."
+                                    )
                                 count_list = list(range(int(m1), int(m1) + 100))
                             else:
                                 count_list = list(range(int(m1), int(m2) + 1))
                         else:
-                            bar.error(f"Invalid count range, start={m1} must be <= end={m2}.")
+                            if warn_for is not None:
+                                bar.error(f"Invalid count range, start={m1} must be <= end={m2}.")
                 case _:
                     assert False  # syntax check must have caught this
             if warn_for is not None:
