@@ -14,6 +14,13 @@ ac_or_wa/wa.py:
 ac_or_wa/ac.py:
   permitted: [AC]
 
+# check if metadata work:
+ac_or_wa/metadata.py:
+  language: Python 3
+  #entrypoint: TODO
+  authors: Bob Bobbington
+  model_solution: False
+
 # check if basic brace expension works
 expansion/ac.{py,cpp}:
   permitted: [AC]

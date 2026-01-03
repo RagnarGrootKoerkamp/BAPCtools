@@ -1,3 +1,4 @@
+import difflib
 import os
 import shutil
 import subprocess
@@ -367,6 +368,13 @@ class Submission(program.Program):
             if lang.name == self.expectations.language:
                 # TODO should we return self.input_files or still filter these?
                 candidates.append(((lang.priority, 0, 0), lang, self.input_files))
+        if not candidates:
+            known = {lang.name for lang in program.languages()}
+            closest = difflib.get_close_matches(self.expectations.language, known)
+            msg = ", ".join(closest)
+            warn(
+                f"Unknown language: {self.expectations.language}, did you mean one of these: {msg}"
+            )
         return candidates
 
     # Run submission on in_path, writing stdout to out_path.
