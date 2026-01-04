@@ -360,21 +360,24 @@ class Submission(program.Program):
 
     def _get_language_candidates(
         self,
+        bar: ProgressBar,
     ) -> list[tuple[tuple[int, int, int], program.Language, list[Path]]]:
         if self.expectations.language is None:
-            return super()._get_language_candidates()
+            return super()._get_language_candidates(bar)
         candidates = []
         for lang in program.languages():
             if lang.name == self.expectations.language:
-                # TODO should we return self.input_files or still filter these?
                 candidates.append(((lang.priority, 0, 0), lang, self.input_files))
         if not candidates:
             known = {lang.name for lang in program.languages()}
             closest = difflib.get_close_matches(self.expectations.language, known)
-            msg = ", ".join(closest)
-            warn(
-                f"Unknown language: {self.expectations.language}, did you mean one of these: {msg}"
-            )
+            if not closest:
+                msg = ""
+            elif len(closest) == 1:
+                msg = f", did you mean: {closest[0]}"
+            else:
+                msg = f", did you mean one of these: {', '.join(closest)}"
+            bar.warn(f"Unknown language: {self.expectations.language}{msg}")
         return candidates
 
     # Run submission on in_path, writing stdout to out_path.
