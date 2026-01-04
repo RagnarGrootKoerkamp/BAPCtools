@@ -449,7 +449,7 @@ class TestcaseRule(Rule):
         name: str,
         yaml: YAML_TYPE,
         parent: "AnyDirectory",
-        count_index: int,
+        count_value: int,
     ) -> None:
         assert is_testcase(yaml)
 
@@ -487,10 +487,10 @@ class TestcaseRule(Rule):
 
         # Used by `fuzz`
         self.in_is_generated = False
-        self.count_index = count_index
+        self.count_value = count_value
 
         # used to decide if this was supposed to be a duplicate or not
-        self.intended_copy = self.count_index > 0
+        self.intended_copy = self.count_value > 1
 
         # used to handle duplicated testcase rules
         self.copy_of = None
@@ -552,27 +552,6 @@ class TestcaseRule(Rule):
                             raise ParseException(f"Non sample testcase cannot use '{ext[1:]}")
                 if "submission" in yaml and "ans" in yaml:
                     raise ParseException("Testcase cannot specify both 'submissions' and 'ans'.")
-                if "count" in yaml:
-                    value = yaml["count"]
-                    match value:
-                        case int():
-                            pass
-                        case list(items):
-                            if not all(isinstance(item, int) for item in items):
-                                raise ParseException(
-                                    f"Testcase count list must be integers, found {value}."
-                                )
-                            if not len(items) == len(set(items)):
-                                raise ParseException(
-                                    "Testcase count list contains duplicate integers."
-                                )
-                        case str(s):
-                            if not INCLUSIVE_RANGE_REGEX.match(s):
-                                raise ParseException(
-                                    f"Testcase count range expression invalid: {s}"
-                                )
-                        case _:
-                            raise ParseException(f"Testcase count expression invalid: {value}")
 
                 # 1. generate
                 if "generate" in yaml:
@@ -591,9 +570,9 @@ class TestcaseRule(Rule):
 
                     # then replace {count} and {seed}
                     if "{count}" in command_string:
-                        if "count" in yaml:
+                        if has_count(yaml):
                             command_string = command_string.replace(
-                                "{count}", f"{self.count_index + 1}"
+                                "{count}", f"{self.count_value}"
                             )
                         else:
                             bar.warn(
@@ -604,8 +583,8 @@ class TestcaseRule(Rule):
                     # TODO: Should the seed depend on white space? For now it does, but
                     # leading and trailing whitespace is stripped.
                     seed_value = self.config.random_salt
-                    if self.count_index > 0:
-                        seed_value += f":{self.count_index}"
+                    if self.count_value > 1:  # distinguish different count values
+                        seed_value += f":{self.count_value}"
                     seed_value += self.generator.command_string.strip()
                     self.seed = int(hash_string(seed_value), 16) % 2**31
                     self.in_is_generated = True
@@ -1790,41 +1769,55 @@ class GeneratorConfig:
         num_numbered_test_cases = 0
         next_test_case_id = itertools.count(1)
 
-        def parse_count(yaml: YAML_TYPE, warn_for: Optional[Path] = None) -> list[int]:
+        def parse_count(yaml: YAML_TYPE) -> list[int]:
+            """Raises:
+            ParseException: on invalid count specification. Since we can't determine
+            the correct numbering of subsequent test cases, we have to abort parsing.
+            """
             if not has_count(yaml):
                 return [1]
             assert isinstance(yaml, dict)
-            count = yaml["count"]
-            bar = PrintBar("generators.yaml", item=warn_for)
-            match count:
-                case int():
+            lineno = yaml.lc.line if hasattr(yaml, "lc") else "unknown line"
+            match yaml["count"]:
+                case int(count):
+                    if not 1 <= count <= 100:
+                        raise ParseException(
+                            f"{lineno}: Invalid count {count}; must be between 1 and 100."
+                        )
                     count_list = list(range(1, count + 1))
-                case list(idx_list):
-                    count_list = idx_list
+                case list(items):
+                    seen = set()
+                    for item in items:
+                        if not isinstance(item, int):
+                            raise ParseException(
+                                f"{lineno}: Invalid count list; found {item} but expected int."
+                            )
+                        if item in seen:
+                            raise ParseException(
+                                f"{lineno}: Invalid count list; duplicate element {item}."
+                            )
+                        seen.add(item)
+                    count_list = items
                 case str(s):
                     if m := INCLUSIVE_RANGE_REGEX.match(s):
-                        m1 = int(m[1])
-                        m2 = int(m[2])
-                        if m1 <= m2:
-                            if m2 >= m1 + 100:
-                                if warn_for is not None:
-                                    bar.error(
-                                        f"Invalid count range, length {m2 - m1 + 1}>100. Limiting to 100."
-                                    )
-                                count_list = list(range(int(m1), int(m1) + 100))
-                            else:
-                                count_list = list(range(int(m1), int(m2) + 1))
-                        else:
-                            if warn_for is not None:
-                                bar.error(f"Invalid count range, start={m1} must be <= end={m2}.")
+                        lo, hi = int(m[1]), int(m[2])
+                        if lo > hi:
+                            raise ParseException(
+                                f"{lineno}: Empty count range, start={lo} must be <= end={hi}."
+                            )
+                        if hi - lo + 1 > 100:
+                            raise ParseException(
+                                f"{lineno}: Count range too large, length {hi - lo + 1} > 100."
+                            )
+                    else:
+                        raise ParseException(
+                            f"{lineno}: Invalid count expression {s}; expected format is '-4..=5'."
+                        )
+                    count_list = list(range(lo, hi + 1))
                 case _:
-                    assert False  # syntax check must have caught this
-            if warn_for is not None:
-                if not count_list:
-                    bar.warn(f"Found empty count: {count}, increased to 1.")
-                if len(count_list) > 100:
-                    bar.error(f"Found count: {count}, limited to first 100 items.")
-            return count_list[:100] or [1]
+                    assert False  # has_count already checked for int | list | str
+            assert 1 <= len(count_list) <= 100
+            return count_list
 
         # Count the number of testcases in the given directory yaml.
         # This parser is quite forgiving,
@@ -1866,16 +1859,19 @@ class GeneratorConfig:
                 if isinstance(parent, RootDirectory):
                     raise ParseException("Test case must be inside a Directory.", name)
 
-                count_list = parse_count(yaml, parent.path / name)
+                count_list = parse_count(yaml)
+                # pad numbers with leading zeros if counts are consecutive
+                is_consecutive = max(count_list) - min(count_list) == len(count_list) - 1
+                padding = max(len(str(v)) for v in count_list) if is_consecutive else 0
 
                 ts: list[TestcaseRule] = []
-                for i, count_index in enumerate(count_list):
+                for i, count_value in enumerate(count_list):
                     if i > 0:  # need a fresh name in every round but the first
                         name = next(name_gen)
                     if has_count(yaml):
-                        name += f"-{count_index:0{len(str(len(count_list)))}}"
+                        name += f"-{count_value:0{padding}}"
 
-                    t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_index)
+                    t = TestcaseRule(self.problem, self, key, name, yaml, parent, count_value)
                     if t.path in self.known_cases:
                         PrintBar("generators.yaml", item=t.path).error(
                             "was already parsed. Skipping."

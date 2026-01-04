@@ -1,0 +1,42 @@
+solution: /submissions/accepted/thore.py
+version: 2026-01  # use this version of the generators framework
+
+data:
+  sample:
+    data:
+      - '': { in: s 1 2}
+  secret:
+    data:
+      - count-lo:
+          generate: mygen.py a {count} 0
+          count: 1
+      - count-hi:
+          generate: mygen.py a {count} 2
+          count: 1
+      - count-intended-duplicate:
+          generate: mygen.py a 42 43
+          count: 2
+      - count-list-10:
+          generate: mygen.py 't' {count} 0
+          count: [1,2,3,4, 5,6,7,8,9, 10]
+      - count-list-neg:
+          generate: mygen.py n {count} 2
+          count: [-1, 0, 1]
+      - count-no-duplicate:
+          generate: mygen.py d {count} 3
+          count: 1
+      - count-no-duplicate:
+          generate: mygen.py d {count} 3
+          count: [0,2]
+      - count-value:
+          generate: mygen.py d {count} 1
+          count: [0,2]
+      - count-range-padding:
+          generate: mygen.py r {count} -10
+          count: -9..=9
+      - count-range-padding:
+          generate: mygen.py r {count} 10
+          count: -9..=9
+      - count-no-padding:
+          generate: mygen.py p {count} 999999
+          count: [-123456, 0, 1000000]
