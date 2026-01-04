@@ -286,7 +286,9 @@ class Program:
     warn_cache: set[str] = set()
 
     # checks all languages and gives them a score
-    def _get_language_candidates(self) -> list[tuple[tuple[int, int, int], Language, list[Path]]]:
+    def _get_language_candidates(
+        self, bar: ProgressBar
+    ) -> list[tuple[tuple[int, int, int], Language, list[Path]]]:
         candidates = []
         for lang in languages():
             matching_files = []
@@ -304,7 +306,7 @@ class Program:
 
     # Sets self.language and self.env['mainfile']
     def _get_language(self, bar: ProgressBar) -> bool:
-        candidates = self._get_language_candidates()
+        candidates = self._get_language_candidates(bar)
         candidates.sort(reverse=True)
 
         fallback = False
