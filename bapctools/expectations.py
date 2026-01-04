@@ -247,10 +247,10 @@ class Expectation:
         if len(languages) > 1:
             warn(f"found multiple languages for {submission.name}, using {combined.language}")
         if len(entrypoints) > 1:
-            warn(f"found multiple languages for {submission.name}, using {combined.entrypoint}")
+            warn(f"found multiple entrypoints for {submission.name}, using {combined.entrypoint}")
         if len(authors) > 1:
             names = ", ".join([a.name for a in combined.authors])
-            warn(f"found multiple languages for {submission.name}, using {names}")
+            warn(f"found multiple authors for {submission.name}, using {names}")
 
         if not found_match:
             warn(f"{submission.name} not covered by submissions.yaml")
