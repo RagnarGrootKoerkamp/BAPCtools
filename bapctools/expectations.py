@@ -63,7 +63,7 @@ VERDICTS: Final[Sequence[Verdict]] = [
 ]
 KNOWN_VERDICTS: Final[Mapping[str, Verdict]] = {v.short(): v for v in VERDICTS}
 
-SUSPICIOUS_GLOB_REGEX = "[^a-zA-Z0-9*_.-/]|\\*\\*"
+SUSPICIOUS_GLOB_REGEX = "[^a-zA-Z0-9*_./-]|\\*\\*"
 COMPILED_SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile(SUSPICIOUS_GLOB_REGEX)
 
 
