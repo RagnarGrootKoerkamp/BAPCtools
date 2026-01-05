@@ -1419,7 +1419,7 @@ def limit_setter(
         assert not is_windows()
         assert not is_mac()
 
-    if not is_windows() and not is_bsd():
+    if is_windows() or is_bsd():
         cores = False
 
     if disable_stack_limit:
