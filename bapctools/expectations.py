@@ -63,25 +63,44 @@ VERDICTS: Final[Sequence[Verdict]] = [
 ]
 KNOWN_VERDICTS: Final[Mapping[str, Verdict]] = {v.short(): v for v in VERDICTS}
 
+SUSPICIOUS_GLOB_REGEX = "[^a-zA-Z0-9*_.-/]|\\*\\*"
+COMPILED_SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile(SUSPICIOUS_GLOB_REGEX)
 
-def _compile_glob(glob: str) -> re.Pattern[str]:
+
+def _compile_glob(raw: str) -> re.Pattern[str]:
+    suspicious: Optional[str] = None
+
+    def check_suspicious(token: str) -> None:
+        nonlocal suspicious
+        match = COMPILED_SUSPICIOUS_GLOB_REGEX.search(token)
+        if suspicious is None and match is not None:
+            suspicious = match.group()
+
+    glob = raw
     # dir/ and dir should match the same
     if glob.endswith("/"):
         glob = glob[:-1]
-    # TODO: does this properly handle brace expansion?
-    # TODO: what should happen for nested braces
     parts = re.split("{([^{}]*)}", glob)
     for i, part in enumerate(parts):
         if i % 2 == 0:
+            check_suspicious(part)
             part = re.escape(part)
         else:
-            part = f"({'|'.join(re.escape(p.strip()) for p in part.split(','))})"
+            sub_parts = list(part.split(","))
+            for j, sub_part in enumerate(sub_parts):
+                sub_part = sub_part.strip()
+                check_suspicious(sub_part)
+                sub_part = re.escape(sub_part)
+                sub_parts[j] = sub_part
+            part = f"({'|'.join(sub_parts)})"
         parts[i] = part
     glob = "".join(parts)
     # stars match anything exept /
     glob = glob.replace(re.escape("*"), "[^/]*")
     # match from start and only match complete directories
     glob = f"^{glob}(/|$)"
+    if suspicious is not None:
+        warn(f"glob `{raw}` looks suspicious, contains: `{suspicious}`")
     return re.compile(glob)
 
 
@@ -165,9 +184,12 @@ class SubmissionExpectation:
         for key in list(parser.yaml):
             if not isinstance(key, str):
                 continue
-            # TODO is se* allowed here? should we just do no check at all?
-            if not key.startswith("sample") and not key.startswith("secret"):
-                continue
+            has_prefix = False
+            for prefix in ["sample", "secret", "*"]:
+                has_prefix |= key == prefix
+                has_prefix |= key.startswith(f"{prefix}/")
+            if not has_prefix:
+                warn(f"test case glob `{key}` does not start with `sample`, `secret`, or `*`")
             self.expectations.append(TestcaseExpectation(parser.extract_parser(key), key))
         parser.check_unknown_keys()
 
