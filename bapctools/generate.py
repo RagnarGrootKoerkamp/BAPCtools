@@ -490,7 +490,7 @@ class TestcaseRule(Rule):
         self.count_value = count_value
 
         # used to decide if this was supposed to be a duplicate or not
-        self.intended_copy = self.count_value > 1
+        self.intended_copy = self.count_value != 1
 
         # used to handle duplicated testcase rules
         self.copy_of = None
@@ -583,7 +583,7 @@ class TestcaseRule(Rule):
                     # TODO: Should the seed depend on white space? For now it does, but
                     # leading and trailing whitespace is stripped.
                     seed_value = self.config.random_salt
-                    if self.count_value > 1:  # distinguish different count values
+                    if self.count_value != 1:  # distinguish different count values
                         seed_value += f":{self.count_value}"
                     seed_value += self.generator.command_string.strip()
                     self.seed = int(hash_string(seed_value), 16) % 2**31
