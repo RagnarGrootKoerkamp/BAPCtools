@@ -2163,7 +2163,8 @@ class GeneratorConfig:
         if self.failed > 0:
             stats.append(f"{Fore.RED}{self.failed} failed{Style.RESET_ALL}, ")
         total = self.generated + self.included + self.copied
-        stats.append(f"{total} case generated")
+        plurals = "s" if total != 1 else ""
+        stats.append(f"{total} case{plurals} generated")
         if len(self.generated_test_cases) != total:
             stats.append(
                 f" {Fore.YELLOW}(unique: {len(self.generated_test_cases)}){Style.RESET_ALL}"

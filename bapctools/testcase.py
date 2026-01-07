@@ -1,24 +1,147 @@
 """Test case"""
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 from colorama import Fore, Style
 
-from bapctools import config, validate
+from bapctools import (
+    config,
+    validate,
+    visualize,
+)
 from bapctools.util import (
     BAR_TYPE,
     combine_hashes_dict,
     ExecStatus,
     fatal,
+    parse_yaml,
     print_name,
     ProgressBar,
     shorten_path,
+    substitute,
+    YamlParser,
 )
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools import problem
+
+
+class TestGroup:
+    def __init__(
+        self,
+        problem: "problem.Problem",
+        file: Optional[Path],
+        yaml_data: object,
+        parent: Optional["TestGroup"],
+        bar: BAR_TYPE,
+    ) -> None:
+        if parent is None:
+            self.args: Sequence[str] = []
+            self.output_visualizer_args: Sequence[str] = []
+            self.output_validator_args: Sequence[str] = []
+            self.input_visualizer_args: Sequence[str] = []
+            self.input_validator_args: Sequence[str] | Mapping[str, Sequence[str]] = []
+
+            # not implemented:
+            # self.full_feedback: bool
+            # self.hint: str
+            # self.description: str
+            # self.max_score: int | "unbounded"
+            # self.score_aggregation: "pass-fail" | "sum" | "min"
+            # self.static_validation_score: int | "pass-fail"
+            # self.require_pass: str | Sequence[str]
+        else:
+            for key, value in vars(parent).items():
+                setattr(self, key, value)
+
+        self.file = file
+
+        if not isinstance(yaml_data, dict):
+            bar.error(f"could not parse {file}. SKIPPED.")
+            return
+
+        parser = YamlParser(str(file) if file else "default test_group.yaml", yaml_data, bar=bar)
+
+        # parse deprecated keys
+        parser.extract_deprecated("output_validator_flags", validate.OutputValidator.args_key)
+        parser.extract_deprecated("input_validator_flags", validate.InputValidator.args_key)
+
+        # parse args
+        assert validate.OutputValidator.args_key == validate.AnswerValidator.args_key
+        for key in [
+            "args",
+            visualize.OutputVisualizer.args_key,
+            validate.OutputValidator.args_key,
+            visualize.InputVisualizer.args_key,
+        ]:
+            if key in parser.yaml:
+                setattr(
+                    self,
+                    key,
+                    parser.extract_optional_list(key, str, allow_value=False, allow_empty=True),
+                )
+
+        if validate.InputValidator.args_key in parser.yaml:
+            if isinstance(parser.yaml[validate.InputValidator.args_key], list):
+                self.input_validator_args = parser.extract_optional_list(
+                    validate.InputValidator.args_key,
+                    str,
+                    allow_value=False,
+                    allow_empty=True,
+                )
+            elif isinstance(parser.yaml[validate.InputValidator.args_key], dict):
+                # only the hole dict is inherited not individual entries
+                validator_args_parser = parser.extract_parser(validate.InputValidator.args_key)
+                self.input_validator_args = {}
+                for val_name in list(validator_args_parser.yaml):
+                    if not isinstance(val_name, str):
+                        continue
+                    if not config.COMPILED_FILE_NAME_REGEX.fullmatch(val_name):
+                        continue
+                    if not (problem.path / validate.InputValidator.source_dir / val_name).exists():
+                        continue
+                    self.input_validator_args[val_name] = (
+                        validator_args_parser.extract_optional_list(
+                            val_name,
+                            str,
+                            allow_value=False,
+                            allow_empty=True,
+                        )
+                    )
+                validator_args_parser.check_unknown_keys()
+            elif parser.yaml[validate.InputValidator.args_key] is None:
+                parser.pop(validate.InputValidator.args_key)
+                self.input_validator_args = []
+            else:
+                parser.pop(validate.InputValidator.args_key)
+                bar.warn(
+                    f"incompatible value for key `{validate.InputValidator.args_key}` in {parser.source}. SKIPPED."
+                )
+
+        # parse keys not currently used
+        parser.extract_optional("full_feedback", bool)
+        parser.extract_optional("hint", str)
+        parser.extract_optional("description", str)
+
+        # check test group only keys
+        if file is None or not file.with_suffix(".in").is_file():
+            for key in ["max_score", "score_aggregation", "static_validation_score"]:
+                if parser.pop(key) is not None:
+                    bar.error(
+                        f"key `{key}` not supported by BAPCtools in {parser.source}. SKIPPED."
+                    )
+
+        parser.check_unknown_keys()
+
+    def get_args(self, program: validate.AnyValidator | visualize.AnyVisualizer) -> Sequence[str]:
+        assert hasattr(self, type(program).args_key)
+        args = getattr(self, type(program).args_key)
+        if isinstance(args, dict):
+            args = args.get(program.name, [])
+        assert isinstance(args, list)
+        return args
 
 
 # TODO #102: Consistently separate the compound noun "test case", e.g. "TestCase" or "test_case"
@@ -107,6 +230,8 @@ class Testcase:
 
         # Display name: everything after data/.
         self.name: str = str(self.short_path.with_suffix(""))
+        # cache for local test group yaml
+        self._test_group_yaml: Optional[TestGroup] = None
 
     def __repr__(self) -> str:
         return self.name
@@ -114,17 +239,34 @@ class Testcase:
     def with_suffix(self, ext: str) -> Path:
         return self.in_path.with_suffix(ext)
 
-    def get_test_case_yaml(self, bar: BAR_TYPE) -> "problem.TestGroup":
-        assert self.in_path.is_file()
+    def _parse_tmp_yaml(self, bar: BAR_TYPE) -> TestGroup:
+        if self._test_group_yaml is not None:
+            return self._test_group_yaml
+
         yaml_path = self.problem.path / "data" / self.short_path.with_suffix(".yaml")
-        if self.in_path.is_relative_to(self.problem.tmpdir / "data"):
-            test_group_yaml = self.problem.get_test_case_yaml(yaml_path.parent, bar)
-            yaml_path = self.in_path.with_suffix(".yaml")
-            if yaml_path.is_file():
-                test_group_yaml = self.problem.parse_test_case_yaml(yaml_path, test_group_yaml, bar)
+        test_group_yaml = self.problem.get_test_case_yaml(yaml_path.parent, bar)
+
+        yaml_file = self.in_path.with_suffix(".yaml")
+        if not yaml_file.is_file():
             return test_group_yaml
-        else:
-            return self.problem.get_test_case_yaml(yaml_path, bar)
+
+        # substitute constants
+        raw = substitute(
+            yaml_file.read_text(),
+            self.problem.settings.constants,
+            pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+        )
+        yaml_data = parse_yaml(raw, path=yaml_path, plain=True)
+        self._test_group_yaml = TestGroup(self.problem, yaml_path, yaml_data, test_group_yaml, bar)
+        return self._test_group_yaml
+
+    def get_test_case_yaml(self, bar: BAR_TYPE) -> TestGroup:
+        assert self.in_path.is_file()
+
+        if self.in_path.is_relative_to(self.problem.tmpdir / "data"):
+            return self._parse_tmp_yaml(bar)
+        yaml_path = self.problem.path / "data" / self.short_path.with_suffix(".yaml")
+        return self.problem.get_test_case_yaml(yaml_path, bar)
 
     def validator_hashes(
         self, cls: type[validate.AnyValidator], bar: BAR_TYPE
