@@ -486,10 +486,13 @@ class TestGroup:
                 # only the hole dict is inherited not individual entries
                 validator_args_parser = parser.extract_parser(validate.InputValidator.args_key)
                 self.input_validator_args = {}
-                for val in problem.validators(validate.InputValidator):
-                    self.input_validator_args[val.name] = (
+                # no need to build validators, we just want their names
+                val_dir = problem.path / validate.InputValidator.source_dir
+                for val_path in val_dir.iterdir():
+                    val_name = val_path.relative_to(val_dir).as_posix()
+                    self.input_validator_args[val_name] = (
                         validator_args_parser.extract_optional_list(
-                            val.name,
+                            val_name,
                             str,
                             allow_value=False,
                             allow_empty=True,
