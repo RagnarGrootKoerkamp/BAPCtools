@@ -143,6 +143,26 @@ class TestGroup:
         assert isinstance(args, list)
         return args
 
+    @staticmethod
+    def parse_yaml(
+        problem: "problem.Problem",
+        file: Path,
+        parent: "TestGroup",
+        bar: BAR_TYPE,
+        *,
+        filename: Optional[Path] = None,
+    ) -> "TestGroup":
+        assert file.is_file()
+
+        # substitute constants
+        raw = substitute(
+            file.read_text(),
+            problem.settings.constants,
+            pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+        )
+        yaml_data = parse_yaml(raw, path=filename or file, plain=True)
+        return TestGroup(problem, filename or file, yaml_data, parent, bar)
+
 
 # TODO #102: Consistently separate the compound noun "test case", e.g. "TestCase" or "test_case"
 class Testcase:
@@ -249,15 +269,9 @@ class Testcase:
         yaml_file = self.in_path.with_suffix(".yaml")
         if not yaml_file.is_file():
             return test_group_yaml
-
-        # substitute constants
-        raw = substitute(
-            yaml_file.read_text(),
-            self.problem.settings.constants,
-            pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+        self._test_group_yaml = TestGroup.parse_yaml(
+            self.problem, yaml_file, test_group_yaml, bar, filename=yaml_path
         )
-        yaml_data = parse_yaml(raw, path=yaml_path, plain=True)
-        self._test_group_yaml = TestGroup(self.problem, yaml_path, yaml_data, test_group_yaml, bar)
         return self._test_group_yaml
 
     def get_test_case_yaml(self, bar: BAR_TYPE) -> TestGroup:
