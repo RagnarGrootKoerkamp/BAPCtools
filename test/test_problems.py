@@ -21,6 +21,8 @@ PROBLEMS = [
     "constants",
     "alternativeencryption",
     "testseed",
+    "generatorcount",
+    "generatorincludes",
 ]
 if not util.is_mac() and not util.is_windows():
     PROBLEMS += ["hellounix"]
