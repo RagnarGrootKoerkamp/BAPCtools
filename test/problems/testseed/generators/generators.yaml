@@ -25,3 +25,5 @@ data:
           count: 5
           yaml:
             input_validator_args: ["", "stdout.py {seed} {count}", "5"]
+  secret:
+    data: []
