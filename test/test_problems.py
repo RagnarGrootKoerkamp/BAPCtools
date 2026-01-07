@@ -20,6 +20,7 @@ PROBLEMS = [
     "multipass",
     "constants",
     "alternativeencryption",
+    "testseed",
 ]
 if not util.is_mac() and not util.is_windows():
     PROBLEMS += ["hellounix"]
