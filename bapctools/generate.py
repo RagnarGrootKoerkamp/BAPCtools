@@ -676,14 +676,14 @@ class TestcaseRule(Rule):
             else:
                 generator_config.rules_cache[self.hash] = self
 
+            if not any(all(ext in hashes for ext in required) for required in self.required_in):
+                generator_config.n_parse_error += 1
+                # An error is shown during generate.
+
         except ParseException as e:
             # For testcases we can handle the parse error locally since this does not influence much else
             self.parse_error = e.message
             generator_config.n_parse_error += 1
-
-        if not any(all(ext in hashes for ext in required) for required in self.required_in):
-            generator_config.n_parse_error += 1
-            # An error is shown during generate.
 
     def _has_required_in(t, infile: Path) -> bool:
         for required in t.required_in:

@@ -657,23 +657,17 @@ class Problem:
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
 
-    def _parse_test_case_yaml(p, file: Path, parent: TestGroup, bar: BAR_TYPE) -> None:
+    def parse_test_case_yaml(p, file: Path, parent: TestGroup, bar: BAR_TYPE) -> TestGroup:
         assert file.is_file()
-        assert file.is_relative_to(p.path / "data"), f"{file} is not in data"
 
-        with p._test_group_lock:
-            # handle race conditions
-            if file in p._test_case_yamls:
-                return
-
-            # substitute constants
-            raw = substitute(
-                file.read_text(),
-                p.settings.constants,
-                pattern=config.CONSTANT_SUBSTITUTE_REGEX,
-            )
-            yaml_data = parse_yaml(raw, path=file, plain=True)
-            p._test_case_yamls[file] = TestGroup(p, file, yaml_data, parent, bar)
+        # substitute constants
+        raw = substitute(
+            file.read_text(),
+            p.settings.constants,
+            pattern=config.CONSTANT_SUBSTITUTE_REGEX,
+        )
+        yaml_data = parse_yaml(raw, path=file, plain=True)
+        return TestGroup(p, file, yaml_data, parent, bar)
 
     def get_test_case_yaml(
         p,
@@ -694,6 +688,7 @@ class Problem:
         --------
         A TestGroup object
         """
+        assert path.is_relative_to(p.path / "data"), f"{path} is not in data"
 
         paths = []
         for f in [path, *path.parents]:
@@ -715,7 +710,10 @@ class Problem:
             if not f.is_file():
                 continue
             if f not in p._test_case_yamls:
-                p._parse_test_case_yaml(f, test_group_yaml, bar)
+                with p._test_group_lock:
+                    # handle race conditions
+                    if f not in p._test_case_yamls:
+                        p._test_case_yamls[f] = p.parse_test_case_yaml(f, test_group_yaml, bar)
             assert f in p._test_case_yamls
             test_group_yaml = p._test_case_yamls[f]
         return test_group_yaml

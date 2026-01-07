@@ -116,10 +116,15 @@ class Testcase:
 
     def get_test_case_yaml(self, bar: BAR_TYPE) -> "problem.TestGroup":
         assert self.in_path.is_file()
-        return self.problem.get_test_case_yaml(
-            self.problem.path / "data" / self.short_path.with_suffix(".yaml"),
-            bar,
-        )
+        yaml_path = self.problem.path / "data" / self.short_path.with_suffix(".yaml")
+        if self.in_path.is_relative_to(self.problem.tmpdir / "data"):
+            test_group_yaml = self.problem.get_test_case_yaml(yaml_path.parent, bar)
+            yaml_path = self.in_path.with_suffix(".yaml")
+            if yaml_path.is_file():
+                test_group_yaml = self.problem.parse_test_case_yaml(yaml_path, test_group_yaml, bar)
+            return test_group_yaml
+        else:
+            return self.problem.get_test_case_yaml(yaml_path, bar)
 
     def validator_hashes(
         self, cls: type[validate.AnyValidator], bar: BAR_TYPE
