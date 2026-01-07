@@ -1,0 +1,27 @@
+solution: /submissions/accepted/echo.py
+
+data:
+  sample:
+    data:
+      - basic_seed:
+          generate: "stdout.py {seed}"
+          yaml:
+            input_validator_args: ["", "stdout.py {seed}"]
+      - whitespace:
+          generate: "stdout.py {seed} a  aa  b "
+          yaml:
+            input_validator_args: ["", "stdout.py {seed} a  aa  b "]
+      - seed-42:
+          generate: "stdout.py {seed:42}"
+          yaml:
+            input_validator_args: ["", "stdout.py {seed:42}"]
+      - random_salt:
+          generate: "stdout.py {seed:42}"
+          random_salt: "bob"
+          yaml:
+            input_validator_args: ["bob", "stdout.py {seed:42}"]
+      - count:
+          generate: "stdout.py {seed} {count}"
+          count: 5
+          yaml:
+            input_validator_args: ["", "stdout.py {seed} {count}", "5"]

@@ -1,0 +1,1 @@
+input_validator_args: ["", "stdout.py {seed} a  aa  b "]
