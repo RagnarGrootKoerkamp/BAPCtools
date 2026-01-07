@@ -46,7 +46,11 @@ def generate(random_salt, command_string, count_index):
 expected = [generate(random_salt, command_string, x) for x in count_indices]
 got = sys.stdin.read()
 if got not in expected:
-    print(*expected)
+
+    def strip_newline(string):
+        return string.replace("\n", "\\n")
+
+    print("got:", strip_newline(got), ",expected:", *[strip_newline(e) for e in expected])
     sys.exit(43)
 else:
     sys.exit(42)
