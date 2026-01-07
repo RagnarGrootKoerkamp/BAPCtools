@@ -106,7 +106,7 @@ class Testcase:
         )
 
         # Display name: everything after data/.
-        self.name: str = str(self.short_path.with_suffix(""))
+        self.name: str = self.short_path.with_suffix("").as_posix()
 
     def __repr__(self) -> str:
         return self.name

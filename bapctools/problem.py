@@ -12,6 +12,7 @@ from colorama import Fore, Style
 from bapctools import (
     check_testing_tool,
     config,
+    expectations,
     latex,
     parallel,
     run,
@@ -21,6 +22,7 @@ from bapctools import (
     verdicts,
     visualize,
 )
+from bapctools.expectations import Person
 from bapctools.util import (
     BAR_TYPE,
     combine_hashes_dict,
@@ -32,7 +34,6 @@ from bapctools.util import (
     glob,
     has_ryaml,
     hash_file_content,
-    is_relative_to,
     is_uuid,
     log,
     math_eval,
@@ -56,27 +57,6 @@ if has_ryaml:
     import ruamel.yaml
 
 
-class Person:
-    def __init__(self, yaml_data: str | dict[object, object], parent_path: str):
-        if isinstance(yaml_data, dict):
-            parser = YamlParser("problem.yaml", yaml_data, parent_path)
-            self.name: str = parser.extract("name", "")
-            self.email: Optional[str] = parser.extract_optional("email", str)
-            self.kattis: Optional[str] = parser.extract_optional("kattis", str)
-            self.orcid: Optional[str] = parser.extract_optional("orcid", str)
-            parser.check_unknown_keys()
-        else:
-            match = re.match("(.*)<(.*)>", yaml_data)
-            self.name = (match[1] if match else yaml_data).strip()
-            self.email = match[2].strip() if match else None
-            self.kattis = self.orcid = None
-        for token in [",", " and ", "&"]:
-            if token in self.name:
-                warn(
-                    f"found suspicious token '{token.strip()}' in `{parent_path}.name`: {self.name}"
-                )
-
-
 class ProblemCredits:
     def __init__(self, parser: YamlParser):
         self.authors: list[Person] = []
@@ -90,33 +70,13 @@ class ProblemCredits:
         if "credits" not in parser.yaml:
             return
         if isinstance(parser.yaml["credits"], str):
-            self.authors = [Person(parser.extract("credits", ""), "credits")]
+            self.authors = [Person("problem.yaml", parser.extract("credits", ""), "credits")]
             return
-
-        def extract_optional_persons(source: YamlParser, key: str) -> list[Person]:
-            key_path = f"{source.parent_path}.{key}"
-            if key in source.yaml:
-                value = source.yaml.pop(key)
-                if value is None:
-                    return []
-                if isinstance(value, (str, dict)):
-                    return [Person(value, key_path)]
-                if isinstance(value, list):
-                    if not all(isinstance(v, (str, dict)) for v in value):
-                        warn(
-                            f"some values for key `{key_path}` in problem.yaml have invalid type. SKIPPED."
-                        )
-                        return []
-                    if not value:
-                        warn(f"value for `{key_path}` in problem.yaml should not be an empty list.")
-                    return [Person(v, f"{key_path}[{i}]") for i, v in enumerate(value)]
-                warn(f"incompatible value for key `{key_path}` in problem.yaml. SKIPPED.")
-            return []
 
         credits = parser.extract_parser("credits")
 
-        self.authors = extract_optional_persons(credits, "authors")
-        self.contributors = extract_optional_persons(credits, "contributors")
+        self.authors = Person.extract_optional_persons(credits, "authors")
+        self.contributors = Person.extract_optional_persons(credits, "contributors")
 
         translators = credits.extract_parser("translators")
         self.translators = {}
@@ -126,11 +86,11 @@ class ProblemCredits:
                     f"invalid language `{lang}` for {translators.parent_str} in problem.yaml. SKIPPED."
                 )
             else:
-                self.translators[lang] = extract_optional_persons(translators, lang)
+                self.translators[lang] = Person.extract_optional_persons(translators, lang)
 
-        self.testers = extract_optional_persons(credits, "testers")
-        self.packagers = extract_optional_persons(credits, "packagers")
-        self.acknowledgements = extract_optional_persons(credits, "acknowledgements")
+        self.testers = Person.extract_optional_persons(credits, "testers")
+        self.packagers = Person.extract_optional_persons(credits, "packagers")
+        self.acknowledgements = Person.extract_optional_persons(credits, "acknowledgements")
 
         credits.check_unknown_keys()
 
@@ -551,6 +511,7 @@ class Problem:
         self._testcases = dict[
             tuple[Optional[validate.Mode], bool, bool, bool], Sequence[testcase.Testcase]
         ]()
+        self._expectations: Optional[expectations.Expectation] = None
         self._submissions: Optional[Sequence[run.Submission] | Literal[False]] = None
         self._validators_cache = dict[  # The "bool" is for "check_constraints"
             tuple[type[validate.AnyValidator], bool], Sequence[validate.AnyValidator]
@@ -753,7 +714,7 @@ class Problem:
                 res_path = resolve_path_argument(p, path, "data", suffixes=[".in"])
                 if res_path:
                     # When running from contest level, the testcase must be inside the problem.
-                    if config.level != "problemset" or is_relative_to(p.path, res_path):
+                    if config.level != "problemset" or p.path.is_relative_to(res_path):
                         if res_path.is_dir():
                             in_paths += glob(res_path, "**/*.in")
                         else:
@@ -962,8 +923,18 @@ class Problem:
             return submissions
         else:
             return tuple(
-                s for s in submissions if s.expected_verdicts == [verdicts.Verdict.ACCEPTED]
+                s
+                for s in submissions
+                if all(
+                    e.permitted == {verdicts.Verdict.ACCEPTED} for e in s.expectations.all_matches()
+                )
             )
+
+    def expectations(problem) -> expectations.Expectation:
+        if problem._expectations is not None:
+            return problem._expectations
+        problem._expectations = expectations.Expectation(problem)
+        return problem._expectations
 
     def submissions(problem) -> Sequence[run.Submission] | Literal[False]:
         if problem._submissions is not None:
@@ -971,6 +942,9 @@ class Problem:
                 return False
             else:
                 return problem._submissions
+
+        # ensure that expectations are cached
+        problem.expectations()
 
         paths = []
         if config.args.submissions:
@@ -991,7 +965,7 @@ class Problem:
                             add(s)
                     else:
                         # If running from a contest, the submission must be inside a problem.
-                        if config.level == "problem" or is_relative_to(problem.path, s):
+                        if config.level == "problem" or problem.path.is_relative_to(s):
                             add(s)
         else:
             for s in glob(problem.path / "submissions", "*/*"):
@@ -1011,15 +985,8 @@ class Problem:
 
         programs = [run.Submission(problem, path) for path in paths]
 
-        # - first all submission with just one verdict (grouped by that verdict and sorted by the path)
-        # - then by subdir
-        # - then by list of verdicts
-        # - then by name
-        def submissions_key(
-            x: run.Submission,
-        ) -> tuple[int, str, Sequence[verdicts.Verdict], str, str]:
-            group = "" if len(x.expected_verdicts) == 1 else x.subdir
-            return (len(x.expected_verdicts), group, x.expected_verdicts, x.subdir, x.name)
+        def submissions_key(x: run.Submission) -> tuple[str, str]:
+            return (x.subdir, x.name)
 
         programs.sort(key=submissions_key)
 
@@ -1197,7 +1164,9 @@ class Problem:
 
     @staticmethod
     def run_some(
-        testcases: Sequence[testcase.Testcase], submissions: Sequence[run.Submission]
+        testcases: Sequence[testcase.Testcase],
+        submissions: Sequence[run.Submission],
+        skip_test_case: Callable[[run.Submission, testcase.Testcase], bool] = lambda s, t: False,
     ) -> tuple[bool, verdicts.VerdictTable]:
         max_submission_len = max([len(x.name) for x in submissions])
 
@@ -1210,6 +1179,7 @@ class Problem:
                 max_submission_len,
                 verdict_table,
                 testcases,
+                skip_test_case,
                 needs_leading_newline=needs_leading_newline,
             )
             needs_leading_newline = not printed_newline
@@ -1650,26 +1620,29 @@ class Problem:
             return False
         testcases, submissions = ts_pair
 
-        ok = True
         problem.limits.time_limit = config.args.timeout or 60
         problem.limits.time_limit_is_default = False
         problem.limits.timeout = problem.limits.time_limit + 1
 
+        ok = True
+
         def run_all(
-            select_verdict: Callable[[Sequence[verdicts.Verdict]], bool],
-            select: Callable[[Sequence[float]], float],
+            skip_test_case: Callable[[run.Submission, testcase.Testcase], bool],
+            select_duration: Callable[[Sequence[float]], float],
         ) -> tuple[str, str, float] | tuple[None, None, None]:
             nonlocal ok
 
-            cur_submissions = [s for s in submissions if select_verdict(s.expected_verdicts)]
+            def skip_submission(s: run.Submission) -> bool:
+                return all(skip_test_case(s, t) for t in testcases)
+
+            cur_submissions = [s for s in submissions if not skip_submission(s)]
 
             if len(cur_submissions) == 0:
                 return None, None, None
 
-            cur_ok, verdict_table = Problem.run_some(testcases, cur_submissions)
+            cur_ok, verdict_table = Problem.run_some(testcases, cur_submissions, skip_test_case)
             if not cur_ok:
                 ok = False
-                return None, None, None
 
             def get_slowest(result: verdicts.Verdicts) -> tuple[str, float]:
                 slowest_pair = result.slowest_test_case()
@@ -1677,18 +1650,21 @@ class Problem:
                 return slowest_pair
 
             durations = [get_slowest(result)[1] for result in verdict_table.results]
-            selected = durations.index(select(durations))
+            selected = durations.index(select_duration(durations))
             testcase, duration = get_slowest(verdict_table.results[selected])
             return verdict_table.submissions[selected], testcase, duration
 
-        submission, testcase, duration = run_all(lambda vs: vs == [verdicts.Verdict.ACCEPTED], max)
+        # determine lower bound for time limit
+        submission, slowest, duration = run_all(
+            lambda s, t: all(not e.lower_time_limit for e in s.expectations.all_matches(t)),
+            max,
+        )
         if not ok:
-            error("AC submissions failed")
-            return False
+            warn("Got unexpected verdicts")
         if submission is None:
-            error("No AC submissions found")
+            error("No submissions found to determine time limit")
             return False
-        assert testcase is not None
+        assert slowest is not None
         assert duration is not None
 
         raw_time_limit = duration * problem.limits.ac_to_time_limit
@@ -1704,7 +1680,7 @@ class Problem:
         problem.limits.timeout = int(safety_time_limit * problem.limits.time_limit_to_tle + 1)
 
         eprint()
-        PrintBar("slowest AC").log(f"  {duration:.3f}s @ {testcase} ({submission})", color="")
+        PrintBar("slowest").log(f"     {duration:.3f}s @ {slowest} ({submission})", color="")
         PrintBar("time limit").log(
             f"  {problem.limits.time_limit:.1f}s >= {duration:.3f}s * {problem.limits.ac_to_time_limit}",
             color="",
@@ -1738,14 +1714,16 @@ class Problem:
                     limits["time_limit"] = problem.limits.time_limit
                     write_yaml(problem_yaml, problem.path / "problem.yaml")
 
-        submission, testcase, duration = run_all(
-            lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min
+        # determine/check upper bound for time limit
+        submission, fastest, duration = run_all(
+            lambda s, t: all(not e.upper_time_limit for e in s.expectations.all_matches(t)),
+            min,
         )
         if submission is not None:
-            assert testcase is not None
+            assert fastest is not None
             assert duration is not None
             eprint()
-            PrintBar("fastest TLE").log(f" {duration:.3f}s @ {testcase} ({submission})", color="")
+            PrintBar("fastest TLE").log(f" {duration:.3f}s @ {fastest} ({submission})", color="")
             if duration <= problem.limits.time_limit:
                 error("TLE submission runs within time limit")
             elif duration <= safety_time_limit:
@@ -1757,16 +1735,10 @@ class Problem:
             log("No TLE submissions found")
 
         if config.args.all:
-            submission, testcase, duration = run_all(
-                lambda vs: vs != [verdicts.Verdict.ACCEPTED]
-                and vs != [verdicts.Verdict.TIME_LIMIT_EXCEEDED],
+            run_all(
+                lambda s, t: any(
+                    e.lower_time_limit or e.upper_time_limit for e in s.expectations.all_matches(t)
+                ),
                 max,
             )
-            if submission is not None:
-                assert testcase is not None
-                assert duration is not None
-                if duration > problem.limits.time_limit:
-                    warn("Non TLE submission timed out")
-                else:
-                    log("All non TLE submission finished within time limit")
         return ok
