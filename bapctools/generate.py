@@ -673,6 +673,8 @@ class TestcaseRule(Rule):
 
             if self.hash in generator_config.rules_cache:
                 self.copy_of = generator_config.rules_cache[self.hash]
+                if id(self.copy_of.yaml) != id(self.yaml):
+                    self.intended_copy = False
             else:
                 generator_config.rules_cache[self.hash] = self
 
