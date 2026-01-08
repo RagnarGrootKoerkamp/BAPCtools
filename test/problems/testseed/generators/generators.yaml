@@ -25,5 +25,15 @@ data:
           count: 5
           yaml:
             input_validator_args: ["", "stdout.py {seed} {count}", "5"]
+      - count-list:
+          generate: "stdout.py {seed:1} {count}"
+          count: [-2, 0, 1, 2]
+          yaml:
+            input_validator_args: ["", "stdout.py {seed:1} {count}", "[-2, 0, 1, 2]"]
+      - count-range:
+          generate: "stdout.py {seed:2} {count}"
+          count: -2..=3
+          yaml:
+            input_validator_args: ["", "stdout.py {seed:2} {count}", "-2..=3"]
   secret:
     data: []

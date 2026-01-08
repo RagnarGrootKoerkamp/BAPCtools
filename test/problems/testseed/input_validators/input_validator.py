@@ -9,9 +9,14 @@ random_salt = sys.argv[1]
 command_string = sys.argv[2]
 count_indices = [None]
 if 3 < len(sys.argv):
-    count_indices = list(range(int(sys.argv[3])))
-    # TODO handle a..=b
-    # TODO handle [a, b, c]
+    count_str = sys.argv[3].strip()
+    if "..=" in count_str:
+        first, last = count_str.split("..=")
+        count_indices = range(int(first) - 1, int(last))
+    elif count_str.startswith("[") and count_str.endswith("]"):
+        count_indices = [int(x) - 1 for x in count_str[1:-1].split(",")]
+    else:
+        count_indices = list(range(int(count_str)))
 
 
 # emulate bt generate of stdout.py <command_string>
@@ -27,7 +32,7 @@ def generate(random_salt, command_string, count_index):
 
     # 2. get the seed value
     seed_value = random_salt
-    if count_index is not None and count_index > 0:
+    if count_index is not None and count_index != 0:
         seed_value += f":{count_index}"
     seed_value += command_string.strip()
     seed = int(hash_string(seed_value), 16) % 2**31
