@@ -95,16 +95,12 @@ class TestGroup:
                 # only the hole dict is inherited not individual entries
                 validator_args_parser = parser.extract_parser(validate.InputValidator.args_key)
                 self.input_validator_args = {}
-                for val_name in list(validator_args_parser.yaml):
-                    if not isinstance(val_name, str):
+                for val in (problem.path / validate.InputValidator.source_dir).iterdir():
+                    if val.name not in validator_args_parser.yaml:
                         continue
-                    if not config.COMPILED_FILE_NAME_REGEX.fullmatch(val_name):
-                        continue
-                    if not (problem.path / validate.InputValidator.source_dir / val_name).exists():
-                        continue
-                    self.input_validator_args[val_name] = (
+                    self.input_validator_args[val.name] = (
                         validator_args_parser.extract_optional_list(
-                            val_name,
+                            val.name,
                             str,
                             allow_value=False,
                             allow_empty=True,
