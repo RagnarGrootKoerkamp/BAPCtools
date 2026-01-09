@@ -211,7 +211,7 @@ class Fuzz:
         generator_config = generate.GeneratorConfig(self.problem, config.args.testcases)
         self.testcase_rules: list[generate.TestcaseRule] = []
 
-        # Filter to only keep valid rules depending on seed without duplicates from count
+        # Filter to deduplicaterules
         added_testcase_rule_data = set()
 
         def add_testcase(t: generate.TestcaseRule) -> None:
@@ -224,15 +224,16 @@ class Fuzz:
             ):
                 return
 
-            testcase_rule_data = t.generator.command_string.strip()
+            testcase_rule_data = [t.generator.command_string.strip()]
             if not problem.settings.ans_is_output and ".ans" in t.hardcoded:
-                testcase_rule_data += t.hardcoded[".ans"]
+                testcase_rule_data.append(t.hardcoded[".ans"])
+            testcase_rule_key = tuple(testcase_rule_data)
 
-            if testcase_rule_data in added_testcase_rule_data:
+            if testcase_rule_key in added_testcase_rule_data:
                 return
 
             self.testcase_rules.append(t)
-            added_testcase_rule_data.add(testcase_rule_data)
+            added_testcase_rule_data.add(testcase_rule_key)
 
         generator_config.root_dir.walk(add_testcase, dir_f=None)
         if len(self.testcase_rules) == 0:
