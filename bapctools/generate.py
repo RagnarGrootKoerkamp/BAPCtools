@@ -574,6 +574,7 @@ class TestcaseRule(Rule):
                             command_string = command_string.replace(
                                 "{count}", f"{self.count_value}"
                             )
+                            self.intended_copy = False
                         else:
                             bar.warn(
                                 "Found {count} in generator command but no count in yaml. Ignored."
@@ -883,7 +884,7 @@ class TestcaseRule(Rule):
 
         if t.copy_of is not None and not t.intended_copy:
             bar.warn(
-                f'Found identical rule at {t.copy_of.path}. Use "count: <int>" if you want multiple identical testcases.'
+                f'Found identical rule at {t.copy_of.path}. Use "count: <int>" if you want identical testcases (do not use {{seed}} or {{count}}).'
             )
 
         # Some early checks.
