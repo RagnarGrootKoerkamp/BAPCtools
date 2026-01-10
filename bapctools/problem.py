@@ -190,8 +190,14 @@ class ProblemLimits:
         time_multipliers.check_unknown_keys()
 
         self.time_limit_is_default: bool = "time_limit" not in parser.yaml
-        self.raw_time_limit: float = parser.extract("time_limit", 1.0, "> 0")  # in seconds
-        self.time_resolution: float = parser.extract("time_resolution", 1.0, "> 0")
+        self.time_resolution: float = parser.extract("time_resolution", 1.0, "> 0")  # in seconds
+        self.raw_time_limit: float = parser.extract("time_limit", self.time_resolution, "> 0")
+        time_steps = self.raw_time_limit / self.time_resolution
+        if abs(time_steps - round(time_steps)) >= 0.0001:
+            error(
+                f"problem.yaml time_limit ({self.raw_time_limit}) is not an integer multiple of time_resolution ({self.time_resolution})"
+            )
+
         self.memory: int = parser.extract("memory", 2048, "> 0")  # in MiB
         self.output: int = parser.extract("output", 8, "> 0")  # in MiB
         self.code: int = parser.extract("code", 128, "> 0")  # in KiB
