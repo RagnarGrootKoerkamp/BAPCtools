@@ -632,10 +632,12 @@ class TestcaseRule(Rule):
                                 )
                             value = value["link"]
                             assert_type(f"{ext}.link", value, str)
-                            if value not in config.KNOWN_TEXT_DATA_EXTENSIONS:
-                                raise ParseException(f"Unknown value for for key {ext}.link.")
-                            assert isinstance(value, str)
-                            self.linked[ext] = value
+                            value_ext = f".{value}"
+                            if value_ext not in config.KNOWN_TEXT_DATA_EXTENSIONS:
+                                raise ParseException(
+                                    f"Unknown value `{value}` for for key {ext}.link."
+                                )
+                            self.linked[ext] = value_ext
                         else:
                             # 3. hardcoded
                             assert_type(ext, value, str)
