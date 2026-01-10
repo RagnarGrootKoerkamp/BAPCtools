@@ -156,7 +156,7 @@ class TestGroup:
             problem.settings.constants,
             pattern=config.CONSTANT_SUBSTITUTE_REGEX,
         )
-        yaml_data = parse_yaml(raw, path=filename or file, plain=True)
+        yaml_data = parse_yaml(raw, path=filename or file)
         return TestGroup(problem, filename or file, yaml_data, parent, bar)
 
 

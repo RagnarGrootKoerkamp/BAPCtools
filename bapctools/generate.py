@@ -11,6 +11,7 @@ from pathlib import Path, PurePosixPath
 from typing import cast, Final, Literal, Optional, overload, TypeVar
 
 from colorama import Fore, Style
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from bapctools import config, parallel, program, run, validate, visualize
 from bapctools.problem import Problem
@@ -26,7 +27,6 @@ from bapctools.util import (
     fatal,
     get_basedirs,
     glob,
-    has_ryaml,
     hash_file_content,
     hash_string,
     is_relative_to,
@@ -35,7 +35,6 @@ from bapctools.util import (
     PrintBar,
     ProgressBar,
     read_yaml,
-    require_ruamel,
     ryaml_get_or_add,
     shorten_path,
     substitute,
@@ -43,10 +42,6 @@ from bapctools.util import (
     write_yaml,
 )
 from bapctools.verdicts import Verdict
-
-if has_ryaml:
-    import ruamel.yaml
-
 
 YAML_TYPE = Optional[str | dict[object, object]]
 
@@ -721,7 +716,7 @@ class TestcaseRule(Rule):
 
         def write(self) -> None:
             data = {k: v for k, v in vars(self).items() if not k.startswith("_")}
-            write_yaml(data, self._path, allow_yamllib=True)
+            write_yaml(data, self._path)
 
     def link(
         t,
@@ -2244,7 +2239,6 @@ data/*
 
     # add all testcases specified as copy keys in the generators.yaml
     # can handle files and complete directories
-    @require_ruamel("generate --upgrade", False)
     def add(self, to_add: Sequence[Path]) -> bool:
         if self.n_parse_error > 0:
             return False
@@ -2268,12 +2262,12 @@ data/*
         generators_yaml = self.problem.path / "generators" / "generators.yaml"
         data = read_yaml(generators_yaml)
         if data is None:
-            data = ruamel.yaml.comments.CommentedMap()
-        assert isinstance(data, ruamel.yaml.comments.CommentedMap)
+            data = CommentedMap()
+        assert isinstance(data, CommentedMap)
 
         parent = ryaml_get_or_add(data, "data")
         parent = ryaml_get_or_add(parent, "secret")
-        entry = ryaml_get_or_add(parent, "data", ruamel.yaml.comments.CommentedSeq)
+        entry = ryaml_get_or_add(parent, "data", CommentedSeq)
 
         bar = ProgressBar("Adding", items=in_files)
         for in_file in sorted(in_files, key=lambda x: x.name):
@@ -2283,12 +2277,10 @@ data/*
             elif in_file in known:
                 bar.log("already found in generators.yaml. Skipping.")
             else:
-                entry.append(ruamel.yaml.comments.CommentedMap())
+                entry.append(CommentedMap())
                 path_in_gen = in_file.relative_to("generators")
                 name = path_in_gen.with_suffix("").as_posix().replace("/", "_")
-                new = ruamel.yaml.comments.CommentedMap(
-                    {"copy": path_in_gen.with_suffix("").as_posix()}
-                )
+                new = CommentedMap({"copy": path_in_gen.with_suffix("").as_posix()})
                 new.fa.set_flow_style()
                 entry[-1][str(name)] = new
                 bar.log("added to generators.yaml.")
@@ -2302,7 +2294,6 @@ data/*
         return True
 
     # reorder all testcases in the given directories
-    @require_ruamel("generate --reorder", False)
     def reorder(self) -> bool:
         if self.n_parse_error > 0:
             return False

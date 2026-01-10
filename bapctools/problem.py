@@ -8,6 +8,8 @@ from pathlib import Path
 from typing import Final, Literal, Optional, overload, TYPE_CHECKING
 
 from colorama import Fore, Style
+from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.scanner import ScannerError
 
 from bapctools import (
     check_testing_tool,
@@ -30,7 +32,6 @@ from bapctools.util import (
     fatal,
     generate_problem_uuid,
     glob,
-    has_ryaml,
     hash_file_content,
     is_relative_to,
     is_uuid,
@@ -49,9 +50,6 @@ from bapctools.util import (
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools.program import Program
-
-if has_ryaml:
-    import ruamel.yaml
 
 
 class Person:
@@ -517,14 +515,10 @@ class Problem:
     def _read_settings(self) -> None:
         # parse problem.yaml
         yaml_path = self.path / "problem.yaml"
-        if has_ryaml:
-            try:
-                yaml_data = read_yaml(yaml_path)
-            except ruamel.yaml.scanner.ScannerError:
-                fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
-        else:
-            yaml_data = read_yaml(yaml_path)
-        yaml_data = yaml_data or {}
+        try:
+            yaml_data = read_yaml(yaml_path) or {}
+        except ScannerError:
+            fatal(f"Make sure {self.name}/problem.yaml does not contain any more {{% ... %}}.")
 
         if not isinstance(yaml_data, dict):
             fatal(f"{self.name}/problem.yaml is illformed.")
@@ -1599,19 +1593,16 @@ class Problem:
         eprint()
 
         if config.args.write:
-            if not has_ryaml:
-                warn("ruamel.yaml library not found. Please update the time limit fields manually.")
+            yaml_path = problem.path / "problem.yaml"
+            problem_yaml = read_yaml(yaml_path)
+            if problem_yaml is None:
+                problem_yaml = CommentedMap()
+            if not isinstance(problem_yaml, CommentedMap):
+                warn("could not parse problem.yaml")
             else:
-                yaml_path = problem.path / "problem.yaml"
-                problem_yaml = read_yaml(yaml_path)
-                if problem_yaml is None:
-                    problem_yaml = ruamel.yaml.comments.CommentedMap()
-                if not isinstance(problem_yaml, ruamel.yaml.comments.CommentedMap):
-                    warn("could not parse problem.yaml")
-                else:
-                    limits = ryaml_get_or_add(problem_yaml, "limits")
-                    limits["time_limit"] = problem.limits.time_limit
-                    write_yaml(problem_yaml, problem.path / "problem.yaml")
+                limits = ryaml_get_or_add(problem_yaml, "limits")
+                limits["time_limit"] = problem.limits.time_limit
+                write_yaml(problem_yaml, problem.path / "problem.yaml")
 
         submission, testcase, duration = run_all(
             lambda vs: vs == [verdicts.Verdict.TIME_LIMIT_EXCEEDED], min

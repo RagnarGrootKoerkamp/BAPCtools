@@ -15,11 +15,9 @@ from bapctools.util import (
     error,
     fatal,
     generate_problem_uuid,
-    has_ryaml,
     inc_label,
     log,
     read_yaml,
-    require_ruamel,
     ShellCommand,
     substitute,
     warn,
@@ -178,28 +176,25 @@ def new_problem() -> None:
     problems_yaml = target_dir / "problems.yaml"
 
     if problems_yaml.is_file():
-        if has_ryaml:
-            data = read_yaml(problems_yaml) or []
-            assert isinstance(data, list)
-            prev_label = data[-1]["label"] if data else None
-            next_label = (
-                ("X" if contest.contest_yaml().test_session else "A")
-                if prev_label is None
-                else inc_label(prev_label)
-            )
-            # Name and time limits are overridden by problem.yaml, but still required.
-            data.append(
-                {
-                    "id": dirname,
-                    "label": next_label,
-                    "name": problemname,
-                    "rgb": "#000000",
-                    "time_limit": 1.0,
-                }
-            )
-            write_yaml(data, problems_yaml)
-        else:
-            error("ruamel.yaml library not found. Please update problems.yaml manually.")
+        data = read_yaml(problems_yaml) or []
+        assert isinstance(data, list)
+        prev_label = data[-1]["label"] if data else None
+        next_label = (
+            ("X" if contest.contest_yaml().test_session else "A")
+            if prev_label is None
+            else inc_label(prev_label)
+        )
+        # Name and time limits are overridden by problem.yaml, but still required.
+        data.append(
+            {
+                "id": dirname,
+                "label": next_label,
+                "name": problemname,
+                "rgb": "#000000",
+                "time_limit": 1.0,
+            }
+        )
+        write_yaml(data, problems_yaml)
 
     skip = []
     if not custom_output:
@@ -223,7 +218,6 @@ def new_problem() -> None:
             )
 
 
-@require_ruamel("rename_problem", None)
 def rename_problem(problem: Problem) -> None:
     newname = {
         lang: (

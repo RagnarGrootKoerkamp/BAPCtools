@@ -8,7 +8,6 @@ from bapctools import config
 from bapctools.util import (
     error,
     fatal,
-    has_ryaml,
     log,
     read_yaml,
     verbose,
@@ -48,13 +47,6 @@ class ContestYaml:
     def dict(self) -> dict[str, object]:
         data = {k: v for k, v in vars(self).items() if not k.startswith("_") and v is not None}
         data.update(self._yaml)
-        if not has_ryaml:
-            for key in ("duration", "scoreboard_freeze_duration"):
-                if key in data:
-                    # YAML 1.1 parses 1:00:00 as 3600. Convert it back to a string if so.
-                    # (YAML 1.2 and ruamel.yaml parse it as a string.)
-                    if isinstance(data[key], int):
-                        data[key] = str(datetime.timedelta(seconds=data[key]))
         return data
 
 

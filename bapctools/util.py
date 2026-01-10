@@ -16,7 +16,6 @@ import threading
 import time
 from collections.abc import Callable, Mapping, Sequence
 from enum import Enum
-from functools import wraps
 from io import StringIO
 from pathlib import Path
 from typing import (
@@ -27,7 +26,6 @@ from typing import (
     NoReturn,
     Optional,
     overload,
-    ParamSpec,
     Protocol,
     TYPE_CHECKING,
     TypeAlias,
@@ -35,30 +33,16 @@ from typing import (
 )
 from uuid import UUID
 
-import yaml as yamllib
 from colorama import Fore, Style
+from ruamel.yaml import YAML
+from ruamel.yaml.comments import CommentedMap
+from ruamel.yaml.constructor import DuplicateKeyError
 
 from bapctools import config
-
-try:
-    import ruamel.yaml
-
-    has_ryaml = True
-    ryaml = ruamel.yaml.YAML(typ="rt")
-    ryaml.default_flow_style = False
-    ryaml.indent(mapping=2, sequence=4, offset=2)
-    ryaml.width = sys.maxsize
-    ryaml.preserve_quotes = True
-except Exception:
-    has_ryaml = False
 
 if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/39757388
     from bapctools.problem import Problem
     from bapctools.verdicts import Verdict
-
-
-# For some reason ryaml.load doesn't work well in parallel.
-ruamel_lock = threading.Lock()
 
 
 try:
@@ -712,62 +696,38 @@ def print_name(path: Path, keep_type: bool = False) -> str:
     return str(Path(*path.parts[1 if keep_type else 2 :]))
 
 
-P = ParamSpec("P")
-R = TypeVar("R")
+ryaml = YAML(typ="rt")
+ryaml.default_flow_style = False
+ryaml.indent(mapping=2, sequence=4, offset=2)
+ryaml.width = sys.maxsize
+ryaml.preserve_quotes = True
+
+# For some reason ryaml.load doesn't work well in parallel.
+read_ruamel_lock = threading.Lock()
 
 
-def require_ruamel(action: str, return_value: R) -> Callable[[Callable[P, R]], Callable[P, R]]:
-    def decorator(function: Callable[P, R]) -> Callable[P, R]:
-        @wraps(function)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-            if not has_ryaml:
-                error(
-                    f"{action} needs the ruamel.yaml python3 library. Install python[3]-ruamel.yaml."
-                )
-                return return_value
-            return function(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
-
-
-def parse_yaml(
-    data: str, path: Optional[Path] = None, *, plain: bool = False, suppress_errors: bool = False
-) -> object:
-    # First try parsing with ruamel.yaml.
-    # If not found, use the normal yaml lib instead.
-    if has_ryaml and not plain:
-        with ruamel_lock:
-            try:
-                ret = ryaml.load(data)
-            except ruamel.yaml.constructor.DuplicateKeyError as error:
-                if suppress_errors:
-                    return None
-                if path is not None:
-                    fatal(f"Duplicate key in yaml file {path}!\n{error.args[0]}\n{error.args[2]}")
-                else:
-                    fatal(f"Duplicate key in yaml object!\n{str(error)}")
-            except Exception as e:
-                if suppress_errors:
-                    return None
-                eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
-                fatal(f"Failed to parse {path}.")
-        return ret
-
-    else:
+def parse_yaml(data: str, path: Optional[Path] = None, *, suppress_errors: bool = False) -> object:
+    with read_ruamel_lock:
         try:
-            return yamllib.safe_load(data)
+            ret = ryaml.load(data)
+        except DuplicateKeyError as e:
+            if suppress_errors:
+                return None
+            if path is not None:
+                fatal(f"Duplicate key in yaml file {path}!\n{e.args[0]}\n{e.args[2]}")
+            else:
+                fatal(f"Duplicate key in yaml object!\n{str(e)}")
         except Exception as e:
             if suppress_errors:
                 return None
             eprint(f"{Fore.YELLOW}{e}{Style.RESET_ALL}", end="")
             fatal(f"Failed to parse {path}.")
+    return ret
 
 
-def read_yaml(path: Path, *, plain: bool = False, suppress_errors: bool = False) -> object:
+def read_yaml(path: Path, *, suppress_errors: bool = False) -> object:
     assert path.is_file(), f"File {path} does not exist"
-    return parse_yaml(path.read_text(), path=path, plain=plain, suppress_errors=suppress_errors)
+    return parse_yaml(path.read_text(), path=path, suppress_errors=suppress_errors)
 
 
 def normalize_yaml_value(value: object, t: type[object]) -> object:
@@ -878,81 +838,70 @@ class YamlParser:
         return YamlParser(self.source, self.extract(key, {}), self._key_path(key), self.bar)
 
 
-if has_ryaml:
-    U = TypeVar("U")
+U = TypeVar("U")
 
-    @overload
-    def ryaml_get_or_add(
-        yaml: ruamel.yaml.comments.CommentedMap, key: str
-    ) -> ruamel.yaml.comments.CommentedMap: ...
-    @overload
-    def ryaml_get_or_add(yaml: ruamel.yaml.comments.CommentedMap, key: str, t: type[U]) -> U: ...
-    def ryaml_get_or_add(
-        yaml: ruamel.yaml.comments.CommentedMap,
-        key: str,
-        t: type[ruamel.yaml.comments.CommentedMap] | type[U] = ruamel.yaml.comments.CommentedMap,
-    ) -> ruamel.yaml.comments.CommentedMap | U:
-        assert isinstance(yaml, ruamel.yaml.comments.CommentedMap)
-        if key not in yaml or yaml[key] is None:
-            yaml[key] = t()
-        value = yaml[key]
-        assert isinstance(value, t)
-        return cast(ruamel.yaml.comments.CommentedMap | U, value)
 
-    # This tries to preserve the correct comments.
-    def ryaml_filter(data: ruamel.yaml.comments.CommentedMap, remove: str) -> object:
-        assert isinstance(data, ruamel.yaml.comments.CommentedMap)
-        remove_index = list(data.keys()).index(remove)
-        if remove_index == 0:
-            return data.pop(remove)
+@overload
+def ryaml_get_or_add(yaml: CommentedMap, key: str) -> CommentedMap: ...
+@overload
+def ryaml_get_or_add(yaml: CommentedMap, key: str, t: type[U]) -> U: ...
+def ryaml_get_or_add(
+    yaml: CommentedMap,
+    key: str,
+    t: type[CommentedMap] | type[U] = CommentedMap,
+) -> CommentedMap | U:
+    assert isinstance(yaml, CommentedMap)
+    if key not in yaml or yaml[key] is None:
+        yaml[key] = t()
+    value = yaml[key]
+    assert isinstance(value, t)
+    return cast(CommentedMap | U, value)
 
-        curr = data
-        prev_key = list(data.keys())[remove_index - 1]
-        while isinstance(curr[prev_key], (list, dict)) and len(curr[prev_key]):
-            # Try to remove the comment from the last element in the preceding list/dict
-            curr = curr[prev_key]
-            if isinstance(curr, list):
-                prev_key = len(curr) - 1
-            else:
-                prev_key = list(curr.keys())[-1]
 
-        if remove in data.ca.items:
-            # Move the comment that belongs to the removed key (which comes _after_ the removed key)
-            # to the preceding key
-            curr.ca.items[prev_key] = data.ca.items.pop(remove)
-        elif prev_key in curr.ca.items:
-            # If the removed key does not have a comment,
-            # the comment after the previous key should be removed
-            curr.ca.items.pop(prev_key)
-
+# This tries to preserve the correct comments.
+def ryaml_filter(data: CommentedMap, remove: str) -> object:
+    assert isinstance(data, CommentedMap)
+    remove_index = list(data.keys()).index(remove)
+    if remove_index == 0:
         return data.pop(remove)
 
-    # Insert a new key before an old key, then remove the old key.
-    # If new_value is not given, the default is to simply rename the old key to the new key.
-    def ryaml_replace(
-        data: ruamel.yaml.comments.CommentedMap,
-        old_key: str,
-        new_key: str,
-        new_value: object = None,
-    ) -> None:
-        assert isinstance(data, ruamel.yaml.comments.CommentedMap)
-        if new_value is None:
-            new_value = data[old_key]
-        data.insert(list(data.keys()).index(old_key), new_key, new_value)
-        data.pop(old_key)
-        if old_key in data.ca.items:
-            data.ca.items[new_key] = data.ca.items.pop(old_key)
+    curr = data
+    prev_key = list(data.keys())[remove_index - 1]
+    while isinstance(curr[prev_key], (list, dict)) and len(curr[prev_key]):
+        # Try to remove the comment from the last element in the preceding list/dict
+        curr = curr[prev_key]
+        if isinstance(curr, list):
+            prev_key = len(curr) - 1
+        else:
+            prev_key = list(curr.keys())[-1]
 
-elif not TYPE_CHECKING:
+    if remove in data.ca.items:
+        # Move the comment that belongs to the removed key (which comes _after_ the removed key)
+        # to the preceding key
+        curr.ca.items[prev_key] = data.ca.items.pop(remove)
+    elif prev_key in curr.ca.items:
+        # If the removed key does not have a comment,
+        # the comment after the previous key should be removed
+        curr.ca.items.pop(prev_key)
 
-    def ryaml_get_or_add(*args: Any, **kwargs: Any) -> object:
-        assert False, "missing ruamel.yaml"
+    return data.pop(remove)
 
-    def ryaml_filter(*args: Any, **kwargs: Any) -> object:
-        assert False, "missing ruamel.yaml"
 
-    def ryaml_replace(*args: Any, **kwargs: Any) -> None:
-        assert False, "missing ruamel.yaml"
+# Insert a new key before an old key, then remove the old key.
+# If new_value is not given, the default is to simply rename the old key to the new key.
+def ryaml_replace(
+    data: CommentedMap,
+    old_key: str,
+    new_key: str,
+    new_value: object = None,
+) -> None:
+    assert isinstance(data, CommentedMap)
+    if new_value is None:
+        new_value = data[old_key]
+    data.insert(list(data.keys()).index(old_key), new_key, new_value)
+    data.pop(old_key)
+    if old_key in data.ca.items:
+        data.ca.items[new_key] = data.ca.items.pop(old_key)
 
 
 # Only allow one thread to write at the same time. Else, e.g., generating test cases in parallel goes wrong.
@@ -961,26 +910,10 @@ write_yaml_lock = threading.Lock()
 
 # The @overload definitions are purely here for static typing reasons.
 @overload
-def write_yaml(data: object, path: None = None, allow_yamllib: bool = False) -> str: ...
+def write_yaml(data: object, path: None = None) -> str: ...
 @overload
-def write_yaml(data: object, path: Path, allow_yamllib: bool = False) -> None: ...
-
-
-# Writing a yaml file (or return as string) only works when ruamel.yaml is loaded. Check if `has_ryaml` is True before using.
-def write_yaml(
-    data: object, path: Optional[Path] = None, allow_yamllib: bool = False
-) -> Optional[str]:
-    if not has_ryaml:
-        if not allow_yamllib:
-            error(
-                "This operation requires the ruamel.yaml python3 library. Install python[3]-ruamel.yaml."
-            )
-            exit(1)
-        if path is None:
-            return yamllib.dump(data)
-        with path.open("w") as stream:
-            yamllib.dump(data, stream)
-        return None
+def write_yaml(data: object, path: Path) -> None: ...
+def write_yaml(data: object, path: Optional[Path] = None) -> Optional[str]:
     with write_yaml_lock:
         _path = StringIO() if path is None else path
         ryaml.dump(
