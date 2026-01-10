@@ -12,27 +12,12 @@ repos:
     -   id: ruff
         args: [ --fix ]
     -   id: ruff-format
--   repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+-   repo: local
     hooks:
     -   id: mypy
-        additional_dependencies:
-        -   argcomplete==3.4.0
-        -   matplotlib==3.9.1
-        -   ruamel.yaml==0.18.6
-        -   questionary==2.0.1
-        -   types-colorama==0.4.15.20240311
-        -   types-Pygments==2.18.0.20240506
-        -   types-python-dateutil==2.9.0.20241003
-        -   types-PyYAML==6.0.12.20240311
-        -   types-requests==2.32.0.20240712
-        args:
-        -   --check-untyped-defs
-        -   --exclude=test
-        -   --enable-error-code=truthy-bool
-        -   --enable-error-code=truthy-iterable
-        -   --no-incremental  # Fixes ruamel.yaml, see https://stackoverflow.com/a/65223004
-        -   --python-version=3.10
-        -   --scripts-are-modules
-        -   --strict
+        name: mypy
+        entry: mypy
+        pass_filenames: false
+        language: system
+        require_serial: true # don't split filenames into multiple processes
         exclude: ^(bapctools/resources|bin/misc|test)/
