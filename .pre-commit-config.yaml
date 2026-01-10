@@ -16,8 +16,8 @@ repos:
     hooks:
     -   id: mypy
         name: mypy
+        entry: mypy
         pass_filenames: false
-        entry: "mypy --package bapctools"
         language: system
         require_serial: true # don't split filenames into multiple processes
         exclude: ^(bapctools/resources|bin/misc|test)/
