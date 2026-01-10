@@ -1,20 +1,21 @@
 %-------------------------------------------------------------------------------
-% This is the file bapcbase.sty
+% This is the file bapcbase.sty.
 %
-% This code implements the basic features mandated by the problem spec:
+% This code implements the basic features mandated by the problem package specification:
 % https://www.kattis.com/problem-package-format/spec/2025-09.html#latex-environment-and-supported-subset
-% To use this package you must implement the following macros:
-% \InteractiveSampleHeading
-% \InteractiveRead{<path>}
-% \InteractiveWrite{<path>}
-% \InteractivePass{<pass id>}
-% \MultipassSampleHeading
-% \SamplePass{<pass id>}{<in path>}{<ans path>}
-% \Sample{<in path>}{<ans path>}
-% \ProblemHeading{<name>}
+% To use this package, you must implement the following macros:
+%   \InteractiveSampleHeading
+%   \InteractiveRead{<path>}
+%   \InteractiveWrite{<path>}
+%   \InteractivePass{<pass id>}
+%   \MultipassSampleHeading
+%   \SamplePass{<pass id>}{<in path>}{<ans path>}
+%   \Sample{<in path>}{<ans path>}
+%   \ProblemHeading{<name>}
+% Note that BAPCtools' default document class bapc.cls uses this package and defines all of the required macros.
 %-------------------------------------------------------------------------------
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesClass{bapcbase}[2026/01/01 Base LaTeX class for ICPC problem statements that get build with BAPCtools]
+\ProvidesClass{bapcbase}[2026/01/01 Base LaTeX class for ICPC problem statements that get built with BAPCtools]
 
 %-------------------------------------------------------------------------------
 % Localization
@@ -60,14 +61,14 @@
 		\remainingsamples%
 	\fi%
 }
-% Requires:
-% \InteractiveSampleHeading
-% \InteractiveRead{<path>}
-% \InteractiveWrite{<path>}
-% \InteractivePass{<pass id>}
-% \MultipassSampleHeading
-% \SamplePass{<pass id>}{<in path>}{<ans path>}
-% \Sample{<in path>}{<ans path>}
+% To use this command, you must implement the following macros:
+%   \InteractiveSampleHeading
+%   \InteractiveRead{<path>}
+%   \InteractiveWrite{<path>}
+%   \InteractivePass{<pass id>}
+%   \MultipassSampleHeading
+%   \SamplePass{<pass id>}{<in path>}{<ans path>}
+%   \Sample{<in path>}{<ans path>}
 
 %-------------------------------------------------------------------------------
 % Define problemname command and reset internal counters
@@ -76,8 +77,8 @@
 	\setcounter{NextSample}{1}
 	\ifblank{#1}{\ProblemHeading{\problemyamlname}}{\ProblemHeading{#1}}
 }
-% Requires:
-% \ProblemHeading{<name>}
+% To use this command, you must implement the following macro:
+%   \ProblemHeading{<name>}
 
 %-------------------------------------------------------------------------------
 % Environments for specifying Input, Output and Interaction
