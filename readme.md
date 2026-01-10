@@ -25,6 +25,7 @@ time since I'm not aware of usage outside of BAPC yet.
 You can install the [bapctools-git AUR package](https://aur.archlinux.org/packages/bapctools-git/),
 mirrored [here](https://github.com/RagnarGrootKoerkamp/bapctools-git).
 You can also use the [Docker image](#Docker) or install [via Pip (experimental)](#Experimental-Pip-installation).
+If you're interested in developing BAPCtools itself, see the installation instructions [at the end of this file](#Developing--Contributing-to-BAPCtools).
 
 Otherwise, clone this repository and install the required dependencies manually.
 (If you know how to make a Debian package, feel free to help out.)
@@ -227,17 +228,18 @@ and any hyphens should be replaced with an underscore (e.g., `no_bar: True` rath
 These personal config files also allow to set the key `local_time_multiplier` to adjust hardcoded time limits intended for different hardware.
 This might be useful for the CI or if your hadware is much faster or slower than the contest hardware.
 
-## Contributing / Style guide
+## Developing / Contributing to BAPCtools
 
-- The python code in the repository is formatted using [Ruff](https://github.com/astral-sh/ruff)
-  and type-checked using [mypy](https://mypy-lang.org/).
-  To enable the pre-commit hook, install [pre-commit](https://pre-commit.com/)
-  with `pip` or your package manager (Arch: `python-pre-commit`) and run
-  `pre-commit install` from the repository root.
-  All python code will now automatically be formatted on each commit.
-  If you want to run the hooks before creating a commit,
-  use `pre-commit run` (only staged files) or `pre-commit run -a` (all files).
+The recommended way to install all development dependencies is in a virtual environment,
+created with `python3 -m venv venv` and activated with `. venv/bin/activate`.<br />
+Install the development dependencies with `pip install --editable .[dev]`.
 
-- Imports are usually ordered with system libraries first, followed by a
-  newline, followed by local includes. Both groups are sorted alphabetically,
-  and `import` comes before `from ... import`.
+If you want to use your local development version of BAPCtools anywhere, you can create a symlink from any `bin` directory on your `$PATH` to the virtual environment, for example: `ln -s /path/to/BAPCtools/venv/bin/bt ~/bin/bt`
+
+The Python code in the repository is formatted using [Ruff](https://github.com/astral-sh/ruff)
+and type-checked using [mypy](https://mypy-lang.org/).
+To enable the pre-commit hook,
+run `pre-commit install` from the repository root.
+All Python code will now automatically be formatted and type-checked on each commit.
+If you want to run the hooks before creating a commit,
+use `pre-commit run` (only staged files) or `pre-commit run -a` (all files).

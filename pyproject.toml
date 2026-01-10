@@ -15,6 +15,7 @@ requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev = [
+    "pre-commit~=4.5.1",
     "pytest~=9.0.1",
     "bapctools[types]",
 ]
