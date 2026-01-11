@@ -480,11 +480,7 @@ class Program:
             bar.error("Failed", data)
             return False
 
-        write_yaml(
-            {"hash": self.hash, "command": self.compile_command},
-            meta_path,
-            allow_yamllib=True,
-        )
+        write_yaml({"hash": self.hash, "command": self.compile_command}, meta_path)
         return True
 
     # Return True on success, False on failure.

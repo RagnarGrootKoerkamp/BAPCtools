@@ -55,7 +55,6 @@ from bapctools.util import (
     error,
     fatal,
     glob,
-    has_ryaml,
     inc_label,
     is_problem_directory,
     is_relative_to,
@@ -228,17 +227,14 @@ def get_problems(problem_dir: Optional[Path]) -> tuple[list[Problem], Path]:
                 verbose(f"order: {', '.join(map(lambda p: str(p.label), problems))}")
 
                 if ask_variable_bool("Update order in contest.yaml"):
-                    if has_ryaml:
-                        contest_yaml_path = Path("contest.yaml")
-                        data = read_yaml(contest_yaml_path) or {}
-                        if not isinstance(data, dict):
-                            error("could not parse contest.yaml.")
-                        else:
-                            data["order"] = "".join(p.label or p.name for p in problems)
-                            write_yaml(data, contest_yaml_path)
-                            log("Updated order")
+                    contest_yaml_path = Path("contest.yaml")
+                    data = read_yaml(contest_yaml_path) or {}
+                    if not isinstance(data, dict):
+                        error("could not parse contest.yaml.")
                     else:
-                        error("ruamel.yaml library not found. Update the order manually.")
+                        data["order"] = "".join(p.label or p.name for p in problems)
+                        write_yaml(data, contest_yaml_path)
+                        log("Updated order")
 
     # Filter problems by submissions/testcases, if given.
     if config.level == "problemset" and (config.args.submissions or config.args.testcases):

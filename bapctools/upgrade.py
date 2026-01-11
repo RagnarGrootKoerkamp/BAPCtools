@@ -6,23 +6,20 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast, Optional
 
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
+
 from bapctools import config, generate
 from bapctools.util import (
     fatal,
-    has_ryaml,
     is_problem_directory,
     ProgressBar,
     read_yaml,
-    require_ruamel,
     ryaml_filter,
     ryaml_get_or_add,
     ryaml_replace,
     write_yaml,
 )
 from bapctools.validate import AnswerValidator, InputValidator, OutputValidator
-
-if has_ryaml:
-    from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 
 # src_base must be a dir (or symlink to dir)
@@ -630,7 +627,6 @@ def _upgrade(problem_path: Path, bar: ProgressBar) -> None:
     bar.done()
 
 
-@require_ruamel("upgrade", None)
 def upgrade(problem_dir: Optional[Path]) -> None:
     if config.level == "problem":
         assert problem_dir

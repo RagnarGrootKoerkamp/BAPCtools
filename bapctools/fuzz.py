@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from colorama import Style
+from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 from bapctools import config, generate, parallel, problem
 from bapctools.run import Run, Submission
@@ -15,19 +16,14 @@ from bapctools.util import (
     eprint,
     error,
     fatal,
-    has_ryaml,
     PrintBar,
     ProgressBar,
     read_yaml,
-    require_ruamel,
     ryaml_get_or_add,
     write_yaml,
 )
 from bapctools.validate import Mode, OutputValidator
 from bapctools.verdicts import Verdict
-
-if has_ryaml:
-    from ruamel.yaml.comments import CommentedMap, CommentedSeq
 
 # STEPS:
 # 1. Find generator invocations depending on {seed}.
@@ -247,7 +243,6 @@ class Fuzz:
         # SUBMISSIONS
         self.submissions = self.problem.selected_or_accepted_submissions()
 
-    @require_ruamel("Fuzz", False)
     def run(self) -> bool:
         if len(self.testcase_rules) == 0:
             error("No invocations depending on {seed} found.")

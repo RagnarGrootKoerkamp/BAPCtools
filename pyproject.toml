@@ -2,14 +2,13 @@
 name = "bapctools"
 version = "0.0.0"
 dependencies = [
-    "pyyaml~=6.0.3",
-    "colorama~=0.4.6",
     "argcomplete~=3.6.3; platform_system != 'Windows'",
-    "python-dateutil~=2.9.0",
-    "ruamel.yaml~=0.18.16",
+    "colorama~=0.4.6",
     "matplotlib~=3.10.7",
-    "requests~=2.32.5",
+    "python-dateutil~=2.9.0",
     "questionary~=2.1.1",
+    "requests~=2.32.5",
+    "ruamel.yaml~=0.19.1",
 ]
 requires-python = ">=3.10"
 
@@ -24,7 +23,6 @@ types = [
     "types-colorama~=0.4.15",
     "types-Pygments~=2.18.0",
     "types-python-dateutil~=2.9.0",
-    "types-PyYAML~=6.0.12",
     "types-requests~=2.32.0",
 ]
 

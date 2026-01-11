@@ -23,14 +23,12 @@ from bapctools.util import (
     error,
     fatal,
     glob,
-    has_ryaml,
     has_substitute,
     inc_label,
     log,
     normalize_yaml_value,
     PrintBar,
     read_yaml,
-    require_ruamel,
     ryaml_filter,
     substitute,
     verbose,
@@ -136,7 +134,6 @@ def build_samples_zip(problems: list[Problem], output: Path, languages: list[str
     bar.log("done")
 
 
-@require_ruamel("zip", False)
 def build_problem_zip(problem: Problem, output: Path) -> bool:
     """Make DOMjudge/Kattis ZIP file for specified problem."""
 
@@ -430,7 +427,6 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
 # solutions*.{lang}.pdf
 # problem-slides*.{lang}.pdf
 # Output is <outfile>
-@require_ruamel("zip", None)
 def build_contest_zip(
     problems: list[Problem], zipfiles: list[Path], outfile: str, languages: list[str]
 ) -> None:
@@ -481,15 +477,12 @@ def build_contest_zip(
 
 
 def update_contest_id(cid: str) -> None:
-    if has_ryaml:
-        contest_yaml_path = Path("contest.yaml")
-        data = read_yaml(contest_yaml_path)
-        assert isinstance(data, dict)
-        data["contest_id"] = cid
-        write_yaml(data, contest_yaml_path)
-        log(f"Updated contest_id to {cid}")
-    else:
-        error(f"ruamel.yaml library not found. Update the id manually to {cid}.")
+    contest_yaml_path = Path("contest.yaml")
+    data = read_yaml(contest_yaml_path)
+    assert isinstance(data, dict)
+    data["contest_id"] = cid
+    write_yaml(data, contest_yaml_path)
+    log(f"Updated contest_id to {cid}")
 
 
 def export_contest(cid: Optional[str]) -> str:
@@ -531,14 +524,11 @@ def export_contest(cid: Optional[str]) -> str:
     return new_cid
 
 
+# Update name and time limit values.
 def update_problems_yaml(problems: list[Problem], colors: Optional[list[str]] = None) -> None:
-    # Update name and time limit values.
-    if not has_ryaml:
-        log(
-            "ruamel.yaml library not found. Make sure to update the name and time limit fields manually."
-        )
-        return
-
+    # Make sure problems.yaml is formatted correctly.
+    # We cannot use the resulting `list[ProblemsYamlEntry]`, because we need to edit them.
+    # TODO #102 Perhaps there's a way that ProblemsYamlEntry can also be a ruamel.yaml CommentedMap?
     problems_yaml()
 
     log("Updating problems.yaml")
