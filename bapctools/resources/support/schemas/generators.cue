@@ -81,7 +81,7 @@ import "strings"
 		out?: string
 
 		let literal_or_link = string | {
-			link: ".in" | ".in.statement" | ".in.download" | ".ans" | ".ans.statement" | ".ans.download" | ".out"
+			link: "in" | "in.statement" | "in.download" | "ans" | "ans.statement" | "ans.download" | "out"
 		}
 		"in.statement"?:  literal_or_link
 		"in.download"?:   literal_or_link
