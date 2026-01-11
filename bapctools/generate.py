@@ -727,7 +727,7 @@ class TestcaseRule(Rule):
 
     def _has_required_in(t, infile: Path) -> bool:
         for required in t.required_in:
-            if all(infile.with_suffix(ext).is_file() for ext in required):
+            if all(infile.with_suffix(ext).is_file() or ext in t.linked for ext in required):
                 return True
         return False
 
