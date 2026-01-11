@@ -342,12 +342,9 @@ ALLOWED_LINK_KEYS: Final[Sequence[str]] = (
     "ans.download",
 )
 ALLOWED_LINK_VALUES: Final[Sequence[str]] = (
+    *ALLOWED_LINK_KEYS,
     "in",
-    "in.statement",
-    "in.download",
     "ans",
-    "ans.statement",
-    "ans.download",
 )
 KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
     "type",
@@ -473,7 +470,7 @@ class TestcaseRule(Rule):
         self.required_in: list[list[str]] = [[".in"]]
         if self.sample:
             # for samples a statement in file is also sufficient
-            self.required_in.append([".in.statement"])
+            self.required_in.append([".in.statement", ".in.download"])
             if problem.interactive or problem.multi_pass:
                 # if .interaction is supported that is also fine as long as input download is provided as well.
                 self.required_in.append([".interaction", ".in.download"])
@@ -1173,7 +1170,7 @@ class TestcaseRule(Rule):
                         and (testcase.root == "sample" or config.args.interaction)
                         and needed(".interaction", interactor_hash)
                         and not any(
-                            infile.with_suffix(ext).is_file()
+                            infile.with_suffix(ext).is_file() or ext in t.linked
                             for ext in [".out", ".in.statement", ".ans.statement"]
                         )
                     ):
