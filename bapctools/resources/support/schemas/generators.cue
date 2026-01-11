@@ -80,13 +80,16 @@ import "strings"
 		ans?: string
 		out?: string
 
-		let literal_or_link = string | {
-			link: "in" | "in.statement" | "in.download" | "ans" | "ans.statement" | "ans.download" | "out"
+		let literal_or_in_link = string | {
+			link: "in" | "in.statement" | "in.download"
 		}
-		"in.statement"?:  literal_or_link
-		"in.download"?:   literal_or_link
-		"ans.statement"?: literal_or_link
-		"ans.download"?:  literal_or_link
+		let literal_or_ans_link = string | {
+			link: "ans" | "ans.statement" | "ans.download"
+		}
+		"in.statement"?:  literal_or_in_link
+		"in.download"?:   literal_or_in_link
+		"ans.statement"?: literal_or_ans_link
+		"ans.download"?:  literal_or_ans_link
 
 		interaction?: =~"^([<>][^\\n]*\\n|---\\n)+$"
 		yaml?:        #test_case_configuration

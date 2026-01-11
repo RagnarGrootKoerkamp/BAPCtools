@@ -336,10 +336,18 @@ KNOWN_TESTCASE_KEYS: Final[Sequence[str]] = (
 )
 UNIQUE_DIRECTORY_KEYS: Final[Sequence[str]] = ("data", "test_group.yaml", "include")
 ALLOWED_LINK_KEYS: Final[Sequence[str]] = (
-    ".in.statement",
-    ".ans.statement",
-    ".in.download",
-    ".ans.download",
+    "in.statement",
+    "ans.statement",
+    "in.download",
+    "ans.download",
+)
+ALLOWED_LINK_VALUES: Final[Sequence[str]] = (
+    "in",
+    "in.statement",
+    "in.download",
+    "ans",
+    "ans.statement",
+    "ans.download",
 )
 KNOWN_DIRECTORY_KEYS: Final[Sequence[str]] = (
     "type",
@@ -617,27 +625,33 @@ class TestcaseRule(Rule):
 
                 # 3./4. hardcoded data or link to another file
                 for ext in config.KNOWN_TEXT_DATA_EXTENSIONS:
-                    if ext[1:] in yaml:
-                        value = yaml[ext[1:]]
-                        if ext == ".yaml":
+                    key = ext[1:]
+                    if key in yaml:
+                        value = yaml[key]
+                        if key == "yaml":
                             # yaml can only be hardcoded (convert dict -> str)
                             if not isinstance(value, str):
                                 value = write_yaml(value)
                                 assert value is not None
-                        if isinstance(value, dict) and ext in ALLOWED_LINK_KEYS:
+                        if isinstance(value, dict) and key in ALLOWED_LINK_KEYS:
                             # 4. linked
                             if "link" not in value or len(value) != 1:
                                 raise ParseException(
-                                    f"{ext} should either be a string or a map with only the entry link."
+                                    f"{key} should either be a string or a map with only a link entry."
                                 )
                             value = value["link"]
-                            assert_type(f"{ext}.link", value, str)
-                            value_ext = f".{value}"
-                            if value_ext not in config.KNOWN_TEXT_DATA_EXTENSIONS:
+                            assert_type(f"{key}.link", value, str)
+                            if value not in ALLOWED_LINK_VALUES:
                                 raise ParseException(
-                                    f"Unknown value `{value}` for for key {ext}.link."
+                                    f"Unknown value `{value}` for for key {key}.link."
                                 )
-                            self.linked[ext] = value_ext
+                            key_type = key.split(".", 1)[0]
+                            value_type = value.split(".", 1)[0]
+                            if key_type != value_type:
+                                raise ParseException(
+                                    f"Crosslinking from {key} to {value} is not allowed."
+                                )
+                            self.linked[ext] = f".{value}"
                         else:
                             # 3. hardcoded
                             assert_type(ext, value, str)
