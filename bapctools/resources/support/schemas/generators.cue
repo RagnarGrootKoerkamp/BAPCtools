@@ -76,11 +76,19 @@ import "strings"
 			ans?: string | [...string]
 		}
 
-		["in" | "ans" | "out"]: string
-		["in.statement" | "in.download" | "ans.statement" | "ans.download"]: string | {
-			link: "in" | "in.statement" | "in.download" | "ans" | "ans.statement" | "ans.download" | "out"
+		in?:  string
+		ans?: string
+		out?: string
+
+		let literal_or_link = string | {
+			link: ".in" | ".in.statement" | ".in.download" | ".ans" | ".ans.statement" | ".ans.download" | ".out"
 		}
-		interaction?: =~"^([<>][^\\n]*\\n)+|---$"
+		"in.statement"?:  literal_or_link
+		"in.download"?:   literal_or_link
+		"ans.statement"?: literal_or_link
+		"ans.download"?:  literal_or_link
+
+		interaction?: =~"^([<>][^\\n]*\\n|---\\n)+$"
 		yaml?:        #test_case_configuration
 
 		#config

@@ -56,8 +56,22 @@
                 },
                 {
                     "type": "object",
-                    "additionalProperties": true,
                     "properties": {
+                        "ans": {
+                            "type": "string"
+                        },
+                        "ans.download": {
+                            "type": [
+                                "string",
+                                "object"
+                            ]
+                        },
+                        "ans.statement": {
+                            "type": [
+                                "string",
+                                "object"
+                            ]
+                        },
                         "copy": {
                             "type": "string",
                             "$ref": "#/$defs/path",
@@ -89,9 +103,24 @@
                                 "pattern": "^/"
                             }
                         },
+                        "in": {
+                            "type": "string"
+                        },
+                        "in.download": {
+                            "type": [
+                                "string",
+                                "object"
+                            ]
+                        },
+                        "in.statement": {
+                            "type": [
+                                "string",
+                                "object"
+                            ]
+                        },
                         "interaction": {
                             "type": "string",
-                            "pattern": "^([<>][^\\n]*\\n)+|---$"
+                            "pattern": "^([<>][^\\n]*\\n|---\\n)+$"
                         },
                         "match": {
                             "anyOf": [
@@ -136,6 +165,9 @@
                                     }
                                 }
                             ]
+                        },
+                        "out": {
+                            "type": "string"
                         },
                         "yaml": {
                             "$ref": "#/$defs/test_case_configuration"
