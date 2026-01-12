@@ -117,6 +117,19 @@ def resolve_path(path_str: str, *, allow_absolute: bool, allow_relative: bool) -
     return Path("generators") / path
 
 
+def is_local_symlink(file: Path) -> bool:
+    if not file.is_symlink():
+        return False
+    dest = file.readlink()
+    if dest.parent != Path():
+        return False
+    if file.name.split(".", 1)[0] != dest.name.split(".", 1)[0]:
+        return False
+    if "".join(file.suffixes) not in config.KNOWN_DATA_EXTENSIONS:
+        return False
+    return True
+
+
 # An Invocation is a program with command line arguments to execute.
 # The following classes inherit from Invocation:
 # - GeneratorInvocation
@@ -727,7 +740,7 @@ class TestcaseRule(Rule):
 
     def _has_required_in(t, infile: Path) -> bool:
         for required in t.required_in:
-            if all(infile.with_suffix(ext).is_file() or ext in t.linked for ext in required):
+            if all(infile.with_suffix(ext).is_file() for ext in required):
                 return True
         return False
 
@@ -1020,6 +1033,21 @@ class TestcaseRule(Rule):
             # clean up
             shutil.rmtree(tmp)
 
+        def generate_linked(type: str) -> bool:
+            # cache entries are already set in generate_from_rule
+            for source_ext, target_ext in t.linked.items():
+                source_type = source_ext.split(".", 2)[1]
+                if source_type != type:
+                    continue
+                source = infile.with_suffix(source_ext)
+                target = infile.with_suffix(target_ext)
+                if not target.is_file():
+                    bar.error(
+                        f"link {source_ext[1:]}->{target_ext[1:]} is invalid since {target_ext[1:]} was not generated"
+                    )
+                ensure_symlink(source, target, relative=True)
+            return True
+
         def generate_from_rule() -> bool:
             nonlocal meta_yaml
 
@@ -1029,6 +1057,8 @@ class TestcaseRule(Rule):
                 rule_hashes["source_hash"] = t.hash
             for ext, string in t.hardcoded.items():
                 rule_hashes["hardcoded_" + ext[1:]] = hash_string(string)
+            for link, target in t.linked.items():
+                rule_hashes["linked_" + link[1:]] = hash_string(target)
             if t.generator:
                 rule_hashes["generator_hash"] = t.generator.hash(seed=t.seed)
                 rule_hashes["generator"] = t.generator.cache_command(seed=t.seed)
@@ -1049,39 +1079,49 @@ class TestcaseRule(Rule):
 
                 # Step 2: Copy `copy:` files for all known extensions.
                 if t.copy:
-                    # We make sure to not silently overwrite changes to files in data/
-                    # that are copied from generators/.
                     copied = False
                     for ext in config.KNOWN_DATA_EXTENSIONS:
                         ext_file = t.copy.with_suffix(ext)
-                        if ext_file.is_file():
-                            shutil.copy(ext_file, infile.with_suffix(ext), follow_symlinks=True)
+                        file = infile.with_suffix(ext)
+                        if is_local_symlink(ext_file):
+                            dest_ext = "".join(ext_file.readlink().suffixes)
+                            ensure_symlink(file, infile.with_suffix(dest_ext), relative=True)
+                            copied = True
+                        elif ext_file.is_file():
+                            shutil.copy(ext_file, file, follow_symlinks=True)
                             copied = True
                     if not copied:
                         bar.warn(f"No files copied from {t.copy}.")
 
                 # Step 3: Write hardcoded files.
-                # Note: we cannot generate links yet, since files like .ans are not yet generated
                 for ext, contents in t.hardcoded.items():
+                    file = infile.with_suffix(ext)
+                    if file.exists():
+                        file.unlink()
                     # substitute in contents? -> No!
-                    infile.with_suffix(ext).write_text(contents)
+                    file.write_text(contents)
 
-                # Step 4: Error if infile was not generated.
+                # Step 4: Write linked files
+                # Note: we cannot generate all links yet, since .ans files are not yet generated
+                if not generate_linked("in"):
+                    return False
+
+                # Step 5: Error if infile was not generated.
                 if not t._has_required_in(infile):
                     msg = ", ".join(" and ".join(required) for required in t.required_in)
                     bar.error(f"No {msg} file was generated!")
                     return False
 
-                # Step 5: save which files where generated
+                # Step 6: save which files where generated
                 meta_yaml.generated_extensions = [
                     ext for ext in config.KNOWN_DATA_EXTENSIONS if infile.with_suffix(ext).is_file()
                 ]
 
-                # Step 6: update cache
+                # Step 7: update cache
                 meta_yaml.rule_hashes = rule_hashes
                 meta_yaml.write()
 
-                # Step 7: check deterministic:
+                # Step 8: check deterministic:
                 check_deterministic(True)
             else:
                 check_deterministic(False)
@@ -1089,7 +1129,7 @@ class TestcaseRule(Rule):
             assert t._has_required_in(infile), f"Failed to generate in file: {infile.name}"
             return True
 
-        def check_match(testcase: Testcase, ext: str, bar: ProgressBar) -> None:
+        def check_match(testcase: Testcase, ext: str) -> bool:
             nonlocal meta_yaml
 
             updated = False
@@ -1106,7 +1146,9 @@ class TestcaseRule(Rule):
                 if name not in cache:
                     if text is None:
                         file = testcase.in_path.with_suffix(f".{ext}")
-                        assert file.is_file()
+                        if not file.is_file():
+                            bar.error(f"Invalid match entry, {ext} was not generated")
+                            return False
                         text = file.read_text()
                     match = pattern.search(text)
                     cache[name] = f"[{match.start()}, {match.end()})" if match else None
@@ -1115,10 +1157,11 @@ class TestcaseRule(Rule):
                 if cache[name]:
                     bar.debug(f"Found match for '{name}'': {cache[name]}")
                 else:
-                    bar.warn(f"Found not match for '{name}'")
+                    bar.warn(f"Found no match for '{name}'")
 
             if updated:
                 meta_yaml.write()
+            return True
 
         def generate_from_solution(testcase: Testcase) -> bool:
             nonlocal meta_yaml
@@ -1314,20 +1357,14 @@ class TestcaseRule(Rule):
                 return True
             if not problem.interactive and not problem.multi_pass:
                 return True
-            for ext in ["", ".statement", ".download"]:
-                ans_ext_file = infile.with_suffix(f".ans{ext}")
-                if ans_ext_file.exists():
-                    return True
-                if infile.with_suffix(f".in{ext}").exists():
-                    ans_ext_file.write_text("")
-                    return True
+            assert infile.is_file()
+            if not ansfile.is_file():
+                ansfile.write_text("")
             return True
 
         def warn_override() -> None:
             def find_override(*exts: str) -> list[str]:
-                found = [
-                    ext for ext in exts if infile.with_suffix(ext).is_file() or ext in t.linked
-                ]
+                found = [ext for ext in exts if infile.with_suffix(ext).is_file()]
                 if len(found) > 1:
                     bar.warn(f"There should be at most one of {', '.join(found)}")
                 return found
@@ -1353,10 +1390,11 @@ class TestcaseRule(Rule):
                 source = infile.with_suffix(ext)
                 target = target_infile.with_suffix(ext)
 
-                if ext in t.linked:
+                if is_local_symlink(source):
                     generator_config.known_files.add(target)
-                    dest = target_infile.with_suffix(t.linked[ext])
-                    if not dest.is_file():
+                    dest_ext = "".join(source.readlink().suffixes)
+                    dest = target_infile.with_suffix(dest_ext)
+                    if not source.is_file():
                         bar.warn(
                             f"{target.name}->{dest.name} is broken since {dest.name} was not generated"
                         )
@@ -1465,10 +1503,17 @@ class TestcaseRule(Rule):
                 return
 
             # Step 3.1: check patterns
-            check_match(testcase, "in", bar)
+            if not check_match(testcase, "in"):
+                return
 
             # Step 4: generate .ans and .interaction if needed
             if not generate_from_solution(testcase):
+                return
+            # Step 4.1: for interactive and/or multi-pass samples, generate empty .ans if it does not exist
+            if not generate_empty_interactive_sample_ans():
+                return
+            # Step 4.2: link ans files
+            if not generate_linked("ans"):
                 return
 
             # Step 5: validate .ans (and .out if it exists)
@@ -1476,20 +1521,21 @@ class TestcaseRule(Rule):
                 return
 
             # Step 5.1: check patterns
-            check_match(testcase, "ans", bar)
+            if not check_match(testcase, "ans"):
+                return
 
             # Step 6: generate visualization if needed
             if not generate_visualization(testcase):
                 return
+        else:
+            # Step 4.2: link ans files (This is independent of the infile)
+            if not generate_linked("ans"):
+                return
 
-        # Step 7: for interactive and/or multi-pass samples, generate empty .ans if it does not exist
-        if not generate_empty_interactive_sample_ans():
-            return
-
-        # Step 8: warn if statement/download files are inconsistent
+        # Step 7: warn if statement/download files are inconsistent
         warn_override()
 
-        # Step 9: copy and link all generated files
+        # Step 8: copy all generated files
         copy_generated()
 
         # Note that we set this to true even if not all files were overwritten -- a different log/warning message will be displayed for that.
