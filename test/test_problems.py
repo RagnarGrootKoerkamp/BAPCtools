@@ -191,7 +191,8 @@ class TestIdentityProblem:
                 for ext in ["ans", "in"]
             ),
             *((f"identity/data/sample/5.{ext}", 2) for ext in ["ans", "in", "out"]),
-            *((f"identity/data/sample/6.{ext}.statement", 2) for ext in ["ans", "in"]),
+            *((f"identity/data/sample/6.ans.{ext}", 2) for ext in ["download", "statement"]),
+            *((f"identity/data/sample/6.in.{ext}", 2) for ext in ["download", "statement"]),
         ], "Zip contents for data/sample/ are not correct"
 
         # The full zip should contain all PDFs in their corresponding directories.

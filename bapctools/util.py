@@ -1076,7 +1076,7 @@ def ensure_symlink(link: Path, target: Path, output: bool = False, relative: boo
 
         # Do nothing if link already points to the right target.
         if link.is_symlink() and link.resolve() == target.resolve():
-            is_absolute = os.readlink(link)
+            is_absolute = link.readlink() == target.absolute()
             if not relative and is_absolute:
                 return True
             # if relative and not is_absolute: return
