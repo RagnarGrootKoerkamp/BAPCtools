@@ -463,8 +463,8 @@ class VerdictTable:
                 )
 
                 eprint(
-                    f"\033[{lines - 1}A\r",
-                    end="",
+                    "\033[K\033[A" * (lines - 1),
+                    end="\r",
                     flush=True,
                 )
 
