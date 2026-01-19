@@ -380,6 +380,17 @@ class Submission(program.Program):
             bar.warn(f"Unknown language: {self.expectations.language}{msg}")
         return candidates
 
+    # TODO is this the meaning of entry point?
+    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> Path:
+        fallback = super()._get_entry_point(files, bar)
+        if self.expectations.entrypoint is None:
+            return fallback
+        for file in files:
+            if file.name == self.expectations.entrypoint:
+                return file
+        bar.warn(f"Invalid entrypoint for {self.name}, using {fallback.name}")
+        return fallback
+
     # Run submission on in_path, writing stdout to out_path.
     # args is used by SubmissionInvocation to pass on additional arguments.
     # Returns ExecResult

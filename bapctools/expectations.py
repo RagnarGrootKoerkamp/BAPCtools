@@ -63,8 +63,7 @@ VERDICTS: Final[Sequence[Verdict]] = [
 ]
 KNOWN_VERDICTS: Final[Mapping[str, Verdict]] = {v.short(): v for v in VERDICTS}
 
-SUSPICIOUS_GLOB_REGEX = "[^a-zA-Z0-9*_./-]|\\*\\*"
-COMPILED_SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile(SUSPICIOUS_GLOB_REGEX)
+COMPILED_SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile("[^a-zA-Z0-9*_./-]|\\*\\*")
 
 
 def _compile_glob(raw: str) -> re.Pattern[str]:
@@ -175,8 +174,6 @@ class SubmissionExpectation:
 
         self.language: Optional[str] = parser.extract_optional("language", str)
         self.entrypoint: Optional[str] = parser.extract_optional("entrypoint", str)
-        if self.entrypoint is not None:
-            warn("entrypoint is not used by BAPCtools.")
         self.authors: list[Person] = Person.extract_optional_persons(parser, "authors")
         self.model_solution: bool = parser.extract("model_solution", False)
 
