@@ -2,6 +2,7 @@ import re
 import shlex
 import shutil
 import stat
+import string
 import subprocess
 import threading
 from collections.abc import Callable, Mapping, Sequence
@@ -36,14 +37,23 @@ if TYPE_CHECKING:  # Prevent circular import: https://stackoverflow.com/a/397573
 
 
 class Language:
+    ID_REGEX: Final[re.Pattern[str]] = re.compile("[a-z][a-z0-9]*")
+    ENTRY_POINTS: Final[Sequence[str]] = ("binary", "mainfile", "mainclass", "Mainclass")
+    VARIABLES: Final[Sequence[str]] = ("path", "files", *ENTRY_POINTS, "memlim")
+    # Out-of-spec variables used by 'manual' and 'Viva' languages.
+    INTERNAL_ENTRY_POINTS: Final[Sequence[str]] = ("run",)
+    INTERNAL_VARIABLES: Final[Sequence[str]] = ("viva_jar", "build", *INTERNAL_ENTRY_POINTS)
+    # Prefix for internal langiuages, the ':' makes this distinguishable from normal languages
+    INTERNAL_PREFIX: Final[str] = "BAPCtools:"
+
     def __init__(self, lang_id: str, conf: dict[object, object]) -> None:
-        self.ok = False
+        self.ok = True
         parser = YamlParser("languages.yaml", conf, lang_id)
 
         self.id = lang_id
         self.name = parser.extract_and_error("name", str)
         self.priority = parser.extract_and_error("priority", int)
-        self.files = (parser.extract_optional("files", str) or "").split()
+        self.files = parser.extract_and_error("files", str).split()
         self.shebang = None
         shebang = parser.extract_optional("shebang", str)
         if shebang is not None:
@@ -53,6 +63,36 @@ class Language:
                 warn(f"invalid shebang in languages.yaml for '{lang_id}'. SKIPPED.")
         self.compile = parser.extract_optional("compile", str)
         self.run = parser.extract_and_error("run", str)
+
+        def get_variables(command: str) -> set[str]:
+            fields = []
+            for _, field, format_spec, _ in string.Formatter().parse(command):
+                if field is None:
+                    continue
+                # cannot distinguish "{path}" from "{path:}" but better than nothing...
+                if format_spec:
+                    warn(
+                        f"found meta variable {{{field}:{format_spec}}} in languages.yaml for '{lang_id}', did you mean {{{field}}}?"
+                    )
+                fields.append(field)
+            return set(fields)
+
+        # check the language specification
+        variables = get_variables(self.run)
+        if self.compile is not None:
+            variables |= get_variables(self.compile)
+        known_variables = set(Language.VARIABLES)
+        known_entry_points = set(Language.ENTRY_POINTS)
+        if lang_id.startswith(Language.INTERNAL_PREFIX):
+            known_variables |= set(Language.INTERNAL_VARIABLES)
+            known_entry_points |= set(Language.INTERNAL_ENTRY_POINTS)
+        for unknown in variables - known_variables:
+            error(f"Unknown meta variable {unknown} in languages.yaml for '{lang_id}'.")
+            self.ok = False
+        entry_points = variables & known_entry_points
+        if len(entry_points) != 1:
+            error(f"Expected exactly one entry point in languages.yaml for '{lang_id}'.")
+            self.ok = False
 
         def get_exe(key: str, command: str) -> Optional[str]:
             try:
@@ -68,7 +108,7 @@ class Language:
         self.run_exe = get_exe("run", self.run)
 
         parser.check_unknown_keys()
-        self.ok = parser.errors == 0
+        self.ok &= parser.errors == 0
 
     def __lt__(self, other: "Language") -> bool:
         return self.id > other.id
@@ -85,18 +125,18 @@ class Language:
 
 
 CHECKTESTDATA: Final[Language] = Language(
-    "BAPCtools:checktestdata",
+    Language.INTERNAL_PREFIX + "checktestdata",
     {
-        "name": "Checktestdata",
+        "name": "checktestdata",
         "priority": 1,
         "files": "*.ctd",
         "run": "checktestdata {mainfile}",
     },
 )
 VIVA: Final[Language] = Language(
-    "BAPCtools:viva",
+    Language.INTERNAL_PREFIX + "viva",
     {
-        "name": "Viva",
+        "name": "viva",
         "priority": 2,
         "files": "*.viva",
         "run": "java -jar {viva_jar} {mainfile}",
@@ -106,7 +146,7 @@ EXTRA_LANGUAGES: Final[Sequence[Language]] = (
     CHECKTESTDATA,
     VIVA,
     Language(
-        "BAPCtools:manual",
+        Language.INTERNAL_PREFIX + "manual",
         {
             "name": "manual",
             "priority": 9999,
@@ -141,6 +181,9 @@ def languages() -> Sequence[Language]:
         for lang_id, lang_conf in raw_languages.items():
             if not isinstance(lang_id, str):
                 error("keys in languages.yaml must be strings. SKIPPED.")
+                continue
+            if not Language.ID_REGEX.match(lang_id):
+                error(f"key {lang_id} in languages.yaml is invalid. SKIPPED.")
                 continue
             if not isinstance(lang_conf, dict):
                 error(f"invalid entry {lang_id} in languages.yaml. SKIPPED.")
@@ -304,6 +347,17 @@ class Program:
             )
         return candidates
 
+    def _get_entry_point(self, files: list[Path], bar: ProgressBar) -> Path:
+        if not self.has_deps:
+            if len(files) == 1:
+                return files[0]
+            for f in sorted(files):
+                if f.name.lower().startswith("main"):
+                    return f
+            return sorted(files)[0]
+        else:
+            return self.tmpdir / self.source_files[0].name
+
     # Sets self.language and self.env['mainfile']
     def _get_language(self, bar: ProgressBar) -> bool:
         candidates = self._get_language_candidates(bar)
@@ -337,19 +391,7 @@ class Program:
                     bar.debug(f"Falling back to {name}.")
 
             self.language = lang
-            # TODO determine entry point
-            mainfile = None
-            if not self.has_deps:
-                if len(files) == 1:
-                    mainfile = files[0]
-                else:
-                    for f in files:
-                        if f.name.lower().startswith("main"):
-                            mainfile = f
-                    mainfile = mainfile or sorted(files)[0]
-            else:
-                mainfile = self.tmpdir / self.source_files[0].name
-
+            mainfile = self._get_entry_point(files, bar)
             mainclass = str(mainfile.with_suffix("").name)
             self.env = {
                 "path": str(self.tmpdir),
