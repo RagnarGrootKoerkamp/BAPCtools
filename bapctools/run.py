@@ -386,7 +386,8 @@ class Submission(program.Program):
         if self.expectations.entrypoint is None:
             return fallback
         for file in files:
-            if file.name == self.expectations.entrypoint:
+            name = file.relative_to(self.tmpdir).as_posix()
+            if name == self.expectations.entrypoint:
                 return file
         bar.warn(f"Invalid entrypoint for {self.name}, using {fallback.name}")
         return fallback
