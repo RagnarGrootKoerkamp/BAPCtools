@@ -194,7 +194,6 @@ class SubmissionExpectation:
         return self.submission_regex.match(submission.name) is not None
 
     def all_matches(self, testcase: Optional[Testcase] = None) -> list[TestcaseExpectation]:
-        # TODO: should we return all here? there could be expectations that match no test case at all?
         if testcase is None:
             return self.expectations
         # TODO: warn if if there is no match?
