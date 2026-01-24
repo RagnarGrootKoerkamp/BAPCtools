@@ -451,9 +451,12 @@ class Problem:
         self._programs = dict[Path, "Program"]()
         self._program_callbacks = dict[Path, list[Callable[["Program"], None]]]()
         # Dictionary from path to parsed file contents.
-        self._root_test_case_yaml: Optional[testcase.TestGroup] = None
-        self._test_case_yamls = dict[Path, testcase.TestGroup]()
+        self._root_test_group_yaml: Optional[testcase.TestGroup] = None
+        self._test_group_yamls = dict[Path, testcase.TestGroup]()
         self._test_group_lock = threading.Lock()
+        # Because Problem.testcases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
+        # this cache makes sure that some warnings (like malformed test case names) only appear once.
+        self._warned_for_test_case = set[str]()
 
         # The label for the problem: A, B, A1, A2, X, ...
         self.label = label
@@ -545,7 +548,7 @@ class Problem:
         self.multi_pass: bool = self.settings.multi_pass
         self.custom_output: bool = self.settings.custom_output
 
-    def get_test_case_yaml(
+    def get_test_group_yaml(
         p,
         path: Path,
         bar: BAR_TYPE,
@@ -568,37 +571,35 @@ class Problem:
 
         paths = []
         for f in [path, *path.parents]:
+            # ignore <test_case>.yaml
+            if f.is_file():
+                continue
             # Do not go above the data directory.
             if f == p.path:
                 break
             paths.append(f)
 
         # create a root testcase.TestGroup object
-        if p._root_test_case_yaml is None:
+        if p._root_test_group_yaml is None:
             with p._test_group_lock:
-                if p._root_test_case_yaml is None:
-                    p._root_test_case_yaml = testcase.TestGroup(p, None, {}, None, bar)
+                if p._root_test_group_yaml is None:
+                    p._root_test_group_yaml = testcase.TestGroup(p, None, {}, None, bar)
 
-        test_group_yaml = p._root_test_case_yaml
+        test_group_yaml = p._root_test_group_yaml
         for f in reversed(paths):
-            if f.is_dir():
-                f = f / "test_group.yaml"
+            f = f / "test_group.yaml"
             if not f.is_file():
                 continue
-            if f not in p._test_case_yamls:
+            if f not in p._test_group_yamls:
                 with p._test_group_lock:
                     # handle race conditions
-                    if f not in p._test_case_yamls:
-                        p._test_case_yamls[f] = testcase.TestGroup.parse_yaml(
+                    if f not in p._test_group_yamls:
+                        p._test_group_yamls[f] = testcase.TestGroup.parse_yaml(
                             p, f, test_group_yaml, bar
                         )
-            assert f in p._test_case_yamls
-            test_group_yaml = p._test_case_yamls[f]
+            assert f in p._test_group_yamls
+            test_group_yaml = p._test_group_yamls[f]
         return test_group_yaml
-
-    # Because Problem.testcases() may be called multiple times (e.g. validating multiple modes, or with `bt all`),
-    # this cache makes sure that some warnings (like malformed test case names) only appear once.
-    _warned_for_test_case = set[str]()
 
     def _warn_once(p, test_name: str, msg: str) -> None:
         if test_name not in p._warned_for_test_case:
@@ -1385,7 +1386,7 @@ class Problem:
         if not p.validators(validate.OutputValidator, strict=True, print_warn=False):
             return True
 
-        args = p.get_test_case_yaml(
+        args = p.get_test_group_yaml(
             p.path / "data" / "valid_output",
             PrintBar("Generic Output Validation"),
         ).output_validator_args
