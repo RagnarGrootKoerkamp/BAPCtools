@@ -170,28 +170,32 @@ class TestcaseExpectation:
 # Represents a submissions.yaml entry of a submission glob
 # This stores all testcase globs
 class SubmissionExpectation:
-    def __init__(self, submission_glob: str, yaml_data: dict[object, object]) -> None:
+    def __init__(
+        self, submission_glob: str, yaml_data: Optional[dict[object, object]] = None
+    ) -> None:
         self.submission_glob: str = submission_glob
         self.submission_regex: re.Pattern[str] = _compile_glob(submission_glob)
 
-        parser = YamlParser("submissions.yaml", yaml_data, submission_glob)
+        parser = YamlParser("submissions.yaml", yaml_data or {}, submission_glob)
 
         self.language: Optional[str] = parser.extract_optional("language", str)
         self.entrypoint: Optional[str] = parser.extract_optional("entrypoint", str)
         self.authors: list[Person] = Person.extract_optional_persons(parser, "authors")
         self.model_solution: bool = parser.extract("model_solution", False)
 
-        self.expectations: list[TestcaseExpectation] = [TestcaseExpectation(parser)]
-        for key in list(parser.yaml):
-            if not isinstance(key, str):
-                continue
-            has_prefix = False
-            for prefix in ["sample", "secret", "*"]:
-                has_prefix |= key == prefix
-                has_prefix |= key.startswith(f"{prefix}/")
-            if not has_prefix:
-                warn(f"test case glob `{key}` does not start with `sample`, `secret`, or `*`")
-            self.expectations.append(TestcaseExpectation(parser.extract_parser(key), key))
+        self.expectations: list[TestcaseExpectation] = []
+        if yaml_data is not None:
+            self.expectations.append(TestcaseExpectation(parser))
+            for key in list(parser.yaml):
+                if not isinstance(key, str):
+                    continue
+                has_prefix = False
+                for prefix in ["sample", "secret", "*"]:
+                    has_prefix |= key == prefix
+                    has_prefix |= key.startswith(f"{prefix}/")
+                if not has_prefix:
+                    warn(f"test case glob `{key}` does not start with `sample`, `secret`, or `*`")
+                self.expectations.append(TestcaseExpectation(parser.extract_parser(key), key))
         parser.check_unknown_keys()
 
     def matches(self, submission: "Submission") -> bool:
@@ -209,6 +213,14 @@ class SubmissionExpectation:
         for e in self.all_matches(testcase):
             permitted &= e.permitted
         return permitted
+
+    def is_accepted(self) -> bool:
+        """
+        A submission is considered accepted if its root TestcaseExpectation only permits AC
+        """
+        return any(
+            e.permitted == {Verdict.ACCEPTED} for e in self.expectations if e.test_case_glob is None
+        )
 
 
 # This store all data in the submissions.yaml
@@ -248,7 +260,7 @@ class Expectations:
 
         # A submission can be matched by multiple submissions globs
         # => we try to combine them and warn in case of inconsistencies
-        combined = SubmissionExpectation(submission.name, {})
+        combined = SubmissionExpectation(submission.name)
         found_match = False
         for expectation in self.expectations.values():
             if not expectation.matches(submission):
