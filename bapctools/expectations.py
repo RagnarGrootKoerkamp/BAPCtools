@@ -55,13 +55,15 @@ class Person:
         return []
 
 
-VERDICTS: Final[Sequence[Verdict]] = [
+EXPECTATION_VERDICTS: Final[Sequence[Verdict]] = [
     Verdict.ACCEPTED,
     Verdict.WRONG_ANSWER,
     Verdict.TIME_LIMIT_EXCEEDED,
     Verdict.RUNTIME_ERROR,
 ]
-KNOWN_VERDICTS: Final[Mapping[str, Verdict]] = {v.short(): v for v in VERDICTS}
+KNOWN_EXPECTATION_VERDICTS: Final[Mapping[str, Verdict]] = {
+    v.short(): v for v in EXPECTATION_VERDICTS
+}
 
 COMPILED_SUSPICIOUS_GLOB_REGEX: Final[re.Pattern[str]] = re.compile("[^a-zA-Z0-9*_./-]|\\*\\*")
 
@@ -114,16 +116,18 @@ class TestcaseExpectation:
         if test_case_glob is not None:
             self.test_case_regex = _compile_glob(test_case_glob)
 
-        def extract_verdicts(key: str, default: set[Verdict] = set(VERDICTS)) -> set[Verdict]:
+        def extract_verdicts(
+            key: str, default: set[Verdict] = set(EXPECTATION_VERDICTS)
+        ) -> set[Verdict]:
             verdicts = parser.extract_optional_list(key, str)
             if not verdicts:
                 return default
-            if any(v not in KNOWN_VERDICTS for v in verdicts):
+            if any(v not in KNOWN_EXPECTATION_VERDICTS for v in verdicts):
                 warn(
                     f"some values for key `{parser.parent_path}.{key}` in {parser.source} are unknown. SKIPPED."
                 )
                 return default
-            return {KNOWN_VERDICTS[v] for v in verdicts}
+            return {KNOWN_EXPECTATION_VERDICTS[v] for v in verdicts}
 
         self.permitted: set[Verdict] = extract_verdicts("permitted")
         self.required: set[Verdict] = extract_verdicts("required", self.permitted)
@@ -200,7 +204,7 @@ class SubmissionExpectation:
         return [e for e in self.expectations if e.matches(testcase)]
 
     def all_permitted(self, testcase: Optional[Testcase] = None) -> set[Verdict]:
-        permitted = set(VERDICTS)
+        permitted = set(EXPECTATION_VERDICTS)
         for e in self.all_matches(testcase):
             permitted &= e.permitted
         return permitted
