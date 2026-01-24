@@ -43,12 +43,14 @@ def select_languages(problems: list[Problem]) -> list[str]:
     if config.args.lang:
         languages = config.args.lang
     else:
-        languages = list(set(sum((p.statement_languages for p in problems), [])))
-    languages.sort()
-    if config.args.legacy:
-        if len(languages) > 1:
-            # legacy can handle at most one language
-            fatal("Multiple languages found, please specify one with --lang")
+        languages = sorted(
+            set(sum((p.statement_languages for p in problems), [])),
+            # Make sure "en" is first in the list by default, sort the rest alphabetically.
+            key=lambda k: "" if k == "en" else k,
+        )
+    if config.args.legacy and not config.args.kattis and len(languages) > 1:
+        # legacy DOMjudge can handle at most one language
+        fatal("Multiple languages found, please specify one with --lang")
     if not languages:
         fatal("No language found")
     return languages
@@ -269,25 +271,26 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
     bar = bar.start(f"{problem.name}.zip")
 
     # move pdfs
-    if config.args.legacy:
-        for type in PdfType:
-            file = export_dir / type.path(languages[0], ".pdf").name
-            if file.exists():
-                file.rename(remove_language_pdf_suffix(file, languages[0]))
-    else:
-        for language in languages:
+    if not config.args.kattis:
+        if config.args.legacy:
             for type in PdfType:
-                path = type.path(language, ".pdf")
-                file = export_dir / path.name
-                out = export_dir / path
-                if not file.exists():
-                    continue
-                if out.exists():
-                    bar.warn(f"can't add {path} (already exists).")
-                    file.unlink()
-                    continue
-                out.parent.mkdir(parents=True, exist_ok=True)
-                file.rename(out)
+                file = export_dir / type.path(languages[0], ".pdf").name
+                if file.exists():
+                    file.rename(remove_language_pdf_suffix(file, languages[0]))
+        else:
+            for language in languages:
+                for type in PdfType:
+                    path = type.path(language, ".pdf")
+                    file = export_dir / path.name
+                    out = export_dir / path
+                    if not file.exists():
+                        continue
+                    if out.exists():
+                        bar.warn(f"can't add {path} (already exists).")
+                        file.unlink()
+                        continue
+                    out.parent.mkdir(parents=True, exist_ok=True)
+                    file.rename(out)
 
     # downgrade some parts of the problem to be more legacy like
     if config.args.legacy:
@@ -307,7 +310,9 @@ def build_problem_zip(problem: Problem, output: Path) -> bool:
         else:
             validation.append("default")
         yaml_data["validation"] = " ".join(validation)
-        # name is a string, not a map
+        # In legacy problem.yaml, name is a string, not a map.
+        # Note that for --kattis, the alphabetically first language is used by default.
+        # Pass multiple languages to --lang to make sure your favourite language ends up first.
         yaml_data["name"] = problem.settings.name[languages[0]]
         # credits -> author
         if "credits" in yaml_data:
